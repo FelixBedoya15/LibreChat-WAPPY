@@ -95,6 +95,7 @@ COPY contratoembajadores.html ./contratoembajadores.html
 COPY cursoappweb.html ./cursoappweb.html
 COPY camaracomercioguajira.html ./camaracomercioguajira.html
 COPY presentacion_arl_sura.html ./presentacion_arl_sura.html
+COPY presentacion_arl_colmena.html ./presentacion_arl_colmena.html
 # Agentes Wappy: plantillas de instrucciones para los agentes de IA
 COPY Agentes ./Agentes
 WORKDIR /app/api

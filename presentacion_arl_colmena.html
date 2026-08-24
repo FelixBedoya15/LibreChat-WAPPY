@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wappy IA × Colmena Seguros — Alianza Estratégica</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Tailwind Config for Branding (Wappy Green + Colmena Red) -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        heading: ['"Outfit"', 'sans-serif'],
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        code: ['"Fira Code"', 'monospace'],
+                    },
+                    colors: {
+                        wappy: {
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        },
+                        colmena: {
+                            500: '#e11d48', /* Colmena Red / Carmín */
+                            600: '#be123c',
+                            900: '#881337',
+                        },
+                        darkBg: '#030712',
+                        darkCard: 'rgba(17, 24, 39, 0.55)',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(225, 29, 72, 0.15);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            transition: all 0.3s ease;
+        }
+
+        .dark .glass-panel {
+            background: rgba(17, 24, 39, 0.65);
+            border: 1px solid rgba(225, 29, 72, 0.12);
+        }
+        
+        .glow-bg {
+            position: absolute;
+            width: 50vw;
+            height: 50vw;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(140px);
+            z-index: 0;
+            opacity: 0.05;
+            transition: all 0.5s ease;
+        }
+
+        .dark .glow-bg {
+            opacity: 0.12;
+        }
+
+        .scrollspy-active {
+            color: #e11d48 !important;
+            border-left-color: #e11d48 !important;
+            padding-left: 1.25rem !important;
+            font-weight: 700;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: #030712;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(225, 29, 72, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #e11d48;
+        }
+
+        /* Print styles to generate clean B2B pitch PDF */
+        @media print {
+            header, aside, button, input[type="range"], .tip-box, .btn, .no-print, nav, #meetingTimer, .agent-filter-btn {
+                display: none !important;
+            }
+            body {
+                background: white !important;
+                color: #0f172a !important;
+            }
+            main {
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            section {
+                page-break-after: always;
+                page-break-inside: avoid;
+                margin-top: 0 !important;
+                padding: 1.5rem 0 !important;
+            }
+            .glass-panel {
+                background: white !important;
+                border: 1px solid #cbd5e1 !important;
+                box-shadow: none !important;
+                color: #0f172a !important;
+                backdrop-filter: none !important;
+            }
+            h1, h2, h3, h4 {
+                color: #0f172a !important;
+            }
+            p, span, li, div {
+                color: #334155 !important;
+            }
+            .text-transparent {
+                background: none !important;
+                -webkit-background-clip: unset !important;
+                -webkit-text-fill-color: initial !important;
+                color: #e11d48 !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-darkBg dark:text-slate-100 font-sans min-h-screen relative overflow-x-hidden transition-colors duration-300">
+
+    <!-- Ambient Glows -->
+    <div class="glow-bg bg-colmena-900 top-0 right-0"></div>
+    <div class="glow-bg bg-wappy-500 bottom-0 left-0"></div>
+
+    <!-- HEADER / NAVIGATION -->
+    <header class="sticky top-0 z-50 px-4 sm:px-8 py-3.5 flex justify-between items-center border-b border-slate-200 dark:border-slate-800/80 bg-white/85 dark:bg-darkBg/80 backdrop-blur-md transition-colors duration-300">
+        <div class="flex items-center gap-3 sm:gap-4">
+            <div class="flex items-center gap-2">
+                <!-- Wappy logo adapts to dark/light mode -->
+                <img src="Agentes/Miniaturas/Logos%20/favicon__4_-removebg-preview.png" alt="Wappy Logo" class="h-7 sm:h-8 w-auto dark:brightness-200 dark:contrast-100 transition-all">
+                <span class="font-heading font-black text-lg sm:text-xl tracking-tight text-slate-900 dark:text-white">WAPPY<span class="text-wappy-500">IA</span></span>
+            </div>
+            <div class="h-5 w-[1px] bg-slate-300 dark:bg-slate-700 hidden sm:block"></div>
+            <!-- Colmena Seguros logo -->
+            <img src="https://estandarseguros.com/wp-content/uploads/2020/10/colmena-seg.jpg" alt="Colmena Seguros Logo" class="h-6 sm:h-7 w-auto object-contain rounded bg-white px-1.5 py-0.5 shadow-sm hidden sm:block">
+        </div>
+
+        <div class="flex items-center gap-2 sm:gap-4">
+            <!-- 30-Min Live Countdown Timer -->
+            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[11px] sm:text-xs font-semibold text-slate-650 dark:text-slate-350">
+                <i data-lucide="clock" class="w-3.5 h-3.5 text-colmena-500"></i>
+                <span id="meetingTimer">30:00</span>
+            </div>
+
+            <!-- Light/Dark Mode Toggle Button -->
+            <button onclick="toggleTheme()" class="p-1.5 sm:p-2 rounded-full border border-slate-250 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all text-slate-600 dark:text-slate-300" aria-label="Toggle theme">
+                <i data-lucide="sun" class="w-4 h-4 block dark:hidden"></i>
+                <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
+            </button>
+
+            <a href="#piloto" class="px-4 py-1.5 sm:px-5 sm:py-2 rounded-full bg-gradient-to-r from-wappy-500 to-colmena-500 text-slate-950 font-bold text-[10px] sm:text-xs hover:scale-105 transition-all hidden sm:inline-block">
+                Iniciar Alianza
+            </a>
+        </div>
+    </header>
+
+    <!-- CONTENT LAYOUT -->
+    <div class="max-w-[1400px] mx-auto px-6 lg:px-12 py-8 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-12 relative z-10">
+        
+        <!-- SIDEBAR STICKY NAVIGATION -->
+        <aside class="hidden lg:block">
+            <div class="sticky top-28 space-y-6">
+                <div class="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-heading font-bold mb-4">Secciones de la Propuesta</div>
+                <nav class="flex flex-col border-l border-slate-200 dark:border-slate-800 gap-1 text-sm font-medium">
+                    <a href="#inicio" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-colmena-500 dark:hover:text-white transition-all">01. Contexto y Dolor</a>
+                    <a href="#validacion" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-colmena-500 dark:hover:text-white transition-all">02. Validación Real</a>
+                    <a href="#alcance" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-colmena-500 dark:hover:text-white transition-all">03. Alcance de Plataforma</a>
+                    <a href="#creador" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-colmena-500 dark:hover:text-white transition-all">04. El Creador</a>
+                    <a href="#agentes" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-colmena-500 dark:hover:text-white transition-all">05. Ecosistema de Agentes</a>
+                    <a href="#seguridad" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-colmena-500 dark:hover:text-white transition-all">06. Seguridad y Soporte</a>
+                    <a href="#divulgacion" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-colmena-500 dark:hover:text-white transition-all">07. Plan de Divulgación</a>
+                    <a href="#propuesta" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-colmena-500 dark:hover:text-white transition-all">08. Propuesta Económica</a>
+                    <a href="#piloto" class="py-2.5 pl-4 border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-colmena-500 dark:hover:text-white transition-all">09. Plan Piloto</a>
+                </nav>
+
+                <!-- Shortcut Box -->
+                <div id="adminTipBox" class="p-4 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400 space-y-3 shadow-sm dark:shadow-none hidden">
+                    <div class="font-bold text-slate-800 dark:text-white">💡 Tip para la Reunión</div>
+                    <p class="leading-relaxed">Haz clic en cualquier sección para saltar directamente a ella. Muestra el sistema en vivo en la sección 5.</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN SCROLLABLE SECTIONS -->
+        <main class="space-y-24 pb-24">
+
+            <!-- SECTION 1: INICIO (CONTEXTO Y DOLOR) -->
+            <section id="inicio" class="scroll-mt-24 space-y-8">
+                <div class="glass-panel rounded-3xl p-8 lg:p-12 relative overflow-hidden shadow-sm dark:shadow-2xl">
+                    <div class="space-y-6 max-w-4xl relative z-10">
+                        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold uppercase tracking-wider">
+                            <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i> El Reto del Acompañamiento a Escala
+                        </span>
+                        
+                        <h1 class="font-heading font-black text-3xl sm:text-4xl lg:text-5.5xl text-slate-900 dark:text-white leading-tight">
+                            Colmena lidera en protección laboral.<br>Pero liderar exige <span class="text-transparent bg-clip-text bg-gradient-to-r from-wappy-500 via-colmena-500 to-colmena-900">herramientas que hoy no existen.</span>
+                        </h1>
+
+                        <p class="text-base lg:text-lg text-slate-650 dark:text-slate-350 leading-relaxed font-light">
+                            Colmena Seguros y Riesgos Laborales es una de las administradoras de riesgos más prestigiosas y comprometidas de Colombia. Sin embargo, el liderazgo sectorial impone un reto logístico masivo: acompañar a miles de mipymes y empresas afiliadas que demandan asesoría técnica oportuna y personalizada, mientras el mercado exige mayor eficiencia operativa y competidores agresivos buscan ganar terreno.
+                        </p>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                            <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800/80 space-y-2">
+                                <h4 class="font-bold text-slate-800 dark:text-white text-sm">El Diagnóstico Estratégico de Colmena</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                                    Las áreas de prevención y acompañamiento empresarial requieren plataformas de escala masiva que multipliquen el alcance de los consultores de SST, permitiendo atender a cientos de empresas en simultáneo sin multiplicar los costos fijos.
+                                </p>
+                            </div>
+                            <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800/80 space-y-2">
+                                <h4 class="font-bold text-slate-800 dark:text-white text-sm">La IA como Diferenciador Inmediato</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                                    La inteligencia artificial llegó para quedarse. Las ARL que primero empoderen a sus empresas afiliadas con IA y automatizaciones de SST liderarán la fidelización, retención y adquisición del sector.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 2: VALIDACIÓN REAL -->
+            <section id="validacion" class="scroll-mt-24 space-y-8">
+                <div class="space-y-4">
+                    <span class="text-colmena-500 uppercase tracking-widest text-xs font-extrabold block">Validación en Campo</span>
+                    <h2 class="font-heading font-black text-3xl lg:text-4xl text-slate-900 dark:text-white">Crecimiento y Consolidación de Wappy IA</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-6 rounded-2xl space-y-3 shadow-sm dark:shadow-none">
+                        <div class="text-3xl font-black font-heading text-wappy-500">+200</div>
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-white">Usuarios Activos</h4>
+                        <p class="text-xs text-slate-550 dark:text-slate-400 leading-relaxed">
+                            Probado y validado en producción. Operando de forma diaria con empresas colombianas de todos los sectores.
+                        </p>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-2xl space-y-3 shadow-sm dark:shadow-none">
+                        <div class="text-3xl font-black font-heading text-wappy-500">Servicio Externo</div>
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-white">Adopción por Valor Propio</h4>
+                        <p class="text-xs text-slate-550 dark:text-slate-400 leading-relaxed">
+                            Gran parte de nuestros clientes pagan directamente la suscripción sin tener Wappy como intermediario de ARL, confirmando el valor independiente del software.
+                        </p>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-2xl space-y-3 shadow-sm dark:shadow-none">
+                        <div class="text-3xl font-black font-heading text-colmena-500">Únicos en el Mercado</div>
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-white">Validación Internacional</h4>
+                        <p class="text-xs text-slate-550 dark:text-slate-400 leading-relaxed">
+                            Investigación en campo en España (viaje a Europa) confirma que no existe una herramienta igual ni en Colombia, Latam o España.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 3: ALCANCE DE PLATAFORMA -->
+            <section id="alcance" class="scroll-mt-24 space-y-8">
+                <div class="space-y-4">
+                    <span class="text-colmena-500 uppercase tracking-widest text-xs font-extrabold block">Solución Multidimensional</span>
+                    <h2 class="font-heading font-black text-3xl lg:text-4xl text-slate-900 dark:text-white">Un solo ecosistema para todo tamaño de empresa</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Column 1: Core Target -->
+                    <div class="glass-panel p-8 rounded-3xl space-y-6 shadow-sm dark:shadow-none">
+                        <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-4">Acompañamiento Corporativo</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="flex gap-4">
+                                <div class="w-8 h-8 rounded-lg bg-wappy-500/10 flex items-center justify-center text-wappy-500 shrink-0 font-bold">1</div>
+                                <div>
+                                    <h4 class="font-bold text-sm text-slate-800 dark:text-white">Mipymes: Un asesor que siempre está</h4>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Soporte automático 24/7. Generación instantánea de actas de COPASST, matrices de riesgos y políticas sin requerir visitas presenciales costosas.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-4">
+                                <div class="w-8 h-8 rounded-lg bg-wappy-500/10 flex items-center justify-center text-wappy-500 shrink-0 font-bold">2</div>
+                                <div>
+                                    <h4 class="font-bold text-sm text-slate-800 dark:text-white">Grandes Empresas: Automatización y Visión</h4>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Análisis ergonómico postural mediante cámara (OWAS) y herramientas avanzadas de auditoría para el prevencionista in-situ.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Value for Colmena -->
+                    <div class="glass-panel p-8 rounded-3xl space-y-6 shadow-sm dark:shadow-none">
+                        <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-4">El Arma Comercial de la ARL</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="flex gap-4">
+                                <div class="w-8 h-8 rounded-lg bg-colmena-500/10 flex items-center justify-center text-colmena-500 shrink-0 font-bold">A</div>
+                                <div>
+                                    <h4 class="font-bold text-sm text-slate-800 dark:text-white">Atracción de Afiliados Exponencial</h4>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Wappy es un argumento de ventas único en licitaciones de ARL. Ofrecer IA para SST como beneficio inclina la balanza de inmediato a favor de Colmena Seguros.</p>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-4">
+                                <div class="w-8 h-8 rounded-lg bg-colmena-500/10 flex items-center justify-center text-colmena-500 shrink-0 font-bold">B</div>
+                                <div>
+                                    <h4 class="font-bold text-sm text-slate-800 dark:text-white">Protección frente a la Siniestralidad</h4>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Menos accidentes reportados gracias a capacitaciones guiadas y diagnósticos de cumplimiento normativo inmediatos en las empresas afiliadas a Colmena.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 4: EL CREADOR -->
+            <section id="creador" class="scroll-mt-24 space-y-8">
+                <div class="glass-panel rounded-3xl p-8 lg:p-12 shadow-sm dark:shadow-none">
+                    <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-12 items-center">
+                        <div class="space-y-6">
+                            <span class="text-wappy-500 uppercase tracking-widest text-xs font-extrabold block">La Diferencia es el Conocimiento del Dolor</span>
+                            <h2 class="font-heading font-black text-3xl lg:text-4.5xl text-slate-900 dark:text-white">Wappy no lo creó un programador que estudió SST. Lo creó un prevencionista que aprendió a programar.</h2>
+                            <p class="text-slate-650 dark:text-slate-350 leading-relaxed font-light text-sm">
+                                "Otros desarrolladores con más recursos y equipos grandes no han llegado a construir Wappy. La razón es simple: no viven en campo, no han auditado constructoras gigantes como Capital o Contex, ni han visto a un prevencionista ahogado en planillas Excel a las 11 PM antes de una visita de ARL. Yo sí."
+                            </p>
+                            <!-- Visual credentials grid -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                                <div class="p-3 bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl">
+                                    <div class="font-bold text-slate-800 dark:text-white text-xs">SENA</div>
+                                    <div class="text-[10px] text-slate-500 mt-0.5">Tecnólogo Salud Ocupacional</div>
+                                </div>
+                                <div class="p-3 bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl">
+                                    <div class="font-bold text-slate-800 dark:text-white text-xs">Psicólogo</div>
+                                    <div class="text-[10px] text-slate-500 mt-0.5">Especialista en SST</div>
+                                </div>
+                                <div class="p-3 bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl">
+                                    <div class="font-bold text-slate-800 dark:text-white text-xs">8+ Años Experiencia</div>
+                                    <div class="text-[10px] text-slate-500 mt-0.5">Especialista en Riesgos Laborales</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex justify-center">
+                            <div class="w-64 h-64 rounded-2xl bg-gradient-to-tr from-wappy-500 to-colmena-500 p-[2px] shadow-2xl">
+                                <div class="w-full h-full bg-white dark:bg-slate-950 rounded-2xl flex flex-col justify-center items-center p-6 text-center space-y-4 transition-colors">
+                                    <img src="Agentes/Miniaturas/Avatar%20/avatar2.png" alt="Creador Wappy Avatar" class="h-36 object-contain">
+                                    <div>
+                                        <h4 class="font-bold text-slate-800 dark:text-white text-base">Felix Bedoya</h4>
+                                        <p class="text-xs text-colmena-500 font-semibold mt-0.5">Fundador & Desarrollador Senior</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 5: ECOSISTEMA DE AGENTES IA -->
+            <section id="agentes" class="scroll-mt-24 space-y-8">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                    <div class="space-y-4">
+                        <span class="text-colmena-500 uppercase tracking-widest text-xs font-extrabold block">Herramientas Operativas</span>
+                        <h2 class="font-heading font-black text-3xl lg:text-4xl text-slate-900 dark:text-white">22 Agentes IA Especializados</h2>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="filterAgents('todos')" class="agent-filter-btn px-4 py-1.5 rounded-full bg-colmena-500 text-slate-950 font-bold text-xs">Todos</button>
+                        <button onclick="filterAgents('prevencion')" class="agent-filter-btn px-4 py-1.5 rounded-full bg-slate-200 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Prevención</button>
+                        <button onclick="filterAgents('salud')" class="agent-filter-btn px-4 py-1.5 rounded-full bg-slate-200 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Salud</button>
+                        <button onclick="filterAgents('legal')" class="agent-filter-btn px-4 py-1.5 rounded-full bg-slate-200 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Legal</button>
+                    </div>
+                </div>
+
+                <!-- CORE FEATURES ROW -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 flex gap-4 shadow-sm dark:shadow-none">
+                        <div class="w-10 h-10 rounded-lg bg-colmena-500/10 flex items-center justify-center text-colmena-500 shrink-0"><i data-lucide="layout-dashboard"></i></div>
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Centro de Control ACPM</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Monitoreo de tareas y acciones correctivas en tiempo real desde un solo tablero.</p>
+                        </div>
+                    </div>
+                    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 flex gap-4 shadow-sm dark:shadow-none">
+                        <div class="w-10 h-10 rounded-lg bg-wappy-500/10 flex items-center justify-center text-wappy-500 shrink-0"><i data-lucide="cloud"></i></div>
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Google Workspace Link</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Conexión con Slides, Docs, Sheets, Gmail, Calendar y Drive del cliente.</p>
+                        </div>
+                    </div>
+                    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 flex gap-4 shadow-sm dark:shadow-none">
+                        <div class="w-10 h-10 rounded-lg bg-colmena-500/10 flex items-center justify-center text-colmena-500 shrink-0"><i data-lucide="bell"></i></div>
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Notificaciones Inteligentes</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Alertas en tiempo real ante vencimientos y auditorías inminentes.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AGENTS GRID -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="agentsGrid">
+                    <!-- Tenshi -->
+                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start shadow-sm dark:shadow-none" data-category="prevencion">
+                        <img src="Agentes/Miniaturas/AvataresAgentes/tenshi.png" alt="Tenshi" class="w-12 h-12 rounded-full border border-wappy-500 shrink-0">
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Tenshi (Orquestador)</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Asistente principal del sistema. Conecta con el centro de control y orquesta las tareas críticas del SG-SST.</p>
+                        </div>
+                    </div>
+                    <!-- Consultor SG-SST -->
+                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start shadow-sm dark:shadow-none" data-category="prevencion">
+                        <img src="Agentes/Miniaturas/AvataresAgentes/profesional_sst.png" alt="Consultor" class="w-12 h-12 rounded-full border border-slate-350 dark:border-slate-700 shrink-0">
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Consultor SG-SST</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Asesor general de implementación. Resuelve normativas, estándares de ARL y auditorías de la Res. 0312.</p>
+                        </div>
+                    </div>
+                    <!-- Auditor SG-SST -->
+                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start shadow-sm dark:shadow-none" data-category="prevencion">
+                        <img src="Agentes/Miniaturas/AvataresAgentes/auditor_sg_sst.png" alt="Auditor" class="w-12 h-12 rounded-full border border-slate-350 dark:border-slate-700 shrink-0">
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Auditoría SG-SST</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Identificación y simulación de riesgos ante inspecciones regulatorias en Colombia.</p>
+                        </div>
+                    </div>
+                    <!-- Abogado Laboral -->
+                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start shadow-sm dark:shadow-none" data-category="legal">
+                        <img src="Agentes/Miniaturas/AvataresAgentes/abogado_laboral.png" alt="Abogado" class="w-12 h-12 rounded-full border border-slate-350 dark:border-slate-700 shrink-0">
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Abogado Laboral</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Asesoría jurídica y régimen de contratación laboral según normativas colombianas vigentes.</p>
+                        </div>
+                    </div>
+                    <!-- Médico Laboral -->
+                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start shadow-sm dark:shadow-none" data-category="salud">
+                        <img src="Agentes/Miniaturas/AvataresAgentes/medico_laboral.png" alt="Médico" class="w-12 h-12 rounded-full border border-slate-350 dark:border-slate-700 shrink-0">
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Médico Laboral</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Evaluación de aptitud clínica ocupacional, restricciones médicas y programas de reintegro laboral.</p>
+                        </div>
+                    </div>
+                    <!-- Psicólogo SST -->
+                    <div class="glass-panel p-5 rounded-2xl flex gap-4 items-start shadow-sm dark:shadow-none" data-category="salud">
+                        <img src="Agentes/Miniaturas/AvataresAgentes/psicologo_sst.png" alt="Psicólogo" class="w-12 h-12 rounded-full border border-slate-350 dark:border-slate-700 shrink-0">
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white">Psicólogo SST</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Gestión de riesgos psicosociales y planes de intervención para el clima organizacional de la empresa.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Button redirecting to home wappy.club -->
+                <div class="text-center pt-4">
+                    <a href="https://wappy.club" target="_blank" class="btn-outline px-6 py-2.5 rounded-full border border-slate-300 dark:border-slate-700 text-xs font-bold hover:border-colmena-500 hover:text-colmena-500 transition-all inline-flex items-center gap-2">
+                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Ver todos los 22 agentes de Wappy
+                    </a>
+                </div>
+            </section>
+
+            <!-- SECTION 6: SEGURIDAD, HABEAS DATA Y SOPORTE -->
+            <section id="seguridad" class="scroll-mt-24 space-y-8">
+                <div class="space-y-4">
+                    <span class="text-colmena-500 uppercase tracking-widest text-xs font-extrabold block">Garantía Corporativa</span>
+                    <h2 class="font-heading font-black text-3xl lg:text-4xl text-slate-900 dark:text-white">Soberanía de Datos y Soporte Técnico</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Data & AI Privacy -->
+                    <div class="glass-panel p-8 rounded-3xl space-y-6 shadow-sm dark:shadow-none">
+                        <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-4">
+                            <i data-lucide="shield-check" class="text-wappy-500"></i> Protección y Soberanía de Datos
+                        </h3>
+                        <div class="space-y-4 text-xs leading-relaxed text-slate-650 dark:text-slate-455">
+                            <p>
+                                <strong>Arquitectura de Aislamiento Lógico:</strong> La información y base de datos de cada empresa afiliada a Colmena Seguros se encuentra separada lógicamente. Ninguna organización puede acceder a los datos de otra.
+                            </p>
+                            <p>
+                                <strong>La IA la Pone el Usuario (API Keys):</strong> El cliente conecta directamente sus credenciales empresariales de servicios de IA (ej: Google Gemini, OpenAI). Esto garantiza que la información corporativa se rija bajo el acuerdo privado de privacidad de su propia empresa con el proveedor de IA.
+                            </p>
+                            <p>
+                                <strong>No Entrenamiento de Modelos:</strong> Los datos, matrices y actas generadas por Wappy nunca son usados por los proveedores de IA para entrenamiento de modelos públicos. Cumplimiento estricto de la <strong>Ley 1581 de 2012 (Habeas Data)</strong>.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Technical Support -->
+                    <div class="glass-panel p-8 rounded-3xl space-y-6 shadow-sm dark:shadow-none">
+                        <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-4">
+                            <i data-lucide="help-circle" class="text-colmena-500"></i> Soporte y Acompañamiento Técnico
+                        </h3>
+                        <div class="space-y-4 text-xs leading-relaxed text-slate-650 dark:text-slate-455">
+                            <p>
+                                <strong>Respuesta en menos de 4 Horas:</strong> Soporte premium especializado disponible vía WhatsApp y correo electrónico para resolver incidencias técnicas y dudas en el uso diario de la plataforma.
+                            </p>
+                             <p>
+                                <strong>Onboarding Diferenciado por Segmento:</strong>
+                                <br>• <strong>Grandes Empresas:</strong> Acompañamiento de 2 sesiones personalizadas (<em>Sesión 1:</em> Diagnóstico de SG-SST y perfiles; <em>Sesión 2:</em> Creación de Agentes personalizados y capacitación en vivo).
+                                <br>• <strong>Medianas y Pequeñas Empresas:</strong> Autogestión guiada a través del <strong>Centro de Formación de Wappy (Aula de Estudio)</strong>, permitiendo una escala infinita sin fricción operativa.
+                            </p>
+                            <p>
+                                <strong>Operación 105% Wappy:</strong> Wappy LTDA asume toda la carga del soporte, la capacitación y el aula de estudio, liberando a Colmena Seguros de cualquier esfuerzo logístico o técnico.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 7: PLAN DE DIVULGACIÓN -->
+            <section id="divulgacion" class="scroll-mt-24 space-y-8">
+                <div class="space-y-4">
+                    <span class="text-colmena-500 uppercase tracking-widest text-xs font-extrabold block">Estrategia de Rollout</span>
+                    <h2 class="font-heading font-black text-3xl lg:text-4xl text-slate-900 dark:text-white">Cómo llegaremos a todas las empresas de Colmena</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="glass-panel p-6 rounded-2xl space-y-3 shadow-sm dark:shadow-none">
+                        <div class="w-10 h-10 rounded-lg bg-colmena-500/10 flex items-center justify-center text-colmena-500"><i data-lucide="mail"></i></div>
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-white">Boletines de Innovación ARL</h4>
+                        <p class="text-xs text-slate-550 dark:text-slate-400 leading-relaxed">
+                            Envío de campañas informativas oficiales desde Colmena Seguros directamente a los correos de los prevencionistas y representantes legales de las empresas.
+                        </p>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-2xl space-y-3 shadow-sm dark:shadow-none">
+                        <div class="w-10 h-10 rounded-lg bg-wappy-500/10 flex items-center justify-center text-wappy-500"><i data-lucide="tv"></i></div>
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-white">Webinars y Talleres Masivos</h4>
+                        <p class="text-xs text-slate-550 dark:text-slate-400 leading-relaxed">
+                            Sesiones de capacitación conjunta de Wappy y Colmena sobre el impacto de la Inteligencia Artificial aplicada a la Seguridad Industrial.
+                        </p>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-2xl space-y-3 shadow-sm dark:shadow-none">
+                        <div class="w-10 h-10 rounded-lg bg-colmena-500/10 flex items-center justify-center text-colmena-500"><i data-lucide="briefcase"></i></div>
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-white">Capacitación Comercial a Asesores</h4>
+                        <p class="text-xs text-slate-550 dark:text-slate-400 leading-relaxed">
+                            Formación y entrega de kits de Wappy a la fuerza comercial de Colmena para usarlo como gancho de fidelización y atracción de nuevas empresas.
+                        </p>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-2xl space-y-3 shadow-sm dark:shadow-none">
+                        <div class="w-10 h-10 rounded-lg bg-wappy-500/10 flex items-center justify-center text-wappy-500"><i data-lucide="share-2"></i></div>
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-white">Campaña de Marketing & Redes</h4>
+                        <p class="text-xs text-slate-550 dark:text-slate-400 leading-relaxed">
+                            Co-branding en redes corporativas (LinkedIn), video-cápsulas informativas y casos de éxito de empresas que redujeron su accidentabilidad con Wappy.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 8: PROPUESTA ECONÓMICA -->
+            <section id="propuesta" class="scroll-mt-24 space-y-8">
+                <div class="space-y-4">
+                    <span class="text-colmena-500 uppercase tracking-widest text-xs font-extrabold block">Análisis Financiero y ROI</span>
+                    <h2 class="font-heading font-black text-3xl lg:text-4xl text-slate-900 dark:text-white">Propuesta de Valor Económico para Colmena Seguros</h2>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-8">
+                    <!-- Details -->
+                    <div class="glass-panel p-8 rounded-3xl space-y-6 shadow-sm dark:shadow-none flex flex-col justify-between">
+                        <div class="space-y-4">
+                            <div class="space-y-2">
+                                <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white">Financiado por el Presupuesto Obligatorio P&P</h3>
+                                <p class="text-xs text-slate-550 dark:text-slate-400 leading-relaxed">
+                                    Colmena Seguros destina presupuestos de Promoción y Prevención (P&P) para capacitar y asesorar externamente. Wappy IA optimiza esta inversión al digitalizar servicios costosos tradicionales:
+                                </p>
+                            </div>
+
+                            <!-- Cost comparison grid -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="p-4 rounded-2xl bg-rose-500/5 border border-rose-500/10 space-y-1">
+                                    <span class="text-[10px] text-rose-500 font-bold uppercase tracking-wider block">Servicio Tradicional</span>
+                                    <h4 class="font-bold text-sm text-slate-900 dark:text-white">1 Hora de Asesoría Consultor SG-SST</h4>
+                                    <div class="text-xl font-black font-heading text-rose-600 dark:text-rose-400 mt-1">$60.000 COP</div>
+                                    <p class="text-[10px] text-slate-500 leading-normal">
+                                        Valor hora promedio de consultoría externa contratada en el mercado para asistencia técnica.
+                                    </p>
+                                </div>
+
+                                <div class="p-4 rounded-2xl bg-wappy-500/5 border border-wappy-500/10 space-y-1">
+                                    <span class="text-[10px] text-wappy-500 font-bold uppercase tracking-wider block">Ecosistema Wappy IA</span>
+                                    <h4 class="font-bold text-sm text-slate-900 dark:text-white">Licencia B2B en Volumen</h4>
+                                    <div class="text-xl font-black font-heading text-wappy-500 mt-1">$62.000 - $82.000 COP</div>
+                                    <p class="text-[10px] text-slate-500 leading-normal">
+                                        Costo mensual por empresa. Equivalente a asesoría ilimitada 24/7 de nuestros 22 Agentes y Aula de Estudio.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Volume tiers -->
+                        <div class="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-800/80">
+                            <h4 class="font-bold text-slate-800 dark:text-white text-sm">Escala de Tarifas Especiales B2B (Volumen ARL):</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
+                                <div class="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl">
+                                    <div class="text-[10px] text-slate-500 font-bold uppercase">100 a 500 Empresas</div>
+                                    <div class="font-bold text-slate-800 dark:text-white text-base mt-0.5">$82.000 <span class="text-xs font-normal">COP/mes</span></div>
+                                </div>
+                                <div class="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl border-colmena-500/40">
+                                    <div class="text-[10px] text-colmena-500 font-bold uppercase">501 a 2.000 Empresas</div>
+                                    <div class="font-bold text-slate-800 dark:text-white text-base mt-0.5">$72.000 <span class="text-xs font-normal">COP/mes</span></div>
+                                </div>
+                                <div class="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl">
+                                    <div class="text-[10px] text-slate-500 font-bold uppercase">2.001+ Empresas</div>
+                                    <div class="font-bold text-slate-800 dark:text-white text-base mt-0.5">$62.000 <span class="text-xs font-normal">COP/mes</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Static ROI Projection -->
+                    <div class="glass-panel p-8 rounded-3xl space-y-5 shadow-sm dark:shadow-none flex flex-col justify-between">
+                        <div class="space-y-3">
+                            <h4 class="font-bold text-slate-800 dark:text-white text-base flex items-center gap-1.5">
+                                <i data-lucide="trending-up" class="w-5 h-5 text-colmena-500"></i> Proyección de Retorno de Inversión (ROI)
+                            </h4>
+                            <p class="text-xs text-slate-550 dark:text-slate-400 leading-relaxed">
+                                Escenarios basados en la delegación de 12 horas anuales de asesoría por empresa hacia Wappy IA (reemplazando el gasto de consultoría externa tradicional):
+                            </p>
+                        </div>
+
+                        <div class="space-y-3">
+                            <!-- Scenario 1 -->
+                            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 space-y-1">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold text-xs text-slate-800 dark:text-white">Escenario 100 Empresas</span>
+                                    <span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[9px]">$82k/mes</span>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-1 sm:gap-y-0 gap-x-2 text-[10px] text-slate-500 dark:text-slate-400">
+                                    <div>Inversión Wappy: <span class="font-semibold text-slate-800 dark:text-white">$99.4M/año*</span></div>
+                                    <div>Costo Tradicional: <span class="font-semibold text-slate-800 dark:text-white">$72.0M/año</span></div>
+                                </div>
+                                <div class="text-[9.5px] font-bold text-rose-500/90 dark:text-rose-400/90 pt-1 border-t border-dashed border-slate-200 dark:border-slate-800">
+                                    Punto de Retorno: Reemplazar solo 16.5 horas/año de asesoría humana.
+                                </div>
+                            </div>
+
+                            <!-- Scenario 2 -->
+                            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 space-y-1">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold text-xs text-slate-800 dark:text-white">Escenario 500 Empresas</span>
+                                    <span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[9px]">$82k/mes</span>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-1 sm:gap-y-0 gap-x-2 text-[10px] text-slate-500 dark:text-slate-400">
+                                    <div>Inversión Wappy: <span class="font-semibold text-slate-800 dark:text-white">$497.0M/año*</span></div>
+                                    <div>Costo Tradicional: <span class="font-semibold text-slate-800 dark:text-white">$360.0M/año</span></div>
+                                </div>
+                                <div class="text-[9.5px] font-bold text-rose-500/90 dark:text-rose-400/90 pt-1 border-t border-dashed border-slate-200 dark:border-slate-800">
+                                    Punto de Retorno: Reemplazar solo 16.5 horas/año de asesoría humana.
+                                </div>
+                            </div>
+
+                            <!-- Scenario 3 -->
+                            <div class="p-3.5 rounded-xl bg-wappy-500/5 border border-wappy-500/10 space-y-1">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold text-xs text-slate-800 dark:text-white">Escenario 1.000 Empresas</span>
+                                    <span class="px-2 py-0.5 rounded-full bg-wappy-500/10 text-wappy-500 font-bold text-[9px]">$72k/mes</span>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-1 sm:gap-y-0 gap-x-2 text-[10px] text-slate-550 dark:text-slate-400">
+                                    <div>Inversión Wappy: <span class="font-semibold text-slate-800 dark:text-white">$874.0M/año*</span></div>
+                                    <div>Costo Tradicional: <span class="font-semibold text-slate-800 dark:text-white">$720.0M/año</span></div>
+                                </div>
+                                <div class="text-[9.5px] font-bold text-wappy-500 pt-1 border-t border-dashed border-wappy-500/10">
+                                    Punto de Retorno: Reemplazar solo 14.5 horas/año de asesoría humana.
+                                </div>
+                            </div>
+
+                            <!-- Scenario 4 -->
+                            <div class="p-3.5 rounded-xl bg-colmena-500/5 border border-colmena-500/10 space-y-1">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold text-xs text-slate-800 dark:text-white">Escenario 3.000 Empresas</span>
+                                    <span class="px-2 py-0.5 rounded-full bg-colmena-500/10 text-colmena-500 font-bold text-[9px]">$62k/mes</span>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-1 sm:gap-y-0 gap-x-2 text-[10px] text-slate-550 dark:text-slate-400">
+                                    <div>Inversión Wappy: <span class="font-semibold text-slate-800 dark:text-white">$2.262M/año*</span></div>
+                                    <div>Costo Tradicional: <span class="font-semibold text-slate-800 dark:text-white">$2.160M/año</span></div>
+                                </div>
+                                <div class="text-[9.5px] font-bold text-colmena-500 pt-1 border-t border-dashed border-colmena-500/10">
+                                    Punto de Retorno: Reemplazar solo 12.5 horas/año de asesoría humana.
+                                </div>
+                            </div>
+                        </div>
+
+                        <p class="text-[8px] text-slate-400 dark:text-slate-500 leading-normal text-center font-medium">
+                            *Nota: La inversión Wappy incluye el licenciamiento anual de software y el 10% estimado de Onboarding B2B para Grandes Empresas.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 9: PLAN PILOTO -->
+            <section id="piloto" class="scroll-mt-24 space-y-8">
+                <div class="glass-panel rounded-3xl p-8 lg:p-12 relative overflow-hidden shadow-sm dark:shadow-2xl">
+                    <div class="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-12 items-center">
+                        <div class="space-y-6">
+                            <span class="text-colmena-500 uppercase tracking-widest text-xs font-extrabold block">Acuerdo de Cierre</span>
+                            <h2 class="font-heading font-black text-3xl lg:text-4.5xl text-slate-900 dark:text-white">¿Cuál es el siguiente paso?</h2>
+                            <p class="text-slate-650 dark:text-slate-350 leading-relaxed font-light text-sm">
+                                Proponemos estructurar un plan piloto controlado de 30 días con 10 o 20 empresas medianas y pequeñas de Colmena para validar el ahorro de tiempo, reducción de riesgos y la satisfacción de los prevencionistas afiliados.
+                            </p>
+                            
+                            <div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 text-xs">
+                                <span class="font-bold text-wappy-500 flex items-center gap-1.5 mb-1">
+                                    <i data-lucide="gift" class="w-4 h-4"></i> Regalo de Lanzamiento
+                                </span>
+                                Dictamos una charla virtual o presencial (empresa anfitriona asume viáticos y estadía en caso presencial) sobre "Impacto de la Inteligencia Artificial en la Seguridad y Salud en el Trabajo" para incentivar la participación del bloque de empresas piloto.
+                            </div>
+                        </div>
+
+                        <div class="p-6 rounded-2xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 space-y-4">
+                            <h4 class="font-bold text-slate-800 dark:text-white text-sm text-center">Agenda de Reunión</h4>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed text-center font-medium">Programa una sesión técnica presencial o virtual para evaluar Wappy IA con tus especialistas de SST.</p>
+                            
+                            <div class="space-y-2">
+                                <button onclick="openDemoModal()" class="w-full py-2.5 rounded-lg bg-gradient-to-r from-wappy-500 to-colmena-500 text-slate-950 font-bold text-xs hover:scale-[1.02] transition-all">
+                                    Agendar Presentación en Vivo
+                                </button>
+                                <button onclick="downloadHTML()" class="w-full py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-200 dark:hover:bg-slate-800/50 transition-all flex items-center justify-center gap-1.5">
+                                    <i data-lucide="download" class="w-3.5 h-3.5"></i> Descargar Presentación (HTML)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+    </div>
+
+    <!-- DEMO SCHEDULING MODAL -->
+    <div id="demoModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm hidden no-print">
+        <div class="glass-panel max-w-lg w-full p-8 rounded-3xl space-y-6 shadow-2xl relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 mx-4">
+            <button onclick="closeDemoModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            
+            <div class="text-center space-y-2">
+                <h3 class="font-heading font-black text-2xl text-slate-900 dark:text-white">📅 Agendar Demostración Técnica</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Solicita un espacio en vivo (virtual o presencial) para evaluar la integración de Wappy IA.</p>
+            </div>
+
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Empresa</label>
+                        <input type="text" id="demoCompany" value="Colmena Seguros" class="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-colmena-500" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Modalidad</label>
+                        <select id="demoModalidad" class="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-colmena-500">
+                            <option value="Presencial">Presencial (Oficinas Colmena)</option>
+                            <option value="Virtual">Virtual (Google Meet / Teams)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nombre del Solicitante</label>
+                        <input type="text" id="demoName" placeholder="Nombre completo" class="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-colmena-500" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Teléfono / WhatsApp</label>
+                        <input type="text" id="demoPhone" placeholder="Ej: 300 123 4567" class="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-colmena-500" />
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Correo Electrónico Corporativo</label>
+                    <input type="email" id="demoEmail" placeholder="contacto@colmenaseguros.com" class="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-colmena-500" />
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fecha y Hora Sugerida</label>
+                    <input type="datetime-local" id="demoDateTime" class="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-colmena-500" />
+                </div>
+            </div>
+
+            <button onclick="submitDemoRequest()" id="demoSubmitBtn" class="w-full py-3 rounded-lg bg-gradient-to-r from-wappy-500 to-colmena-500 text-slate-950 font-bold text-xs hover:scale-[1.01] transition-all flex items-center justify-center gap-2">
+                <span>Solicitar Espacio de Demostración</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Live Counter and Calculator Logic -->
+    <script>
+        // Start 30-minute Timer
+        let timerDuration = 30 * 60; // 30 mins in secs
+        function startTimer() {
+            const timerEl = document.getElementById('meetingTimer');
+            const interval = setInterval(() => {
+                let minutes = Math.floor(timerDuration / 60);
+                let seconds = timerDuration % 60;
+                
+                minutes = minutes < 10 ? '0' + minutes : minutes;
+                seconds = seconds < 10 ? '0' + seconds : seconds;
+                
+                timerEl.textContent = `${minutes}:${seconds}`;
+                
+                if (timerDuration <= 0) {
+                    clearInterval(interval);
+                    timerEl.textContent = "Tiempo terminado";
+                    timerEl.classList.add('text-rose-500');
+                }
+                timerDuration--;
+            }, 1000);
+        }
+
+        // Light/Dark Theme Switcher
+        function toggleTheme() {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Apply saved theme on load
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            document.documentElement.classList.remove('dark');
+        } else {
+            document.documentElement.classList.add('dark');
+        }
+
+        // Filter Agents Grid
+        function filterAgents(category) {
+            const cards = document.querySelectorAll('#agentsGrid > div');
+            const buttons = document.querySelectorAll('.agent-filter-btn');
+
+            // Reset active button class to fit both light and dark mode beautifully
+            buttons.forEach(btn => {
+                btn.className = "agent-filter-btn px-4 py-1.5 rounded-full bg-slate-200 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white";
+            });
+
+            // Set current active button
+            event.currentTarget.className = "agent-filter-btn px-4 py-1.5 rounded-full bg-colmena-500 text-slate-950 font-bold text-xs";
+
+            cards.forEach(card => {
+                const cat = card.getAttribute('data-category');
+                if (category === 'todos' || cat === category) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // Scroll Spy active navigation highlight
+        const sections = document.querySelectorAll('section');
+        const navLinks = document.querySelectorAll('aside nav a');
+
+        window.addEventListener('scroll', () => {
+            let currentSection = '';
+            sections.forEach(sec => {
+                const top = sec.offsetTop;
+                if (pageYOffset >= top - 250) {
+                    currentSection = sec.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('scrollspy-active');
+                if (link.getAttribute('href').substring(1) === currentSection) {
+                    link.classList.add('scrollspy-active');
+                }
+            });
+        });
+
+        // Modal Control Functions
+        function openDemoModal() {
+            document.getElementById('demoModal').classList.remove('hidden');
+        }
+
+        function closeDemoModal() {
+            document.getElementById('demoModal').classList.add('hidden');
+        }
+
+        // Trigger dynamic HTML page download
+        function downloadHTML() {
+            const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'Presentacion_Wappy_Colmena_Seguros.html';
+            link.click();
+        }
+
+        async function submitDemoRequest() {
+            const company = document.getElementById('demoCompany').value.trim();
+            const name = document.getElementById('demoName').value.trim();
+            const email = document.getElementById('demoEmail').value.trim();
+            const phone = document.getElementById('demoPhone').value.trim();
+            const modalidad = document.getElementById('demoModalidad').value;
+            const fechaHora = document.getElementById('demoDateTime').value;
+            const submitBtn = document.getElementById('demoSubmitBtn');
+
+            if (!name || !email || !company) {
+                alert('Por favor completa los campos requeridos (Empresa, Nombre y Correo electrónico).');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span>Enviando solicitud...</span>';
+
+            try {
+                const response = await fetch('/api/presentacion/solicitar-demo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        nombreContacto: name,
+                        emailContacto: email,
+                        telefonoContacto: phone || 'No especificado',
+                        nombreEmpresa: company,
+                        fechaHora: fechaHora ? new Date(fechaHora).toLocaleString('es-CO') : 'Por acordar',
+                        modalidad: modalidad
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    alert('¡Solicitud de demostración enviada con éxito! Nos pondremos en contacto contigo en breve para confirmar el espacio.');
+                    closeDemoModal();
+                } else {
+                    alert('Error al enviar la solicitud: ' + data.message);
+                }
+            } catch (err) {
+                alert('No se pudo enviar la solicitud por red. Error: ' + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>Solicitar Espacio de Demostración</span>';
+            }
+        }
+
+        // Check if the logged-in user is an admin to display the "Tip para la Reunión" box
+        async function checkAdminStatus() {
+            try {
+                const response = await fetch('/api/user');
+                if (response.ok) {
+                    const user = await response.json();
+                    if (user && user.role === 'ADMIN') {
+                        document.getElementById('adminTipBox').classList.remove('hidden');
+                    }
+                }
+            } catch (err) {
+                console.log('Error verifying admin status:', err);
+            }
+        }
+
+        // Initialize Lucide icons on load
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            startTimer();
+            checkAdminStatus();
+        });
+    </script>
+</body>
+</html>

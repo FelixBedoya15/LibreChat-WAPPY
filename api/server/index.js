@@ -801,6 +801,10 @@ const startServer = async () => {
     res.sendFile(path.resolve(__dirname, '../../presentacion_arl_sura.html'));
   });
 
+  app.get(['/presentacioncolmena', '/presentacion_arl_colmena.html', '/presentacion_colmena.html', '/presentacioncolmena.html'], (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../../presentacion_arl_colmena.html'));
+  });
+
   app.post('/api/presentacion/solicitar-demo', async (req, res) => {
     try {
       const { nombreContacto, emailContacto, telefonoContacto, nombreEmpresa, fechaHora, modalidad } = req.body;
