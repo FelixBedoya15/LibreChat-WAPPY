@@ -247,6 +247,9 @@ export default function SGSSTDashboard() {
     // ─── handle navigate-sgsst event (from notification panel) ───
     useEffect(() => {
         const SGSST_MODULE_PHASE_MAP: Record<string, {super: string, sub: string}> = {
+            perfil_socio: {super: 'bio_motor', sub: 'hito1'},
+            perfil_sociodemografico: {super: 'bio_motor', sub: 'hito1'},
+            condiciones_salud: {super: 'bio_motor', sub: 'hito1'},
             reporte_actos: {super: 'bio_motor', sub: 'hito3'},
             participacion_ipevar: {super: 'bio_motor', sub: 'hito3'},
             peligros: {super: 'bio_motor', sub: 'hito2'},

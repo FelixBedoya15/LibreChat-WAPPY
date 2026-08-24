@@ -8,7 +8,7 @@ import { cn } from '~/utils';
 
 interface Notification {
     _id: string;
-    type: 'ticket_created' | 'ticket_responded' | 'sgsst_reporte_acto' | 'sgsst_participacion_ipevar' | 'sgsst_alta_direccion' | 'sgsst_testimonio_atel' | 'system_update' | 'welcome_promo' | 'group_invitation';
+    type: 'ticket_created' | 'ticket_responded' | 'sgsst_reporte_acto' | 'sgsst_participacion_ipevar' | 'sgsst_alta_direccion' | 'sgsst_testimonio_atel' | 'sgsst_perfil_update' | 'system_update' | 'welcome_promo' | 'group_invitation';
     title: string;
     body: string;
     read: boolean;
@@ -28,6 +28,8 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
     const navigate = useNavigate();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(false);
+    const [filter, setFilter] = useState<'all' | 'unread' | 'read' | 'tickets' | 'responses' | 'company_plans'>('all');
+    const [searchQuery, setSearchQuery] = useState('');
     const panelRef = useRef<HTMLDivElement>(null);
 
     const fetchNotifications = useCallback(async () => {
@@ -35,11 +37,12 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
         setLoading(true);
         try {
             const res = await axios.get('/api/notifications', {
-                headers: { Authorization: `Bearer ${token}` },
+                headers: { Authorization: `Bearer ${token}` }
             });
-            setNotifications(res.data);
-            const unread = res.data.filter((n: Notification) => !n.read).length;
-            onCountChange?.(unread);
+            const notifs: Notification[] = res.data?.notifications || [];
+            setNotifications(notifs);
+            const unreadCount = notifs.filter(n => !n.read).length;
+            onCountChange?.(unreadCount);
         } catch (e) {
             console.error('Error fetching notifications:', e);
         } finally {
@@ -55,11 +58,11 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
 
     // Close on click outside
     useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
                 onClose();
             }
-        }
+        };
         if (isOpen) {
             document.addEventListener('mousedown', handleClickOutside);
         }
@@ -68,24 +71,55 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
 
     const markAllRead = async () => {
         try {
-            await axios.put('/api/notifications/read-all', {}, {
-                headers: { Authorization: `Bearer ${token}` },
+            await axios.post('/api/notifications/read-all', {}, {
+                headers: { Authorization: `Bearer ${token}` }
             });
             setNotifications(prev => prev.map(n => ({ ...n, read: true })));
             onCountChange?.(0);
         } catch (e) {
-            console.error('Error marking all as read:', e);
+            console.error('Error marking all read:', e);
+        }
+    };
+
+    const deleteAll = async () => {
+        try {
+            await axios.delete('/api/notifications/all', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setNotifications([]);
+            onCountChange?.(0);
+        } catch (e) {
+            console.error('Error deleting all notifications:', e);
+        }
+    };
+
+    const deleteOne = async (id: string) => {
+        try {
+            await axios.delete(`/api/notifications/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setNotifications(prev => {
+                const updated = prev.filter(n => n._id !== id);
+                const unread = updated.filter(n => !n.read).length;
+                onCountChange?.(unread);
+                return updated;
+            });
+        } catch (e) {
+            console.error('Error deleting notification:', e);
         }
     };
 
     const markOneRead = async (id: string) => {
         try {
-            await axios.put(`/api/notifications/${id}/read`, {}, {
-                headers: { Authorization: `Bearer ${token}` },
+            await axios.post(`/api/notifications/${id}/read`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
             });
-            setNotifications(prev => prev.map(n => n._id === id ? { ...n, read: true } : n));
-            const newUnread = notifications.filter(n => !n.read && n._id !== id).length;
-            onCountChange?.(newUnread);
+            setNotifications(prev => {
+                const updated = prev.map(n => n._id === id ? { ...n, read: true } : n);
+                const unread = updated.filter(n => !n.read).length;
+                onCountChange?.(unread);
+                return updated;
+            });
         } catch (e) {
             console.error('Error marking notification as read:', e);
         }
@@ -97,15 +131,18 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
         }
 
         // SGSST portal navigation
-        if (['sgsst_reporte_acto', 'sgsst_participacion_ipevar', 'sgsst_alta_direccion', 'sgsst_testimonio_atel'].includes(notification.type)) {
+        if (['sgsst_reporte_acto', 'sgsst_participacion_ipevar', 'sgsst_alta_direccion', 'sgsst_testimonio_atel', 'sgsst_perfil_update'].includes(notification.type)) {
             const moduleMap: Record<string, string> = {
                 sgsst_reporte_acto: 'reporte_actos',
                 sgsst_participacion_ipevar: 'participacion_ipevar',
                 sgsst_alta_direccion: 'alta_direccion',
                 sgsst_testimonio_atel: 'investigacion_atel',
+                sgsst_perfil_update: 'perfil_socio',
             };
             const module = notification.metadata?.module || moduleMap[notification.type];
+            navigate('/sgsst');
             window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module } }));
+            window.dispatchEvent(new CustomEvent('sgsst-open-inbox', { detail: { module } }));
             onClose();
             return;
         }
@@ -226,6 +263,8 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
                                     ? 'bg-red-100 dark:bg-red-900/30 text-red-600'
                                     : n.type === 'sgsst_testimonio_atel'
                                     ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600'
+                                    : n.type === 'sgsst_perfil_update'
+                                    ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-600'
                                     : n.type === 'system_update'
                                     ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-500'
                                     : n.type === 'group_invitation'
@@ -242,6 +281,8 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
                                     ? <AlertTriangle className="w-3.5 h-3.5" />
                                     : n.type === 'sgsst_testimonio_atel'
                                     ? <FileText className="w-3.5 h-3.5" />
+                                    : n.type === 'sgsst_perfil_update'
+                                    ? <Users className="w-3.5 h-3.5" />
                                     : n.type === 'system_update'
                                     ? <Map className="w-3.5 h-3.5" />
                                     : n.type === 'group_invitation'

@@ -1170,14 +1170,36 @@ const CondicionesSalud = () => {
                                             <X className="w-4 h-4" />
                                         </button>
                                     </div>
-                                    <div className="text-xs text-gray-600 dark:text-gray-300 space-y-0.5">
-                                        {Object.entries(item.changes || {}).slice(0, 5).map(([k, v]: any) => (
-                                            <p key={k}><span className="font-semibold capitalize">{k}:</span> {String(v)}</p>
-                                        ))}
+                                    <div className="text-xs text-gray-600 dark:text-gray-300 max-h-48 overflow-y-auto space-y-1 pr-1 bg-surface-secondary/40 p-2.5 rounded-lg border border-border-light">
+                                        {Object.entries(item.changes || {}).map(([k, v]: any) => {
+                                            const label = {
+                                                edad: 'Edad', genero: 'Género', estadoCivil: 'Estado Civil', nivelEscolaridad: 'Escolaridad',
+                                                direccion: 'Dirección', telefono: 'Teléfono', emergenciaContacto: 'Contacto Emergencia',
+                                                personasCargo: 'Personas a Cargo', estrato: 'Estrato', vivienda: 'Vivienda',
+                                                fechaNacimiento: 'Fecha Nacimiento', lugarNacimiento: 'Lugar Nacimiento', barrio: 'Barrio',
+                                                municipioDomicilio: 'Municipio', correoElectronico: 'Correo Electrónico', deporte: 'Actividad Física',
+                                                alimentacion: 'Alimentación', riesgoCardiovascular: 'Riesgo Cardiovascular', tipoSangre: 'Tipo de Sangre',
+                                                rh: 'RH', enfermedades: 'Enfermedades', medicamentos: 'Medicamentos', fuma: 'Fuma',
+                                                alcohol: 'Alcohol', terapiaPsicologica: 'Terapia Psicológica', peso: 'Peso (kg)',
+                                                talla: 'Talla', imc: 'IMC', presionArterial: 'Presión Arterial', frecuenciaCardiaca: 'Frec. Cardíaca',
+                                                diagnosticoMedico: 'Diagnóstico Médico', limitacionesBiomecanicas: 'Limitaciones Biomecánicas',
+                                                alergiasQuimicas: 'Alergias Químicas', fechaExamenMedico: 'Fecha Último Examen',
+                                                recomendacionesMedicas: 'Recomendaciones Médicas', fechaSeguimiento: 'Fecha Seguimiento',
+                                                fechaCursoAlturasAutorizado: 'Alturas Autorizado', fechaCursoAlturasCoordinador: 'Alturas Coordinador',
+                                                soatVencimiento: 'Venc. SOAT', tecnicomecanicaVencimiento: 'Venc. Tecnicomecánica',
+                                                licenciaConduccion: 'N° Licencia Conducción', licenciaConduccionVencimiento: 'Venc. Licencia Conducción',
+                                                licenciaSST: 'N° Licencia SST', licenciaVencimiento: 'Venc. Licencia SST',
+                                                curso50h: 'Curso 50h', curso20h: 'Curso 20h', esCopasst: 'COPASST',
+                                                esComiteConvivencia: 'Comité Convivencia', esBrigadista: 'Brigadista', esComiteSeguridadVial: 'Comité Seg. Vial'
+                                            }[k] || k;
+                                            return (
+                                                <p key={k} className="leading-tight"><span className="font-semibold text-text-primary">{label}:</span> <span className="text-teal-700 dark:text-teal-400 font-medium">{String(v || '—')}</span></p>
+                                            );
+                                        })}
                                     </div>
                                     <button
                                         onClick={() => handleApproveUpdate(item)}
-                                        className="mt-auto w-full py-2 rounded-lg text-xs font-bold bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:bg-cyan-900/30 dark:text-cyan-300 transition-colors"
+                                        className="mt-auto w-full py-2 rounded-lg text-xs font-bold bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:bg-cyan-900/30 dark:text-cyan-300 transition-colors shadow-sm"
                                     >
                                         ✓ Aprobar y Aplicar
                                     </button>

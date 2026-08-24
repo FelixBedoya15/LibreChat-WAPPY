@@ -99,34 +99,39 @@ class GoogleDriveTool extends Tool {
   }
 
   async _call(input) {
-    const validationResult = this.schema.safeParse(input);
-    if (!validationResult.success) {
-      throw new Error(`Validación fallida: ${JSON.stringify(validationResult.error.issues)}`);
-    }
+    try {
+      const validationResult = this.schema.safeParse(input);
+      if (!validationResult.success) {
+        return `Validación fallida en Google Drive: ${JSON.stringify(validationResult.error.issues)}`;
+      }
 
-    const { action, query, fileId, fileName, parentId, createAsGoogleDoc } = validationResult.data;
-    const authClient = await this.getAuthClient();
-    const drive = google.drive({ version: 'v3', auth: authClient });
+      const { action, query, fileId, fileName, parentId, createAsGoogleDoc } = validationResult.data;
+      const authClient = await this.getAuthClient();
+      const drive = google.drive({ version: 'v3', auth: authClient });
 
-    switch (action) {
-      case 'list_files_and_folders':
-        return await this.listFiles(drive, query, parentId);
+      switch (action) {
+        case 'list_files_and_folders':
+          return await this.listFiles(drive, query, parentId);
 
-      case 'read_document_content':
-        if (!fileId) throw new Error('Se requiere "fileId" para leer el contenido de un documento.');
-        return await this.readFileContent(drive, fileId);
+        case 'read_document_content':
+          if (!fileId) return 'Error: Se requiere "fileId" para leer el contenido de un documento.';
+          return await this.readFileContent(drive, fileId);
 
-      case 'create_folder':
-        if (!fileName) throw new Error('Se requiere "fileName" para crear una carpeta.');
-        return await this.createFolder(drive, fileName, parentId);
+        case 'create_folder':
+          if (!fileName) return 'Error: Se requiere "fileName" para crear una carpeta.';
+          return await this.createFolder(drive, fileName, parentId);
 
-      case 'write_file':
-        if (!fileName) throw new Error('Se requiere "fileName" para crear o actualizar un archivo.');
-        if (!query) throw new Error('Se requiere "query" (que contiene el texto a escribir) para escribir en el archivo.');
-        return await this.writeFile(drive, fileName, query, parentId, fileId, createAsGoogleDoc);
+        case 'write_file':
+          if (!fileName) return 'Error: Se requiere "fileName" para crear o actualizar un archivo.';
+          if (!query) return 'Error: Se requiere "query" (que contiene el texto a escribir) para escribir en el archivo.';
+          return await this.writeFile(drive, fileName, query, parentId, fileId, createAsGoogleDoc);
 
-      default:
-        throw new Error(`Acción desconocida: ${action}`);
+        default:
+          return `Acción desconocida en Google Drive: ${action}`;
+      }
+    } catch (err) {
+      logger.error('[GoogleDriveTool] Error in _call:', err);
+      return `Error al acceder a Google Drive: ${err.message}. Continúa con la tarea utilizando la información disponible.`;
     }
   }
 
@@ -164,8 +169,8 @@ class GoogleDriveTool extends Tool {
 
       return `Resultados de búsqueda en Google Drive:\n${fileList}`;
     } catch (err) {
-      logger.error('[GoogleDriveTool] List files failed:', err);
-      throw new Error(`Fallo al listar archivos en Google Drive: ${err.message}`);
+      logger.error('[GoogleDriveTool] List files failed:', err.message);
+      return `Error al listar archivos en Google Drive: ${err.message}`;
     }
   }
 
@@ -264,8 +269,8 @@ class GoogleDriveTool extends Tool {
 
       return `El archivo "${name}" tiene un formato no compatible directamente para lectura (${mimeType}). ID de archivo: ${fileId}`;
     } catch (err) {
-      logger.error('[GoogleDriveTool] Read file content failed:', err);
-      throw new Error(`Fallo al leer archivo de Google Drive: ${err.message}`);
+      logger.error('[GoogleDriveTool] Read file content failed:', err.message);
+      return `No se pudo leer el archivo con ID ${fileId} (${err.message}). Se continuará con los demás archivos.`;
     }
   }
 

@@ -93,6 +93,16 @@ export default function PublicPerfilUpdate() {
         return c.includes('sst') || c.includes('sgsst') || c.includes('seguridad') || c.includes('salud') || c.includes('higiene');
     };
 
+    const calculateIMC = (pesoStr?: string, tallaStr?: string) => {
+        const p = parseFloat(pesoStr || '');
+        const t = parseFloat(tallaStr || '');
+        if (p > 0 && t > 0) {
+            const tallaMetros = t > 3 ? t / 100 : t; // Soporta tanto 170 (cm) como 1.70 (m)
+            return (p / (tallaMetros * tallaMetros)).toFixed(1);
+        }
+        return '';
+    };
+
     const handleVerify = async () => {
         if (!cedula.trim()) { setVerifyError('Ingresa tu cédula.'); return; }
         setVerifying(true);
@@ -115,6 +125,8 @@ export default function PublicPerfilUpdate() {
                 return;
             }
             
+            const initialImc = w.imc || calculateIMC(w.peso, w.talla);
+
             setWorkerData(w);
             setFormData({
                 id: w.id, // Store real ID
@@ -134,7 +146,7 @@ export default function PublicPerfilUpdate() {
                 licenciaConduccion: w.licenciaConduccion, licenciaConduccionVencimiento: w.licenciaConduccionVencimiento,
                 esCopasst: w.esCopasst, esComiteConvivencia: w.esComiteConvivencia, esBrigadista: w.esBrigadista, esComiteSeguridadVial: w.esComiteSeguridadVial,
                 deporte: w.deporte, alimentacion: w.alimentacion,
-                peso: w.peso, talla: w.talla, imc: w.imc, presionArterial: w.presionArterial, frecuenciaCardiaca: w.frecuenciaCardiaca,
+                peso: w.peso, talla: w.talla, imc: initialImc, presionArterial: w.presionArterial, frecuenciaCardiaca: w.frecuenciaCardiaca,
                 diagnosticoMedico: w.diagnosticoMedico, limitacionesBiomecanicas: w.limitacionesBiomecanicas, alergiasQuimicas: w.alergiasQuimicas, riesgoCardiovascular: w.riesgoCardiovascular,
                 fechaExamenMedico: w.fechaExamenMedico, recomendacionesMedicas: w.recomendacionesMedicas, fechaSeguimiento: w.fechaSeguimiento,
                 fechaCursoAlturasAutorizado: w.fechaCursoAlturasAutorizado, fechaCursoAlturasCoordinador: w.fechaCursoAlturasCoordinador
@@ -165,8 +177,17 @@ export default function PublicPerfilUpdate() {
         }
     };
 
-    const upd = (field: keyof WorkerData, value: string) =>
-        setFormData(prev => ({ ...prev, [field]: value }));
+    const upd = (field: keyof WorkerData, value: string) => {
+        setFormData(prev => {
+            const next = { ...prev, [field]: value };
+            if (field === 'peso' || field === 'talla') {
+                const pesoVal = field === 'peso' ? value : String(next.peso || '');
+                const tallaVal = field === 'talla' ? value : String(next.talla || '');
+                next.imc = calculateIMC(pesoVal, tallaVal);
+            }
+            return next;
+        });
+    };
 
     // ─── Loading ────────────────────────────────────────────────────
     if (loadingCompany) return (
@@ -382,8 +403,14 @@ export default function PublicPerfilUpdate() {
                                 <Field label="Talla (cm)">
                                     <Input type="number" value={formData.talla || ''} onChange={e => upd('talla', e.target.value)} placeholder="Ej: 170" />
                                 </Field>
-                                <Field label="IMC">
-                                    <Input type="number" value={formData.imc || ''} onChange={e => upd('imc', e.target.value)} placeholder="Ej: 24.2" />
+                                <Field label="IMC (Auto)">
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        value={formData.imc ? `${formData.imc}${parseFloat(formData.imc) < 18.5 ? ' (Bajo)' : parseFloat(formData.imc) <= 24.9 ? ' (Normal)' : parseFloat(formData.imc) <= 29.9 ? ' (Sobrepeso)' : ' (Obesidad)'}` : ''}
+                                        placeholder="Automático"
+                                        className={`w-full border rounded-xl text-xs px-2 py-2.5 outline-none font-bold transition-all text-center cursor-not-allowed ${formData.imc && parseFloat(formData.imc) > 25 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-teal-50/60 border-teal-200 text-teal-800'}`}
+                                    />
                                 </Field>
                             </div>
                             <div className="grid grid-cols-2 gap-3">

@@ -670,6 +670,7 @@ router.get('/perfil-update/:companyId/:workerId?', async (req, res) => {
         telefono: worker.telefono || '',
         emergenciaContacto: worker.emergenciaContacto || '',
         tipoSangre: worker.tipoSangre || '',
+        rh: worker.rh || '',
         enfermedades: worker.enfermedades || '',
         medicamentos: worker.medicamentos || '',
         fuma: worker.fuma || '',
@@ -695,6 +696,22 @@ router.get('/perfil-update/:companyId/:workerId?', async (req, res) => {
         esComiteConvivencia: worker.esComiteConvivencia || 'No',
         esBrigadista: worker.esBrigadista || 'No',
         esComiteSeguridadVial: worker.esComiteSeguridadVial || 'No',
+        deporte: worker.deporte || '',
+        alimentacion: worker.alimentacion || '',
+        peso: worker.peso || '',
+        talla: worker.talla || '',
+        imc: worker.imc || '',
+        presionArterial: worker.presionArterial || '',
+        frecuenciaCardiaca: worker.frecuenciaCardiaca || '',
+        diagnosticoMedico: worker.diagnosticoMedico || '',
+        limitacionesBiomecanicas: worker.limitacionesBiomecanicas || '',
+        alergiasQuimicas: worker.alergiasQuimicas || '',
+        riesgoCardiovascular: worker.riesgoCardiovascular || '',
+        fechaExamenMedico: worker.fechaExamenMedico || '',
+        recomendacionesMedicas: worker.recomendacionesMedicas || '',
+        fechaSeguimiento: worker.fechaSeguimiento || '',
+        fechaCursoAlturasAutorizado: worker.fechaCursoAlturasAutorizado || '',
+        fechaCursoAlturasCoordinador: worker.fechaCursoAlturasCoordinador || '',
       },
     });
   } catch (err) {
@@ -763,6 +780,8 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
       'barrio',
       'municipioDomicilio',
       'correoElectronico',
+      'fechaCursoAlturasAutorizado',
+      'fechaCursoAlturasCoordinador',
     ];
     const healthKeys = [
       'tipoSangre',
@@ -783,12 +802,15 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
       'limitacionesBiomecanicas',
       'alergiasQuimicas',
       'riesgoCardiovascular',
+      'fechaExamenMedico',
+      'recomendacionesMedicas',
+      'fechaSeguimiento',
     ];
 
     const socialUpdates = {};
     const healthUpdates = {};
 
-    for (const [key, value] of Object.entries(updates)) {
+    for (const [key, value] of Object.entries(updates || {})) {
       if (socialKeys.includes(key)) socialUpdates[key] = value;
       if (healthKeys.includes(key)) healthUpdates[key] = value;
     }
@@ -828,9 +850,9 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
       await Notif.create({
         user: new mongoose.Types.ObjectId(company.user),
         type: 'sgsst_perfil_update',
-        title: 'Actualización de Perfil Recibida',
-        body: `${worker.nombre} ha solicitado actualizar su perfil sociodemográfico.`,
-        metadata: { module: 'perfil_sociodemografico', workerId },
+        title: 'Actualización de Perfil y Salud Recibida',
+        body: `${worker.nombre} ha solicitado actualizar sus datos de perfil sociodemográfico y condiciones de salud.`,
+        metadata: { module: 'perfil_socio', workerId },
       });
     } catch (notifErr) {
       logger.warn('[Public Perfil Update] Could not create notification:', notifErr.message);
