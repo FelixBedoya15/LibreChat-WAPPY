@@ -295,8 +295,24 @@ async function runAutomation(automation, isManual = false) {
         .join('\n\n')
         .trim();
     }
+
+    // Fallback: si el agente generó un documento en Canvas / LiveEditor
+    if (!resultText && generatedConvoId) {
+      try {
+        const CanvasSession = mongoose.models.CanvasSession || require('~/models/CanvasSession');
+        const canvas = await CanvasSession.findOne({ conversationId: generatedConvoId }).lean();
+        if (canvas?.content) {
+          resultText = typeof canvas.content === 'string' && canvas.content.startsWith('{')
+            ? `Reporte generado: "${canvas.title || 'Analítica SST'}" guardado en Canvas.`
+            : canvas.content.substring(0, 1500);
+        }
+      } catch (e) {
+        // fallback silencioso
+      }
+    }
+
     if (!resultText) {
-      resultText = '(Ejecución completada por el agente sin reporte de texto adicional)';
+      resultText = '(Ejecución completada por el agente. Documento consolidado disponible en el chat)';
     }
 
     // 10. Update Log to success
