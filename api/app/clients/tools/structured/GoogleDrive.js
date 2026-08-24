@@ -205,19 +205,24 @@ class GoogleDriveTool extends Tool {
         return `Contenido de la hoja de cálculo "${name}" (Formato CSV):\n\n${exportRes.data}`;
       }
 
-      // Handle Word Documents (.docx)
+      // Handle Word Documents (.docx, .doc)
       if (
         mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
         mimeType === 'application/msword'
       ) {
-        const response = await drive.files.get({
-          fileId: fileId,
-          alt: 'media',
-        }, { responseType: 'arraybuffer' });
-        
-        const buffer = Buffer.from(response.data);
-        const result = await mammoth.extractRawText({ buffer });
-        return `Contenido extraído del documento Word "${name}":\n\n${result.value}`;
+        try {
+          const response = await drive.files.get({
+            fileId: fileId,
+            alt: 'media',
+          }, { responseType: 'arraybuffer' });
+          
+          const buffer = Buffer.from(response.data);
+          const result = await mammoth.extractRawText({ buffer });
+          return `Contenido extraído del documento Word "${name}":\n\n${result.value || '(Documento Word vacío)'}`;
+        } catch (wordErr) {
+          logger.warn(`[GoogleDriveTool] Word parse warning for "${name}": ${wordErr.message}`);
+          return `El documento Word "${name}" (ID: ${fileId}) no pudo ser procesado (${wordErr.message}). Se continuará con los demás documentos.`;
+        }
       }
 
       // Handle Excel Spreadsheet (.xlsx, .xls)
@@ -225,46 +230,59 @@ class GoogleDriveTool extends Tool {
         mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
         mimeType === 'application/vnd.ms-excel'
       ) {
-        const response = await drive.files.get({
-          fileId: fileId,
-          alt: 'media',
-        }, { responseType: 'arraybuffer' });
-        
-        const buffer = Buffer.from(response.data);
-        const workbook = XLSX.read(buffer, { type: 'buffer' });
-        let extractedText = '';
-        workbook.SheetNames.forEach(sheetName => {
-          const worksheet = workbook.Sheets[sheetName];
-          const csv = XLSX.utils.sheet_to_csv(worksheet);
-          if (csv.trim()) {
-            extractedText += `--- Hoja: ${sheetName} ---\n${csv}\n\n`;
-          }
-        });
-        return `Contenido extraído del archivo Excel "${name}":\n\n${extractedText || 'El archivo Excel está vacío.'}`;
+        try {
+          const response = await drive.files.get({
+            fileId: fileId,
+            alt: 'media',
+          }, { responseType: 'arraybuffer' });
+          
+          const buffer = Buffer.from(response.data);
+          const workbook = XLSX.read(buffer, { type: 'buffer' });
+          let extractedText = '';
+          workbook.SheetNames.forEach(sheetName => {
+            const worksheet = workbook.Sheets[sheetName];
+            const csv = XLSX.utils.sheet_to_csv(worksheet);
+            if (csv.trim()) {
+              extractedText += `--- Hoja: ${sheetName} ---\n${csv}\n\n`;
+            }
+          });
+          return `Contenido extraído del archivo Excel "${name}":\n\n${extractedText || 'El archivo Excel está vacío.'}`;
+        } catch (excelErr) {
+          logger.warn(`[GoogleDriveTool] Excel parse warning for "${name}": ${excelErr.message}`);
+          return `La hoja Excel "${name}" (ID: ${fileId}) no pudo ser leída (${excelErr.message}). Se continuará con los demás archivos.`;
+        }
       }
 
       // Handle PDF files
       if (mimeType === 'application/pdf') {
-        const response = await drive.files.get({
-          fileId: fileId,
-          alt: 'media',
-        }, { responseType: 'arraybuffer' });
-        
-        const buffer = Buffer.from(response.data);
-        const pdfData = await pdf(buffer);
-        // Clean text formatting slightly for better token efficiency
-        const text = pdfData.text.replace(/\n+/g, '\n').trim();
-        return `Contenido extraído del PDF "${name}":\n\n${text}`;
+        try {
+          const response = await drive.files.get({
+            fileId: fileId,
+            alt: 'media',
+          }, { responseType: 'arraybuffer' });
+          
+          const buffer = Buffer.from(response.data);
+          const pdfData = await pdf(buffer);
+          const text = (pdfData.text || '').replace(/\n+/g, '\n').trim();
+          return `Contenido extraído del PDF "${name}":\n\n${text || '(PDF sin texto extraíble)'}`;
+        } catch (pdfErr) {
+          logger.warn(`[GoogleDriveTool] PDF parse warning for "${name}": ${pdfErr.message}`);
+          return `El PDF "${name}" (ID: ${fileId}) no pudo ser procesado (${pdfErr.message}). Se continuará con los demás archivos.`;
+        }
       }
 
       // Handle plain text files (or JSON, CSV)
       if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/javascript') {
-        const fileRes = await drive.files.get({
-          fileId: fileId,
-          alt: 'media',
-        });
-        const content = typeof fileRes.data === 'object' ? JSON.stringify(fileRes.data, null, 2) : fileRes.data;
-        return `Contenido del archivo "${name}":\n\n${content}`;
+        try {
+          const fileRes = await drive.files.get({
+            fileId: fileId,
+            alt: 'media',
+          });
+          const content = typeof fileRes.data === 'object' ? JSON.stringify(fileRes.data, null, 2) : fileRes.data;
+          return `Contenido del archivo "${name}":\n\n${content}`;
+        } catch (txtErr) {
+          return `No se pudo leer el archivo de texto "${name}": ${txtErr.message}`;
+        }
       }
 
       return `El archivo "${name}" tiene un formato no compatible directamente para lectura (${mimeType}). ID de archivo: ${fileId}`;
