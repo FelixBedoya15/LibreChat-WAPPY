@@ -291,23 +291,8 @@ async function runAutomation(automation, isManual = false) {
       }
     }
 
-    // 9. Tag generated conversation to isolate from regular chats
-    if (generatedConvoId) {
-      try {
-        console.log(`[AutomationScheduler] STEP 5: Tagging conversation ${generatedConvoId}...`);
-        const ConvoModel = mongoose.models.Conversation || (mongoose.modelNames().includes('Conversation') ? mongoose.model('Conversation') : null);
-        if (ConvoModel) {
-          await ConvoModel.updateOne(
-            { conversationId: generatedConvoId },
-            { $addToSet: { tags: { $each: ['sgsst-automation', `company-${automation.companyId}`] } } }
-          );
-        }
-      } catch (tagErr) {
-        console.warn('[AutomationScheduler] Could not tag conversation:', tagErr.message);
-      }
-    }
-
-    console.log(`[AutomationScheduler] STEP 6: Extracting result text...`);
+    // 9. Extract result text immediately
+    console.log(`[AutomationScheduler] STEP 5: Extracting result text...`);
     let resultText = (response?.text || '').trim();
     if (!resultText && Array.isArray(response?.content)) {
       resultText = response.content
@@ -317,60 +302,57 @@ async function runAutomation(automation, isManual = false) {
         .join('\n\n')
         .trim();
     }
+    if (!resultText) {
+      resultText = '(Ejecución completada por el agente. Documento generado disponible en el chat)';
+    }
 
-    // Fallback: si el agente generó un documento en Canvas / LiveEditor
-    if (!resultText && generatedConvoId) {
-      try {
-        console.log(`[AutomationScheduler] STEP 6.1: Checking CanvasSession fallback for ${generatedConvoId}...`);
-        const CanvasSession = mongoose.models.CanvasSession || (mongoose.modelNames().includes('CanvasSession') ? mongoose.model('CanvasSession') : null);
-        if (CanvasSession) {
-          const canvas = await CanvasSession.findOne({ conversationId: generatedConvoId }).lean();
-          if (canvas?.content) {
-            resultText = typeof canvas.content === 'string' && canvas.content.startsWith('{')
-              ? `Reporte generado: "${canvas.title || 'Analítica SST'}" guardado en Canvas.`
-              : canvas.content.substring(0, 1500);
+    // 10. Update Log and Automation to SUCCESS immediately in MongoDB
+    console.log(`[AutomationScheduler] STEP 6: Updating AutomationLog ${log._id} and Automation ${automation._id} to SUCCESS...`);
+    await Promise.all([
+      AutomationLog.updateOne(
+        { _id: log._id },
+        {
+          $set: {
+            status: 'success',
+            result: resultText,
+            conversationId: generatedConvoId
           }
         }
-      } catch (e) {
-        // fallback silencioso
-      }
-    }
+      ),
+      Automation.updateOne(
+        { _id: automation._id },
+        {
+          $set: {
+            lastRunAt: new Date(),
+            lastRunStatus: 'success',
+            lastRunResult: resultText.substring(0, 500),
+            conversationId: generatedConvoId,
+            ...(isManual && automation.status === 'active'
+              ? { nextRunAt: calculateNextRun(automation.scheduleType, automation.scheduleConfig) }
+              : {})
+          }
+        }
+      )
+    ]);
+    console.log(`[AutomationScheduler] ALL STEPS COMPLETED! Successfully finished execution for "${automation.name}"`);
 
-    if (!resultText) {
-      resultText = '(Ejecución completada por el agente. Documento consolidado disponible en el chat)';
-    }
-
-    console.log(`[AutomationScheduler] STEP 7: Updating AutomationLog ${log._id} to SUCCESS...`);
-    // 10. Update Log to success
-    await AutomationLog.updateOne(
-      { _id: log._id },
-      {
-        $set: {
-          status: 'success',
-          result: resultText,
-          conversationId: generatedConvoId
+    // 11. Optional Post-Processing Tasks (Completely Non-Blocking in background)
+    setImmediate(async () => {
+      // Background tagging
+      if (generatedConvoId) {
+        try {
+          const ConvoModel = mongoose.models.Conversation;
+          if (ConvoModel) {
+            await ConvoModel.updateOne(
+              { conversationId: generatedConvoId },
+              { $addToSet: { tags: { $each: ['sgsst-automation', `company-${automation.companyId}`] } } }
+            );
+          }
+        } catch (tagErr) {
+          // No-op
         }
       }
-    );
-    console.log(`[AutomationScheduler] STEP 7.1: AutomationLog successfully updated.`);
-
-    // 11. Update Automation status and result
-    console.log(`[AutomationScheduler] STEP 8: Updating Automation ${automation._id} to SUCCESS...`);
-    const updateDoc = {
-      lastRunAt: new Date(),
-      lastRunStatus: 'success',
-      lastRunResult: resultText.substring(0, 500),
-      conversationId: generatedConvoId
-    };
-
-    // If manual run and nextRunAt is missing or past, ensure a valid nextRunAt is set
-    if (isManual && automation.status === 'active') {
-      updateDoc.nextRunAt = calculateNextRun(automation.scheduleType, automation.scheduleConfig);
-    }
-
-    await Automation.updateOne({ _id: automation._id }, { $set: updateDoc });
-
-    console.log(`[AutomationScheduler] ALL STEPS COMPLETED! Successfully finished execution for "${automation.name}"`);
+    });
 
     // 12. Send Email Notification to configured recipients (Completely Non-blocking)
     if (Array.isArray(automation.emails) && automation.emails.length > 0) {
