@@ -266,7 +266,7 @@ async function runAutomation(automation, isManual = false) {
     };
 
     // 8. Execute agent call with safety limit of 8 minutes
-    console.log(`[AutomationScheduler] Executing prompt for "${automation.name}" via agent "${agent?.name || 'Default'}"...`);
+    console.log(`[AutomationScheduler] STEP 3: Executing prompt for "${automation.name}" via agent "${agent?.name || 'Default'}"...`);
     const response = await Promise.race([
       client.sendMessage(automation.prompt, messageOptions),
       new Promise((_, reject) =>
@@ -276,14 +276,16 @@ async function runAutomation(automation, isManual = false) {
     
     // Desactivar el temporizador de 10 minutos de inmediato
     clearTimeout(timeoutId);
-    console.log(`[AutomationScheduler] Agent sendMessage finished for "${automation.name}". GeneratedConvo: ${generatedConvoId}`);
+    console.log(`[AutomationScheduler] STEP 4: Agent sendMessage finished for "${automation.name}". GeneratedConvo: ${generatedConvoId}`);
 
     if (response?.databasePromise) {
       try {
+        console.log(`[AutomationScheduler] STEP 4.1: Awaiting response.databasePromise (max 5s)...`);
         await Promise.race([
           response.databasePromise,
           new Promise((r) => setTimeout(r, 5000))
         ]);
+        console.log(`[AutomationScheduler] STEP 4.2: databasePromise resolved.`);
       } catch (dbErr) {
         console.warn('[AutomationScheduler] databasePromise non-blocking notice:', dbErr.message);
       }
@@ -292,6 +294,7 @@ async function runAutomation(automation, isManual = false) {
     // 9. Tag generated conversation to isolate from regular chats
     if (generatedConvoId) {
       try {
+        console.log(`[AutomationScheduler] STEP 5: Tagging conversation ${generatedConvoId}...`);
         const ConvoModel = mongoose.models.Conversation || (mongoose.modelNames().includes('Conversation') ? mongoose.model('Conversation') : null);
         if (ConvoModel) {
           await ConvoModel.updateOne(
@@ -304,6 +307,7 @@ async function runAutomation(automation, isManual = false) {
       }
     }
 
+    console.log(`[AutomationScheduler] STEP 6: Extracting result text...`);
     let resultText = (response?.text || '').trim();
     if (!resultText && Array.isArray(response?.content)) {
       resultText = response.content
@@ -317,6 +321,7 @@ async function runAutomation(automation, isManual = false) {
     // Fallback: si el agente generó un documento en Canvas / LiveEditor
     if (!resultText && generatedConvoId) {
       try {
+        console.log(`[AutomationScheduler] STEP 6.1: Checking CanvasSession fallback for ${generatedConvoId}...`);
         const CanvasSession = mongoose.models.CanvasSession || (mongoose.modelNames().includes('CanvasSession') ? mongoose.model('CanvasSession') : null);
         if (CanvasSession) {
           const canvas = await CanvasSession.findOne({ conversationId: generatedConvoId }).lean();
@@ -335,6 +340,7 @@ async function runAutomation(automation, isManual = false) {
       resultText = '(Ejecución completada por el agente. Documento consolidado disponible en el chat)';
     }
 
+    console.log(`[AutomationScheduler] STEP 7: Updating AutomationLog ${log._id} to SUCCESS...`);
     // 10. Update Log to success
     await AutomationLog.updateOne(
       { _id: log._id },
@@ -346,8 +352,10 @@ async function runAutomation(automation, isManual = false) {
         }
       }
     );
+    console.log(`[AutomationScheduler] STEP 7.1: AutomationLog successfully updated.`);
 
     // 11. Update Automation status and result
+    console.log(`[AutomationScheduler] STEP 8: Updating Automation ${automation._id} to SUCCESS...`);
     const updateDoc = {
       lastRunAt: new Date(),
       lastRunStatus: 'success',
@@ -362,7 +370,7 @@ async function runAutomation(automation, isManual = false) {
 
     await Automation.updateOne({ _id: automation._id }, { $set: updateDoc });
 
-    console.log(`[AutomationScheduler] Successfully completed execution for "${automation.name}"`);
+    console.log(`[AutomationScheduler] ALL STEPS COMPLETED! Successfully finished execution for "${automation.name}"`);
 
     // 12. Send Email Notification to configured recipients (Completely Non-blocking)
     if (Array.isArray(automation.emails) && automation.emails.length > 0) {
