@@ -1,7 +1,6 @@
 const { getAppConfig } = require('~/server/services/Config');
 const { getAgent } = require('~/models/Agent');
 const { initializeClient } = require('~/server/services/Endpoints/agents/initialize');
-const { Conversation } = require('~/db/models');
 const mongoose = require('mongoose');
 const Automation = require('~/models/Automation');
 const AutomationLog = require('~/models/AutomationLog');
@@ -289,10 +288,17 @@ async function runAutomation(automation, isManual = false) {
 
     // 9. Tag generated conversation to isolate from regular chats
     if (generatedConvoId) {
-      await Conversation.updateOne(
-        { conversationId: generatedConvoId },
-        { $addToSet: { tags: { $each: ['sgsst-automation', `company-${automation.companyId}`] } } }
-      );
+      try {
+        const ConvoModel = mongoose.models.Conversation || (mongoose.modelNames().includes('Conversation') ? mongoose.model('Conversation') : null);
+        if (ConvoModel) {
+          await ConvoModel.updateOne(
+            { conversationId: generatedConvoId },
+            { $addToSet: { tags: { $each: ['sgsst-automation', `company-${automation.companyId}`] } } }
+          );
+        }
+      } catch (tagErr) {
+        console.warn('[AutomationScheduler] Could not tag conversation:', tagErr.message);
+      }
     }
 
     let resultText = (response?.text || '').trim();
@@ -308,12 +314,14 @@ async function runAutomation(automation, isManual = false) {
     // Fallback: si el agente generó un documento en Canvas / LiveEditor
     if (!resultText && generatedConvoId) {
       try {
-        const CanvasSession = mongoose.models.CanvasSession || require('~/models/CanvasSession');
-        const canvas = await CanvasSession.findOne({ conversationId: generatedConvoId }).lean();
-        if (canvas?.content) {
-          resultText = typeof canvas.content === 'string' && canvas.content.startsWith('{')
-            ? `Reporte generado: "${canvas.title || 'Analítica SST'}" guardado en Canvas.`
-            : canvas.content.substring(0, 1500);
+        const CanvasSession = mongoose.models.CanvasSession || (mongoose.modelNames().includes('CanvasSession') ? mongoose.model('CanvasSession') : null);
+        if (CanvasSession) {
+          const canvas = await CanvasSession.findOne({ conversationId: generatedConvoId }).lean();
+          if (canvas?.content) {
+            resultText = typeof canvas.content === 'string' && canvas.content.startsWith('{')
+              ? `Reporte generado: "${canvas.title || 'Analítica SST'}" guardado en Canvas.`
+              : canvas.content.substring(0, 1500);
+          }
         }
       } catch (e) {
         // fallback silencioso
@@ -325,10 +333,16 @@ async function runAutomation(automation, isManual = false) {
     }
 
     // 10. Update Log to success
-    log.status = 'success';
-    log.result = resultText;
-    log.conversationId = generatedConvoId;
-    await log.save();
+    await AutomationLog.updateOne(
+      { _id: log._id },
+      {
+        $set: {
+          status: 'success',
+          result: resultText,
+          conversationId: generatedConvoId
+        }
+      }
+    );
 
     // 11. Update Automation status and result
     const updateDoc = {
