@@ -67,15 +67,26 @@ interface AutomationLog {
   conversationId?: string;
 }
 
-export default function Automatizaciones() {
+interface AutomatizacionesProps {
+  hideMainHeader?: boolean;
+  defaultTab?: 'list' | 'logs';
+}
+
+export default function Automatizaciones({ hideMainHeader = false, defaultTab = 'list' }: AutomatizacionesProps = {}) {
   const { showToast } = useToastContext();
   const { data: agentsData } = useListAgentsQuery({ requiredPermission: 1, limit: 100 });
   const agents = agentsData?.data || [];
 
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [logs, setLogs] = useState<AutomationLog[]>([]);
-  const [activeTab, setActiveTab] = useState<'list' | 'logs'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'logs'>(defaultTab);
   const [showDashboard, setShowDashboard] = useState(true);
+
+  useEffect(() => {
+    if (defaultTab) {
+      setActiveTab(defaultTab);
+    }
+  }, [defaultTab]);
   
   // Loading states
   const [loading, setLoading] = useState(false);
@@ -440,16 +451,28 @@ export default function Automatizaciones() {
   return (
     <div className="flex-1 flex flex-col bg-surface-secondary/30 min-h-screen h-auto overflow-y-auto pb-12">
       {/* Upper header - Estilo ACPM */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-white dark:bg-gray-900 border-b border-border-medium/40 gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400">
-            <Cpu className="w-7 h-7 text-purple-500" />
-            Automatizaciones de Agentes
-          </h1>
-          <p className="text-xs text-text-secondary mt-1">
-            Programación y control de tareas autónomas para tus agentes expertos de seguridad y salud en el trabajo.
-          </p>
-        </div>
+      <div className={`flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-white dark:bg-gray-900 border-b border-border-medium/40 gap-4 ${hideMainHeader ? 'py-3.5 px-6' : ''}`}>
+        {!hideMainHeader ? (
+          <div>
+            <h1 className="text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400">
+              <Cpu className="w-7 h-7 text-purple-500" />
+              Automatizaciones de Agentes
+            </h1>
+            <p className="text-xs text-text-secondary mt-1">
+              Programación y control de tareas autónomas para tus agentes expertos de seguridad y salud en el trabajo.
+            </p>
+          </div>
+        ) : (
+          <div>
+            <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
+              <Cpu className="w-5 h-5 text-purple-500" />
+              Vigilancia y Tareas Autónomas de Agentes IA
+            </h2>
+            <p className="text-xs text-text-secondary mt-0.5">
+              Programación de tareas periódicas, triggers automáticos y generación de reportes.
+            </p>
+          </div>
+        )}
 
         <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
           <button

@@ -54,6 +54,7 @@ import EventsMeetAdminDashboard from '~/components/EventsMeet/EventsMeetAdminDas
 
 import AuditoriaDashboard from '~/components/Auditoria/AuditoriaDashboard';
 import Automatizaciones from '~/components/SGSST/Automatizaciones';
+import CentroControlSST from '~/components/SGSST/CentroControlSST';
 import PlansPage from '~/components/Plans/PlansPage';
 import ContactPage from '~/components/Plans/ContactPage';
 import KanbanDashboard from '~/components/Kanban/KanbanDashboard';
@@ -359,7 +360,7 @@ export const router = createBrowserRouter(
             },
             {
               path: 'sgsst/automatizaciones',
-              element: <Automatizaciones />,
+              element: <CentroControlSST />,
             },
             {
               /* Redirect old GTC-45 workspace URLs to the equivalent native chat */
@@ -425,7 +426,15 @@ export const router = createBrowserRouter(
             },
             {
               path: 'kanban',
-              element: <KanbanDashboard />,
+              element: <CentroControlSST />,
+            },
+            {
+              path: 'control',
+              element: <CentroControlSST />,
+            },
+            {
+              path: 'sgsst/control',
+              element: <CentroControlSST />,
             },
             {
               path: 'embajadores/dashboard',

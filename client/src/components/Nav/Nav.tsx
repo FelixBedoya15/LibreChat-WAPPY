@@ -36,7 +36,6 @@ const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
 const KanbanButton = lazy(() => import('./KanbanButton'));
 const ChatSSTButton = lazy(() => import('./ChatSSTButton'));
 const EventsMeetButton = lazy(() => import('./EventsMeetButton'));
-const AutomatizacionesButton = lazy(() => import('./AutomatizacionesButton'));
 const AmbassadorsButton = lazy(() => import('./AmbassadorsButton'));
 
 
@@ -366,15 +365,9 @@ const Nav = memo(
                               />
                               <div className="flex flex-col gap-1.5 mt-1 mb-3">
                                 {search.enabled && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={false} />}
-                                {/* Automatizaciones */}
                                 <Suspense fallback={null}>
-                                {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
-                                  <AutomatizacionesButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                )}
+                                  <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                 </Suspense>
-                                  <Suspense fallback={null}>
-                                    <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
 
 
                                 {hasAccessToBookmarks && (
