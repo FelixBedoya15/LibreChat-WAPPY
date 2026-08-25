@@ -275,26 +275,13 @@ const Nav = memo(
                             </button>
                           }
                         />
-                        {/* Chat SST icon */}
-                          <Suspense fallback={null}>
-                            <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                          </Suspense>
-
-
-                        {/* Bookmarks icon */}
-
-                        {hasAccessToBookmarks && (
-                          <Suspense fallback={null}>
-                            <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={true} />
-                          </Suspense>
-                        )}
                         {/* SG-SST icon (Somos SST) */}
                         {hasAccessToSGSST && (
                           <Suspense fallback={null}>
                             <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
-                        {/* Kanban Button */}
+                        {/* Centro de Control SST */}
                         <Suspense fallback={null}>
                           <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                         </Suspense>
@@ -304,28 +291,28 @@ const Nav = memo(
                             <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
-                        {/* Auditoría */}
-                        <Suspense fallback={null}>
-                          <AuditoriaButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        </Suspense>
                         {/* Aula Estudio */}
                         <Suspense fallback={null}>
                           <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                         </Suspense>
-                        {/* Ruta Aprendizaje */}
+                        {/* Ruta Aprendizaje (Empresa) */}
                         <Suspense fallback={null}>
                           {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
                             <RutaAprendizajeButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           )}
                         </Suspense>
-                        {/* Blog */}
-                        <Suspense fallback={null}>
-                          <BlogButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        </Suspense>
-                        {/* Events Meet icon */}
-                        <Suspense fallback={null}>
-                          <EventsMeetButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        </Suspense>
+                        {/* Bookmarks icon */}
+                        {hasAccessToBookmarks && (
+                          <Suspense fallback={null}>
+                            <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={true} />
+                          </Suspense>
+                        )}
+                        {/* Comunidad (Solo ADMIN) */}
+                        {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
+                          <Suspense fallback={null}>
+                            <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          </Suspense>
+                        )}
                         {/* Métricas & Embajadores */}
                         <Suspense fallback={null}>
                           {hasAmbassadorAccess && (
@@ -359,48 +346,53 @@ const Nav = memo(
                               />
                               <div className="flex flex-col gap-1.5 mt-1 mb-3">
                                 {search.enabled && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={false} />}
-                                <Suspense fallback={null}>
-                                  <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                </Suspense>
-
-
-                                {hasAccessToBookmarks && (
-                                  <Suspense fallback={null}>
-                                    <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={false} />
-                                  </Suspense>
-                                )}
+                                
+                                {/* 1. Somos SST */}
                                 {hasAccessToSGSST && (
                                   <Suspense fallback={null}>
                                     <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
+                                
+                                {/* 2. Centro de Control SST */}
                                 <Suspense fallback={null}>
                                   <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                 </Suspense>
+
+                                {/* 3. Análisis en Vivo */}
                                 {hasAccessToLiveAnalysis && (
                                   <Suspense fallback={null}>
                                     <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
-                                <Suspense fallback={null}>
-                                  <AuditoriaButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                </Suspense>
+
+                                {/* 4. Aula Estudio (Cursos Generales) */}
                                 <Suspense fallback={null}>
                                   <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                 </Suspense>
+
+                                {/* 5. Ruta Aprendizaje (Empresa) */}
                                 <Suspense fallback={null}>
-                                  {user?.role === 'ADMIN' && (
+                                  {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
                                     <RutaAprendizajeButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   )}
                                 </Suspense>
-                                <Suspense fallback={null}>
-                                  <BlogButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                </Suspense>
-                                {/* Events Meet icon */}
-                                <Suspense fallback={null}>
-                                  <EventsMeetButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                </Suspense>
-                                {/* Métricas & Embajadores */}
+
+                                {/* 6. Marcadores */}
+                                {hasAccessToBookmarks && (
+                                  <Suspense fallback={null}>
+                                    <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+
+                                {/* 7. Comunidad (Solo ADMIN) */}
+                                {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
+                                  <Suspense fallback={null}>
+                                    <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+
+                                {/* 8. Métricas & Embajadores (Solo ADMIN / Embajadores) */}
                                 <Suspense fallback={null}>
                                   {hasAmbassadorAccess && (
                                     <AmbassadorsButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
