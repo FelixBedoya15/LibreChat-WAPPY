@@ -18,15 +18,15 @@ export default function AmbassadorLandingBanner() {
   useEffect(() => {
     try {
       const searchParams = new URLSearchParams(location.search);
-      const urlRef = searchParams.get('ref');
-      const storedRef = typeof window !== 'undefined' ? localStorage.getItem('wappy_ref') : null;
-      const activeRef = (urlRef || storedRef || '').trim();
+      const urlRef = (searchParams.get('ref') || searchParams.get('referral') || '').trim();
 
-      if (!activeRef) return;
-
-      if (urlRef) {
-        localStorage.setItem('wappy_ref', urlRef);
+      if (!urlRef) {
+        setAmbassador(null);
+        return;
       }
+
+      const activeRef = urlRef;
+      localStorage.setItem('wappy_ref', activeRef);
 
       const formatSlugName = (slugStr: string) => {
         return slugStr
