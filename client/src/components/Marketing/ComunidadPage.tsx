@@ -357,11 +357,18 @@ export default function ComunidadPage() {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [leadsSearch, setLeadsSearch] = useState('');
   const [isLoadingLeads, setIsLoadingLeads] = useState(false);
-  const [metricsStats, setMetricsStats] = useState<any>(null);
-  const [metricsLoading, setMetricsLoading] = useState(false);
   const [syncingEmail, setSyncingEmail] = useState<string | null>(null);
 
+  // Direct Admin Login Modal States
+  const [showAdminLoginModal, setShowAdminLoginModal] = useState(false);
+  const [adminLoginEmail, setAdminLoginEmail] = useState('cristhian@mauricioposadac.com');
+  const [adminLoginPassword, setAdminLoginPassword] = useState('');
+  const [adminLoginError, setAdminLoginError] = useState('');
+  const [isAdminLoggingIn, setIsAdminLoggingIn] = useState(false);
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+
   // Admin File Upload States
+
   const [uploadFileName, setUploadFileName] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isFileUploading, setIsFileUploading] = useState(false);
@@ -1536,6 +1543,16 @@ export default function ComunidadPage() {
       return;
     }
 
+    // Auto-authenticate if Admin email is entered
+    if (ADMIN_EMAILS.includes(checkoutEmail.toLowerCase().trim())) {
+      if (!checkoutPassword) {
+        setCheckoutError('Ingresa tu contraseña de administrador para desbloquear las métricas.');
+        return;
+      }
+      await handleAdminDirectLogin(checkoutEmail, checkoutPassword);
+      return;
+    }
+
     trackClick('checkoutSubmit');
     setIsCheckoutSubmitting(true);
 
@@ -1577,7 +1594,41 @@ export default function ComunidadPage() {
     }
   };
 
+  // --- Admin Direct Authentication ---
+  const handleAdminDirectLogin = async (emailToUse: string, passwordToUse: string) => {
+    if (!emailToUse.trim()) {
+      setAdminLoginError('Por favor, ingresa tu correo de administrador.');
+      return;
+    }
+    if (!passwordToUse) {
+      setAdminLoginError('Por favor, ingresa tu contraseña.');
+      return;
+    }
+    setAdminLoginError('');
+    setIsAdminLoggingIn(true);
+    try {
+      const res = await axios.post('/api/auth/login', {
+        email: emailToUse.trim(),
+        password: passwordToUse,
+      });
+      if (res.data?.token) {
+        login({ email: emailToUse.trim(), password: passwordToUse });
+        setShowAdminLoginModal(false);
+        setShowLeadModal(false);
+        setIsLeadsPanelOpen(true);
+      }
+    } catch (err: any) {
+      console.error('[Admin Login Error]', err);
+      const errMsg = err.response?.data?.message || 'Contraseña incorrecta o error al iniciar sesión.';
+      setAdminLoginError(errMsg);
+      setCheckoutError(errMsg);
+    } finally {
+      setIsAdminLoggingIn(false);
+    }
+  };
+
   const handleQuickAccessClick = () => {
+
     trackClick('quickAccess');
     // Pause video
     if (isYouTube) {
@@ -2138,6 +2189,22 @@ export default function ComunidadPage() {
                 </button>
               </>
             )}
+            {!isAdmin && (
+              <button
+                onClick={() => {
+
+                  setAdminLoginEmail('cristhian@mauricioposadac.com');
+                  setAdminLoginPassword('');
+                  setAdminLoginError('');
+                  setShowAdminLoginModal(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold transition-all shadow-sm hover:scale-105"
+                title="Ingresar como Administrador para ver Métricas y Ajustes"
+              >
+                <Key className="w-3.5 h-3.5" />
+                <span>Acceso Admin</span>
+              </button>
+            )}
 
             <>
               <a
@@ -2147,6 +2214,7 @@ export default function ComunidadPage() {
                 onClick={() => trackClick('whatsapp')}
                 className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-full border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08] text-emerald-600 dark:text-emerald-400 font-semibold transition-all duration-300 text-xs sm:text-sm flex items-center gap-1 sm:gap-1.5 ${funnelKey === 'comunidadmp' ? 'comunidadmp-btn-whatsapp' : ''}`}
               >
+
                 <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.858.002-2.634-1.02-5.11-2.881-6.974-1.862-1.864-4.339-2.89-6.974-2.891-5.438 0-9.862 4.422-9.866 9.86-.001 1.702.453 3.361 1.311 4.816L1.874 21.66l4.773-1.506zm13.114-6.398c-.29-.145-1.716-.847-1.978-.942-.262-.096-.453-.145-.644.145-.19.29-.738.942-.905 1.133-.166.19-.333.214-.623.069-.29-.145-1.22-.449-2.324-1.433-.859-.767-1.439-1.714-1.607-2.005-.168-.29-.018-.447.127-.591.13-.13.29-.338.436-.508.145-.17.193-.29.29-.483.097-.19.048-.362-.024-.508-.073-.145-.644-1.55-.88-2.119-.23-.556-.479-.482-.644-.49-.166-.008-.356-.01-.546-.01-.19 0-.501.071-.762.35-.262.279-1 1.002-1 2.443 0 1.441 1.049 2.834 1.195 3.027.145.19 2.062 3.149 4.996 4.413.698.301 1.243.481 1.668.616.702.223 1.34.191 1.845.116.562-.083 1.716-.701 1.958-1.378.243-.677.243-1.258.17-1.378-.073-.12-.262-.19-.553-.335z"/>
                 </svg>
@@ -3813,7 +3881,39 @@ export default function ComunidadPage() {
                   </div>
                 </div>
 
-                {funnelKey === 'wappyvital' && selectedCheckoutPlan !== null && (
+                {/* Admin account detected in Lead Modal */}
+                {ADMIN_EMAILS.includes(checkoutEmail.toLowerCase().trim()) && (
+                  <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-left space-y-2.5">
+                    <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      <span>¡Cuenta de Administrador Detectada!</span>
+                    </div>
+                    <p className="text-[11px] text-text-secondary">
+                      Ingresa tu contraseña para acceder al Dashboard de Métricas y Ajustes directamente.
+                    </p>
+                    <div>
+                      <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Contraseña de Administrador</label>
+                      <div className="relative">
+                        <input
+                          type={showCheckoutPassword ? 'text' : 'password'}
+                          value={checkoutPassword}
+                          onChange={(e) => setCheckoutPassword(e.target.value)}
+                          placeholder="Tu contraseña"
+                          className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all pr-10 font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCheckoutPassword(!showCheckoutPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary focus:outline-none"
+                        >
+                          {showCheckoutPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {funnelKey === 'wappyvital' && selectedCheckoutPlan !== null && !ADMIN_EMAILS.includes(checkoutEmail.toLowerCase().trim()) && (
                   <div>
                     <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Contraseña</label>
                     <div className="relative">
@@ -3849,6 +3949,7 @@ export default function ComunidadPage() {
                 )}
 
                 <label className="flex items-start gap-2 cursor-pointer group mt-2.5">
+
                   <input
                     type="checkbox"
                     checked={acceptedPolicies}
@@ -3952,7 +4053,94 @@ export default function ComunidadPage() {
         </div>
       )}
 
+      {/* --- Direct Admin Login Modal --- */}
+      {showAdminLoginModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-slate-950/85 dark:bg-slate-950/90 backdrop-blur-lg p-4 sm:p-6 z-50 overflow-y-auto">
+          <div className="w-full max-w-md bg-surface-primary border border-emerald-500/40 rounded-3xl p-6 sm:p-8 text-left shadow-2xl relative my-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAdminLoginModal(false);
+                setAdminLoginError('');
+              }}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-surface-secondary text-text-secondary hover:text-text-primary transition-colors z-10"
+              title="Cerrar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500">
+                <Key className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-text-primary leading-tight outfit">Acceso Administrador WAPPY</h3>
+                <p className="text-[11px] text-text-secondary">Ingresa para desbloquear las métricas y configuración de comunidad</p>
+              </div>
+            </div>
+
+            {adminLoginError && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-center gap-2 mb-4">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{adminLoginError}</span>
+              </div>
+            )}
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleAdminDirectLogin(adminLoginEmail, adminLoginPassword);
+              }}
+              className="space-y-3.5"
+            >
+              <div>
+                <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Correo de Administrador</label>
+                <input
+                  type="email"
+                  value={adminLoginEmail}
+                  onChange={(e) => setAdminLoginEmail(e.target.value)}
+                  placeholder="cristhian@mauricioposadac.com"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Contraseña</label>
+                <div className="relative">
+                  <input
+                    type={showAdminPassword ? 'text' : 'password'}
+                    value={adminLoginPassword}
+                    onChange={(e) => setAdminLoginPassword(e.target.value)}
+                    placeholder="Ingresa tu contraseña"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-border-medium text-text-primary text-xs focus:outline-none focus:border-emerald-500 transition-all font-medium pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminPassword(!showAdminPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary focus:outline-none"
+                  >
+                    {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isAdminLoggingIn}
+                className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-emerald-500/20 disabled:opacity-50 mt-3 hover:scale-[1.01]"
+              >
+                {isAdminLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+                <span>Ingresar y Ver Métricas</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showDiscountModal && (
+
         <div className="fixed inset-0 flex items-center justify-center bg-slate-950/85 dark:bg-slate-950/90 backdrop-blur-lg p-4 sm:p-6 z-50 overflow-y-auto">
           <div className="w-full max-w-md bg-surface-primary border border-emerald-500/30 rounded-3xl p-6 sm:p-8 text-center shadow-2xl relative my-auto">
             {/* Close Button */}
