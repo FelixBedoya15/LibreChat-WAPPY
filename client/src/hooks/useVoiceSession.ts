@@ -270,9 +270,9 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     };
 
     /**
-     * Send Video Frame
+     * Send Video Frame with optional canvas overlay and telemetry
      */
-    const sendVideoFrame = useCallback((videoElement: HTMLVideoElement) => {
+    const sendVideoFrame = useCallback((videoElement: HTMLVideoElement, telemetry?: string, overlayCanvas?: HTMLCanvasElement | null) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
         if (!videoCanvasRef.current) {
@@ -283,19 +283,27 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         const context = canvas.getContext('2d');
         if (!context) return;
 
-        const width = 320;
-        const height = 240;
+        const width = 480;
+        const height = 360;
 
         if (canvas.width !== width) canvas.width = width;
         if (canvas.height !== height) canvas.height = height;
 
         context.drawImage(videoElement, 0, 0, width, height);
 
-        const base64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+        // Composite MediaPipe skeleton overlay if provided
+        if (overlayCanvas && overlayCanvas.width > 0 && overlayCanvas.height > 0) {
+            context.drawImage(overlayCanvas, 0, 0, width, height);
+        }
+
+        const base64 = canvas.toDataURL('image/jpeg', 0.75).split(',')[1];
 
         wsRef.current.send(JSON.stringify({
             type: 'video',
-            data: { image: base64 }
+            data: { 
+                image: base64,
+                ...(telemetry ? { telemetry } : {})
+            }
         }));
 
     }, []);

@@ -3,12 +3,20 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
 const { syncToRag } = require('../services/RagService');
+const { ADMIN_EMAILS } = require('../middleware/roles/admin');
+
+const isUserAdmin = (user) => {
+    if (!user) return false;
+    const email = user.email?.toLowerCase();
+    return user.role === 'ADMIN' || (email && ADMIN_EMAILS.includes(email));
+};
 
 // --- Courses ---
 
 const getAllCoursesAdmin = async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+        if (!isUserAdmin(req.user)) return res.status(403).json({ message: 'Forbidden' });
+
 
         const courses = await Course.find({}).sort({ createdAt: -1 }).lean();
         res.status(200).json(courses);
@@ -20,7 +28,7 @@ const getAllCoursesAdmin = async (req, res) => {
 
 const createCourse = async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+        if (!isUserAdmin(req.user)) return res.status(403).json({ message: 'Forbidden' });
 
         const { title, description, thumbnail, tags, attachments, exam, isPublished } = req.body;
 
@@ -61,7 +69,7 @@ const createCourse = async (req, res) => {
 
 const updateCourse = async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+        if (!isUserAdmin(req.user)) return res.status(403).json({ message: 'Forbidden' });
 
         const { id } = req.params;
         const updates = req.body;
@@ -96,7 +104,7 @@ const updateCourse = async (req, res) => {
 
 const deleteCourse = async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+        if (!isUserAdmin(req.user)) return res.status(403).json({ message: 'Forbidden' });
 
         const { id } = req.params;
         const result = await Course.findByIdAndDelete(id);
@@ -120,7 +128,7 @@ const deleteCourse = async (req, res) => {
 
 const addLesson = async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+        if (!isUserAdmin(req.user)) return res.status(403).json({ message: 'Forbidden' });
 
         const { courseId } = req.params;
         const { title, content, videoUrl, order, attachments, exam } = req.body;
@@ -150,7 +158,7 @@ const addLesson = async (req, res) => {
 
 const updateLesson = async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+        if (!isUserAdmin(req.user)) return res.status(403).json({ message: 'Forbidden' });
 
         const { courseId, lessonId } = req.params;
         const updates = req.body;
@@ -193,7 +201,7 @@ const updateLesson = async (req, res) => {
 
 const deleteLesson = async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+        if (!isUserAdmin(req.user)) return res.status(403).json({ message: 'Forbidden' });
 
         const { courseId, lessonId } = req.params;
 
@@ -219,7 +227,7 @@ const deleteLesson = async (req, res) => {
 
 const generateTrainingContent = async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+        if (!isUserAdmin(req.user)) return res.status(403).json({ message: 'Forbidden' });
 
         const { type, prompt, modelName } = req.body;
 
@@ -282,7 +290,7 @@ const generateTrainingContent = async (req, res) => {
 
 const setFeaturedCourse = async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+        if (!isUserAdmin(req.user)) return res.status(403).json({ message: 'Forbidden' });
 
         const { id } = req.params;
 

@@ -6,13 +6,8 @@ const Automation = require('~/models/Automation');
 const AutomationLog = require('~/models/AutomationLog');
 const { runAutomation, calculateNextRun } = require('~/server/services/automationScheduler');
 
-// Middleware para verificar que el usuario sea administrador
-const requireAdmin = (req, res, next) => {
-  if (req.user.role !== 'ADMIN') {
-    return res.status(403).json({ error: 'No autorizado. Se requiere rol de Administrador.' });
-  }
-  next();
-};
+const { requireAdmin } = require('../../middleware/roles/admin');
+
 
 router.use(requireJwtAuth);
 router.use(requireAdmin);

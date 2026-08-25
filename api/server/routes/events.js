@@ -217,12 +217,8 @@ router.post('/:id/register', requireJwtAuth, async (req, res) => {
 // --- ADMIN ROUTES (Protected) ---
 
 // Middleware to ensure admin
-const requireAdmin = (req, res, next) => {
-  if (req.user && req.user.role === 'ADMIN') {
-    return next();
-  }
-  return res.status(403).json({ message: 'Acceso denegado. Se requieren permisos de administrador.' });
-};
+const { requireAdmin } = require('../middleware/roles/admin');
+
 
 // 3. GET /api/events/admin - List all events with registrations count (Admin)
 router.get('/admin', requireJwtAuth, requireAdmin, async (req, res) => {

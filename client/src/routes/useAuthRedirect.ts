@@ -7,11 +7,12 @@ export default function useAuthRedirect() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Dar suficiente tiempo (3.5s) al silentRefresh para verificar la sesión en cookies antes de redirigir a login
     const timeout = setTimeout(() => {
       if (!isAuthenticated) {
         navigate('/login', { replace: true });
       }
-    }, 300);
+    }, 3500);
 
     return () => {
       clearTimeout(timeout);

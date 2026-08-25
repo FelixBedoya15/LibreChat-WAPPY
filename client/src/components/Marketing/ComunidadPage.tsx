@@ -5,8 +5,9 @@ import {
   Play, Pause, ShieldAlert, Check, Lock, ShieldCheck, ArrowRight, ArrowDown, Settings, Save, 
   AlertCircle, Sparkles, UserCheck, HelpCircle, Maximize, Minimize, Trash2, 
   Download, Unlock, FileText, Loader2, RefreshCw, Plus, X, ExternalLink, Key,
-  Eye, EyeOff, Gift
+  Eye, EyeOff, Gift, MessageSquare
 } from 'lucide-react';
+
 import { useAuthContext } from '~/hooks';
 import { ThemeSelector } from '@librechat/client';
 import { QRCodeSVG } from 'qrcode.react';
@@ -87,10 +88,15 @@ const renderFeatureText = (f: string) => {
   );
 };
 
+const ADMIN_EMAILS = [
+  'cristhian@mauricioposadac.com',
+  'mauricioposadac@gmail.com',
+];
+
 export default function ComunidadPage() {
   const navigate = useNavigate();
   const { user, token, login } = useAuthContext();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
 
   // Determine funnelKey based on URL
   const funnelKey = window.location.pathname.includes('wappyvital')
@@ -98,6 +104,31 @@ export default function ComunidadPage() {
     : window.location.pathname.includes('comunidadmp')
       ? 'comunidadmp'
       : 'comunidad';
+
+  // Helper for generating dynamic WhatsApp chat link with personalized greeting
+  const getWhatsAppUrl = (phone: string, fullName: string) => {
+    let cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+    if (cleanPhone.startsWith('00')) {
+      cleanPhone = cleanPhone.substring(2);
+    }
+    if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) {
+      cleanPhone = `57${cleanPhone}`;
+    }
+    const firstName = (fullName || '').trim().split(' ')[0] || '';
+    const greeting = firstName ? `Hola ${firstName} 👋` : 'Hola 👋';
+
+    let text = '';
+    if (funnelKey === 'comunidadmp') {
+      text = `${greeting} ¿Cómo estás? Te saluda el equipo de Mauricio Posada y WAPPY SST. Vimos tu registro en la clase de IA para SST 🚀. ¿Tienes alguna pregunta o en qué te podemos orientar?`;
+    } else if (funnelKey === 'wappyvital') {
+      text = `${greeting} ¿Cómo estás? Te saluda el equipo de WAPPY Vital. Vimos tu interés en nuestro plan vitalicio de IA para SST 🚀. ¿Tienes alguna duda sobre la plataforma?`;
+    } else {
+      text = `${greeting} ¿Cómo estás? Te saluda el equipo de WAPPY SST. Vimos tu registro en nuestra comunidad de Inteligencia Artificial para SST 🚀. ¿Cómo te podemos apoyar hoy?`;
+    }
+
+    return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}`;
+  };
+
 
   // Storage key helper for LocalStorage partitioning
   const getStorageKey = (key: string) => {
@@ -2373,8 +2404,26 @@ export default function ComunidadPage() {
                         .map((item, idx) => (
                           <tr key={item._id || idx} className="border-b border-border-medium/40 hover:bg-surface-secondary/40 transition-colors">
                             <td className="p-3 font-semibold text-text-primary">{item.fullName}</td>
+
                             <td className="p-3 text-text-secondary font-mono">{item.email}</td>
-                            <td className="p-3 text-text-secondary">{item.phone}</td>
+                            <td className="p-3">
+                              {item.phone ? (
+                                <a
+                                  href={getWhatsAppUrl(item.phone, item.fullName)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold text-xs transition-all duration-200 group hover:shadow-sm"
+                                  title="Abrir chat de WhatsApp con saludo automático listo para enviar"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5 text-emerald-500 group-hover:scale-110 transition-transform shrink-0" />
+                                  <span className="group-hover:underline font-mono">{item.phone}</span>
+                                </a>
+                              ) : (
+                                <span className="text-text-secondary/40 italic text-[11px]">Sin teléfono</span>
+                              )}
+                            </td>
+
+
                             {(dashboardTab === 'purchases' || dashboardTab === 'pending') && (
                               <>
                                 <td className={`p-3 font-bold ${item.isPaid ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500'}`}>

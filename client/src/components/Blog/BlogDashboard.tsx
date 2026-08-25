@@ -270,8 +270,10 @@ export default function BlogDashboard() {
     const { showToast } = useToastContext();
     const navigate = useNavigate();
     const { user } = useAuthContext();
-    const isAdmin = user?.role === 'ADMIN';
+    const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com'];
+    const isAdmin = user?.role === 'ADMIN' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
     const { navVisible, setNavVisible } = useOutletContext<ContextType>();
+
 
     useEffect(() => {
         const fetchPosts = async () => {

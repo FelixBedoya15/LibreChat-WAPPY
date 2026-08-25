@@ -399,8 +399,11 @@ class VoiceSession {
             case 'video':
                 // Forward video frame to Gemini
                 if (data && data.image) {
-                    logger.debug(`[VoiceSession] Received video frame (${data.image.length} chars)`);
+                    logger.debug(`[VoiceSession] Received video frame (${data.image.length} chars, has telemetry: ${!!data.telemetry})`);
                     this.latestFrame = data.image; // Guarda el último frame capturado para el análisis
+                    if (data.telemetry) {
+                        this.latestTelemetry = data.telemetry;
+                    }
                     
                     // Keep a rolling buffer of up to 4 sampled frames for the report generator
                     if (!this.frameBuffer) this.frameBuffer = [];
@@ -1689,19 +1692,18 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             }
         }
 
-        let agentPersona = 'Especialista en Seguridad y Salud en el Trabajo (SST/HSE)';
+        let agentObj = null;
         let isBiomechanics = false;
         if (agentId) {
             try {
                 const { getAgent } = require('~/models/Agent');
-                const agent = await getAgent({ id: agentId });
-                if (agent) {
-                    const agentName = (agent.name || '').toLowerCase();
+                agentObj = await getAgent({ id: agentId });
+                if (agentObj) {
+                    const agentName = (agentObj.name || '').toLowerCase();
                     if (agentName.includes('fisioterapeuta') || agentName.includes('biomecánica') || agentName.includes('biomecanica')) {
                         isBiomechanics = true;
                     }
-                    agentPersona = agent.name || 'Especialista SST';
-                    logger.info(`[VoiceSession] Live session configured with Agent: ${agentPersona} (isBiomechanics: ${isBiomechanics})`);
+                    logger.info(`[VoiceSession] Live session configured with Agent: ${agentObj.name || agentId} (isBiomechanics: ${isBiomechanics})`);
                 }
             } catch (agentError) {
                 logger.error('[VoiceSession] Error loading agent details:', agentError);
@@ -1712,31 +1714,62 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             isBiomechanics = true;
         }
 
+        // Build rich domain expertise while removing written-chat questionnaires and HTML templates
+        let domainKnowledge = '';
         if (isBiomechanics) {
-            config.systemInstruction = `
-Eres el Fisioterapeuta Laboral y Especialista en Biomecánica de WAPPY IA.
-Estás en una videollamada interactiva en vivo observando la cámara del usuario en tiempo real.
+            domainKnowledge = `
+ROL: Eres el Fisioterapeuta Laboral y Especialista en Biomecánica de WAPPY IA.
+CAPACIDADES: Videollamada interactiva en vivo con visión artificial y telemetría articular MediaPipe en tiempo real.
 
-REGLAS OBLIGATORIAS:
-1. SALUDO INICIAL: Saluda en una sola frase breve y directa invitando a la evaluación (ej: "Hola, te estoy viendo en cámara. Cuéntame qué postura o puesto de trabajo deseas que evaluemos juntos.").
-2. DIRECTIVA ESTRICTA (CERO FORMULARIOS): NUNCA pidas tamaño de empresa, nivel de riesgo ARL, número de trabajadores ni estado de implementación. Prohibido hacer preguntas administrativas.
-3. CONCISIÓN ORAL: Habla siempre en español natural, directo y en un máximo de 1 a 2 oraciones cortas por turno para permitir un diálogo dinámico.
-4. RETROALIMENTACIÓN BIOMECÁNICA: Observa la postura del usuario (cuello, espalda, distancia de pantalla, brazos) y dale sugerencias ergonómicas inmediatas y prácticas.
-5. GENERACIÓN DE INFORME: Si el usuario te pide generar el informe o resumen técnico, di brevemente: "Perfecto, procesando la telemetría y generando tu informe técnico."
-6. FORMATO: Prohibido usar etiquetas HTML, tablas, asteriscos o viñetas en tus respuestas habladas.
-`.trim();
+ESPECIALIDAD TÉCNICA Y CRITERIOS ERGONÓMICOS:
+- Ergonomía de puestos de trabajo, higiene postural y prevención de desórdenes musculoesqueléticos (DME).
+- Normatividad y guías técnicas: GTC 290, ISO 11228-1/2/3, Resolución 2400 de 1979 (manejo de cargas), Resolución 1843 de 2025, Decreto 1477 de 2014, métodos RULA/REBA.
+- INTERPRETACIÓN DE TELEMETRÍA ARTICULAR Y ESQUELETO EN VIVO:
+  * Flexión cervical (Cuello): Normal <15°, Alerta 15°-25°, Crítico >25° (sobrecarga cervical y tensión en trapecios).
+  * Flexión de tronco (Espalda): Normal <10°, Alerta 10°-20°, Crítico >20° (riesgo lumbar y pérdida de lordosis natural).
+  * Abducción de hombros/brazos: Normal <20°, Alerta 20°-45°, Crítico >45° (fatiga en deltoides y manguito rotador).
+  * Flexión de codos y rodillas: Rango ergonómico recomendado ~90°-100°.
+  * Ergonomía de escritorio: Pantalla a la altura de los ojos, apoyo lumbar, antebrazos apoyados sin hiperextensión de muñeca.
+- Cuando veas al usuario en cámara o recibas telemetría, interpreta activamente su postura, explica qué articulación está en riesgo y bríndale la corrección ergonómica inmediata.
+- Si el usuario te pide generar el informe técnico, confirma brevemente: "Listo, procesando las evidencias para generar el informe técnico ergonómico."`;
+        } else if (agentObj && agentObj.instructions) {
+            // Clean out written-chat questionnaires, HTML blocks, and markdown tables from agent prompt
+            let cleaned = agentObj.instructions
+                .replace(/<[^>]*>/g, '')
+                .replace(/\|[^\n]+\|/g, '')
+                .replace(/Información inicial que siempre pedirás[\s\S]*?(?=🔹|---|##|$)/gi, '')
+                .replace(/Preguntas clave \(tamaño de empresa[\s\S]*?\)/gi, '')
+                .replace(/Tamaño de la empresa[\s\S]*?actividad económica\./gi, '')
+                .replace(/Clase de riesgo ARL[\s\S]*?\./gi, '')
+                .replace(/Estado actual de implementación[\s\S]*?\./gi, '')
+                .replace(/\{\{[^}]+\}\}/g, 'usuario')
+                .trim();
+
+            if (cleaned.length > 2500) {
+                cleaned = cleaned.substring(0, 2500);
+            }
+
+            domainKnowledge = `
+ROL: Eres el asistente "${agentObj.name || 'Especialista SST'}" de WAPPY IA.
+ESPECIALIDAD TÉCNICA, CRITERIOS DE IDENTIFICACIÓN DE PELIGROS Y NORMATIVIDAD DEL AGENTE:
+${cleaned}`;
         } else {
-            config.systemInstruction = `
-Eres el asistente "${agentPersona}" de WAPPY IA.
-Estás en una llamada de voz en tiempo real con el usuario.
-
-REGLAS OBLIGATORIAS:
-1. SALUDO INICIAL: Saluda en una sola frase breve y amable.
-2. DIRECTIVA ESTRICTA (CERO FORMULARIOS): NUNCA pidas tamaño de empresa, nivel de riesgo ARL ni datos administrativos en voz alta a menos que el usuario lo consulte explícitamente.
-3. CONCISIÓN ORAL: Habla siempre en español natural y en un máximo de 1 a 2 oraciones cortas por turno.
-4. FORMATO: Prohibido usar etiquetas HTML, tablas, asteriscos o viñetas en tus respuestas habladas.
-`.trim();
+            domainKnowledge = `
+ROL: Eres un Asistente Experto Senior en Seguridad y Salud en el Trabajo (SST/HSE) de WAPPY IA.
+ESPECIALIDAD: Identificación de peligros, actos y condiciones inseguras (GTC 45, Decreto 1072 de 2015, Resolución 0312 de 2019, tareas críticas, seguridad química y vial).`;
         }
+
+        // Live interaction directives
+        config.systemInstruction = `
+${domainKnowledge}
+
+[DIRECTIVAS DE INTERACCIÓN EN VIVO POR VOZ Y VIDEO]:
+1. **SALUDO INICIAL:** En tu primera respuesta saluda cordialmente en 1 sola frase corta y directa invitando al usuario a interactuar o mostrar su puesto de trabajo / labor.
+2. **IDENTIFICACIÓN ACTIVA DE PELIGROS:** Aplica a fondo tu conocimiento técnico. Cuando el usuario te muestre su cámara o te consulte sobre su área, analiza lo observado e identifica actos inseguros, condiciones de riesgo y controles recomendados con criterio profesional.
+3. **FLUIDEZ Y EXPLICACIÓN ORAL:** Brinda respuestas habladas claras, naturales, pedagógicas y completas (2 a 4 oraciones fluidas por intervención), explicando el qué, el porqué del peligro y la recomendación técnica.
+4. **CERO FORMULARIOS EN VOZ ALTA:** NUNCA hagas cuestionarios administrativos en voz alta (prohibido pedir en voz alta tamaño de empresa, número de trabajadores o clase de riesgo ARL a menos que el usuario lo consulte explícitamente).
+5. **FORMATO EXCLUSIVAMENTE HABLADO:** NUNCA utilices etiquetas HTML, tablas Markdown, asteriscos ni viñetas en tus respuestas de voz.
+`.trim();
         
         // Pass the array of keys to VoiceSession
         const session = new VoiceSession(clientWs, userId, apiKeys, config, conversationId);

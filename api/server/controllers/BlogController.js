@@ -3,6 +3,14 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
 const { syncToRag } = require('../services/RagService');
+const { ADMIN_EMAILS } = require('../middleware/roles/admin');
+
+const isUserAdmin = (user) => {
+    if (!user) return false;
+    const email = user.email?.toLowerCase();
+    return user.role === 'ADMIN' || (email && ADMIN_EMAILS.includes(email));
+};
+
 
 const getBlogPosts = async (req, res) => {
     try {
@@ -222,7 +230,8 @@ Empieza directamente con <div> o <h1> y termina con el cierre correspondiente.`;
 
 const setFeaturedPost = async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+        if (!isUserAdmin(req.user)) return res.status(403).json({ message: 'Forbidden' });
+
 
         const { id } = req.params;
 

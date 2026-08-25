@@ -554,9 +554,39 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     };
 
     const startSendingFrames = () => {
+        if (videoIntervalRef.current) {
+            clearInterval(videoIntervalRef.current);
+        }
         videoIntervalRef.current = setInterval(() => {
-            if (videoRef.current) { sendVideoFrame(videoRef.current); }
-        }, 1000);
+            if (videoRef.current) {
+                let telemetryString = '';
+                if (isBiomechanicsAgent && anglesRef.current) {
+                    const currentAngles = anglesRef.current;
+                    const nAngle = currentAngles.neck ?? neckAngle;
+                    const tAngle = currentAngles.trunk ?? trunkAngle;
+                    const aAngle = currentAngles.arm ?? armAngle;
+                    const eAngle = currentAngles.elbow ?? elbowAngle;
+                    const kAngle = currentAngles.knee ?? kneeAngle;
+
+                    const parts: string[] = [];
+                    if (nAngle !== null) parts.push(`Cuello: ${nAngle}° (${neckInfo.status})`);
+                    if (tAngle !== null) parts.push(`Tronco: ${tAngle}° (${trunkInfo.status})`);
+                    if (aAngle !== null) parts.push(`Brazo: ${aAngle}° (${armInfo.status})`);
+                    if (eAngle !== null) parts.push(`Codo: ${eAngle}° (${elbowInfo.status})`);
+                    if (kAngle !== null) parts.push(`Rodilla: ${kAngle}° (${kneeInfo.status})`);
+
+                    if (parts.length > 0) {
+                        telemetryString = `[Telemetría Articular en Vivo]: ${parts.join(', ')}`;
+                    }
+                }
+
+                sendVideoFrame(
+                    videoRef.current,
+                    telemetryString,
+                    isBiomechanicsAgent && canvasRef.current ? canvasRef.current : null
+                );
+            }
+        }, 1200);
     };
 
     const toggleCamera = () => { isCameraOn ? stopMediaTracks() : startCamera(); };
@@ -602,6 +632,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 const sx = (w - sw) / 2;
                 const sy = (h - sh) / 2;
                 ctx.drawImage(video, sx, sy, sw, sh, 0, 0, targetW, targetH);
+                if (isBiomechanicsAgent && canvasRef.current) {
+                    ctx.drawImage(canvasRef.current, 0, 0, targetW, targetH);
+                }
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
                 console.log(`[VoiceModal] Snapshot captured and scaled: ${targetW}x${targetH} (original: ${w}x${h}, zoom: ${zoom}x)`);
                 return dataUrl;
@@ -610,7 +643,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             console.error('Error capturing snapshot in VoiceModal:', e);
         }
         return null;
-    }, [zoom]);
+    }, [zoom, isBiomechanicsAgent]);
 
     const onPoseResults = useCallback((results: any) => {
         const canvas = canvasRef.current;

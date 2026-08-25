@@ -20,6 +20,131 @@ function getBogotaDate(date = new Date()) {
 }
 
 /**
+ * Formatea Markdown enriquecido a HTML limpio con tablas, encabezados y negritas para clientes de correo.
+ */
+function formatMarkdownToEmailHtml(text) {
+  if (!text) return '';
+  
+  // 1. Manejo y embellecimiento de bloques ```wappy-card
+  let formatted = text.replace(/```wappy-card[\s\S]*?```/gi, (match) => {
+    try {
+      const jsonStr = match.replace(/```wappy-card/i, '').replace(/```/, '').trim();
+      const card = JSON.parse(jsonStr);
+      let itemsHtml = '';
+      if (Array.isArray(card.items)) {
+        itemsHtml = card.items.map(it => `<li><strong>${it.title || ''}</strong>: ${it.description || it.subtitle || ''}</li>`).join('');
+      }
+      return `
+        <div style="border: 1px solid #9333ea; background: rgba(147, 51, 234, 0.1); border-radius: 10px; padding: 14px; margin: 15px 0;">
+          <h4 style="color: #c084fc; margin: 0 0 6px 0; font-size: 15px;">${card.title || 'Resumen de Gestión'}</h4>
+          <p style="margin: 0 0 8px 0; font-size: 13px; color: #e2e8f0;">${card.subtitle || card.description || ''}</p>
+          ${itemsHtml ? `<ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #cbd5e1;">${itemsHtml}</ul>` : ''}
+        </div>
+      `;
+    } catch (e) {
+      return '';
+    }
+  });
+
+  // Limpiar triples comillas
+  formatted = formatted.replace(/"""/g, '"');
+
+  // 2. Procesar Tablas de Markdown
+  const lines = formatted.split('\n');
+  const processedLines = [];
+  let inTable = false;
+  let tableRows = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith('|') && line.endsWith('|')) {
+      inTable = true;
+      // Omitir fila separadora |---|---|
+      if (line.replace(/[\s|:-]/g, '').length === 0) {
+        continue;
+      }
+      const cells = line.split('|').slice(1, -1).map(c => c.trim());
+      tableRows.push(cells);
+    } else {
+      if (inTable) {
+        if (tableRows.length > 0) {
+          const headerRow = tableRows[0];
+          const bodyRows = tableRows.slice(1);
+          let tableHtml = '<table><thead><tr>';
+          headerRow.forEach(cell => {
+            tableHtml += `<th>${cell}</th>`;
+          });
+          tableHtml += '</tr></thead><tbody>';
+          bodyRows.forEach(row => {
+            tableHtml += '<tr>';
+            row.forEach(cell => {
+              tableHtml += `<td>${cell}</td>`;
+            });
+            tableHtml += '</tr>';
+          });
+          tableHtml += '</tbody></table>';
+          processedLines.push(tableHtml);
+        }
+        tableRows = [];
+        inTable = false;
+      }
+      processedLines.push(lines[i]);
+    }
+  }
+  if (inTable && tableRows.length > 0) {
+    const headerRow = tableRows[0];
+    const bodyRows = tableRows.slice(1);
+    let tableHtml = '<table><thead><tr>';
+    headerRow.forEach(cell => {
+      tableHtml += `<th>${cell}</th>`;
+    });
+    tableHtml += '</tr></thead><tbody>';
+    bodyRows.forEach(row => {
+      tableHtml += '<tr>';
+      row.forEach(cell => {
+        tableHtml += `<td>${cell}</td>`;
+      });
+      tableHtml += '</tr>';
+    });
+    tableHtml += '</tbody></table>';
+    processedLines.push(tableHtml);
+  }
+
+  formatted = processedLines.join('\n');
+
+  // 3. Encabezados
+  formatted = formatted.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
+  formatted = formatted.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+  formatted = formatted.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+  formatted = formatted.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+  // 4. Negritas y Cursivas
+  formatted = formatted.replace(/\*\*\*(.*?)\*\*\*/gim, '<strong><em>$1</em></strong>');
+  formatted = formatted.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+  formatted = formatted.replace(/\*(.*?)\*/gim, '<em>$1</em>');
+
+  // 5. Citas / Blockquotes
+  formatted = formatted.replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>');
+
+  // 6. Listas con viñetas
+  formatted = formatted.replace(/^\s*[\-\*]\s+(.*$)/gim, '<li>$1</li>');
+  formatted = formatted.replace(/(<li>.*<\/li>(\s*<li>.*<\/li>)*)/gim, '<ul>$1</ul>');
+
+  // 7. Párrafos
+  const blocks = formatted.split(/\n{2,}/);
+  formatted = blocks.map(block => {
+    block = block.trim();
+    if (!block) return '';
+    if (block.startsWith('<h') || block.startsWith('<table') || block.startsWith('<ul') || block.startsWith('<ol') || block.startsWith('<blockquote') || block.startsWith('<div')) {
+      return block;
+    }
+    return `<p>${block.replace(/\n/g, '<br>')}</p>`;
+  }).filter(Boolean).join('\n');
+
+  return formatted;
+}
+
+/**
  * Helper to convert Bogota local components into a UTC Date object
  */
 function createUtcFromBogota(year, month, day, hour, minute, second = 0) {
@@ -377,6 +502,8 @@ async function runAutomation(automation, isManual = false) {
 
             const chatUrl = generatedConvoId ? `https://wappy.club/c/${generatedConvoId}` : null;
 
+            const emailHtmlResult = formatMarkdownToEmailHtml(resultText);
+
             for (const recipient of validEmails) {
               console.log(`[AutomationScheduler] Sending report email to ${recipient} for "${automation.name}"`);
               sendEmail({
@@ -389,7 +516,7 @@ async function runAutomation(automation, isManual = false) {
                   companyName,
                   executionDate: bogotaDateStr,
                   prompt: automation.prompt,
-                  result: resultText,
+                  result: emailHtmlResult,
                   chatUrl,
                   year: new Date().getFullYear()
                 },

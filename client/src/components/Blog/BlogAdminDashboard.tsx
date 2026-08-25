@@ -14,8 +14,9 @@ export default function BlogAdminDashboard() {
     const navigate = useNavigate();
     const { user } = useAuthContext();
     const [isEditorOpen, setIsEditorOpen] = useState(false);
-    const [editingPostId, setEditingPostId] = useState<string | null>(null);
-    const isAdmin = user?.role === 'ADMIN';
+    const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com'];
+    const isAdmin = user?.role === 'ADMIN' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
+
 
     useEffect(() => {
         if (!isAdmin) {
