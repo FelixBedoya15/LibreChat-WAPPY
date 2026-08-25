@@ -2759,10 +2759,58 @@
         }
       }
 
-      // 7. Dynamic Ambassador Profile Loader (Only when visited via a referral link / ?ref=slug)
+      // 7. Dynamic Ambassador Profile & Referral Links Loader
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const refSlug = urlParams.get('ref') || urlParams.get('r');
+        let refSlug = urlParams.get('ref') || urlParams.get('r');
+
+        // Persist in localStorage and sessionStorage so if user navigates within landing page, ref remains
+        if (refSlug) {
+          try {
+            localStorage.setItem('wappy_ref', refSlug);
+            sessionStorage.setItem('wappy_ref', refSlug);
+          } catch (e) {}
+        } else {
+          try {
+            refSlug = localStorage.getItem('wappy_ref') || sessionStorage.getItem('wappy_ref') || '';
+          } catch (e) {}
+        }
+
+        // Helper function to update all CTA and Registration links on page
+        function updateAllReferralLinks(slug) {
+          if (!slug) return;
+          const targetSlug = encodeURIComponent(slug.trim());
+          
+          document.querySelectorAll('a').forEach(a => {
+            const href = a.getAttribute('href') || '';
+            if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+
+            // Target registration, planes, login and signup links
+            if (
+              href.includes('register') || 
+              href.includes('registro') || 
+              href.includes('signup') || 
+              href.includes('/planes') ||
+              href.includes('/login')
+            ) {
+              try {
+                // If it's a full URL or relative URL
+                const url = new URL(href, window.location.origin);
+                url.searchParams.set('ref', targetSlug);
+                a.href = url.toString();
+              } catch (e) {
+                // Fallback string manipulation
+                const cleanHref = href.split('?')[0];
+                a.href = `${cleanHref}?ref=${targetSlug}`;
+              }
+            }
+          });
+        }
+
+        // Apply immediately if refSlug exists
+        if (refSlug) {
+          updateAllReferralLinks(refSlug);
+        }
 
         // If NO referral slug or if it's the CEO's original landing page, leave Felix Bedoya 100% untouched!
         if (refSlug && !['felix-bedoya', 'felix', 'admin'].includes(refSlug.toLowerCase())) {
@@ -2770,6 +2818,9 @@
             .then(res => res.ok ? res.json() : null)
             .then(data => {
               if (!data || !data.name) return;
+
+              const canonicalSlug = data.slug || refSlug;
+              updateAllReferralLinks(canonicalSlug);
 
               // Update Section Label
               const labelEl = document.getElementById('creador-label');
@@ -2822,15 +2873,6 @@
                 const waMsg = encodeURIComponent(`Hola ${data.name}, quiero más información sobre WAPPY IA`);
                 waBtn.href = `https://wa.me/${pNum}?text=${waMsg}`;
               }
-
-              // Update registration / login links with ref code
-              document.querySelectorAll('a[href*="/register"], a[href*="#planes"]').forEach(a => {
-                const href = a.getAttribute('href') || '';
-                if (href.startsWith('/register') || href.includes('login') || href.includes('signup')) {
-                  const separator = href.includes('?') ? '&' : '?';
-                  a.href = `${href}${separator}ref=${encodeURIComponent(data.slug || refSlug)}`;
-                }
-              });
             })
             .catch(err => {
               console.log('Public ambassador info fetch:', err);
