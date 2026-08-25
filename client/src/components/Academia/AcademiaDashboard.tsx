@@ -6,7 +6,8 @@ import {
   Building2, 
   Video, 
   Newspaper,
-  Shield
+  Shield,
+  Layers
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -71,115 +72,100 @@ export default function AcademiaDashboard() {
 
   return (
     <div className="flex-1 flex flex-col min-h-screen h-auto bg-surface-primary relative overflow-x-hidden">
-      {/* Master Top Navigation Bar */}
-      <header className="sticky top-0 z-50 bg-surface-primary/85 dark:bg-black/60 backdrop-blur-xl border-b border-border-light/60 dark:border-white/10 px-3 sm:px-6 py-2.5 transition-all">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2.5 sm:gap-4">
+      {/* Master Top Header with Centro de Control style + Transparent Glassmorphism on Scroll */}
+      <header className="sticky top-0 z-50 bg-white/70 dark:bg-gray-950/70 backdrop-blur-xl border-b border-border-medium/30 dark:border-white/10 px-4 sm:px-6 pt-4 pb-3.5 shadow-sm transition-all duration-300">
+        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           
-          {/* Left: Brand Badge & OpenSidebar */}
-          <div className="flex items-center justify-between w-full md:w-auto gap-3">
-            <div className="flex items-center gap-2.5">
+          {/* Header Left: Badge, Title with Gradient, and Subtitle */}
+          <div>
+            <div className="flex items-center gap-2 mb-1">
               {!navVisible && (
-                <div className="hidden md:block">
+                <div className="hidden md:block mr-1">
                   <OpenSidebar setNavVisible={setNavVisible} />
                 </div>
               )}
-              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full">
-                <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500 shrink-0" />
-                <span className="text-xs sm:text-sm font-black text-text-primary tracking-tight">
-                  Academia WAPPY
-                </span>
-              </div>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-400 border border-teal-200/50 dark:border-teal-800/40 uppercase tracking-wider">
+                <Layers className="w-3 h-3" />
+                Módulo de Formación & Conocimiento
+              </span>
             </div>
-
-            {/* Mobile Admin / Login Button (shown on mobile right) */}
-            <div className="md:hidden">
-              {isAdmin ? (
-                <button
-                  onClick={() => navigate(getAdminPath())}
-                  className="flex items-center gap-1.5 bg-surface-secondary dark:bg-white/10 px-3 py-1 rounded-full border border-border-light dark:border-white/10 text-text-primary text-xs font-bold transition-colors"
-                >
-                  <Shield className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Admin</span>
-                </button>
-              ) : !user ? (
-                <button
-                  onClick={() => navigate('/login')}
-                  className="bg-emerald-600 text-white px-3 py-1 rounded-full text-xs font-bold"
-                >
-                  Ingresar
-                </button>
-              ) : null}
-            </div>
+            
+            <h1 className="text-xl sm:text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 via-emerald-600 to-purple-600 dark:from-teal-400 dark:via-emerald-400 dark:to-purple-400">
+              <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-500 shrink-0" />
+              Academia WAPPY
+            </h1>
+            <p className="text-xs text-text-secondary mt-0.5 hidden sm:block">
+              Centro integral de capacitación continua, rutas corporativas, eventos sincrónicos y blog técnico.
+            </p>
           </div>
 
-          {/* Center: Responsive Tabs */}
-          <nav aria-label="Secciones de Academia" className="w-full md:w-auto flex justify-center overflow-x-auto no-scrollbar py-0.5">
-            <div className="flex items-center gap-1 bg-surface-secondary/70 dark:bg-white/5 p-1 rounded-full border border-border-medium/20 shrink-0 max-w-full">
+          {/* Header Right: Master Tabs Selector + Admin Button */}
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full lg:w-auto">
+            {/* Master Tabs Container */}
+            <div className="flex items-center bg-gray-100/90 dark:bg-gray-800/80 p-1.5 rounded-2xl border border-border-medium/30 shrink-0 w-full sm:w-auto overflow-x-auto no-scrollbar">
               <button
                 onClick={() => handleTabChange('cursos')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap cursor-pointer ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'cursos'
-                    ? 'bg-surface-primary dark:bg-surface-secondary text-emerald-600 dark:text-emerald-400 shadow-sm border border-border-medium/40'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover/50'
+                    ? 'bg-white dark:bg-gray-900 text-teal-600 dark:text-teal-400 shadow-sm border border-border-medium/40'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-white/50 dark:hover:bg-gray-700/40'
                 }`}
               >
-                <BookOpen className="w-3.5 h-3.5" />
+                <BookOpen className="w-3.5 h-3.5 text-teal-500" />
                 <span>Cursos Abiertos</span>
               </button>
 
               <button
                 onClick={() => handleTabChange('rutas')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap cursor-pointer ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'rutas'
-                    ? 'bg-surface-primary dark:bg-surface-secondary text-teal-600 dark:text-teal-400 shadow-sm border border-border-medium/40'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover/50'
+                    ? 'bg-white dark:bg-gray-900 text-emerald-600 dark:text-emerald-400 shadow-sm border border-border-medium/40'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-white/50 dark:hover:bg-gray-700/40'
                 }`}
               >
-                <Building2 className="w-3.5 h-3.5" />
+                <Building2 className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Plan Empresa</span>
               </button>
 
               <button
                 onClick={() => handleTabChange('meet')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap cursor-pointer ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'meet'
-                    ? 'bg-surface-primary dark:bg-surface-secondary text-purple-600 dark:text-purple-400 shadow-sm border border-border-medium/40'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover/50'
+                    ? 'bg-white dark:bg-gray-900 text-purple-600 dark:text-purple-400 shadow-sm border border-border-medium/40'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-white/50 dark:hover:bg-gray-700/40'
                 }`}
               >
-                <Video className="w-3.5 h-3.5" />
+                <Video className="w-3.5 h-3.5 text-purple-500" />
                 <span>Clases en Vivo</span>
               </button>
 
               <button
                 onClick={() => handleTabChange('blog')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap cursor-pointer ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'blog'
-                    ? 'bg-surface-primary dark:bg-surface-secondary text-indigo-600 dark:text-indigo-400 shadow-sm border border-border-medium/40'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover/50'
+                    ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-border-medium/40'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-white/50 dark:hover:bg-gray-700/40'
                 }`}
               >
-                <Newspaper className="w-3.5 h-3.5" />
+                <Newspaper className="w-3.5 h-3.5 text-indigo-500" />
                 <span>Artículos & Blog</span>
               </button>
             </div>
-          </nav>
 
-          {/* Right: Desktop Admin / Login Button */}
-          <div className="hidden md:flex items-center gap-3">
+            {/* Administrar / Iniciar Sesión Button */}
             {isAdmin ? (
               <button
                 onClick={() => navigate(getAdminPath())}
-                className="group flex items-center gap-2 bg-surface-primary/80 dark:bg-white/10 backdrop-blur-md px-4 py-1.5 border border-border-light dark:border-white/10 hover:bg-surface-hover dark:hover:bg-white/20 text-text-primary rounded-full transition-all duration-300 shadow-sm hover:scale-105 cursor-pointer"
+                className="group flex items-center justify-center gap-2 bg-white/80 dark:bg-gray-900/80 hover:bg-gray-50 dark:hover:bg-gray-800 px-3.5 py-2 border border-border-medium/50 dark:border-white/10 text-text-primary rounded-2xl transition-all duration-200 shadow-sm cursor-pointer shrink-0 text-xs font-bold uppercase tracking-wider"
                 title="Administrar sección actual"
               >
-                <Shield className="w-4 h-4 text-emerald-500" />
-                <span className="font-bold text-xs uppercase tracking-wider">Administrar</span>
+                <Shield className="w-3.5 h-3.5 text-teal-500" />
+                <span>Administrar</span>
               </button>
             ) : !user ? (
               <button
                 onClick={() => navigate('/login')}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-1.5 rounded-full transition-all duration-300 font-bold text-xs uppercase tracking-wider shadow-sm hover:scale-105"
+                className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-2xl transition-all duration-200 font-bold text-xs uppercase tracking-wider shadow-sm shrink-0"
               >
                 Iniciar Sesión
               </button>
