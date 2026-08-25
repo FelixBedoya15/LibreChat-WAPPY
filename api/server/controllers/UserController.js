@@ -229,6 +229,80 @@ const updateUserPluginsController = async (req, res) => {
 };
 
 
+/**
+ * Automatically syncs the user's SST professional profile into AI memories (perfil_profesional_sst & nombre)
+ * so all agents have instant awareness of the user's expertise and professional background.
+ */
+async function syncSstProfileMemory(userId, userData) {
+  try {
+    const { setMemory } = require('~/models');
+    const { Tokenizer } = require('@librechat/api');
+    const mongoose = require('mongoose');
+
+    const name = userData.name || userData.username || '';
+    const profession = userData.profession || '';
+    const yearsExperience = userData.yearsExperience || '';
+    const specialties = Array.isArray(userData.specialties) ? userData.specialties.join(', ') : (userData.specialties || '');
+    const quote = userData.quote || '';
+    const story1 = userData.storyParagraph1 || '';
+    const story2 = userData.storyParagraph2 || '';
+    const experience = userData.sstExperience || userData.bio || '';
+
+    // Only create memory if there is meaningful SST profile data
+    if (!profession && !experience && !yearsExperience && !story1) {
+      return;
+    }
+
+    const lines = [
+      `Nombre del Consultor / Profesional: ${name || 'N/A'}`,
+      `Profesión / Especialidad SST: ${profession || 'Especialista en Seguridad y Salud en el Trabajo'}`,
+      yearsExperience ? `Años de Experiencia: ${yearsExperience}` : null,
+      specialties ? `Especialidades / Insignias: ${specialties}` : null,
+      quote ? `Cita / Visión Profesional: "${quote}"` : null,
+      story1 ? `Trayectoria Profesional: ${story1}` : null,
+      story2 ? `Enfoque con WAPPY IA: ${story2}` : null,
+      experience && experience !== story1 ? `Experiencia en Sectores: ${experience}` : null,
+    ].filter(Boolean);
+
+    const memoryContentFinal = lines.join('\n');
+    const memoryKey = 'perfil_profesional_sst';
+    const tokenCount = Tokenizer.getTokenCount(memoryContentFinal, 'o200k_base') || 0;
+
+    const MemoryEntry = mongoose.models.MemoryEntry;
+    if (MemoryEntry) {
+      await MemoryEntry.deleteMany({ userId, key: memoryKey });
+    }
+
+    await setMemory({
+      userId,
+      agentId: 'global',
+      key: memoryKey,
+      value: memoryContentFinal,
+      tokenCount,
+    });
+
+    // Also sync the 'nombre' memory so chat agents instantly recognize the user & title
+    if (name) {
+      const nombreContent = `${name}${profession ? ` (${profession})` : ''}`.trim();
+      const nombreTokens = Tokenizer.getTokenCount(nombreContent, 'o200k_base') || 0;
+      if (MemoryEntry) {
+        await MemoryEntry.deleteMany({ userId, key: 'nombre' });
+      }
+      await setMemory({
+        userId,
+        agentId: 'global',
+        key: 'nombre',
+        value: nombreContent,
+        tokenCount: nombreTokens,
+      });
+    }
+
+    logger.debug(`[UserController] Synced perfil_profesional_sst memory for user ${userId}`);
+  } catch (memError) {
+    logger.error('[UserController] Error syncing SST profile memory:', memError);
+  }
+}
+
 const updateUserProfileController = async (req, res) => {
   try {
     const { 
@@ -288,7 +362,11 @@ const updateUserProfileController = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Remove sensitive data before sending back
+    // Automatically sync SST professional profile into AI memories
+    syncSstProfileMemory(userId, user).catch((err) => {
+      logger.error('[UserController] Failed to sync SST profile memory in background:', err);
+    });
+
     // Remove sensitive data before sending back
     const userObj = { ...user };
     delete userObj.password;

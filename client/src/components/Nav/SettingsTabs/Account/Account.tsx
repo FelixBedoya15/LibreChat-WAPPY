@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { QueryKeys } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { Input, Label, Button, useToastContext } from '@librechat/client';
 import { 
@@ -34,6 +36,7 @@ import ReferralPanel from './ReferralPanel';
 
 function Account() {
   const localize = useLocalize();
+  const queryClient = useQueryClient();
   const { user, setUser, token } = useAuthContext();
   const { showToast } = useToastContext();
 
@@ -137,7 +140,8 @@ function Account() {
 
       const res = await axios.post('/api/user/update', payload);
       setUser(res.data.user);
-      showToast({ message: '¡Perfil profesional y experiencia SST guardados correctamente!', status: 'success' });
+      queryClient.invalidateQueries([QueryKeys.memories]);
+      showToast({ message: '¡Perfil profesional y memoria IA guardados correctamente!', status: 'success' });
     } catch (err: any) {
       showToast({ message: err.response?.data?.message || 'Error al guardar perfil profesional.', status: 'error' });
     } finally {
@@ -339,38 +343,59 @@ function Account() {
       </div>
 
       {/* SST PROFESSIONAL PROFILE & AMBASSADOR LANDING */}
-      <div className="flex flex-col gap-5 p-5 rounded-2xl border border-teal-500/30 bg-surface-primary shadow-sm relative overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border-light">
-          <div>
-            <h3 className="text-base sm:text-lg font-black text-text-primary flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-              <span>Perfil Profesional & Experiencia SST</span>
-              <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
-                Landing de Embajador
-              </span>
+      <div className="flex flex-col gap-4 p-4 sm:p-6 rounded-2xl border border-teal-500/30 bg-surface-primary shadow-sm relative overflow-hidden">
+        {/* Header */}
+        <div className="flex flex-col gap-2 pb-3 border-b border-border-light">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="w-7 h-7 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+              <Briefcase className="w-4 h-4" />
+            </div>
+            <h3 className="text-base font-bold text-text-primary">
+              Perfil Profesional & Experiencia SST
             </h3>
-            <p className="text-xs text-text-secondary mt-0.5">
-              Personaliza tu presentación profesional. Esta información y tu avatar se mostrarán en tu enlace de embajador en la sección <strong className="text-text-primary font-semibold">"Mucho gusto, soy..."</strong>.
-            </p>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 whitespace-nowrap">
+              Landing de Embajador
+            </span>
+          </div>
+          <p className="text-xs text-text-secondary leading-relaxed">
+            Personaliza tu presentación profesional. Esta información y tu avatar se mostrarán en tu enlace de embajador en la sección <strong className="text-text-primary font-semibold">"Mucho gusto, soy..."</strong>.
+          </p>
+        </div>
+
+        {/* AI Assistant Banner & Action */}
+        <div className="p-3 sm:p-3.5 rounded-xl bg-gradient-to-r from-teal-500/10 via-emerald-500/5 to-teal-500/10 border border-teal-500/20 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-teal-500/20 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+              <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-bold text-text-primary text-xs">Asistente de Redacción IA (Gemini)</p>
+              <p className="text-[11px] text-text-secondary truncate">Escribe tu trayectoria o profesión y genera tu presentación con un clic.</p>
+            </div>
           </div>
 
           <button
             type="button"
             onClick={handleGenerateBioWithAI}
             disabled={isGeneratingBio}
-            className="px-3.5 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-md shadow-teal-500/20 flex items-center gap-2 cursor-pointer transition-all hover:scale-105 active:scale-95 disabled:opacity-50 shrink-0 self-start sm:self-auto"
+            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-sm flex items-center justify-center gap-1.5 cursor-pointer transition-all hover:scale-[1.02] active:scale-98 disabled:opacity-50 shrink-0 whitespace-nowrap"
             title="Genera tu biografía y cita profesional automáticamente con IA"
           >
             {isGeneratingBio ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span>Generando con IA...</span>
+              </>
             ) : (
-              <Sparkles className="w-4 h-4 text-amber-300" />
+              <>
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>Redactar / Pulir con IA</span>
+              </>
             )}
-            <span>{isGeneratingBio ? 'Generando con IA...' : '✨ Redactar / Pulir con IA'}</span>
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 pt-1">
           {/* Row 1: Profession & Years Experience */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -474,12 +499,12 @@ function Account() {
 
           {/* LIVE PREVIEW BOX */}
           <div className="bg-surface-secondary/70 border border-border-light rounded-2xl p-4 sm:p-5 space-y-3">
-            <div className="flex items-center justify-between text-xs font-black text-text-secondary uppercase pb-2 border-b border-border-light">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-black text-text-secondary uppercase pb-2 border-b border-border-light">
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                 Vista Previa en tu Landing Page
               </span>
-              <span className="text-[10px] text-text-tertiary font-medium lowercase">
+              <span className="text-[10px] text-text-tertiary font-medium lowercase truncate">
                 wappy.club/portafolio?ref={user?.username || 'tu-codigo'}
               </span>
             </div>
@@ -493,7 +518,7 @@ function Account() {
                 />
               </div>
 
-              <div className="space-y-2 text-center sm:text-left flex-1 min-w-0">
+              <div className="space-y-2 text-center sm:text-left flex-1 min-w-0 w-full">
                 <div className="text-[11px] font-black uppercase text-teal-600 dark:text-teal-400">
                   Embajador Oficial WAPPY
                 </div>
@@ -531,7 +556,7 @@ function Account() {
               type="button"
               onClick={handleSaveSstProfile}
               disabled={isSavingSstProfile}
-              className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
+              className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50 w-full sm:w-auto"
             >
               {isSavingSstProfile ? (
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
