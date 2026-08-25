@@ -55,6 +55,7 @@ import EventsMeetAdminDashboard from '~/components/EventsMeet/EventsMeetAdminDas
 import AuditoriaDashboard from '~/components/Auditoria/AuditoriaDashboard';
 import Automatizaciones from '~/components/SGSST/Automatizaciones';
 import CentroControlSST from '~/components/SGSST/CentroControlSST';
+import AcademiaDashboard from '~/components/Academia/AcademiaDashboard';
 import PlansPage from '~/components/Plans/PlansPage';
 import ContactPage from '~/components/Plans/ContactPage';
 import KanbanDashboard from '~/components/Kanban/KanbanDashboard';
@@ -373,8 +374,12 @@ export const router = createBrowserRouter(
             },
 
             {
+              path: 'academia',
+              element: <AcademiaDashboard />,
+            },
+            {
               path: 'training',
-              element: <TrainingDashboard />,
+              element: <AcademiaDashboard />,
             },
             {
               path: 'training/admin',
@@ -390,7 +395,7 @@ export const router = createBrowserRouter(
             },
             {
               path: 'ruta-aprendizaje',
-              element: <RutaAprendizajeDashboard />,
+              element: <AcademiaDashboard />,
             },
             {
               path: 'ruta-aprendizaje/admin',
@@ -406,7 +411,11 @@ export const router = createBrowserRouter(
             },
             {
               path: 'blog',
-              element: <BlogDashboard />,
+              element: <AcademiaDashboard />,
+            },
+            {
+              path: 'events-meet',
+              element: <AcademiaDashboard />,
             },
             {
               path: 'blog/admin',

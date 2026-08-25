@@ -18,10 +18,10 @@ const AulaEstudioButton = ({
 }: Props) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const isActive = location.pathname.startsWith('/training');
+  const isActive = location.pathname.startsWith('/academia') || location.pathname.startsWith('/training') || location.pathname.startsWith('/ruta-aprendizaje') || location.pathname.startsWith('/events-meet') || location.pathname.startsWith('/blog');
 
   const handleClick = () => {
-    navigate('/training');
+    navigate('/academia');
     if (isSmallScreen && toggleNav) {
       toggleNav();
     }
@@ -30,7 +30,7 @@ const AulaEstudioButton = ({
   if (isCollapsed) {
     return (
       <TooltipAnchor
-        description="Aula de estudio"
+        description="Academia WAPPY"
         side="right"
         render={
           <motion.button
@@ -39,7 +39,7 @@ const AulaEstudioButton = ({
             className={cn(
               "flex h-10 w-10 items-center justify-center rounded-xl border transition-all duration-200 shadow-sm",
               isActive
-                ? "bg-teal-100/50 border-teal-400 text-teal-600"
+                ? "bg-teal-100/50 border-teal-400 text-teal-600 dark:bg-teal-950/40 dark:text-teal-400"
                 : "bg-surface-primary border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 text-text-primary"
             )}
           >
@@ -62,7 +62,7 @@ const AulaEstudioButton = ({
       )}
     >
       <GraduationCap className="h-4 w-4 shrink-0" />
-      <span className="font-semibold text-text-primary text-[13px]">Aula de estudio</span>
+      <span className="font-semibold text-text-primary text-[13px]">Academia WAPPY</span>
     </motion.button>
   );
 };

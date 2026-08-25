@@ -291,15 +291,9 @@ const Nav = memo(
                             <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
-                        {/* Aula Estudio */}
+                        {/* Aula Estudio / Academia WAPPY */}
                         <Suspense fallback={null}>
                           <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        </Suspense>
-                        {/* Ruta Aprendizaje (Empresa) */}
-                        <Suspense fallback={null}>
-                          {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
-                            <RutaAprendizajeButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                          )}
                         </Suspense>
                         {/* Bookmarks icon */}
                         {hasAccessToBookmarks && (
@@ -366,19 +360,12 @@ const Nav = memo(
                                   </Suspense>
                                 )}
 
-                                {/* 4. Aula Estudio (Cursos Generales) */}
+                                {/* 4. Academia WAPPY (Cursos, Rutas, Clases Meet y Blog) */}
                                 <Suspense fallback={null}>
                                   <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                 </Suspense>
 
-                                {/* 5. Ruta Aprendizaje (Empresa) */}
-                                <Suspense fallback={null}>
-                                  {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
-                                    <RutaAprendizajeButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  )}
-                                </Suspense>
-
-                                {/* 6. Marcadores */}
+                                {/* 5. Marcadores */}
                                 {hasAccessToBookmarks && (
                                   <Suspense fallback={null}>
                                     <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={false} />
