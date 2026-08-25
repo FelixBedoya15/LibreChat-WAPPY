@@ -275,12 +275,6 @@ const Nav = memo(
                             </button>
                           }
                         />
-                        {/* Automatizaciones */}
-                        <Suspense fallback={null}>
-                        {(user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com') && (
-                          <AutomatizacionesButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        )}
-                        </Suspense>
                         {/* Chat SST icon */}
                           <Suspense fallback={null}>
                             <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
