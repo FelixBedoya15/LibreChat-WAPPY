@@ -45,6 +45,18 @@ async function passportLogin(req, email, password, done) {
       return done(null, false, { message: 'Incorrect password.' });
     }
 
+    const { ADMIN_EMAILS } = require('../server/middleware/roles/admin');
+    const userEmailLower = user.email?.toLowerCase();
+    if (userEmailLower && ADMIN_EMAILS.includes(userEmailLower)) {
+      user.role = 'ADMIN';
+      user.emailVerified = true;
+      user.accountStatus = 'active';
+      user.isApproved = true;
+      user.inactiveAt = null;
+      user.activeAt = null;
+      await updateUser(user._id, { role: 'ADMIN', emailVerified: true, accountStatus: 'active', isApproved: true });
+    }
+
     // Check for Inactivation/Activation Dates
     const now = new Date();
     const freeRoles = ['USER', 'ADMIN', 'USER_IPEVAR', 'IPEVAR'];
@@ -61,6 +73,7 @@ async function passportLogin(req, email, password, done) {
       logger.info(`[Login] [Login denied] User ${identifier} account is soon to be active on ${user.activeAt}`);
       return done(null, false, { message: 'Account is not yet active.' });
     }
+
 
     const emailEnabled = checkEmailConfig();
     const userCreatedAtTimestamp = Math.floor(new Date(user.createdAt).getTime() / 1000);

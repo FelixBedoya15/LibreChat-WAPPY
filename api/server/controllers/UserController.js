@@ -32,9 +32,14 @@ const { getLogStores } = require('~/cache');
 const { mcpServersRegistry } = require('@librechat/api');
 
 const getUserController = async (req, res) => {
+  const { ADMIN_EMAILS } = require('../middleware/roles/admin');
   const appConfig = await getAppConfig({ role: req.user?.role });
   /** @type {IUser} */
   const userData = req.user.toObject != null ? req.user.toObject() : { ...req.user };
+  if (userData.email && ADMIN_EMAILS.includes(userData.email.toLowerCase())) {
+    userData.role = 'ADMIN';
+  }
+
   /**
    * These fields should not exist due to secure field selection, but deletion
    * is done in case of alternate database incompatibility with Mongo API

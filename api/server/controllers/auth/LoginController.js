@@ -22,12 +22,17 @@ const loginController = async (req, res) => {
       return res.status(200).json({ twoFAPending: true, tempToken });
     }
 
+    const { ADMIN_EMAILS } = require('../../middleware/roles/admin');
     const { password: _p, totpSecret: _t, __v, ...user } = req.user;
     user.id = user._id.toString();
+    if (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+      user.role = 'ADMIN';
+    }
 
     const token = await setAuthTokens(req.user._id, res);
 
     return res.status(200).send({ token, user });
+
   } catch (err) {
     logger.error('[loginController]', err);
     return res.status(500).json({ message: 'Something went wrong' });
