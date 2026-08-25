@@ -260,7 +260,7 @@ const FeaturedPostHero = ({ post, navigate, onMoreInfo }: { post: any, navigate:
 
 // --- Main Component ---
 
-export default function BlogDashboard() {
+export default function BlogDashboard({ hideFloatingHeader = false }: { hideFloatingHeader?: boolean } = {}) {
     const [posts, setPosts] = useState([]);
     const [categorizedPosts, setCategorizedPosts] = useState<Record<string, any[]>>({});
     const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
@@ -272,7 +272,9 @@ export default function BlogDashboard() {
     const { user } = useAuthContext();
     const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com'];
     const isAdmin = user?.role === 'ADMIN' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
-    const { navVisible, setNavVisible } = useOutletContext<ContextType>();
+    const outletContext = useOutletContext<ContextType>();
+    const navVisible = outletContext?.navVisible ?? true;
+    const setNavVisible = outletContext?.setNavVisible ?? (() => {});
 
 
     useEffect(() => {
@@ -342,36 +344,38 @@ export default function BlogDashboard() {
             {/* Blurred Blog Content */}
             <div className={`flex-1 flex flex-col overflow-hidden relative ${isFree ? 'filter blur-[8px] pointer-events-none select-none' : ''}`}>
                 {/* Header / Nav Overlay */}
-                <div className="absolute top-0 left-0 right-0 z-50 p-4 pt-16 sm:p-6 flex items-center justify-between pointer-events-none">
-                    <div className="flex items-center gap-3 sm:gap-4 pointer-events-auto">
-                        {!navVisible && (
-                            <div className="hidden md:block">
-                                <OpenSidebar setNavVisible={setNavVisible} />
+                {!hideFloatingHeader && (
+                    <div className="absolute top-0 left-0 right-0 z-50 p-4 pt-16 sm:p-6 flex items-center justify-between pointer-events-none">
+                        <div className="flex items-center gap-3 sm:gap-4 pointer-events-auto">
+                            {!navVisible && (
+                                <div className="hidden md:block">
+                                    <OpenSidebar setNavVisible={setNavVisible} />
+                                </div>
+                            )}
+                            <div className="flex items-center gap-2 sm:gap-3 bg-surface-primary/40 dark:bg-black/20 backdrop-blur-md px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-border-light dark:border-white/5 shadow-xl">
+                                <Newspaper className="text-[#10b981] w-5 h-5 sm:w-6 sm:h-6" />
+                                <h1 className="font-black tracking-tight text-sm sm:text-base md:text-xl">Blog</h1>
                             </div>
-                        )}
-                        <div className="flex items-center gap-2 sm:gap-3 bg-surface-primary/40 dark:bg-black/20 backdrop-blur-md px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-border-light dark:border-white/5 shadow-xl">
-                            <Newspaper className="text-[#10b981] w-5 h-5 sm:w-6 sm:h-6" />
-                            <h1 className="font-black tracking-tight text-sm sm:text-base md:text-xl">Blog</h1>
                         </div>
-                    </div>
 
-                    {isAdmin ? (
-                        <button
-                            onClick={() => navigate('/blog/admin')}
-                            className="pointer-events-auto group flex items-center gap-2 sm:gap-3 bg-surface-primary/40 dark:bg-white/10 backdrop-blur-md px-4 sm:px-5 py-1.5 sm:py-2.5 border border-border-light dark:border-white/10 hover:bg-surface-hover dark:hover:bg-white/20 text-text-primary rounded-full transition-all duration-300 shadow-xl"
-                        >
-                            <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-[#10b981]" />
-                            <span className="font-bold text-[10px] sm:text-xs md:text-sm uppercase tracking-wider">Administrar</span>
-                        </button>
-                    ) : !user ? (
-                        <button
-                            onClick={() => navigate('/login')}
-                            className="pointer-events-auto group flex items-center gap-2 sm:gap-3 bg-[#10b981] hover:bg-[#059669] text-white px-5 sm:px-6 py-1.5 sm:py-2.5 rounded-full transition-all duration-300 shadow-xl shadow-[#10b981]/10 hover:scale-105"
-                        >
-                            <span className="font-bold text-xs sm:text-sm uppercase tracking-wider">Iniciar Sesión</span>
-                        </button>
-                    ) : null}
-                </div>
+                        {isAdmin ? (
+                            <button
+                                onClick={() => navigate('/blog/admin')}
+                                className="pointer-events-auto group flex items-center gap-2 sm:gap-3 bg-surface-primary/40 dark:bg-white/10 backdrop-blur-md px-4 sm:px-5 py-1.5 sm:py-2.5 border border-border-light dark:border-white/10 hover:bg-surface-hover dark:hover:bg-white/20 text-text-primary rounded-full transition-all duration-300 shadow-xl"
+                            >
+                                <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-[#10b981]" />
+                                <span className="font-bold text-[10px] sm:text-xs md:text-sm uppercase tracking-wider">Administrar</span>
+                            </button>
+                        ) : !user ? (
+                            <button
+                                onClick={() => navigate('/login')}
+                                className="pointer-events-auto group flex items-center gap-2 sm:gap-3 bg-[#10b981] hover:bg-[#059669] text-white px-5 sm:px-6 py-1.5 sm:py-2.5 rounded-full transition-all duration-300 shadow-xl shadow-[#10b981]/10 hover:scale-105"
+                            >
+                                <span className="font-bold text-xs sm:text-sm uppercase tracking-wider">Iniciar Sesión</span>
+                            </button>
+                        ) : null}
+                    </div>
+                )}
 
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
