@@ -1241,6 +1241,8 @@ async function triggerIAEvaluation(userId, workerId, apiKey, perfilesList) {
   }
 }
 
+const { extractTextFromFile, cleanAndParseJson } = require('./fileExtractorHelper');
+
 // ─── POST /import-file ──────────────────────────────────────────────────────
 router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), async (req, res) => {
   try {
@@ -1250,35 +1252,9 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
     // 1. Convertir Base64 a Buffer en memoria
     const base64Data = fileData.split(';base64,').pop();
     const buffer = Buffer.from(base64Data, 'base64');
-    let extractedText = '';
 
-    // 2. Extraer texto según tipo de archivo (Todo en memoria)
-    if (mimeType === 'application/pdf') {
-      const pdfData = await pdf(buffer);
-      extractedText = pdfData.text;
-    } else if (
-      mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
-      mimeType === 'application/msword'
-    ) {
-      const result = await mammoth.extractRawText({ buffer });
-      extractedText = result.value;
-    } else if (
-      mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-      mimeType === 'application/vnd.ms-excel'
-    ) {
-      const workbook = XLSX.read(buffer, { type: 'buffer' });
-      workbook.SheetNames.forEach(sheetName => {
-        const worksheet = workbook.Sheets[sheetName];
-        const csv = XLSX.utils.sheet_to_csv(worksheet);
-        if (csv.trim()) {
-          extractedText += `--- Hoja: ${sheetName} ---\n${csv}\n\n`;
-        }
-      });
-    } else if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/javascript') {
-      extractedText = buffer.toString('utf8');
-    } else {
-      extractedText = buffer.toString('utf8');
-    }
+    // 2. Extraer texto según tipo de archivo de forma robusta
+    const extractedText = await extractTextFromFile({ buffer, fileName, mimeType });
 
     if (!extractedText || !extractedText.trim()) {
       return res.status(400).json({ error: 'No se pudo extraer texto legible del archivo.' });
@@ -1360,7 +1336,7 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
 
     const promptText = `
     Eres un experto senior en Salud Ocupacional, Medicina del Trabajo y Seguridad y Salud en el Trabajo (SST) en Colombia.
-    Tu tarea es leer el siguiente documento adjunto (que puede ser un concepto de aptitud médica, un certificado médico, un listado sociodemográfico o un reporte clínico) y extraer toda la información sociodemográfica y de condiciones de salud de los trabajadores.
+    Tu tarea es leer el siguiente documento adjunto (que puede ser un concepto de aptitud médica, un certificado médico, un listado sociodemográfico, una encuesta de autoreporte o un reporte clínico) y extraer toda la información sociodemográfica y de condiciones de salud de los trabajadores.
     Para cada trabajador identificado, mapea la información a la estructura JSON solicitada.
     
     Asegúrate de:
@@ -1369,15 +1345,17 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
     - Campos como 'diagnosticoMedico', 'recomendacionesMedicas', 'enfermedades', 'limitacionesBiomecanicas' deben ser extraídos fielmente del concepto médico o reporte para estructurar el perfil epidemiológico del trabajador.
     
     DOCUMENTO A ANALIZAR:
+    Nombre del archivo: ${fileName || 'Documento adjunto'}
+    
     ${extractedText}
     `;
 
     const result = await generateWithKeyRotation(modelInstance, req.user?.id || req.user, [{ text: promptText }]);
     const response = await result.response;
     const responseText = response.text();
-    const cleanJson = JSON.parse(responseText.trim());
+    const cleanJson = cleanAndParseJson(responseText);
 
-    res.json({ success: true, trabajadores: cleanJson });
+    res.json({ success: true, trabajadores: Array.isArray(cleanJson) ? cleanJson : [cleanJson] });
   } catch (error) {
     logger.error('[SGSST PerfilSociodemografico] Import error:', error);
     res.status(500).json({ error: error.message || 'Error al procesar el archivo con IA' });

@@ -101,6 +101,8 @@ router.post('/upload', requireJwtAuth, express.json({ limit: '200mb' }), async (
   }
 });
 
+const { extractTextFromFile, cleanAndParseJson } = require('./fileExtractorHelper');
+
 // ─── POST /import-file ──────────────────────────────────────────────────────
 router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), async (req, res) => {
   try {
@@ -110,35 +112,9 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
     // 1. Convertir Base64 a Buffer en memoria
     const base64Data = fileData.split(';base64,').pop();
     const buffer = Buffer.from(base64Data, 'base64');
-    let extractedText = '';
 
-    // 2. Extraer texto según tipo de archivo (Todo en memoria)
-    if (mimeType === 'application/pdf') {
-      const pdfData = await pdf(buffer);
-      extractedText = pdfData.text;
-    } else if (
-      mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
-      mimeType === 'application/msword'
-    ) {
-      const result = await mammoth.extractRawText({ buffer });
-      extractedText = result.value;
-    } else if (
-      mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-      mimeType === 'application/vnd.ms-excel'
-    ) {
-      const workbook = XLSX.read(buffer, { type: 'buffer' });
-      workbook.SheetNames.forEach(sheetName => {
-        const worksheet = workbook.Sheets[sheetName];
-        const csv = XLSX.utils.sheet_to_csv(worksheet);
-        if (csv.trim()) {
-          extractedText += `--- Hoja: ${sheetName} ---\n${csv}\n\n`;
-        }
-      });
-    } else if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/javascript') {
-      extractedText = buffer.toString('utf8');
-    } else {
-      extractedText = buffer.toString('utf8');
-    }
+    // 2. Extraer texto según tipo de archivo de forma robusta
+    const extractedText = await extractTextFromFile({ buffer, fileName, mimeType });
 
     if (!extractedText || !extractedText.trim()) {
       return res.status(400).json({ error: 'No se pudo extraer texto legible del archivo.' });
@@ -189,18 +165,21 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
     
     Asegúrate de:
     - Retornar un array JSON conteniendo cada perfil de cargo como un objeto.
+    - Si el nombre del archivo contiene pistas del cargo (ej: "Coordinador Administrativo"), úsalo para precisar el campo 'nombreCargo'.
     - El campo 'nivelCargo' debe ser estrictamente uno de los siguientes valores: 'Estratégico / Directivo', 'Táctico / Mando Medio', 'Profesional / Técnico', 'Operativo', 'Auxiliar / Asistencial'.
     
     DOCUMENTO A ANALIZAR:
+    Nombre del archivo: ${fileName || 'Documento adjunto'}
+    
     ${extractedText}
     `;
 
     const result = await generateWithKeyRotation(modelInstance, req.user?.id || req.user, [{ text: promptText }]);
     const response = await result.response;
     const responseText = response.text();
-    const cleanJson = JSON.parse(responseText.trim());
+    const cleanJson = cleanAndParseJson(responseText);
 
-    res.json({ success: true, perfiles: cleanJson });
+    res.json({ success: true, perfiles: Array.isArray(cleanJson) ? cleanJson : [cleanJson] });
   } catch (error) {
     logger.error('[SGSST PerfilesCargo] Import error:', error);
     res.status(500).json({ error: error.message || 'Error al procesar el archivo con IA' });

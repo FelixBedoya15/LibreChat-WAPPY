@@ -698,10 +698,19 @@ const PerfilesCargo = () => {
         const requestAiImport = () => {
             const base64Reader = new FileReader();
             base64Reader.onload = (base64Event) => {
+                let inferredType = file.type || 'application/octet-stream';
+                if (file.name.toLowerCase().endsWith('.docx')) {
+                    inferredType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                } else if (file.name.toLowerCase().endsWith('.xlsx')) {
+                    inferredType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                } else if (file.name.toLowerCase().endsWith('.pdf')) {
+                    inferredType = 'application/pdf';
+                }
+
                 setPendingFileData({
                     dataUrl: base64Event.target?.result as string,
                     name: file.name,
-                    type: file.type || 'application/octet-stream'
+                    type: inferredType
                 });
                 setIsConfirmModalOpen(true);
             };

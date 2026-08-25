@@ -149,33 +149,9 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
         // 1. Convertir Base64 a Buffer
         const base64Data = fileData.split(';base64,').pop();
         const buffer = Buffer.from(base64Data, 'base64');
-        let extractedText = '';
 
-        // 2. Extraer texto según tipo de archivo
-        if (mimeType === 'application/pdf') {
-            const pdfData = await pdf(buffer);
-            extractedText = pdfData.text;
-        } else if (
-            mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
-            mimeType === 'application/msword'
-        ) {
-            const result = await mammoth.extractRawText({ buffer });
-            extractedText = result.value;
-        } else if (
-            mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-            mimeType === 'application/vnd.ms-excel'
-        ) {
-            const workbook = XLSX.read(buffer, { type: 'buffer' });
-            workbook.SheetNames.forEach(sheetName => {
-                const worksheet = workbook.Sheets[sheetName];
-                const csv = XLSX.utils.sheet_to_csv(worksheet);
-                if (csv.trim()) {
-                    extractedText += `--- Hoja: ${sheetName} ---\n${csv}\n\n`;
-                }
-            });
-        } else {
-            extractedText = buffer.toString('utf8');
-        }
+        // 2. Extraer texto según tipo de archivo de forma robusta
+        const extractedText = await extractTextFromFile({ buffer, fileName, mimeType });
 
         if (!extractedText || !extractedText.trim()) {
             return res.status(400).json({ error: 'No se pudo extraer texto legible del archivo.' });
@@ -193,15 +169,16 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
                 responseSchema: {
                     type: 'object',
                     properties: {
-                        tipoEvento: { type: 'string', enum: ['Incidente', 'Accidente Leve', 'Accidente Grave', 'Accidente Mortal'] },
-                        fechaEvento: { type: 'string' },
-                        horaEvento: { type: 'string' },
-                        lugarEvento: { type: 'string' },
-                        departamento: { type: 'string' },
-                        municipio: { type: 'string' },
+                        fechaAccidente: { type: 'string' },
+                        horaAccidente: { type: 'string' },
+                        lugarAccidente: { type: 'string' },
+                        tipoAccidente: { type: 'string', enum: ['Propio del trabajo', 'En comisión', 'En tránsito', 'Deportivo/Cultural', 'Violencia'] },
                         afectadoNombre: { type: 'string' },
-                        afectadoCedula: { type: 'string' },
+                        afectadoDocumento: { type: 'string' },
                         afectadoCargo: { type: 'string' },
+                        afectadoAntiguedad: { type: 'string' },
+                        afectadoEdad: { type: 'string' },
+                        afectadoGenero: { type: 'string', enum: ['Masculino', 'Femenino', 'Otro'] },
                         afectadoEps: { type: 'string' },
                         afectadoArl: { type: 'string' },
                         tipoContrato: { type: 'string', enum: ['Indefinido', 'Fijo', 'Obra o labor', 'Aprendizaje', 'Prestación de servicios', 'Temporal'] },
@@ -226,11 +203,11 @@ Para los campos de tipo enum, selecciona el valor que más se asemeje si no hay 
 Las fechas deben estar en formato YYYY-MM-DD y las horas en formato HH:MM (de 24 horas).`;
 
         const contents = [
-            { role: 'user', parts: [{ text: `${systemPrompt}\n\nDocumento:\n${extractedText}` }] }
+            { role: 'user', parts: [{ text: `${systemPrompt}\n\nNombre del archivo: ${fileName || 'Adjunto'}\n\nDocumento:\n${extractedText}` }] }
         ];
 
         const geminiResult = await generateWithKeyRotation(req.user.id, modelInstance, contents);
-        const parsedData = JSON.parse(geminiResult.text);
+        const parsedData = cleanAndParseJson(geminiResult.text || (await geminiResult.response?.text?.()) || '');
 
         res.json({ success: true, formData: parsedData });
     } catch (error) {

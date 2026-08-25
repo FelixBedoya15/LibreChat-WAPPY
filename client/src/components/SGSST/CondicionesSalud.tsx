@@ -47,6 +47,7 @@ import cn from '~/utils/cn';
 import { exportPerfilSociodemograficoToExcel } from './exportPerfilSociodemografico';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import BioFitAuditModal from './BioFitAuditModal';
+import { smartMapExcelToWorkers } from './excelWorkerMapper';
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface WorkerEntry {
@@ -335,10 +336,19 @@ const CondicionesSalud = () => {
         const requestAiImport = () => {
             const base64Reader = new FileReader();
             base64Reader.onload = (base64Event) => {
+                let inferredType = file.type || 'application/octet-stream';
+                if (file.name.toLowerCase().endsWith('.docx')) {
+                    inferredType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                } else if (file.name.toLowerCase().endsWith('.xlsx')) {
+                    inferredType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                } else if (file.name.toLowerCase().endsWith('.pdf')) {
+                    inferredType = 'application/pdf';
+                }
+
                 setPendingFileData({
                     dataUrl: base64Event.target?.result as string,
                     name: file.name,
-                    type: file.type || 'application/octet-stream'
+                    type: inferredType
                 });
                 setIsConfirmModalOpen(true);
             };
@@ -395,7 +405,7 @@ const CondicionesSalud = () => {
             return;
         }
 
-        // Si es Excel (.xlsx, .xls), validamos si tiene cabeceras válidas para la ruta tradicional o si va a IA
+        // Si es Excel (.xlsx, .xls), procesamos con mapeador inteligente y fallback a IA
         const reader = new FileReader();
         reader.onload = (eEvent) => {
             try {
@@ -409,98 +419,26 @@ const CondicionesSalud = () => {
                     throw new Error("El archivo no contiene datos.");
                 }
 
-                // Validamos si hay cabeceras estándar en el primer registro
-                const firstRow = importedData[0];
-                const keys = Object.keys(firstRow).map(k => k.toLowerCase().replace(/\s+/g, ''));
-                const isStandard = keys.some(k => 
-                    k.includes('identificacion') || 
-                    k.includes('cédula') || 
-                    k.includes('cedula') ||
-                    k.includes('nombre') || 
-                    k.includes('cargo')
-                );
+                // Normalización inteligente de columnas
+                let newWorkers: WorkerEntry[] = smartMapExcelToWorkers(importedData, EMPTY_WORKER);
+                let validWorkers = newWorkers.filter(w => (w.nombre && w.nombre.trim()) || (w.identificacion && w.identificacion.trim()));
 
-                if (isStandard) {
+                if (validWorkers.length > 0) {
                     // Validar límites de versión Pro
-                    let dataToProcess = importedData;
                     if (!isPro) {
                         const remainingSlots = Math.max(0, 3 - trabajadores.length);
                         if (remainingSlots === 0) {
                             setShowUpgradeModal(true);
                             return;
                         }
-                        if (dataToProcess.length > remainingSlots) {
-                            dataToProcess = dataToProcess.slice(0, remainingSlots);
+                        if (validWorkers.length > remainingSlots) {
+                            validWorkers = validWorkers.slice(0, remainingSlots);
                             setTimeout(() => setShowUpgradeModal(true), 500);
                         }
                     }
 
-                    // Ruta A: Mapeo Tradicional Directo
-                    const newWorkers: WorkerEntry[] = dataToProcess.map((row: any) => {
-                        return {
-                            ...EMPTY_WORKER,
-                            id: crypto.randomUUID(),
-                            nombre: row['Nombre'] || row.nombre || '',
-                            identificacion: row['Identificación'] || row.identificacion || '',
-                            edad: row['Edad'] || row.edad || '',
-                            genero: row['Género'] || row.genero || '',
-                            estadoCivil: row['Estado Civil'] || row.estadoCivil || '',
-                            nivelEscolaridad: row['Nivel Escolaridad'] || row.nivelEscolaridad || '',
-                            direccion: row['Dirección'] || row.direccion || '',
-                            telefono: row['Teléfono'] || row.telefono || '',
-                            cargo: row['Cargo'] || row.cargo || '',
-                            fechaExamenMedico: row['Fecha Examen Médico'] || row.fechaExamenMedico || '',
-                            fechaCursoAlturasAutorizado: row['Curso Alturas Autorizado'] || row.fechaCursoAlturasAutorizado || '',
-                            fechaCursoAlturasCoordinador: row['Curso Alturas Coordinador'] || row.fechaCursoAlturasCoordinador || '',
-                            diagnosticoMedico: row['Diagnóstico Médico'] || row.diagnosticoMedico || '',
-                            recomendacionesMedicas: row['Recomendaciones Medicas'] || row.recomendacionesMedicas || '',
-                            fechaSeguimiento: row['Fecha Seguimiento'] || row.fechaSeguimiento || '',
-                            fechaNacimiento: row['Fecha de Nacimiento'] || row.fechaNacimiento || '',
-                            lugarNacimiento: row['Lugar de Nacimiento'] || row.lugarNacimiento || '',
-                            barrio: row['Barrio'] || row.barrio || '',
-                            municipioDomicilio: row['Municipio'] || row.municipioDomicilio || '',
-                            correoElectronico: row['Correo Electrónico'] || row.correoElectronico || '',
-                            deporte: row['Deporte / Actividad Física'] || row.deporte || '',
-                            alimentacion: row['Calidad de Alimentación'] || row.alimentacion || '',
-                            riesgoCardiovascular: row['Riesgo Cardiovascular'] || row.riesgoCardiovascular || '',
-                            emergenciaContacto: row['Contacto de Emergencia'] || row.emergenciaContacto || '',
-                            tipoSangre: row['Tipo de Sangre'] || row.tipoSangre || '',
-                            enfermedades: row['Enfermedades Actuales'] || row.enfermedades || '',
-                            medicamentos: row['Medicamentos'] || row.medicamentos || '',
-                            fuma: row['Fuma'] || row.fuma || '',
-                            alcohol: row['Alcohol'] || row.alcohol || '',
-                            terapiaPsicologica: row['Terapia Psicológica'] || row.terapiaPsicologica || '',
-                            personasCargo: row['Personas a Cargo'] || row.personasCargo || '',
-                            estrato: row['Estrato'] || row.estrato || '',
-                            vivienda: row['Tipo de Vivienda'] || row.vivienda || '',
-                            soatVencimiento: row['Vencimiento SOAT'] || row.soatVencimiento || '',
-                            tecnicomecanicaVencimiento: row['Vencimiento Tecnicomecánica'] || row.tecnicomecanicaVencimiento || '',
-                            licenciaConduccion: row['Licencia Conducción'] || row.licenciaConduccion || '',
-                            licenciaConduccionVencimiento: row['Vencimiento Licencia Cond'] || row.licenciaConduccionVencimiento || '',
-                            licenciaSST: row['N° Licencia SGSST'] || row.licenciaSST || '',
-                            licenciaVencimiento: row['Venc. Licencia SGSST'] || row.licenciaVencimiento || '',
-                            curso50h: row['Curso 50h'] || row.curso50h || '',
-                            curso20h: row['Curso 20h'] || row.curso20h || '',
-                            esCopasst: row['COPASST'] || row.esCopasst || 'No',
-                            esComiteConvivencia: row['Comité Convivencia'] || row.esComiteConvivencia || 'No',
-                            esBrigadista: row['Brigadista'] || row.esBrigadista || 'No',
-                            esComiteSeguridadVial: row['Comité Seg. Vial'] || row.esComiteSeguridadVial || 'No',
-                            formacion: row.formacion || [],
-                            peso: row['Peso (kg)'] || row.peso || '',
-                            talla: row['Talla (m)'] || row.talla || '',
-                            imc: row['IMC'] || row.imc || '',
-                            presionArterial: row['Presión Arterial'] || row.presionArterial || '',
-                            frecuenciaCardiaca: row['Frecuencia Cardíaca'] || row.frecuenciaCardiaca || '',
-                            limitacionesBiomecanicas: row['Limitaciones Biomecánicas'] || row.limitacionesBiomecanicas || '',
-                            alergiasQuimicas: row['Alergias / Sensibilidad Química'] || row.alergiasQuimicas || '',
-                            consentimientoFirmaDigital: row['Consentimiento Firma'] || row.consentimientoFirmaDigital || 'No',
-                            firmaDigital: null,
-                            completedByAI: false,
-                        };
-                    });
-
-                    setTrabajadores(prev => [...prev, ...newWorkers]);
-                    showToast({ message: `${newWorkers.length} trabajadores importados correctamente`, severity: NotificationSeverity.SUCCESS });
+                    setTrabajadores(prev => [...prev, ...validWorkers]);
+                    showToast({ message: `${validWorkers.length} trabajadores importados correctamente`, severity: NotificationSeverity.SUCCESS });
                 } else {
                     // Ruta B: Excel No Estándar -> Procesar con IA
                     requestAiImport();
