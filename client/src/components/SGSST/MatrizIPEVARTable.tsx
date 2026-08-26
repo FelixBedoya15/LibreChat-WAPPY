@@ -642,7 +642,7 @@ export default function MatrizIPEVARTable({
         }));
         const combined = [...matrixRows, ...normalized];
         setMatrixRows(combined);
-        isDirtyRef.current = false;
+        isDirtyRef.current = true;
         saveMatrixData(combined);
         alert(
           `¡Éxito! La IA de Wappy ha reconstruido y mapeado ${data.matrixRows.length} riesgos de tu matriz al formato oficial de Wappy.`
@@ -1115,9 +1115,9 @@ export default function MatrizIPEVARTable({
     }
 
     if (!actualConvoId || actualConvoId === 'new') {
-      setMatrixRows([]);
-      setChartConclusions({});
-      isDirtyRef.current = false;
+      if (userId && matrixRowsRef.current.length === 0) {
+        fetchMatrix(`temp-${userId}`);
+      }
       prevConvoIdRef.current = actualConvoId;
       return;
     }
@@ -1126,7 +1126,7 @@ export default function MatrizIPEVARTable({
       const isTransitionFromNewToReal = (prevConvoIdRef.current === 'new' || !prevConvoIdRef.current) && (actualConvoId !== 'new');
       
       if (isTransitionFromNewToReal) {
-        if (isDirtyRef.current && matrixRowsRef.current.length > 0) {
+        if (matrixRowsRef.current.length > 0) {
           saveMatrixData(matrixRowsRef.current);
           isDirtyRef.current = false;
         } else {
@@ -1142,7 +1142,7 @@ export default function MatrizIPEVARTable({
     } else {
       fetchMatrix(actualConvoId);
     }
-  }, [actualConvoId, workerId]);
+  }, [actualConvoId, workerId, userId]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -1724,11 +1724,13 @@ export default function MatrizIPEVARTable({
         <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2 overflow-visible py-1">
           {isLoading && <RefreshCw className="h-4 w-4 animate-spin text-text-secondary" />}
 
-          <ModelSelector
-            selectedModel={selectedModel}
-            onSelectModel={setSelectedModel}
-            hideTooltip={true}
-          />
+          {isMaximized && (
+            <ModelSelector
+              selectedModel={selectedModel}
+              onSelectModel={setSelectedModel}
+              hideTooltip={true}
+            />
+          )}
 
           {/* Añadir Fila */}
           <button
@@ -1742,20 +1744,22 @@ export default function MatrizIPEVARTable({
           </button>
 
           {/* Analizar Matriz Completa */}
-          <button
-            onClick={handleAnalyzeMatrix}
-            disabled={isAnalyzing || matrixRows.length === 0}
-            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-purple-500/40 bg-surface-primary px-2.5 text-purple-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
-          >
-            {isAnalyzing ? (
-              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-            ) : (
-              <FileTextIcon className="h-4 w-4 shrink-0" />
-            )}
-            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-              {isAnalyzing ? 'Generando…' : 'Análisis IPEVAR'}
-            </span>
-          </button>
+          {isMaximized && (
+            <button
+              onClick={handleAnalyzeMatrix}
+              disabled={isAnalyzing || matrixRows.length === 0}
+              className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-purple-500/40 bg-surface-primary px-2.5 text-purple-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
+            >
+              {isAnalyzing ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <FileTextIcon className="h-4 w-4 shrink-0" />
+              )}
+              <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                {isAnalyzing ? 'Generando…' : 'Análisis IPEVAR'}
+              </span>
+            </button>
+          )}
 
           {/* Importar */}
           <button

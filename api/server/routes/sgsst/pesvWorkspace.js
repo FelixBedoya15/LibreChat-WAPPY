@@ -48,19 +48,13 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
     }
 
     if (!session && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-      const { Conversation } = require('~/db/models');
-      const convo = await Conversation.findOne({ conversationId }, 'createdAt').lean();
-      const isNewConvo = convo && convo.createdAt && (Date.now() - new Date(convo.createdAt).getTime() < 120000);
-
-      if (isNewConvo) {
-        const tempId = `temp-${userId}`;
-        const tempSession = await PESVWorkspaceSession.findOne({ conversationId: tempId, user: userId });
-        if (tempSession) {
-          tempSession.conversationId = conversationId;
-          tempSession.companyId = companyId;
-          await tempSession.save();
-          session = tempSession;
-        }
+      const tempId = `temp-${userId}`;
+      const tempSession = await PESVWorkspaceSession.findOne({ conversationId: tempId, user: userId });
+      if (tempSession && tempSession.matrixRows && tempSession.matrixRows.length > 0) {
+        tempSession.conversationId = conversationId;
+        tempSession.companyId = companyId;
+        await tempSession.save();
+        session = tempSession;
       }
     }
 

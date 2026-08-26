@@ -153,16 +153,7 @@ function ChatView({ index = 0 }: { index?: number }) {
     };
   }, [isIPEVARActive, isPESVActive, isChemicalCompatibilityActive, isEditorLiveActive, isCanvasActive, conversationId, setIsIPEVARActive, setIsPESVActive, setIsChemicalCompatibilityActive, setIsEditorLiveActive, setIsCanvasActive]);
 
-  useEffect(() => {
-    if (!conversationId || conversationId === 'new') {
-      if (token) {
-        fetch('/api/sgsst/gtc45-workspace/clear-temp-sessions', {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
-        }).catch(err => console.error('[ChatView] Clear temp sessions error:', err));
-      }
-    }
-  }, [conversationId, token, conversation?.conversationId]);
+
 
   // ── Mobile/Maximize: track whether panels are expanded via global state ──
   const [mobileExpanded] = useRecoilState(store.ipevarMaximized);

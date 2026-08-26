@@ -86,18 +86,13 @@ router.get('/:conversationId', requireJwtAuth, async (req, res) => {
 
     // Fallback: si es una conversación real y no encontramos sesión, buscamos la temporal
     if (!session && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-      const { Conversation } = require('~/db/models');
-      const convo = await Conversation.findOne({ conversationId }, 'createdAt').lean();
-      const isNewConvo = convo && convo.createdAt && (Date.now() - new Date(convo.createdAt).getTime() < 120000);
-
-      if (isNewConvo) {
-        const tempId = `temp-${userId}`;
-        const tempSession = await LiveEditorSession.findOne({ conversationId: tempId, user: userId });
-        if (tempSession) {
-          tempSession.conversationId = conversationId;
-          tempSession.companyId = companyId;
-          await tempSession.save();
-          session = tempSession;
+      const tempId = `temp-${userId}`;
+      const tempSession = await LiveEditorSession.findOne({ conversationId: tempId, user: userId });
+      if (tempSession && tempSession.document && tempSession.document.length > 0) {
+        tempSession.conversationId = conversationId;
+        tempSession.companyId = companyId;
+        await tempSession.save();
+        session = tempSession;
 
           // También migrar Canvas
           try {
