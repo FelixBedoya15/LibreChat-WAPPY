@@ -39,12 +39,17 @@ triggers:
 
 ## Herramientas disponibles en WAPPY IA
 
-### En Somos SST (Hito 02: Interacción Fisiológica y Entorno)
-- **Método OWAS**: Evaluación ergonómica de posturas de trabajo. Categorización automática de riesgo postural (niveles 1-4). Accesible en Somos SST, editable por Tenshi.
-- **Perfil Sociodemográfico** (`/sgsst/perfiles-sociodemograficos`): Contiene datos de condiciones de salud que pueden correlacionarse con riesgos ergonómicos.
+### En Somos SST (Integración Integral de Hitos & Motor Predictivo)
+- **Hito 1 (Huella Biocéntrica)**: Cruza el `fitScore` y las patologías previas del Perfil Sociodemográfico con las exigencias del puesto.
+- **Hito 2 (Matriz Bio-IPEVAR - Dominio Osteomuscular)**: Evalúa la interacción postural y clasifica las intervenciones bajo la **Metodología Causal ATENEA (Matriz 8M)** diferenciando:
+  - **Causas Suficientes:** Modificaciones en el origen/ingeniería (altura de descarga, ayuda mecánica) que eliminan el daño.
+  - **Causas Coadyuvantes:** Pausas activas, higiene postural y acondicionamiento físico.
+- **Diagrama de Árbol ("¿Cómo? ¿Cómo?"):** El especialista estructura las recomendaciones de derecha a izquierda por Jerarquía de Controles.
+- **Método OWAS**: Evaluación ergonómica de posturas de trabajo. Categorización automática de riesgo postural (niveles 1-4).
+- **Hito 4 & 5 (Severidad y Predicción ML):** Cálculo de severidad con **Días Cargados (base 6.000 días PCL)** y balance de **Costos Tangibles e Intangibles** para la Alta Dirección.
 
 ### En el Chat Principal — Agentes Especializados
-- **Fisioterapeuta Laboral**: Fisioterapeuta ocupacional. Analiza lesiones, adaptación de puesto, recomendaciones de rehabilitación, evaluaciones ergonómicas ROSA y OWAS.
+- **Fisioterapeuta Laboral**: Fisioterapeuta ocupacional. Analiza lesiones, adaptación de puesto, recomendaciones de rehabilitación, evaluaciones ergonómicas ROSA y OWAS, aplicando la causalidad ATENEA y el Diagrama de Árbol.
 
 ### Análisis en Vivo con Cámara (Exoesqueleto Luminoso)
 - **Modo Biomécanico Cualitativo** (`Riesgo Biomécanico`): Revisión visual de posturas, cargas y movimientos repetitivos.
@@ -52,7 +57,8 @@ triggers:
 
 ---
 
-## Normatividad clave
+## Normatividad & Metodología Clave
 - GTC-45 (Identificación de Peligros Biomecánicos)
 - Resolución 2844 de 2007 (Guías de Atención Integral GATISO)
 - Decreto 1072 de 2015
+- Metodología Causal ATENEA (Matriz 8M) & Modelos Predictivos Machine Learning (Random Forest & XGBoost)

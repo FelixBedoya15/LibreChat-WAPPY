@@ -43,7 +43,17 @@ import CollapsibleReportBox from './CollapsibleReportBox';
 interface ForecastData {
     overallRisk: number;
     criticalArea: string;
+    topDomain?: string;
     predictionSummary: string;
+    predictiveMetrics?: {
+        modelReliabilityMonthly: string;
+        modelReliabilityYearly: string;
+        expectedMonthlyAccidents: number;
+        expectedYearlyDaysLost: number;
+        expectedDaysCharged: number;
+        topThreatenedDomain: string;
+    };
+    domainRiskScores?: Record<string, number>;
     indicators: {
         healthRisk: number;
         safetyRisk: number;
@@ -225,7 +235,7 @@ const DashboardPredictivo = () => {
             if (res.ok) {
                 const data = await res.json();
                 setForecast(data);
-                showToast({ message: 'Indicadores predictivos actualizados', status: 'success', severity: 'success' });
+                showToast({ message: 'Indicadores predictivos actualizados', status: 'success' });
             } else {
                 const errData = await res.json();
                 showToast({ message: errData.error || 'Error al cargar indicadores', status: 'error' });
@@ -477,7 +487,7 @@ const DashboardPredictivo = () => {
             setConversationId('new');
             setReportMessageId(null);
             setIsReportCollapsed(false);
-            showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
+            showToast({ message: 'Guardado exitosamente', status: 'success' });
         } catch (error: any) {
             showToast({ message: error.message || 'Error al generar el informe', status: 'error' });
         } finally {
@@ -528,7 +538,7 @@ const DashboardPredictivo = () => {
                 editorContentRef.current = contentToSave;
                 liveEditorRef.current?.setHTML(contentToSave);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
+                showToast({ message: 'Guardado exitosamente', status: 'success' });
             } else {
                 const err = await res.json();
                 showToast({ message: `Error al guardar: ${err.error || res.status}`, status: 'error' });
@@ -977,9 +987,26 @@ const DashboardPredictivo = () => {
 
                     {/* Data Sources */}
                     <div className="mt-6 pt-5 border-t border-border-medium/60">
-                        <span className="text-[10px] font-black text-teal-600 dark:text-teal-400 block mb-3.5 uppercase tracking-[0.15em]">Fuentes Integradas Activas</span>
+                        <div className="flex items-center justify-between mb-3.5">
+                            <span className="text-[10px] font-black text-teal-600 dark:text-teal-400 block uppercase tracking-[0.15em]">Fuentes Integradas & Motor Predictivo</span>
+                            {forecast?.predictiveMetrics && (
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                                    <Sparkles className="w-2.5 h-2.5" />
+                                    Motor ML {forecast.predictiveMetrics.modelReliabilityMonthly} (1M) / {forecast.predictiveMetrics.modelReliabilityYearly} (1A)
+                                </span>
+                            )}
+                        </div>
                         <div className="grid grid-cols-2 gap-2">
-                            {['Perfil Sociodemográfico', 'Estadísticas ATEL', 'Investigaciones ATEL', 'Actos/Condiciones', 'Método OWAS', 'ATS', 'Vulnerabilidad', 'Matriz GTC 45'].map(src => (
+                            {[
+                                'Huella Biocéntrica H1 (FIT & Salud)',
+                                'Matriz Bio-IPEVAR (9 Dominios H2)',
+                                'Causalidad ATENEA (8M)',
+                                'Estadísticas ATEL & Días Cargados (H4)',
+                                'Investigaciones Forenses (H4)',
+                                'Dinámica OWAS & LIVA IA (H3)',
+                                'Participación IPEVAR & Miedo (H3)',
+                                'Tareas Críticas & Alturas (H3)'
+                            ].map(src => (
                                 <div key={src} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-primary border border-border-light hover:border-teal-500/30 hover:bg-teal-500/5 transition-all duration-300 group cursor-default">
                                     <div className="h-2 w-2 rounded-full bg-teal-400 shadow-[0_0_6px_#14b8a6] shrink-0 group-hover:scale-125 transition-transform" />
                                     <span className="text-[10px] font-bold text-text-secondary group-hover:text-text-primary transition-colors">{src}</span>
@@ -1005,10 +1032,17 @@ const DashboardPredictivo = () => {
                             {/* AI Insight Card */}
                             <div className="p-6 rounded-3xl border border-border-medium/60 glass-premium shadow-xl flex-1 hover:shadow-2xl transition-all duration-300 relative overflow-hidden group">
                                 <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-teal-500/10 blur-2xl pointer-events-none group-hover:bg-teal-500/20 transition-all duration-500" />
-                                <h3 className="text-xs font-black text-text-primary mb-5 flex items-center gap-2 tracking-[0.12em] uppercase">
-                                    <AnimatedIcon name="sparkles" size={16} className="text-teal-500 animate-pulse" />
-                                    ANÁLISIS DE CORRELACIÓN PREDICTIVA IA
-                                </h3>
+                                <div className="flex items-center justify-between mb-5">
+                                    <h3 className="text-xs font-black text-text-primary flex items-center gap-2 tracking-[0.12em] uppercase">
+                                        <AnimatedIcon name="sparkles" size={16} className="text-teal-500 animate-pulse" />
+                                        ANÁLISIS PREDICTIVO ML & CAUSALIDAD ATENEA
+                                    </h3>
+                                    {forecast?.topDomain && (
+                                        <span className="px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 border border-red-200 dark:border-red-800">
+                                            Dominio Crítico: {forecast.topDomain}
+                                        </span>
+                                    )}
+                                </div>
                                 <div className="relative p-5 bg-surface-primary/80 backdrop-blur-sm rounded-2xl border border-border-medium shadow-inner">
                                     <span className="absolute -top-3 left-4 text-3xl font-serif text-teal-400/50 leading-none">“</span>
                                     <p className="text-xs text-text-primary leading-relaxed font-semibold italic pl-4 pr-2">
@@ -1065,7 +1099,7 @@ const DashboardPredictivo = () => {
                     <div className="rounded-xl p-1 overflow-hidden bg-white dark:bg-[#1a1a1a]">
                         <LiveEditor
                             ref={liveEditorRef}
-                            initialContent={generatedReport}
+                            initialContent={generatedReport || ''}
                             onUpdate={(html) => { editorContentRef.current = html; }}
                             reportSourceData={forecast}
                         />
