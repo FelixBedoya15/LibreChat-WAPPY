@@ -94,17 +94,16 @@ router.get('/:conversationId', requireJwtAuth, async (req, res) => {
         await tempSession.save();
         session = tempSession;
 
-          // También migrar Canvas
-          try {
-            const CanvasSession = require('~/models/CanvasSession');
-            const canvasTemp = await CanvasSession.findOne({ conversationId: tempId });
-            if (canvasTemp) {
-              canvasTemp.conversationId = conversationId;
-              await canvasTemp.save();
-            }
-          } catch (canvasErr) {
-            logger.error('[LiveEditor Migración Canvas] Error:', canvasErr);
+        // También migrar Canvas
+        try {
+          const CanvasSession = require('~/models/CanvasSession');
+          const canvasTemp = await CanvasSession.findOne({ conversationId: tempId });
+          if (canvasTemp) {
+            canvasTemp.conversationId = conversationId;
+            await canvasTemp.save();
           }
+        } catch (canvasErr) {
+          logger.error('[LiveEditor Migración Canvas] Error:', canvasErr);
         }
       }
     }
