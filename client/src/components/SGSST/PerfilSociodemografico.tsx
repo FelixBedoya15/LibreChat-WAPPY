@@ -16,11 +16,13 @@ import {
     QrCode,
     UserCircle,
     User,
+    UserCheck,
     Info,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import SignaturePad from '~/components/SGSST/SignaturePad';
+import SubUserManagerModal from '~/components/SGSST/SubUserManagerModal';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
 import ModelSelector from './ModelSelector';
@@ -183,6 +185,10 @@ const PerfilSociodemografico = () => {
 
     // Public portal QR modal state
     const [showPortalQr, setShowPortalQr] = useState(false);
+
+    // Sub-users Management Modal State
+    const [showSubUserManager, setShowSubUserManager] = useState(false);
+    const [selectedWorkerDocForSubUser, setSelectedWorkerDocForSubUser] = useState<string>('');
     // ─── Sync Signatures ────────────────────────────────────────
     const syncWorkersSignaturesToStorage = (workers: WorkerEntry[]) => {
         try {
@@ -848,6 +854,15 @@ const PerfilSociodemografico = () => {
                             label="Portal Público"
                             icon="qrcode"
                         />
+                        <ToolbarButton
+                            id="manage-subusers"
+                            onClick={() => {
+                                setSelectedWorkerDocForSubUser('');
+                                setShowSubUserManager(true);
+                            }}
+                            label="Sub-Usuarios / Accesos"
+                            icon="users"
+                        />
                     </div>
                 ]}
             />
@@ -997,6 +1012,16 @@ const PerfilSociodemografico = () => {
                                             </span>
                                             <span className="text-[9px] text-text-secondary font-bold uppercase tracking-tighter">Score Biocéntrico</span>
                                         </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedWorkerDocForSubUser(w.identificacion);
+                                                setShowSubUserManager(true);
+                                            }}
+                                            title="Crear o gestionar acceso de sub-usuario para este trabajador"
+                                            className="p-2 bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 rounded-xl hover:bg-teal-100 transition-colors shadow-sm">
+                                            <UserCheck className="w-[18px] h-[18px]" />
+                                        </button>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setSelectedQrWorker(w); }}
                                             className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors shadow-sm">
@@ -1729,6 +1754,15 @@ const PerfilSociodemografico = () => {
                         updateWorkerField(activeSignatureWorkerId, 'firmaDigital', base64);
                     }
                 }}
+            />
+
+            <SubUserManagerModal
+                isOpen={showSubUserManager}
+                onClose={() => {
+                    setShowSubUserManager(false);
+                    setSelectedWorkerDocForSubUser('');
+                }}
+                initialWorkerDoc={selectedWorkerDocForSubUser}
             />
         </div>
     );

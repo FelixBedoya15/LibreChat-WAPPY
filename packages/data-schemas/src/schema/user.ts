@@ -229,6 +229,39 @@ const userSchema = new Schema<IUser>(
       type: String,
       trim: true,
     },
+    isSubUser: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    parentUser: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
+    assignedCompany: {
+      type: Schema.Types.ObjectId,
+      ref: 'CompanyInfo',
+      index: true,
+    },
+    workerDocument: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    workerId: {
+      type: String,
+      trim: true,
+    },
+    subUserPermissions: {
+      type: [String],
+      default: [],
+    },
+    subUserStatus: {
+      type: String,
+      enum: ['active', 'suspended'],
+      default: 'active',
+    },
   },
   { timestamps: true },
 );

@@ -129,21 +129,30 @@ Descripción General de Actividades (Sede Principal): ${companyData.generalActiv
  */
 router.get('/', requireJwtAuth, async (req, res) => {
     try {
-        let info = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
+        const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+        let info = null;
+
+        if (req.user.isSubUser && req.user.assignedCompany) {
+            info = await CompanyInfo.findOne({ _id: req.user.assignedCompany, user: targetUserId }).lean();
+        }
+
         if (!info) {
-            info = await CompanyInfo.findOne({ user: req.user.id }).lean();
-            if (info) {
+            info = await CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean();
+        }
+        if (!info) {
+            info = await CompanyInfo.findOne({ user: targetUserId }).lean();
+            if (info && !req.user.isSubUser) {
                 // Auto-activate the first one found for legacy support
                 await CompanyInfo.updateOne({ _id: info._id }, { isActive: true });
                 info.isActive = true;
             }
         }
         
-        if (info) {
+        if (info && !req.user.isSubUser) {
             // Auto-purge any legacy/duplicate company memories and ensure only active company memory exists
-            syncCompanyMemory(req.user.id, info).catch(e => logger.error('[SGSST] Memory auto-purge error:', e));
+            syncCompanyMemory(targetUserId, info).catch(e => logger.error('[SGSST] Memory auto-purge error:', e));
             // Background migration for backward compatibility
-            migrateLegacyData(req.user.id, info._id).catch(e => logger.error('[SGSST] Migration error:', e));
+            migrateLegacyData(targetUserId, info._id).catch(e => logger.error('[SGSST] Migration error:', e));
         }
         
         res.json(info || {});
@@ -159,23 +168,33 @@ router.get('/', requireJwtAuth, async (req, res) => {
  */
 router.get('/all', requireJwtAuth, async (req, res) => {
     try {
-        let companies = await CompanyInfo.find({ user: req.user.id }).sort({ createdAt: 1 }).lean();
+        const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
         
-        // Auto-fix: Ensure at most one company is active to prevent duplicates
-        const activeCompanies = companies.filter(c => c.isActive);
-        if (activeCompanies.length > 1) {
-            const keepActiveId = activeCompanies[0]._id;
-            await CompanyInfo.updateMany(
-                { user: req.user.id, _id: { $ne: keepActiveId } },
-                { $set: { isActive: false } }
-            );
-            // Reload the list
-            companies = await CompanyInfo.find({ user: req.user.id }).sort({ createdAt: 1 }).lean();
+        let companies = [];
+        if (req.user.isSubUser && req.user.assignedCompany) {
+            // Sub-users only get their assigned company
+            companies = await CompanyInfo.find({ _id: req.user.assignedCompany, user: targetUserId }).lean();
+        } else {
+            companies = await CompanyInfo.find({ user: targetUserId }).sort({ createdAt: 1 }).lean();
         }
         
-        if (companies && companies.length > 0) {
-            // Background migration: assign any null companyId data to the oldest company
-            migrateLegacyData(req.user.id, companies[0]._id).catch(e => logger.error('[SGSST] Migration error:', e));
+        // Auto-fix: Ensure at most one company is active to prevent duplicates
+        if (!req.user.isSubUser) {
+            const activeCompanies = companies.filter(c => c.isActive);
+            if (activeCompanies.length > 1) {
+                const keepActiveId = activeCompanies[0]._id;
+                await CompanyInfo.updateMany(
+                    { user: targetUserId, _id: { $ne: keepActiveId } },
+                    { $set: { isActive: false } }
+                );
+                // Reload the list
+                companies = await CompanyInfo.find({ user: targetUserId }).sort({ createdAt: 1 }).lean();
+            }
+            
+            if (companies && companies.length > 0) {
+                // Background migration: assign any null companyId data to the oldest company
+                migrateLegacyData(targetUserId, companies[0]._id).catch(e => logger.error('[SGSST] Migration error:', e));
+            }
         }
 
         res.json(companies);

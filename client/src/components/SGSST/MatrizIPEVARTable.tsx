@@ -770,89 +770,139 @@ export default function MatrizIPEVARTable({
             const rawRows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
             if (rawRows.length === 0) continue;
             
-            // 3. Find if it's a matrix sheet by checking if any row contains GTC-45 headers
+            // 3. Find if it's a matrix sheet by checking if any row contains GTC-45 headers with highest score
             let headerRowIdx = -1;
+            let maxHeaderScore = 0;
+
             for (let r = 0; r < Math.min(30, rawRows.length); r++) {
               const row = rawRows[r];
               if (!Array.isArray(row)) continue;
-              const nonEmpties = row.filter(c => c !== null && c !== undefined && String(c).trim() !== '');
-              if (nonEmpties.length < 7) continue;
-              const uniqueClean = new Set(nonEmpties.map(c => cleanKey(c)));
-              if (uniqueClean.size < 6) continue;
+              const nonEmpties = row.filter((c) => c !== null && c !== undefined && String(c).trim() !== '');
+              if (nonEmpties.length < 5) continue;
+              const uniqueClean = new Set(nonEmpties.map((c) => cleanKey(c)));
+              if (uniqueClean.size < 5) continue;
 
-              let hasProcessOrTask = false;
-              let hasHazard = false;
-              let hasEvalOrControl = false;
-
+              let score = 0;
               for (const k of uniqueClean) {
-                if (k.includes('proceso') || k.includes('cargo') || k.includes('actividad') || k.includes('tarea') || k.includes('zona') || k.includes('lugar') || k.includes('areadetrabajo')) {
-                  hasProcessOrTask = true;
+                if (
+                  k.includes('proceso') ||
+                  k.includes('cargo') ||
+                  k.includes('actividad') ||
+                  k.includes('tarea') ||
+                  k.includes('zona') ||
+                  k.includes('lugar') ||
+                  k.includes('area') ||
+                  k.includes('areadetrabajo')
+                ) {
+                  score++;
                 }
-                if (k.includes('peligro') || k.includes('clasificacion') || k.includes('descripcion') || k.includes('factor') || k.includes('riesgo')) {
-                  hasHazard = true;
+                if (
+                  k.includes('peligro') ||
+                  k.includes('clasificacion') ||
+                  k.includes('descripcion') ||
+                  k.includes('factor') ||
+                  k.includes('riesgo')
+                ) {
+                  score++;
                 }
-                if (k.includes('rutinaria') || k.includes('deficiencia') || k.includes('exposicion') || k.includes('consecuencia') || k.includes('probabilidad') || k.includes('control') || k.includes('fuente') || k.includes('medio') || k.includes('individuo') || k.includes('eliminacion') || k.includes('sustitucion') || k.includes('ingenieria') || k.includes('epp') || k.includes('nd') || k.includes('nr') || k.includes('nc') || k.includes('np')) {
-                  hasEvalOrControl = true;
+                if (
+                  k.includes('rutinaria') ||
+                  k.includes('rutinario') ||
+                  k.includes('deficiencia') ||
+                  k.includes('exposicion') ||
+                  k.includes('consecuencia') ||
+                  k.includes('probabilidad') ||
+                  k.includes('control') ||
+                  k.includes('fuente') ||
+                  k.includes('medio') ||
+                  k.includes('individuo') ||
+                  k.includes('eliminacion') ||
+                  k.includes('sustitucion') ||
+                  k.includes('ingenieria') ||
+                  k.includes('epp') ||
+                  k.includes('nd') ||
+                  k.includes('nr') ||
+                  k.includes('nc') ||
+                  k.includes('np')
+                ) {
+                  score++;
                 }
               }
 
-              if (hasProcessOrTask && hasHazard && hasEvalOrControl) {
+              if (score >= 6 && score > maxHeaderScore) {
+                maxHeaderScore = score;
                 headerRowIdx = r;
-                break;
               }
             }
-            
+
             // If no matrix headers found, skip this sheet (it's a reference sheet)
             if (headerRowIdx === -1) continue;
-            
-            // 4. Extract and combine headers, trim only truly empty trailing columns
+
+            // 4. Extract and combine headers across multi-level header blocks
             const rawHeaders = rawRows[headerRowIdx];
             let lastHeaderIdx = rawHeaders.length - 1;
-            while (lastHeaderIdx >= 0 && (rawHeaders[lastHeaderIdx] === null || rawHeaders[lastHeaderIdx] === undefined || String(rawHeaders[lastHeaderIdx] || '').trim() === '' || lastHeaderIdx > 60)) {
+            while (
+              lastHeaderIdx >= 0 &&
+              (rawHeaders[lastHeaderIdx] === null ||
+                rawHeaders[lastHeaderIdx] === undefined ||
+                String(rawHeaders[lastHeaderIdx] || '').trim() === '' ||
+                lastHeaderIdx > 60)
+            ) {
               lastHeaderIdx--;
             }
             const sliceLen = lastHeaderIdx >= 0 ? lastHeaderIdx + 1 : rawHeaders.length;
-            
+
             // Matrix should have at least 8 columns
             if (sliceLen < 8) continue;
 
             hasMatrixSheet = true;
-            
-            const headers = rawHeaders.slice(0, sliceLen).map(h => String(h || '').trim());
-            let startDataRow = headerRowIdx + 1;
-            
-            if (rawRows[startDataRow] && rawRows[startDataRow].some(cell => {
-              const str = String(cell || '').toLowerCase();
-              return str === 'descripcion' || str === 'descripción' || str === 'fuente' || str === 'clasificación' || str === 'clasificacion' || str === 'individuo';
-            })) {
-              const subHeaders = rawRows[startDataRow];
-              for (let col = 0; col < headers.length; col++) {
-                const subVal = String(subHeaders[col] || '').trim();
-                const mainVal = headers[col] || '';
-                if (!mainVal && subVal) {
-                  headers[col] = subVal;
-                } else if (mainVal && subVal && subVal !== mainVal) {
-                  headers[col] = `${mainVal} - ${subVal}`;
+
+            const headers: string[] = [];
+            for (let c = 0; c < sliceLen; c++) {
+              let colName = '';
+              if (rawHeaders[c] && String(rawHeaders[c]).trim() !== '') {
+                colName = String(rawHeaders[c]).trim();
+              }
+              // If empty in selected header row (due to merged category headers), look up in preceding rows
+              if (!colName) {
+                for (let r = headerRowIdx - 1; r >= Math.max(0, headerRowIdx - 5); r--) {
+                  if (rawRows[r] && rawRows[r][c] && String(rawRows[r][c]).trim() !== '') {
+                    colName = String(rawRows[r][c]).trim();
+                    break;
+                  }
                 }
               }
-              startDataRow++;
+              headers.push(colName || `Column_${c}`);
             }
-            
+
+            // Disambiguate duplicate header names
+            const seenHeaders: Record<string, number> = {};
+            const disambiguatedHeaders = headers.map((h) => {
+              const cleanH = cleanKey(h);
+              if (!seenHeaders[cleanH]) {
+                seenHeaders[cleanH] = 1;
+                return h;
+              } else {
+                seenHeaders[cleanH]++;
+                return `${h}__dup${seenHeaders[cleanH]}`;
+              }
+            });
+
             // 5. Map rows to objects with standard indexation
-            for (let r = startDataRow; r < rawRows.length; r++) {
+            for (let r = headerRowIdx + 1; r < rawRows.length; r++) {
               const row = rawRows[r];
-              if (!row || row.every(cell => cell === null || cell === undefined || String(cell).trim() === '')) {
+              if (!row || row.every((cell) => cell === null || cell === undefined || String(cell).trim() === '')) {
                 continue;
               }
-              
+
               if (row[0] && String(row[0]).trim().toUpperCase() === 'RIESGOS') {
                 break;
               }
-              
+
               const obj: any = { __sheetName: sheetName };
               const normalizedMap: any = {};
-              for (let col = 0; col < headers.length; col++) {
-                const key = headers[col] || `Column_${col}`;
+              for (let col = 0; col < disambiguatedHeaders.length; col++) {
+                const key = disambiguatedHeaders[col];
                 const val = row[col] !== undefined ? row[col] : '';
                 obj[key] = val;
                 normalizedMap[cleanKey(key)] = val;
@@ -921,7 +971,7 @@ export default function MatrizIPEVARTable({
             if (rawReq.includes('si') || rawReq.includes('sí')) mappedReq = 'Sí';
             else if (rawReq.includes('no')) mappedReq = 'No';
 
-            let proc = getValueByKeys(r, ['proceso', 'areadeproceso', 'seccion', 'cargo', 'cargos']);
+            let proc = getValueByKeys(r, ['area', 'proceso', 'areadeproceso', 'seccion', 'cargo', 'cargos']);
             let zona = getValueByKeys(r, ['areadetrabajo', 'zonayolugar', 'zonalugar', 'zona', 'lugar', 'sede', 'planta']);
             let cargo = getValueByKeys(r, ['cargo', 'cargos', 'actividad', 'actividades']);
             let tarea = getValueByKeys(r, ['tarea', 'tareas']);
@@ -933,7 +983,7 @@ export default function MatrizIPEVARTable({
             if (tarea) lastTarea = tarea; else tarea = lastTarea;
 
             // Clean up rutinaria value: map 'x', 'si', '1' to 'Sí', 'no' to 'No'
-            const rawRut = String(getValueByKeys(r, ['rutinariosiono', 'rutinaria', 'rutinario', 'tipodeactividad']) || '').trim().toLowerCase();
+            const rawRut = String(getValueByKeys(r, ['rutinariosiono', 'rutinario', 'rutinaria', 'tipodeactividad']) || '').trim().toLowerCase();
             let mappedRut = 'Sí';
             if (rawRut === 'x' || rawRut === 'si' || rawRut === 'sí' || rawRut.includes('rutinari') || rawRut === '1' || rawRut === 'true') {
               mappedRut = 'Sí';
@@ -947,12 +997,12 @@ export default function MatrizIPEVARTable({
               actividad: cargo || tarea,
               tareas: tarea || cargo,
               rutinaria: mappedRut,
-              peligro_descripcion: getValueByKeys(r, ['descripcion', 'peligrosdescripcion', 'descripcionfactorderiesgoverlistadefactoresderiesgo', 'peligroorigen', 'peligrodescripcion', 'peligro', 'descripcionpeligro']),
-              peligro_clasificacion: getValueByKeys(r, ['peligrosclasificacion', 'clasificaciondelriesgo', 'clasificaciondelpeligro', 'clasificacion', 'tipodepeligro', 'peligroclasificacion']),
-              efectos_posibles: getValueByKeys(r, ['posiblesconsecuencias', 'efectosposibles', 'efectosenlasalud', 'efectos', 'consecuencias', 'consecuenciariesgo', 'efectoslesionesdanos']),
-              controles_fuente: getValueByKeys(r, ['fuentecontrolesdeeliminacionosustitucion', 'ctrlfuente', 'controlesexistentesfuente', 'fuente', 'controlfuente']) || 'Ninguno',
-              controles_medio: getValueByKeys(r, ['mediocontrolesdesustitucionoingenieria', 'ctrlmedio', 'controlesexistentesmedio', 'medio', 'controlmedio']) || 'Ninguno',
-              controles_individuo: getValueByKeys(r, ['personacontrolesdesenalizacionadvertencia', 'ctrlindividuo', 'controlesexistentespersona', 'controlesexistentesindividuo', 'persona', 'individuo', 'controlindividuo']) || 'Ninguno',
+              peligro_descripcion: getValueByKeys(r, ['peligro', 'descripcion', 'peligrosdescripcion', 'descripcionfactorderiesgoverlistadefactoresderiesgo', 'peligroorigen', 'peligrodescripcion', 'descripcionpeligro']),
+              peligro_clasificacion: getValueByKeys(r, ['riesgo', 'clasificacion', 'peligrosclasificacion', 'clasificaciondelriesgo', 'clasificaciondelpeligro', 'tipodepeligro', 'peligroclasificacion']),
+              efectos_posibles: getValueByKeys(r, ['consecuencias', 'posiblesconsecuencias', 'efectosposibles', 'efectosenlasalud', 'efectos', 'consecuenciariesgo', 'efectoslesionesdanos']),
+              controles_fuente: getValueByKeys(r, ['fuente', 'fuentecontrolesdeeliminacionosustitucion', 'ctrlfuente', 'controlesexistentesfuente', 'controlfuente']) || 'Ninguno',
+              controles_medio: getValueByKeys(r, ['medio', 'mediocontrolesdesustitucionoingenieria', 'ctrlmedio', 'controlesexistentesmedio', 'controlmedio']) || 'Ninguno',
+              controles_individuo: getValueByKeys(r, ['individuo', 'personacontrolesdesenalizacionadvertencia', 'ctrlindividuo', 'controlesexistentespersona', 'controlesexistentesindividuo', 'persona', 'controlindividuo']) || 'Ninguno',
               nd: ndVal,
               ne: neVal,
               np: npVal,
@@ -961,14 +1011,14 @@ export default function MatrizIPEVARTable({
               nr: nrVal,
               interpretacion_nr: getValueByKeys(r, ['interpretaciondelnr', 'interpretacionnr', 'interpretaciondelnivelderiesgo', 'nivelderiesgo']),
               aceptabilidad: getValueByKeys(r, ['aceptabilidaddelriesgo', 'aceptabilidad', 'valoraciondelriesgoaceptabilidaddelriesgo', 'valoraciondelriesgo']),
-              nro_expuestos: Number(getValueByKeys(r, ['numerodeexpuestos', 'nroexpuestos', 'numeroexpuestos', 'expuestos', 'cantidadexpuestos'])) || 1,
-              peor_consecuencia: getValueByKeys(r, ['peorconsecuenciateniendoencuentaloscontrolesexistentes', 'peorconsecuencia', 'peorconsecuenciaefectos', 'peorconsecuenciaposible']) || '',
+              nro_expuestos: Number(getValueByKeys(r, ['nodeexpuestos', 'numerodeexpuestos', 'nroexpuestos', 'numeroexpuestos', 'expuestos', 'cantidadexpuestos'])) || 1,
+              peor_consecuencia: getValueByKeys(r, ['peorconsecuencia', 'peorconsecuenciateniendoencuentaloscontrolesexistentes', 'peorconsecuenciaefectos', 'peorconsecuenciaposible']) || '',
               requisito_legal: mappedReq,
               medida_eliminacion: getValueByKeys(r, ['eliminacion', 'medidasdeintervencionreduccionoeliminacion', 'medidasdeintervencioneliminacion']) || 'Ninguno',
               medida_sustitucion: getValueByKeys(r, ['sustitucion', 'medidasdeintervencionsustitucion']) || 'Ninguno',
               medida_ingenieria: getValueByKeys(r, ['controlesdeingenieria', 'medidasdeintervencioncontrolesdeingenieria', 'ingenieria', 'controlingenieria']) || 'Ninguno',
               medida_administrativa: getValueByKeys(r, ['controlesadministrativossenalizacionadvertencia', 'medidasdeintervencioncontrolesadministrativossenalizacionadvertencia', 'administrativos']) || 'Ninguno',
-              medida_eppu: getValueByKeys(r, ['equipoelementosdeproteccionpersonal', 'medidasdeintervencionequiposelementosdeproteccionpersonal', 'epp', 'equiposepp']) || 'Ninguno',
+              medida_eppu: getValueByKeys(r, ['equiposelementosdeproteccionpersonalepp', 'equipoelementosdeproteccionpersonal', 'medidasdeintervencionequiposelementosdeproteccionpersonal', 'epp', 'equiposepp']) || 'Ninguno',
               factores_reduccion: getValueByKeys(r, ['factoresdereduccion', 'factoresreduccionanexoe', 'factoresreduccion']) || 'No aplica',
               nd_cualitativo: null,
               id: Date.now().toString() + Math.random().toString(36).substring(7),
@@ -978,7 +1028,7 @@ export default function MatrizIPEVARTable({
           let rawLastProceso = '';
           let rawLastZona = '';
           const preCleaned = allSheetRows.map((r: any) => {
-            let pVal = getValueByKeys(r, ['proceso', 'areadeproceso', 'seccion', 'cargo', 'cargos']);
+            let pVal = getValueByKeys(r, ['area', 'proceso', 'areadeproceso', 'seccion', 'cargo', 'cargos']);
             let zVal = getValueByKeys(r, ['areadetrabajo', 'zonayolugar', 'zonalugar', 'zona', 'lugar', 'sede', 'planta']);
             if (pVal) rawLastProceso = pVal; else pVal = rawLastProceso;
             if (zVal) rawLastZona = zVal; else zVal = rawLastZona;
@@ -1798,6 +1848,27 @@ export default function MatrizIPEVARTable({
               {isSaving ? 'Guardando…' : 'Guardar'}
             </span>
           </button>
+
+          {/* Limpiar Matriz */}
+          {matrixRows.length > 0 && (
+            <button
+              onClick={() => {
+                if (window.confirm('¿Estás seguro de que deseas vaciar y limpiar la matriz de este chat?')) {
+                  setMatrixRows([]);
+                  setChartConclusions({});
+                  isDirtyRef.current = true;
+                  saveMatrixData([]);
+                }
+              }}
+              title="Limpiar / Vaciar Matriz"
+              className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-red-500/30 bg-surface-primary px-2.5 text-red-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+            >
+              <Trash2 className="h-4 w-4 shrink-0" />
+              <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                Limpiar Matriz
+              </span>
+            </button>
+          )}
 
           {/* Maximizar */}
           <button

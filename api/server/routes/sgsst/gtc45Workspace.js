@@ -618,41 +618,46 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
       logger.info(`[GTC45/ai-parse-matrix] Processing chunk ${chunkIdx + 1}/${chunks.length} for user ${userId}`);
 
       const prompt = `Eres un experto certificado en Seguridad y Salud en el Trabajo y en la metodología GTC-45:2012 colombiana.
-Te hemos proporcionado una lista de filas importadas desde un archivo con una estructura y nombres de columnas arbitrarios.
-Tu tarea es analizar detalladamente el contenido de cada fila y reconstruir/mapear sus datos para que se adapten a nuestro formato estándar de matriz GTC-45 (IPEVAR).
+Te hemos proporcionado una lista de filas extraídas de una matriz o archivo Excel.
+Tu tarea es mapear y adaptar con máxima fidelidad la información existente de cada fila al formato estándar de Wappy (GTC-45 IPEVAR).
+
+REGLA DE ORO DE FIDELIDAD (NO INVENTAR):
+- Respeta estrictamente los datos, peligros, descripciones, consecuencias, procesos y controles presentes en las filas de origen. NUNCA inventes peligros no descritos ni sustituyas la información original por ejemplos genéricos.
+- Si en el origen un campo ya tiene información específica (ej. peligros, consecuencias, controles existentes de fuente/medio/individuo, medidas de intervención), CONSÉRVALA fielmente.
+- Si en el origen un control o medida no existe o viene en blanco, escribe 'Ninguno' o 'No aplica'. No inventes controles artificiales a menos que se trate de inferir la clasificación técnica estricta GTC-45 (Físico, Químico, Biológico, Biomecánico, Psicosocial, Condiciones de seguridad, Fenómenos naturales).
 
 El formato de salida que requerimos para cada fila es un objeto JSON con la siguiente estructura exacta:
 {
-  "proceso": "<área, proceso, sección o cargo de la persona en formato tipo oración (primera letra en mayúscula y el resto en minúsculas). Por ejemplo: Administración, Operaciones, Ventas, Auxiliar de Bodega.>",
-  "zona": "<zona, lugar, oficina o sede en formato tipo oración (primera letra en mayúscula y el resto en minúsculas). Por ejemplo: Planta 1, Oficina principal.>",
-  "actividad": "<actividad o labor principal. Por ejemplo: Digitador, Conducción de vehículo, o el cargo si este describe la actividad.>",
-  "tareas": "<tareas específicas del puesto.>",
-  "rutinaria": "<'Sí' o 'No'. Estima si la actividad es rutinaria según tu criterio técnico si no se especifica.>",
-  "peligro_descripcion": "<descripción clara del peligro o factor de riesgo detectado.>",
-  "peligro_clasificacion": "<Clasificación estricta del peligro. Debe ser uno de los siguientes: 'Físico', 'Químico', 'Biológico', 'Biomecánico', 'Psicosocial', 'Condiciones de seguridad' o 'Fenómenos naturales'.>",
-  "efectos_posibles": "<efectos posibles a la salud, consecuencias o lesiones esperadas.>",
-  "controles_fuente": "<controles existentes en la fuente (máquina o proceso), o 'Ninguno'.>",
-  "controles_medio": "<controles existentes en el medio (ambiente), o 'Ninguno'.>",
-  "controles_individuo": "<controles existentes en el individuo (persona), o 'Ninguno'.>",
-  "nd": <Nivel de Deficiencia: número entero (0, 2, 6 o 10) según la GTC-45. Si el origen tiene valores cualitativos o numéricos diferentes, mapealos al valor GTC-45 más cercano.>,
-  "ne": <Nivel de Exposición: número entero (1, 2, 3 o 4) según la GTC-45.>,
-  "np": <Nivel de Probabilidad: nd * ne.>,
-  "nc": <Nivel de Consecuencia: número entero (10, 25, 60 o 100) según la GTC-45.>,
-  "nr": <Nivel de Riesgo: np * nc.>,
-  "interpretacion_nr": "<interpretación de NR: 'I' si nr >= 500, 'II' si nr entre 150 y 499, 'III' si nr entre 40 y 149, 'IV' si nr < 40. Por favor, realiza el cálculo y pon la letra correcta.>",
-  "aceptabilidad": "<Aceptabilidad del riesgo según GTC-45: 'No Aceptable' si interpretación es I, 'No Aceptable o Aceptable con control específico' si II, 'Mejorable' si III, 'Aceptable' si IV.>",
-  "medida_eliminacion": "<medida de eliminación propuesta, o 'Ninguno'.>",
-  "medida_sustitucion": "<medida de sustitución propuesta, o 'Ninguno'.>",
-  "medida_ingenieria": "<medida de control de ingeniería propuesta, o 'Ninguno'.>",
-  "medida_administrativa": "<medida de control administrativo (señalización, capacitación, procedimientos) propuesta, o 'Ninguno'.>",
-  "medida_eppu": "<EPP/Equipos recomendados, o 'Ninguno'.>",
-  "factores_reduccion": "<Anexo E: Factores de reducción de riesgo. Propón una justificación técnica o financiera breve si no existe en el origen. NUNCA VACÍO. Escribe 'No aplica' si no aplica.>"
+  "proceso": "<área, proceso o sección original en formato tipo oración (ej. Administración, Operativo, Gestión Humana).>",
+  "zona": "<zona, lugar, oficina o sede original en formato tipo oración. Si no está especificada, usa la misma área o 'Instalaciones principales'.>",
+  "actividad": "<cargo o actividad descrita en la fila original.>",
+  "tareas": "<tareas descritas en la fila original.>",
+  "rutinaria": "<'Sí' o 'No' según los datos de origen o criterio técnico.>",
+  "peligro_descripcion": "<descripción exacta del peligro o factor de riesgo presente en la fila original.>",
+  "peligro_clasificacion": "<Clasificación estricta del peligro según GTC-45. Debe ser uno de los siguientes: 'Físico', 'Químico', 'Biológico', 'Biomecánico', 'Psicosocial', 'Condiciones de seguridad' o 'Fenómenos naturales'.>",
+  "efectos_posibles": "<efectos posibles a la salud, consecuencias o lesiones presentes en la fila original.>",
+  "controles_fuente": "<controles existentes en la fuente del archivo original, o 'Ninguno'.>",
+  "controles_medio": "<controles existentes en el medio del archivo original, o 'Ninguno'.>",
+  "controles_individuo": "<controles existentes en el individuo/persona del archivo original, o 'Ninguno'.>",
+  "nd": <Nivel de Deficiencia numérico (0, 2, 6 o 10) según el origen o GTC-45.>,
+  "ne": <Nivel de Exposición numérico (1, 2, 3 o 4) según el origen o GTC-45.>,
+  "np": <Nivel de Probabilidad numérico: nd * ne.>,
+  "nc": <Nivel de Consecuencia numérico (10, 25, 60 o 100) según el origen o GTC-45.>,
+  "nr": <Nivel de Riesgo numérico: np * nc.>,
+  "interpretacion_nr": "<'I' si nr >= 500, 'II' si nr entre 150 y 499, 'III' si nr entre 40 y 149, 'IV' si nr < 40.>",
+  "aceptabilidad": "<'No Aceptable' si I, 'No Aceptable o Aceptable con control específico' si II, 'Mejorable' si III, 'Aceptable' si IV.>",
+  "medida_eliminacion": "<medida de eliminación del archivo original, o 'Ninguno'.>",
+  "medida_sustitucion": "<medida de sustitución del archivo original, o 'Ninguno'.>",
+  "medida_ingenieria": "<medida de control de ingeniería del archivo original, o 'Ninguno'.>",
+  "medida_administrativa": "<medida de control administrativo/capacitación del archivo original, o 'Ninguno'.>",
+  "medida_eppu": "<EPP/Equipos del archivo original, o 'Ninguno'.>",
+  "factores_reduccion": "<Factores de reducción del archivo original, o 'No aplica'.>"
 }
 
 Reglas importantes:
-1. Sé inteligente al inferir los campos basándote en el texto. Si las celdas originales contienen información combinada, sepárala en los campos correspondientes. Por ejemplo, si los controles no están divididos pero hay controles en el individuo, colócalos en controles_individuo.
-2. Si los valores numéricos de ND, NE, NC o NR están ausentes o mal calculados, corrígelos y calcula la probabilidad y riesgo matemáticamente correctos según GTC-45.
-3. El resultado debe ser EXCLUSIVAMENTE un array JSON válido que contenga la misma cantidad de elementos que el original. No incluyes explicaciones previas ni posteriores, ni bloques de código markdown (\`\`\`json).
+1. Sé inteligente al mapear campos si las celdas originales contienen nombres de columnas variados (ej. 'RIESGO' -> clasificación, 'PELIGRO' -> descripción, 'CONSECUENCIAS' -> efectos posibles).
+2. Si los valores numéricos de ND, NE, NC o NR están presentes, consérvalos o ajústalos a la escala GTC-45 (ND: 0/2/6/10, NE: 1/2/3/4, NC: 10/25/60/100) y calcula matemáticamente np = nd * ne y nr = np * nc.
+3. El resultado debe ser EXCLUSIVAMENTE un array JSON válido que contenga la misma cantidad de elementos que el original. No incluyes explicaciones ni markdown (\`\`\`json).
 
 FILAS ORIGINALES A PROCESAR:
 ${JSON.stringify(chunk, null, 2)}

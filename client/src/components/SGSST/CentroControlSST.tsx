@@ -5,16 +5,19 @@ import {
   Clock, 
   LayoutDashboard,
   Cpu,
-  Layers
+  Layers,
+  Users
 } from 'lucide-react';
 import KanbanDashboard from '~/components/Kanban/KanbanDashboard';
 import Automatizaciones from '~/components/SGSST/Automatizaciones';
+import SubUserManagerModal from '~/components/SGSST/SubUserManagerModal';
 
 export type CentroControlTab = 'acpm' | 'automatizaciones' | 'historial';
 
 export default function CentroControlSST() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [showSubUsersModal, setShowSubUsersModal] = useState(false);
 
   // Determine initial tab from URL or query param
   const getInitialTab = (): CentroControlTab => {
@@ -105,6 +108,14 @@ export default function CentroControlSST() {
               <Clock className="w-4 h-4 text-indigo-500" />
               <span>Historial & Reportes</span>
             </button>
+
+            <button
+              onClick={() => setShowSubUsersModal(true)}
+              className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 border border-teal-200 dark:border-teal-800"
+            >
+              <Users className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <span>Sub-Usuarios</span>
+            </button>
           </div>
         </div>
       </div>
@@ -129,6 +140,12 @@ export default function CentroControlSST() {
           </div>
         )}
       </div>
+
+      {/* Sub-users Modal */}
+      <SubUserManagerModal
+        isOpen={showSubUsersModal}
+        onClose={() => setShowSubUsersModal(false)}
+      />
     </div>
   );
 }

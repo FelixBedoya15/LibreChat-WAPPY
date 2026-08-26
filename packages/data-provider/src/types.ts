@@ -231,6 +231,13 @@ export type TUser = {
   quote?: string;
   storyParagraph1?: string;
   storyParagraph2?: string;
+  isSubUser?: boolean;
+  parentUser?: string;
+  assignedCompany?: string;
+  workerDocument?: string;
+  workerId?: string;
+  subUserPermissions?: string[];
+  subUserStatus?: 'active' | 'suspended';
 };
 
 export type TGetConversationsResponse = {

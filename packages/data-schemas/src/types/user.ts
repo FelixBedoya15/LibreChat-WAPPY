@@ -55,6 +55,13 @@ export interface IUser extends Document {
   quote?: string;
   storyParagraph1?: string;
   storyParagraph2?: string;
+  isSubUser?: boolean;
+  parentUser?: Types.ObjectId | string;
+  assignedCompany?: Types.ObjectId | string;
+  workerDocument?: string;
+  workerId?: string;
+  subUserPermissions?: string[];
+  subUserStatus?: 'active' | 'suspended';
 }
 
 export interface BalanceConfig {

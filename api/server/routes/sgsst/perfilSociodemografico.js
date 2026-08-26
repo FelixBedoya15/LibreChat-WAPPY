@@ -15,7 +15,8 @@ const XLSX = require('xlsx');
 
 
 // ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
-async function getActiveCompanyId(userId) {
+async function getActiveCompanyId(userId, subUserAssignedCompany = null) {
+    if (subUserAssignedCompany) return subUserAssignedCompany;
     let active = await CompanyInfo.findOne({ user: userId, isActive: true });
     if (!active) active = await CompanyInfo.findOne({ user: userId });
     return active ? active._id : null;
@@ -1065,15 +1066,19 @@ router.get('/profile/:workerId', async (req, res) => {
 // ─── GET /data — Load saved worker data ─────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
-    const companyId = await getActiveCompanyId(req.user.id);
-    const data = await PerfilSociodemograficoData.findOne({ user: req.user.id, companyId: companyId });
+    const isSub = !!req.user.isSubUser;
+    const targetUserId = (isSub && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const companyId = await getActiveCompanyId(targetUserId, isSub ? req.user.assignedCompany : null);
+    const data = await PerfilSociodemograficoData.findOne({ user: targetUserId, companyId: companyId });
     if (data) {
       // Recalculate scores for all workers to ensure perfect parity with the Matriz
       // This is the canonical source of truth — any view that reads from here gets the same score
       let needsSave = false;
-      if (data.trabajadores && data.trabajadores.length > 0) {
+      let finalWorkers = data.trabajadores || [];
+
+      if (data.trabajadores && data.trabajadores.length > 0 && !isSub) {
         try {
-          const updatedWorkers = await recalculateAndSyncAllWorkers(req.user.id, companyId, data.trabajadores);
+          const updatedWorkers = await recalculateAndSyncAllWorkers(targetUserId, companyId, data.trabajadores);
           // Check if any score changed — if so, persist the updated scores
           for (let i = 0; i < updatedWorkers.length; i++) {
             const orig = data.trabajadores[i];
@@ -1089,23 +1094,22 @@ router.get('/data', requireJwtAuth, async (req, res) => {
             data.updatedAt = Date.now();
             await data.save();
           }
-          // Siempre devolver updatedWorkers: tienen los scores recalculados frescos
-          // aunque no haya habido cambio en BD (evita que se devuelvan scores obsoletos)
-          return res.json({
-            trabajadores: updatedWorkers,
-            actualizacionesPendientes: data.actualizacionesPendientes || [],
-            actualizacionesPendientesSalud: data.actualizacionesPendientesSalud || []
-          });
-
+          finalWorkers = updatedWorkers;
         } catch (recalcErr) {
           logger.error('[SGSST PerfilSociodemografico] Error recalculating scores on GET /data:', recalcErr);
-          // Fall through to return data without recalc
         }
       }
+
+      // If sub-user only has self permission, filter down to this worker
+      if (isSub && !req.user.subUserPermissions?.includes('sgsst:perfil_sociodemografico_all') && req.user.workerDocument) {
+        const myDoc = String(req.user.workerDocument).trim();
+        finalWorkers = finalWorkers.filter(w => String(w.identificacion).trim() === myDoc);
+      }
+
       return res.json({
-        trabajadores: data.trabajadores || [],
-        actualizacionesPendientes: data.actualizacionesPendientes || [],
-        actualizacionesPendientesSalud: data.actualizacionesPendientesSalud || []
+        trabajadores: finalWorkers,
+        actualizacionesPendientes: isSub ? [] : (data.actualizacionesPendientes || []),
+        actualizacionesPendientesSalud: isSub ? [] : (data.actualizacionesPendientesSalud || [])
       });
     } else {
       res.json({ trabajadores: [], actualizacionesPendientes: [], actualizacionesPendientesSalud: [] });
@@ -1370,13 +1374,48 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       return res.status(400).json({ error: 'Datos requeridos' });
     }
 
-    const companyId = await getActiveCompanyId(req.user.id);
+    const isSub = !!req.user.isSubUser;
+    const targetUserId = (isSub && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const companyId = await getActiveCompanyId(targetUserId, isSub ? req.user.assignedCompany : null);
+
+    let workersToSave = trabajadores;
+
+    // Sub-user permission checks
+    if (isSub) {
+      const perms = req.user.subUserPermissions || [];
+      const hasAll = perms.includes('sgsst:perfil_sociodemografico_all');
+      const hasSelf = perms.includes('sgsst:perfil_sociodemografico_self');
+
+      if (!hasAll && !hasSelf) {
+        return res.status(403).json({ error: 'No tienes permiso para modificar el perfil sociodemográfico' });
+      }
+
+      // If only self-edit is granted, merge into the full company list
+      if (!hasAll && hasSelf && req.user.workerDocument) {
+        const existingDoc = await PerfilSociodemograficoData.findOne({ user: targetUserId, companyId }).lean();
+        const currentList = existingDoc?.trabajadores || [];
+        const myDoc = String(req.user.workerDocument).trim();
+        const incomingMyWorker = trabajadores.find(w => String(w.identificacion).trim() === myDoc) || trabajadores[0];
+
+        if (incomingMyWorker) {
+          const index = currentList.findIndex(w => String(w.identificacion).trim() === myDoc);
+          if (index >= 0) {
+            currentList[index] = { ...currentList[index], ...incomingMyWorker, identificacion: myDoc };
+          } else {
+            currentList.push(incomingMyWorker);
+          }
+          workersToSave = currentList;
+        } else {
+          workersToSave = currentList;
+        }
+      }
+    }
 
     // First save the raw data with recalculated bio-fit values
-    const updatedWithBio = await recalculateAndSyncAllWorkers(req.user.id, companyId, trabajadores);
+    const updatedWithBio = await recalculateAndSyncAllWorkers(targetUserId, companyId, workersToSave);
 
     await PerfilSociodemograficoData.findOneAndUpdate(
-      { user: req.user.id, companyId: companyId },
+      { user: targetUserId, companyId: companyId },
       { $set: { trabajadores: updatedWithBio, companyId, updatedAt: new Date() } },
       { upsert: true, new: true }
     );
@@ -1388,7 +1427,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       const cleanDoc = String(w.identificacion).trim();
       if (!cleanDoc) continue;
       await SgsstWorker.updateOne(
-        { user: req.user.id, companyId, documento: cleanDoc },
+        { user: targetUserId, companyId, documento: cleanDoc },
         {
           $set: {
             condicionesSalud: [w.enfermedades, w.diagnosticoMedico, w.limitacionesBiomecanicas].filter(Boolean).join('; ') || '',
@@ -1403,14 +1442,14 @@ router.post('/save', requireJwtAuth, async (req, res) => {
     // Only runs for workers whose complex text fields have changed
     let updatedWorkers = [...updatedWithBio];
     try {
-      const apiKey = await getApiKey(req.user.id);
+      const apiKey = await getApiKey(targetUserId);
       if (apiKey) {
         const PerfilesCargo = mongoose.models.PerfilesCargoData;
-        const cargoDoc = PerfilesCargo ? await PerfilesCargo.findOne({ user: req.user.id }).lean() : null;
+        const cargoDoc = PerfilesCargo ? await PerfilesCargo.findOne({ user: targetUserId }).lean() : null;
         const perfilesList = cargoDoc?.perfilesList || [];
 
         // Re-fetch the saved doc to get current IA version hashes
-        const savedDoc = await PerfilSociodemograficoData.findOne({ user: req.user.id, companyId }).lean();
+        const savedDoc = await PerfilSociodemograficoData.findOne({ user: targetUserId, companyId }).lean();
         const savedWorkers = savedDoc?.trabajadores || [];
 
         const evalPromises = updatedWithBio.map(async (w) => {
@@ -1420,7 +1459,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
           const savedHash = savedWorker?.bioScoreIAVersion || '';
           // Only call IA if text fields changed
           if (currentHash !== savedHash) {
-            const result = await runIASemanticTagging(w, req.user.id).catch(() => null);
+            const result = await runIASemanticTagging(w, targetUserId).catch(() => null);
             if (result) {
               const updated = {
                 ...w,
@@ -1440,11 +1479,11 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         updatedWorkers = await Promise.all(evalPromises);
 
         // Recalculate bio score again to reflect any newly generated IA tags
-        updatedWorkers = await recalculateAndSyncAllWorkers(req.user.id, companyId, updatedWorkers);
+        updatedWorkers = await recalculateAndSyncAllWorkers(targetUserId, companyId, updatedWorkers);
 
         // Persist the IA tags and updated scores back to DB
         await PerfilSociodemograficoData.findOneAndUpdate(
-          { user: req.user.id, companyId },
+          { user: targetUserId, companyId },
           { $set: { trabajadores: updatedWorkers, updatedAt: new Date() } },
           { new: true }
         );
@@ -1453,8 +1492,14 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       logger.warn('[OraculoH1] IA tagging error (continuing without IA):', iaErr.message);
     }
 
+    let responseWorkers = updatedWorkers;
+    if (isSub && !req.user.subUserPermissions?.includes('sgsst:perfil_sociodemografico_all') && req.user.workerDocument) {
+      const myDoc = String(req.user.workerDocument).trim();
+      responseWorkers = updatedWorkers.filter(w => String(w.identificacion).trim() === myDoc);
+    }
+
     // Return the updated workers (with IA tags and biocentric scores) so frontend can refresh immediately
-    res.json({ success: true, trabajadores: updatedWorkers });
+    res.json({ success: true, trabajadores: responseWorkers });
   } catch (error) {
     logger.error('[SGSST PerfilSociodemografico] Save error:', error);
     res.status(500).json({ error: 'Error al guardar datos' });

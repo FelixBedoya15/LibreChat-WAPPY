@@ -75,5 +75,6 @@ module.exports = {
     kanban: require('./kanban'),
     investigacionProfunda,
     automatizaciones: require('./automatizaciones'),
+    subusers: require('./subusers'),
 };
 
