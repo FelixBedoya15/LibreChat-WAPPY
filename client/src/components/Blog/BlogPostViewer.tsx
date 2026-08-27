@@ -24,7 +24,7 @@ export default function BlogPostViewer() {
             } catch (error) {
                 console.error('Error fetching blog post:', error);
                 showToast({ message: 'Error cargando la publicación. Intenta de nuevo más tarde.', status: 'error' });
-                navigate('/blog');
+                navigate('/academia?tab=blog');
             } finally {
                 setLoading(false);
             }
@@ -49,10 +49,10 @@ export default function BlogPostViewer() {
             <div className="flex flex-col items-center justify-center p-12 text-center h-full">
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">Publicación no encontrada</h2>
                 <button
-                    onClick={() => navigate('/blog')}
+                    onClick={() => navigate('/academia?tab=blog')}
                     className="mt-4 px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-colors flex items-center justify-center gap-2"
                 >
-                    <ArrowLeft className="w-5 h-5" /> Volver al Blog
+                    <ArrowLeft className="w-5 h-5" /> Volver a Academia
                 </button>
             </div>
         );
@@ -66,11 +66,11 @@ export default function BlogPostViewer() {
                 {/* Clean top bar with back button */}
                 <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 px-4 md:px-8 py-3 flex items-center justify-between flex-shrink-0">
                     <button
-                        onClick={() => navigate('/blog')}
+                        onClick={() => navigate('/academia?tab=blog')}
                         className="group flex items-center gap-2 p-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200"
                     >
                         <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                        <span className="text-sm font-medium hidden sm:inline">Volver al Blog</span>
+                        <span className="text-sm font-medium hidden sm:inline">Volver a Academia</span>
                     </button>
                 </div>
 

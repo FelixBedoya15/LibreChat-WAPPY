@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import {
     Users,
     UserPlus,
@@ -64,105 +65,242 @@ export interface CompanyItem {
     isActive?: boolean;
 }
 
+export type PermissionCategory = 
+    | 'IA & Chat WAPPY' 
+    | 'Somos SST Operativo' 
+    | 'Matrices & Legal' 
+    | 'Academia & LMS' 
+    | 'Gestión ACPM & Auditoría' 
+    | 'Comunidad & Blog';
+
 export interface PermissionOption {
     id: string;
     label: string;
     description: string;
-    category: 'Perfil & Salud' | 'Inspecciones & Campo' | 'Seguridad & Comités' | 'General / AI';
+    category: PermissionCategory;
+    icon?: string;
 }
 
 export const AVAILABLE_PERMISSIONS: PermissionOption[] = [
+    // ─── 1. IA & Chat WAPPY ──────────────────────────────────────────────
+    {
+        id: 'chat:wappy_general',
+        label: 'Chat Principal & Agentes WAPPY',
+        description: 'Conversar con el asistente de IA general y agentes especializados de WAPPY.',
+        category: 'IA & Chat WAPPY'
+    },
+    {
+        id: 'chat:sst_specialist',
+        label: 'Chat Consultor SST Especializado',
+        description: 'Consultas inteligentes normativas y técnicas con el agente experto en SST.',
+        category: 'IA & Chat WAPPY'
+    },
+    {
+        id: 'ai:live_analysis',
+        label: 'Live Analysis & Editor LIVA',
+        description: 'Análisis en tiempo real de documentos y redacción colaborativa con IA.',
+        category: 'IA & Chat WAPPY'
+    },
+
+    // ─── 2. Somos SST Operativo ──────────────────────────────────────────
     {
         id: 'sgsst:perfil_sociodemografico_self',
         label: 'Auto-reporte Sociodemográfico (Propio)',
-        description: 'Llenar y actualizar su propia ficha sociodemográfica, salud y firma digital.',
-        category: 'Perfil & Salud'
+        description: 'Llenar y actualizar su propia ficha médica, sociodemográfica y firma digital.',
+        category: 'Somos SST Operativo'
     },
     {
         id: 'sgsst:perfil_sociodemografico_all',
         label: 'Gestión Sociodemográfica Completa',
         description: 'Ver y registrar la información de todos los trabajadores de la empresa.',
-        category: 'Perfil & Salud'
+        category: 'Somos SST Operativo'
     },
     {
         id: 'sgsst:reporte_actos',
         label: 'Reporte de Actos y Condiciones',
         description: 'Diligenciar y consultar reportes de actos o condiciones inseguras.',
-        category: 'Inspecciones & Campo'
+        category: 'Somos SST Operativo'
     },
     {
         id: 'sgsst:permiso_alturas',
         label: 'Permisos de Trabajo en Alturas',
-        description: 'Crear, consultar y firmar permisos de trabajo seguro en alturas.',
-        category: 'Inspecciones & Campo'
+        description: 'Crear, consultar y firmar permisos de trabajo seguro en alturas y listas de chequeo.',
+        category: 'Somos SST Operativo'
     },
     {
         id: 'sgsst:analisis_trabajo_seguro',
         label: 'Análisis de Trabajo Seguro (ATS)',
-        description: 'Diligenciar y revisar análisis de trabajo seguro por tarea.',
-        category: 'Inspecciones & Campo'
+        description: 'Diligenciar y revisar análisis de trabajo seguro por tarea u oficio.',
+        category: 'Somos SST Operativo'
     },
     {
         id: 'sgsst:participacion_ipevar',
         label: 'Participación IPEVAR / Peligros',
-        description: 'Reportar riesgos y participar en la identificación de peligros.',
-        category: 'Seguridad & Comités'
+        description: 'Reportar riesgos y participar en la identificación continua de peligros.',
+        category: 'Somos SST Operativo'
     },
     {
-        id: 'sgsst:programa_capacitaciones',
-        label: 'Programa de Capacitaciones',
-        description: 'Consultar cronograma de capacitaciones y registrar asistencias.',
-        category: 'Seguridad & Comités'
+        id: 'sgsst:epp',
+        label: 'Gestión y Entrega de EPP',
+        description: 'Control de dotación, entrega de elementos de protección personal y firmas.',
+        category: 'Somos SST Operativo'
     },
     {
-        id: 'sgsst:matriz_peligros',
-        label: 'Matriz GTC-45 / IPEVAR',
-        description: 'Acceso de consulta y edición a la matriz de peligros general.',
-        category: 'Seguridad & Comités'
+        id: 'sgsst:vehiculos',
+        label: 'Inspección de Vehículos & Flota',
+        description: 'Preoperacionales e inspecciones periódicas de vehículos y maquinaria.',
+        category: 'Somos SST Operativo'
     },
     {
         id: 'sgsst:investigacion_atel',
         label: 'Investigación de Accidentes (ATEL)',
-        description: 'Registro e investigación de incidentes y accidentes de trabajo.',
-        category: 'Seguridad & Comités'
+        description: 'Registro, caracterización e investigación de incidentes y accidentes de trabajo.',
+        category: 'Somos SST Operativo'
+    },
+
+    // ─── 3. Matrices & Legal ─────────────────────────────────────────────
+    {
+        id: 'sgsst:matriz_peligros',
+        label: 'Matriz de Peligros GTC-45 / IPEVAR',
+        description: 'Acceso de consulta y edición a la matriz de riesgos general de la empresa.',
+        category: 'Matrices & Legal'
     },
     {
-        id: 'chat:wappy_general',
-        label: 'Asistente IA WAPPY & SST',
-        description: 'Permite interactuar con los agentes de IA de WAPPY.',
-        category: 'General / AI'
+        id: 'sgsst:matriz_legal',
+        label: 'Matriz Legal & Normatividad',
+        description: 'Consulta, evaluación y seguimiento al cumplimiento de requisitos legales.',
+        category: 'Matrices & Legal'
+    },
+    {
+        id: 'sgsst:matriz_pesv',
+        label: 'Matriz PESV (Seguridad Vial)',
+        description: 'Evaluación y gestión de riesgos viales conforme a la Resolución 40595.',
+        category: 'Matrices & Legal'
+    },
+    {
+        id: 'sgsst:matriz_compatibilidad',
+        label: 'Matriz de Compatibilidad Química (SGA)',
+        description: 'Inventario de sustancias químicas, clasificación ONU y matriz de almacenamiento.',
+        category: 'Matrices & Legal'
+    },
+
+    // ─── 4. Academia & LMS ───────────────────────────────────────────────
+    {
+        id: 'lms:aula_estudio',
+        label: 'Aula de Estudio & Cursos LMS',
+        description: 'Acceso a los cursos interactivos, lecciones multimedia y evaluaciones.',
+        category: 'Academia & LMS'
+    },
+    {
+        id: 'lms:ruta_aprendizaje',
+        label: 'Rutas de Aprendizaje Guiadas',
+        description: 'Seguimiento de progreso y metas en planes de formación estructurados.',
+        category: 'Academia & LMS'
+    },
+    {
+        id: 'sgsst:programa_capacitaciones',
+        label: 'Programa de Capacitaciones SST',
+        description: 'Cronograma anual de capacitaciones de la empresa y registro de asistencias.',
+        category: 'Academia & LMS'
+    },
+
+    // ─── 5. Gestión ACPM & Auditoría ────────────────────────────────────
+    {
+        id: 'kanban:acpm',
+        label: 'Tablero Kanban ACPM',
+        description: 'Gestión ágil de acciones correctivas, preventivas y oportunidades de mejora.',
+        category: 'Gestión ACPM & Auditoría'
+    },
+    {
+        id: 'audit:checklist',
+        label: 'Diagnóstico & Auditoría Res. 0312',
+        description: 'Evaluación de estándares mínimos y listas de verificación de auditoría.',
+        category: 'Gestión ACPM & Auditoría'
+    },
+    {
+        id: 'events:calendar',
+        label: 'Eventos, Reuniones & Calendario SST',
+        description: 'Programación de reuniones de comités (COPASST/COCOLA) y eventos SST.',
+        category: 'Gestión ACPM & Auditoría'
+    },
+
+    // ─── 6. Comunidad & Blog ────────────────────────────────────────────
+    {
+        id: 'community:blog',
+        label: 'Blog SST & Artículos de Conocimiento',
+        description: 'Lectura de guías, artículos técnicos y biblioteca de conocimiento WAPPY.',
+        category: 'Comunidad & Blog'
     }
 ];
 
 const PRESET_ROLES = [
     {
         id: 'self_only',
-        name: 'Auto-reporte de Salud',
-        description: 'Solo puede ver y actualizar su propia ficha de salud y firmar su consentimiento.',
-        permissions: ['sgsst:perfil_sociodemografico_self']
+        name: 'Auto-reporte & Cursos LMS',
+        description: 'Llenar su propia ficha de salud, firmar consentimientos y realizar cursos en el Aula de Estudio.',
+        permissions: ['sgsst:perfil_sociodemografico_self', 'lms:aula_estudio', 'community:blog']
     },
     {
         id: 'field_inspector',
         name: 'Inspector SST / Campo',
-        description: 'Puede diligenciar actos/condiciones, permisos de alturas, ATS y auto-reporte.',
+        description: 'Diligenciar actos/condiciones, permisos de alturas, ATS, inspección de vehículos, EPPs y Chat SST.',
         permissions: [
             'sgsst:perfil_sociodemografico_self',
             'sgsst:reporte_actos',
             'sgsst:permiso_alturas',
             'sgsst:analisis_trabajo_seguro',
-            'sgsst:participacion_ipevar'
+            'sgsst:participacion_ipevar',
+            'sgsst:epp',
+            'sgsst:vehiculos',
+            'chat:sst_specialist'
         ]
     },
     {
-        id: 'sst_assistant',
-        name: 'Asistente SST Completo',
-        description: 'Acceso a todos los módulos operativos y matrices de la empresa asignada.',
+        id: 'student_lms',
+        name: 'Estudiante / Plan de Formación',
+        description: 'Acceso a todas las aulas virtuales, rutas de aprendizaje, capacitaciones y Chat WAPPY.',
+        permissions: [
+            'lms:aula_estudio',
+            'lms:ruta_aprendizaje',
+            'sgsst:programa_capacitaciones',
+            'community:blog',
+            'chat:wappy_general'
+        ]
+    },
+    {
+        id: 'sst_coordinator',
+        name: 'Coordinador SST & Operaciones',
+        description: 'Acceso a todos los módulos operativos, matrices técnicas, Kanban ACPM y auditorías.',
+        permissions: [
+            'sgsst:perfil_sociodemografico_self',
+            'sgsst:perfil_sociodemografico_all',
+            'sgsst:reporte_actos',
+            'sgsst:permiso_alturas',
+            'sgsst:analisis_trabajo_seguro',
+            'sgsst:participacion_ipevar',
+            'sgsst:matriz_peligros',
+            'sgsst:matriz_legal',
+            'sgsst:matriz_pesv',
+            'sgsst:matriz_compatibilidad',
+            'sgsst:investigacion_atel',
+            'sgsst:epp',
+            'sgsst:vehiculos',
+            'sgsst:programa_capacitaciones',
+            'kanban:acpm',
+            'audit:checklist',
+            'chat:sst_specialist'
+        ]
+    },
+    {
+        id: 'full_platform',
+        name: 'Acceso Total WAPPY',
+        description: 'Acceso ilimitado a todos los aplicativos, herramientas de IA, matrices, LMS y módulos.',
         permissions: AVAILABLE_PERMISSIONS.map(p => p.id)
     },
     {
         id: 'custom',
         name: 'Personalizado',
-        description: 'Selecciona manualmente los módulos y capacidades permitidos.',
+        description: 'Configuración a medida con selección manual de cada aplicativo y módulo.',
         permissions: []
     }
 ];
@@ -194,7 +332,8 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
     const [formPassword, setFormPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [selectedPresetRole, setSelectedPresetRole] = useState<string>('self_only');
-    const [selectedPermissions, setSelectedPermissions] = useState<string[]>(['sgsst:perfil_sociodemografico_self']);
+    const [selectedPermissions, setSelectedPermissions] = useState<string[]>(['sgsst:perfil_sociodemografico_self', 'lms:aula_estudio', 'community:blog']);
+    const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('Todas');
     const [formStatus, setFormStatus] = useState<'active' | 'suspended'>('active');
 
     // Load initial data
@@ -489,24 +628,24 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
-            <div className="relative w-full max-w-4xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    return ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
+            <div className="relative w-full max-w-4xl bg-surface-secondary border border-border-medium rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] my-auto text-text-primary">
                 
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-950/30 dark:to-emerald-950/20">
+                <div className="shrink-0 flex items-center justify-between px-5 sm:px-6 py-4 border-b border-border-medium bg-surface-tertiary">
                     <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-teal-600 text-white shadow-md shadow-teal-500/20">
+                        <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 shadow-sm">
                             <Users className="w-6 h-6" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                Gestión de Sub-Usuarios y Accesos Delegados
-                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-300 border border-teal-300 dark:border-teal-700">
+                            <h2 className="text-lg sm:text-xl font-bold text-text-primary flex items-center gap-2">
+                                Gestión de Sub-Usuarios y Accesos
+                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-700">
                                     Somos SST
                                 </span>
                             </h2>
-                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                            <p className="text-xs text-text-secondary">
                                 Otorga accesos a trabajadores del Perfil Sociodemográfico para diligenciar información y reportes.
                             </p>
                         </div>
@@ -514,21 +653,21 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
 
                     <button
                         onClick={onClose}
-                        className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        className="p-2 text-text-secondary hover:text-text-primary rounded-xl hover:bg-surface-hover transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Tabs Navigation */}
-                <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
+                <div className="shrink-0 flex flex-wrap items-center justify-between px-5 sm:px-6 py-3 border-b border-border-medium bg-surface-primary/60 gap-2">
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setActiveTab('list')}
-                            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer ${
                                 activeTab === 'list'
                                     ? 'bg-teal-600 text-white shadow-sm'
-                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200/60 dark:hover:bg-gray-800'
+                                    : 'text-text-secondary hover:bg-surface-hover'
                             }`}
                         >
                             <Users className="w-4 h-4" />
@@ -537,10 +676,10 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
 
                         <button
                             onClick={handleStartCreateNew}
-                            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer ${
                                 activeTab === 'create'
                                     ? 'bg-teal-600 text-white shadow-sm'
-                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200/60 dark:hover:bg-gray-800'
+                                    : 'text-text-secondary hover:bg-surface-hover'
                             }`}
                         >
                             <UserPlus className="w-4 h-4" />
@@ -549,7 +688,7 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
 
                         {activeTab === 'edit' && editingSubUser && (
                             <button
-                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white shadow-sm"
+                                className="flex items-center gap-2 px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-xl bg-teal-600 text-white shadow-sm"
                             >
                                 <Edit3 className="w-4 h-4" />
                                 Editando: {editingSubUser.name}
@@ -558,23 +697,23 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                     </div>
 
                     {activeTab === 'list' && (
-                        <div className="relative w-64">
-                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <div className="relative w-full sm:w-64 mt-2 sm:mt-0">
+                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
                             <input
                                 type="text"
                                 placeholder="Buscar por nombre, cédula o email..."
                                 value={searchFilter}
                                 onChange={(e) => setSearchFilter(e.target.value)}
-                                className="w-full pl-9 pr-3 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                className="w-full pl-9 pr-3 py-1.5 text-xs bg-surface-primary border border-border-medium rounded-xl text-text-primary placeholder-text-secondary/60 focus:outline-none focus:ring-1 focus:ring-teal-500"
                             />
                         </div>
                     )}
                 </div>
 
                 {/* Content Area */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 min-h-0 bg-surface-secondary/40">
                     {isLoading ? (
-                        <div className="flex flex-col items-center justify-center py-16 gap-3 text-gray-500">
+                        <div className="flex flex-col items-center justify-center py-16 gap-3 text-text-secondary">
                             <RefreshCw className="w-8 h-8 animate-spin text-teal-600" />
                             <p className="text-sm">Cargando sub-usuarios y trabajadores...</p>
                         </div>
@@ -582,17 +721,17 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                         /* List Tab */
                         <div>
                             {filteredSubUsers.length === 0 ? (
-                                <div className="text-center py-14 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50/50 dark:bg-gray-800/30">
+                                <div className="text-center py-14 border border-dashed border-border-medium rounded-2xl bg-surface-primary/40 p-6">
                                     <Shield className="w-12 h-12 text-teal-500 mx-auto mb-3 opacity-60" />
-                                    <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+                                    <h3 className="text-base font-semibold text-text-primary mb-1">
                                         No hay sub-usuarios registrados aún
                                     </h3>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-5">
+                                    <p className="text-xs text-text-secondary max-w-md mx-auto mb-5">
                                         Crea cuentas de acceso para tus trabajadores registrados en el Perfil Sociodemográfico para que puedan ingresar y reportar su información.
                                     </p>
                                     <button
                                         onClick={handleStartCreateNew}
-                                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm transition-colors"
+                                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-sm transition-colors cursor-pointer"
                                     >
                                         <UserPlus className="w-4 h-4" />
                                         Crear Primer Sub-Usuario
@@ -605,10 +744,10 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                         return (
                                             <div
                                                 key={su._id}
-                                                className={`border rounded-xl p-4 transition-all flex flex-col justify-between ${
+                                                className={`border rounded-2xl p-4 transition-all flex flex-col justify-between ${
                                                     isSuspended
-                                                        ? 'border-red-200 dark:border-red-900/40 bg-red-50/30 dark:bg-red-950/10 opacity-80'
-                                                        : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/60 hover:shadow-md'
+                                                        ? 'border-red-200 dark:border-red-900/40 bg-red-50/20 dark:bg-red-950/10 opacity-80'
+                                                        : 'border-border-medium bg-surface-primary hover:shadow-md'
                                                 }`}
                                             >
                                                 <div>
@@ -621,10 +760,10 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                                                 {su.name ? su.name.substring(0, 2).toUpperCase() : 'SU'}
                                                             </div>
                                                             <div>
-                                                                <h4 className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">
+                                                                <h4 className="text-sm font-semibold text-text-primary leading-tight">
                                                                     {su.name}
                                                                 </h4>
-                                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                                <p className="text-xs text-text-secondary">
                                                                     {su.email}
                                                                 </p>
                                                             </div>
@@ -650,20 +789,20 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                                     </div>
 
                                                     {/* Worker & Company info */}
-                                                    <div className="space-y-1 my-3 text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/40 p-2.5 rounded-lg border border-gray-100 dark:border-gray-800">
+                                                    <div className="space-y-1 my-3 text-xs text-text-secondary bg-surface-secondary/80 p-2.5 rounded-xl border border-border-light">
                                                         <div className="flex items-center gap-1.5">
                                                             <UserCheck className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                                                            <span>Cédula / Doc: <strong className="font-medium text-gray-900 dark:text-white">{su.workerDocument}</strong></span>
+                                                            <span>Cédula / Doc: <strong className="font-medium text-text-primary">{su.workerDocument}</strong></span>
                                                         </div>
                                                         <div className="flex items-center gap-1.5">
                                                             <Building2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                                                            <span>Empresa: <strong className="font-medium text-gray-900 dark:text-white">{su.company?.companyName || 'Empresa Asignada'}</strong></span>
+                                                            <span>Empresa: <strong className="font-medium text-text-primary">{su.company?.companyName || 'Empresa Asignada'}</strong></span>
                                                         </div>
                                                     </div>
 
                                                     {/* Badges of Permissions */}
                                                     <div className="mb-3">
-                                                        <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                                                        <p className="text-[11px] font-medium text-text-secondary mb-1.5">
                                                             Módulos Autorizados ({su.subUserPermissions?.length || 0}):
                                                         </p>
                                                         <div className="flex flex-wrap gap-1">
@@ -672,14 +811,14 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                                                 return (
                                                                     <span
                                                                         key={p}
-                                                                        className="text-[10px] px-2 py-0.5 rounded bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60"
+                                                                        className="text-[10px] px-2 py-0.5 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60"
                                                                     >
                                                                         {permInfo ? permInfo.label.split('(')[0].trim() : p}
                                                                     </span>
                                                                 );
                                                             })}
                                                             {(su.subUserPermissions?.length || 0) > 4 && (
-                                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                                                <span className="text-[10px] px-1.5 py-0.5 rounded-lg bg-surface-tertiary text-text-secondary">
                                                                     +{su.subUserPermissions.length - 4} más
                                                                 </span>
                                                             )}
@@ -688,10 +827,10 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                                 </div>
 
                                                 {/* Actions */}
-                                                <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800/80 mt-2">
+                                                <div className="flex items-center justify-between pt-3 border-t border-border-light mt-2">
                                                     <button
                                                         onClick={() => handleToggleStatus(su)}
-                                                        className={`text-xs font-medium px-2.5 py-1 rounded transition-colors ${
+                                                        className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
                                                             isSuspended
                                                                 ? 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
                                                                 : 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40'
@@ -703,14 +842,14 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                                     <div className="flex items-center gap-1">
                                                         <button
                                                             onClick={() => handleStartEdit(su)}
-                                                            className="p-1.5 text-gray-500 hover:text-teal-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                                            className="p-1.5 text-text-secondary hover:text-teal-600 hover:bg-surface-hover rounded-xl transition-colors cursor-pointer"
                                                             title="Editar permisos y clave"
                                                         >
                                                             <Edit3 className="w-4 h-4" />
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteSubUser(su)}
-                                                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
+                                                            className="p-1.5 text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer"
                                                             title="Eliminar cuenta de acceso"
                                                         >
                                                             <Trash2 className="w-4 h-4" />
@@ -728,22 +867,22 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                         <form onSubmit={handleSaveSubUser} className="space-y-6 max-w-3xl mx-auto">
                             
                             {/* Step 1: Worker & Company Selection */}
-                            <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700 space-y-4">
-                                <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <UserCheck className="w-4 h-4 text-teal-600" />
+                            <div className="bg-surface-primary p-4 sm:p-5 rounded-2xl border border-border-medium space-y-4">
+                                <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                                    <UserCheck className="w-4 h-4 text-teal-600 dark:text-teal-400" />
                                     1. Selección de Trabajador del Perfil Sociodemográfico
                                 </h3>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {/* Company Selector */}
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                        <label className="block text-xs font-semibold text-text-secondary mb-1">
                                             Empresa Asignada:
                                         </label>
                                         <select
                                             value={selectedCompanyId}
                                             onChange={(e) => setSelectedCompanyId(e.target.value)}
-                                            className="w-full px-3 py-2 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                            className="w-full px-3 py-2 text-xs bg-surface-secondary border border-border-medium rounded-xl text-text-primary focus:ring-1 focus:ring-teal-500 focus:outline-none"
                                             required
                                         >
                                             {companies.map(c => (
@@ -756,14 +895,14 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
 
                                     {/* Worker Selector */}
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                        <label className="block text-xs font-semibold text-text-secondary mb-1">
                                             Trabajador Registrado:
                                         </label>
                                         {activeTab === 'create' ? (
                                             <select
                                                 value={selectedWorkerDoc}
                                                 onChange={(e) => handleSelectWorker(e.target.value)}
-                                                className="w-full px-3 py-2 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                                className="w-full px-3 py-2 text-xs bg-surface-secondary border border-border-medium rounded-xl text-text-primary focus:ring-1 focus:ring-teal-500 focus:outline-none"
                                                 required
                                             >
                                                 <option value="">-- Selecciona un trabajador --</option>
@@ -776,7 +915,7 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                                     ))}
                                             </select>
                                         ) : (
-                                            <div className="px-3 py-2 text-xs bg-gray-100 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-200 font-medium">
+                                            <div className="px-3 py-2 text-xs bg-surface-secondary border border-border-medium rounded-xl text-text-primary font-medium">
                                                 {formName} (Cédula: {selectedWorkerDoc})
                                             </div>
                                         )}
@@ -785,29 +924,29 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                             </div>
 
                             {/* Step 2: Credentials */}
-                            <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700 space-y-4">
-                                <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <Key className="w-4 h-4 text-teal-600" />
+                            <div className="bg-surface-primary p-4 sm:p-5 rounded-2xl border border-border-medium space-y-4">
+                                <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                                    <Key className="w-4 h-4 text-teal-600 dark:text-teal-400" />
                                     2. Credenciales de Inicio de Sesión
                                 </h3>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                        <label className="block text-xs font-semibold text-text-secondary mb-1">
                                             Nombre Completo:
                                         </label>
                                         <input
                                             type="text"
                                             value={formName}
                                             onChange={(e) => setFormName(e.target.value)}
-                                            className="w-full px-3 py-2 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                            className="w-full px-3 py-2 text-xs bg-surface-secondary border border-border-medium rounded-xl text-text-primary focus:ring-1 focus:ring-teal-500 focus:outline-none"
                                             placeholder="Nombre del colaborador"
                                             required
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                        <label className="block text-xs font-semibold text-text-secondary mb-1">
                                             Correo Electrónico (Login):
                                         </label>
                                         <input
@@ -815,7 +954,7 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                             value={formEmail}
                                             onChange={(e) => setFormEmail(e.target.value)}
                                             disabled={activeTab === 'edit'}
-                                            className="w-full px-3 py-2 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none disabled:opacity-60"
+                                            className="w-full px-3 py-2 text-xs bg-surface-secondary border border-border-medium rounded-xl text-text-primary focus:ring-1 focus:ring-teal-500 focus:outline-none disabled:opacity-60"
                                             placeholder="ejemplo@empresa.com"
                                             required
                                         />
@@ -823,22 +962,22 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
 
                                     <div className="md:col-span-2">
                                         <div className="flex items-center justify-between mb-1">
-                                            <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                            <label className="text-xs font-semibold text-text-secondary">
                                                 {activeTab === 'create' ? 'Contraseña Inicial:' : 'Nueva Contraseña (Dejar en blanco para conservar):'}
                                             </label>
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     type="button"
                                                     onClick={() => selectedWorkerDoc && setFormPassword(selectedWorkerDoc)}
-                                                    className="text-[11px] text-teal-600 hover:text-teal-700 font-medium"
+                                                    className="text-[11px] text-teal-600 dark:text-teal-400 hover:underline font-medium cursor-pointer"
                                                 >
                                                     Usar Cédula como Clave
                                                 </button>
-                                                <span className="text-gray-300 dark:text-gray-600">|</span>
+                                                <span className="text-border-medium">|</span>
                                                 <button
                                                     type="button"
                                                     onClick={handleGenerateRandomPassword}
-                                                    className="text-[11px] text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
+                                                    className="text-[11px] text-teal-600 dark:text-teal-400 hover:underline font-medium flex items-center gap-1 cursor-pointer"
                                                 >
                                                     <Sparkles className="w-3 h-3" /> Generar Clave Segura
                                                 </button>
@@ -850,14 +989,14 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                                 type={showPassword ? 'text' : 'password'}
                                                 value={formPassword}
                                                 onChange={(e) => setFormPassword(e.target.value)}
-                                                className="w-full pl-3 pr-10 py-2 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                                className="w-full pl-3 pr-10 py-2 text-xs bg-surface-secondary border border-border-medium rounded-xl text-text-primary focus:ring-1 focus:ring-teal-500 focus:outline-none"
                                                 placeholder={activeTab === 'create' ? 'Mínimo 6 caracteres' : '•••••••• (conservar actual)'}
                                                 required={activeTab === 'create'}
                                             />
                                             <button
                                                 type="button"
                                                 onClick={() => setShowPassword(!showPassword)}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
                                             >
                                                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                             </button>
@@ -867,18 +1006,43 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                             </div>
 
                             {/* Step 3: Preset Roles & Granular Permissions */}
-                            <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700 space-y-4">
-                                <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <Shield className="w-4 h-4 text-teal-600" />
-                                    3. Roles y Permisos Granulares de Acceso
-                                </h3>
+                            <div className="bg-surface-primary p-4 sm:p-5 rounded-2xl border border-border-medium space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                                        <Shield className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                                        3. Roles y Permisos de los Aplicativos WAPPY ({selectedPermissions.length} seleccionados)
+                                    </h3>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedPresetRole('full_platform');
+                                                setSelectedPermissions(AVAILABLE_PERMISSIONS.map(p => p.id));
+                                            }}
+                                            className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer"
+                                        >
+                                            Marcar Todos
+                                        </button>
+                                        <span className="text-border-medium">|</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedPresetRole('custom');
+                                                setSelectedPermissions([]);
+                                            }}
+                                            className="text-[11px] font-semibold text-text-secondary hover:underline cursor-pointer"
+                                        >
+                                            Desmarcar Todos
+                                        </button>
+                                    </div>
+                                </div>
 
                                 {/* Presets Selector */}
                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                        Plantilla de Rol Rápido:
+                                    <label className="block text-xs font-semibold text-text-secondary mb-2">
+                                        Plantillas de Roles Rápidos:
                                     </label>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                                         {PRESET_ROLES.map(role => {
                                             const isSelected = selectedPresetRole === role.id;
                                             return (
@@ -886,17 +1050,17 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                                     key={role.id}
                                                     type="button"
                                                     onClick={() => handlePresetRoleChange(role.id)}
-                                                    className={`p-3 rounded-lg border text-left transition-all ${
+                                                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                                                         isSelected
-                                                            ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/40 text-teal-900 dark:text-teal-200 shadow-sm ring-1 ring-teal-500'
-                                                            : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300'
+                                                            ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-950/40 text-text-primary shadow-sm ring-1 ring-teal-500'
+                                                            : 'border-border-medium bg-surface-secondary hover:bg-surface-hover text-text-secondary'
                                                     }`}
                                                 >
                                                     <div className="flex items-center justify-between mb-1">
-                                                        <span className="font-semibold text-xs">{role.name}</span>
-                                                        {isSelected && <Check className="w-3.5 h-3.5 text-teal-600" />}
+                                                        <span className="font-bold text-xs text-text-primary">{role.name}</span>
+                                                        {isSelected && <Check className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />}
                                                     </div>
-                                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2">
+                                                    <p className="text-[10px] text-text-secondary line-clamp-2 leading-tight">
                                                         {role.description}
                                                     </p>
                                                 </button>
@@ -905,63 +1069,92 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                                     </div>
                                 </div>
 
-                                {/* Granular Checkboxes by Category */}
+                                {/* Category Pills & Granular Checkboxes */}
                                 <div className="space-y-3 pt-2">
-                                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                                        Capacidades y Módulos Específicos:
-                                    </label>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-light pb-2.5">
+                                        <label className="text-xs font-semibold text-text-secondary">
+                                            Módulos Específicos por Aplicativo:
+                                        </label>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        {AVAILABLE_PERMISSIONS.map((perm) => {
-                                            const isChecked = selectedPermissions.includes(perm.id);
-                                            return (
-                                                <div
-                                                    key={perm.id}
-                                                    onClick={() => handleTogglePermission(perm.id)}
-                                                    className={`p-3 rounded-lg border cursor-pointer select-none transition-all flex items-start gap-2.5 ${
-                                                        isChecked
-                                                            ? 'border-teal-500/80 bg-teal-50/50 dark:bg-teal-950/20 text-gray-900 dark:text-white'
-                                                            : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/80 text-gray-600 dark:text-gray-300 opacity-80 hover:opacity-100'
-                                                    }`}
-                                                >
-                                                    <div className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                                                        isChecked
-                                                            ? 'bg-teal-600 border-teal-600 text-white'
-                                                            : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
-                                                    }`}>
-                                                        {isChecked && <Check className="w-3 h-3" />}
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="text-xs font-semibold leading-tight">{perm.label}</span>
-                                                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
-                                                                {perm.category}
-                                                            </span>
+                                        {/* Category Filter Pills */}
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            {(['Todas', 'IA & Chat WAPPY', 'Somos SST Operativo', 'Matrices & Legal', 'Academia & LMS', 'Gestión ACPM & Auditoría', 'Comunidad & Blog'] as const).map(cat => {
+                                                const isCatActive = selectedCategoryFilter === cat;
+                                                const count = cat === 'Todas' 
+                                                    ? AVAILABLE_PERMISSIONS.length 
+                                                    : AVAILABLE_PERMISSIONS.filter(p => p.category === cat).length;
+                                                return (
+                                                    <button
+                                                        key={cat}
+                                                        type="button"
+                                                        onClick={() => setSelectedCategoryFilter(cat)}
+                                                        className={`px-2 py-0.5 text-[10px] font-semibold rounded-lg transition-all cursor-pointer ${
+                                                            isCatActive
+                                                                ? 'bg-teal-600 text-white shadow-xs'
+                                                                : 'bg-surface-secondary text-text-secondary hover:bg-surface-hover border border-border-medium/60'
+                                                        }`}
+                                                    >
+                                                        {cat} ({count})
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Permissions Grid */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        {AVAILABLE_PERMISSIONS
+                                            .filter(p => selectedCategoryFilter === 'Todas' || p.category === selectedCategoryFilter)
+                                            .map((perm) => {
+                                                const isChecked = selectedPermissions.includes(perm.id);
+                                                return (
+                                                    <div
+                                                        key={perm.id}
+                                                        onClick={() => handleTogglePermission(perm.id)}
+                                                        className={`p-3 rounded-xl border cursor-pointer select-none transition-all flex items-start gap-2.5 ${
+                                                            isChecked
+                                                                ? 'border-teal-500/80 bg-teal-50/40 dark:bg-teal-950/20 text-text-primary shadow-xs'
+                                                                : 'border-border-medium bg-surface-secondary text-text-secondary opacity-75 hover:opacity-100 hover:border-teal-500/30'
+                                                        }`}
+                                                    >
+                                                        <div className={`mt-0.5 w-4 h-4 rounded-md border flex items-center justify-center transition-colors shrink-0 ${
+                                                            isChecked
+                                                                ? 'bg-teal-600 border-teal-600 text-white'
+                                                                : 'border-border-medium bg-surface-primary'
+                                                        }`}>
+                                                            {isChecked && <Check className="w-3 h-3" />}
                                                         </div>
-                                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
-                                                            {perm.description}
-                                                        </p>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center justify-between gap-1 mb-0.5">
+                                                                <span className="text-xs font-bold leading-tight text-text-primary truncate">{perm.label}</span>
+                                                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-surface-tertiary text-text-secondary shrink-0 font-medium">
+                                                                    {perm.category.replace(' & ', '/')}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[10px] text-text-secondary leading-snug">
+                                                                {perm.description}
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
+                                                );
+                                            })}
                                     </div>
                                 </div>
                             </div>
 
                             {/* Form Footer Buttons */}
-                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">
+                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border-medium">
                                 <button
                                     type="button"
                                     onClick={() => setActiveTab('list')}
-                                    className="px-4 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                                    className="px-4 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover rounded-xl transition-colors cursor-pointer"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={isSaving}
-                                    className="flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm transition-all disabled:opacity-50"
+                                    className="flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-sm transition-all disabled:opacity-50 cursor-pointer"
                                 >
                                     {isSaving ? (
                                         <>
@@ -980,6 +1173,7 @@ export default function SubUserManagerModal({ isOpen, onClose, initialWorkerDoc 
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

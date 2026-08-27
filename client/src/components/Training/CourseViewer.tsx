@@ -58,7 +58,7 @@ export default function CourseViewer() {
             } catch (error) {
                 console.error('Error fetching course:', error);
                 showToast({ message: 'Error loading course details.', status: 'error' });
-                navigate('/training');
+                navigate('/academia?tab=cursos');
             } finally {
                 setLoading(false);
             }
@@ -130,7 +130,7 @@ export default function CourseViewer() {
                             if (window.innerWidth < 768 && !sidebarOpen) {
                                 setSidebarOpen(true);
                             } else {
-                                navigate('/training');
+                                navigate('/academia?tab=cursos');
                             }
                         }}
                         className="rounded-full p-2 hover:bg-surface-tertiary transition-colors relative"

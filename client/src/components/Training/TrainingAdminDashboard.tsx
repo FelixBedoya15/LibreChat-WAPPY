@@ -83,9 +83,9 @@ export default function TrainingAdminDashboard() {
                 <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-start sm:items-center gap-3">
                         <button
-                            onClick={() => navigate('/training')}
+                            onClick={() => navigate('/academia?tab=cursos')}
                             className="rounded-full p-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shrink-0 mt-1 sm:mt-0"
-                            aria-label="Back"
+                            aria-label="Volver a Academia"
                         >
                             <ArrowLeft className="h-6 w-6 text-gray-900 dark:text-gray-300" />
                         </button>

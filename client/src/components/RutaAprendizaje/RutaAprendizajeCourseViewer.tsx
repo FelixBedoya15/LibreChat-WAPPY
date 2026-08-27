@@ -52,7 +52,7 @@ export default function RutaAprendizajeCourseViewer() {
             } catch (error) {
                 console.error('Error fetching course:', error);
                 showToast({ message: 'Error al cargar los detalles del curso.', status: 'error' });
-                navigate('/ruta-aprendizaje');
+                navigate('/academia?tab=rutas');
             } finally {
                 setLoading(false);
             }
@@ -81,9 +81,9 @@ export default function RutaAprendizajeCourseViewer() {
             <div className="flex-none h-14 bg-surface-secondary border-b border-light flex items-center justify-between px-4 sticky top-0 z-20">
                 <div className="flex items-center gap-2 md:gap-3">
                     <button
-                        onClick={() => navigate('/ruta-aprendizaje')}
+                        onClick={() => navigate('/academia?tab=rutas')}
                         className="rounded-full p-2 hover:bg-surface-tertiary transition-colors"
-                        aria-label="Back"
+                        aria-label="Volver a Academia"
                     >
                         <ChevronLeft className="h-6 w-6 text-text-primary dark:text-gray-300" />
                     </button>

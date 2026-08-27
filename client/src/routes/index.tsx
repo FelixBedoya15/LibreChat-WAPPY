@@ -343,10 +343,6 @@ export const router = createBrowserRouter(
               element: <ChatSSTView />,
             },
             {
-              path: 'events-meet',
-              element: <EventsMeetDashboard />,
-            },
-            {
               path: 'events-meet/admin',
               element: <EventsMeetAdminDashboard />,
             },

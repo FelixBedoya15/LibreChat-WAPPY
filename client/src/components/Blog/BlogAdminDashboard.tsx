@@ -14,13 +14,14 @@ export default function BlogAdminDashboard() {
     const navigate = useNavigate();
     const { user } = useAuthContext();
     const [isEditorOpen, setIsEditorOpen] = useState(false);
-    const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com'];
+    const [editingPostId, setEditingPostId] = useState<string | null>(null);
+    const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com', 'felix.bedoya15@gmail.com'];
     const isAdmin = user?.role === 'ADMIN' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
 
 
     useEffect(() => {
         if (!isAdmin) {
-            navigate('/blog');
+            navigate('/academia?tab=blog');
             return;
         }
 
@@ -88,9 +89,9 @@ export default function BlogAdminDashboard() {
                 <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                         <button
-                            onClick={() => navigate('/blog')}
+                            onClick={() => navigate('/academia?tab=blog')}
                             className="group flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-all duration-300"
-                            aria-label="Volver al Blog"
+                            aria-label="Volver a Academia"
                         >
                             <ArrowLeft className="w-6 h-6 flex-shrink-0" />
                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-200">

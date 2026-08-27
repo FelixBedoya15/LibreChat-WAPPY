@@ -58,7 +58,7 @@ export default function EventsMeetAdminDashboard() {
       showToast({ message: 'Error al cargar los eventos de administración.', status: 'error' });
       // If forbidden, redirect back
       if (error.response?.status === 403) {
-        navigate('/events-meet');
+        navigate('/academia?tab=meet');
       }
     } finally {
       setLoading(false);
@@ -117,8 +117,9 @@ export default function EventsMeetAdminDashboard() {
       <div className="p-4 sm:p-6 border-b border-border-medium bg-white dark:bg-gray-900 flex items-center justify-between shadow-sm shrink-0">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate('/events-meet')}
+            onClick={() => navigate('/academia?tab=meet')}
             className="p-2 hover:bg-slate-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+            aria-label="Volver a Academia"
           >
             <ArrowLeft size={20} />
           </button>
