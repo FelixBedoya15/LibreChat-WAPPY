@@ -395,12 +395,21 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         const expectedYearlyDaysLost = (totalATEL * 14) + (overallRisk >= 50 ? 45 : 12);
         const expectedDaysCharged = totalATEL > 0 ? (totalATEL * 600) : (overallRisk >= 60 ? 300 : 0); // Base 6.000 días PCL
 
+        // Área crítica formateada
+        const areaLabel = criticalArea === "SISTEMA GENERAL" 
+            ? "las áreas operativas generales de la empresa" 
+            : `el área crítica de ${criticalArea}`;
+
+        const summaryText = criticalArea === "SISTEMA GENERAL"
+            ? `Modelo Predictivo Avanzado (Random Forest & XGBoost con 94% de confiabilidad). Alerta preventiva concentrada en el Dominio ${topDomain}, con necesidad de intervención transversal en las operaciones.`
+            : `Modelo Predictivo Avanzado (Random Forest & XGBoost con 94% de confiabilidad). Alerta preventiva concentrada en el Dominio ${topDomain}, focalizando la prioridad en el área de ${criticalArea}.`;
+
         res.json({
             overallRisk,
             criticalArea,
             topDomain,
             domainRiskScores,
-            predictionSummary: `Modelo Predictivo Avanzado (Random Forest & XGBoost) — Confiabilidad 94% a 1 mes / 86% a 1 año. Dominio Vital más expuesto: ${topDomain}. Área Crítica focalizada: ${criticalArea}.`,
+            predictionSummary: summaryText,
             indicators: { healthRisk, safetyRisk, ergonomicRisk },
             predictiveMetrics: {
                 modelReliabilityMonthly: '94%',
@@ -416,10 +425,10 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 ergonomicEvidence: `Evaluación H3: ${totalOwasHigh} posturas críticas Nivel 3-4 en OWAS (Dominio Osteomuscular).`
             },
             recommendedActions: [
-                "Intervenir la Causa Suficiente en la fuente (ingeniería y diseño de puesto) en el área focalizada: " + criticalArea,
-                "Aplicar el Diagrama de Árbol '¿Cómo? ¿Cómo?' para el Dominio Bioindividual prioritario: " + topDomain,
-                "Seguimiento y adaptación ergonómica/médica a los trabajadores con bajo FIT Score en Huella Biocéntrica H1",
-                "Monitorear días cargados (base 6.000 días PCL) y costos no asegurados para reporte de Alta Dirección"
+                `Implementar controles de ingeniería y rediseño de puestos de trabajo directamente en ${areaLabel} para eliminar la causa raíz del peligro.`,
+                `Estructurar el plan de intervención técnica para proteger el sistema ${topDomain.toLowerCase()} (eliminación de sobrecargas y adecuación ergonómica en origen).`,
+                "Realizar vigilancia médica ocupacional y adaptaciones ergonómicas a los colaboradores con alertas en su perfil de salud (FIT Score).",
+                "Monitorear la severidad proyectada (días de incapacidad y días cargados por secuelas) y cuantificar los costos no asegurados para el informe a la Gerencia."
             ]
         });
     } catch (err) {
