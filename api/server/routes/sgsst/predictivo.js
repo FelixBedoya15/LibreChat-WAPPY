@@ -236,14 +236,29 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         try {
             // Hito 1: Trabajadores SgsstWorker & Perfil Sociodemográfico
             const SgsstWorker = mongoose.models.SgsstWorker;
+            let specificWorkerAlerts = [];
+            let specificIpevarHazards = [];
+            let specificOwasFindings = [];
+            let specificUnsafeActs = [];
+            let specificAtelAccidents = [];
+            let specificHeightsPermits = [];
+            let specificMiedoFeedback = [];
+
             if (SgsstWorker) {
                 const workers = await SgsstWorker.find({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
                 if (workers?.length) {
                     totalWorkers = workers.length;
                     workers.forEach(w => {
-                        if (w.fitScore < 60 || (w.condicionesSalud && w.condicionesSalud !== 'Apto / Sin restricciones' && w.condicionesSalud !== 'Apto')) {
+                        const hasHealthIssue = (w.condicionesSalud && w.condicionesSalud !== 'Apto / Sin restricciones' && w.condicionesSalud !== 'Apto');
+                        if (w.fitScore < 60 || hasHealthIssue) {
                             sickWorkers++;
                             if (w.perfilId) criticalAreasMap[w.perfilId] = (criticalAreasMap[w.perfilId] || 0) + 1.5;
+                            specificWorkerAlerts.push({
+                                nombre: w.nombre || 'Colaborador',
+                                cargo: w.perfilId || 'Operativo',
+                                condicionesSalud: w.condicionesSalud || 'Bajo FIT Score',
+                                fitScore: w.fitScore ?? 0
+                            });
                         }
                         // Acumular criticidad en los 9 dominios bioindividuales
                         (w.riesgosBioIndividual || []).forEach(r => {
@@ -265,9 +280,16 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                     if (doc?.trabajadores?.length) {
                         totalWorkers = doc.trabajadores.length;
                         doc.trabajadores.forEach(t => {
-                            if (t.biocentricScore !== undefined && t.biocentricScore < 60) {
+                            const hasHealthIssue = (t.diagnosticoMedico && t.diagnosticoMedico !== 'Apto / Sin Hallazgos' && t.diagnosticoMedico !== 'Apto');
+                            if ((t.biocentricScore !== undefined && t.biocentricScore < 60) || hasHealthIssue) {
                                 sickWorkers++;
                                 if (t.cargo) criticalAreasMap[t.cargo] = (criticalAreasMap[t.cargo] || 0) + 1.5;
+                                specificWorkerAlerts.push({
+                                    nombre: t.nombre || 'Colaborador',
+                                    cargo: t.cargo || 'Operativo',
+                                    condicionesSalud: t.diagnosticoMedico || 'Alerta Biocéntrica H1',
+                                    fitScore: t.biocentricScore ?? 50
+                                });
                             }
                         });
                     }
@@ -285,6 +307,12 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                             if (h.nivelRiesgo >= 150) { 
                                 totalHazardsI_II++;
                                 if (p.proceso) criticalAreasMap[p.proceso] = (criticalAreasMap[p.proceso] || 0) + 2;
+                                specificIpevarHazards.push({
+                                    proceso: p.proceso,
+                                    descripcionPeligro: h.descripcionPeligro || h.peligro || 'Peligro Crítico',
+                                    nivelRiesgo: h.nivelRiesgo,
+                                    tipoPeligro: h.tipoPeligro || 'Seguridad'
+                                });
                             }
                         });
                     });
@@ -301,6 +329,12 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                         if (r.categoriaRiesgo >= 3) {
                             totalOwasHigh++;
                             domainRiskScores.Osteomuscular += 3;
+                            specificOwasFindings.push({
+                                cargo: doc.cargo || 'Puesto Operativo',
+                                faseTarea: r.faseTarea || 'Manipulación y Postura',
+                                categoriaRiesgo: r.categoriaRiesgo,
+                                accionRequerida: r.accionRequerida || 'Rediseño urgente'
+                            });
                         }
                     });
                 }
@@ -311,8 +345,16 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             if (rData) {
                 const doc = await rData.findOne({ user: userId, companyId }).lean();
                 if (doc?.reportesList) {
-                    totalActsConds = doc.reportesList.filter(r => r.estado !== 'Cerrado').length;
+                    const openReports = doc.reportesList.filter(r => r.estado !== 'Cerrado');
+                    totalActsConds = openReports.length;
                     domainRiskScores.Seguridad += totalActsConds * 2;
+                    openReports.forEach(r => {
+                        specificUnsafeActs.push({
+                            tipo: r.tipo || 'Condición Insegura',
+                            area: r.area || 'Operaciones',
+                            hallazgo: r.hallazgo || 'Desviación reportada'
+                        });
+                    });
                 }
             }
 
@@ -324,6 +366,12 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                         if (p.miedoScore >= 7) {
                             totalIpevarHighMiedo++;
                             domainRiskScores.Psicoemocional += 2;
+                            specificMiedoFeedback.push({
+                                workerName: p.workerName || 'Trabajador',
+                                peligro: p.peligro || 'Riesgo percibido',
+                                miedoScore: p.miedoScore,
+                                propuestaMejora: p.propuestaMejora || 'Implementar controles'
+                            });
                         }
                     });
                 }
@@ -335,6 +383,12 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 if (docs?.length) {
                     totalAlturasActive = docs.length;
                     domainRiskScores.Seguridad += totalAlturasActive * 2.5;
+                    docs.forEach(pad => {
+                        specificHeightsPermits.push({
+                            solicitante: pad.solicitante || 'Operario',
+                            alturaMetros: pad.alturaMetros || '1.8'
+                        });
+                    });
                 }
             }
 
@@ -348,6 +402,11 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                         const formData = doc.formData || {};
                         if (formData.cargoAccidentado) {
                             criticalAreasMap[formData.cargoAccidentado] = (criticalAreasMap[formData.cargoAccidentado] || 0) + 3.5;
+                            specificAtelAccidents.push({
+                                cargoAccidentado: formData.cargoAccidentado,
+                                mecanismoAccidente: formData.mecanismoAccidente || 'Sobreesfuerzo / Golpe',
+                                causaBasica: formData.causasBasicas || formData.causasInmediatas || 'Falta de control en origen'
+                            });
                         }
                     });
                 }
@@ -395,14 +454,73 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         const expectedYearlyDaysLost = (totalATEL * 14) + (overallRisk >= 50 ? 45 : 12);
         const expectedDaysCharged = totalATEL > 0 ? (totalATEL * 600) : (overallRisk >= 60 ? 300 : 0); // Base 6.000 días PCL
 
-        // Área crítica formateada
-        const areaLabel = criticalArea === "SISTEMA GENERAL" 
-            ? "las áreas operativas generales de la empresa" 
-            : `el área crítica de ${criticalArea}`;
+        // Construcción de acciones 100% DINÁMICAS basadas en los datos reales del usuario
+        let dynamicActions = [];
+
+        // 1. Acción por Actos o Condiciones Inseguras Abiertas (Hito 3)
+        if (specificUnsafeActs.length > 0) {
+            const act = specificUnsafeActs[0];
+            dynamicActions.push(`Cierre prioritario del reporte de ${act.tipo.toLowerCase()} en ${act.area}: "${act.hallazgo}" para evitar materialización de incidentes.`);
+        }
+
+        // 2. Acción por Peligros Inaceptables en IPEVAR (Hito 2)
+        if (specificIpevarHazards.length > 0) {
+            const haz = specificIpevarHazards[0];
+            dynamicActions.push(`Intervención en origen en el proceso "${haz.proceso}" sobre el peligro de "${haz.descripcionPeligro}" (Nivel de Riesgo ${haz.nivelRiesgo}).`);
+        }
+
+        // 3. Acción por Ergonomía / OWAS Crítico (Hito 3)
+        if (specificOwasFindings.length > 0) {
+            const ow = specificOwasFindings[0];
+            dynamicActions.push(`Rediseño postural y ajuste de planos de trabajo para la tarea "${ow.faseTarea}" en ${ow.cargo} (Riesgo Postural Nivel ${ow.categoriaRiesgo} en OWAS).`);
+        }
+
+        // 4. Acción por Trabajadores con Alertas de Salud / Bajo FIT (Hito 1)
+        if (specificWorkerAlerts.length > 0) {
+            const wa = specificWorkerAlerts[0];
+            dynamicActions.push(`Adaptación individual y seguimiento médico ocupacional a ${wa.nombre} (${wa.cargo}) con alerta de salud: "${wa.condicionesSalud}" (FIT ${wa.fitScore}%).`);
+        }
+
+        // 5. Acción por Investigaciones ATEL previas (Hito 4)
+        if (specificAtelAccidents.length > 0 && dynamicActions.length < 4) {
+            const at = specificAtelAccidents[0];
+            dynamicActions.push(`Implementar barreras de ingeniería contra el mecanismo de "${at.mecanismoAccidente}" identificado en la investigación de ${at.cargoAccidentado}.`);
+        }
+
+        // 6. Acción por Miedo / Participación de Trabajadores (Hito 3)
+        if (specificMiedoFeedback.length > 0 && dynamicActions.length < 4) {
+            const mf = specificMiedoFeedback[0];
+            dynamicActions.push(`Atender la propuesta de seguridad de ${mf.workerName} sobre "${mf.peligro}" para mitigar el nivel de miedo reportado (${mf.miedoScore}/10).`);
+        }
+
+        // 7. Acción por Permisos de Alturas activos (Hito 3)
+        if (specificHeightsPermits.length > 0 && dynamicActions.length < 4) {
+            const hp = specificHeightsPermits[0];
+            dynamicActions.push(`Verificar puntos de anclaje certificados e inspección de arneses para labores en alturas activas a ${hp.alturaMetros}m.`);
+        }
+
+        // Rellenar con acciones adaptativas si el sistema está en etapa de levantamiento inicial
+        if (dynamicActions.length < 4) {
+            if (criticalArea !== "SISTEMA GENERAL") {
+                dynamicActions.push(`Revisar y estandarizar los procedimientos de trabajo seguro e inspecciones operativas en el puesto de ${criticalArea}.`);
+            }
+            if (dynamicActions.length < 4) {
+                dynamicActions.push(`Priorizar la eliminación de sobrecargas y adecuación técnica para blindar el Dominio ${topDomain}.`);
+            }
+            if (dynamicActions.length < 4) {
+                dynamicActions.push("Completar el registro de la Huella Biocéntrica y evaluaciones posturales para elevar la precisión predictiva.");
+            }
+            if (dynamicActions.length < 4) {
+                dynamicActions.push("Monitorear la severidad proyectada y los costos ocultos por ausentismo para presentar en el informe a la Gerencia.");
+            }
+        }
+
+        // Limitar exactamente a las 4 mejores acciones prioritarias
+        const finalRecommendedActions = dynamicActions.slice(0, 4);
 
         const summaryText = criticalArea === "SISTEMA GENERAL"
             ? `Modelo Predictivo Avanzado (Random Forest & XGBoost con 94% de confiabilidad). Alerta preventiva concentrada en el Dominio ${topDomain}, con necesidad de intervención transversal en las operaciones.`
-            : `Modelo Predictivo Avanzado (Random Forest & XGBoost con 94% de confiabilidad). Alerta preventiva concentrada en el Dominio ${topDomain}, focalizando la prioridad en el área de ${criticalArea}.`;
+            : `Modelo Predictivo Avanzado (Random Forest & XGBoost con 94% de confiabilidad). Alerta preventiva concentrada en el Dominio ${topDomain}, focalizando la prioridad en el puesto de ${criticalArea}.`;
 
         res.json({
             overallRisk,
@@ -424,12 +542,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 safetyEvidence: `Núcleo H2/H3: ${totalHazardsI_II} peligros críticos, ${totalActsConds} actos/condiciones abiertas y ${totalATEL} eventos ATEL históricos.`,
                 ergonomicEvidence: `Evaluación H3: ${totalOwasHigh} posturas críticas Nivel 3-4 en OWAS (Dominio Osteomuscular).`
             },
-            recommendedActions: [
-                `Implementar controles de ingeniería y rediseño de puestos de trabajo directamente en ${areaLabel} para eliminar la causa raíz del peligro.`,
-                `Estructurar el plan de intervención técnica para proteger el sistema ${topDomain.toLowerCase()} (eliminación de sobrecargas y adecuación ergonómica en origen).`,
-                "Realizar vigilancia médica ocupacional y adaptaciones ergonómicas a los colaboradores con alertas en su perfil de salud (FIT Score).",
-                "Monitorear la severidad proyectada (días de incapacidad y días cargados por secuelas) y cuantificar los costos no asegurados para el informe a la Gerencia."
-            ]
+            recommendedActions: finalRecommendedActions
         });
     } catch (err) {
         logger.error('[Predictivo] Forecast error:', err.message);
