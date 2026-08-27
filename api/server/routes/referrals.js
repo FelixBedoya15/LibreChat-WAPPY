@@ -1555,24 +1555,64 @@ router.post('/proposal/generate', requireJwtAuth, async (req, res) => {
         const genAI = new GoogleGenerativeAI(apiKey);
         const modelInstance = genAI.getGenerativeModel({
             model: 'gemini-3.1-flash-lite',
-            systemInstruction: `Eres el Director Comercial Senior y Consultor Líder en SST de WAPPY IA (wappy.club / wappy-ia.com), la plataforma SaaS líder en Colombia y Latinoamérica para la automatización de la Seguridad y Salud en el Trabajo mediante Inteligencia Artificial.
-Tu misión es generar una PROPUESTA COMERCIAL EJECUTIVA, ALTAMENTE PERSUASIVA, TÉCNICAMENTE IMPECABLE Y TOTALMENTE PERSONALIZADA para la empresa cliente.
+            systemInstruction: `Eres el Director Comercial Senior y Consultor Líder en SST de WAPPY IA (wappy.club / wappy-ia.com), el ecosistema SaaS líder en Colombia para la automatización integral de la Seguridad y Salud en el Trabajo mediante Inteligencia Artificial y Agentes Autónomos.
 
-La propuesta debe reflejar estricto cumplimiento normativo en Colombia (Decreto 1072 de 2015, Resolución 0312 de 2019, Ley 1562 de 2012, Resolución 20223040040595 para PESV y Sistema Globalmente Armonizado SGA).
+Tu misión es generar una PROPUESTA COMERCIAL EJECUTIVA, DE ALTO VALOR, TÉCNICAMENTE IMPECABLE Y 100% PERSONALIZADA según el Sector Económico y, DE MANERA PRIMORDIAL Y OBLIGATORIA, según las "Observaciones Específicas / Necesidades" ingresadas por el asesor.
+
+═══════════════════════════════════════════════════════════════
+CATÁLOGO DE CAPACIDADES REALES Y AGENTES DE WAPPY IA (USA SOLO ESTOS):
+═══════════════════════════════════════════════════════════════
+1. MATRIZ IPEVAR LIVE & GTC 45: Identificación de Peligros, Evaluación y Valoración de Riesgos con IA en tiempo real, cálculo de niveles de deficiencia y exposición, controles jerárquicos y exportación a Excel con fórmulas.
+2. MÓDULO DE TERMÓMETRO PSICOSOCIAL & BATERÍA DE RIESGO PSICOSOCIAL (Res. 2764 de 2022 / MinTrabajo): Diagnóstico de factores intralaborales, extralaborales, estrés y protocolos de intervención preventiva psicosocial.
+3. GESTIÓN Y CLASIFICACIÓN DE RIESGO BIOLÓGICO: Protocolos de bioseguridad para clínicas, sector salud, laboratorios e industrias, clasificación de agentes biológicos (virus, bacterias, hongos, parásitos), matrices de EPP y planes de contingencia.
+4. COORDINADOR PESV (Res. 20223040040595): Plan Estratégico de Seguridad Vial en sus niveles Básico, Estándar y Avanzado, 24 pasos metodológicos, diagnósticos de flota y conductores.
+5. INGENIERO QUÍMICO SST & MATRIZ DE COMPATIBILIDAD QUÍMICA SGA (Decreto 1496 de 2018): Clasificación ONU (Clases 1 a 9), matriz de compatibilidad de almacenamiento, hojas de datos de seguridad (FDS/MSDS) y rotulado SGA.
+6. AUDITOR SG-SST & ESTÁNDARES MÍNIMOS (Res. 0312 de 2019): Autoevaluación de 7, 21 o 60 estándares, planes de mejoramiento continuo inmediatos y simulacros de auditoría con trazabilidad ante MinTrabajo y ARL.
+7. INVESTIGACIÓN DE ACCIDENTES E INCIDENTES ATEL (Res. 1401 de 2007): Metodologías de árbol de causas, espina de pescado (Ishikawa), 5 Porqués y formatos FURAT / FUREP.
+8. GENERADOR DE FORMATOS Y DOCUMENTOS LEGALES SST: Creación en 1 clic de Reglamentos Internos de Trabajo (RIT), Actas COPASST, Comités de Convivencia (CCL), Análisis de Trabajo Seguro (ATS), Permisos de Trabajo en Alturas (Res. 4272/2021) y Espacios Confinados (Res. 0491/2020).
+9. ANÁLISIS EN VIVO POR VIDEO Y FOTOS CON IA: Detección visual en tiempo real de actos inseguros, falta de EPP, orden y aseo (5S) y riesgo eléctrico mediante la cámara del celular/PC.
+10. AULA DE ESTUDIO LMS SST: Capacitación interactiva para trabajadores, rutas de aprendizaje temáticas, quizzes automáticos y emisión de certificados oficiales.
+11. GESTOR DE AUTOMATIZACIONES Y ALERTAS PERIÓDICAS: Agentes programados que envían resúmenes periódicos de accidentalidad, alertas de vencimiento de licencias y seguimientos automáticos por correo y WhatsApp.
+
+═══════════════════════════════════════════════════════════════
+REGLAS ESTRICTAS DE GENERACIÓN Y ADAPTABILIDAD:
+═══════════════════════════════════════════════════════════════
+- PUNTO 2 ("includedModules"):
+  * DEBE contener exactamente entre 3 y 4 módulos seleccionados PRIORIZANDO DIRECTAMENTE las "Observaciones Específicas / Necesidades" y el Sector Económico del cliente.
+  * Si las observaciones dicen "riesgo biologico y psicosocial", los módulos principales DEBEN ser el "Agente de Riesgo Biológico y Protocolos de Bioseguridad" y el "Termómetro Psicosocial & Batería de Riesgo (Res. 2764 de 2022)", complementados con la Matriz IPEVAR y el Generador de Formatos/Capacitaciones. NO incluyas PESV a menos que se trate de transporte o se mencione seguridad vial.
+  * Cada módulo debe describir funcionalidades REALES de WAPPY IA y explicar el beneficio operativo y normativo concreto para la empresa.
+
+- PUNTO 3 ("planCustomFeatures"):
+  * DEBES generar un objeto "planCustomFeatures" con las características adaptadas para cada uno de los planes cotizados (claves: "anual", "semestral", "trimestral", "mensual", "vital").
+  * Cada lista debe contener entre 5 y 6 viñetas redactadas específicamente para demostrar CÓMO ese plan cubre las observaciones y necesidades del cliente utilizando las herramientas reales de WAPPY IA.
 
 Devuelve EXCLUSIVAMENTE un JSON válido con esta estructura exacta:
 {
   "title": "Propuesta Comercial: Transformación y Automatización del SG-SST con Inteligencia Artificial",
   "proposalCode": "WAP-PROP-2026-XXXX",
-  "executiveSummary": "Párrafo ejecutivo de alto impacto explicando cómo WAPPY IA revolucionará la gestión SST de la empresa, ahorrando tiempo y garantizando cumplimiento total.",
-  "sectorDiagnosis": "Análisis específico para el sector de la empresa, identificando sus desafíos críticos de SST y riesgos principales.",
+  "executiveSummary": "Párrafo ejecutivo de alto impacto enfocado en resolver las necesidades puntuales del cliente.",
+  "sectorDiagnosis": "Diagnóstico enfocado en el sector del cliente y sus riesgos específicos.",
   "includedModules": [
     {
-      "title": "Nombre del Módulo o Agente Especializado (ej: Matriz IPEVAR Live, Coordinador PESV, Ingeniero Químico SGA, Auditor SST)",
-      "description": "Descripción clara del alcance y funcionalidad técnica.",
-      "benefits": "Beneficio directo y ahorro operativo para la empresa."
+      "title": "Nombre del Módulo o Agente Real de WAPPY IA",
+      "description": "Descripción técnica clara y aterrizada a las necesidades del cliente.",
+      "benefits": "Beneficio tangible (ahorro de tiempo, cumplimiento legal, reducción de sanciones)."
     }
   ],
+  "planCustomFeatures": {
+    "anual": [
+      "Viñeta 1 adaptada a las necesidades",
+      "Viñeta 2 adaptada",
+      "Viñeta 3",
+      "Viñeta 4",
+      "Viñeta 5",
+      "Viñeta 6"
+    ],
+    "semestral": [ "..." ],
+    "trimestral": [ "..." ],
+    "mensual": [ "..." ],
+    "vital": [ "..." ]
+  },
   "roiAnalysis": {
     "timeSavedHoursPerMonth": "45-60 horas/mes",
     "estimatedSavingsCop": "$2.800.000 COP / mes en consultoría y horas operativas",
@@ -1583,9 +1623,9 @@ Devuelve EXCLUSIVAMENTE un JSON válido con esta estructura exacta:
     ]
   },
   "implementationTimeline": [
-    { "phase": "Fase 1: Configuración & Acceso", "time": "Día 1", "description": "Creación de cuentas, perfil de empresa y diagnóstico inicial." },
-    { "phase": "Fase 2: Adopción & Matrices", "time": "Semana 1", "description": "Generación y sincronización de IPEVAR, PESV y formatos corporativos." },
-    { "phase": "Fase 3: Auditorías & Autonomía", "time": "Semana 2 en adelante", "description": "Acompañamiento continuo y simulacros de auditoría con IA." }
+    { "phase": "Fase 1: Configuración & Diagnóstico Inicial", "time": "Día 1", "description": "Creación de cuentas, perfil de empresa y diagnóstico de riesgos." },
+    { "phase": "Fase 2: Implementación & Matrices Prioritarias", "time": "Semana 1", "description": "Generación y sincronización de matrices y protocolos requeridos." },
+    { "phase": "Fase 3: Auditoría & Automatización Continua", "time": "Semana 2 en adelante", "description": "Simulacros de auditoría con IA y seguimiento permanente." }
   ],
   "termsAndConditions": [
     "Vigencia de la propuesta: 15 días calendario a partir de la fecha de emisión.",
@@ -1599,17 +1639,21 @@ Solo entrega el JSON parseable sin explicaciones adicionales.`,
         });
 
         const promptText = `
-Datos de la Empresa Cliente:
-- Razón Social: ${companyName}
+═══════════════════════════════════════════════════════════════
+DATOS DEL CLIENTE Y REQUERIMIENTOS ESPECÍFICOS:
+═══════════════════════════════════════════════════════════════
+- Razón Social de la Empresa: ${companyName}
 - NIT: ${companyNit || 'En trámite / No especificado'}
 - Sector Económico: ${sector}
-- Tamaño / Trabajadores: ${employeeCount}
-- Alcance Solicitado: ${proposalScope}
-- Planes de Interés: ${selectedPlans.join(', ')}
-- Descuento Especial: ${customDiscount}%
-- Observaciones Adicionales: ${customObservations || 'Ninguna'}
-- Asesor Comercial Wappy: ${ambassadorName || req.user.name || 'Asesor WAPPY'}
+- Tamaño / Número de Trabajadores: ${employeeCount}
+- Alcance General Solicitado: ${proposalScope}
+- Planes a Cotizar en la Propuesta: ${selectedPlans.join(', ')}
+- Descuento Comercial Aplicado: ${customDiscount}% OFF
+- ⭐ OBSERVACIONES ESPECÍFICAS / NECESIDADES DEL CLIENTE: ${customObservations || 'Automatización integral del SG-SST según estándares mínimos y normatividad vigente'}
+- Asesor Comercial Wappy Asignado: ${ambassadorName || req.user.name || 'Asesor WAPPY'}
 - Link de Activación: ${referralLink || 'https://wappy.club'}
+
+RECUERDA: Adapta el Punto 2 (includedModules) y el Punto 3 (planCustomFeatures) basándote estrictamente en las OBSERVACIONES ESPECÍFICAS y en las herramientas reales de WAPPY IA.
 `;
 
         const result = await modelInstance.generateContent({
@@ -1622,7 +1666,6 @@ Datos de la Empresa Cliente:
         const responseText = result.response.text();
         const parsedData = JSON.parse(responseText);
 
-        // Calculate investment table with prices
         // Calculate investment table with official platform prices
         const PRICING_CATALOG = {
             anual: {
@@ -1694,6 +1737,8 @@ Datos de la Empresa Cliente:
         };
 
         const discount = Math.min(20, Math.max(0, Number(customDiscount) || 0));
+        const customFeaturesMap = parsedData.planCustomFeatures || {};
+
         const investmentPlans = (selectedPlans.length > 0 ? selectedPlans : ['anual']).map(pKey => {
             const p = PRICING_CATALOG[pKey] || PRICING_CATALOG.anual;
             const finalPrice = discount > 0 ? Math.round(p.regularPrice * (1 - (discount / 100))) : p.regularPrice;
@@ -1706,6 +1751,12 @@ Datos de la Empresa Cliente:
                         : pKey === 'vital' 
                             ? 0 
                             : finalPrice;
+            
+            // Use AI-tailored features if provided for this plan, otherwise fallback to catalog
+            const tailoredFeatures = Array.isArray(customFeaturesMap[pKey]) && customFeaturesMap[pKey].length > 0
+                ? customFeaturesMap[pKey]
+                : p.features;
+
             return {
                 key: pKey,
                 planName: p.name,
@@ -1714,7 +1765,7 @@ Datos de la Empresa Cliente:
                 discountPercentage: discount,
                 finalPrice: finalPrice,
                 pricePerMonth: finalPerMonth,
-                features: p.features,
+                features: tailoredFeatures,
                 isRecommended: p.isRecommended,
                 paymentUrl: referralLink || 'https://wappy.club/planes'
             };
