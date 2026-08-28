@@ -666,18 +666,24 @@ router.get('/dashboard', async (req, res) => {
         const usersMap = new Map(users.map(u => [String(u._id), u]));
         const plansMap = new Map(userPlans.map(p => [String(p.userId), p]));
 
-        // Calculate referred users metrics & traffic lights
+        // Calculate referred users metrics & traffic lights (filtering orphaned records without user)
         let activeProCount = 0;
         let expiringSoonCount = 0;
         let missingPhoneCount = 0;
         let inactiveCount = 0;
 
-        const referredUsersList = allReferrals.map(rec => {
-            const u = usersMap.get(String(rec.referredUserId)) || {};
-            const plan = plansMap.get(String(rec.referredUserId));
+        const validReferrals = allReferrals.filter(rec => {
+            const hasUser = rec.referredUserId && usersMap.has(String(rec.referredUserId));
+            const hasLeadData = Boolean(rec.leadEmail || rec.leadName || rec.metadata?.clientEmail);
+            return hasUser || hasLeadData;
+        });
+
+        const referredUsersList = validReferrals.map(rec => {
+            const u = (rec.referredUserId && usersMap.get(String(rec.referredUserId))) || {};
+            const plan = rec.referredUserId ? plansMap.get(String(rec.referredUserId)) : null;
             const partnerDoc = rec.referredByPartner ? partnersMap.get(String(rec.referredByPartner)) : null;
 
-            const regDate = rec.createdAt || u.createdAt || now;
+            const regDate = u.createdAt || rec.createdAt || now;
             const lastActivity = u.updatedAt || regDate;
             const daysInactive = Math.max(0, Math.floor((now.getTime() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24)));
 

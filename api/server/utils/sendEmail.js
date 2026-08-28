@@ -148,8 +148,8 @@ const sendEmail = async ({ email, subject, payload, template, from, throwError =
       // If explicit STARTTLS is set, require it when connecting
       requireTls: process.env.EMAIL_ENCRYPTION === 'starttls',
       tls: {
-        // Whether to accept unsigned certificates
-        rejectUnauthorized: !isEnabled(process.env.EMAIL_ALLOW_SELFSIGNED),
+        // Allow connections even if the SMTP host's TLS certificate is self-signed or has expired
+        rejectUnauthorized: isEnabled(process.env.EMAIL_REJECT_UNAUTHORIZED),
       },
       auth: {
         user: smtpUser,

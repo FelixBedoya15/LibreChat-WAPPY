@@ -51,8 +51,12 @@ async function cleanExistingMeetLinks() {
   }
 }
 
-// Run cleanup immediately on load
-cleanExistingMeetLinks();
+// Run cleanup once mongoose connection is established
+if (mongoose.connection.readyState === 1) {
+  cleanExistingMeetLinks();
+} else {
+  mongoose.connection.once('open', cleanExistingMeetLinks);
+}
 
 function getGoogleCalendarLink(event) {
   const startDate = new Date(event.dateTime);

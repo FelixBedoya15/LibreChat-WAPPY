@@ -1140,10 +1140,18 @@ export default function CommercialProposalGenerator({
                   </button>
 
                   <button
-                    onClick={() => setIsEditable(!isEditable)}
+                    onClick={() => {
+                      const next = !isEditable;
+                      setIsEditable(next);
+                      if (!next) {
+                        showToast({ message: 'Cambios de texto guardados en la propuesta', status: 'success' });
+                      } else {
+                        showToast({ message: 'Modo edición activado: Haz clic sobre cualquier texto para modificarlo', status: 'info' });
+                      }
+                    }}
                     className={`group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-9 sm:px-3 sm:min-w-[36px] transition-all duration-300 shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:scale-105 active:scale-95 ${
                       isEditable
-                        ? 'bg-teal-600 text-white border-teal-600 shadow-md shadow-teal-500/20'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-500/20'
                         : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover hover:text-text-primary'
                     }`}
                     title={isEditable ? 'Guardar Cambios' : 'Editar Texto de la Propuesta'}
@@ -1171,11 +1179,13 @@ export default function CommercialProposalGenerator({
 
                   <button
                     onClick={handleShareWhatsApp}
-                    className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-9 sm:px-3 sm:min-w-[36px] transition-all duration-300 shadow-md shadow-emerald-500/10 hover:shadow-emerald-500/20 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white sm:hover:scale-105 active:scale-95"
+                    className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-9 sm:px-3 sm:min-w-[36px] transition-all duration-300 shadow-md shadow-emerald-500/15 hover:shadow-emerald-500/30 shrink-0 cursor-pointer border border-transparent outline-none rounded-xl bg-[#25D366] hover:bg-[#1EBE5D] text-white sm:hover:scale-105 active:scale-95"
                     title="Compartir por WhatsApp"
                   >
                     <div className="relative flex-shrink-0 flex items-center justify-center">
-                      <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+                      </svg>
                     </div>
                     <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
                       <span className="text-xs font-bold tracking-wide">WhatsApp</span>
@@ -1183,6 +1193,30 @@ export default function CommercialProposalGenerator({
                   </button>
                 </div>
               </div>
+
+              {/* Edit Mode Alert Banner */}
+              {isEditable && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-2xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-amber-200/80 flex items-center justify-center text-amber-800 shrink-0 font-bold">
+                      ✏️
+                    </div>
+                    <div>
+                      <div className="font-extrabold text-amber-950">Modo de Edición en Vivo Activado</div>
+                      <div className="text-amber-800 text-[11px]">Haz clic directamente sobre cualquier título, diagnóstico, módulo o texto de la propuesta para editarlo libremente antes de exportar.</div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setIsEditable(false);
+                      showToast({ message: 'Cambios guardados con éxito en la propuesta', status: 'success' });
+                    }}
+                    className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl text-xs shadow-sm transition-all cursor-pointer shrink-0 text-center"
+                  >
+                    ✓ Guardar Cambios
+                  </button>
+                </div>
+              )}
 
               {/* Printable Document Container */}
               <div 
@@ -1224,7 +1258,13 @@ export default function CommercialProposalGenerator({
                 <div className="bg-gradient-to-r from-teal-50 to-gray-50 border border-teal-100 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <span className="text-[10px] font-bold text-teal-700 uppercase tracking-wider block">Propuesta Preparada Exclusivamente Para:</span>
-                    <h1 className="text-lg sm:text-xl font-black text-gray-900 mt-0.5">{proposal.companyName}</h1>
+                    <h1 
+                      contentEditable={isEditable}
+                      suppressContentEditableWarning
+                      className={`text-lg sm:text-xl font-black text-gray-900 mt-0.5 ${isEditable ? 'outline-dashed outline-1 outline-teal-500 bg-teal-50/50 rounded px-1' : ''}`}
+                    >
+                      {proposal.companyName}
+                    </h1>
                     <div className="text-xs text-gray-600 font-medium mt-0.5">
                       {proposal.companyNit && <span>NIT: {proposal.companyNit} • </span>}
                       {clientEmail && <span>Correo: {clientEmail} • </span>}
@@ -1248,7 +1288,11 @@ export default function CommercialProposalGenerator({
 
                 {/* Title */}
                 <div>
-                  <h2 className="text-lg font-black text-gray-900 leading-snug">
+                  <h2 
+                    contentEditable={isEditable}
+                    suppressContentEditableWarning
+                    className={`text-lg font-black text-gray-900 leading-snug ${isEditable ? 'outline-dashed outline-1 outline-teal-500 bg-teal-50/50 rounded p-1' : ''}`}
+                  >
                     {proposal.title}
                   </h2>
                 </div>
@@ -1262,7 +1306,7 @@ export default function CommercialProposalGenerator({
                   <div 
                     contentEditable={isEditable}
                     suppressContentEditableWarning
-                    className="text-xs text-gray-700 leading-relaxed space-y-2 bg-gray-50/70 p-4 rounded-xl border border-gray-100"
+                    className={`text-xs text-gray-700 leading-relaxed space-y-2 bg-gray-50/70 p-4 rounded-xl border border-gray-100 ${isEditable ? 'outline-dashed outline-1 outline-teal-500 bg-teal-50/40 cursor-text' : ''}`}
                   >
                     <p className="font-medium text-gray-900">{proposal.executiveSummary}</p>
                     <p className="text-gray-600"><strong>Diagnóstico para el sector {proposal.sector}:</strong> {proposal.sectorDiagnosis}</p>
@@ -1277,16 +1321,20 @@ export default function CommercialProposalGenerator({
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {proposal.includedModules.map((mod, idx) => (
-                      <div key={idx} className="border border-gray-200 rounded-xl p-3.5 bg-white shadow-xs space-y-1.5">
+                      <div key={idx} className={`border border-gray-200 rounded-xl p-3.5 bg-white shadow-xs space-y-1.5 ${isEditable ? 'outline-dashed outline-1 outline-teal-400 bg-teal-50/20' : ''}`}>
                         <div className="font-extrabold text-xs text-gray-900 flex items-center gap-1.5">
                           <span className="w-5 h-5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-black flex items-center justify-center shrink-0">
                             {idx + 1}
                           </span>
-                          <span>{mod.title}</span>
+                          <span contentEditable={isEditable} suppressContentEditableWarning className={isEditable ? 'cursor-text hover:bg-white rounded px-1' : ''}>
+                            {mod.title}
+                          </span>
                         </div>
-                        <p className="text-[11px] text-gray-600 leading-relaxed">{mod.description}</p>
+                        <p contentEditable={isEditable} suppressContentEditableWarning className={`text-[11px] text-gray-600 leading-relaxed ${isEditable ? 'cursor-text hover:bg-white rounded p-1' : ''}`}>
+                          {mod.description}
+                        </p>
                         <div className="text-[10px] font-bold text-teal-700 bg-teal-50/80 px-2 py-0.5 rounded inline-block">
-                          ✓ {mod.benefits}
+                          ✓ <span contentEditable={isEditable} suppressContentEditableWarning className={isEditable ? 'cursor-text' : ''}>{mod.benefits}</span>
                         </div>
                       </div>
                     ))}
@@ -1349,7 +1397,9 @@ export default function CommercialProposalGenerator({
                             {plan.features.map((feat, fIdx) => (
                               <li key={fIdx} className="flex items-start gap-1.5">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 shrink-0 mt-0.5" />
-                                <span>{feat}</span>
+                                <span contentEditable={isEditable} suppressContentEditableWarning className={isEditable ? 'cursor-text hover:bg-white rounded px-1' : ''}>
+                                  {feat}
+                                </span>
                               </li>
                             ))}
                           </ul>
@@ -1377,14 +1427,24 @@ export default function CommercialProposalGenerator({
                   <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
                       <div className="text-[10px] font-bold text-emerald-800 uppercase">Ahorro de Tiempo Estimado</div>
-                      <div className="text-base font-black text-emerald-950">{proposal.roiAnalysis.timeSavedHoursPerMonth}</div>
-                      <div className="text-xs text-emerald-700 mt-0.5">Ahorro financiero directo: <strong>{proposal.roiAnalysis.estimatedSavingsCop}</strong></div>
+                      <div 
+                        contentEditable={isEditable}
+                        suppressContentEditableWarning
+                        className={`text-base font-black text-emerald-950 ${isEditable ? 'outline-dashed outline-1 outline-emerald-400 bg-white/70 rounded px-1 cursor-text' : ''}`}
+                      >
+                        {proposal.roiAnalysis.timeSavedHoursPerMonth}
+                      </div>
+                      <div className="text-xs text-emerald-700 mt-0.5">
+                        Ahorro financiero directo: <strong contentEditable={isEditable} suppressContentEditableWarning className={isEditable ? 'outline-dashed outline-1 outline-emerald-400 bg-white/70 rounded px-1 cursor-text' : ''}>{proposal.roiAnalysis.estimatedSavingsCop}</strong>
+                      </div>
                     </div>
                     <ul className="text-xs text-gray-700 space-y-1">
                       {proposal.roiAnalysis.qualitativeBenefits.map((b, bIdx) => (
                         <li key={bIdx} className="flex items-center gap-1.5">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span>{b}</span>
+                          <span contentEditable={isEditable} suppressContentEditableWarning className={isEditable ? 'cursor-text hover:bg-white/70 rounded px-1' : ''}>
+                            {b}
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -1399,10 +1459,16 @@ export default function CommercialProposalGenerator({
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
                     {proposal.implementationTimeline.map((item, tIdx) => (
-                      <div key={tIdx} className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-1">
-                        <div className="text-[10px] font-black text-teal-700 uppercase">{item.time}</div>
-                        <div className="font-bold text-gray-900">{item.phase}</div>
-                        <div className="text-[11px] text-gray-600">{item.description}</div>
+                      <div key={tIdx} className={`bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-1 ${isEditable ? 'outline-dashed outline-1 outline-teal-400 bg-teal-50/20' : ''}`}>
+                        <div contentEditable={isEditable} suppressContentEditableWarning className={`text-[10px] font-black text-teal-700 uppercase ${isEditable ? 'cursor-text' : ''}`}>
+                          {item.time}
+                        </div>
+                        <div contentEditable={isEditable} suppressContentEditableWarning className={`font-bold text-gray-900 ${isEditable ? 'cursor-text' : ''}`}>
+                          {item.phase}
+                        </div>
+                        <div contentEditable={isEditable} suppressContentEditableWarning className={`text-[11px] text-gray-600 ${isEditable ? 'cursor-text' : ''}`}>
+                          {item.description}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1414,12 +1480,20 @@ export default function CommercialProposalGenerator({
                     <h4 className="text-[10px] font-black uppercase text-gray-500 tracking-wider mb-1.5">Términos y Condiciones Comerciales:</h4>
                     <ul className="text-[10px] text-gray-600 space-y-1 list-disc list-inside">
                       {proposal.termsAndConditions.map((tc, tcIdx) => (
-                        <li key={tcIdx}>{tc}</li>
+                        <li key={tcIdx}>
+                          <span contentEditable={isEditable} suppressContentEditableWarning className={isEditable ? 'cursor-text hover:bg-teal-50 rounded px-1' : ''}>
+                            {tc}
+                          </span>
+                        </li>
                       ))}
                     </ul>
                   </div>
 
-                  <div className="text-xs text-gray-700 font-medium italic bg-teal-50/50 p-3 rounded-lg border border-teal-100">
+                  <div 
+                    contentEditable={isEditable}
+                    suppressContentEditableWarning
+                    className={`text-xs text-gray-700 font-medium italic bg-teal-50/50 p-3 rounded-lg border border-teal-100 ${isEditable ? 'outline-dashed outline-1 outline-teal-500 bg-teal-50/80 cursor-text' : ''}`}
+                  >
                     "{proposal.closingMessage}"
                   </div>
 

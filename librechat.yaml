@@ -524,7 +524,7 @@ webSearch:
   searxngInstanceUrl: "${SEARXNG_INSTANCE_URL}"
   rerankerType: "jina"
   jinaApiUrl: "${RERANKER_API_URL}"
-  jinaApiKey: "local-dummy-key"
+  jinaApiKey: "${JINA_API_KEY}"
 
 
 # Memory configuration for user memories
