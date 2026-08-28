@@ -936,9 +936,9 @@ export default function CommercialProposalGenerator({
                   ))}
                 </div>
                 <div className="text-[10px] text-text-tertiary flex items-center justify-between">
-                  <span>$350.000 COP/año ($29.167/mes) por empresa • Tarifa fija neta</span>
+                  <span>$350.000 COP/año base por empresa • Proporcional por período</span>
                   {additionalCompanies > 0 && (
-                    <span className="font-bold text-teal-600">+$350.000/año c/u</span>
+                    <span className="font-bold text-teal-600">+{additionalCompanies} empresa{additionalCompanies > 1 ? 's' : ''}</span>
                   )}
                 </div>
               </div>
@@ -966,7 +966,7 @@ export default function CommercialProposalGenerator({
                           : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover hover:text-text-primary'
                       }`}
                     >
-                      {count === 0 ? '0 (1 Inc.)' : `+${count}`}
+                      {count === 0 ? '0' : `+${count}`}
                     </button>
                   ))}
                 </div>
