@@ -6,17 +6,43 @@ const Automation = require('~/models/Automation');
 const AutomationLog = require('~/models/AutomationLog');
 const { runAutomation, calculateNextRun } = require('~/server/services/automationScheduler');
 
-const { requireAdmin } = require('../../middleware/roles/admin');
-
+const UserPlan = require('~/db/models/UserPlan');
 
 router.use(requireJwtAuth);
-router.use(requireAdmin);
 
 // Auxiliar para obtener el ID de la empresa activa del usuario
 async function getActiveCompanyId(userId) {
   let active = await CompanyInfo.findOne({ user: userId, isActive: true });
   if (!active) active = await CompanyInfo.findOne({ user: userId });
   return active ? active._id.toString() : null;
+}
+
+// Auxiliar para obtener el límite efectivo de automatizaciones del usuario
+async function getEffectiveAutomationLimit(userId, userRole) {
+  if (!userId) return { limit: 0, plan: 'free' };
+  const userPlanDoc = await UserPlan.findOne({ userId }).lean();
+  let plan = userPlanDoc?.plan;
+  if (!plan || plan === 'free') {
+    if (userRole === 'ADMIN') plan = 'admin';
+    else if (userRole === 'USER_PRO') plan = 'pro';
+    else if (userRole === 'USER_PLUS') plan = 'plus';
+    else if (userRole === 'USER_GO') plan = 'go';
+    else if (userRole === 'USER_CUSTOM') plan = 'custom';
+    else if (userRole === 'USER_IPEVAR') plan = 'ipevar';
+    else plan = 'free';
+  }
+
+  if (userPlanDoc?.automationLimit !== undefined && userPlanDoc?.automationLimit !== null) {
+    return { limit: userPlanDoc.automationLimit, plan };
+  }
+
+  if (['admin', 'custom'].includes(plan)) {
+    return { limit: 999, plan };
+  }
+  if (plan === 'pro') {
+    return { limit: 1, plan };
+  }
+  return { limit: 0, plan };
 }
 
 /**
@@ -55,6 +81,20 @@ router.post('/', async (req, res) => {
 
     if (!name || !agentId || !prompt) {
       return res.status(400).json({ error: 'Faltan campos obligatorios: name, agentId y prompt son necesarios.' });
+    }
+
+    const { limit: effectiveLimit, plan: userPlanName } = await getEffectiveAutomationLimit(req.user.id, req.user.role);
+    if (effectiveLimit <= 0) {
+      return res.status(403).json({
+        error: 'Las automatizaciones de tareas periódicas son exclusivas del Plan Wappy Pro. Actualiza tu suscripción para habilitar tareas autónomas.'
+      });
+    }
+
+    const activeCount = await Automation.countDocuments({ user: req.user.id, status: 'active' });
+    if (activeCount >= effectiveLimit) {
+      return res.status(400).json({
+        error: `Límite de ${effectiveLimit} automatización(es) activa(s) alcanzado para tu plan actual (${userPlanName === 'pro' ? 'Wappy Pro' : userPlanName}). Para activar más tareas, puedes adquirir un paquete de 5 automatizaciones adicionales por solo $25.000 COP/mes.`
+      });
     }
 
     const companyId = await getActiveCompanyId(req.user.id);
@@ -112,6 +152,15 @@ router.put('/:id', async (req, res) => {
     
     // Si cambia el estado, o cambia la configuración del schedule, recalculamos nextRunAt
     if (status !== undefined) {
+      if (status === 'active' && automation.status === 'inactive') {
+        const { limit: effectiveLimit, plan: userPlanName } = await getEffectiveAutomationLimit(req.user.id, req.user.role);
+        const activeCount = await Automation.countDocuments({ user: req.user.id, status: 'active' });
+        if (activeCount >= effectiveLimit) {
+          return res.status(400).json({
+            error: `No se puede activar: Límite de ${effectiveLimit} automatización(es) activa(s) alcanzado para tu plan actual (${userPlanName === 'pro' ? 'Wappy Pro' : userPlanName}). Adquiere 5 adicionales por $25.000 COP/mes.`
+          });
+        }
+      }
       automation.status = status;
     }
 

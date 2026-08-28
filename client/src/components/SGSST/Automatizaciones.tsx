@@ -93,6 +93,25 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const [logsLoading, setLogsLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
+  // Plan & Limit State
+  const [automationLimit, setAutomationLimit] = useState<number>(0);
+  const [userPlanName, setUserPlanName] = useState<string>('free');
+  const [upgradeAlert, setUpgradeAlert] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    actionText: string;
+    actionUrl: string;
+    badge: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    actionText: '',
+    actionUrl: '',
+    badge: ''
+  });
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAutomation, setEditingAutomation] = useState<Automation | null>(null);
@@ -168,9 +187,37 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     }
   }, [showToast]);
 
+  // Fetch user plan and automation limits
+  const loadPlanLimit = useCallback(async () => {
+    try {
+      const res = await axios.get('/api/wompi/plan');
+      if (res.data) {
+        if (typeof res.data.automationLimit === 'number') {
+          setAutomationLimit(res.data.automationLimit);
+        }
+        if (res.data.plan) {
+          setUserPlanName(res.data.plan);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading plan limit:', err);
+    }
+  }, []);
+
+  const effectiveLimit = useMemo(() => {
+    if (['admin', 'custom'].includes(userPlanName)) return 999;
+    if (userPlanName === 'pro') return automationLimit > 0 ? automationLimit : 1;
+    return automationLimit;
+  }, [userPlanName, automationLimit]);
+
+  const activeAutomationsCount = useMemo(() => {
+    return automations.filter(a => a.status === 'active').length;
+  }, [automations]);
+
   useEffect(() => {
     fetchAutomations();
-  }, [fetchAutomations]);
+    loadPlanLimit();
+  }, [fetchAutomations, loadPlanLimit]);
 
   useEffect(() => {
     if (activeTab === 'logs') {
@@ -245,6 +292,30 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
 
   // Handle open modal for create
   const handleCreateOpen = () => {
+    if (effectiveLimit <= 0) {
+      setUpgradeAlert({
+        isOpen: true,
+        title: 'Función Exclusiva Plan Pro',
+        message: 'Las tareas periódicas e informes autónomos de agentes son una función exclusiva del Plan Wappy Pro. Adquiere el plan Wappy Pro para activar automatizaciones 24/7 para tu empresa.',
+        actionText: 'Ver Planes y Adquirir Wappy Pro',
+        actionUrl: '/planes',
+        badge: 'Exclusivo Plan Pro'
+      });
+      return;
+    }
+
+    if (activeAutomationsCount >= effectiveLimit) {
+      setUpgradeAlert({
+        isOpen: true,
+        title: 'Límite de Automatizaciones Alcanzado',
+        message: `Has alcanzado el límite de ${effectiveLimit} automatización(es) activa(s) de tu plan Wappy Pro. Puedes adquirir un paquete de 5 automatizaciones adicionales por solo $25.000 COP/mes para ampliar la capacidad de tu empresa.`,
+        actionText: 'Adquirir 5 Automatizaciones ($25.000 COP)',
+        actionUrl: `https://wa.me/573102913651?text=${encodeURIComponent('Hola, tengo el Plan Wappy Pro y deseo adquirir el paquete de 5 automatizaciones adicionales por $25.000 COP/mes en mi cuenta.')}`,
+        badge: 'Paquete Adicional (+5)'
+      });
+      return;
+    }
+
     setEditingAutomation(null);
     setFormName('');
     setFormAgentId(agents[0]?.id || '');
@@ -378,6 +449,32 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   // Toggle status (active/inactive)
   const handleToggleStatus = async (automation: Automation) => {
     const newStatus = automation.status === 'active' ? 'inactive' : 'active';
+    
+    if (newStatus === 'active') {
+      if (effectiveLimit <= 0) {
+        setUpgradeAlert({
+          isOpen: true,
+          title: 'Función Exclusiva Plan Pro',
+          message: 'Las tareas periódicas autónomas son exclusivas del Plan Wappy Pro. Adquiere Wappy Pro para activar esta tarea.',
+          actionText: 'Ver Planes y Adquirir Wappy Pro',
+          actionUrl: '/planes',
+          badge: 'Exclusivo Plan Pro'
+        });
+        return;
+      }
+      if (activeAutomationsCount >= effectiveLimit) {
+        setUpgradeAlert({
+          isOpen: true,
+          title: 'Límite de Automatizaciones Alcanzado',
+          message: `No se puede activar: Ya tienes ${activeAutomationsCount} de ${effectiveLimit} automatización(es) activa(s). Puedes adquirir un paquete de 5 automatizaciones adicionales por solo $25.000 COP/mes.`,
+          actionText: 'Adquirir 5 Automatizaciones ($25.000 COP)',
+          actionUrl: `https://wa.me/573102913651?text=${encodeURIComponent('Hola, tengo el Plan Wappy Pro y deseo adquirir el paquete de 5 automatizaciones adicionales por $25.000 COP/mes en mi cuenta.')}`,
+          badge: 'Paquete Adicional (+5)'
+        });
+        return;
+      }
+    }
+
     try {
       await axios.put(`/api/sgsst/automatizaciones/${automation._id}`, { status: newStatus });
       showToast({
@@ -385,9 +482,9 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
         status: 'success'
       });
       fetchAutomations();
-    } catch (err) {
+    } catch (err: any) {
       showToast({
-        message: 'Error al cambiar el estado de la automatización.',
+        message: err.response?.data?.error || 'Error al cambiar el estado de la automatización.',
         status: 'error'
       });
     }
@@ -1360,6 +1457,69 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               >
                 Cerrar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upgrade Alert / Lock Modal */}
+      {upgradeAlert.isOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
+            {/* Close button at top-right outside the card */}
+            <button 
+              onClick={() => setUpgradeAlert(prev => ({ ...prev, isOpen: false }))} 
+              className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm z-50 transition-colors cursor-pointer"
+            >
+              Cerrar ✕
+            </button>
+            
+            {/* Card container styled like WAPPY UpgradeWall */}
+            <div className="relative flex flex-col items-center justify-center text-center overflow-hidden bg-white dark:bg-gray-950 border border-border-medium rounded-3xl shadow-2xl p-8 w-full group">
+              {/* Ambient Background Glows */}
+              <div className="absolute top-0 right-0 -mr-16 -mt-16 bg-purple-500/10 rounded-full blur-3xl pointer-events-none w-40 h-40" />
+              <div className="absolute bottom-0 left-0 -ml-16 -mb-16 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none w-40 h-40" />
+
+              {/* Center Lock Illustration */}
+              <div className="relative z-10 mb-4">
+                <div className="relative flex items-center justify-center rounded-full bg-gradient-to-tr from-purple-50 to-indigo-50 dark:from-purple-900/30 dark:to-indigo-900/30 shadow-inner border border-purple-500/20 w-16 h-16">
+                  <svg className="w-7 h-7 text-purple-600 dark:text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    <circle cx="12" cy="16" r="1" />
+                  </svg>
+
+                  {/* Sparkles */}
+                  <div className="absolute -top-1 -right-1 text-purple-400 scale-75 animate-pulse">
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                </div>
+
+                {/* Dynamic Badge */}
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-full shadow-lg border border-white/20 whitespace-nowrap text-[10px]">
+                  {upgradeAlert.badge}
+                </div>
+              </div>
+
+              {/* Content Copy */}
+              <h3 className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 z-10 tracking-tight text-xl mb-2">
+                {upgradeAlert.title}
+              </h3>
+              <p className="text-gray-500 dark:text-gray-400 mx-auto leading-relaxed z-10 text-xs mb-6 max-w-[320px]">
+                {upgradeAlert.message}
+              </p>
+
+              {/* Action Button */}
+              <a
+                href={upgradeAlert.actionUrl}
+                target={upgradeAlert.actionUrl.startsWith('http') ? '_blank' : '_self'}
+                rel="noopener noreferrer"
+                onClick={() => setUpgradeAlert(prev => ({ ...prev, isOpen: false }))}
+                className="relative flex items-center justify-center gap-2 font-extrabold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-2xl shadow-lg border border-white/20 transition-all duration-300 ease-in-out z-10 hover:scale-105 hover:shadow-xl mt-4 px-6 py-2.5 text-sm w-full text-center cursor-pointer"
+              >
+                <Sparkles className="w-5 h-5 animate-pulse text-white" />
+                <span className="tracking-wide">{upgradeAlert.actionText}</span>
+              </a>
             </div>
           </div>
         </div>

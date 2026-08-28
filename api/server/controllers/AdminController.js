@@ -78,11 +78,11 @@ const updateUser = async (req, res) => {
             userId, role, accountStatus, name, username, password, inactiveAt, activeAt, phoneNumber,
             departamento, ciudad, department, city,
             commercialTier, partnerSlug, partnerPaymentDetails, partnerSupportContact, pointsAdjustment,
-            companyLimit, referredByPartner
+            companyLimit, automationLimit, referredByPartner
         } = req.body;
         
         logger.info(`[AdminController] Updating user ${userId}:`, { 
-            role, accountStatus, inactiveAt, activeAt, commercialTier, partnerSlug, pointsAdjustment, companyLimit, referredByPartner
+            role, accountStatus, inactiveAt, activeAt, commercialTier, partnerSlug, pointsAdjustment, companyLimit, automationLimit, referredByPartner
         });
 
         const updateData = {};
@@ -182,13 +182,19 @@ const updateUser = async (req, res) => {
             });
         }
 
-        // --- Handle Company Limit ---
-        if (companyLimit !== undefined) {
+        // --- Handle Company Limit & Automation Limit ---
+        if (companyLimit !== undefined || automationLimit !== undefined) {
             const UserPlan = require('~/db/models/UserPlan');
-            const parsedLimit = companyLimit === '' || companyLimit === null ? null : parseInt(companyLimit, 10);
+            const planUpdates = {};
+            if (companyLimit !== undefined) {
+                planUpdates.companyLimit = companyLimit === '' || companyLimit === null ? null : parseInt(companyLimit, 10);
+            }
+            if (automationLimit !== undefined) {
+                planUpdates.automationLimit = automationLimit === '' || automationLimit === null ? null : parseInt(automationLimit, 10);
+            }
             await UserPlan.findOneAndUpdate(
                 { userId },
-                { companyLimit: parsedLimit },
+                planUpdates,
                 { upsert: true, new: true }
             );
         }
@@ -384,15 +390,20 @@ const getUserReferralDetails = async (req, res) => {
             // Fetch payout requests
             payoutRequests = await PayoutRequest.find({ partnerId }).sort({ createdAt: -1 }).lean();
         }
-        // 4. Fetch company limits and created companies count
+        // 4. Fetch company & automation limits and created counts
         const UserPlan = require('~/db/models/UserPlan');
         const CompanyInfo = require('~/models/CompanyInfo');
+        const Automation = require('~/models/Automation');
         const ReferralRecord = require('~/models/ReferralRecord');
 
         const userPlanDoc = await UserPlan.findOne({ userId }).lean();
         const companyLimit = userPlanDoc ? userPlanDoc.companyLimit : null;
+        const automationLimit = userPlanDoc ? userPlanDoc.automationLimit : null;
 
-        const createdCompaniesCount = await CompanyInfo.countDocuments({ user: userId });
+        const [createdCompaniesCount, createdAutomationsCount] = await Promise.all([
+            CompanyInfo.countDocuments({ user: userId }),
+            Automation.countDocuments({ user: userId })
+        ]);
 
         const referralRecord = await ReferralRecord.findOne({ referredUserId: userId }).lean();
         const referredByPartner = referralRecord ? referralRecord.referredByPartner : null;
@@ -403,7 +414,9 @@ const getUserReferralDetails = async (req, res) => {
             commissionsStats,
             payoutRequests,
             companyLimit,
+            automationLimit,
             createdCompaniesCount,
+            createdAutomationsCount,
             referredByPartner
         });
     } catch (err) {

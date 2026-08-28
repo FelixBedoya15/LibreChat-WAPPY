@@ -240,6 +240,22 @@ const getUserPlan = async (req, res) => {
         const files = await FileModel.find({ user: userId }).select('bytes').lean();
         const totalUsedBytes = files.reduce((acc, file) => acc + (file.bytes || 0), 0);
 
+        // Determine automationLimit (Pro: 1 by default, admin/custom: 999, free/ipevar/plus/go: 0)
+        let automationLimit = userPlan?.automationLimit;
+        if (automationLimit === undefined || automationLimit === null) {
+            if (['admin', 'custom'].includes(plan)) {
+                automationLimit = 999;
+            } else if (plan === 'pro') {
+                automationLimit = 1;
+            } else {
+                automationLimit = 0;
+            }
+        }
+
+        // Count user automations
+        const AutomationModel = mongoose.models.Automation || mongoose.model('Automation');
+        const automationsCount = await AutomationModel.countDocuments({ user: userId });
+
         return res.json({
             plan: plan,
             status: 'active', // Derived for UI
@@ -247,6 +263,8 @@ const getUserPlan = async (req, res) => {
             customTools: userPlan?.customTools || [],
             customInterval: userPlan?.customInterval || null,
             companyLimit,
+            automationLimit,
+            automationsCount,
             storageLimit,
             storageUsed: totalUsedBytes,
         });

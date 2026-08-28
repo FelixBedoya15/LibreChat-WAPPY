@@ -7,7 +7,7 @@ import axios from 'axios';
 import { 
     Award, Users, DollarSign, Landmark, Shield, 
     Mail, Phone, Lock, Calendar, Clock, Loader, AlertTriangle, MessageSquare,
-    Building2, MapPin
+    Building2, MapPin, Cpu
 } from 'lucide-react';
 import { DEPARTAMENTOS_LIST, getCitiesForDepartment } from '~/utils/colombiaLocations';
 
@@ -30,9 +30,11 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
         departamento: '',
         ciudad: '',
         companyLimit: '' as any,
+        automationLimit: '' as any,
     });
 
     const [createdCompaniesCount, setCreatedCompaniesCount] = useState<number>(0);
+    const [createdAutomationsCount, setCreatedAutomationsCount] = useState<number>(0);
 
     // Referral details from backend
     const [loadingReferrals, setLoadingReferrals] = useState(false);
@@ -89,8 +91,12 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                         companyLimit: response.data.companyLimit !== null && response.data.companyLimit !== undefined 
                             ? response.data.companyLimit 
                             : '',
+                        automationLimit: response.data.automationLimit !== null && response.data.automationLimit !== undefined 
+                            ? response.data.automationLimit 
+                            : '',
                     }));
                     setCreatedCompaniesCount(response.data.createdCompaniesCount || 0);
+                    setCreatedAutomationsCount(response.data.createdAutomationsCount || 0);
                     setSelectedAmbassadorId(response.data.referredByPartner || '');
 
                     if (response.data.partner) {
@@ -430,6 +436,34 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                                     value={formData.companyLimit}
                                                     onChange={handleChange}
                                                     placeholder="Por defecto del plan"
+                                                    min={0}
+                                                    className="block w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-2.5 text-xs text-text-primary focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5">
+                                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                                    <Cpu className="w-3.5 h-3.5" /> Automatizaciones Creadas
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={createdAutomationsCount}
+                                                    disabled={true}
+                                                    readOnly={true}
+                                                    className="block w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/80 px-4 py-2.5 text-xs text-text-primary outline-none opacity-80 cursor-not-allowed"
+                                                />
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5">
+                                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                                    <Cpu className="w-3.5 h-3.5" /> Límite Automatizaciones
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    name="automationLimit"
+                                                    value={formData.automationLimit}
+                                                    onChange={handleChange}
+                                                    placeholder="Por defecto del plan (Pro: 1)"
                                                     min={0}
                                                     className="block w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-4 py-2.5 text-xs text-text-primary focus:border-blue-500 outline-none"
                                                 />

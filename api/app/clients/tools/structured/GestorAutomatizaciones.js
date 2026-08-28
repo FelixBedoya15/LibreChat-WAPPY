@@ -38,6 +38,35 @@ class GestorAutomatizaciones extends Tool {
     return active ? active._id.toString() : null;
   }
 
+  async _getEffectiveAutomationLimit(userId) {
+    if (!userId) return { limit: 0, plan: 'free' };
+    const UserPlan = require('~/db/models/UserPlan');
+    const userPlanDoc = await UserPlan.findOne({ userId }).lean();
+    let plan = userPlanDoc?.plan;
+    if (!plan || plan === 'free') {
+      const role = this.req?.user?.role;
+      if (role === 'ADMIN') plan = 'admin';
+      else if (role === 'USER_PRO') plan = 'pro';
+      else if (role === 'USER_PLUS') plan = 'plus';
+      else if (role === 'USER_GO') plan = 'go';
+      else if (role === 'USER_CUSTOM') plan = 'custom';
+      else if (role === 'USER_IPEVAR') plan = 'ipevar';
+      else plan = 'free';
+    }
+
+    if (userPlanDoc?.automationLimit !== undefined && userPlanDoc?.automationLimit !== null) {
+      return { limit: userPlanDoc.automationLimit, plan };
+    }
+
+    if (['admin', 'custom'].includes(plan)) {
+      return { limit: 999, plan };
+    }
+    if (plan === 'pro') {
+      return { limit: 1, plan };
+    }
+    return { limit: 0, plan };
+  }
+
   async _resolveAgent(agentTarget, currentAgentId) {
     const AgentModel = mongoose.models.Agent || (mongoose.modelNames().includes('Agent') ? mongoose.model('Agent') : null);
     
@@ -146,6 +175,26 @@ class GestorAutomatizaciones extends Tool {
           });
         }
 
+        // Validar Plan y Límite de Automatizaciones
+        const { limit: effectiveLimit, plan: userPlanName } = await this._getEffectiveAutomationLimit(userId);
+        if (effectiveLimit <= 0) {
+          return JSON.stringify({
+            error: '🔒 Función Exclusiva de Plan PRO: Las automatizaciones de tareas periódicas e informes autónomos están disponibles únicamente en el Plan Wappy Pro. Actualiza tu suscripción a Wappy Pro para activar automatizaciones con tus agentes.',
+            bloqueadoPorPlan: true,
+            planActual: userPlanName
+          });
+        }
+
+        const activeCount = await Automation.countDocuments({ user: userId, status: 'active' });
+        if (activeCount >= effectiveLimit) {
+          return JSON.stringify({
+            error: `🔒 Límite de Automatizaciones Alcanzado: Tu plan actual (${userPlanName === 'pro' ? 'Wappy Pro' : userPlanName}) permite hasta ${effectiveLimit} automatización(es) activa(s) y ya tienes ${activeCount} configurada(s). Para habilitar más tareas periódicas en segundo plano, puedes adquirir un paquete de 5 automatizaciones adicionales por solo $25.000 COP/mes comunicándote con soporte de WAPPY.`,
+            limiteAlcanzado: true,
+            limiteActual: effectiveLimit,
+            activas: activeCount
+          });
+        }
+
         const agentInfo = await this._resolveAgent(agente_objetivo, currentAgentId);
 
         const scheduleConfig = {
@@ -179,7 +228,8 @@ class GestorAutomatizaciones extends Tool {
           agente: agentInfo.name,
           proximaEjecucion: nextRunAt ? new Date(nextRunAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' }) : 'Pronto',
           frecuencia: tipo_frecuencia,
-          destinatarios: newAutomation.emails
+          destinatarios: newAutomation.emails,
+          limiteUso: `${activeCount + 1} de ${effectiveLimit} automatizaciones activas usadas.`
         });
       }
 
@@ -196,6 +246,20 @@ class GestorAutomatizaciones extends Tool {
           return JSON.stringify({
             error: `No se encontró la automatización con ID ${automatizacion_id} para tu empresa.`
           });
+        }
+
+        // Si se intenta reactivar una tarea inactiva, validar el límite
+        if (nuevo_estado === 'active' && automation.status === 'inactive') {
+          const { limit: effectiveLimit, plan: userPlanName } = await this._getEffectiveAutomationLimit(userId);
+          const activeCount = await Automation.countDocuments({ user: userId, status: 'active' });
+          if (activeCount >= effectiveLimit) {
+            return JSON.stringify({
+              error: `🔒 No se puede reactivar: Has alcanzado tu límite de ${effectiveLimit} automatización(es) activa(s). Pausa otra tarea o adquiere el paquete de 5 automatizaciones adicionales por $25.000 COP/mes.`,
+              limiteAlcanzado: true,
+              limiteActual: effectiveLimit,
+              activas: activeCount
+            });
+          }
         }
 
         if (nombre !== undefined) automation.name = nombre.trim();

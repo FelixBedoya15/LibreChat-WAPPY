@@ -609,6 +609,8 @@ async function checkAndRunAutomations() {
 
     console.log(`[AutomationScheduler] Found ${pendingAutomations.length} pending automations to execute.`);
 
+    const toExecute = [];
+
     for (const automation of pendingAutomations) {
       // 3. Anti-loop & Cooldown Check: Ensure at least 4 minutes between automatic runs
       if (automation.lastRunAt) {
@@ -633,12 +635,41 @@ async function checkAndRunAutomations() {
           } 
         }
       );
-      
-      // 5. Execute asynchronously in background
-      runAutomation(automation).catch(err => {
-        console.error(`[AutomationScheduler] Background run error for ${automation._id}:`, err);
-      });
+
+      toExecute.push(automation);
     }
+
+    if (toExecute.length === 0) return;
+
+    // 5. Execute with concurrency pool (max 4 concurrent) and 500ms stagger to protect RAM and API rate limits
+    const MAX_CONCURRENT_AUTOMATIONS = 4;
+    const STAGGER_MS = 500;
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    (async () => {
+      const executing = new Set();
+      for (const item of toExecute) {
+        const p = Promise.resolve()
+          .then(() => runAutomation(item))
+          .catch((err) => {
+            console.error(`[AutomationScheduler] Background run error for ${item._id}:`, err);
+          });
+
+        executing.add(p);
+        p.finally(() => executing.delete(p));
+
+        if (executing.size >= MAX_CONCURRENT_AUTOMATIONS) {
+          await Promise.race(executing);
+        }
+
+        if (STAGGER_MS > 0) {
+          await delay(STAGGER_MS);
+        }
+      }
+      await Promise.all(executing);
+    })().catch((poolErr) => {
+      console.error('[AutomationScheduler] Concurrency pool error:', poolErr);
+    });
   } catch (err) {
     console.error('[AutomationScheduler] Error in checkAndRunAutomations interval:', err);
   }
