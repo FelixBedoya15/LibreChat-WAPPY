@@ -59,6 +59,10 @@ interface GeneratedProposal {
   companyNit: string;
   sector: string;
   employeeCount: string;
+  additionalCompanies?: number;
+  automationPacks?: number;
+  totalAutomations?: number;
+  totalCompanies?: number;
   executiveSummary: string;
   sectorDiagnosis: string;
   includedModules: ProposalModule[];
@@ -115,6 +119,8 @@ export default function CommercialProposalGenerator({
   const [clientEmail, setClientEmail] = useState('');
   const [sector, setSector] = useState(SECTORS[0]);
   const [employeeCount, setEmployeeCount] = useState('11-50');
+  const [additionalCompanies, setAdditionalCompanies] = useState<number>(0);
+  const [automationPacks, setAutomationPacks] = useState<number>(0);
   const [proposalScope, setProposalScope] = useState('Automatización Integral SG-SST, Matrices IPEVAR, PESV y Asistentes IA');
   const [selectedPlans, setSelectedPlans] = useState<string[]>(['anual', 'semestral']);
   const [customDiscount, setCustomDiscount] = useState<number>(10);
@@ -179,6 +185,8 @@ export default function CommercialProposalGenerator({
         clientEmail,
         sector,
         employeeCount,
+        additionalCompanies,
+        automationPacks,
         proposalScope,
         selectedPlans,
         customDiscount,
@@ -530,6 +538,8 @@ export default function CommercialProposalGenerator({
                 ${proposal.companyNit ? `NIT: ${proposal.companyNit} • ` : ''}
                 ${clientEmail ? `Correo: ${clientEmail} • ` : ''}
                 Sector: ${proposal.sector} • Alcance: ${proposal.employeeCount} trabajadores
+                ${proposal.totalCompanies && proposal.totalCompanies > 1 ? ` • ${proposal.totalCompanies} Empresas (${proposal.additionalCompanies} adicionales)` : ''}
+                ${proposal.totalAutomations ? ` • ${proposal.totalAutomations} Automatizaciones Autónomas IA` : ''}
               </div>
             </div>
             <div style="text-align: right; border-left: 1px solid #cbd5e1; padding-left: 14px;">
@@ -890,13 +900,86 @@ export default function CommercialProposalGenerator({
               )}
             </div>
 
+            {/* Additional Companies & Automations Grid */}
+            <div className="space-y-3 p-3.5 bg-surface-secondary/70 border border-teal-500/25 rounded-2xl">
+              {/* Additional Companies */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-text-secondary uppercase flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-teal-600" />
+                    <span>Empresas Adicionales</span>
+                  </label>
+                  <span className="text-[11px] font-extrabold text-teal-600 dark:text-teal-400">
+                    {additionalCompanies > 0 ? `+${additionalCompanies} (${1 + additionalCompanies} total)` : '1 Sede Principal'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {[0, 1, 2, 3, 5, 10].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setAdditionalCompanies(num)}
+                      className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+                        additionalCompanies === num
+                          ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                          : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+                      }`}
+                    >
+                      {num === 0 ? '0' : `+${num}`}
+                    </button>
+                  ))}
+                </div>
+                <div className="text-[10px] text-text-tertiary flex items-center justify-between">
+                  <span>$350.000 COP/año ($29.167/mes) por empresa adicional</span>
+                  {additionalCompanies > 0 && (
+                    <span className="font-bold text-teal-600">+$350.000 COP/año c/u</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Automation Packs (5 automations for $20.000/mo) */}
+              <div className="space-y-1.5 pt-2.5 border-t border-border-medium/30">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-text-secondary uppercase flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+                    <span>Automatizaciones Autónomas IA</span>
+                  </label>
+                  <span className="text-[11px] font-extrabold text-teal-600 dark:text-teal-400">
+                    {automationPacks > 0 ? `${automationPacks * 5} tareas/mes` : 'Uso Estándar'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {[0, 1, 2, 3, 4, 6].map((packs) => (
+                    <button
+                      key={packs}
+                      type="button"
+                      onClick={() => setAutomationPacks(packs)}
+                      className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+                        automationPacks === packs
+                          ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                          : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+                      }`}
+                    >
+                      {packs === 0 ? '0' : `${packs * 5}`}
+                    </button>
+                  ))}
+                </div>
+                <div className="text-[10px] text-text-tertiary flex items-center justify-between">
+                  <span>$20.000 COP/mes por paquete de 5 tareas automáticas</span>
+                  {automationPacks > 0 && (
+                    <span className="font-bold text-teal-600">+{automationPacks * 5} tareas</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Plans to Quote */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-[11px] font-bold text-text-secondary uppercase">
                   Planes a Cotizar en la Propuesta
                 </label>
-                <span className="text-[10px] text-teal-600 font-bold">Desde $100.000 COP/mes</span>
+                <span className="text-[10px] text-teal-600 font-bold">Precios ajustados por período</span>
               </div>
               <div className="space-y-1.5">
                 {[
@@ -1137,6 +1220,12 @@ export default function CommercialProposalGenerator({
                       {clientEmail && <span>Correo: {clientEmail} • </span>}
                       <span>Sector: {proposal.sector}</span>
                       <span> • Alcance: {proposal.employeeCount} trabajadores</span>
+                      {proposal.totalCompanies && proposal.totalCompanies > 1 ? (
+                        <span> • <strong className="text-teal-800 font-bold">{proposal.totalCompanies} Empresas</strong> ({proposal.additionalCompanies} adicionales)</span>
+                      ) : null}
+                      {proposal.totalAutomations && proposal.totalAutomations > 0 ? (
+                        <span> • <strong className="text-teal-800 font-bold">{proposal.totalAutomations} Automatizaciones IA</strong></span>
+                      ) : null}
                     </div>
                   </div>
 

@@ -1533,6 +1533,8 @@ router.post('/proposal/generate', requireJwtAuth, async (req, res) => {
         selectedPlans = ['anual'],
         customDiscount = 0,
         customObservations = '',
+        additionalCompanies = 0,
+        automationPacks = 0,
         ambassadorName,
         ambassadorPhone,
         ambassadorEmail,
@@ -1551,6 +1553,11 @@ router.post('/proposal/generate', requireJwtAuth, async (req, res) => {
         if (!apiKey) {
             return res.status(400).json({ message: 'No hay claves API de Google / Gemini configuradas en el servidor.' });
         }
+
+        const numAdditionalCompanies = Math.max(0, parseInt(additionalCompanies, 10) || 0);
+        const numAutomationPacks = Math.max(0, parseInt(automationPacks, 10) || 0);
+        const totalAutomations = numAutomationPacks * 5;
+        const totalCompanies = 1 + numAdditionalCompanies;
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const modelInstance = genAI.getGenerativeModel({
@@ -1590,7 +1597,7 @@ Desglosa la solución completa a las necesidades del cliente en 6 componentes o 
   5. Aula de Estudio LMS SST & Capacitación Interactiva.
   6. Gestor de Automatizaciones y Reportes Autónomos.
 
-🚫 PROHIBIDO agregar módulos ajenos o no relacionados (ej. NO agregues PESV si el cliente pidió riesgo biológico y psicosocial). Todos los 6 módulos deben sumar y profundizar en la solución requerida por el cliente.
+🚫 PROHIBIDO agregar módulos ajenos o no relacionados. Todos los 6 módulos deben sumar y profundizar en la solución requerida por el cliente.
 
 ══════════════════════════════════════════════════════════════════════════════
 PUNTO 3 ("planCustomFeatures"):
@@ -1662,6 +1669,8 @@ REQUERIMIENTOS DEL CLIENTE:
 - Sector Económico: ${sector}
 - Tamaño / Trabajadores: ${employeeCount}
 - Alcance General: ${proposalScope}
+- Total Empresas a Gestionar: ${totalCompanies} (${numAdditionalCompanies > 0 ? `1 Principal + ${numAdditionalCompanies} Adicionales` : '1 Sede/Empresa Principal'})
+- Paquetes de Automatizaciones IA: ${numAutomationPacks > 0 ? `${totalAutomations} automatizaciones autónomas programadas` : 'Uso estándar'}
 - Planes a Cotizar: ${selectedPlans.join(', ')}
 - Descuento Comercial: ${customDiscount}% OFF
 - ⭐⭐⭐ OBSERVACIONES ESPECÍFICAS / NECESIDADES SOLICITADAS: "${customObservations || 'Automatización general del SG-SST'}"
@@ -1682,13 +1691,16 @@ Genera en "includedModules" EXACTAMENTE 6 MÓDULOS, TODOS enfocados y desglosand
         const responseText = result.response.text();
         const parsedData = JSON.parse(responseText);
 
-        // Calculate investment table with official platform prices
+        // Base Pricing Catalog
         const PRICING_CATALOG = {
             anual: {
                 name: 'Plan Wappy PRO Anual',
                 intervalLabel: '12 Meses (Anual)',
                 regularPrice: 1200000,
                 pricePerMonth: 100000,
+                companyAddonPrice: 350000, // $350.000 COP / año por empresa adicional
+                automationPackPrice: 240000, // $20.000 x 12 meses = $240.000 / año por pack de 5
+                months: 12,
                 features: [
                     'Acceso total a todos los Agentes y Asistentes SST',
                     'Matrices IPEVAR & PESV Ilimitadas con IA',
@@ -1704,6 +1716,9 @@ Genera en "includedModules" EXACTAMENTE 6 MÓDULOS, TODOS enfocados y desglosand
                 intervalLabel: '6 Meses (Semestral)',
                 regularPrice: 641960,
                 pricePerMonth: 106993,
+                companyAddonPrice: 175000, // $350.000 / 2 = $175.000 semestral por empresa adicional
+                automationPackPrice: 120000, // $20.000 x 6 meses = $120.000 por pack de 5
+                months: 6,
                 features: [
                     'Acceso a todos los Agentes SST',
                     'Matrices IPEVAR & PESV con IA',
@@ -1718,6 +1733,9 @@ Genera en "includedModules" EXACTAMENTE 6 MÓDULOS, TODOS enfocados y desglosand
                 intervalLabel: '3 Meses (Trimestral)',
                 regularPrice: 331270,
                 pricePerMonth: 110423,
+                companyAddonPrice: 87500, // $350.000 / 4 = $87.500 trimestral por empresa adicional
+                automationPackPrice: 60000, // $20.000 x 3 meses = $60.000 por pack de 5
+                months: 3,
                 features: [
                     'Acceso a Agentes SST',
                     'Matrices IPEVAR & Formatos',
@@ -1731,6 +1749,9 @@ Genera en "includedModules" EXACTAMENTE 6 MÓDULOS, TODOS enfocados y desglosand
                 intervalLabel: '1 Mes (Mensual)',
                 regularPrice: 114330,
                 pricePerMonth: 114330,
+                companyAddonPrice: 29167, // $350.000 / 12 = $29.167 mensual por empresa adicional
+                automationPackPrice: 20000, // $20.000 / mes por pack de 5
+                months: 1,
                 features: [
                     'Acceso a Agentes SST',
                     'Generación de Matrices y Formatos',
@@ -1743,6 +1764,9 @@ Genera en "includedModules" EXACTAMENTE 6 MÓDULOS, TODOS enfocados y desglosand
                 intervalLabel: 'Pago Único Vitalicio',
                 regularPrice: 350000,
                 pricePerMonth: 0,
+                companyAddonPrice: 350000,
+                automationPackPrice: 240000,
+                months: 0,
                 features: [
                     'Pago único de por vida (Sin mensualidades)',
                     'Hasta 20 chats diarios con Agentes SST',
@@ -1757,31 +1781,39 @@ Genera en "includedModules" EXACTAMENTE 6 MÓDULOS, TODOS enfocados y desglosand
 
         const investmentPlans = (selectedPlans.length > 0 ? selectedPlans : ['anual']).map(pKey => {
             const p = PRICING_CATALOG[pKey] || PRICING_CATALOG.anual;
-            const finalPrice = discount > 0 ? Math.round(p.regularPrice * (1 - (discount / 100))) : p.regularPrice;
-            const finalPerMonth = pKey === 'anual' 
-                ? Math.round(finalPrice / 12) 
-                : pKey === 'semestral' 
-                    ? Math.round(finalPrice / 6) 
-                    : pKey === 'trimestral' 
-                        ? Math.round(finalPrice / 3) 
-                        : pKey === 'vital' 
-                            ? 0 
-                            : finalPrice;
             
-            // Use AI-tailored features if provided for this plan, otherwise fallback to catalog
-            const tailoredFeatures = Array.isArray(customFeaturesMap[pKey]) && customFeaturesMap[pKey].length > 0
-                ? customFeaturesMap[pKey]
-                : p.features;
+            const companiesCost = numAdditionalCompanies * (p.companyAddonPrice || 0);
+            const automationsCost = numAutomationPacks * (p.automationPackPrice || 0);
+            const regularTotal = p.regularPrice + companiesCost + automationsCost;
+
+            const finalPrice = discount > 0 ? Math.round(regularTotal * (1 - (discount / 100))) : regularTotal;
+            const finalPerMonth = p.months > 0 ? Math.round(finalPrice / p.months) : 0;
+            
+            // Base or AI-tailored features
+            const baseFeatures = Array.isArray(customFeaturesMap[pKey]) && customFeaturesMap[pKey].length > 0
+                ? [...customFeaturesMap[pKey]]
+                : [...p.features];
+
+            // Append dynamic add-on features
+            if (numAdditionalCompanies > 0) {
+                baseFeatures.push(`🏢 Gestión Multi-Empresa: ${totalCompanies} Empresas incluidas (1 Principal + ${numAdditionalCompanies} adicional${numAdditionalCompanies > 1 ? 'es' : ''})`);
+            }
+            if (numAutomationPacks > 0) {
+                baseFeatures.push(`⚡ Paquete de ${totalAutomations} Automatizaciones Autónomas programadas con IA`);
+            }
 
             return {
                 key: pKey,
                 planName: p.name,
                 interval: p.intervalLabel,
-                regularPrice: p.regularPrice,
+                regularPrice: regularTotal,
+                basePrice: p.regularPrice,
+                additionalCompaniesCost: companiesCost,
+                automationsCost: automationsCost,
                 discountPercentage: discount,
                 finalPrice: finalPrice,
                 pricePerMonth: finalPerMonth,
-                features: tailoredFeatures,
+                features: baseFeatures,
                 isRecommended: p.isRecommended,
                 paymentUrl: referralLink || 'https://wappy.club/planes'
             };
@@ -1796,6 +1828,10 @@ Genera en "includedModules" EXACTAMENTE 6 MÓDULOS, TODOS enfocados y desglosand
             companyNit: companyNit || '',
             sector,
             employeeCount,
+            additionalCompanies: numAdditionalCompanies,
+            automationPacks: numAutomationPacks,
+            totalAutomations: totalAutomations,
+            totalCompanies: totalCompanies,
             investmentPlans,
             ambassadorData: {
                 name: ambassadorName || req.user.name || 'Asesor Comercial Wappy',
