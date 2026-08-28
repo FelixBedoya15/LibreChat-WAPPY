@@ -1704,9 +1704,7 @@ Genera en "includedModules" EXACTAMENTE 6 MÓDULOS, TODOS enfocados y desglosand
         const parsedData = JSON.parse(responseText);
 
         // Base Pricing Catalog
-        // Note: Additional companies value is $350.000/yr, divided by the duration of the plan.
-        // Automations value is $40.000/mo for 5 pack or $10.000/mo for 1 individual.
-        // Discount ONLY applies to the base plan, addons are fixed net values without discount.
+        // Addons (Empresas Adicionales y Automatizaciones IA) aumentan proporcionalmente según la temporalidad del Plan Wappy PRO
         const PRICING_CATALOG = {
             anual: {
                 name: 'Plan Wappy PRO Anual',
@@ -1730,7 +1728,7 @@ Genera en "includedModules" EXACTAMENTE 6 MÓDULOS, TODOS enfocados y desglosand
                 intervalLabel: '6 Meses (Semestral)',
                 regularPrice: 641960,
                 pricePerMonth: 106993,
-                companyAddonPrice: 175000, // $350.000 / 2 = $175.000 semestral
+                companyAddonPrice: 187238, // Proporcional al plan semestral ($350.000 * 641960/1200000)
                 months: 6,
                 features: [
                     'Acceso a todos los Agentes SST',
@@ -1746,7 +1744,7 @@ Genera en "includedModules" EXACTAMENTE 6 MÓDULOS, TODOS enfocados y desglosand
                 intervalLabel: '3 Meses (Trimestral)',
                 regularPrice: 331270,
                 pricePerMonth: 110423,
-                companyAddonPrice: 87500, // $350.000 / 4 = $87.500 trimestral
+                companyAddonPrice: 96620, // Proporcional al plan trimestral ($350.000 * 331270/1200000)
                 months: 3,
                 features: [
                     'Acceso a Agentes SST',
@@ -1761,7 +1759,7 @@ Genera en "includedModules" EXACTAMENTE 6 MÓDULOS, TODOS enfocados y desglosand
                 intervalLabel: '1 Mes (Mensual)',
                 regularPrice: 114330,
                 pricePerMonth: 114330,
-                companyAddonPrice: 29167, // $350.000 / 12 = $29.167 mensual
+                companyAddonPrice: 33346, // Proporcional al plan mensual ($350.000 * 114330/1200000)
                 months: 1,
                 features: [
                     'Acceso a Agentes SST',
@@ -1788,16 +1786,27 @@ Genera en "includedModules" EXACTAMENTE 6 MÓDULOS, TODOS enfocados y desglosand
 
         const discount = Math.min(20, Math.max(0, Number(customDiscount) || 0));
         const customFeaturesMap = parsedData.planCustomFeatures || {};
+        const annualBaseRegularPrice = PRICING_CATALOG.anual.regularPrice;
 
         const investmentPlans = (selectedPlans.length > 0 ? selectedPlans.slice(0, 2) : ['anual']).map(pKey => {
             const p = PRICING_CATALOG[pKey] || PRICING_CATALOG.anual;
-            const periodMonths = p.months > 0 ? p.months : 12;
+            
+            // Multiplicador de temporalidad proporcional al precio del plan Wappy PRO
+            const temporalityRatio = pKey === 'vital' ? 1.0 : (p.regularPrice / annualBaseRegularPrice);
 
-            const companiesCost = numAdditionalCompanies * (p.companyAddonPrice || 0);
-            const automationsCost = monthlyAdditionalAutomationsPrice * periodMonths;
+            // Costo proporcional de empresas adicionales
+            const singleCompanyPeriodCost = pKey === 'vital' ? 350000 : Math.round(350000 * temporalityRatio);
+            const companiesCost = numAdditionalCompanies * singleCompanyPeriodCost;
+
+            // Costo proporcional de automatizaciones adicionales ($40k/5 o $10k/1 anualizadas x temporalityRatio)
+            const annualAutomationsBase = monthlyAdditionalAutomationsPrice * 12;
+            const automationsCost = pKey === 'vital' 
+                ? annualAutomationsBase 
+                : Math.round(annualAutomationsBase * temporalityRatio);
+
             const totalAddonsCost = companiesCost + automationsCost;
 
-            // Descuento comercial SOLO aplica al plan base (addons son precio fijo neto)
+            // Descuento comercial SOLO aplica al plan base (addons son precio neto fijo por temporalidad)
             const discountedBasePrice = discount > 0 ? Math.round(p.regularPrice * (1 - (discount / 100))) : p.regularPrice;
             
             const regularTotal = p.regularPrice + totalAddonsCost;
