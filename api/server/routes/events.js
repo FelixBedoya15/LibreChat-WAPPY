@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const { requireJwtAuth, checkJwtAuth } = require('../middleware');
 const { Event } = require('../../models/Event');
 const { EventRegistration } = require('../../models/EventRegistration');
@@ -52,9 +53,9 @@ async function cleanExistingMeetLinks() {
 }
 
 // Run cleanup once mongoose connection is established
-if (mongoose.connection.readyState === 1) {
+if (mongoose?.connection?.readyState === 1) {
   cleanExistingMeetLinks();
-} else {
+} else if (mongoose?.connection?.once) {
   mongoose.connection.once('open', cleanExistingMeetLinks);
 }
 
