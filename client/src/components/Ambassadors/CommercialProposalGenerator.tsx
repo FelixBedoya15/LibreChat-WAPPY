@@ -165,6 +165,10 @@ export default function CommercialProposalGenerator({
       }
       setSelectedPlans(selectedPlans.filter(p => p !== planKey));
     } else {
+      if (selectedPlans.length >= 2) {
+        showToast({ message: 'Máximo puedes seleccionar 2 planes para cotizar en la propuesta.', status: 'warning' });
+        return;
+      }
       setSelectedPlans([...selectedPlans, planKey]);
     }
   };
@@ -405,9 +409,10 @@ export default function CommercialProposalGenerator({
           }
           .plans-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-            gap: 10px;
+            grid-template-columns: ${proposal.investmentPlans.length === 1 ? '1fr' : '1fr 1fr'};
+            gap: 12px;
             margin-bottom: 18px;
+            width: 100%;
           }
           .plan-card {
             border: 1px solid #cbd5e1;
@@ -600,7 +605,7 @@ export default function CommercialProposalGenerator({
                     <div class="plan-price">$${p.finalPrice.toLocaleString('es-CO')} <span style="font-size: 10px; font-weight: 700; color: #64748b;">COP</span></div>
                     <div class="plan-monthly">${p.pricePerMonth > 0 ? `Equivalente a ~$${p.pricePerMonth.toLocaleString('es-CO')} COP / mes` : 'Acceso Vitalicio'}</div>
                   </div>
-                  <ul style="text-align: left; font-size: 9.5px; color: #475569; padding-left: 14px; margin: 8px 0 0 0; line-height: 1.45;">
+                  <ul style="text-align: left; font-size: 9.5px; color: #475569; padding-left: 14px; margin: 8px 0 0 0; line-height: 1.45; ${proposal.investmentPlans.length === 1 ? 'display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px;' : ''}">
                     ${p.features.map(f => `<li>${f}</li>`).join('')}
                   </ul>
                 </div>
@@ -977,9 +982,11 @@ export default function CommercialProposalGenerator({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-[11px] font-bold text-text-secondary uppercase">
-                  Planes a Cotizar en la Propuesta
+                  Planes a Cotizar (Máx. 2)
                 </label>
-                <span className="text-[10px] text-teal-600 font-bold">Precios ajustados por período</span>
+                <span className="text-[10px] font-extrabold text-teal-600 bg-teal-50 dark:bg-teal-950/50 px-2 py-0.5 rounded-full border border-teal-500/20">
+                  {selectedPlans.length}/2 Seleccionados
+                </span>
               </div>
               <div className="space-y-1.5">
                 {[
@@ -1292,11 +1299,15 @@ export default function CommercialProposalGenerator({
                     <span>3. Propuesta Económica y Opciones de Inversión</span>
                   </h3>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className={`grid gap-4 w-full ${
+                    proposal.investmentPlans.length === 1 
+                      ? 'grid-cols-1' 
+                      : 'grid-cols-1 sm:grid-cols-2'
+                  }`}>
                     {proposal.investmentPlans.map((plan, idx) => (
                       <div 
                         key={idx}
-                        className={`rounded-xl border p-4 flex flex-col justify-between relative ${
+                        className={`rounded-xl border p-4 sm:p-5 flex flex-col justify-between relative ${
                           plan.isRecommended 
                             ? 'border-teal-600 bg-teal-50/30 shadow-md ring-1 ring-teal-600' 
                             : 'border-gray-200 bg-white shadow-xs'
@@ -1309,7 +1320,7 @@ export default function CommercialProposalGenerator({
                         )}
 
                         <div>
-                          <div className="font-extrabold text-sm text-gray-900">{plan.planName}</div>
+                          <div className="font-extrabold text-sm sm:text-base text-gray-900">{plan.planName}</div>
                           <div className="text-[10px] text-gray-500 font-bold uppercase">{plan.interval}</div>
 
                           <div className="my-3">
@@ -1321,15 +1332,19 @@ export default function CommercialProposalGenerator({
                                 </span>
                               </div>
                             )}
-                            <div className="text-xl font-black text-gray-900 tracking-tight">
+                            <div className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
                               ${plan.finalPrice.toLocaleString('es-CO')} <span className="text-xs font-bold text-gray-500">COP</span>
                             </div>
                             <div className="text-[10px] text-teal-700 font-semibold mt-0.5">
-                              Equivalente a ~${plan.pricePerMonth.toLocaleString('es-CO')} COP / mes
+                              {plan.pricePerMonth > 0 ? `Equivalente a ~$${plan.pricePerMonth.toLocaleString('es-CO')} COP / mes` : 'Acceso Vitalicio'}
                             </div>
                           </div>
 
-                          <ul className="space-y-1.5 text-[11px] text-gray-600 mb-4 border-t border-gray-100 pt-3">
+                          <ul className={`text-[11px] text-gray-600 mb-4 border-t border-gray-100 pt-3 ${
+                            proposal.investmentPlans.length === 1 
+                              ? 'grid grid-cols-1 sm:grid-cols-2 gap-2 space-y-0' 
+                              : 'space-y-1.5'
+                          }`}>
                             {plan.features.map((feat, fIdx) => (
                               <li key={fIdx} className="flex items-start gap-1.5">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 shrink-0 mt-0.5" />
