@@ -151,11 +151,19 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
         const base64Data = fileData.split(';base64,').pop();
         const buffer = Buffer.from(base64Data, 'base64');
 
-        // 2. Extraer texto según tipo de archivo de forma robusta
-        const extractedText = await extractTextFromFile({ buffer, fileName, mimeType });
+        // 2. Extraer texto según tipo de archivo de forma robusta (con fallback multimodal)
+        let extractedText = '';
+        try {
+            extractedText = await extractTextFromFile({ buffer, fileName, mimeType });
+        } catch (extractErr) {
+            logger.warn('[InvestigacionATEL] Text extraction fallback to multimodal:', extractErr.message);
+        }
 
-        if (!extractedText || !extractedText.trim()) {
-            return res.status(400).json({ error: 'No se pudo extraer texto legible del archivo.' });
+        const isPdf = (mimeType && mimeType.includes('pdf')) || (fileName && fileName.toLowerCase().endsWith('.pdf')) || (buffer.length >= 4 && buffer.slice(0, 4).toString() === '%PDF');
+        const isImage = (mimeType && mimeType.startsWith('image/')) || (fileName && /\.(png|jpe?g|webp|bmp|gif)$/i.test(fileName));
+
+        if (!extractedText?.trim() && !isPdf && !isImage) {
+            return res.status(400).json({ error: 'No se pudo extraer texto legible ni imagen procesable del archivo.' });
         }
 
         // 3. Configurar e invocar Gemini con rotación
@@ -191,34 +199,85 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
                         parteCuerpo: { type: 'string' },
                         diasIncapacidad: { type: 'string' },
                         agenteCausal: { type: 'string' },
-                        consecuencias: { type: 'string' }
+                        consecuencias: { type: 'string' },
+                        equipoInvestigador: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    nombre: { type: 'string' },
+                                    cedula: { type: 'string' },
+                                    rol: { type: 'string' }
+                                }
+                            }
+                        },
+                        testigos: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    nombre: { type: 'string' },
+                                    cedula: { type: 'string' },
+                                    cargo: { type: 'string' },
+                                    testimonio: { type: 'string' }
+                                }
+                            }
+                        }
                     }
                 }
             }
         };
 
-        const systemPrompt = `Eres un asistente experto en Seguridad y Salud en el Trabajo (SGSST) en Colombia especializado en transcribir y estructurar reportes de investigación y formatos FURAT (Formato Único de Reporte de Accidente de Trabajo).
-Analiza con precisión el siguiente documento/reporte y mapea todos los datos disponibles a las propiedades del esquema JSON.
-Directrices:
-- 'tipoEvento': Determina si es 'Accidente Leve', 'Accidente Grave', 'Accidente Mortal' o 'Incidente' según la severidad.
-- 'fechaEvento': En formato YYYY-MM-DD (ej: 2026-08-27).
-- 'horaEvento': En formato HH:MM (24 horas, ej: 08:00).
-- 'lugarEvento': Ubicación o sitio específico donde ocurrió (ej: Parqueadero o zona de circulación vehicular).
-- 'departamento' y 'municipio': Departamento y ciudad donde ocurrió el accidente.
-- 'afectadoNombre', 'afectadoCedula', 'afectadoCargo', 'afectadoEps', 'afectadoArl': Datos del trabajador accidentado.
-- 'tipoContrato': Si es Independiente/Contratista clasificar como 'Prestación de servicios' o el más afín.
-- 'jornadaLaboral': Diurna, Nocturna, Mixta o Por turnos.
-- 'actividadMomento': Labor que desempeñaba en el momento exacto del suceso.
-- 'descripcionHechos': Relato cronológico detallado de cómo ocurrieron los hechos.
-- 'naturalezaLesion': Seleccionar la opción de la lista que mejor describa la lesión (ej: Golpe / Contusión).
-- 'parteCuerpo': Zona o miembro anatómico afectado (ej: Codo derecho, Miembros superiores).
-- 'agenteCausal': Elemento, máquina o condición que ocasionó el evento.
-- 'diasIncapacidad': Número estimado o reportado de días de incapacidad (string numérico ej: '0', '3').
-- 'consecuencias': Consecuencias o afectaciones observadas.`;
+        const systemPrompt = `Eres un asistente de Inteligencia Artificial experto en Seguridad y Salud en el Trabajo (SGSST) en Colombia (Resolución 1401 de 2007).
+Tu labor es transcribir, interpretar y mapear con máxima fidelidad forense toda la información contenida en este formulario FURAT (Formato Único de Reporte de Accidente de Trabajo) o informe de accidente/incidente.
 
-        const promptText = `${systemPrompt}\n\nNombre del archivo: ${fileName || 'Adjunto'}\n\nDocumento:\n${extractedText}`;
+Lee meticulosamente todas las secciones (I. Empleador/Contratante, II. Trabajador accidentado, III. Información sobre el accidente, IV. Descripción del accidente, firmas y responsables):
 
-        const geminiResult = await generateWithKeyRotation(modelInstance, req.user?.id || req.user, promptText);
+CAMPOS A EXTRAER:
+1. 'tipoEvento': Clasificar en 'Accidente Leve', 'Accidente Grave', 'Accidente Mortal' o 'Incidente' (si es FURAT de accidente sin muerte ni amputación, seleccionar 'Accidente Leve').
+2. 'fechaEvento': Fecha exacta del evento en formato YYYY-MM-DD (ej: de 27/08/2026 -> 2026-08-27).
+3. 'horaEvento': Hora del accidente en formato HH:MM (24 horas, ej: 08:00).
+4. 'lugarEvento': Sitio exacto donde ocurrió (ej: Parqueadero o área de circulación vehicular / Fuera de la empresa).
+5. 'departamento' y 'municipio': Departamento y ciudad donde ocurrió (ej: CALDAS, MANIZALES).
+6. 'actividadMomento': Tarea u ocupación que desarrollaba en el instante del hecho (ej: Descenso de vehículo para proceder a laborar).
+7. 'afectadoNombre': Nombre completo del trabajador (ej: BRAYAN STIVEN MARTINEZ VALENCIA).
+8. 'afectadoCedula': Número de documento o cédula sin puntos ni letras (ej: 1060651003).
+9. 'afectadoCargo': Ocupación o cargo (ej: ELECTRICISTA).
+10. 'afectadoEps': EPS reportada (ej: EPS002).
+11. 'afectadoArl': ARL reportada (ej: POSITIVA COMPAÑÍA DE SEGUROS).
+12. 'tipoContrato': Seleccionar: 'Indefinido', 'Fijo', 'Obra o labor', 'Aprendizaje', 'Prestación de servicios' (para Independiente/Contratista), 'Temporal'.
+13. 'jornadaLaboral': 'Diurna', 'Nocturna', 'Mixta', 'Por turnos' (si es Diurno -> Diurna).
+14. 'experienciaLaboral': Tiempo de experiencia o fecha de ingreso (ej: 20/01/2026 o años en oficio).
+15. 'tiempoEnCargo': Tiempo laborado en el día o en el cargo (ej: 120 Minutos).
+16. 'descripcionHechos': Transcribe OBLIGATORIAMENTE el texto completo e íntegro de la Sección IV ("DESCRIPCIÓN DEL ACCIDENTE") o el relato detallado de los hechos. NUNCA lo dejes vacío.
+17. 'naturalezaLesion': Seleccionar la opción del enum más exacta (ej: Golpe / Contusión).
+18. 'parteCuerpo': Zona o miembro afectado con detalle (ej: Codo derecho / Miembros superiores).
+19. 'agenteCausal': Agente causante del accidente (ej: Elemento de apoyo para acceder al vehículo / Máquinas y/o equipos).
+20. 'diasIncapacidad': Días de incapacidad estimados o reportados (ej: "0" o número).
+21. 'consecuencias': Consecuencias observadas, dolor, inflamación o necesidad de consulta médica.
+22. 'equipoInvestigador': Extraer si aparecen el Jefe Inmediato (ej: JORGE MARIO MARIN CASTANO), el Responsable SST (ej: LILIANA MARIA LONDOÑO GOMEZ, CC 30335850), o COPASST, con su rol correspondiente ('Jefe Inmediato / Supervisor', 'Encargado SST / HSEQ', 'Representante COPASST / Vigía').
+23. 'testigos': Extraer personas que presenciaron el accidente con nombre, cédula, cargo y testimonio si existen.`;
+
+        let promptPayload;
+        if (isPdf || isImage) {
+            const resolvedMime = isPdf ? 'application/pdf' : (mimeType || 'image/jpeg');
+            promptPayload = [
+                { text: systemPrompt },
+                {
+                    inlineData: {
+                        data: base64Data,
+                        mimeType: resolvedMime
+                    }
+                }
+            ];
+            if (extractedText && extractedText.trim() && !extractedText.includes('Empty PDF')) {
+                promptPayload.push({ text: `Texto extraído como referencia adicional:\n${extractedText}` });
+            }
+        } else {
+            promptPayload = `${systemPrompt}\n\nNombre del archivo: ${fileName || 'Adjunto'}\n\nDocumento:\n${extractedText || ''}`;
+        }
+
+        const geminiResult = await generateWithKeyRotation(modelInstance, req.user?.id || req.user, promptPayload);
         let responseText = '';
         if (typeof geminiResult?.response?.text === 'function') {
             responseText = geminiResult.response.text();
@@ -230,7 +289,18 @@ Directrices:
 
         const parsedData = cleanAndParseJson(responseText);
 
-        res.json({ success: true, formData: parsedData });
+        const formData = { ...parsedData };
+        const equipoList = parsedData.equipoInvestigador || [];
+        const testigosList = parsedData.testigos || [];
+        delete formData.equipoInvestigador;
+        delete formData.testigos;
+
+        res.json({
+            success: true,
+            formData,
+            equipoList: equipoList.length > 0 ? equipoList : undefined,
+            testigosList: testigosList.length > 0 ? testigosList : undefined
+        });
     } catch (error) {
         logger.error('[InvestigacionATEL] File import error:', error);
         res.status(500).json({ error: error.message || 'Error al procesar el archivo con IA.' });

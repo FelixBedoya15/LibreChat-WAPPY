@@ -484,6 +484,12 @@ const InvestigacionATEL = () => {
                     ...prev,
                     ...data.formData
                 }));
+                if (data.equipoList && Array.isArray(data.equipoList) && data.equipoList.length > 0) {
+                    setEquipoList(data.equipoList);
+                }
+                if (data.testigosList && Array.isArray(data.testigosList) && data.testigosList.length > 0) {
+                    setTestigosList(data.testigosList);
+                }
                 showToast({
                     message: `Datos del reporte/FURAT extraídos e importados exitosamente.`,
                     status: 'success',
