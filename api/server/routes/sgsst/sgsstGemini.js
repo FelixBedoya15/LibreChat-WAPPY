@@ -50,10 +50,15 @@ const LIVE_FALLBACK_MODELS = [
 async function resolveApiKeys(userId) {
   let rawApiKey = '';
 
+  // Extraer el ID limpio en caso de que se haya pasado el objeto req.user
+  const cleanUserId = (typeof userId === 'object' && userId !== null)
+    ? (userId.id || userId._id || userId.userId || String(userId))
+    : (typeof userId === 'string' ? userId.trim() : null);
+
   // 1. Consultar siempre la clave guardada por el usuario en la base de datos
-  if (userId) {
+  if (cleanUserId && cleanUserId !== '[object Object]') {
     try {
-      const stored = await getUserKey({ userId, name: EModelEndpoint?.google || 'google' });
+      const stored = await getUserKey({ userId: cleanUserId, name: EModelEndpoint?.google || 'google' });
       if (stored) {
         let parsed = null;
         try { parsed = JSON.parse(stored); } catch { /* plain string key */ }
@@ -71,7 +76,7 @@ async function resolveApiKeys(userId) {
         }
       }
     } catch (e) {
-      logger.debug(`[SGSST Gemini] No user key in DB for ${userId}: ${e.message}`);
+      logger.debug(`[SGSST Gemini] No user key in DB for ${cleanUserId}: ${e.message}`);
     }
   }
 
@@ -98,7 +103,7 @@ async function resolveApiKeys(userId) {
     );
   }
 
-  logger.debug(`[SGSST Gemini] ${keys.length} clave(s) API para usuario ${userId}.`);
+  logger.debug(`[SGSST Gemini] ${keys.length} clave(s) API para usuario ${cleanUserId}.`);
   return keys;
 }
 
@@ -124,6 +129,18 @@ async function resolveApiKeys(userId) {
  * @returns {Promise<*>}
  */
 async function generateWithKeyRotation(modelInstance, userId, promptText, options = {}) {
+  // Auto-detección si los argumentos se pasaron invertidos (userId, modelInstance, ...)
+  if (
+    typeof modelInstance === 'string' &&
+    typeof userId === 'object' &&
+    userId !== null &&
+    (userId.model || userId.generationConfig)
+  ) {
+    const temp = modelInstance;
+    modelInstance = userId;
+    userId = temp;
+  }
+
   const preferredModel = (
     typeof modelInstance === 'string'
       ? modelInstance

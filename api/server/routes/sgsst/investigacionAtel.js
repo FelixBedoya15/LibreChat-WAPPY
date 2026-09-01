@@ -220,7 +220,7 @@ Directrices:
             { role: 'user', parts: [{ text: `${systemPrompt}\n\nNombre del archivo: ${fileName || 'Adjunto'}\n\nDocumento:\n${extractedText}` }] }
         ];
 
-        const geminiResult = await generateWithKeyRotation(req.user.id, modelInstance, contents);
+        const geminiResult = await generateWithKeyRotation(modelInstance, req.user?.id || req.user, contents);
         const parsedData = cleanAndParseJson(geminiResult.text || (await geminiResult.response?.text?.()) || '');
 
         res.json({ success: true, formData: parsedData });
