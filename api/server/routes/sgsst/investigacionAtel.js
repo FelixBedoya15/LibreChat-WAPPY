@@ -216,12 +216,19 @@ Directrices:
 - 'diasIncapacidad': Número estimado o reportado de días de incapacidad (string numérico ej: '0', '3').
 - 'consecuencias': Consecuencias o afectaciones observadas.`;
 
-        const contents = [
-            { role: 'user', parts: [{ text: `${systemPrompt}\n\nNombre del archivo: ${fileName || 'Adjunto'}\n\nDocumento:\n${extractedText}` }] }
-        ];
+        const promptText = `${systemPrompt}\n\nNombre del archivo: ${fileName || 'Adjunto'}\n\nDocumento:\n${extractedText}`;
 
-        const geminiResult = await generateWithKeyRotation(modelInstance, req.user?.id || req.user, contents);
-        const parsedData = cleanAndParseJson(geminiResult.text || (await geminiResult.response?.text?.()) || '');
+        const geminiResult = await generateWithKeyRotation(modelInstance, req.user?.id || req.user, promptText);
+        let responseText = '';
+        if (typeof geminiResult?.response?.text === 'function') {
+            responseText = geminiResult.response.text();
+        } else if (geminiResult?.text) {
+            responseText = typeof geminiResult.text === 'function' ? geminiResult.text() : geminiResult.text;
+        } else if (typeof geminiResult === 'string') {
+            responseText = geminiResult;
+        }
+
+        const parsedData = cleanAndParseJson(responseText);
 
         res.json({ success: true, formData: parsedData });
     } catch (error) {

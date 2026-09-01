@@ -192,7 +192,13 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         }
         
         const model = genAI.getGenerativeModel(modelParams);
-        const result = await model.generateContent(promptText);
+        
+        let contentPayload = promptText;
+        if (Array.isArray(promptText) && promptText.length > 0 && promptText[0] && typeof promptText[0] === 'object' && promptText[0].role) {
+          contentPayload = { contents: promptText };
+        }
+
+        const result = await model.generateContent(contentPayload);
         return result; // ✅ success
 
       } catch (err) {
