@@ -48,43 +48,48 @@ const LIVE_FALLBACK_MODELS = [
  * @returns {Promise<string[]>}
  */
 async function resolveApiKeys(userId) {
-  const { GOOGLE_KEY, GEMINI_API_KEY } = process.env;
-  const isUserProvided = GOOGLE_KEY === 'user_provided';
-
   let rawApiKey = '';
 
-  if (isUserProvided && userId) {
+  // 1. Consultar siempre la clave guardada por el usuario en la base de datos
+  if (userId) {
     try {
-      // getUserKey returns the decrypted value stored in DB.
-      // initialize.js passes this directly as `credentials = userKey`
-      // GoogleClient constructor (line 67) does: creds[AuthKeys.GOOGLE_API_KEY]
-      // where creds comes from JSON.parse(credentials) if it's a string
-      const stored = await getUserKey({ userId, name: EModelEndpoint.google });
-      let parsed = null;
-      try { parsed = JSON.parse(stored); } catch { /* plain string key */ }
+      const stored = await getUserKey({ userId, name: EModelEndpoint?.google || 'google' });
+      if (stored) {
+        let parsed = null;
+        try { parsed = JSON.parse(stored); } catch { /* plain string key */ }
 
-      if (parsed && typeof parsed === 'object') {
-        // Standard format: {"GOOGLE_API_KEY":"AIza...","GOOGLE_API_KEY_2":"AIza..."}
-        rawApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || '';
-      } else if (typeof stored === 'string' && stored.length > 5) {
-        rawApiKey = stored.trim();
+        if (parsed && typeof parsed === 'object') {
+          rawApiKey = parsed[AuthKeys?.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY || parsed.apiKey || '';
+          const extraKeys = Object.entries(parsed)
+            .filter(([k, v]) => k !== AuthKeys?.GOOGLE_API_KEY && k !== 'GOOGLE_API_KEY' && typeof v === 'string' && v.startsWith('AIza'))
+            .map(([_, v]) => v);
+          if (extraKeys.length > 0) {
+            rawApiKey = [rawApiKey, ...extraKeys].filter(Boolean).join(',');
+          }
+        } else if (typeof stored === 'string' && stored.length > 5) {
+          rawApiKey = stored.trim();
+        }
       }
     } catch (e) {
       logger.debug(`[SGSST Gemini] No user key in DB for ${userId}: ${e.message}`);
     }
   }
 
-  // Fall back to env (skip literal 'user_provided')
+  // 2. Fallback a variables de entorno si el usuario no tiene clave en BD
   if (!rawApiKey) {
-    rawApiKey = (!isUserProvided && GOOGLE_KEY) ? GOOGLE_KEY : (GEMINI_API_KEY || '');
+    const { GOOGLE_KEY, GEMINI_API_KEY } = process.env;
+    if (GOOGLE_KEY && GOOGLE_KEY !== 'user_provided') {
+      rawApiKey = GOOGLE_KEY;
+    } else if (GEMINI_API_KEY) {
+      rawApiKey = GEMINI_API_KEY;
+    }
   }
 
-  // Split exactly as GoogleClient does (line 68):
-  // apiKey.split(',').map(k => k.trim()).filter(k => k.length > 0)
+  // 3. Separar por comas y filtrar cadenas vacías o 'user_provided'
   const keys = rawApiKey
     .split(',')
     .map(k => k.trim())
-    .filter(k => k.length > 0);
+    .filter(k => k.length > 0 && k !== 'user_provided');
 
   if (keys.length === 0) {
     throw new Error(
