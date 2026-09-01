@@ -17,7 +17,8 @@ const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } 
 const InvestigacionAtelData = require('~/models/InvestigacionAtelData');
 const feedWorkerEvent = require('./feedWorkerHelper');
 
-// ─── File Parser Imports ─────────────────────────────────────────────────────
+// ─── File Parser & Helper Imports ─────────────────────────────────────────────
+const { extractTextFromFile, cleanAndParseJson } = require('./fileExtractorHelper');
 const pdf = require('pdf-parse');
 const mammoth = require('mammoth');
 const XLSX = require('xlsx');
@@ -169,38 +170,51 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
                 responseSchema: {
                     type: 'object',
                     properties: {
-                        fechaAccidente: { type: 'string' },
-                        horaAccidente: { type: 'string' },
-                        lugarAccidente: { type: 'string' },
-                        tipoAccidente: { type: 'string', enum: ['Propio del trabajo', 'En comisión', 'En tránsito', 'Deportivo/Cultural', 'Violencia'] },
+                        tipoEvento: { type: 'string', enum: ['Incidente', 'Accidente Leve', 'Accidente Grave', 'Accidente Mortal'] },
+                        fechaEvento: { type: 'string' },
+                        horaEvento: { type: 'string' },
+                        lugarEvento: { type: 'string' },
+                        departamento: { type: 'string' },
+                        municipio: { type: 'string' },
+                        actividadMomento: { type: 'string' },
                         afectadoNombre: { type: 'string' },
-                        afectadoDocumento: { type: 'string' },
+                        afectadoCedula: { type: 'string' },
                         afectadoCargo: { type: 'string' },
-                        afectadoAntiguedad: { type: 'string' },
-                        afectadoEdad: { type: 'string' },
-                        afectadoGenero: { type: 'string', enum: ['Masculino', 'Femenino', 'Otro'] },
                         afectadoEps: { type: 'string' },
                         afectadoArl: { type: 'string' },
                         tipoContrato: { type: 'string', enum: ['Indefinido', 'Fijo', 'Obra o labor', 'Aprendizaje', 'Prestación de servicios', 'Temporal'] },
                         jornadaLaboral: { type: 'string', enum: ['Diurna', 'Nocturna', 'Mixta', 'Por turnos'] },
                         experienciaLaboral: { type: 'string' },
                         tiempoEnCargo: { type: 'string' },
-                        actividadMomento: { type: 'string' },
                         descripcionHechos: { type: 'string' },
-                        consecuencias: { type: 'string' },
+                        naturalezaLesion: { type: 'string', enum: ['Golpe / Contusión', 'Herida / Laceración', 'Fractura', 'Esguince / Torcedura', 'Quemadura', 'Amputación', 'Intoxicación', 'Electrocución', 'Trauma craneoencefálico', 'Sin lesión (Incidente)', 'Muerte', 'Otra'] },
+                        parteCuerpo: { type: 'string' },
                         diasIncapacidad: { type: 'string' },
-                        naturalezaLesion: { type: 'string' },
                         agenteCausal: { type: 'string' },
-                        parteCuerpo: { type: 'string' }
+                        consecuencias: { type: 'string' }
                     }
                 }
             }
         };
 
-        const systemPrompt = `Eres un asistente de seguridad y salud en el trabajo especializado en transcripción y mapeo de datos de reportes de accidentes o formularios FURAT.
-Analiza el siguiente texto extraído de un reporte o FURAT y mapea la información a los campos correspondientes del esquema JSON.
-Para los campos de tipo enum, selecciona el valor que más se asemeje si no hay coincidencia exacta.
-Las fechas deben estar en formato YYYY-MM-DD y las horas en formato HH:MM (de 24 horas).`;
+        const systemPrompt = `Eres un asistente experto en Seguridad y Salud en el Trabajo (SGSST) en Colombia especializado en transcribir y estructurar reportes de investigación y formatos FURAT (Formato Único de Reporte de Accidente de Trabajo).
+Analiza con precisión el siguiente documento/reporte y mapea todos los datos disponibles a las propiedades del esquema JSON.
+Directrices:
+- 'tipoEvento': Determina si es 'Accidente Leve', 'Accidente Grave', 'Accidente Mortal' o 'Incidente' según la severidad.
+- 'fechaEvento': En formato YYYY-MM-DD (ej: 2026-08-27).
+- 'horaEvento': En formato HH:MM (24 horas, ej: 08:00).
+- 'lugarEvento': Ubicación o sitio específico donde ocurrió (ej: Parqueadero o zona de circulación vehicular).
+- 'departamento' y 'municipio': Departamento y ciudad donde ocurrió el accidente.
+- 'afectadoNombre', 'afectadoCedula', 'afectadoCargo', 'afectadoEps', 'afectadoArl': Datos del trabajador accidentado.
+- 'tipoContrato': Si es Independiente/Contratista clasificar como 'Prestación de servicios' o el más afín.
+- 'jornadaLaboral': Diurna, Nocturna, Mixta o Por turnos.
+- 'actividadMomento': Labor que desempeñaba en el momento exacto del suceso.
+- 'descripcionHechos': Relato cronológico detallado de cómo ocurrieron los hechos.
+- 'naturalezaLesion': Seleccionar la opción de la lista que mejor describa la lesión (ej: Golpe / Contusión).
+- 'parteCuerpo': Zona o miembro anatómico afectado (ej: Codo derecho, Miembros superiores).
+- 'agenteCausal': Elemento, máquina o condición que ocasionó el evento.
+- 'diasIncapacidad': Número estimado o reportado de días de incapacidad (string numérico ej: '0', '3').
+- 'consecuencias': Consecuencias o afectaciones observadas.`;
 
         const contents = [
             { role: 'user', parts: [{ text: `${systemPrompt}\n\nNombre del archivo: ${fileName || 'Adjunto'}\n\nDocumento:\n${extractedText}` }] }
