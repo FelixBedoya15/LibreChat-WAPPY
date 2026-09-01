@@ -262,8 +262,24 @@ class GoogleDriveTool extends Tool {
           }, { responseType: 'arraybuffer' });
           
           const buffer = Buffer.from(response.data);
-          const pdfData = await pdf(buffer);
-          const text = (pdfData.text || '').replace(/\n+/g, '\n').trim();
+          let text = '';
+          const PDFParseClass = pdf.PDFParse || (pdf.default && pdf.default.PDFParse);
+          if (typeof PDFParseClass === 'function') {
+            const parser = new PDFParseClass({ data: buffer });
+            try {
+              const data = await parser.getText();
+              text = (data && data.text) ? data.text.trim() : '';
+            } finally {
+              if (typeof parser.destroy === 'function') await parser.destroy();
+            }
+          } else if (typeof pdf === 'function') {
+            const pdfData = await pdf(buffer);
+            text = (pdfData && pdfData.text) ? pdfData.text.trim() : '';
+          } else if (pdf.default && typeof pdf.default === 'function') {
+            const pdfData = await pdf.default(buffer);
+            text = (pdfData && pdfData.text) ? pdfData.text.trim() : '';
+          }
+          text = (text || '').replace(/\n+/g, '\n').trim();
           return `Contenido extraído del PDF "${name}":\n\n${text || '(PDF sin texto extraíble)'}`;
         } catch (pdfErr) {
           logger.warn(`[GoogleDriveTool] PDF parse warning for "${name}": ${pdfErr.message}`);

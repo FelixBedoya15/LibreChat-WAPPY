@@ -168,10 +168,24 @@ export async function parseTextNative(file: Express.Multer.File): Promise<{
   } else if (isPdf) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const pdf = require('pdf-parse');
+      const pdfLib = require('pdf-parse');
       const dataBuffer = await fsPromises.readFile(file.path);
-      const pdfData = await pdf(dataBuffer);
-      text = pdfData?.text ? pdfData.text.replace(/\n+/g, '\n').trim() : '';
+      const PDFParseClass = pdfLib.PDFParse || (pdfLib.default && pdfLib.default.PDFParse);
+      if (typeof PDFParseClass === 'function') {
+        const parser = new PDFParseClass({ data: dataBuffer });
+        try {
+          const pdfData = await parser.getText();
+          text = pdfData?.text ? pdfData.text.replace(/\n+/g, '\n').trim() : '';
+        } finally {
+          if (typeof parser.destroy === 'function') await parser.destroy();
+        }
+      } else if (typeof pdfLib === 'function') {
+        const pdfData = await pdfLib(dataBuffer);
+        text = pdfData?.text ? pdfData.text.replace(/\n+/g, '\n').trim() : '';
+      } else if (pdfLib.default && typeof pdfLib.default === 'function') {
+        const pdfData = await pdfLib.default(dataBuffer);
+        text = pdfData?.text ? pdfData.text.replace(/\n+/g, '\n').trim() : '';
+      }
       if (!text) {
         text = 'Empty PDF document';
       }

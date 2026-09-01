@@ -20,6 +20,57 @@ try {
 }
 
 /**
+ * Helper robusto para parsear PDFs soportando pdf-parse v2 y v1
+ */
+async function parsePdfBuffer(buffer) {
+  const pdfLib = require('pdf-parse');
+
+  // Caso 1: pdf-parse v2 (Class PDFParse)
+  const PDFParseClass = pdfLib.PDFParse || (pdfLib.default && pdfLib.default.PDFParse);
+  if (typeof PDFParseClass === 'function') {
+    const parser = new PDFParseClass({ data: buffer });
+    try {
+      const data = await parser.getText();
+      return (data && data.text) ? data.text.trim() : '';
+    } finally {
+      if (typeof parser.destroy === 'function') {
+        try {
+          await parser.destroy();
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+  }
+
+  // Caso 2: pdf-parse v1 (Función directa)
+  if (typeof pdfLib === 'function') {
+    const data = await pdfLib(buffer);
+    return (data && data.text) ? data.text.trim() : '';
+  }
+
+  // Caso 3: Export default como función
+  if (pdfLib.default && typeof pdfLib.default === 'function') {
+    const data = await pdfLib.default(buffer);
+    return (data && data.text) ? data.text.trim() : '';
+  }
+
+  // Caso 4: Constructor directo
+  try {
+    const parser = new pdfLib({ data: buffer });
+    if (typeof parser.getText === 'function') {
+      const data = await parser.getText();
+      if (typeof parser.destroy === 'function') await parser.destroy();
+      return (data && data.text) ? data.text.trim() : '';
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  throw new Error('Estructura del módulo pdf-parse no compatible.');
+}
+
+/**
  * Extrae texto legible a partir de un buffer y metadatos de archivo
  * @param {Object} params
  * @param {Buffer} params.buffer - Buffer binario del archivo
@@ -39,9 +90,9 @@ async function extractTextFromFile({ buffer, fileName = '', mimeType = '' }) {
   const isPdf = mime.includes('pdf') || name.endsWith('.pdf') || (buffer.length >= 4 && buffer.slice(0, 4).toString() === '%PDF');
   if (isPdf) {
     try {
-      const pdfData = await pdf(buffer);
-      if (pdfData && pdfData.text && pdfData.text.trim()) {
-        return pdfData.text.trim();
+      const text = await parsePdfBuffer(buffer);
+      if (text && text.trim()) {
+        return text.trim();
       }
     } catch (err) {
       logger.warn(`[fileExtractorHelper] Error parseando PDF ${fileName}: ${err.message}`);
