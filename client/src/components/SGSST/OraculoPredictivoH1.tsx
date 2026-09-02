@@ -3,6 +3,8 @@ import { Sparkles, Loader2, HeartPulse, Briefcase, AlertTriangle, ShieldAlert, C
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { SGSSTToolbar } from './SGSSTToolbar';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
+import ExportDropdown from './ExportDropdown';
 
 const SCORE_COLOR = (s: number) => {
     if (s >= 80) return { ring: 'border-green-400', text: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20', badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' };
@@ -494,55 +496,93 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                         </div>
                                     </div>
                                 ) : (
-                                    <div>
+                                    <div className="rounded-b-2xl overflow-hidden bg-surface-primary">
                                         {/* Conclusion Header with toolbar */}
-                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-b border-teal-200/50 dark:border-teal-800/50">
-                                            <button
-                                                onClick={() => setExpandedId(isExpanded ? null : worker.id)}
-                                                className="flex items-center gap-2 text-sm font-bold text-teal-800 dark:text-teal-300 hover:text-teal-600 transition-colors"
-                                            >
-                                                <Sparkles className="w-4 h-4" />
-                                                Dictamen Predictivo (Oráculo H1)
-                                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                            </button>
-                                            <div className="-my-2">
-                                                <SGSSTToolbar
-                                                    aiButtons={[{
-                                                        id: `reeval-${worker.id}`,
-                                                        onClick: () => handleConsultOracle(worker, profile, fit),
-                                                        title: 'Re-evaluar',
-                                                        label: 'Re-evaluar',
-                                                        icon: 'brain',
-                                                        variant: 'default',
-                                                        isLoading: generatingId === worker.id,
-                                                        disabled: generatingId === worker.id,
-                                                    }]}
-                                                    persistenceButtons={[{
-                                                        id: `save-${worker.id}`,
-                                                        onClick: () => handleSaveDictamen(worker.id),
-                                                        title: 'Guardar Dictamen',
-                                                        label: 'Guardar',
-                                                        icon: 'database',
-                                                        variant: 'database',
-                                                        isLoading: savingId === worker.id,
-                                                        disabled: savingId === worker.id,
-                                                    }]}
+                                        <div
+                                            onClick={() => setExpandedId(isExpanded ? null : worker.id)}
+                                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 border-b border-border-medium bg-gradient-to-r from-teal-50/80 to-transparent dark:from-teal-950/40 cursor-pointer hover:bg-teal-500/5 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 shrink-0">
+                                                    <Sparkles className="w-4 h-4" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-xs font-black uppercase tracking-wider text-teal-800 dark:text-teal-300">
+                                                        Dictamen Predictivo (Oráculo H1)
+                                                    </h4>
+                                                    <p className="text-[10px] text-text-secondary font-medium">
+                                                        Editor en Vivo · Modifica, formatea y exporta este informe
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                                <div className="-my-2">
+                                                    <SGSSTToolbar
+                                                        aiButtons={[{
+                                                            id: `reeval-${worker.id}`,
+                                                            onClick: () => handleConsultOracle(worker, profile, fit),
+                                                            title: 'Re-evaluar con IA',
+                                                            label: 'Re-evaluar',
+                                                            icon: 'brain',
+                                                            variant: 'default',
+                                                            isLoading: generatingId === worker.id,
+                                                            disabled: generatingId === worker.id,
+                                                        }]}
+                                                        persistenceButtons={[{
+                                                            id: `save-${worker.id}`,
+                                                            onClick: () => handleSaveDictamen(worker.id),
+                                                            title: 'Guardar Dictamen en BD',
+                                                            label: 'Guardar',
+                                                            icon: 'database',
+                                                            variant: 'database',
+                                                            isLoading: savingId === worker.id,
+                                                            disabled: savingId === worker.id,
+                                                        }]}
+                                                    />
+                                                </div>
+                                                <ExportDropdown
+                                                    content={aiConclusions[worker.id] || ''}
+                                                    fileName={`Dictamen_Predictivo_${(worker.nombre || 'Trabajador').replace(/\s+/g, '_')}`}
+                                                    reportType="general"
                                                 />
+                                                <button
+                                                    onClick={() => setExpandedId(isExpanded ? null : worker.id)}
+                                                    className="p-2 rounded-xl text-text-secondary hover:bg-surface-secondary transition-colors"
+                                                    title={isExpanded ? 'Contraer' : 'Expandir'}
+                                                >
+                                                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                                </button>
                                             </div>
                                         </div>
-                                        {/* Conclusion content - collapsible */}
-                                        {isExpanded && (
-                                            <div
-                                                className="px-5 py-4 prose prose-sm max-w-none text-text-primary text-xs leading-relaxed"
-                                                dangerouslySetInnerHTML={{ __html: aiConclusions[worker.id] }}
-                                            />
-                                        )}
-                                        {!isExpanded && (
+
+                                        {/* Conclusion content - LiveEditor */}
+                                        {isExpanded ? (
+                                            <div className="p-1 overflow-hidden bg-surface-primary">
+                                                <div style={{ minHeight: '450px', overflowX: 'auto', width: '100%' }}>
+                                                    <div style={{ minWidth: '850px', padding: '16px' }}>
+                                                        <LiveEditor
+                                                            initialContent={aiConclusions[worker.id] || ''}
+                                                            onUpdate={(html) => {
+                                                                setAiConclusions(prev => ({ ...prev, [worker.id]: html }));
+                                                            }}
+                                                            reportSourceData={{
+                                                                trabajador: worker,
+                                                                perfilCargo: profile,
+                                                                fitScore: fit.score,
+                                                                alertas: fit.auditItems
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
                                             <button
                                                 onClick={() => setExpandedId(worker.id)}
-                                                className="w-full text-center py-2.5 text-xs text-teal-600 font-bold hover:text-teal-800 transition-colors"
+                                                className="w-full text-center py-3 text-xs text-teal-600 dark:text-teal-400 font-bold hover:bg-teal-500/5 transition-colors flex items-center justify-center gap-1.5"
                                             >
-                                                Ver dictamen completo ↓
+                                                <span>Abrir Dictamen en LiveEditor</span>
+                                                <ChevronDown className="w-3.5 h-3.5" />
                                             </button>
                                         )}
                                     </div>
