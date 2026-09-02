@@ -64,33 +64,53 @@ export default function OraculoPredictivoH1() {
         return () => window.removeEventListener('wappy-reload-sgsst-data', fetchData);
     }, [token]);
 
+    // Helper para matching flexible de perfiles de cargo
+    const findMatchingProfile = useCallback((workerCargo: string, profList: any[]) => {
+        if (!workerCargo) return null;
+        const clean = String(workerCargo).trim().toLowerCase();
+        let match = (profList || []).find(p => String(p.nombreCargo || '').trim().toLowerCase() === clean);
+        if (match) return match;
+        match = (profList || []).find(p => {
+            const cargoClean = String(p.nombreCargo || '').trim().toLowerCase();
+            return cargoClean && (clean.includes(cargoClean) || cargoClean.includes(clean));
+        });
+        if (match) return match;
+        return {
+            nombreCargo: workerCargo,
+            exigenciaFisica: 'Media',
+            exigenciaMental: 'Media',
+            operaMaquinaria: 'No',
+            entrenamientosSeleccionados: []
+        };
+    }, []);
+
     // ─── TAG → Score Map: Each IA tag maps to a score penalty ────────────────
     const TAG_RULES: Record<string, { pts: number; sev: string; cat: string; label: string; desc: string }> = {
-        Lumbalgia:            { pts: 10, sev: 'warning',  cat: 'Osteomuscular',    label: 'Lumbalgia',             desc: 'Restricción lumbar detectada. Limita carga de peso y posturas prolongadas.' },
-        Hernia_Discal:        { pts: 15, sev: 'critical', cat: 'Osteomuscular',    label: 'Hernia Discal',         desc: 'Condición discal que puede agravarse con esfuerzo físico.' },
-        Cervicalgia:          { pts: 8,  sev: 'warning',  cat: 'Osteomuscular',    label: 'Cervicalgia',           desc: 'Restricción cervical. Limita posiciones de cuello sostenidas.' },
-        Epicondilitis:        { pts: 8,  sev: 'warning',  cat: 'Osteomuscular',    label: 'Epicondilitis',         desc: 'Inflamación en el codo. Limita movimientos repetitivos del antebrazo.' },
-        Tunel_Carpiano:       { pts: 8,  sev: 'warning',  cat: 'Osteomuscular',    label: 'Túnel Carpiano',        desc: 'Compresión del nervio mediano. Limita trabajo manual repetitivo.' },
-        Restriccion_Hombro:   { pts: 10, sev: 'warning',  cat: 'Osteomuscular',    label: 'Restricción de Hombro', desc: 'Limitación en el complejo del hombro. Limita levantamiento sobre la cabeza.' },
-        Restriccion_Rodilla:  { pts: 10, sev: 'warning',  cat: 'Osteomuscular',    label: 'Restricción de Rodilla',desc: 'Limitación articular en rodilla. Limita escaleras, cargas y bipedestación.' },
-        No_Carga_Peso:        { pts: 8,  sev: 'warning',  cat: 'Restricción Física',label: 'No Carga de Peso',      desc: 'Restricción médica explícita de levantamiento o carga de objetos.' },
-        No_Bipedestacion:     { pts: 5,  sev: 'info',     cat: 'Restricción Física',label: 'No Bipedestación Prolongada', desc: 'Limitación para permanecer de pie por períodos extendidos.' },
-        No_Sedestacion:       { pts: 5,  sev: 'info',     cat: 'Restricción Física',label: 'No Sedestación Prolongada',   desc: 'Limitación para permanecer sentado por períodos extendidos.' },
-        Hipoacusia:           { pts: 8,  sev: 'warning',  cat: 'Sensorial',        label: 'Hipoacusia',            desc: 'Pérdida auditiva detectada. Requiere protección auditiva y evaluación.' },
-        Vision_Reducida:      { pts: 5,  sev: 'info',     cat: 'Sensorial',        label: 'Visión Reducida',       desc: 'Disminución visual. Requiere corrección óptica adecuada para el cargo.' },
-        HTA:                  { pts: 15, sev: 'warning',  cat: 'Clínico',          label: 'Hipertensión Arterial', desc: 'Tensión arterial elevada. Requiere seguimiento y control de estrés.' },
-        Cardiopatia:          { pts: 20, sev: 'critical', cat: 'Clínico',          label: 'Cardiopatía',           desc: 'Condición cardíaca declarada. Limita esfuerzos físicos intensos.' },
-        Diabetes:             { pts: 10, sev: 'warning',  cat: 'Clínico',          label: 'Diabetes',              desc: 'Condición metabólica que requiere control glucémico y pausas.' },
-        Epilepsia:            { pts: 25, sev: 'critical', cat: 'Neurológico',      label: 'Epilepsia / Convulsiones','desc': 'Alto riesgo en operación de maquinaria y alturas. Bloqueo preventivo.' },
-        Vertigo:              { pts: 18, sev: 'critical', cat: 'Neurológico',      label: 'Vértigo / Mareo',       desc: 'Riesgo de caída en alturas o desequilibrio durante operación de equipos.' },
-        EPOC:                 { pts: 15, sev: 'warning',  cat: 'Respiratorio',     label: 'EPOC / Bronquitis',     desc: 'Enfermedad pulmonar obstructiva. Limita exposición a polvo y químicos.' },
-        Asma:                 { pts: 10, sev: 'warning',  cat: 'Respiratorio',     label: 'Asma',                  desc: 'Hipersensibilidad bronquial. Limita exposición a irritantes ambientales.' },
-        Alergia_Quimica:      { pts: 10, sev: 'warning',  cat: 'Inmunológico',     label: 'Alergia Química',       desc: 'Sensibilidad a agentes químicos. Requiere EPP específico y restricción de área.' },
-        Medicamento_SNC:      { pts: 15, sev: 'critical', cat: 'Farmacológico',    label: 'Medicamento Depresor SNC','desc': 'Uso de sedantes o psicotrópicos incompatible con maquinaria. Alerta de seguridad.' },
-        Restriccion_Mental:   { pts: 12, sev: 'warning',  cat: 'Psicosocial',      label: 'Restricción de Salud Mental','desc': 'Condición de salud mental que puede afectar concentración y toma de decisiones.' },
-        Patologia_Cronica:    { pts: 10, sev: 'warning',  cat: 'Clínico',          label: 'Patología Crónica',     desc: 'Enfermedad crónica base que requiere vigilancia epidemiológica.' },
-        Diagnostico_Reciente: { pts: 5,  sev: 'info',     cat: 'Clínico',          label: 'Diagnóstico Reciente',  desc: 'Diagnóstico médico reciente. Amerita seguimiento y ajuste del puesto.' },
-        Recomendacion_Leve:   { pts: 3,  sev: 'info',     cat: 'Preventivo',       label: 'Recomendación Médica',  desc: 'Recomendación preventiva activa que debe ser gestionada por SST.' },
+        Lumbalgia:            { pts: 10, sev: 'warning',  cat: 'Osteomuscular',    label: 'Lumbalgia Mecánica',          desc: 'Restricción lumbar. Requiere control de levantamiento de cargas y pausas.' },
+        Hernia_Discal:        { pts: 15, sev: 'critical', cat: 'Osteomuscular',    label: 'Hernia Discal / Discopatía',  desc: 'Condición discal que puede agravarse con esfuerzos mecánicos intensos.' },
+        Cervicalgia:          { pts: 8,  sev: 'warning',  cat: 'Osteomuscular',    label: 'Cervicalgia Ocupacional',     desc: 'Restricción cervical. Requiere evitar posturas estáticas de cuello.' },
+        Epicondilitis:        { pts: 8,  sev: 'warning',  cat: 'Osteomuscular',    label: 'Epicondilitis / Tendinitis',  desc: 'Inflamación articular. Limita movimientos repetitivos de flexo-extensión.' },
+        Tunel_Carpiano:       { pts: 8,  sev: 'warning',  cat: 'Osteomuscular',    label: 'Síndrome de Túnel Carpiano',  desc: 'Compresión nerviosa en muñeca. Limita digitación y agarre de fuerza.' },
+        Restriccion_Hombro:   { pts: 10, sev: 'warning',  cat: 'Osteomuscular',    label: 'Manguito Rotador / Hombro',   desc: 'Limitación glenohumeral. Evitar trabajos con brazos elevados.' },
+        Restriccion_Rodilla:  { pts: 10, sev: 'warning',  cat: 'Osteomuscular',    label: 'Restricción Articular Rodilla',desc: 'Limitación en rodillas. Evitar cuclillas y sobrecargas.' },
+        No_Carga_Peso:        { pts: 8,  sev: 'warning',  cat: 'Restricción Física',label: 'Restricción de Levantamiento',desc: 'Límite estricto de carga de peso según concepto médico.' },
+        No_Bipedestacion:     { pts: 5,  sev: 'info',     cat: 'Restricción Física',label: 'Restricción Bipedestación',   desc: 'Requiere alternancia postural para evitar fatiga vascular y articular.' },
+        No_Sedestacion:       { pts: 5,  sev: 'info',     cat: 'Restricción Física',label: 'Restricción Sedestación',     desc: 'Requiere pausas activas y estaciones de trabajo ergonómicas.' },
+        Hipoacusia:           { pts: 8,  sev: 'warning',  cat: 'Sensorial',        label: 'Hipoacusia Neurosensorial',   desc: 'Disminución auditiva. Protección auditiva de alta atenuación obligatoria.' },
+        Vision_Reducida:      { pts: 5,  sev: 'info',     cat: 'Sensorial',        label: 'Defecto de Refracción Visual',desc: 'Requiere lentes de seguridad con prescripción óptica verificada.' },
+        HTA:                  { pts: 10, sev: 'warning',  cat: 'Cardiovascular',   label: 'Hipertensión Diagnosticada',  desc: 'Enfermedad cardiovascular bajo tratamiento médico.' },
+        Cardiopatia:          { pts: 20, sev: 'critical', cat: 'Cardiovascular',   label: 'Cardiopatía / Arritmia',      desc: 'Condición cardíaca mayor. Incompatible con sobreesfuerzos físicos extremos.' },
+        Diabetes:             { pts: 10, sev: 'warning',  cat: 'Metabólico',       label: 'Diabetes Mellitus',           desc: 'Requiere control glucémico, hidratación y prevención de fatiga súbita.' },
+        Epilepsia:            { pts: 25, sev: 'critical', cat: 'Neurológico',      label: 'Epilepsia / Convulsiones',    desc: 'Alto riesgo de pérdida de conciencia. Bloqueo en alturas y maquinaria.' },
+        Vertigo:              { pts: 18, sev: 'critical', cat: 'Neurológico',      label: 'Síndrome Vertiginoso / Mareo',desc: 'Riesgo de desequilibrio. Restricción en alturas y plataformas elevadas.' },
+        EPOC:                 { pts: 15, sev: 'warning',  cat: 'Respiratorio',     label: 'EPOC / Enfisema Pulmonar',    desc: 'Limitación ventilatoria crónica. Evitar polvos, humos y químicos volátiles.' },
+        Asma:                 { pts: 10, sev: 'warning',  cat: 'Respiratorio',     label: 'Asma Ocupacional / Bronquial',desc: 'Hiperreactividad bronquial ante alergenos e irritantes ambientales.' },
+        Alergia_Quimica:      { pts: 10, sev: 'warning',  cat: 'Inmunológico',     label: 'Alergia Química / Dermatitis',desc: 'Hipersensibilidad de contacto. EPP de barrera química obligatorio.' },
+        Medicamento_SNC:      { pts: 15, sev: 'critical', cat: 'Farmacológico',    label: 'Fármaco Depresor del SNC',    desc: 'Sedantes o ansiolíticos que alteran tiempos de reacción y alerta motora.' },
+        Restriccion_Mental:   { pts: 12, sev: 'warning',  cat: 'Psicoemocional',   label: 'Afección Psicoemocional',     desc: 'Condición que compromete tolerancia a la sobrecarga mental o turnos nocturnos.' },
+        Patologia_Cronica:    { pts: 8,  sev: 'warning',  cat: 'Clínico',          label: 'Patología Crónica de Base',   desc: 'Enfermedad diagnosticada que requiere vigilancia epidemiológica.' },
+        Diagnostico_Reciente: { pts: 4,  sev: 'info',     cat: 'Clínico',          label: 'Diagnóstico Clínico Reciente',desc: 'Seguimiento preventivo y verificación de adherencia al tratamiento.' },
+        Recomendacion_Leve:   { pts: 2,  sev: 'info',     cat: 'Preventivo',       label: 'Recomendación Preventiva',    desc: 'Medida ergonómica o de autocuidado emitida por medicina laboral.' },
     };
 
     const calcFit = useCallback((w: any, profile: any) => {
@@ -99,29 +119,48 @@ export default function OraculoPredictivoH1() {
         const add = (title: string, desc: string, pts: number, sev: string, cat: string) => {
             score -= pts; auditItems.push({ title, description: desc, pts, severity: sev, category: cat });
         };
-        if (!profile) return { score: 0, auditItems: [{ title: 'Sin rol asignado', description: 'No se encontró Perfil de Cargo.', pts: 100, severity: 'critical', category: 'Operativo' }] };
+        const prof = profile || { exigenciaFisica: 'Media', exigenciaMental: 'Media', operaMaquinaria: 'No', entrenamientosSeleccionados: [] };
 
-        // 1. BIOMETRÍA (valores exactos, sin ambigüedad — sistema determinístico)
+        // 1. BIOMETRÍA Y SIGNOS VITALES (Graduación Clínica OMS / AHA)
         if (w.imc) {
             const imc = parseFloat(w.imc);
-            if (imc >= 30) add('Obesidad detectada', `IMC ${imc} indica obesidad. Riesgo cardiovascular elevado.`, 10, 'warning', 'Clínico');
-            else if (imc < 18.5) add('Bajo peso', `IMC ${imc} sugiere déficit nutricional.`, 5, 'info', 'Clínico');
+            if (!isNaN(imc)) {
+                if (imc >= 35) add('Obesidad Severa (Grado II/III)', `IMC ${imc} — Alto riesgo cardiovascular, metabólico y sobrecarga articular.`, 10, 'critical', 'Clínico');
+                else if (imc >= 30) add('Obesidad (Grado I)', `IMC ${imc} — Requiere monitoreo nutricional y acondicionamiento físico.`, 6, 'warning', 'Clínico');
+                else if (imc >= 25) add('Sobrepeso Leve', `IMC ${imc} — Monitoreo preventivo en programa de estilo de vida saludable.`, 3, 'info', 'Clínico');
+                else if (imc < 18.5) add('Bajo Peso', `IMC ${imc} — Sugiere déficit nutricional o fatiga temprana ante esfuerzo.`, 4, 'info', 'Clínico');
+            }
         }
         if (w.presionArterial) {
             const [s1, d1] = w.presionArterial.split('/');
-            if (parseInt(s1||'0') >= 135 || parseInt(d1||'0') >= 90) add('Riesgo de Hipertensión', `PA ${w.presionArterial} sobre rangos óptimos.`, 15, 'warning', 'Clínico');
+            const sis = parseInt(s1 || '0', 10);
+            const dia = parseInt(d1 || '0', 10);
+            if (!isNaN(sis) && !isNaN(dia)) {
+                if (sis >= 160 || dia >= 100) add('Hipertensión Severa (Estadio 2)', `Presión Arterial ${w.presionArterial} mmHg. Alto riesgo vascular en esfuerzos intensos.`, 15, 'critical', 'Clínico');
+                else if (sis >= 140 || dia >= 90) add('Hipertensión (Estadio 1)', `Presión Arterial ${w.presionArterial} mmHg. Requiere control médico ocupacional.`, 8, 'warning', 'Clínico');
+                else if (sis >= 130 || dia >= 85) add('Tensión Arterial Elevada', `Presión Arterial ${w.presionArterial} mmHg. Monitoreo preventivo de estrés y sal.`, 4, 'info', 'Clínico');
+            }
         }
         if (w.frecuenciaCardiaca) {
-            const fc = parseInt(w.frecuenciaCardiaca);
-            if (fc > 100) add('Taquicardia en reposo', `FC ${fc} lpm, posible estrés cardiovascular.`, 10, 'warning', 'Clínico');
-            else if (fc < 50) add('Bradicardia', `FC ${fc} lpm, valoración cardiológica recomendada.`, 5, 'info', 'Clínico');
+            const fc = parseInt(w.frecuenciaCardiaca, 10);
+            if (!isNaN(fc)) {
+                if (fc > 100) add('Taquicardia en Reposo', `FC ${fc} lpm — Posible sobrecarga cardiovascular, estrés o deshidratación.`, 8, 'warning', 'Clínico');
+                else if (fc < 50) {
+                    const isAthlete = w.deporte && (w.deporte.toLowerCase().includes('sí') || w.deporte.toLowerCase().includes('frecuente') || w.deporte.toLowerCase().includes('diario'));
+                    if (!isAthlete) add('Bradicardia en Reposo', `FC ${fc} lpm — Sugiere valoración médica si se acompaña de mareos.`, 4, 'info', 'Clínico');
+                    else add('Bradicardia Sinusal Fisiológica', `FC ${fc} lpm — Respuesta cardíaca eficiente adaptada al acondicionamiento físico.`, 0, 'info', 'Preventivo');
+                }
+            }
         }
 
-        // 2. HÁBITOS (opciones fijas del formulario — sistema determinístico)
-        if (w.fuma === 'Sí, diario') add('Tabaquismo Activo', 'Consumo diario impacta capacidad pulmonar y oxigenación celular.', 10, 'warning', 'Clínico');
-        if (w.alcohol === 'Sí (Frecuente)') add('Etilismo Frecuente', 'Aumenta accidentabilidad y vulnerabilidad hepática.', 15, 'warning', 'Psicosocial');
+        // 2. HÁBITOS Y ESTILO DE VIDA
+        if (w.fuma === 'Sí, diario') add('Tabaquismo Activo Diario', 'Reduce la capacidad de difusión pulmonar y la resistencia aeróbica.', 6, 'warning', 'Clínico');
+        if (w.alcohol === 'Sí (Frecuente)') {
+            if (prof.operaMaquinaria === 'Sí') add('🛑 Consumo Frecuente de Alcohol + Maquinaria', 'Alto riesgo de accidentabilidad grave en labores mecanizadas.', 25, 'critical', 'Psicosocial');
+            else add('Consumo Frecuente de Alcohol', 'Vigilancia preventiva y programa de prevención de adicciones.', 10, 'warning', 'Psicosocial');
+        }
 
-        // 3. CAMPOS DE TEXTO LIBRE → IA SEMÁNTICA (usa bioTagsIA si disponible, fallback básico si no)
+        // 3. CAMPOS DE TEXTO LIBRE → IA SEMÁNTICA (9 Dominios)
         const iaTags: string[] = w.bioTagsIA || [];
         const hasIATags = iaTags.length > 0 && !iaTags.includes('Sin_Hallazgos');
         const hasAnyText = [
@@ -131,77 +170,75 @@ export default function OraculoPredictivoH1() {
 
         if (hasAnyText) {
             if (hasIATags) {
-                // IA semántica disponible: convertir etiquetas a penalizaciones
                 iaTags.forEach(tag => {
                     const rule = TAG_RULES[tag];
                     if (!rule) return;
                     let pts = rule.pts;
-                    // Multiplicadores por exigencias del cargo
-                    if (tag === 'Lumbalgia' || tag === 'Hernia_Discal' || tag === 'Restriccion_Hombro' || tag === 'Restriccion_Rodilla') {
-                        if (profile.exigenciaFisica === 'Alta') pts = Math.round(pts * 1.5);
-                    }
-                    if ((tag === 'Epilepsia' || tag === 'Vertigo' || tag === 'Medicamento_SNC' || tag === 'Restriccion_Mental') && profile.operaMaquinaria === 'Sí') {
-                        pts = Math.round(pts * 2.0);
-                    }
-                    if (tag === 'Restriccion_Mental' && profile.exigenciaMental === 'Alta') {
+                    if ((tag === 'Lumbalgia' || tag === 'Hernia_Discal' || tag === 'Restriccion_Hombro' || tag === 'Restriccion_Rodilla') && prof.exigenciaFisica === 'Alta') {
                         pts = Math.round(pts * 1.5);
                     }
-                    add(rule.label, rule.desc + (pts !== rule.pts ? ` ⚠️ Penalización agravada por exigencias del cargo.` : ''), pts, rule.sev, rule.cat);
+                    if ((tag === 'Epilepsia' || tag === 'Vertigo' || tag === 'Medicamento_SNC') && prof.operaMaquinaria === 'Sí') {
+                        pts = Math.round(pts * 2.0);
+                    }
+                    if (tag === 'Restriccion_Mental' && prof.exigenciaMental === 'Alta') {
+                        pts = Math.round(pts * 1.5);
+                    }
+                    add(rule.label, rule.desc + (pts !== rule.pts ? ' ⚠️ Agravado por exigencias del puesto.' : ''), pts, rule.sev, rule.cat);
                 });
             } else {
-                // Fallback básico mientras IA procesa (solo si no hay tags aún)
                 const hasEnf = w.enfermedades?.trim() && !w.enfermedades.toLowerCase().includes('ninguna');
                 const hasDiag = w.diagnosticoMedico?.trim() && !w.diagnosticoMedico.toLowerCase().includes('ninguno') && !w.diagnosticoMedico.toLowerCase().includes('apto');
                 const hasRestr = w.limitacionesBiomecanicas?.trim() && !w.limitacionesBiomecanicas.toLowerCase().includes('ninguna');
                 const hasRec = w.recomendacionesMedicas?.trim() && !w.recomendacionesMedicas.toLowerCase().includes('ninguna');
                 const hasAl = w.alergiasQuimicas?.trim() && !w.alergiasQuimicas.toLowerCase().includes('ninguna');
-                if (hasEnf) add('Patología Base (pendiente análisis IA)', `"${w.enfermedades}" — Procesando con IA semántica.`, 10, 'warning', 'Clínico');
-                if (hasDiag && !hasEnf) add('Diagnóstico Médico (pendiente análisis IA)', `"${w.diagnosticoMedico}" — Procesando con IA semántica.`, 5, 'info', 'Clínico');
-                if (hasRestr) add('Restricción Biomecánica (pendiente análisis IA)', `"${w.limitacionesBiomecanicas}" — Procesando con IA semántica.`, 8, 'warning', 'Osteomuscular');
-                if (hasRec) add('Recomendación Médica (pendiente análisis IA)', `"${w.recomendacionesMedicas}" — Procesando con IA semántica.`, 3, 'info', 'Preventivo');
-                if (hasAl) add('Alergia Química (pendiente análisis IA)', `"${w.alergiasQuimicas}" — Procesando con IA semántica.`, 8, 'warning', 'Inmunológico');
+                if (hasEnf) add('Patología Base Declarada', `${w.enfermedades}`, 8, 'warning', 'Clínico');
+                if (hasDiag && !hasEnf) add('Diagnóstico Médico Ocupacional', `${w.diagnosticoMedico}`, 5, 'info', 'Clínico');
+                if (hasRestr) add('Restricción Biomecánica', `${w.limitacionesBiomecanicas}`, 8, 'warning', 'Osteomuscular');
+                if (hasRec) add('Recomendación Médica Ocupacional', `${w.recomendacionesMedicas}`, 3, 'info', 'Preventivo');
+                if (hasAl) add('Alergia Química Declarada', `${w.alergiasQuimicas}`, 6, 'warning', 'Inmunológico');
             }
         }
 
-        // 4. VULNERABILIDAD SOCIODEMOGRÁFICA (datos estructurados del formulario)
-        // NOTA: Para evitar sesgos discriminatorios (Ley y OIT), estos factores NO restan puntos al "Fit" (pts = 0).
-        // Se mantienen únicamente como Alertas de Vigilancia Epidemiológica para el prevencionista SST.
+        // 4. VULNERABILIDAD SOCIAL Y FAMILIAR (Alertas Éticas — 0 pts de deducción)
         let vs = 0;
         let socialDesc: string[] = [];
-        if (['1', '2'].includes(w.estrato)) { vs++; socialDesc.push('estrato socioeconómico bajo'); }
+        if (['1', '2'].includes(String(w.estrato || ''))) { vs++; socialDesc.push('estrato socioeconómico bajo'); }
         if (w.personasCargo && Number(w.personasCargo) >= 3) { vs++; socialDesc.push('alta carga de dependientes'); }
         if (w.estadoCivil?.toLowerCase().includes('solter') || w.estadoCivil?.toLowerCase().includes('viud') || w.estadoCivil?.toLowerCase().includes('divorciad')) {
             if (w.personasCargo && Number(w.personasCargo) > 0) { vs++; socialDesc.push('monoparentalidad'); }
         }
         if (w.vivienda?.toLowerCase().includes('arrendada') || w.vivienda?.toLowerCase().includes('invasión')) { vs++; socialDesc.push('inestabilidad habitacional'); }
 
-        if (vs >= 3) add('Vulnerabilidad Sociodemográfica', `Factores estresores: ${socialDesc.join(', ')}. Sugerido apoyo psicosocial.`, 0, 'info', 'Vigilancia Epidemiológica');
+        if (vs >= 3) add('Vulnerabilidad Sociodemográfica', `Factores estresores: ${socialDesc.join(', ')}. Sugerido programa de bienestar psicosocial.`, 0, 'info', 'Vigilancia Epidemiológica');
         else if (vs >= 2) add('Factores Psicosociales Externos', `Factores detectados: ${socialDesc.join(', ')}.`, 0, 'info', 'Vigilancia Epidemiológica');
-        if (w.nivelEscolaridad?.toLowerCase().includes('primaria')) add('Escolaridad Básica', 'Requiere métodos de capacitación visuales y acompañamiento cercano en SST.', 0, 'info', 'Vigilancia Epidemiológica');
+        if (w.nivelEscolaridad?.toLowerCase().includes('primaria')) add('Escolaridad Básica', 'Requiere métodos de inducción visuales y acompañamiento cercano en SST.', 0, 'info', 'Vigilancia Epidemiológica');
 
-        // 5. CRUCE CARGO × DATOS FIJOS
-        const hasEnfFijo = w.enfermedades?.trim() && !w.enfermedades.toLowerCase().includes('ninguna');
-        const hasDiagFijo = w.diagnosticoMedico?.trim() && !w.diagnosticoMedico.toLowerCase().includes('ninguno') && !w.diagnosticoMedico.toLowerCase().includes('apto');
-        if (profile.exigenciaFisica === 'Alta') {
-            if (w.edad && Number(w.edad) > 55) add('Alerta Ergonómica por Edad', `Edad ${w.edad} años con alta exigencia física. Monitoreo preventivo requerido.`, 0, 'info', 'Preventivo');
-            if (!hasIATags && (hasEnfFijo || hasDiagFijo)) add('Patología en Rol de Alta Exigencia', 'La carga física intensa puede agravar la condición clínica base.', 10, 'critical', 'Operativo');
+        // 5. CRUCE CON EXIGENCIAS CRÍTICAS DEL CARGO
+        if (prof.exigenciaFisica === 'Alta') {
+            if (w.edad && Number(w.edad) > 55) add('Alerta de Carga Fisiológica por Edad', 'Colaborador mayor de 55 años en rol de alta exigencia física. Monitoreo ergonómico preventivo.', 0, 'info', 'Preventivo');
         }
-        if (profile.exigenciaMental === 'Alta') {
-            if (w.terapiaPsicologica === 'Sí') add('Alerta de Burnout', 'Rol de alta tensión mental sumado a psicoterapia activa. Riesgo de agotamiento.', 15, 'critical', 'Psicosocial');
-            if (vs >= 2) add('Contexto Psicosocial Estresante', 'Vulnerabilidad social + rol de alta exigencia mental. Requiere vigilancia activa de estrés.', 0, 'info', 'Vigilancia Epidemiológica');
+        if (prof.exigenciaMental === 'Alta') {
+            if (w.terapiaPsicologica === 'Sí') add('Vigilancia de Sobrecarga y Burnout', 'Rol de alta tensión mental sumado a acompañamiento psicológico activo.', 10, 'warning', 'Psicoemocional');
         }
-        if (profile.operaMaquinaria === 'Sí') {
+        if (prof.operaMaquinaria === 'Sí' && !hasIATags) {
             const medLower = (w.medicamentos || '').toLowerCase();
-            const lethal = medLower.includes('psiquiátrico') || medLower.includes('dormir') || medLower.includes('sedante') || medLower.includes('ansiolítico');
-            if (!hasIATags && (lethal || w.alcohol === 'Sí (Frecuente)')) add('🛑 BLOQUEO PREVENTIVO', 'Uso de depresores del SNC incompatible con maquinaria. Riesgo de accidente fatal.', 40, 'critical', 'Operativo');
+            const hasMedsLethal = medLower.includes('psiquiátrico') || medLower.includes('dormir') || medLower.includes('sedante') || medLower.includes('ansiolítico');
+            if (hasMedsLethal) add('🛑 BLOQUEO PREVENTIVO: Sedantes + Maquinaria', 'Uso de fármacos depresores del SNC incompatible con operación de maquinaria.', 35, 'critical', 'Operativo');
         }
-        if (profile.entrenamientosSeleccionados?.length > 0 && !w.curso50h && !w.curso20h) {
-            let penalty = 5; // Base
-            penalty += profile.entrenamientosSeleccionados.length; // +1 por cada curso
-            const criticalKeywords = ['alturas', 'confinado', '50 horas', '50h', '20 horas', '20h', 'licencia', 'emergencia', 'rescate', 'primeros auxilios', 'coordinador'];
-            const hasCritical = profile.entrenamientosSeleccionados.some((c: string) => criticalKeywords.some(k => c.toLowerCase().includes(k)));
-            if (hasCritical) penalty += 5; // +5 adicional si falta un curso legal crítico
-            add('Brecha Formativa SST', `Cursos obligatorios sin acreditar: ${profile.entrenamientosSeleccionados.join(', ')}.`, penalty, 'warning', 'Entrenamiento');
+
+        // 6. FORMACIÓN Y HABILITACIÓN LEGAL REAL
+        if (prof.entrenamientosSeleccionados?.length > 0) {
+            const list: string[] = prof.entrenamientosSeleccionados;
+            const requiresAlturas = list.some(c => String(c).toLowerCase().includes('alturas'));
+            const hasAlturas = !!(w.fechaCursoAlturasAutorizado || w.fechaCursoAlturasCoordinador);
+            if (requiresAlturas && !hasAlturas) {
+                add('Falta Certificación de Alturas', 'El cargo exige trabajo en alturas y no registra curso vigente acreditado.', 10, 'critical', 'Entrenamiento');
+            }
+            const requiresSST = list.some(c => String(c).toLowerCase().includes('50') || String(c).toLowerCase().includes('20') || String(c).toLowerCase().includes('sst'));
+            const hasSST = !!(w.curso50h || w.curso20h);
+            if (requiresSST && !hasSST) {
+                add('Pendiente Curso 50h/20h SG-SST', 'Curso legal obligatorio de SG-SST pendiente por certificar.', 5, 'warning', 'Entrenamiento');
+            }
         }
 
         return { score: Math.max(0, score), auditItems, hasIATags };
@@ -303,7 +340,7 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
 
             <div className="space-y-5">
                 {workers.map(worker => {
-                    const profile = profiles.find(p => (p.nombreCargo || '').toLowerCase().trim() === (worker.cargo || '').toLowerCase().trim());
+                    const profile = findMatchingProfile(worker.cargo, profiles);
                     const fit = calcFit(worker, profile);
                     // ─── FUENTE ÚNICA DE VERDAD: El score canónico es el calculado por el backend
                     // y guardado en la BD (biocentricScore). El calcFit() del frontend se usa
