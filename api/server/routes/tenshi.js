@@ -467,12 +467,17 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             tools: [{ functionDeclarations: [somosSSTDeclaration, consultarAgenteDeclaration, canvasDeclaration, operarGUIDeclaration] }],
                             generationConfig: { temperature: 0.7 }
                         });
-                        const chat = geminiModel.startChat({ history });
 
                         const lastUserMsg = messages[messages.length - 1]?.content || 'Hola';
                         logger.info(`[Tenshi Backend] Sending request to Gemini (${currentModel}) with message: "${lastUserMsg}"`);
-                        let responseResult = await chat.sendMessage(lastUserMsg);
 
+                        let currentContents = [
+                            ...history,
+                            { role: 'user', parts: [{ text: lastUserMsg }] }
+                        ];
+
+                        let responseResult = await geminiModel.generateContent({ contents: currentContents });
+                        let candidate = responseResult.response.candidates && responseResult.response.candidates[0];
                         let calls = responseResult.response.functionCalls();
                         logger.info(`[Tenshi Backend] Gemini initial response function calls: ${JSON.stringify(calls)}`);
                         let loops = 0;
@@ -482,7 +487,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         while (calls && calls.length > 0 && loops < 5) {
                             loops++;
                             const call = calls[0];
-                            logger.debug(`[Tenshi Tool Call] Executing ${call.name} with args:`, call.args);
+                            logger.info(`[Tenshi Tool Call] Executing ${call.name} with args:`, call.args);
                             let toolOutput = '';
 
                             if (call.name === 'somos_sst') {
@@ -518,14 +523,21 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 }
                             } catch (e) { }
 
-                            responseResult = await chat.sendMessage([
-                                {
-                                    functionResponse: {
-                                        name: call.name,
-                                        response: { result: typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput) }
-                                    }
-                                }
-                            ]);
+                            const modelParts = (candidate && candidate.content && candidate.content.parts) || [{
+                                functionCall: { name: call.name, args: call.args }
+                            }];
+                            currentContents.push({ role: 'model', parts: modelParts });
+
+                            const formattedOutput = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+                            currentContents.push({
+                                role: 'user',
+                                parts: [
+                                    { text: `[Resultado de ${call.name}]:\n${formattedOutput}\n\nCon base en este resultado, genera tu respuesta al usuario.` }
+                                ]
+                            });
+
+                            responseResult = await geminiModel.generateContent({ contents: currentContents });
+                            candidate = responseResult.response.candidates && responseResult.response.candidates[0];
                             calls = responseResult.response.functionCalls();
                         }
 
