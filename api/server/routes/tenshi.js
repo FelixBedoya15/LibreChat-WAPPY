@@ -21,22 +21,23 @@ const { resolveApiKeys } = require('./sgsst/sgsstGemini');
 
 // Knowledge Retrieval System (RAG)
 async function getRelevantTickets(req, userQuery) {
+    if (!userQuery || userQuery.length < 5) return '';
     let context = '';
 
-    // 1. Try Vector DB (App RAG System)
+    // 1. Try Vector DB (App RAG System) with ultra-fast 500ms timeout
     if (process.env.RAG_API_URL) {
         try {
             const jwtToken = generateShortLivedToken(req.user.id);
             const response = await axios.post(`${process.env.RAG_API_URL}/query`, {
                 query: userQuery,
                 entity_id: 'tenshi_knowledge_base',
-                k: 5
+                k: 3
             }, {
                 headers: {
                     Authorization: `Bearer ${jwtToken}`,
                     'Content-Type': 'application/json'
                 },
-                timeout: 5000
+                timeout: 500
             });
 
             if (response.data && response.data.length > 0) {
@@ -46,7 +47,7 @@ async function getRelevantTickets(req, userQuery) {
                 }).join('\n');
             }
         } catch (e) {
-            logger.debug('[Tenshi RAG] Vector DB query failed or empty:', e.message);
+            // Silently ignore RAG timeout/connection error for speed
         }
     }
 
@@ -58,22 +59,40 @@ async function getRelevantTickets(req, userQuery) {
                 { score: { $meta: 'textScore' } }
             )
                 .sort({ score: { $meta: 'textScore' } })
-                .limit(3);
+                .limit(2)
+                .lean();
 
             if (matches.length > 0) {
                 context = matches.map(t => `- PQRS RELEVANTE [${t.type}]: ${t.description} -> SOLUCIÓN: ${t.response}`).join('\n');
             }
-        } catch (e) {
-            logger.debug('[Tenshi RAG] MongoDB Text search failed:', e.message);
-        }
+        } catch (e) {}
     }
 
     return context;
 }
 
+// In-memory cache for static platform manual
+let cachedManualContent = null;
+function getPlatformManual() {
+    if (cachedManualContent !== null) return cachedManualContent;
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const manualPath = path.resolve(__dirname, '../../../client/public/manual_usuario.md');
+        if (fs.existsSync(manualPath)) {
+            let content = fs.readFileSync(manualPath, 'utf8');
+            if (content.length > 3000) content = content.substring(0, 3000) + '\n...(manual truncado para eficiencia)';
+            cachedManualContent = content;
+            return cachedManualContent;
+        }
+    } catch (e) {}
+    cachedManualContent = 'WAPPY IA opera la plataforma central Somos SST (/sgsst) dividida en 2 Módulos Principales: 1. Motor Bio-Individual (Bio Motor) y 2. Ecosistema SG-SST General.';
+    return cachedManualContent;
+}
+
 router.get('/config', async (req, res) => {
     try {
-        let config = await TenshiConfig.findOne();
+        let config = await TenshiConfig.findOne().lean();
         if (!config) {
             config = await TenshiConfig.create({});
         }
@@ -175,7 +194,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
     try {
         const { messages, browserState } = req.body;
         logger.info(`[Tenshi Backend] /chat request received. Messages count: ${messages?.length}, browserState length: ${browserState?.length || 0}`);
-        const config = await TenshiConfig.findOne();
+        const config = await TenshiConfig.findOne().lean();
 
         if (!config || !config.isActive) {
             return res.status(403).json({ error: 'Tenshi is not active.' });
@@ -185,78 +204,39 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         let requestedGuiAction = null;
         let requestedGuiActions = null;
 
-        // Fetch dynamic knowledge (latest blogs)
-        let latestBlogs = [];
-        try {
-            latestBlogs = await BlogPost.find({ isPublished: true }).sort({ createdAt: -1 }).limit(5);
-        } catch (e) { }
-
-        const blogStr = latestBlogs.map(b => `- BLOG: ${b.title}`).join('\n');
-
-        // Fetch dynamic knowledge (latest courses)
-        let latestCourses = [];
-        try {
-            latestCourses = await Course.find({ isPublished: true }).sort({ createdAt: -1 }).limit(3);
-        } catch (e) {
-            console.error('Error fetching courses for Tenshi:', e);
-        }
-
-        const courseStr = latestCourses.map(c => `- CURSO: ${c.title}`).join('\n');
-
-        // Intelligent Retrieval (RAG) instead of static limit
         const userQuery = messages[messages.length - 1]?.content || '';
         if (userQuery && !userQuery.startsWith('[RESULTADO_GUI]')) {
-            await TenshiMessage.create({ user: req.user.id, role: 'user', content: userQuery }).catch(e => console.error('Error saving user TenshiMessage:', e));
-        }
-        const ticketContext = await getRelevantTickets(req, userQuery);
-
-        // Fetch the platform manual
-        let manualContent = '';
-        try {
-            const fs = require('fs');
-            const path = require('path');
-            // Path relative to api/server/routes/tenshi.js: ../../../client/public/manual_usuario.md
-            const manualPath = path.resolve(__dirname, '../../../client/public/manual_usuario.md');
-            if (fs.existsSync(manualPath)) {
-                manualContent = fs.readFileSync(manualPath, 'utf8');
-            } else {
-                // Try fallback to manual_wappy.md if it exists
-                const fallbackPath = path.resolve(__dirname, '../manual_wappy.md');
-                if (fs.existsSync(fallbackPath)) {
-                    manualContent = fs.readFileSync(fallbackPath, 'utf8');
-                }
-            }
-        } catch (e) {
-            logger.warn('[Tenshi] Error reading manual file:', e.message);
-        }
-        // Limitar el manual a 3000 caracteres para evitar saturación de tokens en el system prompt
-        if (manualContent && manualContent.length > 3000) {
-            manualContent = manualContent.substring(0, 3000) + '\n...(manual truncado para eficiencia de tokens)';
+            TenshiMessage.create({ user: req.user.id, role: 'user', content: userQuery }).catch(e => console.error('Error saving user TenshiMessage:', e));
         }
 
-        // Fetch user company info
+        // Fetch dynamic knowledge concurrently via Promise.all for maximum response speed
+        const [latestBlogs, latestCourses, ticketContext, companyInfo] = await Promise.all([
+            BlogPost.find({ isPublished: true }).sort({ createdAt: -1 }).limit(3).lean().catch(() => []),
+            Course.find({ isPublished: true }).sort({ createdAt: -1 }).limit(2).lean().catch(() => []),
+            getRelevantTickets(req, userQuery).catch(() => ''),
+            CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean().catch(() => null)
+        ]);
+
+        const blogStr = latestBlogs.map(b => `- BLOG: ${b.title}`).join('\n');
+        const courseStr = latestCourses.map(c => `- CURSO: ${c.title}`).join('\n');
+        const manualContent = getPlatformManual();
+
         let companyInfoStr = 'El usuario no ha registrado la información de su empresa en el Gestor SG-SST.';
-        try {
-            const companyInfo = await CompanyInfo.findOne({ user: req.user.id, isActive: true })
-                || await CompanyInfo.findOne({ user: req.user.id });
-            if (companyInfo) {
-                const companyType = companyInfo.companyType || 'Persona Jurídica';
-                const nitLabel = companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT';
-                companyInfoStr = `INFORMACIÓN DE LA EMPRESA DEL USUARIO:\n` +
-                    `- Razón Social / Nombre: ${companyInfo.companyName || 'N/A'}\n` +
-                    `- Tipo de Empresa: ${companyType}\n` +
-                    `- ${nitLabel}: ${companyInfo.nit || 'N/A'}\n` +
-                    `- Representante Legal: ${companyInfo.legalRepresentative || 'N/A'}\n` +
-                    `- Cédula del Representante Legal: ${companyInfo.legalRepresentativeId || 'N/A'}\n` +
-                    `- Número de Trabajadores: ${companyInfo.workerCount || 'N/A'}\n` +
-                    `- ARL: ${companyInfo.arl || 'N/A'}\n` +
-                    `- Actividad Económica: ${companyInfo.economicActivity || 'N/A'}\n` +
-                    `- Nivel de Riesgo: ${companyInfo.riskLevel || 'N/A'}\n` +
-                    `- Ciudad: ${companyInfo.city || 'N/A'}, Departamento: ${companyInfo.departamento || 'N/A'}\n` +
-                    `- Responsable SG-SST: ${companyInfo.responsibleSST || 'N/A'}`;
-            }
-        } catch (e) {
-            logger.warn('[Tenshi] Error fetching company info:', e.message);
+        if (companyInfo) {
+            const companyType = companyInfo.companyType || 'Persona Jurídica';
+            const nitLabel = companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT';
+            companyInfoStr = `INFORMACIÓN DE LA EMPRESA DEL USUARIO:\n` +
+                `- Razón Social / Nombre: ${companyInfo.companyName || 'N/A'}\n` +
+                `- Tipo de Empresa: ${companyType}\n` +
+                `- ${nitLabel}: ${companyInfo.nit || 'N/A'}\n` +
+                `- Representante Legal: ${companyInfo.legalRepresentative || 'N/A'}\n` +
+                `- Cédula del Representante Legal: ${companyInfo.legalRepresentativeId || 'N/A'}\n` +
+                `- Número de Trabajadores: ${companyInfo.workerCount || 'N/A'}\n` +
+                `- ARL: ${companyInfo.arl || 'N/A'}\n` +
+                `- Actividad Económica: ${companyInfo.economicActivity || 'N/A'}\n` +
+                `- Nivel de Riesgo: ${companyInfo.riskLevel || 'N/A'}\n` +
+                `- Ciudad: ${companyInfo.city || 'N/A'}, Departamento: ${companyInfo.departamento || 'N/A'}\n` +
+                `- Responsable SG-SST: ${companyInfo.responsibleSST || 'N/A'}`;
         }
 
         const skillInstructions = getActiveSkillInstructions(userQuery, config.skills || []);
@@ -266,53 +246,20 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
 Hola, estás conversando con el usuario: ${req.user.name || req.user.username || 'Usuario'}
 
 MANUAL DE FUNCIONAMIENTO DE WAPPY IA:
-${manualContent || 'WAPPY IA opera la plataforma central Somos SST (/sgsst) dividida en 2 Módulos Principales: 1. Motor Bio-Individual (Bio Motor) y 2. Ecosistema SG-SST General.'}
+${manualContent}
 
-ÚLTIMAS PUBLICACIONES DEL BLOG:
-${blogStr || 'No hay blogs recientes.'}
-
-CURSOS DE FORMACIÓN DISPONIBLES:
-${courseStr || 'No hay cursos recientes.'}
-
-CONOCIMIENTO DINÁMICO (Contexto extraído por RAG - Artículos, Cursos, Tickets, Feedback):
-${ticketContext || 'No se encontró información específica en la base de conocimientos dinámica.'}
-
+${blogStr ? `ÚLTIMAS PUBLICACIONES DEL BLOG:\n${blogStr}\n` : ''}
+${courseStr ? `CURSOS DE FORMACIÓN DISPONIBLES:\n${courseStr}\n` : ''}
+${ticketContext ? `CONOCIMIENTO DINÁMICO (Contexto extraído por RAG):\n${ticketContext}\n` : ''}
 ${companyInfoStr}
 
-### 🎯 ROL Y ARQUETIPO DE GEMINI 3 (GEMINI ENTERPRISE AGENT)
-Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administras la plataforma central Somos SST (ubicada en /sgsst, anteriormente Gestor SG-SST), compuesta por 2 Módulos Principales: el Motor Bio-Individual (Bio Motor) y el Ecosistema SG-SST General. Tu personalidad es alegre, carismática, empática, muy espontánea y respetuosa, utilizando modismos paisas colombianos naturales ("parce", "listo", "qué más pues", "bacano", "de una", "hágale").
+### 🎯 ROL Y PERSONALIDAD DE TENSHI
+Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administras la plataforma central Somos SST (ubicada en /sgsst). Tu personalidad es alegre, carismática, empática, muy espontánea y respetuosa, utilizando modismos paisas colombianos naturales ("parce", "listo", "qué más pues", "bacano", "de una", "hágale").
 
-### 🧠 DIRECTIVA DE AUTONOMÍA Y GROUNDING (FUNDAMENTACIÓN EN HERRAMIENTAS)
-1. **RESPUESTAS DIRECTAS Y EFICIENTES**: Siguiendo la arquitectura de Gemini 3, sé directa y eficiente. Prioriza siempre entregar la solución o los datos concretos obtenidos mediante tus herramientas antes que introducciones o tutoriales pasivos de navegación.
-2. **AUTONOMÍA TOTAL DE HERRAMIENTAS**: Para CUALQUIER consulta sobre la empresa, trabajadores o la plataforma Somos SST, EJECUTA INMEDIATAMENTE tus herramientas (somos_sst, consultar_agente_especializado, canvas_tool) para consultar registros en MongoDB o realizar mutaciones ANTES de responder (EXCEPTO si el usuario te pide explícitamente realizar una tarea interactiva visual en su pantalla; en ese caso DEBES usar 'operar_interfaz_visual'). NUNCA respondas con guías pasivas como "ve al menú X".
-3. **GROUNDING Y ANTI-ALUCINACIÓN ABSOLUTA**: Basante estrictamente en los resultados retornados por las herramientas. NUNCA asumas ni inventes datos de ejemplo. Si una herramienta no retorna registros, comunica con transparencia que no hay información registrada aún.
-4. **CONSULTA OBLIGATORIA DE HISTORIAL Y ATEL**: Cuando el usuario pregunte por "el último informe", "la última investigación de accidentes" o cualquier reporte guardado, ES OBLIGATORIO QUE EJECUTES LA HERRAMIENTA 'somos_sst' con la acción 'consultar_historial_informes'. NUNCA inventes fechas (como "20 de marzo") ni siniestros ficticios. Reporta fielmente las fechas y títulos reales registrados en MongoDB (ejemplo: "Investigación ATEL - Incidente - 22/6/2026").
-5. **CENTRO DE CONTROL ACPM (PROGRAMAR Y CREAR ACTIVIDADES)**: Cuando el usuario pida agendar, programar, crear o hacer seguimiento a una actividad o tarea en el "Centro de Control ACPM", ES OBLIGATORIO QUE EJECUTES LA HERRAMIENTA 'somos_sst' con la acción 'crear_actividad_acpm' (o 'consultar_centro_control_acpm'). NUNCA generes un informe HTML ni simules la creación en texto. Registra la actividad real en la base de datos para que aparezca de inmediato en el tablero ACPM del usuario.
-
-### 🚀 PRIORIDAD DE AUTOMATIZACIÓN DE PANTALLA (INTERFACES EN VIVO)
-- Si el usuario te solicita realizar alguna acción, tarea o flujo que requiera interactuar con la pantalla (por ejemplo, "crea un chat", "abre la sección X", "haz clic en Y", "escribe en la barra de búsqueda", "agenda esto en el calendario en pantalla"), **ES OBLIGATORIO que uses 'operar_interfaz_visual'** e interactúes paso a paso con los elementos de la lista del DOM (browserState) en turnos sucesivos.
-- **NUNCA utilices herramientas de backend como 'consultar_agente_especializado' o 'somos_sst'** para resolver de forma interna solicitudes que el usuario te pidió expresamente hacer sobre la interfaz de usuario en pantalla. ¡El usuario desea ver a su copiloto visual en acción!
-
-### 📄 GENERACIÓN DE INFORMES Y DOCUMENTOS FORMALES (REGLA OBLIGATORIA ESTRICTA)
-Cuando el usuario pida o solicite un **informe, reporte, análisis clínico, matriz o documento formal**:
-1. **NUNCA ESCRIBAS EL INFORME COMPLETO NI TABLAS EXTENSAS DENTRO DEL TEXTO DEL CHAT.** Las tablas extensas desbordan y dañan la pantalla del chat.
-2. **ES OBLIGATORIO QUE EJECUTES LA HERRAMIENTA 'somos_sst' CON LA ACCIÓN 'generar_informe_html'**. Pásale el 'titulo_informe' y el contenido HTML estructurado en 'contenido_html'.
-3. **EN TU RESPUESTA DEL CHAT:** Entrega únicamente un saludo cálido y alegre en tu estilo paisa, un resumen ejecutivo muy breve de 2 a 3 viñetas con las conclusiones principales, e indícale al usuario que el informe completo y profesional ha sido preparado y que puede abrirlo y descargarlo en PDF haciendo clic en el botón **"📄 Abrir / Descargar Informe HTML (PDF)"** que aparece abajo de tu mensaje.
-4. **NUNCA INVENTES ENLACES MARKDOWN NI URLS FICTICIAS** (como 'https://wappy.ai/sgsst/informes/...' o enlaces en texto). Esos enlaces ficticios dan error 404 "Not Found". El usuario utilizará exclusivamente el botón de descarga interactivo que la plataforma añade automáticamente abajo de tu mensaje.
-
-### 🤝 ORQUESTACIÓN Y DELEGACIÓN MULTI-AGENTE (MÁS DE 15 ESPECIALISTAS)
-WAPPY IA cuenta con un ecosistema de más de 15 Agentes Especialistas en SST. Cuando el usuario solicite consultar o hablar con una especialidad (ej. "habla con el médico laboral", "consulta con el psicólogo", "pregunta al abogado"), DEBES hacerlo a través del chat en pantalla (si te pide interactuar o crear el chat en pantalla) usando 'operar_interfaz_visual', o a través de 'consultar_agente_especializado' si es una consulta técnica pura de backend sin implicación de pantalla.
-Catálogo de Especialistas oficiales disponibles en el sistema:
-- **Salud y Biomecánica**: 'Consultor Médico Ocupacional' (Médico Laboral), 'Especialista en Biomecánica Laboral' (Fisioterapeuta), 'Gestor Clínico de Primeros Auxilios'.
-- **Psicología y Bienestar**: 'Especialista en Riesgo Psicosocial' (Psicólogo SST), 'Consultor de Bienestar y Salud Mental'.
-- **Legal y Normativa**: 'Consultor Jurídico Laboral' (Abogado Laboral), 'Consultor Jurídico RIT', 'Consultor de Debido Proceso y Despidos'.
-- **Riesgos Técnicos**: 'Especialista en Riesgo Vial', 'Especialista en Riesgo Químico', 'Especialista en Riesgo Eléctrico', 'Especialista en Riesgo Biológico', 'Especialista en Tareas Críticas'.
-- **Auditoría e Higiene**: 'Auditor Integral SG-SST', 'Especialista GTC-45 (Matriz IPEVAR)', 'Analista Ergonómico ROSA'.
-**Regla de mención**: En la respuesta del chat, menciona SIEMPRE al especialista exacto consultado (ejemplo: "Hablé directamente con nuestro Consultor Médico Ocupacional...").
-
-### 📋 REGLAS DE FORMATO Y PRESENTACIÓN
-1. Saluda cordial y alegremente llamando al usuario por su nombre.
-2. Usa viñetas estructuradas y emojis (🚀, ✨, 🔥, 🏢, 💪) para presentar datos e informes de forma clara y profesional.`;
+### ⚡ DIRECTIVAS CRÍTICAS DE VELOCIDAD Y HERRAMIENTAS:
+1. **RESPUESTAS INMEDIATAS A PREGUNTAS TEÓRICAS/CONCEPTUALES**: Si el usuario te hace preguntas conceptuales, definiciones teóricas (ej: "¿qué es SST?", "¿qué es un ATS?", "¿cuáles son las obligaciones del empleador?"), saludos o preguntas generales, RESPONDE DIRECTAMENTE EN TEXTO en 1 solo turno de forma concisa y alegre. ¡ESTÁ PROHIBIDO invocar herramientas como 'somos_sst' o 'resumen_empresa' para responder preguntas teóricas!
+2. **USO DE HERRAMIENTAS EXCLUSIVAMENTE CUANDO SE SOLICITE**: Ejecuta 'somos_sst', 'consultar_agente_especializado' o 'canvas_tool' ÚNICAMENTE cuando el usuario te pida consultar datos reales guardados de su empresa/trabajadores, crear actividades en el Centro de Control ACPM o generar un informe formal HTML.
+3. **GENERACIÓN DE INFORMES**: Si el usuario te pide un informe o reporte formal, usa 'somos_sst' con 'generar_informe_html', y en tu respuesta da un resumen de 2 viñetas e indícale que use el botón para descargarlo.`;
 
         if (skillInstructions) {
             systemMessage += `\n\n${skillInstructions}`;

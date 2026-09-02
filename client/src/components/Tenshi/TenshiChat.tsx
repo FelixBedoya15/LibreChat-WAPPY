@@ -372,13 +372,12 @@ export default function TenshiChat() {
       const lastMessage = currentMessages.at(-1);
       const isLoopFeedback = lastMessage?.content?.startsWith('[RESULTADO_GUI]');
       
-      // Heurística para saber si la pregunta es solo de texto/especialistas y no requiere interactuar con el DOM
+      // Heurística de captura de DOM: solo capturar si estamos en un bucle interactivo de GUI o si el usuario pide interactuar explícitamente con la pantalla
       const textQuery = lastMessage?.role === 'user' ? lastMessage.content.toLowerCase() : '';
-      const specialistKeywords = ['medico', 'médico', 'psicologo', 'psicólogo', 'abogado', 'auditor', 'especialista', 'consultor', 'juridico', 'jurídico', 'analiza', 'consulta', 'opinas', 'recomiendas'];
-      const isSpecialistQuery = specialistKeywords.some(kw => textQuery.includes(kw));
-      const isGreetingOrShortText = /^(hola|buenos dias|buenas tardes|buenas noches|gracias|chao|adios|saludos)/i.test(textQuery) && textQuery.length < 25;
+      const uiActionKeywords = ['clic', 'click', 'pantalla', 'formulario', 'abre', 'abrir', 'llena', 'llenar', 'guarda', 'guardar', 'navega', 'navegar', 'boton', 'botón', 'scroll', 'interactua', 'digita'];
+      const isUiActionQuery = uiActionKeywords.some(kw => textQuery.includes(kw));
       
-      const shouldCaptureDOM = isLoopFeedback || (!isSpecialistQuery && !isGreetingOrShortText);
+      const shouldCaptureDOM = isLoopFeedback || isUiActionQuery;
       
       const domState = shouldCaptureDOM ? getDehydratedDOM() : '';
       console.log('[Tenshi Frontend] Dehydrated DOM length:', domState.length, '(Capture enabled:', shouldCaptureDOM, ')');
