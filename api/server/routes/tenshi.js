@@ -17,6 +17,7 @@ const SomosSST = require('../../app/clients/tools/structured/SomosSST');
 const ConsultarAgenteEspecializado = require('../../app/clients/tools/structured/ConsultarAgenteEspecializado');
 const CanvasTool = require('../../app/clients/tools/structured/CanvasTool');
 const { getActiveSkillInstructions } = require('~/server/services/skillRouter');
+const { resolveApiKeys } = require('./sgsst/sgsstGemini');
 
 // Knowledge Retrieval System (RAG)
 async function getRelevantTickets(req, userQuery) {
@@ -352,57 +353,47 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
         if (config.provider === 'google') {
             const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-            // 1. Retrieve Tenshi-specific Google API keys (falling back to general keys if not set or empty)
-            let rawKey;
-            
-            // Helper to safely get and parse a key by name, catching individual DB errors
-            const getSafeUserKey = async (keyName) => {
-                try {
-                    const storedKey = await getUserKey({ userId: req.user.id, name: keyName });
-                    if (storedKey) {
-                        try {
-                            const parsed = JSON.parse(storedKey);
-                            return parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY || storedKey;
-                        } catch (parseErr) {
-                            return storedKey;
-                        }
-                    }
-                } catch (err) {
-                    // Ignore NO_USER_KEY or lookup errors safely
-                }
-                return null;
-            };
-
+            // 1. Retrieve API keys with Tenshi priority and fallback to general keys / env
+            let apiKeys = [];
             try {
-                // Try Tenshi keys first
-                const tenshiKey = await getSafeUserKey('tenshi_google');
-                const hasTenshiKeys = tenshiKey && tenshiKey.split(',').map(k => k.trim()).filter(Boolean).length > 0;
-                
-                if (hasTenshiKeys) {
-                    rawKey = tenshiKey;
-                } else {
-                    // Fallback to general google keys
-                    rawKey = await getSafeUserKey('google');
+                const tenshiKey = await getUserKey({ userId: req.user.id || req.user, name: 'tenshi_google' });
+                if (tenshiKey) {
+                    try {
+                        const parsed = JSON.parse(tenshiKey);
+                        const keyVal = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY || tenshiKey;
+                        apiKeys = keyVal.split(',').map(k => k.trim()).filter(Boolean);
+                    } catch (e) {
+                        apiKeys = tenshiKey.split(',').map(k => k.trim()).filter(Boolean);
+                    }
                 }
-            } catch (err) {
-                logger.debug('[Tenshi] Error in key fallback retrieval:', err.message);
+            } catch (err) {}
+
+            if (!apiKeys || apiKeys.length === 0) {
+                apiKeys = await resolveApiKeys(req.user.id || req.user);
             }
 
-            if (!rawKey) {
-                rawKey = process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-            }
-
-            if (!rawKey) {
+            if (!apiKeys || apiKeys.length === 0) {
                 throw new Error('No se ha configurado la clave API de Google. Por favor, configúrala en la opción de Google del chat.');
             }
 
-            // Support comma-separated key rotation
-            const apiKeys = rawKey.split(',').map(k => k.trim()).filter(Boolean);
+            // Dual-axis rotation: Candidate models with fallback
+            const envModels = (process.env.GOOGLE_MODELS || '')
+                .split(',')
+                .map(m => m.trim().replace('models/', ''))
+                .filter(m => m && !m.includes('live') && !m.includes('native-audio'));
 
-            // Dual-axis rotation: keys first, then model fallback (503 Service Unavailable)
-            const modelFallbacks = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
+            const configuredModel = (config.model || '').replace('models/', '').trim();
+            const candidateModels = [
+                configuredModel,
+                ...envModels,
+                'gemini-3.7-flash',
+                'gemini-3.6-flash',
+                'gemini-3.5-flash',
+                'gemini-3.5-flash-lite'
+            ].filter(Boolean);
+            const modelFallbacks = [...new Set(candidateModels)];
 
-            // Build history once (reusable across all retries), cleaning up old DOM states to save tokens and prevent context clutter
+            // Build history once (reusable across all retries), cleaning up old DOM states
             const rawHistory = messages.slice(0, -1);
             const history = [];
             let firstUserFound = false;
@@ -410,7 +401,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 if (!firstUserFound && m.role !== 'user') continue;
                 firstUserFound = true;
                 
-                let contentText = m.content;
+                let contentText = m.content || '';
                 if (m.role === 'user' && contentText.startsWith('[RESULTADO_GUI]')) {
                     const delimiterIndex = contentText.indexOf('Estado actual de la pantalla:');
                     if (delimiterIndex !== -1) {
@@ -420,7 +411,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
                 history.push({
                     role: m.role === 'assistant' ? 'model' : 'user',
-                    parts: [{ text: contentText }]
+                    parts: [{ text: contentText || ' ' }]
                 });
             }
 
@@ -527,56 +518,20 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             model: currentModel,
                             systemInstruction: systemMessage,
                             tools: [{ functionDeclarations: [somosSSTDeclaration, consultarAgenteDeclaration, canvasDeclaration, operarGUIDeclaration] }],
-                            generationConfig: { temperature: 1.0 }
+                            generationConfig: { temperature: 0.7 }
                         });
                         const chat = geminiModel.startChat({ history });
 
-                        // Sobrescribir chat.sendMessage para prevenir que el SDK de @google/generative-ai genere el rol inválido 'function'
-                        chat.sendMessage = async function(request, requestOptions) {
-                            if (this._history) {
-                                this._history.forEach(h => { if (h.role === 'function') h.role = 'user'; });
-                            }
-                            let parts = [];
-                            if (typeof request === 'string') {
-                                parts = [{ text: request }];
-                            } else if (Array.isArray(request)) {
-                                parts = request;
-                            } else {
-                                parts = [request];
-                            }
-                            const newContent = { role: 'user', parts };
-
-                            const generateContentReq = {
-                                safetySettings: this.params?.safetySettings,
-                                generationConfig: this.params?.generationConfig,
-                                tools: this.params?.tools,
-                                toolConfig: this.params?.toolConfig,
-                                systemInstruction: this.params?.systemInstruction,
-                                cachedContent: this.params?.cachedContent,
-                                contents: [...this._history, newContent]
-                            };
-
-                            const result = await geminiModel.generateContent(generateContentReq, requestOptions);
-
-                            this._history.push(newContent);
-                            if (result.response && result.response.candidates && result.response.candidates[0] && result.response.candidates[0].content) {
-                                const responseContent = {
-                                    role: 'model',
-                                    parts: result.response.candidates[0].content.parts || []
-                                };
-                                this._history.push(responseContent);
-                            }
-
-                            return result;
-                        };
-
-                        logger.info(`[Tenshi Backend] Sending request to Gemini with message: "${messages[messages.length - 1].content}"`);
-                        let responseResult = await chat.sendMessage(messages[messages.length - 1].content);
+                        const lastUserMsg = messages[messages.length - 1]?.content || 'Hola';
+                        logger.info(`[Tenshi Backend] Sending request to Gemini (${currentModel}) with message: "${lastUserMsg}"`);
+                        let responseResult = await chat.sendMessage(lastUserMsg);
 
                         let calls = responseResult.response.functionCalls();
                         logger.info(`[Tenshi Backend] Gemini initial response function calls: ${JSON.stringify(calls)}`);
                         let loops = 0;
                         requestedGuiAction = null;
+                        requestedGuiActions = null;
+
                         while (calls && calls.length > 0 && loops < 5) {
                             loops++;
                             const call = calls[0];
@@ -620,7 +575,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 {
                                     functionResponse: {
                                         name: call.name,
-                                        response: { result: toolOutput }
+                                        response: { result: typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput) }
                                     }
                                 }
                             ]);
@@ -641,20 +596,31 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         break; // Key rotation done — success
                     } catch (geminiError) {
                         lastError = geminiError;
-                        const status = geminiError.status || geminiError.statusCode;
-                        const msg = geminiError.message || '';
-                        // Key rotation: 403/429/leaked → try next key same model
-                        if (status === 429 || status === 403 || msg.includes('leaked') || msg.includes('quota') || msg.includes('Forbidden')) {
-                            logger.warn(`[Tenshi] Clave #${i + 1} rechazada (${status}). Rotando clave...`);
-                            continue;
+                        const status = geminiError.status || (geminiError.response && geminiError.response.status) || 0;
+                        const msg = (geminiError.message || '').toLowerCase();
+
+                        // Key rotation: 403 / 429 / leaked / invalid key
+                        const isRateLimit = status === 429 || msg.includes('429') ||
+                            msg.includes('quota') || msg.includes('rate limit') || msg.includes('too many requests');
+                        const isQuotaExceeded = status === 403 || msg.includes('leaked') || msg.includes('forbidden');
+                        const isInvalidKey = status === 400 && (msg.includes('api_key_invalid') || msg.includes('api key not valid'));
+
+                        if (isRateLimit || isQuotaExceeded || isInvalidKey) {
+                            logger.warn(`[Tenshi] Clave #${i + 1} rechazada (${status || 'quota'}). Rotando clave...`);
+                            continue; // Try next key on same model
                         }
-                        // Model fallback: 503 → break inner loop to try next model
-                        if (status === 503 || msg.includes('overloaded') || msg.includes('Service Unavailable')) {
-                            logger.warn(`[Tenshi] Modelo "${currentModel}" no disponible (503). Cambiando modelo...`);
-                            break;
+
+                        // Model fallback: 503 / 404 / overloaded / not found
+                        const is503 = status === 503 || msg.includes('503') || msg.includes('overloaded') || msg.includes('service unavailable');
+                        const is404 = status === 404 || msg.includes('404') || msg.includes('not found') || msg.includes('is not found for api version');
+
+                        if (is503 || is404) {
+                            logger.warn(`[Tenshi] Modelo "${currentModel}" no disponible (${status || 'error'}). Cambiando modelo...`);
+                            break; // Try next model in outer loop
                         }
-                        // For any other non-recoverable error, abort everything
-                        throw new Error(`Google AI Error: ${msg}`);
+
+                        logger.warn(`[Tenshi] Error con modelo "${currentModel}" y clave #${i + 1}: ${geminiError.message}. Probando siguiente modelo...`);
+                        break;
                     }
                 }
             }

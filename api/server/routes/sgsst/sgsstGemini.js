@@ -26,10 +26,10 @@ const { logger } = require('~/config');
 
 // Non-live Gemini models for 503 fallback rotation (matching .env GOOGLE_MODELS minus live ones)
 const SGSST_FALLBACK_MODELS = [
-  'gemini-3.5-flash-lite',
+  'gemini-3.7-flash',
   'gemini-3.6-flash',
-  'gemini-3.1-flash-lite',
   'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
 ];
 
 // Live-only models for VoiceSession / LiveAnalysis rotation
@@ -151,8 +151,14 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
     ? modelInstance.generationConfig
     : {};
 
-  const fallbacks = SGSST_FALLBACK_MODELS.filter(m => m !== preferredModel);
-  const modelsToTry = [preferredModel, ...fallbacks];
+  const envModels = (process.env.GOOGLE_MODELS || '')
+    .split(',')
+    .map(m => m.trim().replace('models/', ''))
+    .filter(m => m && !m.includes('live') && !m.includes('native-audio'));
+
+  const candidateFallbacks = envModels.length > 0 ? envModels : SGSST_FALLBACK_MODELS;
+  const fallbacks = candidateFallbacks.filter(m => m !== preferredModel);
+  const modelsToTry = [...new Set([preferredModel, ...fallbacks])];
 
   const apiKeys = await resolveApiKeys(userId);
 
