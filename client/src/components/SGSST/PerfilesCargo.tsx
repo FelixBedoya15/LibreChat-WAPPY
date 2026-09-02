@@ -42,6 +42,7 @@ import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { cn } from '~/utils';
 import SGSSTToolbar from './SGSSTToolbar';
 import SingleSelect from './SingleSelect';
