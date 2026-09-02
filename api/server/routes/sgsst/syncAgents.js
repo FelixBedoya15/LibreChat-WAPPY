@@ -141,7 +141,7 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
   tools = [...new Set(tools)];
 
   const timestamp = new Date();
-  const defaultModel = 'gemini-3.6-flash';
+  const defaultModel = (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
   const targetCategory = AGENT_CATEGORY_MAP[fileBasename] || 'general';
   const agentData = {
     id: agentId,

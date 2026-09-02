@@ -341,7 +341,7 @@ ${cleanContent}
 
     tools = [...new Set(tools)];
 
-    const defaultModel = 'gemini-3.6-flash';
+    const defaultModel = (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
 
     let agent = await Agent.findOne({ name: val.name });
     const isNewAgent = !agent; // Indicador para saber si el agente es nuevo
