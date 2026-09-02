@@ -1058,6 +1058,7 @@ const PerfilesCargo = () => {
                 body: JSON.stringify({ perfilesList: dummyProfiles }),
             });
             if (res.ok) {
+                window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
                 showToast({ message: 'Base de datos completada con 20 perfiles de construcción con fotos y videos', severity: NotificationSeverity.SUCCESS });
             } else {
                 throw new Error('Failed to save to db');
