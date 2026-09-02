@@ -1042,16 +1042,20 @@ const PerfilesCargo = () => {
     );
 
     const handleLoadDummyData = async () => {
-        const dummyProfiles: PerfilCargoData[] = generateDummyData.perfilesCargo() as PerfilCargoData[];
-
-        setPerfiles(dummyProfiles);
-        setActivePerfilId(dummyProfiles[0].id);
-        setFormData(dummyProfiles[0]);
-        setGeneratedReport(null);
-        editorContentRef.current = '';
-        liveEditorRef.current?.setHTML('');
-
         try {
+            const dummyProfiles = (generateDummyData.perfilesCargo?.() || []) as PerfilCargoData[];
+            if (!dummyProfiles.length) {
+                showToast({ message: 'No hay perfiles de prueba disponibles', severity: NotificationSeverity.ERROR });
+                return;
+            }
+
+            setPerfiles(dummyProfiles);
+            setActivePerfilId(dummyProfiles[0].id);
+            setFormData(dummyProfiles[0]);
+            setGeneratedReport(null);
+            editorContentRef.current = '';
+            liveEditorRef.current?.setHTML('');
+
             const res = await fetch('/api/sgsst/perfiles-cargo/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -1061,10 +1065,11 @@ const PerfilesCargo = () => {
                 window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
                 showToast({ message: 'Base de datos completada con 20 perfiles de construcción con fotos y videos', severity: NotificationSeverity.SUCCESS });
             } else {
-                throw new Error('Failed to save to db');
+                throw new Error('Error al responder el servidor');
             }
-        } catch(e) {
-            showToast({ message: 'Error al guardar los perfiles en la base de datos', severity: NotificationSeverity.ERROR });
+        } catch(e: any) {
+            console.error('[PerfilesCargo] Error loading dummy data:', e);
+            showToast({ message: e?.message || 'Error al guardar los perfiles en la base de datos', severity: NotificationSeverity.ERROR });
         }
     };
 
