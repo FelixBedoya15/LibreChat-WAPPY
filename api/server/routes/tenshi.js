@@ -528,11 +528,28 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             }];
                             currentContents.push({ role: 'model', parts: modelParts });
 
-                            const formattedOutput = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+                            let parsedResponse;
+                            if (typeof toolOutput === 'object' && toolOutput !== null) {
+                                parsedResponse = toolOutput;
+                            } else if (typeof toolOutput === 'string' && toolOutput.trim().startsWith('{')) {
+                                try {
+                                    parsedResponse = JSON.parse(toolOutput);
+                                } catch (e) {
+                                    parsedResponse = { result: toolOutput };
+                                }
+                            } else {
+                                parsedResponse = { result: String(toolOutput || 'Operación completada.') };
+                            }
+
                             currentContents.push({
                                 role: 'user',
                                 parts: [
-                                    { text: `[Resultado de ${call.name}]:\n${formattedOutput}\n\nCon base en este resultado, genera tu respuesta al usuario.` }
+                                    {
+                                        functionResponse: {
+                                            name: call.name,
+                                            response: parsedResponse
+                                        }
+                                    }
                                 ]
                             });
 
