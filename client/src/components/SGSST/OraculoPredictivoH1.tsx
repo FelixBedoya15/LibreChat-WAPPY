@@ -5,6 +5,8 @@ import { useToastContext } from '@librechat/client';
 import { SGSSTToolbar } from './SGSSTToolbar';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ExportDropdown from './ExportDropdown';
+import { generateDummyData } from '~/utils/dummyDataGenerator';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 
 const SCORE_COLOR = (s: number) => {
     if (s >= 80) return { ring: 'border-green-400', text: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20', badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' };
@@ -313,6 +315,33 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
         }
     };
 
+    const handleLoadDummyData = async () => {
+        const dummyWorkers = generateDummyData.perfilSociodemografico();
+        const dummyProfiles = generateDummyData.perfilesCargo();
+
+        setWorkers(dummyWorkers);
+        setProfiles(dummyProfiles);
+
+        try {
+            await Promise.all([
+                fetch('/api/sgsst/perfil-sociodemografico/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ trabajadores: dummyWorkers }),
+                }),
+                fetch('/api/sgsst/perfiles-cargo/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ perfilesList: dummyProfiles }),
+                }),
+            ]);
+            window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+            showToastRef.current({ message: '20 trabajadores y 20 perfiles de construcción cargados con éxito', status: 'success' });
+        } catch {
+            showToastRef.current({ message: 'Error guardando datos de prueba', status: 'error' });
+        }
+    };
+
     if (loading) return (
         <div className="flex items-center justify-center p-16">
             <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
@@ -327,16 +356,21 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                     <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-teal-400 blur-3xl -mr-20 -mt-20" />
                     <div className="absolute bottom-0 left-0 w-60 h-60 rounded-full bg-cyan-400 blur-3xl -ml-10 -mb-10" />
                 </div>
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-xl bg-teal-400/20 backdrop-blur-sm border border-teal-400/30 flex items-center justify-center">
-                            <Sparkles className="w-5 h-5 text-teal-300" />
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 rounded-xl bg-teal-400/20 backdrop-blur-sm border border-teal-400/30 flex items-center justify-center">
+                                <Sparkles className="w-5 h-5 text-teal-300" />
+                            </div>
+                            <h1 className="text-2xl font-black tracking-tight">Oráculo Predictivo H1</h1>
                         </div>
-                        <h1 className="text-2xl font-black tracking-tight">Oráculo Predictivo H1</h1>
+                        <p className="text-teal-100/80 text-sm max-w-2xl leading-relaxed">
+                            Motor Bio-Fit WAPPY · Cruza datos clínicos con exigencias del rol para emitir dictámenes de aptitud laboral basados en evidencia.
+                        </p>
                     </div>
-                    <p className="text-teal-100/80 text-sm max-w-2xl leading-relaxed">
-                        Motor Bio-Fit WAPPY · Cruza datos clínicos con exigencias del rol para emitir dictámenes de aptitud laboral basados en evidencia.
-                    </p>
+                    <div className="shrink-0">
+                        <DummyGenerateButton onClick={handleLoadDummyData} />
+                    </div>
                 </div>
             </div>
 

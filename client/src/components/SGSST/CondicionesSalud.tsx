@@ -521,10 +521,26 @@ const CondicionesSalud = () => {
     };
 
     // ─── Save & Generate ────────────────────────────────────────
-    const handleDummyData = () => {
+    const handleDummyData = async () => {
         const dummyWorkers = generateDummyData.perfilSociodemografico();
-        setTrabajadores(prev => [...prev, ...(dummyWorkers as any[])]);
-        showToast({ message: `${dummyWorkers.length} trabajadores simulados generados con éxito`, severity: NotificationSeverity.SUCCESS });
+        setTrabajadores(dummyWorkers as any[]);
+        showToast({ message: `${dummyWorkers.length} trabajadores de construcción generados con éxito`, severity: NotificationSeverity.SUCCESS });
+        if (token) {
+            try {
+                const res = await fetch('/api/sgsst/perfil-sociodemografico/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ trabajadores: dummyWorkers }),
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.trabajadores?.length) setTrabajadores(data.trabajadores);
+                    window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+                }
+            } catch (e) {
+                // silent
+            }
+        }
     };
 
     const handleSaveData = async () => {
