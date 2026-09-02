@@ -486,8 +486,8 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                             <SGSSTToolbar aiButtons={[{
                                                 id: `consult-${worker.id}`,
                                                 onClick: () => handleConsultOracle(worker, profile, fit),
-                                                title: 'Consultar Oráculo',
-                                                label: 'Consultar Oráculo',
+                                                title: 'Generar con IA',
+                                                label: 'Generar IA',
                                                 icon: 'sparkles',
                                                 variant: 'ai',
                                                 isLoading: generatingId === worker.id,
@@ -523,9 +523,9 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                                             id: `reeval-${worker.id}`,
                                                             onClick: () => handleConsultOracle(worker, profile, fit),
                                                             title: 'Re-evaluar con IA',
-                                                            label: 'Re-evaluar',
-                                                            icon: 'brain',
-                                                            variant: 'default',
+                                                            label: 'Re-evaluar IA',
+                                                            icon: 'sparkles',
+                                                            variant: 'ai',
                                                             isLoading: generatingId === worker.id,
                                                             disabled: generatingId === worker.id,
                                                         }]}
