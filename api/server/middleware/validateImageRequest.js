@@ -130,6 +130,15 @@ function createValidateImageRequest(secureImageLinks) {
         return next();
       }
 
+      // Allow static system images and SGSST public images
+      if (
+        fullPath.startsWith('/images/sgsst_perfiles/') ||
+        fullPath.startsWith('/images/sgsst/') ||
+        /^\/images\/[^/]+\.(png|jpg|jpeg|webp|svg)$/i.test(fullPath)
+      ) {
+        return next();
+      }
+
       const escapedUserId = userIdForPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const pathPattern = new RegExp(`^/images/${escapedUserId}/[^/]+$`);
 

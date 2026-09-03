@@ -6,7 +6,7 @@ import { Trash2 } from 'lucide-react';
 import { OGDialog } from '@librechat/client';
 import type { LocalizeFunction } from '~/common';
 import { formatJSON, extractJson, isJson } from '~/utils/json';
-import { useLocalize } from '~/hooks';
+import { useLocalize, useAuthContext } from '~/hooks';
 import { useChatContext } from '~/Providers';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 import { DeleteConversationDialog } from '~/components/Conversations/ConvoOptions/DeleteButton';
@@ -269,10 +269,13 @@ const errorMessages = {
 
 const Error = ({ text }: { text: string }) => {
   const localize = useLocalize();
+  const { user } = useAuthContext();
   const { conversationId } = useParams();
   const { conversation } = useChatContext();
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  
+  const isFreePlan = !user?.role || user?.role === 'USER';
   
   useEffect(() => {
     if (text && (text.includes('API_KEY_INVALID') || text.includes('API key not valid') || text.includes('invalid_api_key'))) {
@@ -309,7 +312,7 @@ const Error = ({ text }: { text: string }) => {
   return (
     <>
       {renderContent()}
-      {validConvoId && (
+      {isFreePlan && validConvoId && (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-red-500/20 pt-2.5">
           <span className="text-xs text-gray-600 dark:text-gray-300">
             ¿El chat quedó bloqueado por este error?

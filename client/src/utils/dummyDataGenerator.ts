@@ -1035,7 +1035,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Recorrido pericial e inspección técnica de placa activa con casco blanco y chaleco.',
                     foto3Desc: 'Controles / Herramientas: Comité de seguridad y riesgos con ingenieros y tablero digital de control.'
                 },
-                video: '/videos/sgsst/director_planos.mp4',
+                video: '',
                 exigenciaFisica: 'Baja',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'No'
@@ -1063,7 +1063,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Losa activa de vaciado en altura con columnas y formaletas instaladas.',
                     foto3Desc: 'Controles / Herramientas: Verificación de planos y coordinación técnica con equipo de supervisión.'
                 },
-                video: '/videos/sgsst/director_planos.mp4',
+                video: '',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'No'
@@ -1091,7 +1091,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Supervisión de frentes de alto riesgo en alturas y maniobras de izaje.',
                     foto3Desc: 'Controles / Herramientas: Puesto de atención de emergencias, camilla rígida y botiquín de primeros auxilios.'
                 },
-                video: '/videos/sgsst/ingenieros_obra.mp4',
+                video: '',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'No'
@@ -1119,7 +1119,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Frentes activos de obra y plataformas de vaciado de concreto.',
                     foto3Desc: 'Controles / Herramientas: Capacitación y charla de seguridad de inicio de jornada.'
                 },
-                video: '/videos/sgsst/ingenieros_obra.mp4',
+                video: '',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'No'
@@ -1147,7 +1147,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Placa estructural en piso alto con líneas de vida horizontales instaladas.',
                     foto3Desc: 'Controles / Herramientas: Parales telescópicos certificados y arnés de 4 argollas para alturas.'
                 },
-                video: '/videos/sgsst/concreto_vaciado.mp4',
+                video: '',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Media',
                 operaMaquinaria: 'No'
@@ -1175,7 +1175,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Parrilla estructural de losa con capuchones plásticos de seguridad.',
                     foto3Desc: 'Controles / Herramientas: Guantes anticorte nivel 5, bichiroque ergonómico y gafas de protección.'
                 },
-                video: '/videos/sgsst/concreto_vaciado.mp4',
+                video: '',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Media',
                 operaMaquinaria: 'No'
@@ -1203,7 +1203,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Andamio multidireccional certificado con rodapié y freno.',
                     foto3Desc: 'Controles / Herramientas: Mascarilla N95 para sílice, guantes de nitrilo y gafas antiempañantes.'
                 },
-                video: '/videos/sgsst/concreto_vaciado.mp4',
+                video: '',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Baja',
                 operaMaquinaria: 'No'
@@ -1231,7 +1231,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Mástil de grúa torre y radio de giro sobre la estructura en construcción.',
                     foto3Desc: 'Controles / Herramientas: Anemómetro de viento, freno de caída vertical y radioteléfono con rigger.'
                 },
-                video: '/videos/sgsst/grua_torre_obra.mp4',
+                video: '',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'Sí'
@@ -1259,7 +1259,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Foso de cimentación profunda y taludes perfilados con entibados.',
                     foto3Desc: 'Controles / Herramientas: Cabina ROPS antivuelco, alarma de reversa y delimitación de giro.'
                 },
-                video: '/videos/sgsst/excavadora_tierra.mp4',
+                video: '',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'Sí'
@@ -1287,7 +1287,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Rampa de acceso a obra y tránsito regulado bajo plan PESV.',
                     foto3Desc: 'Controles / Herramientas: Calzas de parqueo, cámaras de punto ciego y chaleco de alta visibilidad.'
                 },
-                video: '/videos/sgsst/camion_pesv.mp4',
+                video: '',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'Sí'
@@ -1315,7 +1315,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Estructura metálica en altura con línea de vida de cable de acero.',
                     foto3Desc: 'Controles / Herramientas: Careta fotosensible DIN 12, manta ignífuga y extintor satélite ABC.'
                 },
-                video: '/videos/sgsst/soldadura_chispas.mp4',
+                video: '',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Media',
                 operaMaquinaria: 'Sí'
@@ -1343,7 +1343,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Tablero general de distribución y subestación provisional con bloqueo LOTO.',
                     foto3Desc: 'Controles / Herramientas: Interruptores diferenciales GFCI, candado rojo LOTO y tapete dieléctrico.'
                 },
-                video: '/videos/sgsst/electricista_torre.mp4',
+                video: '',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'No'
@@ -1371,7 +1371,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Fachada exterior a gran altura con anclajes estructurales de 5000 lbs.',
                     foto3Desc: 'Controles / Herramientas: Descendedor antipánico, respirador para vapores orgánicos y polisombra en tierra.'
                 },
-                video: '/videos/sgsst/andamio_alturas.mp4',
+                video: '',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Media',
                 operaMaquinaria: 'No'
@@ -1399,7 +1399,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Ductos técnicos y zanjas de tubería con entibado metálico.',
                     foto3Desc: 'Controles / Herramientas: Detector de 4 gases, prueba hidrostática y respirador químico.'
                 },
-                video: '/videos/sgsst/acabados_obra.mp4',
+                video: '',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Media',
                 operaMaquinaria: 'No'
@@ -1427,7 +1427,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Interior de apartamentos en obra con andamio de caballete rodante.',
                     foto3Desc: 'Controles / Herramientas: Lijadora orbital con aspiración de polvo y pausas osteomusculares.'
                 },
-                video: '/videos/sgsst/acabados_obra.mp4',
+                video: '',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Media',
                 operaMaquinaria: 'No'
@@ -1455,7 +1455,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Talud perimetral y bordes de placa con alta exposición solar.',
                     foto3Desc: 'Controles / Herramientas: Trípode con zapatas de agarre, chaleco reflectivo Clase 3 y protector solar.'
                 },
-                video: '/videos/sgsst/director_planos.mp4',
+                video: '',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'No'
@@ -1483,7 +1483,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Bodega de materiales con estanterías industriales ancladas.',
                     foto3Desc: 'Controles / Herramientas: Diques antiderrames, kit de control de contingencias y extintor satélite.'
                 },
-                video: '/videos/sgsst/acabados_obra.mp4',
+                video: '',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Media',
                 operaMaquinaria: 'No'
@@ -1511,7 +1511,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Frente de fundida activa con pasarelas de madera antideslizantes.',
                     foto3Desc: 'Controles / Herramientas: Botas de caucho con puntera de acero, guantes calibre 35 y protector auditivo.'
                 },
-                video: '/videos/sgsst/concreto_vaciado.mp4',
+                video: '',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Baja',
                 operaMaquinaria: 'No'
@@ -1539,7 +1539,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Acceso vehicular a la obra con conos y barreras tipo maletín reflectivo.',
                     foto3Desc: 'Controles / Herramientas: Chaleco reflectivo Clase 3, silbato acústico de alerta y caseta de sombra.'
                 },
-                video: '/videos/sgsst/camion_pesv.mp4',
+                video: '',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'No'
@@ -1567,7 +1567,7 @@ export const generateDummyData = {
                     foto2Desc: 'Ambiente de Trabajo: Oficinas técnicas y puntos ecológicos de segregación de residuos.',
                     foto3Desc: 'Controles / Herramientas: Carro porta-balde ergonómico con exprimidor, guantes de nitrilo y delantal.'
                 },
-                video: '/videos/sgsst/acabados_obra.mp4',
+                video: '',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Baja',
                 operaMaquinaria: 'No'
