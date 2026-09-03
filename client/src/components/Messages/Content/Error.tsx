@@ -1,10 +1,15 @@
 // file deepcode ignore HardcodedNonCryptoSecret: No hardcoded secrets
 import { ViolationTypes, ErrorTypes, alternateName } from 'librechat-data-provider';
 import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { Trash2 } from 'lucide-react';
+import { OGDialog } from '@librechat/client';
 import type { LocalizeFunction } from '~/common';
 import { formatJSON, extractJson, isJson } from '~/utils/json';
 import { useLocalize } from '~/hooks';
+import { useChatContext } from '~/Providers';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
+import { DeleteConversationDialog } from '~/components/Conversations/ConvoOptions/DeleteButton';
 import CodeBlock from './CodeBlock';
 import ApiKeyErrorModal from './ApiKeyErrorModal';
 
@@ -264,7 +269,10 @@ const errorMessages = {
 
 const Error = ({ text }: { text: string }) => {
   const localize = useLocalize();
+  const { conversationId } = useParams();
+  const { conversation } = useChatContext();
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   useEffect(() => {
     if (text && (text.includes('API_KEY_INVALID') || text.includes('API key not valid') || text.includes('invalid_api_key'))) {
@@ -296,9 +304,36 @@ const Error = ({ text }: { text: string }) => {
     }
   };
 
+  const validConvoId = conversationId && conversationId !== 'new' ? conversationId : null;
+
   return (
     <>
       {renderContent()}
+      {validConvoId && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-red-500/20 pt-2.5">
+          <span className="text-xs text-gray-600 dark:text-gray-300">
+            ¿El chat quedó bloqueado por este error?
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowDeleteDialog(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all duration-150 hover:bg-red-700 active:scale-95 cursor-pointer"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span>Eliminar este chat</span>
+          </button>
+        </div>
+      )}
+      {showDeleteDialog && validConvoId && (
+        <OGDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DeleteConversationDialog
+            conversationId={validConvoId}
+            title={conversation?.title || 'este chat'}
+            setShowDeleteDialog={setShowDeleteDialog}
+            retainView={() => {}}
+          />
+        </OGDialog>
+      )}
       <ApiKeyErrorModal isOpen={showApiKeyModal} onClose={() => setShowApiKeyModal(false)} />
     </>
   );

@@ -2,6 +2,9 @@ import { useState, useId, useRef, memo, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import * as Menu from '@ariakit/react/menu';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { QueryKeys, dataService } from 'librechat-data-provider';
+import type { TMessage } from 'librechat-data-provider';
 import { DropdownPopup, Spinner, useToastContext } from '@librechat/client';
 import { Ellipsis, Share2, Copy, Archive, Pen, Trash } from 'lucide-react';
 import type { MouseEvent } from 'react';
@@ -37,6 +40,7 @@ function ConvoOptions({
 }) {
   const localize = useLocalize();
   const { index } = useChatContext();
+  const queryClient = useQueryClient();
   const { data: startupConfig } = useGetStartupConfig();
   const { navigateToConvo } = useNavigateToConvo(index);
   const { showToast } = useToastContext();
@@ -86,19 +90,70 @@ function ConvoOptions({
     setShowShareDialog(true);
   }, []);
 
-  const handleDeleteClick = useCallback(() => {
+  const handleDeleteClick = useCallback(async () => {
     if (!isPro) {
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
+      const convoId = conversationId ?? '';
+      let hasConvoError = false;
+
+      let msgs = queryClient.getQueryData<TMessage[]>([QueryKeys.messages, convoId]);
+      if (!msgs && convoId && convoId !== 'new') {
+        try {
+          msgs = await queryClient.fetchQuery([QueryKeys.messages, convoId], () =>
+            dataService.getMessagesByConvoId(convoId),
+          );
+        } catch (e) {
+          hasConvoError = true;
+        }
       }
-      setUpgradeModalTitle("Eliminación de Chats Bloqueada");
-      setUpgradeModalDesc("La eliminación de chats en tu cuenta gratuita está restringida para evitar el reinicio artificial del límite de conversaciones. Adquiere el Plan Pro para gestionar y eliminar historiales de forma ilimitada.");
-      setIsUpgradeModalOpen(true);
-      setIsPopoverActive(false);
-      return;
+
+      if (msgs && Array.isArray(msgs)) {
+        if (msgs.length === 0) {
+          hasConvoError = true;
+        } else if (msgs.length === 1 && msgs[0].isCreatedByUser) {
+          hasConvoError = true;
+        } else {
+          hasConvoError = msgs.some((m) => {
+            if (m?.error === true) {
+              return true;
+            }
+            const txt = m?.text || '';
+            if (
+              txt.includes('Algo salió mal') ||
+              txt.includes('Error connecting to server') ||
+              txt.includes('API_KEY_INVALID') ||
+              txt.includes('invalid_api_key') ||
+              txt.includes('insufficient_quota') ||
+              txt.includes('convo_limit') ||
+              txt.includes('daily_limit') ||
+              txt.includes('INVALID_USER_KEY') ||
+              txt.includes('NO_USER_KEY') ||
+              txt.includes('Por favor seleccione un Agente')
+            ) {
+              return true;
+            }
+            try {
+              if (txt.startsWith('{') && (txt.includes('"error"') || txt.includes('"code"') || txt.includes('"type"'))) {
+                return true;
+              }
+            } catch {}
+            return false;
+          });
+        }
+      }
+
+      if (!hasConvoError) {
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+        setUpgradeModalTitle("Eliminación de Chats Bloqueada");
+        setUpgradeModalDesc("La eliminación de chats en tu cuenta gratuita está restringida para evitar el reinicio artificial del límite de conversaciones. Adquiere el Plan Pro para gestionar y eliminar historiales de forma ilimitada.");
+        setIsUpgradeModalOpen(true);
+        setIsPopoverActive(false);
+        return;
+      }
     }
     setShowDeleteDialog(true);
-  }, [isPro, setIsPopoverActive]);
+  }, [isPro, conversationId, queryClient, setIsPopoverActive]);
 
   const handleArchiveClick = useCallback(async () => {
     if (!isPro) {
