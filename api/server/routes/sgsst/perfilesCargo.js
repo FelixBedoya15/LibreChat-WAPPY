@@ -50,7 +50,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 });
 
 // ─── POST /save ────────────────────────────────────────────────────────────
-router.post('/save', requireJwtAuth, async (req, res) => {
+router.post('/save', requireJwtAuth, express.json({ limit: '100mb' }), async (req, res) => {
   try {
     const { perfilesList } = req.body;
     const companyId = await getActiveCompanyId(req.user.id);

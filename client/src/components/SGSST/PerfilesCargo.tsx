@@ -379,23 +379,47 @@ const PerfilesCargo = () => {
         const file = e.target.files?.[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onloadend = async () => {
-            const base64String = reader.result as string;
-            try {
-                const res = await fetch('/api/sgsst/perfiles-cargo/upload', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ fileData: base64String, fileName: file.name })
-                });
-                const data = await res.json();
-                if (data.url) {
-                    setFormData(prev => ({ ...prev, images: { ...(prev.images || {}), [key]: data.url } }));
-                } else {
-                    showToast({ message: 'Error al subir imagen', severity: NotificationSeverity.ERROR });
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 800;
+                    const MAX_HEIGHT = 800;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+                    setFormData(prev => ({
+                        ...prev,
+                        images: { ...(prev.images || {}), [key]: compressedDataUrl }
+                    }));
+                    showToast({ message: 'Foto cargada exitosamente', severity: NotificationSeverity.SUCCESS });
+                } catch (err) {
+                    console.error('[PerfilesCargo] Compression error:', err);
+                    setFormData(prev => ({
+                        ...prev,
+                        images: { ...(prev.images || {}), [key]: event.target?.result as string }
+                    }));
                 }
-            } catch (err) {
-                showToast({ message: 'Error de conexión', severity: NotificationSeverity.ERROR });
-            }
+            };
+            img.src = event.target?.result as string;
         };
         reader.readAsDataURL(file);
     };
@@ -1385,7 +1409,14 @@ const PerfilesCargo = () => {
                                         <div className="relative w-full aspect-square bg-surface-primary/40 hover:bg-surface-primary/70 dark:bg-surface-primary/10 dark:hover:bg-surface-primary/20 rounded-3xl border-2 border-dashed border-teal-500/30 dark:border-teal-500/20 flex flex-col items-center justify-center overflow-hidden hover:border-teal-500 focus-within:ring-4 focus-within:ring-teal-500/10 transition-all duration-300 shadow-lg">
                                             {formData.images?.[fieldName] ? (
                                                 <>
-                                                    <img src={formData.images[fieldName] as string} className="w-full h-full object-cover" alt={foto} />
+                                                    <img
+                                                        src={formData.images[fieldName] as string}
+                                                        className="w-full h-full object-cover"
+                                                        alt={labels[idx]}
+                                                        onError={() => {
+                                                            removeImage(fieldName);
+                                                        }}
+                                                    />
                                                     <button onClick={() => removeImage(fieldName)} className="absolute top-2 right-2 bg-black/50 p-1.5 rounded-full text-white hover:bg-red-500 transition-colors">
                                                         <X className="h-4 w-4" />
                                                     </button>
