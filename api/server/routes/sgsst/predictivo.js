@@ -233,16 +233,17 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             Seguridad: 0
         };
 
+        let specificWorkerAlerts = [];
+        let specificIpevarHazards = [];
+        let specificOwasFindings = [];
+        let specificUnsafeActs = [];
+        let specificAtelAccidents = [];
+        let specificHeightsPermits = [];
+        let specificMiedoFeedback = [];
+
         try {
             // Hito 1: Trabajadores SgsstWorker & Perfil Sociodemográfico
             const SgsstWorker = mongoose.models.SgsstWorker;
-            let specificWorkerAlerts = [];
-            let specificIpevarHazards = [];
-            let specificOwasFindings = [];
-            let specificUnsafeActs = [];
-            let specificAtelAccidents = [];
-            let specificHeightsPermits = [];
-            let specificMiedoFeedback = [];
 
             if (SgsstWorker) {
                 const workers = await SgsstWorker.find({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
