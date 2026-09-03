@@ -5,6 +5,7 @@ import { Clipboard, CheckMark } from '@librechat/client';
 import type { MouseEvent, FC } from 'react';
 import { showThinkingAtom } from '~/store/showThinking';
 import { fontSizeAtom } from '~/store/fontSize';
+import { useMessageContext } from '~/Providers';
 import { useLocalize } from '~/hooks';
 import { cn } from '~/utils';
 
@@ -121,13 +122,22 @@ const Thinking: React.ElementType = memo(({ children }: { children: React.ReactN
   const localize = useLocalize();
   const showThinking = useAtomValue(showThinkingAtom);
   const [isExpanded, setIsExpanded] = useState(showThinking);
+  const { isSubmitting = false, isLatestMessage = false } = useMessageContext();
 
   const handleClick = useCallback((e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setIsExpanded((prev) => !prev);
   }, []);
 
-  const label = useMemo(() => localize('com_ui_thoughts'), [localize]);
+  const effectiveIsSubmitting = isLatestMessage ? isSubmitting : false;
+
+  const label = useMemo(
+    () =>
+      effectiveIsSubmitting
+        ? localize('com_ui_thinking') || 'Pensando...'
+        : localize('com_ui_thoughts') || 'Pensamiento',
+    [effectiveIsSubmitting, localize],
+  );
 
   // Extract text content for copy functionality
   const textContent = useMemo(() => {

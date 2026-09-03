@@ -2,14 +2,15 @@ import { memo } from 'react';
 
 const EmptyTextPart = memo(() => {
   return (
-    <div className="text-message mb-[0.625rem] flex min-h-[20px] flex-col items-start gap-3 overflow-visible">
-      <div className="markdown prose dark:prose-invert light w-full break-words dark:text-gray-100">
-        <div className="absolute">
-          <p className="submitting relative">
-            <span className="result-thinking" />
-          </p>
-        </div>
+    <div className="flex items-center gap-2.5 py-1.5 text-text-secondary select-none">
+      <div className="flex items-center gap-1">
+        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.3s]" />
+        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.15s]" />
+        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-bounce" />
       </div>
+      <span className="text-xs font-semibold tracking-wide text-text-secondary/80 animate-pulse">
+        Pensando respuesta...
+      </span>
     </div>
   );
 });
