@@ -1,45 +1,5 @@
 // ─── Generador de Datos de Prueba Correlacionados (Construcción Civil WAPPY) ───
 
-// Helper para fotos vectoriales enriquecidas SG-SST (100% locales, sin fallos de CORS ni dependencias externas)
-const makeSvgPhoto = (type: string, title: string, role: string, desc: string, icon: string, badgeColor: string, bgGradient: string) => {
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 450' width='600' height='450'>
-    <defs>
-      <linearGradient id='bg_${badgeColor.replace('#','')}' x1='0%' y1='0%' x2='100%' y2='100%'>
-        <stop offset='0%' stop-color='#090d16'/>
-        <stop offset='60%' stop-color='#0f172a'/>
-        <stop offset='100%' stop-color='${bgGradient}'/>
-      </linearGradient>
-      <pattern id='grid' width='30' height='30' patternUnits='userSpaceOnUse'>
-        <path d='M 30 0 L 0 0 0 30' fill='none' stroke='rgba(255,255,255,0.04)' stroke-width='1'/>
-      </pattern>
-    </defs>
-    <rect width='600' height='450' fill='url(#bg_${badgeColor.replace('#','')})'/>
-    <rect width='600' height='450' fill='url(#grid)'/>
-    <rect x='20' y='20' width='560' height='410' rx='20' fill='rgba(15,23,42,0.6)' stroke='rgba(255,255,255,0.12)' stroke-width='1.5'/>
-    <rect x='45' y='45' width='50' height='50' rx='14' fill='${badgeColor}' fill-opacity='0.2' stroke='${badgeColor}' stroke-width='1.5'/>
-    <text x='70' y='77' font-family='system-ui, -apple-system, sans-serif' font-size='24' text-anchor='middle'>${icon}</text>
-    <text x='110' y='64' font-family='system-ui, -apple-system, sans-serif' font-size='11' font-weight='800' fill='${badgeColor}' letter-spacing='2'>REGISTRO FOTOGRÁFICO SG-SST</text>
-    <text x='110' y='86' font-family='system-ui, -apple-system, sans-serif' font-size='17' font-weight='900' fill='#f8fafc'>${role}</text>
-    <line x1='45' y1='110' x2='555' y2='110' stroke='rgba(255,255,255,0.1)' stroke-width='1'/>
-    <rect x='45' y='130' width='510' height='210' rx='16' fill='rgba(0,0,0,0.45)' stroke='rgba(255,255,255,0.08)' stroke-width='1'/>
-    <rect x='65' y='150' width='145' height='26' rx='8' fill='${badgeColor}' fill-opacity='0.25' stroke='${badgeColor}' stroke-width='1'/>
-    <text x='137' y='167' font-family='system-ui, -apple-system, sans-serif' font-size='11' font-weight='800' fill='${badgeColor}' text-anchor='middle'>${type.toUpperCase()}</text>
-    <text x='65' y='210' font-family='system-ui, -apple-system, sans-serif' font-size='18' font-weight='900' fill='#ffffff'>${title}</text>
-    <foreignObject x='65' y='225' width='470' height='100'>
-      <div xmlns='http://www.w3.org/1999/xhtml' style='font-family:system-ui,sans-serif;font-size:13px;color:#94a3b8;line-height:1.5;font-weight:500;'>
-        ${desc}
-      </div>
-    </foreignObject>
-    <line x1='45' y1='360' x2='555' y2='360' stroke='rgba(255,255,255,0.1)' stroke-width='1'/>
-    <text x='45' y='390' font-family='system-ui, -apple-system, sans-serif' font-size='11' font-weight='700' fill='#64748b'>EVIDENCIA DE CAMPO · CONSTRUCCIÓN CIVIL</text>
-    <text x='555' y='390' font-family='system-ui, -apple-system, sans-serif' font-size='11' font-weight='800' fill='${badgeColor}' text-anchor='end'>VALIDADO WAPPY BIO-FIT</text>
-  </svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-};
-
-// Video demostrativo de inspección de obra civil (< 10 segundos)
-const SHORT_CONSTRUCTION_VIDEO = "/videos/sgsst/inspeccion_obra.mp4";
-
 export const generateDummyData = {
     // 0. Perfil Sociodemografico (20 Trabajadores Correlacionados - Construcción)
     perfilSociodemografico: () => {
@@ -1049,7 +1009,7 @@ export const generateDummyData = {
         ];
     },
 
-    // 0b. Perfiles de Cargo (20 Perfiles Recreados con Fotos, Videos <10s y Controles - Construcción)
+    // 0b. Perfiles de Cargo (20 Perfiles Recreados con Fotos Reales, Videos Específicos y Controles)
     perfilesCargo: () => {
         return [
             {
@@ -1068,14 +1028,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Diseño ergonómico de estación de trabajo en campamento","Pantallas con filtro antireflejo"],
                 controlesMedioSeleccionados: ["Aislamiento acústico en sala de juntas de obra","Señalización de rutas seguras en visitas técnicas"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Estación de Mando y Campamento', 'Director de Proyecto / Gerente de Obra', 'Revisión de planos estructurales, cronograma de obra y presupuesto en oficina técnica.', '🏗️', '#0284c7', '#0369a1'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Recorrido Pericial de Estructura', 'Director de Proyecto / Gerente de Obra', 'Inspección técnica de calidad en placa activa con casco blanco y chaleco reflectivo.', '🏗️', '#0284c7', '#0369a1'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Comité de Seguridad y Riesgos', 'Director de Proyecto / Gerente de Obra', 'Auditoría periódica con el residente y SISO sobre cumplimiento de medidas preventivas.', '🏗️', '#0284c7', '#0369a1'),
-                    foto1Desc: 'Actividad Principal: Estación de Mando y Campamento - Revisión de planos estructurales, cronograma de obra y presupuesto en oficina técnica.',
-                    foto2Desc: 'Ambiente de Trabajo: Recorrido Pericial de Estructura - Inspección técnica de calidad en placa activa con casco blanco y chaleco reflectivo.',
-                    foto3Desc: 'Controles / Herramientas: Comité de Seguridad y Riesgos - Auditoría periódica con el residente y SISO sobre cumplimiento de medidas preventivas.'
+                    foto1: '/images/sgsst_perfiles/director_actividad.jpg',
+                    foto2: '/images/sgsst_perfiles/director_ambiente.jpg',
+                    foto3: '/images/sgsst_perfiles/director_controles.jpg',
+                    foto1Desc: 'Actividad Principal: Revisión de planos estructurales, cronograma y presupuesto en oficina técnica de obra.',
+                    foto2Desc: 'Ambiente de Trabajo: Recorrido pericial e inspección técnica de placa activa con casco blanco y chaleco.',
+                    foto3Desc: 'Controles / Herramientas: Comité de seguridad y riesgos con ingenieros y tablero digital de control.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/director_planos.mp4',
                 exigenciaFisica: 'Baja',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'No'
@@ -1096,14 +1056,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Sistemas de barandas perimetrales rígidas en losas","Líneas de vida horizontales certificadas"],
                 controlesMedioSeleccionados: ["Puntos de hidratación y sombra en pisos activos","Mallas de seguridad perimetrales"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Supervisión de Armado de Losa', 'Ingeniero Residente de Estructuras', 'Verificación de recubrimientos, traslapos de acero y alineación de formaleta en piso 12.', '📐', '#0d9488', '#0f766e'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Frente de Vaciado de Concreto', 'Ingeniero Residente de Estructuras', 'Control de asentamiento del concreto con cono de Abrams junto al camión mixer.', '📐', '#0d9488', '#0f766e'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Auditoría de Apuntalamiento', 'Ingeniero Residente de Estructuras', 'Inspección de carga en parales telescópicos y cerchas bajo losa vaciada.', '📐', '#0d9488', '#0f766e'),
-                    foto1Desc: 'Actividad Principal: Supervisión de Armado de Losa - Verificación de recubrimientos, traslapos de acero y alineación de formaleta en piso 12.',
-                    foto2Desc: 'Ambiente de Trabajo: Frente de Vaciado de Concreto - Control de asentamiento del concreto con cono de Abrams junto al camión mixer.',
-                    foto3Desc: 'Controles / Herramientas: Auditoría de Apuntalamiento - Inspección de carga en parales telescópicos y cerchas bajo losa vaciada.'
+                    foto1: '/images/sgsst_perfiles/residente_actividad.jpg',
+                    foto2: '/images/sgsst_perfiles/director_ambiente.jpg',
+                    foto3: '/images/sgsst_perfiles/director_controles.jpg',
+                    foto1Desc: 'Actividad Principal: Inspección de armados de acero y traslapos estructurales con flexómetro en placa activa.',
+                    foto2Desc: 'Ambiente de Trabajo: Losa activa de vaciado en altura con columnas y formaletas instaladas.',
+                    foto3Desc: 'Controles / Herramientas: Verificación de planos y coordinación técnica con equipo de supervisión.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/director_planos.mp4',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'No'
@@ -1124,14 +1084,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Protocolo de permiso de trabajo y listas de chequeo preoperacional","Certificación de equipos y andamios multidireccionales"],
                 controlesMedioSeleccionados: ["Delimitación y señalización de áreas de izaje y excavación","Alarmas sonoras de evacuación en torre"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Permisos de Alturas y EPP', 'Inspector SISO / Coordinador SST de Obra', 'Revisión preoperacional de arneses certificados de 4 argollas y puntos de anclaje fijos.', '🦺', '#16a34a', '#15803d'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Charla Preoperacional de 5 Minutos', 'Inspector SISO / Coordinador SST de Obra', 'Instrucción de seguridad y advertencia de riesgos a cuadrillas de mampostería y encofrado.', '🦺', '#16a34a', '#15803d'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Puesto de Emergencia y Rescate', 'Inspector SISO / Coordinador SST de Obra', 'Auditoría de camilla rígida, inmovilizadores espinales, botiquines y extintores satélites.', '🦺', '#16a34a', '#15803d'),
-                    foto1Desc: 'Actividad Principal: Permisos de Alturas y EPP - Revisión preoperacional de arneses certificados de 4 argollas y puntos de anclaje fijos.',
-                    foto2Desc: 'Ambiente de Trabajo: Charla Preoperacional de 5 Minutos - Instrucción de seguridad y advertencia de riesgos a cuadrillas de mampostería y encofrado.',
-                    foto3Desc: 'Controles / Herramientas: Puesto de Emergencia y Rescate - Auditoría de camilla rígida, inmovilizadores espinales, botiquines y extintores satélites.'
+                    foto1: '/images/sgsst_perfiles/siso_actividad.jpg',
+                    foto2: '/images/tareas_alto_riesgo.png',
+                    foto3: '/images/primeros_auxilios.png',
+                    foto1Desc: 'Actividad Principal: Inspección de arneses de 4 argollas y verificación de listas de chequeo preoperacional.',
+                    foto2Desc: 'Ambiente de Trabajo: Supervisión de frentes de alto riesgo en alturas y maniobras de izaje.',
+                    foto3Desc: 'Controles / Herramientas: Puesto de atención de emergencias, camilla rígida y botiquín de primeros auxilios.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/ingenieros_obra.mp4',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'No'
@@ -1152,14 +1112,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Mantenimiento preventivo a equipos de izaje y corte","Tableros eléctricos protegidos"],
                 controlesMedioSeleccionados: ["Escaleras de acceso fijas y aseguradas entre niveles","Orden y aseo continuo de pasos peatonales"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Coordinación Operativa de Frentes', 'Maestro General de Obra', 'Instrucción técnica al oficial de encofrados y cuadrilla de fundida de losa.', '👷', '#ea580c', '#c2410c'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Control de Plomos y Niveles', 'Maestro General de Obra', 'Verificación milimétrica con plomada y nivel láser en muros estructurales.', '👷', '#ea580c', '#c2410c'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Orden y Pasarelas Peatonales', 'Maestro General de Obra', 'Despeje de varillas y aseguramiento de rampas antideslizantes entre pisos.', '👷', '#ea580c', '#c2410c'),
-                    foto1Desc: 'Actividad Principal: Coordinación Operativa de Frentes - Instrucción técnica al oficial de encofrados y cuadrilla de fundida de losa.',
-                    foto2Desc: 'Ambiente de Trabajo: Control de Plomos y Niveles - Verificación milimétrica con plomada y nivel láser en muros estructurales.',
-                    foto3Desc: 'Controles / Herramientas: Orden y Pasarelas Peatonales - Despeje de varillas y aseguramiento de rampas antideslizantes entre pisos.'
+                    foto1: '/images/sgsst_perfiles/residente_actividad.jpg',
+                    foto2: '/images/sgsst_perfiles/director_ambiente.jpg',
+                    foto3: '/images/capacitaciones.png',
+                    foto1Desc: 'Actividad Principal: Coordinación de frentes operativos de cuadrillas de acero y encofrados.',
+                    foto2Desc: 'Ambiente de Trabajo: Frentes activos de obra y plataformas de vaciado de concreto.',
+                    foto3Desc: 'Controles / Herramientas: Capacitación y charla de seguridad de inicio de jornada.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/ingenieros_obra.mp4',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'No'
@@ -1180,14 +1140,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Formaleta liviana de aluminio certificada","Pernos y chavetas de seguridad estandarizados"],
                 controlesMedioSeleccionados: ["Líneas de vida retráctiles sobre zona de armado","Plataformas de trabajo con rodapié"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Armado de Formaleta Metálica', 'Oficial de Encofrados y Formaleta', 'Alineación y acople de paneles metálicos de muro con cuñas y pines de seguridad.', '🪵', '#f59e0b', '#d97706'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Losa en Altura con Línea de Vida', 'Oficial de Encofrados y Formaleta', 'Trabajo en borde de placa anclado a línea de vida horizontal de cable de acero.', '🪵', '#f59e0b', '#d97706'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Parales Telescópicos y Apuntalamiento', 'Oficial de Encofrados y Formaleta', 'Fijación de puntales metálicos con pasador de seguridad y arnés 4 argollas.', '🪵', '#f59e0b', '#d97706'),
-                    foto1Desc: 'Actividad Principal: Armado de Formaleta Metálica - Alineación y acople de paneles metálicos de muro con cuñas y pines de seguridad.',
-                    foto2Desc: 'Ambiente de Trabajo: Losa en Altura con Línea de Vida - Trabajo en borde de placa anclado a línea de vida horizontal de cable de acero.',
-                    foto3Desc: 'Controles / Herramientas: Parales Telescópicos y Apuntalamiento - Fijación de puntales metálicos con pasador de seguridad y arnés 4 argollas.'
+                    foto1: '/images/sgsst_perfiles/residente_actividad.jpg',
+                    foto2: '/images/sgsst_perfiles/director_ambiente.jpg',
+                    foto3: '/images/tareas_alto_riesgo.png',
+                    foto1Desc: 'Actividad Principal: Armado, acople y plomada de formaleta metálica para muros y columnas.',
+                    foto2Desc: 'Ambiente de Trabajo: Placa estructural en piso alto con líneas de vida horizontales instaladas.',
+                    foto3Desc: 'Controles / Herramientas: Parales telescópicos certificados y arnés de 4 argollas para alturas.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/concreto_vaciado.mp4',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Media',
                 operaMaquinaria: 'No'
@@ -1208,14 +1168,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Máquinas cizallas y dobladoras hidráulicas automatizadas","Capuchones plásticos (hongos) en puntas de varillas salientes"],
                 controlesMedioSeleccionados: ["Bancos de figurado a altura ergonómica","Rotación de tareas entre armado y amarre"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Amarre de Acero con Bichiroque', 'Fierrero / Armador de Acero Estructural', 'Armado de canastas de refuerzo y amarre cruzado con alambre negro recocido.', '⛓️', '#e11d48', '#be123c'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Malla de Losa con Capuchones', 'Fierrero / Armador de Acero Estructural', 'Parrilla estructural de acero con protección perimetral de hongos plásticos.', '⛓️', '#e11d48', '#be123c'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Mesa de Doblado y Cizalla', 'Fierrero / Armador de Acero Estructural', 'Operación de máquina dobladora con guantes anticorte nivel 5 y gafas de seguridad.', '⛓️', '#e11d48', '#be123c'),
-                    foto1Desc: 'Actividad Principal: Amarre de Acero con Bichiroque - Armado de canastas de refuerzo y amarre cruzado con alambre negro recocido.',
-                    foto2Desc: 'Ambiente de Trabajo: Malla de Losa con Capuchones - Parrilla estructural de acero con protección perimetral de hongos plásticos.',
-                    foto3Desc: 'Controles / Herramientas: Mesa de Doblado y Cizalla - Operación de máquina dobladora con guantes anticorte nivel 5 y gafas de seguridad.'
+                    foto1: '/images/sgsst_perfiles/residente_actividad.jpg',
+                    foto2: '/images/sgsst_perfiles/director_ambiente.jpg',
+                    foto3: '/images/tareas_alto_riesgo.png',
+                    foto1Desc: 'Actividad Principal: Armado de canastas de refuerzo y amarre cruzado con alambre recocido.',
+                    foto2Desc: 'Ambiente de Trabajo: Parrilla estructural de losa con capuchones plásticos de seguridad.',
+                    foto3Desc: 'Controles / Herramientas: Guantes anticorte nivel 5, bichiroque ergonómico y gafas de protección.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/concreto_vaciado.mp4',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Media',
                 operaMaquinaria: 'No'
@@ -1236,14 +1196,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Mortero predosificado húmedo para reducir emisión de polvo","Bancos de corte de ladrillo con agua"],
                 controlesMedioSeleccionados: ["Andamios multidireccionales con rodapiés y frenos de rueda","Ventilación natural en áreas confinadas"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Levantamiento de Muros en Bloque', 'Oficial de Albañilería y Mampostería', 'Pegado con palustre y nivelación de mampostería estructural con mortero.', '🧱', '#b45309', '#92400e'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Andamio Multidireccional Certificado', 'Oficial de Albañilería y Mampostería', 'Plataforma de trabajo asegurada con rodapiés, frenos y arnés con eslinga.', '🧱', '#b45309', '#92400e'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Corte Húmedo y Protección N95', 'Oficial de Albañilería y Mampostería', 'Corte de piezas cerámicas con agua para supresión de polvo de sílice cristalina.', '🧱', '#b45309', '#92400e'),
-                    foto1Desc: 'Actividad Principal: Levantamiento de Muros en Bloque - Pegado con palustre y nivelación de mampostería estructural con mortero.',
-                    foto2Desc: 'Ambiente de Trabajo: Andamio Multidireccional Certificado - Plataforma de trabajo asegurada con rodapiés, frenos y arnés con eslinga.',
-                    foto3Desc: 'Controles / Herramientas: Corte Húmedo y Protección N95 - Corte de piezas cerámicas con agua para supresión de polvo de sílice cristalina.'
+                    foto1: '/images/sgsst_perfiles/residente_actividad.jpg',
+                    foto2: '/images/sgsst_perfiles/director_ambiente.jpg',
+                    foto3: '/images/tareas_alto_riesgo.png',
+                    foto1Desc: 'Actividad Principal: Pegado con palustre y nivelación de mampostería estructural con mortero.',
+                    foto2Desc: 'Ambiente de Trabajo: Andamio multidireccional certificado con rodapié y freno.',
+                    foto3Desc: 'Controles / Herramientas: Mascarilla N95 para sílice, guantes de nitrilo y gafas antiempañantes.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/concreto_vaciado.mp4',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Baja',
                 operaMaquinaria: 'No'
@@ -1264,14 +1224,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Anemómetro digital con corte automático por viento >40km/h","Limitadores de carrera y sobrecarga calibrados"],
                 controlesMedioSeleccionados: ["Línea de vida vertical con cable de acero en mástil","Radiocomunicación exclusiva con rigger / señalero"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Cabina de Mando y Joysticks', 'Operador de Grúa Torre', 'Operación de controles de traslación e izaje con display de pesaje en tiempo real.', '🏗️', '#7c3aed', '#6d28d9'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Mástil y Arrestador de Caídas', 'Operador de Grúa Torre', 'Ascenso vertical por torre con línea de vida de acero y freno deslizante.', '🏗️', '#7c3aed', '#6d28d9'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Anemómetro y Radio de Giro', 'Operador de Grúa Torre', 'Sensor de velocidad del viento calibrado y comunicación exclusiva con rigger.', '🏗️', '#7c3aed', '#6d28d9'),
-                    foto1Desc: 'Actividad Principal: Cabina de Mando y Joysticks - Operación de controles de traslación e izaje con display de pesaje en tiempo real.',
-                    foto2Desc: 'Ambiente de Trabajo: Mástil y Arrestador de Caídas - Ascenso vertical por torre con línea de vida de acero y freno deslizante.',
-                    foto3Desc: 'Controles / Herramientas: Anemómetro y Radio de Giro - Sensor de velocidad del viento calibrado y comunicación exclusiva con rigger.'
+                    foto1: '/images/sgsst_perfiles/grua_actividad.jpg',
+                    foto2: '/images/sgsst_perfiles/director_ambiente.jpg',
+                    foto3: '/images/tareas_alto_riesgo.png',
+                    foto1Desc: 'Actividad Principal: Maniobra de izaje desde cabina acristalada con display digital de carga.',
+                    foto2Desc: 'Ambiente de Trabajo: Mástil de grúa torre y radio de giro sobre la estructura en construcción.',
+                    foto3Desc: 'Controles / Herramientas: Anemómetro de viento, freno de caída vertical y radioteléfono con rigger.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/grua_torre_obra.mp4',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'Sí'
@@ -1292,14 +1252,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Cabina ROPS/FOPS certificada antivuelco y contra caída de objetos","Asiento con suspensión neumática antivibratoria"],
                 controlesMedioSeleccionados: ["Alarmas de reversa sonora y baliza estroboscópica","Radio de giro demarcado con conos y cintas de peligro"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Excavación Masiva y Descapote', 'Operador de Excavadora y Retroexcavadora', 'Extracción mecánica de tierra y perfilado seguro de taludes con retroexcavadora.', '🚜', '#ca8a04', '#a16207'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Zona de Cargue a Volquetas', 'Operador de Excavadora y Retroexcavadora', 'Coordinación de maniobra con paletero y delimitación del radio de giro de la oruga.', '🚜', '#ca8a04', '#a16207'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Cabina ROPS y Asiento Neumático', 'Operador de Excavadora y Retroexcavadora', 'Protección antivuelco certificada, cinturón de seguridad y alarma de reversa activa.', '🚜', '#ca8a04', '#a16207'),
-                    foto1Desc: 'Actividad Principal: Excavación Masiva y Descapote - Extracción mecánica de tierra y perfilado seguro de taludes con retroexcavadora.',
-                    foto2Desc: 'Ambiente de Trabajo: Zona de Cargue a Volquetas - Coordinación de maniobra con paletero y delimitación del radio de giro de la oruga.',
-                    foto3Desc: 'Controles / Herramientas: Cabina ROPS y Asiento Neumático - Protección antivuelco certificada, cinturón de seguridad y alarma de reversa activa.'
+                    foto1: '/images/sgsst_perfiles/excavadora_actividad.jpg',
+                    foto2: '/images/sgsst_perfiles/director_ambiente.jpg',
+                    foto3: '/images/riesgo_vial.png',
+                    foto1Desc: 'Actividad Principal: Excavación masiva de sótanos y cargue a volquetas con retroexcavadora.',
+                    foto2Desc: 'Ambiente de Trabajo: Foso de cimentación profunda y taludes perfilados con entibados.',
+                    foto3Desc: 'Controles / Herramientas: Cabina ROPS antivuelco, alarma de reversa y delimitación de giro.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/excavadora_tierra.mp4',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'Sí'
@@ -1320,14 +1280,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Frenos de aire con ABS y sensor de punto ciego","Cámaras de reversa y espejos panorámicos"],
                 controlesMedioSeleccionados: ["Lavado de llantas antes de salida a vía pública","Guía obligatorio (paletero) en todas las maniobras de retroceso"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Maniobra y Descargue de Mixer', 'Conductor de Mixer y Volqueta Doble Troque', 'Posicionamiento del camión trompo en tolva de bombeo con guía de paletero.', '🚛', '#2563eb', '#1d4ed8'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Vía de Acceso a Obra y PESV', 'Conductor de Mixer y Volqueta Doble Troque', 'Control de velocidad en rampa interna y lavado de llantas antes de salida a vía pública.', '🚛', '#2563eb', '#1d4ed8'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Calzas y Frenos de Seguridad', 'Conductor de Mixer y Volqueta Doble Troque', 'Uso obligatorio de cuñas de parqueo en llantas traseras y cámaras de reversa.', '🚛', '#2563eb', '#1d4ed8'),
-                    foto1Desc: 'Actividad Principal: Maniobra y Descargue de Mixer - Posicionamiento del camión trompo en tolva de bombeo con guía de paletero.',
-                    foto2Desc: 'Ambiente de Trabajo: Vía de Acceso a Obra y PESV - Control de velocidad en rampa interna y lavado de llantas antes de salida a vía pública.',
-                    foto3Desc: 'Controles / Herramientas: Calzas y Frenos de Seguridad - Uso obligatorio de cuñas de parqueo en llantas traseras y cámaras de reversa.'
+                    foto1: '/images/sgsst_perfiles/mixer_actividad.jpg',
+                    foto2: '/images/riesgo_vial.png',
+                    foto3: '/images/sgsst_perfiles/director_ambiente.jpg',
+                    foto1Desc: 'Actividad Principal: Descargue controlado de concreto en bomba estacionaria mediante canaleta.',
+                    foto2Desc: 'Ambiente de Trabajo: Rampa de acceso a obra y tránsito regulado bajo plan PESV.',
+                    foto3Desc: 'Controles / Herramientas: Calzas de parqueo, cámaras de punto ciego y chaleco de alta visibilidad.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/camion_pesv.mp4',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'Sí'
@@ -1348,14 +1308,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Mantas ignífugas atrapachispas bajo el punto de soldadura","Extintor multipropósito ABC de 20 lbs en el punto de trabajo"],
                 controlesMedioSeleccionados: ["Mamparas de protección visual contra arco eléctrico","Línea de vida de acero certificada en vigas IPE/HEA"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Soldadura por Arco en Alturas', 'Soldador Estructural en Alturas (SMAW/MIG)', 'Aplicación de soldadura SMAW E7018 en nudo estructural a 20 metros con arnés ignífugo.', '🔥', '#dc2626', '#b91c1c'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Manta Ignífuga y Extintor Satélite', 'Soldador Estructural en Alturas (SMAW/MIG)', 'Confinamiento de chispas ardientes con lona de fibra de vidrio y vigía contra incendios.', '🔥', '#dc2626', '#b91c1c'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Careta Fotosensible y Filtro P100', 'Soldador Estructural en Alturas (SMAW/MIG)', 'Protección visual DIN 12 contra arco UV y respirador de media cara para humos metálicos.', '🔥', '#dc2626', '#b91c1c'),
-                    foto1Desc: 'Actividad Principal: Soldadura por Arco en Alturas - Aplicación de soldadura SMAW E7018 en nudo estructural a 20 metros con arnés ignífugo.',
-                    foto2Desc: 'Ambiente de Trabajo: Manta Ignífuga y Extintor Satélite - Confinamiento de chispas ardientes con lona de fibra de vidrio y vigía contra incendios.',
-                    foto3Desc: 'Controles / Herramientas: Careta Fotosensible y Filtro P100 - Protección visual DIN 12 contra arco UV y respirador de media cara para humos metálicos.'
+                    foto1: '/images/sgsst_perfiles/soldador_actividad.jpg',
+                    foto2: '/images/tareas_alto_riesgo.png',
+                    foto3: '/images/emergencias.png',
+                    foto1Desc: 'Actividad Principal: Soldadura por arco eléctrico en viga estructural a gran altura con arnés ignífugo.',
+                    foto2Desc: 'Ambiente de Trabajo: Estructura metálica en altura con línea de vida de cable de acero.',
+                    foto3Desc: 'Controles / Herramientas: Careta fotosensible DIN 12, manta ignífuga y extintor satélite ABC.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/soldadura_chispas.mp4',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Media',
                 operaMaquinaria: 'Sí'
@@ -1376,14 +1336,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Interruptores diferenciales GFCI en todos los tableros provisionales","Protocolo de 5 reglas de oro para corte de energía"],
                 controlesMedioSeleccionados: ["Cableado encauchetado industrial suspendido del suelo","Señalización de peligro de alto voltaje y bloqueo con candados LOTO"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Bloqueo y Etiquetado LOTO', 'Electricista de Redes y Acometidas de Obra', 'Instalación de candado rojo y tarjeta de advertencia en interruptor termomagnético.', '⚡', '#0891b2', '#0e7490'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Subestación y Tablero de Distribución', 'Electricista de Redes y Acometidas de Obra', 'Caja estanca NEMA 4X con interruptores diferenciales GFCI y tapete dieléctrico.', '⚡', '#0891b2', '#0e7490'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Guantes Dieléctricos y Multímetro', 'Electricista de Redes y Acometidas de Obra', 'Comprobación de ausencia de tensión con tester calibrado y guantes de 1000V.', '⚡', '#0891b2', '#0e7490'),
-                    foto1Desc: 'Actividad Principal: Bloqueo y Etiquetado LOTO - Instalación de candado rojo y tarjeta de advertencia en interruptor termomagnético.',
-                    foto2Desc: 'Ambiente de Trabajo: Subestación y Tablero de Distribución - Caja estanca NEMA 4X con interruptores diferenciales GFCI y tapete dieléctrico.',
-                    foto3Desc: 'Controles / Herramientas: Guantes Dieléctricos y Multímetro - Comprobación de ausencia de tensión con tester calibrado y guantes de 1000V.'
+                    foto1: '/images/sgsst_perfiles/electricista_actividad.jpg',
+                    foto2: '/images/riesgo_electrico.png',
+                    foto3: '/images/sgsst_perfiles/director_controles.jpg',
+                    foto1Desc: 'Actividad Principal: Medición y verificación de ausencia de tensión con multímetro y guantes de 1000V.',
+                    foto2Desc: 'Ambiente de Trabajo: Tablero general de distribución y subestación provisional con bloqueo LOTO.',
+                    foto3Desc: 'Controles / Herramientas: Interruptores diferenciales GFCI, candado rojo LOTO y tapete dieléctrico.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/electricista_torre.mp4',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'No'
@@ -1404,14 +1364,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Anclajes estructurales certificados en losa superior","Pinturas base agua con bajo contenido de VOCs"],
                 controlesMedioSeleccionados: ["Delimitación en tierra de zona de caída de objetos con polisombra","Monitoreo constante de condiciones climáticas y ráfagas de viento"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Trabajo Suspendido en Fachada', 'Pintor de Fachadas y Trabajos en Suspensión', 'Pintura exterior sobre silleta ergonómica conectada a sistema de cuerda doble certificada.', '🪜', '#059669', '#047857'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Anclajes Estructurales en Cubierta', 'Pintor de Fachadas y Trabajos en Suspensión', 'Puntos de anclaje de 5000 lbs con protectores de borde en antepecho superior.', '🪜', '#059669', '#047857'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Descendedor Antipánico y Freno', 'Pintor de Fachadas y Trabajos en Suspensión', 'Dispositivo autofrenante de descenso y respirador químico para vapores orgánicos.', '🪜', '#059669', '#047857'),
-                    foto1Desc: 'Actividad Principal: Trabajo Suspendido en Fachada - Pintura exterior sobre silleta ergonómica conectada a sistema de cuerda doble certificada.',
-                    foto2Desc: 'Ambiente de Trabajo: Anclajes Estructurales en Cubierta - Puntos de anclaje de 5000 lbs con protectores de borde en antepecho superior.',
-                    foto3Desc: 'Controles / Herramientas: Descendedor Antipánico y Freno - Dispositivo autofrenante de descenso y respirador químico para vapores orgánicos.'
+                    foto1: '/images/sgsst_perfiles/soldador_actividad.jpg',
+                    foto2: '/images/tareas_alto_riesgo.png',
+                    foto3: '/images/riesgo_quimico.png',
+                    foto1Desc: 'Actividad Principal: Aplicación de pintura exterior sobre silleta ergonómica y cuerda doble certificada.',
+                    foto2Desc: 'Ambiente de Trabajo: Fachada exterior a gran altura con anclajes estructurales de 5000 lbs.',
+                    foto3Desc: 'Controles / Herramientas: Descendedor antipánico, respirador para vapores orgánicos y polisombra en tierra.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/andamio_alturas.mp4',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Media',
                 operaMaquinaria: 'No'
@@ -1432,14 +1392,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Termofusión eléctrica en lugar de pegantes solventes en áreas cerradas","Sistemas de entibado metálico en zanjas de tubería"],
                 controlesMedioSeleccionados: ["Detector de 4 gases calibrado en cajas subterráneas","Extractor de aire forzado en ductos cerrados"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Termofusión de Red Principal', 'Oficial de Instalaciones Hidrosanitarias y Redes', 'Unión de tubería PPR con equipo de termofusión digital a temperatura controlada de 260°C.', '🚰', '#0284c7', '#0369a1'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Zanja de Tubería con Entibado', 'Oficial de Instalaciones Hidrosanitarias y Redes', 'Fosa protegida con paneles de madera contra derrumbes y escalera de acceso rápido.', '🚰', '#0284c7', '#0369a1'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Detector de Gases y Manómetro', 'Oficial de Instalaciones Hidrosanitarias y Redes', 'Prueba hidrostática de presión a 150 PSI y monitoreo de atmósferas peligrosas.', '🚰', '#0284c7', '#0369a1'),
-                    foto1Desc: 'Actividad Principal: Termofusión de Red Principal - Unión de tubería PPR con equipo de termofusión digital a temperatura controlada de 260°C.',
-                    foto2Desc: 'Ambiente de Trabajo: Zanja de Tubería con Entibado - Fosa protegida con paneles de madera contra derrumbes y escalera de acceso rápido.',
-                    foto3Desc: 'Controles / Herramientas: Detector de Gases y Manómetro - Prueba hidrostática de presión a 150 PSI y monitoreo de atmósferas peligrosas.'
+                    foto1: '/images/sgsst_perfiles/residente_actividad.jpg',
+                    foto2: '/images/riesgo_quimico.png',
+                    foto3: '/images/tareas_alto_riesgo.png',
+                    foto1Desc: 'Actividad Principal: Termofusión digital a 260°C de tubería principal hidrosanitaria.',
+                    foto2Desc: 'Ambiente de Trabajo: Ductos técnicos y zanjas de tubería con entibado metálico.',
+                    foto3Desc: 'Controles / Herramientas: Detector de 4 gases, prueba hidrostática y respirador químico.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/acabados_obra.mp4',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Media',
                 operaMaquinaria: 'No'
@@ -1460,14 +1420,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Lijadoras orbitales con aspiración de polvo integrada","Elevadores mecánicos de placas de drywall"],
                 controlesMedioSeleccionados: ["Andamios de caballete certificados con ruedas y freno","Pausas activas ergonómicas de miembros superiores"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Instalación de Cielo Raso Drywall', 'Oficial de Acabados, Yeso y Drywall', 'Fijación con atornillador eléctrico de paneles de yeso sobre perfilería galvanizada.', '🪚', '#6366f1', '#4f46e5'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Andamio de Caballete Rodante', 'Oficial de Acabados, Yeso y Drywall', 'Plataforma interior con ruedas aseguradas y espacio despejado de residuos.', '🪚', '#6366f1', '#4f46e5'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Lijadora con Extractor de Polvo', 'Oficial de Acabados, Yeso y Drywall', 'Lijado continuo de juntas con sistema de aspiración para evitar inhalación de partículas.', '🪚', '#6366f1', '#4f46e5'),
-                    foto1Desc: 'Actividad Principal: Instalación de Cielo Raso Drywall - Fijación con atornillador eléctrico de paneles de yeso sobre perfilería galvanizada.',
-                    foto2Desc: 'Ambiente de Trabajo: Andamio de Caballete Rodante - Plataforma interior con ruedas aseguradas y espacio despejado de residuos.',
-                    foto3Desc: 'Controles / Herramientas: Lijadora con Extractor de Polvo - Lijado continuo de juntas con sistema de aspiración para evitar inhalación de partículas.'
+                    foto1: '/images/sgsst_perfiles/residente_actividad.jpg',
+                    foto2: '/images/tareas_alto_riesgo.png',
+                    foto3: '/images/fisioterapeuta.png',
+                    foto1Desc: 'Actividad Principal: Instalación de paneles de yeso en cielo raso con atornillador eléctrico.',
+                    foto2Desc: 'Ambiente de Trabajo: Interior de apartamentos en obra con andamio de caballete rodante.',
+                    foto3Desc: 'Controles / Herramientas: Lijadora orbital con aspiración de polvo y pausas osteomusculares.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/acabados_obra.mp4',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Media',
                 operaMaquinaria: 'No'
@@ -1488,14 +1448,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Equipos topográficos con prisma robótico para minimizar exposición","Trípodes estables con zapatas de agarre"],
                 controlesMedioSeleccionados: ["Demarcación perimetral del punto de estación topográfica","Chaleco reflectivo clase 3 para alta visibilidad ante volquetas"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Replanteo con Estación Total', 'Topógrafo de Obra Civil', 'Medición láser de ejes de columnas y control de verticalidad en estructura.', '🔭', '#0284c7', '#0369a1'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Zona Perimetral y Talud', 'Topógrafo de Obra Civil', 'Toma de puntos topográficos con chaleco reflectivo clase 3 y bastón con prisma.', '🔭', '#0284c7', '#0369a1'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Trípode Anclado y GPS RTK', 'Topógrafo de Obra Civil', 'Fijación con zapatas de agarre en terreno irregular y protector solar FPS 50+.', '🔭', '#0284c7', '#0369a1'),
-                    foto1Desc: 'Actividad Principal: Replanteo con Estación Total - Medición láser de ejes de columnas y control de verticalidad en estructura.',
-                    foto2Desc: 'Ambiente de Trabajo: Zona Perimetral y Talud - Toma de puntos topográficos con chaleco reflectivo clase 3 y bastón con prisma.',
-                    foto3Desc: 'Controles / Herramientas: Trípode Anclado y GPS RTK - Fijación con zapatas de agarre en terreno irregular y protector solar FPS 50+.'
+                    foto1: '/images/sgsst_perfiles/residente_actividad.jpg',
+                    foto2: '/images/sgsst_perfiles/director_ambiente.jpg',
+                    foto3: '/images/riesgo_vial.png',
+                    foto1Desc: 'Actividad Principal: Replanteo de ejes y control de plomos con estación total y nivel láser.',
+                    foto2Desc: 'Ambiente de Trabajo: Talud perimetral y bordes de placa con alta exposición solar.',
+                    foto3Desc: 'Controles / Herramientas: Trípode con zapatas de agarre, chaleco reflectivo Clase 3 y protector solar.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/director_planos.mp4',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'No'
@@ -1516,14 +1476,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Diques de contención antiderrames en tanques de ACPM y aditivos","Hojas de Datos de Seguridad (FDS / MSDS) visibles"],
                 controlesMedioSeleccionados: ["Estanterías industriales ancladas al suelo con capacidad de carga marcada","Kit para control de derrames químicos y extintor satélite"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Matriz y Rotulado Químico SGA', 'Almacenista de Materiales y Químicos de Obra', 'Inspección de pictogramas de peligro y fichas de datos de seguridad (FDS) en bodega.', '📦', '#0d9488', '#0f766e'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Diques de Contención Antiderrames', 'Almacenista de Materiales y Químicos de Obra', 'Almacenamiento de canecas de aditivos y desmoldante sobre bandejas plásticas colectoras.', '📦', '#0d9488', '#0f766e'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Herramientas y Estanterías Ancladas', 'Almacenista de Materiales y Químicos de Obra', 'Entrega de equipos con guarda y uso de estiba hidráulica para evitar sobreesfuerzo.', '📦', '#0d9488', '#0f766e'),
-                    foto1Desc: 'Actividad Principal: Matriz y Rotulado Químico SGA - Inspección de pictogramas de peligro y fichas de datos de seguridad (FDS) en bodega.',
-                    foto2Desc: 'Ambiente de Trabajo: Diques de Contención Antiderrames - Almacenamiento de canecas de aditivos y desmoldante sobre bandejas plásticas colectoras.',
-                    foto3Desc: 'Controles / Herramientas: Herramientas y Estanterías Ancladas - Entrega de equipos con guarda y uso de estiba hidráulica para evitar sobreesfuerzo.'
+                    foto1: '/images/riesgo_quimico.png',
+                    foto2: '/images/sgsst_perfiles/director_controles.jpg',
+                    foto3: '/images/emergencias.png',
+                    foto1Desc: 'Actividad Principal: Recepción y rotulado SGA de aditivos, desmoldantes y químicos de obra.',
+                    foto2Desc: 'Ambiente de Trabajo: Bodega de materiales con estanterías industriales ancladas.',
+                    foto3Desc: 'Controles / Herramientas: Diques antiderrames, kit de control de contingencias y extintor satélite.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/acabados_obra.mp4',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Media',
                 operaMaquinaria: 'No'
@@ -1544,14 +1504,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Vibradores de concreto eléctricos con aislamiento doble","Carretillas con llanta neumática y manijas ergonómicas"],
                 controlesMedioSeleccionados: ["Rampas de acceso de madera aseguradas con listones antideslizantes","Puntos de hidratación con suero oral en frentes de fundida"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Vibrado de Concreto en Losa', 'Ayudante Práctico de Excavación y Vaciado de Concreto', 'Operación de vibrador de aguja con botas de caucho de caña alta y puntera de acero.', '🪣', '#f97316', '#ea580c'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Pasarelas de Vaciado y Rampa', 'Ayudante Práctico de Excavación y Vaciado de Concreto', 'Transporte de mezcla en carretilla sobre tablones asegurados con listones.', '🪣', '#f97316', '#ea580c'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Guantes de Caucho y Gafas', 'Ayudante Práctico de Excavación y Vaciado de Concreto', 'Protección dérmica contra corrosión alcalina del cemento y gafas antiempañantes.', '🪣', '#f97316', '#ea580c'),
-                    foto1Desc: 'Actividad Principal: Vibrado de Concreto en Losa - Operación de vibrador de aguja con botas de caucho de caña alta y puntera de acero.',
-                    foto2Desc: 'Ambiente de Trabajo: Pasarelas de Vaciado y Rampa - Transporte de mezcla en carretilla sobre tablones asegurados con listones.',
-                    foto3Desc: 'Controles / Herramientas: Guantes de Caucho y Gafas - Protección dérmica contra corrosión alcalina del cemento y gafas antiempañantes.'
+                    foto1: '/images/sgsst_perfiles/mixer_actividad.jpg',
+                    foto2: '/images/sgsst_perfiles/director_ambiente.jpg',
+                    foto3: '/images/tareas_alto_riesgo.png',
+                    foto1Desc: 'Actividad Principal: Vibrado y esparcido de concreto húmedo en losa con vibrador de aguja.',
+                    foto2Desc: 'Ambiente de Trabajo: Frente de fundida activa con pasarelas de madera antideslizantes.',
+                    foto3Desc: 'Controles / Herramientas: Botas de caucho con puntera de acero, guantes calibre 35 y protector auditivo.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/concreto_vaciado.mp4',
                 exigenciaFisica: 'Alta',
                 exigenciaMental: 'Baja',
                 operaMaquinaria: 'No'
@@ -1572,14 +1532,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Paletas de señalización con iluminación LED para turnos nocturnos","Barreras tipo maletín plástico canalizadoras de flujo"],
                 controlesMedioSeleccionados: ["Caseta de sombra y descanso en acceso principal","Conos viales de 90cm con doble cinta reflectiva"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Regulación con Paleta PARE/SIGA', 'Auxiliar de Tráfico y Señalización Vial (Paletero)', 'Detención segura del tránsito urbano para dar salida a camiones de obra.', '🛑', '#eab308', '#ca8a04'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Canalización con Conos y Maletines', 'Auxiliar de Tráfico y Señalización Vial (Paletero)', 'Sendero peatonal protegido delimitado con barreras plásticas reflectivas.', '🛑', '#eab308', '#ca8a04'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Chaleco Clase 3 y Silbato', 'Auxiliar de Tráfico y Señalización Vial (Paletero)', 'Alta visibilidad diurna/nocturna, silbato de advertencia acústica y protector solar.', '🛑', '#eab308', '#ca8a04'),
-                    foto1Desc: 'Actividad Principal: Regulación con Paleta PARE/SIGA - Detención segura del tránsito urbano para dar salida a camiones de obra.',
-                    foto2Desc: 'Ambiente de Trabajo: Canalización con Conos y Maletines - Sendero peatonal protegido delimitado con barreras plásticas reflectivas.',
-                    foto3Desc: 'Controles / Herramientas: Chaleco Clase 3 y Silbato - Alta visibilidad diurna/nocturna, silbato de advertencia acústica y protector solar.'
+                    foto1: '/images/riesgo_vial.png',
+                    foto2: '/images/sgsst_perfiles/director_ambiente.jpg',
+                    foto3: '/images/primeros_auxilios.png',
+                    foto1Desc: 'Actividad Principal: Regulación y detención del tráfico urbano con paleta PARE/SIGA para paso de volquetas.',
+                    foto2Desc: 'Ambiente de Trabajo: Acceso vehicular a la obra con conos y barreras tipo maletín reflectivo.',
+                    foto3Desc: 'Controles / Herramientas: Chaleco reflectivo Clase 3, silbato acústico de alerta y caseta de sombra.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/camion_pesv.mp4',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Alta',
                 operaMaquinaria: 'No'
@@ -1600,14 +1560,14 @@ export const generateDummyData = {
                 controlesFuenteSeleccionados: ["Dispensadores automáticos de jabón y desinfectantes","Carros porta-baldes con exprimidor ergonómico"],
                 controlesMedioSeleccionados: ["Puntos ecológicos de segregación de residuos rotulados","Ventilación permanente en baterías sanitarias y comedores"],
                 images: {
-                    foto1: makeSvgPhoto('Actividad Principal', 'Desinfección de Casino y Comedores', 'Auxiliar de Aseo, Campamento y Servicios Generales', 'Aplicación de desinfectante en mesas y áreas comunes de descanso de los operarios.', '🧹', '#14b8a6', '#0d9488'),
-                    foto2: makeSvgPhoto('Ambiente de Trabajo', 'Puntos Ecológicos y Reciclaje', 'Auxiliar de Aseo, Campamento y Servicios Generales', 'Segregación de residuos sólidos según el código de colores nacional con guantes de caucho.', '🧹', '#14b8a6', '#0d9488'),
-                    foto3: makeSvgPhoto('Controles / Herramientas', 'Carro Ergonómico y Delantal', 'Auxiliar de Aseo, Campamento y Servicios Generales', 'Balde con prensa exprimidora para evitar sobreesfuerzo lumbar al fregar pisos.', '🧹', '#14b8a6', '#0d9488'),
-                    foto1Desc: 'Actividad Principal: Desinfección de Casino y Comedores - Aplicación de desinfectante en mesas y áreas comunes de descanso de los operarios.',
-                    foto2Desc: 'Ambiente de Trabajo: Puntos Ecológicos y Reciclaje - Segregación de residuos sólidos según el código de colores nacional con guantes de caucho.',
-                    foto3Desc: 'Controles / Herramientas: Carro Ergonómico y Delantal - Balde con prensa exprimidora para evitar sobreesfuerzo lumbar al fregar pisos.'
+                    foto1: '/images/riesgo_biologico.png',
+                    foto2: '/images/sgsst_perfiles/director_controles.jpg',
+                    foto3: '/images/fisioterapeuta.png',
+                    foto1Desc: 'Actividad Principal: Limpieza y desinfección de campamentos, casinos y baterías sanitarias.',
+                    foto2Desc: 'Ambiente de Trabajo: Oficinas técnicas y puntos ecológicos de segregación de residuos.',
+                    foto3Desc: 'Controles / Herramientas: Carro porta-balde ergonómico con exprimidor, guantes de nitrilo y delantal.'
                 },
-                video: SHORT_CONSTRUCTION_VIDEO,
+                video: '/videos/sgsst/acabados_obra.mp4',
                 exigenciaFisica: 'Media',
                 exigenciaMental: 'Baja',
                 operaMaquinaria: 'No'
