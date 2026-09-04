@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '~/hooks/AuthContext';
 
 interface VoiceMessage {
-    type: 'audio' | 'text' | 'status' | 'error' | 'interrupted' | 'conversationId' | 'conversationUpdated' | 'report';
+    type: 'audio' | 'text' | 'status' | 'error' | 'interrupted' | 'conversationId' | 'conversationUpdated' | 'report' | 'wappy_action';
     data: any;
 }
 
@@ -10,13 +10,14 @@ interface UseVoiceSessionOptions {
     onAudioReceived?: (audioData: string) => void;
     onTextReceived?: (text: string, isUserTranscription?: boolean) => void;
     onReportReceived?: (html: string, messageId?: string, evaluatedFrames?: string[]) => void;
+    onWappyAction?: (action: { id: string; name: string; args: any }) => void;
     onStatusChange?: (status: string) => void;
     onError?: (error: string) => void;
     conversationId?: string;
     onConversationIdUpdate?: (newId: string) => void;
     onConversationUpdated?: (conversationId?: string) => void;
     disableAudio?: boolean;
-    mode?: 'chat' | 'live_analysis';
+    mode?: 'chat' | 'live_analysis' | 'tenshi_voice' | string;
     initialVoice?: string;
     model?: string;
     endpoint?: string;
@@ -440,6 +441,13 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 break;
 
 
+            case 'wappy_action':
+                if (message.data) {
+                    console.log('[VoiceSession] wappy_action received:', message.data);
+                    optionsRef.current.onWappyAction?.(message.data);
+                }
+                break;
+
             case 'status':
                 const newStatus = message.data.status;
                 setStatus(newStatus);
@@ -594,6 +602,17 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         }
     }, []);
 
+    /**
+     * Send Wappy Action Result to server for toolResponse
+     */
+    const sendWappyActionResult = useCallback((id: string, name: string, result: string) => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        wsRef.current.send(JSON.stringify({
+            type: 'wappy_action_result',
+            data: { id, name, result }
+        }));
+    }, []);
+
     return {
         isConnected,
         isConnecting,
@@ -608,5 +627,6 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         setMuted,
         setIsPlayingAudio,
         sendInterrupt,
+        sendWappyActionResult,
     };
 };

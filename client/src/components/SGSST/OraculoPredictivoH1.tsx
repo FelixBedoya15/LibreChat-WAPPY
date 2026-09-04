@@ -32,7 +32,7 @@ export default function OraculoPredictivoH1() {
     const [aiConclusions, setAiConclusions] = useState<Record<string, string>>({});
     const [generatingId, setGeneratingId] = useState<string | null>(null);
     const [savingId, setSavingId] = useState<string | null>(null);
-    const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [collapsedCards, setCollapsedCards] = useState<Record<string, boolean>>({});
     const [evaluatingIAId, setEvaluatingIAId] = useState<string | null>(null);
 
     // Store workers in ref to avoid stale closure in save
@@ -267,8 +267,20 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
             });
             const data = await res.json();
             if (data.editedText) {
-                setAiConclusions(prev => ({ ...prev, [worker.id]: data.editedText }));
-                setExpandedId(worker.id);
+                const text = data.editedText;
+                setAiConclusions(prev => ({ ...prev, [worker.id]: text }));
+                setCollapsedCards(prev => ({ ...prev, [worker.id]: false }));
+                // Auto-save to DB so it persists
+                const updatedWorkers = workersRef.current.map(w =>
+                    w.id === worker.id ? { ...w, dictamenPredictivoH1: text } : w
+                );
+                fetch('/api/sgsst/perfil-sociodemografico/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ trabajadores: updatedWorkers }),
+                }).catch(() => {});
+                setWorkers(updatedWorkers);
+                showToastRef.current({ message: 'Dictamen predictivo generado con éxito ✅', status: 'success' });
             }
         } catch { showToastRef.current({ message: 'Error consultando al Oráculo', status: 'error' }); }
         finally { setGeneratingId(null); }
@@ -322,6 +334,11 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
         setWorkers(dummyWorkers);
         setProfiles(dummyProfiles);
 
+        const init: Record<string, string> = {};
+        dummyWorkers.forEach((w: any) => { if (w.dictamenPredictivoH1) init[w.id] = w.dictamenPredictivoH1; });
+        setAiConclusions(init);
+        setCollapsedCards({});
+
         try {
             await Promise.all([
                 fetch('/api/sgsst/perfil-sociodemografico/save', {
@@ -336,7 +353,7 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                 }),
             ]);
             window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
-            showToastRef.current({ message: '20 trabajadores y 20 perfiles de construcción cargados con éxito', status: 'success' });
+            showToastRef.current({ message: '20 trabajadores y perfiles con dictámenes predictivos cargados con éxito', status: 'success' });
         } catch {
             showToastRef.current({ message: 'Error guardando datos de prueba', status: 'error' });
         }
@@ -388,8 +405,9 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                     const sc = SCORE_COLOR(score);
                     const displayAlerts = fit.auditItems;
                     const hasIATags = fit.hasIATags; // IA has processed this worker's text fields
-                    const hasConclusion = !!aiConclusions[worker.id];
-                    const isExpanded = expandedId === worker.id;
+                    const conclusionContent = aiConclusions[worker.id] || worker.dictamenPredictivoH1 || '';
+                    const hasConclusion = !!conclusionContent;
+                    const isExpanded = !collapsedCards[worker.id];
 
 
 
@@ -533,7 +551,7 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                     <div className="rounded-b-2xl overflow-hidden bg-surface-primary">
                                         {/* Conclusion Header with toolbar */}
                                         <div
-                                            onClick={() => setExpandedId(isExpanded ? null : worker.id)}
+                                            onClick={() => setCollapsedCards(prev => ({ ...prev, [worker.id]: !prev[worker.id] }))}
                                             className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 border-b border-border-medium bg-gradient-to-r from-teal-50/80 to-transparent dark:from-teal-950/40 cursor-pointer hover:bg-teal-500/5 transition-colors"
                                         >
                                             <div className="flex items-center gap-3">
@@ -556,8 +574,8 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                                         aiButtons={[{
                                                             id: `reeval-${worker.id}`,
                                                             onClick: () => handleConsultOracle(worker, profile, fit),
-                                                            title: 'Re-evaluar con IA',
-                                                            label: 'Re-evaluar IA',
+                                                            title: 'Generar con IA',
+                                                            label: 'Generar IA',
                                                             icon: 'sparkles',
                                                             variant: 'ai',
                                                             isLoading: generatingId === worker.id,
@@ -576,12 +594,12 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                                     />
                                                 </div>
                                                 <ExportDropdown
-                                                    content={aiConclusions[worker.id] || ''}
+                                                    content={conclusionContent}
                                                     fileName={`Dictamen_Predictivo_${(worker.nombre || 'Trabajador').replace(/\s+/g, '_')}`}
                                                     reportType="general"
                                                 />
                                                 <button
-                                                    onClick={() => setExpandedId(isExpanded ? null : worker.id)}
+                                                    onClick={() => setCollapsedCards(prev => ({ ...prev, [worker.id]: !prev[worker.id] }))}
                                                     className="p-2 rounded-xl text-text-secondary hover:bg-surface-secondary transition-colors"
                                                     title={isExpanded ? 'Contraer' : 'Expandir'}
                                                 >
@@ -592,19 +610,19 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
 
                                         {/* Conclusion content - LiveEditor */}
                                         {isExpanded ? (
-                                            <div className="p-1 overflow-hidden bg-surface-primary">
-                                                <div style={{ minHeight: '450px', overflowX: 'auto', width: '100%' }}>
-                                                    <div style={{ minWidth: '850px', padding: '16px' }}>
+                                            <div className="p-1 overflow-hidden bg-surface-primary border-t border-border-light">
+                                                <div style={{ minHeight: '350px', overflowX: 'auto', width: '100%' }}>
+                                                    <div style={{ minWidth: '100%', padding: '16px' }}>
                                                         <LiveEditor
-                                                            initialContent={aiConclusions[worker.id] || ''}
+                                                            initialContent={conclusionContent}
                                                             onUpdate={(html) => {
                                                                 setAiConclusions(prev => ({ ...prev, [worker.id]: html }));
                                                             }}
                                                             reportSourceData={{
                                                                 trabajador: worker,
                                                                 perfilCargo: profile,
-                                                                fitScore: fit.score,
-                                                                alertas: fit.auditItems
+                                                                fitScore: score,
+                                                                alertas: displayAlerts
                                                             }}
                                                         />
                                                     </div>
@@ -612,10 +630,10 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                             </div>
                                         ) : (
                                             <button
-                                                onClick={() => setExpandedId(worker.id)}
+                                                onClick={() => setCollapsedCards(prev => ({ ...prev, [worker.id]: false }))}
                                                 className="w-full text-center py-3 text-xs text-teal-600 dark:text-teal-400 font-bold hover:bg-teal-500/5 transition-colors flex items-center justify-center gap-1.5"
                                             >
-                                                <span>Abrir Dictamen en LiveEditor</span>
+                                                <span>Ver dictamen completo ↓</span>
                                                 <ChevronDown className="w-3.5 h-3.5" />
                                             </button>
                                         )}

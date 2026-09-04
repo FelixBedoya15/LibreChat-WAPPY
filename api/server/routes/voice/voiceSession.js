@@ -93,6 +93,76 @@ class VoiceSession {
 
         logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
 
+        // Modo Tenshi: Asistente oficial con control de plataforma por voz
+        if (this.config.mode === 'tenshi_voice') {
+            this.liveConfig.voice = this.config.voice || 'Aoede';
+            this.liveConfig.tools = [
+                {
+                    functionDeclarations: [
+                        {
+                            name: "wappy_navegar",
+                            description: "Navega a un módulo o vista de la plataforma WAPPY (ej: perfiles de cargo, huella biocéntrica, motor bio-individual, sgsst general, planes, matriz ipevar, matriz pesv, academia, blog, control acpm, automatizaciones).",
+                            parameters: {
+                                type: "OBJECT",
+                                properties: {
+                                    modulo: {
+                                        type: "STRING",
+                                        description: "Nombre de la sección destino (ej: 'perfiles_cargo', 'bio_motor', 'sgsst', 'planes', 'ipevar', 'pesv', 'quimicos', 'academia', 'blog', 'control')"
+                                    },
+                                    ruta: {
+                                        type: "STRING",
+                                        description: "Ruta URL interna opcional (ej: '/sgsst?super=bio_motor', '/planes', '/sgsst/control')"
+                                    }
+                                },
+                                required: ["modulo"]
+                            }
+                        },
+                        {
+                            name: "wappy_seleccionar_empresa",
+                            description: "Activa o selecciona una empresa específica en el sistema por su nombre o identificación para trabajar sobre sus datos.",
+                            parameters: {
+                                type: "OBJECT",
+                                properties: {
+                                    nombre_o_id: {
+                                        type: "STRING",
+                                        description: "Nombre de la empresa o identificador."
+                                    }
+                                },
+                                required: ["nombre_o_id"]
+                            }
+                        },
+                        {
+                            name: "operar_interfaz_visual",
+                            description: "Ejecuta una acción visual interactiva en la pantalla del usuario (hacer clic en un botón, expandir sección, hacer scroll, abrir plan).",
+                            parameters: {
+                                type: "OBJECT",
+                                properties: {
+                                    accion: {
+                                        type: "STRING",
+                                        description: "Acción a ejecutar: 'click', 'scroll', 'esperar', 'abrir_plan'"
+                                    },
+                                    detalle: {
+                                        type: "STRING",
+                                        description: "Descripción del botón o elemento (ej: 'configurar plan', 'abrir tarjeta')"
+                                    }
+                                },
+                                required: ["accion"]
+                            }
+                        }
+                    ]
+                }
+            ];
+
+            this.liveConfig.systemInstruction = `Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administras la plataforma central Somos SST. 
+Tienes acceso en vivo para hablar por voz con el usuario y controlar la pantalla de WAPPY en tiempo real mientras el usuario la observa.
+
+REGLAS DE INTERACCIÓN EN VIVO:
+1. **CONCISIÓN Y FLUIDEZ ORAL:** Responde siempre en español conversacional, fresco, empático y natural con el toque amable y cercano de Tenshi ("parce", "listo", "de una", "hágale"). Habla en 1 o 2 oraciones cortas por turno para mantener un diálogo dinámico. Cero monólogos largos.
+2. **ACCIÓN INMEDIATA EN PANTALLA:** Si el usuario te pide navegar o realizar una acción (ej: "ve a perfiles de cargo", "activa la empresa X", "ayúdame a configurar un plan"), invoca inmediatamente la herramienta adecuada ('wappy_navegar', 'wappy_seleccionar_empresa', 'operar_interfaz_visual') para que la pantalla se mueva en vivo mientras le confirmas brevemente con tu voz lo que acabas de hacer.
+3. **RESPETO DE RESTRICCIONES:** Si el usuario te dice "no edites nada solo ayúdame a configurar...", respeta estrictamente su instrucción: navega y ayúdale a visualizar o estructurar el plan sin modificar datos preexistentes.
+4. **INTERRUPCIÓN:** Si el usuario empieza a hablarte mientras estás respondiendo, detente de inmediato y atiende su nueva indicación.`;
+        }
+
         // Setup client handlers once
         this.setupClientHandlers();
     }
@@ -309,12 +379,34 @@ class VoiceSession {
             logger.info('[VoiceSession] Tool Call received:', JSON.stringify(toolCall));
 
             if (toolCall.functionCalls) {
-                const responses = toolCall.functionCalls.map(fc => ({
-                    id: fc.id,
-                    name: fc.name,
-                    response: { result: "Function execution not implemented on client" }
-                }));
-                this.geminiClient.sendToolResponse(responses);
+                for (const fc of toolCall.functionCalls) {
+                    // Send action request to client
+                    this.sendToClient({
+                        type: 'wappy_action',
+                        data: {
+                            id: fc.id,
+                            name: fc.name,
+                            args: fc.args
+                        }
+                    });
+
+                    // Safety timeout if client doesn't reply in 6 seconds
+                    if (!this.pendingToolCalls) this.pendingToolCalls = new Map();
+                    const timeoutId = setTimeout(() => {
+                        if (this.pendingToolCalls && this.pendingToolCalls.has(fc.id)) {
+                            logger.warn(`[VoiceSession] Tool call ${fc.id} (${fc.name}) timed out waiting for client`);
+                            this.pendingToolCalls.delete(fc.id);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: "Acción procesada en pantalla" }
+                                }]);
+                            }
+                        }
+                    }, 6000);
+                    this.pendingToolCalls.set(fc.id, { timeoutId, name: fc.name });
+                }
             }
         });
 
@@ -376,6 +468,24 @@ class VoiceSession {
         const { type, data } = message;
 
         switch (type) {
+            case 'wappy_action_result':
+                if (data && data.id && this.geminiClient) {
+                    logger.info(`[VoiceSession] Received wappy_action_result from client for tool ${data.name} (id: ${data.id})`, data.result);
+                    if (this.pendingToolCalls && this.pendingToolCalls.has(data.id)) {
+                        const { timeoutId } = this.pendingToolCalls.get(data.id);
+                        clearTimeout(timeoutId);
+                        this.pendingToolCalls.delete(data.id);
+                    }
+                    this.geminiClient.sendToolResponse([
+                        {
+                            id: data.id,
+                            name: data.name,
+                            response: { result: data.result || "Acción ejecutada correctamente en la pantalla" }
+                        }
+                    ]);
+                }
+                break;
+
             case 'audio':
                 // Do not forward client mic audio to Gemini while AI is speaking (prevents speaker echo)
                 if (this.isAiSpeaking) {

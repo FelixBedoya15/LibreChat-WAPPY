@@ -1,14 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
-import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw, Mic, Volume2 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useRecoilValue } from 'recoil';
 import store from '~/store';
 import Markdown from '~/components/Chat/Messages/Content/Markdown';
 import { getDehydratedDOM, executeGUIAction } from '../Chat/TenshiPageController';
+import { useVoiceSession } from '~/hooks/useVoiceSession';
+import { cn } from '~/utils';
 
 export default function TenshiChat() {
+  const navigate = useNavigate();
   const { isAuthenticated, token } = useAuthContext();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<
@@ -27,6 +31,344 @@ export default function TenshiChat() {
   const [tenshiStatus, setTenshiStatus] = useState<string>('');
   const [guiSteps, setGuiSteps] = useState<{ action: string; details: string; status: 'pending' | 'success' | 'failed' }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // ─── Tenshi Voice Mode State & Audio Infrastructure ───────────────────────────
+  const [isVoiceActive, setIsVoiceActive] = useState(false);
+  const [voiceAmplitude, setVoiceAmplitude] = useState(0);
+  const [inactivitySeconds, setInactivitySeconds] = useState(0);
+  const [voiceStatusText, setVoiceStatusText] = useState('');
+  const lastActivityRef = useRef<number>(Date.now());
+  const inactivityIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const outputAnalyserRef = useRef<AnalyserNode | null>(null);
+  const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
+  const nextStartTimeRef = useRef<number>(0);
+  const [, setIsPlayingAudio] = useState(false);
+
+  const clearAudioQueue = useCallback(() => {
+    activeSourcesRef.current.forEach((source) => {
+      try {
+        source.stop();
+      } catch (e) {}
+    });
+    activeSourcesRef.current = [];
+    nextStartTimeRef.current = 0;
+    setIsPlayingAudio(false);
+  }, []);
+
+  const playChime = useCallback(() => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.18);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+    } catch (e) {
+      console.warn('Chime could not be played:', e);
+    }
+  }, []);
+
+  const playPowerDownChime = useCallback(() => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(783.99, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.22);
+      gain.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+    } catch (e) {
+      console.warn('Power down chime could not be played:', e);
+    }
+  }, []);
+
+  const handleAudioReceived = useCallback((audioData: string) => {
+    try {
+      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        audioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
+      }
+      const ctx = audioContextRef.current;
+      if (!ctx) return;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(console.error);
+      }
+
+      const binaryString = atob(audioData);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const dataView = new DataView(bytes.buffer);
+      const float32Data = new Float32Array(len / 2);
+      for (let i = 0; i < len / 2; i++) {
+        const int16 = dataView.getInt16(i * 2, true);
+        float32Data[i] = int16 / 32768.0;
+      }
+
+      const audioBuffer = ctx.createBuffer(1, float32Data.length, 24000);
+      audioBuffer.getChannelData(0).set(float32Data);
+
+      const currentTime = ctx.currentTime;
+      if (nextStartTimeRef.current < currentTime) {
+        nextStartTimeRef.current = currentTime + 0.05;
+      }
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+
+      if (!outputAnalyserRef.current || (outputAnalyserRef.current as any).context !== ctx) {
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        outputAnalyserRef.current = analyser;
+        analyser.connect(ctx.destination);
+      }
+      source.connect(outputAnalyserRef.current);
+      activeSourcesRef.current.push(source);
+
+      source.onended = () => {
+        activeSourcesRef.current = activeSourcesRef.current.filter((s) => s !== source);
+        if (activeSourcesRef.current.length === 0) {
+          setIsPlayingAudio(false);
+          setVoiceStatusText('Tenshi te escucha...');
+        }
+      };
+
+      source.start(nextStartTimeRef.current);
+      nextStartTimeRef.current += audioBuffer.duration;
+      setIsPlayingAudio(true);
+      setVoiceStatusText('Tenshi hablando...');
+      lastActivityRef.current = Date.now();
+    } catch (err) {
+      console.error('[Tenshi Voice] Error processing audio playback:', err);
+    }
+  }, []);
+
+  const sessionOptions = useMemo(
+    () => ({
+      mode: 'tenshi_voice',
+      onAudioReceived: (audioData: string) => {
+        handleAudioReceived(audioData);
+      },
+      onTextReceived: (text: string, isUserTranscription?: boolean) => {
+        lastActivityRef.current = Date.now();
+        if (isUserTranscription) {
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.role === 'user' && (last as any).isLiveVoice) {
+              return [...prev.slice(0, -1), { role: 'user', content: text, isLiveVoice: true }];
+            }
+            return [...prev, { role: 'user', content: text, isLiveVoice: true }];
+          });
+        } else {
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.role === 'assistant' && (last as any).isLiveVoice) {
+              return [...prev.slice(0, -1), { role: 'assistant', content: text, isLiveVoice: true }];
+            }
+            return [...prev, { role: 'assistant', content: text, isLiveVoice: true }];
+          });
+        }
+      },
+      onWappyAction: async (action: { id: string; name: string; args: any }) => {
+        lastActivityRef.current = Date.now();
+        let resultMsg = 'Acción ejecutada';
+        setTenshiStatus(`Tenshi ejecutando: ${action.name}...`);
+
+        try {
+          if (action.name === 'wappy_navegar') {
+            const modulo = (action.args?.modulo || '').toLowerCase();
+            const ruta = action.args?.ruta;
+
+            if (ruta) {
+              navigate(ruta);
+              resultMsg = `Navegación a ${ruta} completada`;
+            } else if (modulo.includes('perfil') || modulo.includes('cargo') || modulo.includes('bio_motor')) {
+              navigate('/sgsst?super=bio_motor');
+              resultMsg = 'Navegado a Huella Biocéntrica (Perfiles de Cargo)';
+              setTimeout(() => {
+                const elements = document.querySelectorAll('button, div, span, a');
+                for (const el of Array.from(elements)) {
+                  if ((el.textContent || '').toLowerCase().includes('perfiles de cargo')) {
+                    (el as HTMLElement).click();
+                    break;
+                  }
+                }
+              }, 400);
+            } else if (modulo.includes('ipevar') || modulo.includes('matriz')) {
+              navigate('/sgsst?super=bio_motor');
+              resultMsg = 'Navegado a Matriz IPEVAR';
+            } else if (modulo.includes('pesv') || modulo.includes('vial')) {
+              navigate('/sgsst');
+              resultMsg = 'Navegado a Módulo PESV (Seguridad Vial)';
+            } else if (modulo.includes('plan')) {
+              navigate('/planes');
+              resultMsg = 'Navegado a Sección de Planes';
+            } else if (modulo.includes('control') || modulo.includes('acpm')) {
+              navigate('/sgsst/control');
+              resultMsg = 'Navegado a Centro de Control ACPM';
+            } else if (modulo.includes('academia') || modulo.includes('curso')) {
+              navigate('/academia');
+              resultMsg = 'Navegado a Academia y Formación';
+            } else if (modulo.includes('blog')) {
+              navigate('/blog');
+              resultMsg = 'Navegado a Blog';
+            } else {
+              navigate('/sgsst');
+              resultMsg = `Navegado a ${modulo}`;
+            }
+          } else if (action.name === 'wappy_seleccionar_empresa') {
+            const companyName = action.args?.nombre_o_id;
+            resultMsg = `Empresa "${companyName}" seleccionada y activa en el sistema`;
+            window.dispatchEvent(
+              new CustomEvent('wappy-empresa-cambiada', { detail: { empresa: companyName } })
+            );
+          } else if (action.name === 'operar_interfaz_visual') {
+            const guiRes = await executeGUIAction(
+              action.args.accion,
+              action.args.indice,
+              action.args.texto,
+              action.args.direccion
+            );
+            resultMsg = guiRes.message;
+          }
+        } catch (e: any) {
+          resultMsg = `Error ejecutando acción: ${e.message}`;
+        }
+
+        sendWappyActionResult(action.id, action.name, resultMsg);
+        setTenshiStatus('');
+      },
+      onStatusChange: (newStatus: string) => {
+        if (newStatus === 'turn_complete') {
+          setMessages((prev) => prev.map((m) => ({ ...m, isLiveVoice: false })));
+          setVoiceStatusText('Tenshi te escucha...');
+        } else if (newStatus === 'listening') {
+          setVoiceStatusText('Escuchando tu voz...');
+        } else if (newStatus === 'speaking') {
+          setVoiceStatusText('Tenshi respondiendo...');
+        } else if (newStatus === 'interrupted') {
+          clearAudioQueue();
+          setVoiceStatusText('Interrumpido. Escuchando...');
+        }
+      },
+      onError: (err: string) => {
+        console.error('[Tenshi Voice] Error:', err);
+        setVoiceStatusText(`Error: ${err}`);
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [navigate, handleAudioReceived, clearAudioQueue]
+  );
+
+  const {
+    connect: connectVoice,
+    disconnect: disconnectVoice,
+    getInputVolume,
+    sendWappyActionResult,
+  } = useVoiceSession(sessionOptions);
+
+  const stopVoiceMode = useCallback(() => {
+    setIsVoiceActive(false);
+    playPowerDownChime();
+    clearAudioQueue();
+    disconnectVoice();
+    setVoiceStatusText('');
+  }, [disconnectVoice, clearAudioQueue, playPowerDownChime]);
+
+  const startVoiceMode = useCallback(() => {
+    setIsVoiceActive(true);
+    playChime();
+    lastActivityRef.current = Date.now();
+    setVoiceStatusText('Conectando a Tenshi en vivo...');
+    connectVoice();
+  }, [connectVoice, playChime]);
+
+  const toggleVoiceMode = useCallback(() => {
+    if (isVoiceActive) {
+      stopVoiceMode();
+    } else {
+      startVoiceMode();
+    }
+  }, [isVoiceActive, startVoiceMode, stopVoiceMode]);
+
+  // Visual amplitude polling for live waveform
+  useEffect(() => {
+    let animFrame: number;
+    const updateAmplitude = () => {
+      if (isVoiceActive) {
+        const vol = getInputVolume();
+        setVoiceAmplitude(vol);
+        animFrame = requestAnimationFrame(updateAmplitude);
+      }
+    };
+    if (isVoiceActive) {
+      animFrame = requestAnimationFrame(updateAmplitude);
+    }
+    return () => {
+      if (animFrame) cancelAnimationFrame(animFrame);
+    };
+  }, [isVoiceActive, getInputVolume]);
+
+  // ⏱️ Auto-desactivación por inactividad tras 1 minuto (60 segundos)
+  useEffect(() => {
+    if (isVoiceActive) {
+      lastActivityRef.current = Date.now();
+      setInactivitySeconds(0);
+      inactivityIntervalRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - lastActivityRef.current) / 1000);
+        setInactivitySeconds(elapsed);
+        if (elapsed >= 60) {
+          console.log('[Tenshi Voice] 60s inactividad alcanzada. Auto-desactivando modo voz.');
+          stopVoiceMode();
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: 'assistant',
+              content:
+                'ℹ️ Modo voz pausado automáticamente tras 1 minuto sin actividad para ahorrar batería y recursos. Cuando quieras volver a hablarme, solo vuelve a encender el interruptor. 😊',
+            },
+          ]);
+        }
+      }, 1000);
+    } else {
+      if (inactivityIntervalRef.current) {
+        clearInterval(inactivityIntervalRef.current);
+        inactivityIntervalRef.current = null;
+      }
+      setInactivitySeconds(0);
+    }
+    return () => {
+      if (inactivityIntervalRef.current) {
+        clearInterval(inactivityIntervalRef.current);
+        inactivityIntervalRef.current = null;
+      }
+    };
+  }, [isVoiceActive, stopVoiceMode]);
+
+  // Desactivar voz si el usuario cierra el widget
+  useEffect(() => {
+    if (!isOpen && isVoiceActive) {
+      stopVoiceMode();
+    }
+  }, [isOpen, isVoiceActive, stopVoiceMode]);
 
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -425,7 +767,7 @@ export default function TenshiChat() {
       if (actions.length > 0) {
         console.log('[Tenshi Frontend] GUI actions requested:', actions);
         let cumulativeMessages = [...currentMessages, assistantMsg];
-        let lastResult = null;
+        let lastResult: { success: boolean; message: string } | null = null;
         let index = 0;
 
         for (const action of actions) {
@@ -904,15 +1246,48 @@ export default function TenshiChat() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Area */}
+          {/* Input Area & Voice Mode Switch */}
           <div className="shrink-0 border-t border-gray-100 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+            {/* Live Voice HUD Pill when voice is active */}
+            {isVoiceActive && (
+              <div className="mb-2.5 flex items-center justify-between rounded-xl border border-emerald-200/80 bg-emerald-50/90 px-3 py-2 text-xs text-emerald-800 shadow-sm transition-all dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+                  </span>
+                  <span className="font-medium tracking-tight">
+                    {voiceStatusText || 'Tenshi te escucha... Habla con naturalidad'}
+                  </span>
+                </div>
+
+                {/* Animated sound wave bars */}
+                <div className="flex h-3.5 items-center gap-1">
+                  {[35, 75, 100, 60, 85].map((h, i) => {
+                    const scaledHeight = Math.max(
+                      3,
+                      Math.round(h * (voiceAmplitude > 0.05 ? Math.min(voiceAmplitude * 2, 1) : 0.15))
+                    );
+                    return (
+                      <span
+                        key={i}
+                        className="w-1 rounded-full bg-emerald-500 transition-all duration-100"
+                        style={{ height: `${scaledHeight}px` }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Input Box */}
             <div className="group flex items-center gap-2 rounded-2xl border border-gray-200 bg-transparent px-4 py-3 shadow-inner transition-all focus-within:ring-2 focus-within:ring-green-500/30 dark:border-gray-700">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Escribe tu consulta..."
+                placeholder={isVoiceActive ? 'Habla por el micrófono o escribe aquí...' : 'Escribe tu consulta...'}
                 className="flex-1 border-none bg-transparent text-sm placeholder-gray-400 outline-none focus:outline-none focus:ring-0 dark:text-gray-100"
                 disabled={isTyping}
               />
@@ -924,11 +1299,46 @@ export default function TenshiChat() {
                 <Send className="ml-0.5 h-4 w-4" />
               </button>
             </div>
-            <div className="mt-2 text-center">
-              {/* eslint-disable-next-line i18next/no-literal-string */}
-              <span className="text-[10px] font-medium tracking-tight text-gray-400">
-                Tenshi por WAPPY IA
-              </span>
+
+            {/* Subtle Voice Mode Toggle & Auto-Pause indicator */}
+            <div className="mt-2.5 flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleVoiceMode}
+                  className={cn(
+                    'group relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500/50',
+                    isVoiceActive ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-gray-700'
+                  )}
+                  aria-pressed={isVoiceActive}
+                  title={isVoiceActive ? 'Desactivar Modo Voz de Tenshi' : 'Activar Modo Voz de Tenshi (Habla con Tenshi en vivo)'}
+                >
+                  <span
+                    className={cn(
+                      'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out',
+                      isVoiceActive ? 'translate-x-5' : 'translate-x-0'
+                    )}
+                  />
+                </button>
+                <div className="flex items-center gap-1.5 text-[11px] font-medium select-none">
+                  <Mic className={cn('h-3.5 w-3.5 transition-colors', isVoiceActive ? 'text-emerald-500 animate-pulse' : 'text-gray-400')} />
+                  <span className={cn('transition-colors', isVoiceActive ? 'font-semibold text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400')}>
+                    {isVoiceActive ? 'Modo Voz Activo' : 'Modo Voz'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Inactivity countdown indicator: auto-pausa a 1 minuto */}
+              {isVoiceActive ? (
+                <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium" title="Se desactiva automáticamente tras 1 minuto sin usar">
+                  <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+                  <span>Auto-pausa: {Math.max(0, 60 - inactivitySeconds)}s</span>
+                </div>
+              ) : (
+                <span className="text-[10px] font-medium tracking-tight text-gray-400">
+                  Tenshi por WAPPY IA
+                </span>
+              )}
             </div>
           </div>
         </div>
