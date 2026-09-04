@@ -306,12 +306,10 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
     sendAudio(audioData) {
         const message = {
             realtimeInput: {
-                mediaChunks: [
-                    {
-                        mimeType: 'audio/pcm;rate=16000',
-                        data: audioData,
-                    },
-                ],
+                audio: {
+                    mimeType: 'audio/pcm;rate=16000',
+                    data: audioData,
+                },
             },
         };
         logger.debug('[GeminiLive] Sending audio chunk with transcription and tools request');
@@ -325,12 +323,10 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
     sendVideo(base64Image) {
         const message = {
             realtimeInput: {
-                mediaChunks: [
-                    {
-                        mimeType: 'image/jpeg',
-                        data: base64Image,
-                    },
-                ],
+                video: {
+                    mimeType: 'image/jpeg',
+                    data: base64Image,
+                },
             },
         };
 
