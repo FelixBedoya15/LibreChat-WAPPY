@@ -132,22 +132,30 @@ class GeminiLiveClient extends EventEmitter {
                 });
 
                 this.ws.on('close', (code, reason) => {
-                    logger.info(`[GeminiLive] WebSocket closed. Code: ${code}, Reason: ${reason}`);
+                    const reasonStr = reason ? reason.toString() : '';
+                    logger.info(`[GeminiLive] WebSocket closed. Code: ${code}, Reason: ${reasonStr}`);
                     this.connected = false;
                     
                     if (!this.setupCompleted) {
                         // Socket closed BEFORE setup was completed (e.g. Quota Exceeded, Leaked Key, Invalid Model)
                         cleanup();
-                        reject(new Error(`WebSocket closed before setup. Code: ${code}, Reason: ${reason}`));
+                        reject(new Error(`WebSocket closed before setup. Code: ${code}, Reason: ${reasonStr}`));
                     } else {
                         // Socket closed normally after being active
-                        this.emit('close', code, reason);
+                        this.emit('close', code, reasonStr);
                     }
                 });
 
                 this.ws.on('message', (data) => {
                     try {
                         const response = JSON.parse(data);
+
+                        if (response.error) {
+                            logger.error('[GeminiLive] Error payload from Gemini API:', JSON.stringify(response.error, null, 2));
+                            const errMsg = response.error.message || `Gemini Error ${response.error.code || ''}`;
+                            this.emit('error', new Error(errMsg));
+                            return;
+                        }
 
                         // FASE 3 FIX: Separate handling for input vs output transcription
                         if (response.serverContent) {
@@ -242,9 +250,11 @@ class GeminiLiveClient extends EventEmitter {
      * Send initial setup configuration to Gemini
      */
     sendSetup() {
+        const rawModel = this.config.model || 'gemini-3.1-flash-live-preview';
+        const modelPath = rawModel.startsWith('models/') ? rawModel : `models/${rawModel}`;
         const setupMessage = {
             setup: {
-                model: `models/${this.config.model}`,
+                model: modelPath,
                 generationConfig: {
                     // CRÍTICO: NO CAMBIAR A ['AUDIO', 'TEXT'] - ROMPE LA IA COMPLETAMENTE
                     // La IA deja de responder si se agrega 'TEXT' a responseModalities

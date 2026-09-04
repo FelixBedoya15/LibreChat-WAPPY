@@ -39,6 +39,7 @@ export default function TenshiChat() {
   const [voiceStatusText, setVoiceStatusText] = useState('');
   const lastActivityRef = useRef<number>(Date.now());
   const inactivityIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const disconnectVoiceRef = useRef<() => void>(() => {});
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const outputAnalyserRef = useRef<AnalyserNode | null>(null);
@@ -272,6 +273,16 @@ export default function TenshiChat() {
       onError: (err: string) => {
         console.error('[Tenshi Voice] Error:', err);
         setVoiceStatusText(`Error: ${err}`);
+        setIsVoiceActive(false);
+        clearAudioQueue();
+        disconnectVoiceRef.current?.();
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: `⚠️ Se pausó la sesión de voz (${err}). Puedes volver a encender el interruptor cuando desees reanudar.`,
+          },
+        ]);
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -284,6 +295,7 @@ export default function TenshiChat() {
     getInputVolume,
     sendWappyActionResult,
   } = useVoiceSession(sessionOptions);
+  disconnectVoiceRef.current = disconnectVoice;
 
   const stopVoiceMode = useCallback(() => {
     setIsVoiceActive(false);

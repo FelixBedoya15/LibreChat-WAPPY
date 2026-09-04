@@ -479,7 +479,10 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 break;
 
             case 'error':
-                optionsRef.current.onError?.(message.data.message);
+                optionsRef.current.onError?.(message.data?.message);
+                setStatus('idle');
+                setIsConnected(false);
+                stopAudioCapture();
                 break;
 
             case 'conversationId':

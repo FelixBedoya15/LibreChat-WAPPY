@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-export type IconName = 'sparkles' | 'save' | 'trash' | 'qrcode' | 'plus' | 'history' | 'layout-list' | 'database' | 'chevron-right' | 'chevron-down' | 'file-text' | 'robot' | 'brain' | 'upload' | 'download' | 'refresh-cw' | 'inbox' | 'sidebar' | 'bookmark' | 'camera' | 'shield' | 'search' | 'user' | 'video';
+export type IconName = 'sparkles' | 'save' | 'trash' | 'qrcode' | 'plus' | 'history' | 'layout-list' | 'database' | 'chevron-right' | 'chevron-down' | 'file-text' | 'robot' | 'brain' | 'upload' | 'download' | 'refresh-cw' | 'inbox' | 'sidebar' | 'bookmark' | 'camera' | 'shield' | 'search' | 'user' | 'users' | 'video';
 
 interface AnimatedIconProps {
     name: IconName;
@@ -558,6 +558,29 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                 >
                     <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
                     <circle cx="12" cy="7" r="4" />
+                </motion.svg>
+            );
+
+        case 'users':
+            return (
+                <motion.svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={size}
+                    height={size}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={className}
+                    variants={{ hover: { scale: 1.1, y: -1 }, tap: { scale: 0.9 } }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 12 }}
+                >
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </motion.svg>
             );
 

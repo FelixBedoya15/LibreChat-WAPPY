@@ -1366,8 +1366,34 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
   }
 });
 
+// ─── POST /worker/:workerId/dictamen — Guardado ultra-rápido del Dictamen Predictivo H1 ──
+router.post('/worker/:workerId/dictamen', express.json({ limit: '10mb' }), requireJwtAuth, async (req, res) => {
+  try {
+    const { workerId } = req.params;
+    const { dictamen } = req.body;
+    if (dictamen === undefined) {
+      return res.status(400).json({ error: 'Dictamen requerido' });
+    }
+
+    const isSub = !!req.user.isSubUser;
+    const targetUserId = (isSub && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const companyId = await getActiveCompanyId(targetUserId, isSub ? req.user.assignedCompany : null);
+
+    const result = await PerfilSociodemograficoData.updateOne(
+      { user: targetUserId, companyId, 'trabajadores.id': workerId },
+      { $set: { 'trabajadores.$.dictamenPredictivoH1': dictamen, updatedAt: new Date() } }
+    );
+
+    logger.info(`[OraculoH1] Dictamen predictivo guardado exitosamente para trabajador ${workerId}`);
+    return res.json({ success: true, matchedCount: result.matchedCount, modifiedCount: result.modifiedCount });
+  } catch (error) {
+    logger.error('[OraculoH1] Error guardando dictamen:', error);
+    return res.status(500).json({ error: error.message || 'Error guardando dictamen' });
+  }
+});
+
 // ─── POST /save — Save worker data + run IA tagging synchronously ──────────
-router.post('/save', requireJwtAuth, async (req, res) => {
+router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (req, res) => {
   try {
     const { trabajadores } = req.body;
     if (!trabajadores) {

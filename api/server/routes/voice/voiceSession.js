@@ -103,14 +103,14 @@ class VoiceSession {
                             name: "wappy_navegar",
                             description: "Navega a un módulo o vista de la plataforma WAPPY (ej: perfiles de cargo, huella biocéntrica, motor bio-individual, sgsst general, planes, matriz ipevar, matriz pesv, academia, blog, control acpm, automatizaciones).",
                             parameters: {
-                                type: "OBJECT",
+                                type: "object",
                                 properties: {
                                     modulo: {
-                                        type: "STRING",
+                                        type: "string",
                                         description: "Nombre de la sección destino (ej: 'perfiles_cargo', 'bio_motor', 'sgsst', 'planes', 'ipevar', 'pesv', 'quimicos', 'academia', 'blog', 'control')"
                                     },
                                     ruta: {
-                                        type: "STRING",
+                                        type: "string",
                                         description: "Ruta URL interna opcional (ej: '/sgsst?super=bio_motor', '/planes', '/sgsst/control')"
                                     }
                                 },
@@ -121,10 +121,10 @@ class VoiceSession {
                             name: "wappy_seleccionar_empresa",
                             description: "Activa o selecciona una empresa específica en el sistema por su nombre o identificación para trabajar sobre sus datos.",
                             parameters: {
-                                type: "OBJECT",
+                                type: "object",
                                 properties: {
                                     nombre_o_id: {
-                                        type: "STRING",
+                                        type: "string",
                                         description: "Nombre de la empresa o identificador."
                                     }
                                 },
@@ -135,14 +135,14 @@ class VoiceSession {
                             name: "operar_interfaz_visual",
                             description: "Ejecuta una acción visual interactiva en la pantalla del usuario (hacer clic en un botón, expandir sección, hacer scroll, abrir plan).",
                             parameters: {
-                                type: "OBJECT",
+                                type: "object",
                                 properties: {
                                     accion: {
-                                        type: "STRING",
+                                        type: "string",
                                         description: "Acción a ejecutar: 'click', 'scroll', 'esperar', 'abrir_plan'"
                                     },
                                     detalle: {
-                                        type: "STRING",
+                                        type: "string",
                                         description: "Descripción del botón o elemento (ej: 'configurar plan', 'abrir tarjeta')"
                                     }
                                 },
@@ -433,10 +433,14 @@ REGLAS DE INTERACCIÓN EN VIVO:
 
         // Handle Gemini connection close/error to avoid zombie state
         this.geminiClient.on('close', (code, reason) => {
-            logger.warn(`[VoiceSession] Gemini connection closed: Code ${code}, Reason: ${reason}`);
+            const reasonStr = reason ? reason.toString() : '';
+            logger.warn(`[VoiceSession] Gemini connection closed: Code ${code}, Reason: ${reasonStr}`);
             if (this.isActive) {
                 this.sendToClient({ type: 'status', data: { status: 'idle' } });
-                this.sendToClient({ type: 'error', data: { message: `Conexión con el motor de voz de Gemini finalizada.` } });
+                const userMsg = reasonStr
+                    ? `Conexión con Gemini finalizada (${code}): ${reasonStr}`
+                    : 'Conexión con el motor de voz de Gemini finalizada.';
+                this.sendToClient({ type: 'error', data: { message: userMsg } });
                 this.stop().catch(err => logger.error('[VoiceSession] Error in stop on Gemini close:', err));
             }
         });
@@ -444,7 +448,7 @@ REGLAS DE INTERACCIÓN EN VIVO:
         this.geminiClient.on('error', (error) => {
             logger.error('[VoiceSession] Gemini connection error:', error);
             if (this.isActive) {
-                this.sendToClient({ type: 'error', data: { message: `Error en la conexión con el motor de voz de Gemini.` } });
+                this.sendToClient({ type: 'error', data: { message: error.message || 'Error en la conexión con el motor de voz de Gemini.' } });
                 this.stop().catch(err => logger.error('[VoiceSession] Error in stop on Gemini error:', err));
             }
         });
@@ -487,22 +491,21 @@ REGLAS DE INTERACCIÓN EN VIVO:
                 break;
 
             case 'audio':
+                // Do not process audio if session is stopped or geminiClient is not ready
+                if (!this.isActive || !this.geminiClient) {
+                    break;
+                }
                 // Do not forward client mic audio to Gemini while AI is speaking (prevents speaker echo)
                 if (this.isAiSpeaking) {
                     break;
                 }
                 // Forward audio to Gemini
                 if (data && data.audioData) {
-                    // DIAGNÓSTICO: confirmar que el audio del cliente llega al servidor
                     this.audioChunkCount = (this.audioChunkCount || 0) + 1;
                     if (this.audioChunkCount === 1 || this.audioChunkCount % 100 === 0) {
                         logger.info(`[VoiceSession] AUDIO recibido del cliente (chunk #${this.audioChunkCount}, ${data.audioData.length} chars)`);
                     }
-                    if (this.geminiClient) {
-                        this.geminiClient.sendAudio(data.audioData);
-                    } else {
-                        logger.warn('[VoiceSession] Received audio but Gemini client is not ready');
-                    }
+                    this.geminiClient.sendAudio(data.audioData);
                 }
                 break;
 

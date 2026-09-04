@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Sparkles, Loader2, HeartPulse, Briefcase, AlertTriangle, ShieldAlert, CheckCircle, Clock, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Sparkles, Loader2, HeartPulse, Briefcase, AlertTriangle, ShieldAlert, CheckCircle, Clock, RefreshCw, ChevronDown, ChevronUp, History } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { SGSSTToolbar } from './SGSSTToolbar';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
-import ExportDropdown from './ExportDropdown';
+import ReportHistory from '~/components/Liva/ReportHistory';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 
@@ -34,6 +34,9 @@ export default function OraculoPredictivoH1() {
     const [savingId, setSavingId] = useState<string | null>(null);
     const [collapsedCards, setCollapsedCards] = useState<Record<string, boolean>>({});
     const [evaluatingIAId, setEvaluatingIAId] = useState<string | null>(null);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [historyWorkerId, setHistoryWorkerId] = useState<string | null>(null);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     // Store workers in ref to avoid stale closure in save
     const workersRef = useRef<any[]>([]);
@@ -250,60 +253,199 @@ export default function OraculoPredictivoH1() {
 
 
 
+    const historyTags = useMemo(() => {
+        return historyWorkerId ? ['sgsst-oraculo-h1', `worker-${historyWorkerId}`] : ['sgsst-oraculo-h1'];
+    }, [historyWorkerId]);
+
+    const handleSelectReport = useCallback(async (convId: string) => {
+        if (!convId) return;
+        try {
+            const res = await fetch(`/api/messages/${convId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error();
+            const messages = await res.json();
+            const reportMsg = messages.reverse().find((m: any) =>
+                m.sender === 'SGSST Diagnóstico' || (m.isCreatedByUser === false && m.text?.length > 100)
+            ) || (messages.length > 0 ? messages[messages.length - 1] : null);
+
+            if (reportMsg?.text) {
+                const content = reportMsg.text;
+                let targetId = historyWorkerId;
+
+                // Si el historial se abrió de forma global, deducir el worker desde los tags de la conversación
+                if (!targetId) {
+                    try {
+                        const convoRes = await fetch(`/api/convos/${convId}`, {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        if (convoRes.ok) {
+                            const convoData = await convoRes.json();
+                            const wTag = (convoData.tags || []).find((t: string) => t.startsWith('worker-'));
+                            if (wTag) {
+                                targetId = wTag.replace('worker-', '');
+                            }
+                        }
+                    } catch (e) {
+                        /* ignore */
+                    }
+                }
+
+                if (targetId) {
+                    setAiConclusions(prev => ({ ...prev, [targetId]: content }));
+                    setCollapsedCards(prev => ({ ...prev, [targetId]: false }));
+                    setWorkers(prev => prev.map(w => w.id === targetId ? { ...w, dictamenPredictivoH1: content } : w));
+                    // Persistir en MongoDB en segundo plano
+                    fetch(`/api/sgsst/perfil-sociodemografico/worker/${targetId}/dictamen`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ dictamen: content }),
+                    }).catch(() => {});
+                    showToastRef.current({ message: 'Dictamen cargado del historial ✅', status: 'success' });
+                } else {
+                    showToastRef.current({ message: 'Dictamen recuperado del historial', status: 'info' });
+                }
+            }
+        } catch {
+            showToastRef.current({ message: 'Error cargando dictamen del historial', status: 'error' });
+        }
+        setIsHistoryOpen(false);
+    }, [historyWorkerId, token]);
+
     const handleConsultOracle = async (worker: any, profile: any, fit: any) => {
         setGeneratingId(worker.id);
         try {
-            const ctx = `Trabajador: ${worker.nombre}, Cargo: ${worker.cargo}, Edad: ${worker.edad}
-Score Biocéntrico: ${fit.score}%
-Alertas (${fit.auditItems.length}): ${fit.auditItems.map((a:any) => a.title).join(', ')}
-Enfermedades: ${worker.enfermedades||'Ninguna'} | Diagnóstico: ${worker.diagnosticoMedico||'Ninguno'}
-Hábitos: Fuma=${worker.fuma||'No'}, Alcohol=${worker.alcohol||'No'}, Terapia Psicológica=${worker.terapiaPsicologica||'No'}
-Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exigenciaMental||'N/A'}`;
-            const inst = `Eres el Oráculo Predictivo H1 de WAPPY. Genera un informe maestro en HTML (párrafos con <p>, <strong>, <h3>, <ul><li>) de más de 3000 palabras con: 1) Análisis exhaustivo de aptitud desglosando dimensiones biomecánica, cognitiva y psicosocial, 2) Riesgos de incompatibilidad inminentes y crónicos a largo plazo, 3) Plan de mejora inmediata y vigilancia epidemiológica a 1 año para este trabajador.`;
+            const calculatedScore = (worker.biocentricScore !== undefined && worker.biocentricScore !== null)
+                ? worker.biocentricScore
+                : fit.score;
+
+            const ctx = `DATOS DEL TRABAJADOR (BIOINDIVIDUO):
+- Nombre: ${worker.nombre}
+- Identificación: ${worker.identificacion || 'N/A'}
+- Cargo: ${worker.cargo || 'No especificado'}
+- Edad: ${worker.edad || 'N/A'} años | Género: ${worker.genero || 'N/A'}
+- Diagnóstico Médico: ${worker.diagnosticoMedico || 'Apto / Sin Hallazgos'}
+- Recomendaciones Médicas: ${worker.recomendacionesMedicas || 'Ninguna'}
+- Signos Vitales y Biometría: IMC=${worker.imc || 'N/A'}, Presión Arterial=${worker.presionArterial || 'N/A'} mmHg, Frecuencia Cardíaca=${worker.frecuenciaCardiaca || 'N/A'} lpm
+- Hábitos: Fuma=${worker.fuma || 'No'}, Alcohol=${worker.alcohol || 'No'}, Terapia Psicológica=${worker.terapiaPsicologica || 'No'}
+- Restricciones/Alertas detectadas: ${fit.auditItems.map((a: any) => `${a.title}: ${a.description}`).join('; ') || 'Ninguna'}
+
+DATOS DEL CARGO (DEMANDA DEL PUESTO):
+- Exigencia Física: ${profile?.exigenciaFisica || 'Media'}
+- Exigencia Mental: ${profile?.exigenciaMental || 'Media'}
+- Opera Maquinaria: ${profile?.operaMaquinaria || 'No'}
+- Nivel de Cargo: ${profile?.nivelCargo || 'Operativo'}
+- Score Biocéntrico Calculado: ${calculatedScore}% FIT`;
+
+            const inst = `Eres el Oráculo Predictivo H1 de WAPPY IA, especialista en Medicina Laboral y Seguridad y Salud en el Trabajo bajo el Modelo Causal ATENEA.
+Genera un DICTAMEN PREDICTIVO H1 DE APTITUD Y RIESGO BIOCÉNTRICO en formato HTML profesional y enriquecido para LiveEditor.
+Debe tener un diseño ejecutivo de altísima calidad visual (estilo informe pericial médico-laboral) con las siguientes secciones obligatorias:
+
+1. ENCABEZADO EJECUTIVO Y TARJETA DEL TRABAJADOR:
+   - Título: DICTAMEN PREDICTIVO H1 — EVALUACIÓN DE APTITUD Y VULNERABILIDAD BIOCÉNTRICA
+   - Banner estilizado con gradiente teal/cyan, datos generales del colaborador, cargo y badge destacado con el Score Biocéntrico (${calculatedScore}% FIT) y Categoría de Aptitud (ej. Apto con Observaciones / Requiere Intervención / Apto Pleno).
+
+2. MATRIZ COMPARATIVA DE COMPATIBILIDAD: DEMANDA DEL PUESTO (8M ATENEA) vs. CAPACIDAD BIOINDIVIDUAL:
+   Diseña una tabla HTML estilizada (<table style="width:100%; border-collapse:separate; border-spacing:0; border-radius:12px; overflow:hidden; border:1px solid #e2e8f0; margin:16px 0;">) con encabezados color teal (#0f766e, texto blanco), filas alternas y columnas:
+   - Factor 8M (Personas, Procedimientos, Máquinas, Herramientas, EPP, Gerencia, Entorno, Materiales)
+   - Exigencia Operativa del Cargo
+   - Condición Bioindividual del Trabajador
+   - Nivel de Compatibilidad (Compatible / Control Preventivo / Alerta Crítica) con badges de color.
+
+3. ANÁLISIS DE VULNERABILIDAD BIOCÉNTRICA Y DIFERENCIACIÓN DE CAUSALIDAD ATENEA:
+   - Evaluación multidimensional detallada: Dimensión Biomecánica (ergonomía, cargas, posturas), Dimensión Cardiovascular y Fisiológica, Dimensión Psicoemocional y Cognitiva.
+   - Causa Suficiente: Identifica el factor crítico en origen que debe ser mitigado por ingeniería para blindar la salud del trabajador.
+   - Causas Coadyuvantes: Factores agravantes del entorno o hábitos que requieren acompañamiento.
+
+4. PLAN DE INTERVENCIÓN JERARQUIZADO (Eliminación, Sustitución, Ingeniería, Administrativo, EPP):
+   Medidas concretas y accionables adaptadas a las alertas y patologías específicas del trabajador.
+
+5. PLAN DE ACCIÓN PAC 5W2H Y VIGILANCIA EPIDEMIOLÓGICA A 1 AÑO:
+   Cronograma de monitoreo médico, periodicidad de valoraciones, exámenes paraclínicos requeridos y metas preventivas.
+
+6. SECCIÓN OFICIAL DE FIRMAS Y AVAL:
+   Bloque de 3 firmas: Responsable SG-SST, Representante Legal, y Firma del Colaborador evaluado.
+
+IMPORTANTE: Responde ÚNICAMENTE con el código HTML interno (sin etiquetas <html> o <body>), usando etiquetas semánticas <div>, <h3>, <h4>, <p>, <table>, <tr>, <th>, <td>, <ul>, <li>, <strong> con estilos en línea limpios y legibles.`;
+
             const res = await fetch('/api/live/ai-edit-text', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ selectedText: ctx, instruction: inst }),
+                body: JSON.stringify({
+                    selectedText: ctx,
+                    instruction: inst,
+                    reportSourceData: {
+                        trabajador: worker,
+                        perfilCargo: profile,
+                        score: calculatedScore,
+                        alertas: fit.auditItems,
+                    }
+                }),
             });
             const data = await res.json();
             if (data.editedText) {
                 const text = data.editedText;
                 setAiConclusions(prev => ({ ...prev, [worker.id]: text }));
                 setCollapsedCards(prev => ({ ...prev, [worker.id]: false }));
-                // Auto-save to DB so it persists
-                const updatedWorkers = workersRef.current.map(w =>
-                    w.id === worker.id ? { ...w, dictamenPredictivoH1: text } : w
-                );
-                fetch('/api/sgsst/perfil-sociodemografico/save', {
+                // Auto-guardado ultra rápido directo al subdocumento en MongoDB
+                fetch(`/api/sgsst/perfil-sociodemografico/worker/${worker.id}/dictamen`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ trabajadores: updatedWorkers }),
+                    body: JSON.stringify({ dictamen: text }),
                 }).catch(() => {});
-                setWorkers(updatedWorkers);
+                setWorkers(prev => prev.map(w => w.id === worker.id ? { ...w, dictamenPredictivoH1: text } : w));
                 showToastRef.current({ message: 'Dictamen predictivo generado con éxito ✅', status: 'success' });
             }
-        } catch { showToastRef.current({ message: 'Error consultando al Oráculo', status: 'error' }); }
-        finally { setGeneratingId(null); }
+        } catch {
+            showToastRef.current({ message: 'Error consultando al Oráculo', status: 'error' });
+        } finally {
+            setGeneratingId(null);
+        }
     };
 
     const handleSaveDictamen = async (workerId: string) => {
         setSavingId(workerId);
         try {
-            // Use ref to get current workers to avoid stale closure
-            const updatedWorkers = workersRef.current.map(w =>
-                w.id === workerId ? { ...w, dictamenPredictivoH1: aiConclusions[workerId] } : w
-            );
-            const res = await fetch('/api/sgsst/perfil-sociodemografico/save', {
+            const currentWorker = workersRef.current.find(w => w.id === workerId);
+            const content = aiConclusions[workerId] || currentWorker?.dictamenPredictivoH1 || '';
+            if (!content) {
+                showToastRef.current({ message: 'No hay contenido para guardar', status: 'warning' });
+                return;
+            }
+
+            // 1. Guardado ultra rápido en MongoDB (< 30ms)
+            const fastRes = await fetch(`/api/sgsst/perfil-sociodemografico/worker/${workerId}/dictamen`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ trabajadores: updatedWorkers }),
+                body: JSON.stringify({ dictamen: content }),
             });
-            if (!res.ok) throw new Error();
-            // Update workers but do NOT touch aiConclusions
-            setWorkers(updatedWorkers);
+            if (!fastRes.ok) throw new Error('Error al actualizar trabajador');
+
+            // 2. Guardar snapshot en historial de reportes (para auditoría y versionado)
+            const workerName = currentWorker?.nombre || 'Trabajador';
+            try {
+                await fetch('/api/sgsst/diagnostico/save-report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({
+                        content,
+                        title: `Dictamen Predictivo H1 - ${workerName} - ${new Date().toLocaleDateString('es-CO')}`,
+                        tags: ['sgsst-oraculo-h1', `worker-${workerId}`],
+                    }),
+                });
+            } catch (histErr) {
+                console.warn('[OraculoH1] Error saving report history snapshot:', histErr);
+            }
+
+            // 3. Actualizar estado local
+            setWorkers(prev => prev.map(w => w.id === workerId ? { ...w, dictamenPredictivoH1: content } : w));
+            setRefreshTrigger(prev => prev + 1);
             showToastRef.current({ message: 'Dictamen guardado permanentemente ✅', status: 'success' });
-        } catch { showToastRef.current({ message: 'Error guardando el dictamen', status: 'error' }); }
-        finally { setSavingId(null); }
+        } catch {
+            showToastRef.current({ message: 'Error guardando el dictamen', status: 'error' });
+        } finally {
+            setSavingId(null);
+        }
     };
 
     const handleForceIAEval = async (workerId: string) => {
@@ -385,7 +527,18 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                             Motor Bio-Fit WAPPY · Cruza datos clínicos con exigencias del rol para emitir dictámenes de aptitud laboral basados en evidencia.
                         </p>
                     </div>
-                    <div className="shrink-0">
+                    <div className="shrink-0 flex items-center gap-3">
+                        <button
+                            onClick={() => {
+                                setHistoryWorkerId(null);
+                                setIsHistoryOpen(true);
+                            }}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors border border-white/20 backdrop-blur-sm shadow-sm"
+                            title="Ver todos los dictámenes predictivos guardados"
+                        >
+                            <History className="w-4 h-4" />
+                            <span>Historial General</span>
+                        </button>
                         <DummyGenerateButton onClick={handleLoadDummyData} />
                     </div>
                 </div>
@@ -534,17 +687,30 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                             </p>
                                             <p className="text-xs text-teal-700/70 dark:text-teal-400/70 mt-0.5">Dictamen IA cruzando salud y exigencias del rol.</p>
                                         </div>
-                                        <div className="-my-2">
-                                            <SGSSTToolbar aiButtons={[{
-                                                id: `consult-${worker.id}`,
-                                                onClick: () => handleConsultOracle(worker, profile, fit),
-                                                title: 'Generar con IA',
-                                                label: 'Generar IA',
-                                                icon: 'sparkles',
-                                                variant: 'ai',
-                                                isLoading: generatingId === worker.id,
-                                                disabled: generatingId === worker.id,
-                                            }]} />
+                                        <div className="-my-2 flex items-center gap-2">
+                                            <SGSSTToolbar
+                                                historyButtons={[{
+                                                    id: `hist-init-${worker.id}`,
+                                                    onClick: () => {
+                                                        setHistoryWorkerId(worker.id);
+                                                        setIsHistoryOpen(true);
+                                                    },
+                                                    title: 'Historial de Dictámenes',
+                                                    label: 'Historial',
+                                                    icon: 'history',
+                                                    variant: 'history',
+                                                }]}
+                                                aiButtons={[{
+                                                    id: `consult-${worker.id}`,
+                                                    onClick: () => handleConsultOracle(worker, profile, fit),
+                                                    title: 'Generar con IA',
+                                                    label: 'Generar IA',
+                                                    icon: 'sparkles',
+                                                    variant: 'ai',
+                                                    isLoading: generatingId === worker.id,
+                                                    disabled: generatingId === worker.id,
+                                                }]}
+                                            />
                                         </div>
                                     </div>
                                 ) : (
@@ -571,6 +737,17 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                                 <div className="-my-2">
                                                     <SGSSTToolbar
+                                                        historyButtons={[{
+                                                            id: `hist-${worker.id}`,
+                                                            onClick: () => {
+                                                                setHistoryWorkerId(worker.id);
+                                                                setIsHistoryOpen(true);
+                                                            },
+                                                            title: 'Historial de Dictámenes',
+                                                            label: 'Historial',
+                                                            icon: 'history',
+                                                            variant: 'history',
+                                                        }]}
                                                         aiButtons={[{
                                                             id: `reeval-${worker.id}`,
                                                             onClick: () => handleConsultOracle(worker, profile, fit),
@@ -584,20 +761,17 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                                         persistenceButtons={[{
                                                             id: `save-${worker.id}`,
                                                             onClick: () => handleSaveDictamen(worker.id),
-                                                            title: 'Guardar Dictamen en BD',
+                                                            title: 'Guardar Dictamen en BD e Historial',
                                                             label: 'Guardar',
                                                             icon: 'database',
                                                             variant: 'database',
                                                             isLoading: savingId === worker.id,
                                                             disabled: savingId === worker.id,
                                                         }]}
+                                                        exportContent={conclusionContent}
+                                                        exportFileName={`Dictamen_Predictivo_${(worker.nombre || 'Trabajador').replace(/\s+/g, '_')}`}
                                                     />
                                                 </div>
-                                                <ExportDropdown
-                                                    content={conclusionContent}
-                                                    fileName={`Dictamen_Predictivo_${(worker.nombre || 'Trabajador').replace(/\s+/g, '_')}`}
-                                                    reportType="general"
-                                                />
                                                 <button
                                                     onClick={() => setCollapsedCards(prev => ({ ...prev, [worker.id]: !prev[worker.id] }))}
                                                     className="p-2 rounded-xl text-text-secondary hover:bg-surface-secondary transition-colors"
@@ -608,23 +782,26 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                                             </div>
                                         </div>
 
-                                        {/* Conclusion content - LiveEditor */}
+                                        {/* Conclusion content - LiveEditor with Paper Canvas */}
                                         {isExpanded ? (
-                                            <div className="p-1 overflow-hidden bg-surface-primary border-t border-border-light">
-                                                <div style={{ minHeight: '350px', overflowX: 'auto', width: '100%' }}>
-                                                    <div style={{ minWidth: '100%', padding: '16px' }}>
-                                                        <LiveEditor
-                                                            initialContent={conclusionContent}
-                                                            onUpdate={(html) => {
-                                                                setAiConclusions(prev => ({ ...prev, [worker.id]: html }));
-                                                            }}
-                                                            reportSourceData={{
-                                                                trabajador: worker,
-                                                                perfilCargo: profile,
-                                                                fitScore: score,
-                                                                alertas: displayAlerts
-                                                            }}
-                                                        />
+                                            <div className="p-4 bg-zinc-100/70 dark:bg-zinc-950/40 border-t border-border-light">
+                                                <div className="mx-auto w-full max-w-5xl rounded-2xl border border-border-medium/60 bg-white dark:bg-zinc-900 shadow-xl overflow-hidden">
+                                                    <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
+                                                        <div style={{ minWidth: '850px' }}>
+                                                            <LiveEditor
+                                                                paperMode={true}
+                                                                initialContent={conclusionContent}
+                                                                onUpdate={(html) => {
+                                                                    setAiConclusions(prev => ({ ...prev, [worker.id]: html }));
+                                                                }}
+                                                                reportSourceData={{
+                                                                    trabajador: worker,
+                                                                    perfilCargo: profile,
+                                                                    fitScore: score,
+                                                                    alertas: displayAlerts
+                                                                }}
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -651,6 +828,15 @@ Cargo exige Física: ${profile?.exigenciaFisica||'N/A'}, Mental: ${profile?.exig
                     </div>
                 )}
             </div>
+
+            {/* ═══ History Modal (Popup) ═══ */}
+            <ReportHistory
+                onSelectReport={handleSelectReport}
+                isOpen={isHistoryOpen}
+                toggleOpen={() => setIsHistoryOpen(prev => !prev)}
+                refreshTrigger={refreshTrigger}
+                tags={historyTags}
+            />
         </div>
     );
 }
