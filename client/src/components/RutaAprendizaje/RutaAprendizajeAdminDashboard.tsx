@@ -207,12 +207,10 @@ export default function RutaAprendizajeAdminDashboard() {
 
                     <button
                         onClick={() => navigate('/ruta-aprendizaje/admin/courses/new')}
-                        className="group flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-semibold text-sm self-start sm:self-auto"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all duration-200 shadow-md font-bold text-sm self-start sm:self-auto cursor-pointer active:scale-95"
                     >
-                        <Plus className="w-5 h-5 flex-shrink-0" />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                            Crear Curso
-                        </span>
+                        <Plus className="w-4 h-4 flex-shrink-0" />
+                        <span>Crear Curso</span>
                     </button>
                 </div>
             </div>

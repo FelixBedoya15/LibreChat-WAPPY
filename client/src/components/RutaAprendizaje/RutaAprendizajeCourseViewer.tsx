@@ -10,7 +10,8 @@ import {
     PlayCircle,
     FileText,
     Trophy,
-    BookOpen
+    BookOpen,
+    Edit
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -21,6 +22,9 @@ export default function RutaAprendizajeCourseViewer() {
     const navigate = useNavigate();
     const { showToast } = useToastContext();
     const { user } = useAuthContext();
+    const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com', 'felix.bedoya15@gmail.com'];
+    const isAdmin = user?.role === 'ADMIN' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
+    const isProOrAdmin = isAdmin || user?.role === 'USER_PRO' || user?.role === 'USER_CUSTOM';
     const [course, setCourse] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
@@ -79,19 +83,29 @@ export default function RutaAprendizajeCourseViewer() {
         <div className="flex flex-col h-full bg-surface-primary text-text-primary overflow-hidden">
             {/* Top Navigation Bar */}
             <div className="flex-none h-14 bg-surface-secondary border-b border-light flex items-center justify-between px-4 sticky top-0 z-20">
-                <div className="flex items-center gap-2 md:gap-3">
+                <div className="flex items-center gap-2 md:gap-3 min-w-0">
                     <button
                         onClick={() => navigate('/academia?tab=rutas')}
-                        className="rounded-full p-2 hover:bg-surface-tertiary transition-colors"
+                        className="rounded-full p-2 hover:bg-surface-tertiary transition-colors shrink-0"
                         aria-label="Volver a Academia"
                     >
                         <ChevronLeft className="h-6 w-6 text-text-primary dark:text-gray-300" />
                     </button>
-                    <div className="h-6 w-px bg-light mx-1 hidden md:block"></div>
-                    <h1 className="text-sm font-semibold truncate max-w-[200px] md:max-w-md">
-                        {course.title} (Vista Administrador)
+                    <div className="h-6 w-px bg-light mx-1 hidden md:block shrink-0"></div>
+                    <h1 className="text-sm font-bold truncate max-w-[200px] md:max-w-md">
+                        {course.title}
                     </h1>
                 </div>
+                {isProOrAdmin && (
+                    <button
+                        onClick={() => navigate(`/ruta-aprendizaje/admin/courses/${courseId}`)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow cursor-pointer active:scale-95 shrink-0"
+                        title="Editar curso y lecciones"
+                    >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Editar Curso</span>
+                    </button>
+                )}
             </div>
 
             <div className="flex-1 flex overflow-hidden relative">

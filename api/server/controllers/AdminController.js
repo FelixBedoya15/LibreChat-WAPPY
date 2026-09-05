@@ -182,19 +182,39 @@ const updateUser = async (req, res) => {
             });
         }
 
-        // --- Handle Company Limit & Automation Limit ---
-        if (companyLimit !== undefined || automationLimit !== undefined) {
-            const UserPlan = require('~/db/models/UserPlan');
-            const planUpdates = {};
-            if (companyLimit !== undefined) {
-                planUpdates.companyLimit = companyLimit === '' || companyLimit === null ? null : parseInt(companyLimit, 10);
+        // --- Handle UserPlan Synchronization (Limits, Expiration Date & Plan) ---
+        const UserPlan = require('~/db/models/UserPlan');
+        const planUpdates = {};
+        if (companyLimit !== undefined) {
+            planUpdates.companyLimit = companyLimit === '' || companyLimit === null ? null : parseInt(companyLimit, 10);
+        }
+        if (automationLimit !== undefined) {
+            planUpdates.automationLimit = automationLimit === '' || automationLimit === null ? null : parseInt(automationLimit, 10);
+        }
+        if (inactiveAt !== undefined) {
+            planUpdates.planExpiresAt = inactiveAt ? new Date(inactiveAt) : null;
+        }
+        if (role) {
+            const rolePlanMap = {
+                'USER_PRO': 'pro',
+                'PRO': 'pro',
+                'USER_PLUS': 'plus',
+                'USER_GO': 'go',
+                'USER_IPEVAR': 'ipevar',
+                'IPEVAR': 'ipevar',
+                'USER': 'free',
+                'ADMIN': 'admin',
+                'USER_CUSTOM': 'custom',
+            };
+            if (rolePlanMap[role]) {
+                planUpdates.plan = rolePlanMap[role];
             }
-            if (automationLimit !== undefined) {
-                planUpdates.automationLimit = automationLimit === '' || automationLimit === null ? null : parseInt(automationLimit, 10);
-            }
+        }
+
+        if (Object.keys(planUpdates).length > 0) {
             await UserPlan.findOneAndUpdate(
                 { userId },
-                planUpdates,
+                { $set: planUpdates },
                 { upsert: true, new: true }
             );
         }
@@ -248,6 +268,37 @@ const bulkUpdateUsers = async (req, res) => {
             { _id: { $in: userIds } },
             { $set: updateData }
         );
+
+        // Synchronize UserPlan for all affected users if inactiveAt or role were updated
+        if (inactiveAt !== undefined || role !== undefined) {
+            const UserPlan = require('~/db/models/UserPlan');
+            const planUpdates = {};
+            if (inactiveAt !== undefined) {
+                planUpdates.planExpiresAt = inactiveAt ? new Date(inactiveAt) : null;
+            }
+            if (role !== undefined) {
+                const rolePlanMap = {
+                    'USER_PRO': 'pro',
+                    'PRO': 'pro',
+                    'USER_PLUS': 'plus',
+                    'USER_GO': 'go',
+                    'USER_IPEVAR': 'ipevar',
+                    'IPEVAR': 'ipevar',
+                    'USER': 'free',
+                    'ADMIN': 'admin',
+                    'USER_CUSTOM': 'custom',
+                };
+                if (rolePlanMap[role]) {
+                    planUpdates.plan = rolePlanMap[role];
+                }
+            }
+            if (Object.keys(planUpdates).length > 0) {
+                await UserPlan.updateMany(
+                    { userId: { $in: userIds } },
+                    { $set: planUpdates }
+                );
+            }
+        }
 
         res.status(200).json({
             message: 'Users updated successfully',

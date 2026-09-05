@@ -289,12 +289,10 @@ export default function RutaAprendizajeCourseEditor() {
                         <button
                             onClick={handleSaveCourse}
                             disabled={saving}
-                            className="group flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50"
+                            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all duration-200 shadow-md font-bold text-sm disabled:opacity-50 cursor-pointer active:scale-95"
                         >
-                            <Save className="w-5 h-5 flex-shrink-0" />
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                {saving ? 'Guardando...' : 'Guardar Curso'}
-                            </span>
+                            <Save className="w-4 h-4 flex-shrink-0" />
+                            <span>{saving ? 'Guardando...' : 'Guardar Curso'}</span>
                         </button>
                     </div>
 
@@ -307,17 +305,15 @@ export default function RutaAprendizajeCourseEditor() {
                                 <button
                                     onClick={handleGenerateCourse}
                                     disabled={isGeneratingCourse || !title.trim()}
-                                    className="group flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-xl transition-all duration-200 shadow-sm font-semibold text-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                     title="Generar Info del Curso con IA (Basado en el Título)"
                                 >
                                     {isGeneratingCourse ? (
-                                        <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin" />
+                                        <Loader2 className="w-4 h-4 flex-shrink-0 animate-spin" />
                                     ) : (
-                                        <Sparkles className="w-5 h-5 flex-shrink-0" />
+                                        <Sparkles className="w-4 h-4 flex-shrink-0" />
                                     )}
-                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                        Generar con IA
-                                    </span>
+                                    <span>Generar con IA</span>
                                 </button>
                                 <ModelSelector
                                     selectedModel={courseAIModel}
@@ -585,12 +581,10 @@ export default function RutaAprendizajeCourseEditor() {
                                 </h2>
                                 <button
                                     onClick={() => openLessonEditor(null)}
-                                    className="group flex items-center px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                                    className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-xl transition-all duration-200 shadow-sm font-bold text-xs cursor-pointer active:scale-95"
                                 >
-                                    <Plus className="w-5 h-5 flex-shrink-0" />
-                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                        Agregar Lección
-                                    </span>
+                                    <Plus className="w-4 h-4 flex-shrink-0" />
+                                    <span>Agregar Lección</span>
                                 </button>
                             </div>
 
@@ -655,16 +649,14 @@ export default function RutaAprendizajeCourseEditor() {
                                 <button
                                     onClick={handleGenerateLesson}
                                     disabled={isGeneratingLesson || !lessonForm.title.trim()}
-                                    className="group flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-xl transition-all duration-200 shadow-sm font-semibold text-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                 >
                                     {isGeneratingLesson ? (
-                                        <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin" />
+                                        <Loader2 className="w-4 h-4 flex-shrink-0 animate-spin" />
                                     ) : (
-                                        <Sparkles className="w-5 h-5 flex-shrink-0" />
+                                        <Sparkles className="w-4 h-4 flex-shrink-0" />
                                     )}
-                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                        Generar Lección
-                                    </span>
+                                    <span>Generar Lección</span>
                                 </button>
                                 <ModelSelector
                                     selectedModel={lessonAIModel}

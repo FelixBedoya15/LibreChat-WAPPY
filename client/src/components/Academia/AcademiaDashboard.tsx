@@ -7,7 +7,8 @@ import {
   Video, 
   Newspaper,
   Shield,
-  Layers
+  Layers,
+  Plus
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -26,6 +27,8 @@ export default function AcademiaDashboard() {
   const { user } = useAuthContext();
   const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com', 'felix.bedoya15@gmail.com'];
   const isAdmin = user?.role === 'ADMIN' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
+  const isProOrAdmin = isAdmin || user?.role === 'USER_PRO' || user?.role === 'USER_CUSTOM';
+  const canManageCurrentTab = activeTab === 'rutas' ? isProOrAdmin : isAdmin;
   const outletContext = useOutletContext<ContextType>();
   const navVisible = outletContext?.navVisible ?? true;
   const setNavVisible = outletContext?.setNavVisible ?? (() => {});
@@ -152,16 +155,28 @@ export default function AcademiaDashboard() {
               </button>
             </div>
 
-            {/* Administrar / Iniciar Sesión Button */}
-            {isAdmin ? (
-              <button
-                onClick={() => navigate(getAdminPath())}
-                className="group flex items-center justify-center gap-2 bg-black/30 hover:bg-black/50 backdrop-blur-md px-3.5 py-2 border border-white/20 text-white hover:border-emerald-400/40 rounded-2xl transition-all duration-200 shadow-lg cursor-pointer shrink-0 text-xs font-bold uppercase tracking-wider"
-                title="Administrar sección actual"
-              >
-                <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Administrar</span>
-              </button>
+            {/* Administrar / Crear Curso / Iniciar Sesión Button */}
+            {canManageCurrentTab ? (
+              <div className="flex items-center gap-2 shrink-0">
+                {activeTab === 'rutas' && (
+                  <button
+                    onClick={() => navigate('/ruta-aprendizaje/admin/courses/new')}
+                    className="group flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-2xl transition-all duration-200 shadow-lg cursor-pointer shrink-0 text-xs font-bold uppercase tracking-wider"
+                    title="Crear un nuevo curso o ruta de aprendizaje"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Crear Curso</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => navigate(getAdminPath())}
+                  className="group flex items-center justify-center gap-2 bg-black/30 hover:bg-black/50 backdrop-blur-md px-3.5 py-2 border border-white/20 text-white hover:border-emerald-400/40 rounded-2xl transition-all duration-200 shadow-lg cursor-pointer shrink-0 text-xs font-bold uppercase tracking-wider"
+                  title="Administrar sección actual"
+                >
+                  <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Administrar</span>
+                </button>
+              </div>
             ) : !user ? (
               <button
                 onClick={() => navigate('/login')}

@@ -36,7 +36,8 @@ import {
   Building,
   Edit3,
   Trash2,
-  Check
+  Check,
+  RefreshCw
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -74,6 +75,9 @@ interface ReferredUser {
 
 interface CommissionItem {
   id: string;
+  partnerId?: string | null;
+  ambassadorName?: string | null;
+  ambassadorSlug?: string | null;
   userId?: string;
   referredUserName: string;
   referredUserEmail: string;
@@ -323,6 +327,117 @@ export default function AmbassadorDashboard() {
     }
   };
 
+  // Recurring Renewal Modal State (Admin Only)
+  const [selectedForRenewal, setSelectedForRenewal] = useState<{
+    userId: string;
+    clientName: string;
+    clientEmail: string;
+    partnerId?: string;
+    amount: number;
+    commissionRate: number;
+    currentExpiry?: string | Date | null;
+    subscriptionType?: string;
+    planInterval?: string | null;
+  } | null>(null);
+
+  const [renewalPeriod, setRenewalPeriod] = useState<'monthly' | 'quarterly' | 'semiannual' | 'annual'>('monthly');
+  const [renewalAmount, setRenewalAmount] = useState<number>(140296);
+  const [renewalRate, setRenewalRate] = useState<number>(0.30);
+  const [renewalCommissionStatus, setRenewalCommissionStatus] = useState<string>('approved');
+  const [confirmedPayment, setConfirmedPayment] = useState<boolean>(false);
+  const [isRenewing, setIsRenewing] = useState<boolean>(false);
+
+  const openRenewalFromCommission = (c: CommissionItem) => {
+    setSelectedForRenewal({
+      userId: c.userId || c.id,
+      clientName: c.referredUserName,
+      clientEmail: c.referredUserEmail,
+      amount: c.amount || 140296,
+      commissionRate: c.commissionRate || 0.30,
+      currentExpiry: c.planExpiresAt,
+      subscriptionType: c.subscriptionType,
+      planInterval: c.planInterval
+    });
+    setRenewalAmount(c.amount || 140296);
+    setRenewalRate(c.commissionRate || 0.30);
+    setRenewalPeriod(
+      c.planInterval === 'anual' || c.planInterval === 'annual' ? 'annual' :
+      c.planInterval === 'semestral' || c.planInterval === 'semiannual' ? 'semiannual' :
+      c.planInterval === 'trimestral' || c.planInterval === 'quarterly' ? 'quarterly' : 'monthly'
+    );
+    setRenewalCommissionStatus('approved');
+    setConfirmedPayment(false);
+  };
+
+  const openRenewalFromUser = (u: ReferredUser) => {
+    setSelectedForRenewal({
+      userId: u.userId,
+      clientName: u.name,
+      clientEmail: u.email,
+      partnerId: u.ambassadorId || undefined,
+      amount: u.subscriptionType === 'pro' ? 140296 : 214380,
+      commissionRate: 0.30,
+      currentExpiry: u.planExpiresAt,
+      subscriptionType: u.subscriptionType,
+      planInterval: u.planInterval
+    });
+    setRenewalAmount(140296);
+    setRenewalRate(0.30);
+    setRenewalPeriod(
+      u.planInterval === 'anual' || u.planInterval === 'annual' ? 'annual' :
+      u.planInterval === 'semestral' || u.planInterval === 'semiannual' ? 'semiannual' :
+      u.planInterval === 'trimestral' || u.planInterval === 'quarterly' ? 'quarterly' : 'monthly'
+    );
+    setRenewalCommissionStatus('approved');
+    setConfirmedPayment(false);
+  };
+
+  const calculateProjectedExpiry = () => {
+    if (!selectedForRenewal) return '';
+    const daysToAdd = 
+      renewalPeriod === 'monthly' ? 30 :
+      renewalPeriod === 'quarterly' ? 90 :
+      renewalPeriod === 'semiannual' ? 180 : 365;
+    
+    const now = new Date();
+    let base = now;
+    if (selectedForRenewal.currentExpiry) {
+      const exp = new Date(selectedForRenewal.currentExpiry);
+      if (!isNaN(exp.getTime()) && exp > now) {
+        base = exp;
+      }
+    }
+    const projected = new Date(base.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+    return projected.toLocaleDateString('es-CO', { year: 'numeric', month: 'numeric', day: 'numeric' });
+  };
+
+  const handleRenewPeriod = async () => {
+    if (!selectedForRenewal) return;
+    if (!confirmedPayment) {
+      showToast({ message: 'Debe confirmar y aceptar que el cliente realizó el pago de este periodo.', status: 'error' });
+      return;
+    }
+    try {
+      setIsRenewing(true);
+      const res = await axios.post('/api/referrals/commissions/renew-period', {
+        userId: selectedForRenewal.userId,
+        partnerId: selectedForRenewal.partnerId,
+        period: renewalPeriod,
+        amount: renewalAmount,
+        commissionRate: renewalRate,
+        commissionStatus: renewalCommissionStatus,
+        confirmedPaid: true
+      });
+      showToast({ message: res.data?.message || '¡Renovación de periodo exitosa!', status: 'success' });
+      setSelectedForRenewal(null);
+      fetchDashboardData();
+    } catch (err: any) {
+      showToast({ message: err.response?.data?.error || 'Error al procesar la renovación.', status: 'error' });
+    } finally {
+      setIsRenewing(false);
+    }
+  };
+
   // User Follow-up & Campaign Modal (Email & WhatsApp)
   const [contactUser, setContactUser] = useState<TargetFollowUpUser | null>(null);
 
@@ -372,9 +487,32 @@ export default function AmbassadorDashboard() {
   // Filter commissions by selected ambassador
   const ambassadorFilteredCommissions = React.useMemo(() => {
     if (selectedAmbassadorFilter === 'all') return commissions;
-    const userEmails = new Set(ambassadorFilteredUsers.map(u => u.email.toLowerCase()));
-    return commissions.filter(c => userEmails.has(c.referredUserEmail.toLowerCase()));
-  }, [commissions, selectedAmbassadorFilter, ambassadorFilteredUsers]);
+    const partner = networkStats.find(p => p.partnerId === selectedAmbassadorFilter || p.slug === selectedAmbassadorFilter);
+    const userEmails = new Set(ambassadorFilteredUsers.map(u => (u.email || '').toLowerCase()));
+    const userIds = new Set(ambassadorFilteredUsers.map(u => String(u.userId)));
+    return commissions.filter(c => 
+      c.partnerId === selectedAmbassadorFilter ||
+      (partner && (c.ambassadorSlug === partner.slug || (c.ambassadorName && c.ambassadorName.toLowerCase() === partner.name.toLowerCase()))) ||
+      (c.referredUserEmail && userEmails.has(c.referredUserEmail.toLowerCase())) ||
+      (c.userId && userIds.has(String(c.userId)))
+    );
+  }, [commissions, selectedAmbassadorFilter, ambassadorFilteredUsers, networkStats]);
+
+  // Filter commissions by search term
+  const displayedCommissions = React.useMemo(() => {
+    return ambassadorFilteredCommissions.filter(c => {
+      if (!searchTerm || searchTerm.trim() === '') return true;
+      const term = searchTerm.toLowerCase();
+      return (
+        (c.referredUserName && c.referredUserName.toLowerCase().includes(term)) ||
+        (c.referredUserEmail && c.referredUserEmail.toLowerCase().includes(term)) ||
+        (c.phone && c.phone.includes(term)) ||
+        (c.status && c.status.toLowerCase().includes(term)) ||
+        (c.subscriptionType && c.subscriptionType.toLowerCase().includes(term)) ||
+        (c.ambassadorName && c.ambassadorName.toLowerCase().includes(term))
+      );
+    });
+  }, [ambassadorFilteredCommissions, searchTerm]);
 
   // Dynamically recalculated KPIs based on selected ambassador
   const activeKpis = React.useMemo(() => {
@@ -888,7 +1026,7 @@ export default function AmbassadorDashboard() {
             }`}
           >
             <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-500 shrink-0" />
-            <span>Comisiones</span>
+            <span>{`Comisiones (${ambassadorFilteredCommissions.length})`}</span>
           </button>
 
           {(isAdmin || isLeader) && (
@@ -1253,18 +1391,33 @@ export default function AmbassadorDashboard() {
                             <td className="px-4 py-3.5 text-right align-middle">
                               <div className="flex items-center justify-end gap-1.5 shrink-0">
                                 {isAdmin && (
-                                  <button
-                                    onClick={() => openAttributionModal(u)}
-                                    className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-8.5 sm:px-2.5 sm:min-w-[34px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white sm:hover:scale-105 active:scale-95"
-                                    title="Editar Cobro, Plan, Add-ons y Comisión de este usuario"
-                                  >
-                                    <div className="relative flex-shrink-0 flex items-center justify-center">
-                                      <Edit3 className="w-3.5 h-3.5" />
-                                    </div>
-                                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[180px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                      <span className="text-[11px] font-bold tracking-wide">Editar Cobro & Atribución</span>
-                                    </div>
-                                  </button>
+                                  <>
+                                    <button
+                                      onClick={() => openRenewalFromUser(u)}
+                                      className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-8.5 sm:px-2.5 sm:min-w-[34px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white sm:hover:scale-105 active:scale-95"
+                                      title="Registrar pago recurrente y renovar periodo"
+                                    >
+                                      <div className="relative flex-shrink-0 flex items-center justify-center">
+                                        <RefreshCw className="w-3.5 h-3.5" />
+                                      </div>
+                                      <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                        <span className="text-[11px] font-bold tracking-wide">Renovar</span>
+                                      </div>
+                                    </button>
+
+                                    <button
+                                      onClick={() => openAttributionModal(u)}
+                                      className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-8.5 sm:px-2.5 sm:min-w-[34px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white sm:hover:scale-105 active:scale-95"
+                                      title="Editar Cobro, Plan, Add-ons y Comisión de este usuario"
+                                    >
+                                      <div className="relative flex-shrink-0 flex items-center justify-center">
+                                        <Edit3 className="w-3.5 h-3.5" />
+                                      </div>
+                                      <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[180px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                        <span className="text-[11px] font-bold tracking-wide">Editar Cobro & Atribución</span>
+                                      </div>
+                                    </button>
+                                  </>
                                 )}
 
                                 <button
@@ -1298,7 +1451,7 @@ export default function AmbassadorDashboard() {
             <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm">
               <h3 className="text-sm sm:text-base font-extrabold text-text-primary flex items-center gap-2 mb-3 sm:mb-4">
                 <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-teal-500 shrink-0" />
-                <span>Historial y Detalle de Comisiones</span>
+                <span>{`Historial y Detalle de Comisiones (${displayedCommissions.length})`}</span>
               </h3>
 
               <div className="overflow-x-auto">
@@ -1318,14 +1471,16 @@ export default function AmbassadorDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-medium/20">
-                    {commissions.length === 0 ? (
+                    {displayedCommissions.length === 0 ? (
                       <tr>
                         <td colSpan={10} className="px-4 py-10 text-center text-text-tertiary text-sm">
-                          No hay registros de comisiones aún.
+                          {selectedAmbassadorFilter !== 'all' 
+                            ? 'No hay registros de comisiones para el embajador o filtro seleccionado.' 
+                            : 'No hay registros de comisiones aún.'}
                         </td>
                       </tr>
                     ) : (
-                      commissions.map((c) => (
+                      displayedCommissions.map((c) => (
                         <tr key={c.id} className="hover:bg-surface-hover/50 transition-colors">
                           <td className="px-4 py-3.5 align-middle">
                             <div className="flex flex-col min-w-0">
@@ -1349,6 +1504,11 @@ export default function AmbassadorDashboard() {
                                 {c.referredUserName}
                               </span>
                               <span className="text-xs text-text-tertiary font-normal truncate max-w-[180px] mt-0.5">{c.referredUserEmail}</span>
+                              {c.ambassadorName && (
+                                <span className="text-[10px] text-teal-700 dark:text-teal-300 bg-teal-500/10 px-1.5 py-0.5 rounded border border-teal-500/20 font-semibold mt-1 inline-flex items-center gap-1 w-fit">
+                                  👤 {c.ambassadorName}
+                                </span>
+                              )}
                               {c.phone && (
                                 <a
                                   href={`https://api.whatsapp.com/send?phone=${c.phone.replace(/[^0-9]/g, '').length === 10 && c.phone.replace(/[^0-9]/g, '').startsWith('3') ? `57${c.phone.replace(/[^0-9]/g, '')}` : c.phone.replace(/[^0-9]/g, '')}`}
@@ -1420,6 +1580,19 @@ export default function AmbassadorDashboard() {
                               <div className="flex items-center justify-end gap-1.5 shrink-0">
                                 {isAdmin && (
                                   <>
+                                    <button
+                                      onClick={() => openRenewalFromCommission(c)}
+                                      className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-8.5 sm:px-2.5 sm:min-w-[34px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white sm:hover:scale-105 active:scale-95"
+                                      title="Registrar pago recurrente y renovar periodo"
+                                    >
+                                      <div className="relative flex-shrink-0 flex items-center justify-center">
+                                        <RefreshCw className="w-3.5 h-3.5" />
+                                      </div>
+                                      <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                        <span className="text-[11px] font-bold tracking-wide">Renovar</span>
+                                      </div>
+                                    </button>
+
                                     <button
                                       onClick={() => openCommissionEditModal(c)}
                                       className="group flex items-center justify-center h-8 px-2.5 min-w-[32px] sm:h-8.5 sm:px-2.5 sm:min-w-[34px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer rounded-xl bg-teal-600 hover:bg-teal-700 text-white sm:hover:scale-105 active:scale-95"
@@ -2144,6 +2317,173 @@ export default function AmbassadorDashboard() {
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-md disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
               >
                 {isUpdatingComm ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recurring Renewal Modal (Admin Only) */}
+      {selectedForRenewal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-surface-primary border border-border-medium/40 rounded-2xl p-5 sm:p-6 w-full max-w-lg shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border-medium/30 pb-3">
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base text-text-primary flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 text-emerald-600" />
+                  <span>Registrar Renovación Recurrente</span>
+                </h3>
+                <p className="text-xs text-text-tertiary mt-0.5">
+                  Cliente: <span className="font-bold text-text-secondary">{selectedForRenewal.clientName}</span> ({selectedForRenewal.clientEmail})
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedForRenewal(null)}
+                className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-surface-hover cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* 1. Period Selector */}
+              <div>
+                <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1.5">
+                  Temporalidad / Periodo a Renovar
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: 'monthly', label: 'Mensual', days: '+30d' },
+                    { id: 'quarterly', label: 'Trimestral', days: '+90d' },
+                    { id: 'semiannual', label: 'Semestral', days: '+180d' },
+                    { id: 'annual', label: 'Anual', days: '+365d' },
+                  ].map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setRenewalPeriod(p.id as any)}
+                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                        renewalPeriod === p.id
+                          ? 'bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300 font-extrabold shadow-xs'
+                          : 'bg-surface-secondary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
+                      }`}
+                    >
+                      <div className="text-xs font-bold">{p.label}</div>
+                      <div className="text-[10px] text-text-tertiary mt-0.5">{p.days}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 2. Transaction Amount & Commission Rate in 2 columns */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">
+                    Monto del Pago ($ COP)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-text-tertiary text-xs">
+                      $ COP
+                    </span>
+                    <input
+                      type="number"
+                      value={renewalAmount}
+                      onChange={(e) => setRenewalAmount(Number(e.target.value) || 0)}
+                      className="w-full bg-surface-secondary border border-border-medium/40 rounded-xl pl-16 pr-3 py-2 text-xs font-black text-text-primary outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">
+                    % Comisión Embajador
+                  </label>
+                  <select
+                    value={renewalRate}
+                    onChange={(e) => setRenewalRate(Number(e.target.value))}
+                    className="w-full bg-surface-secondary border border-border-medium/40 rounded-xl px-3 py-2 text-xs font-bold text-text-primary outline-none focus:border-emerald-500"
+                  >
+                    <option value={0.30}>30% (Líder / Estándar)</option>
+                    <option value={0.25}>25% (Avanzado)</option>
+                    <option value={0.20}>20% (Base)</option>
+                    <option value={0.15}>15% (Especial)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* 3. Commission Status */}
+              <div>
+                <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">
+                  Estado de la Comisión a Generar
+                </label>
+                <select
+                  value={renewalCommissionStatus}
+                  onChange={(e) => setRenewalCommissionStatus(e.target.value)}
+                  className="w-full bg-surface-secondary border border-border-medium/40 rounded-xl px-3 py-2 text-xs font-bold text-text-primary outline-none focus:border-emerald-500"
+                >
+                  <option value="approved">✓ Aprobada para Liquidación</option>
+                  <option value="paid">✅ Pagada (Liquidada Inmediatamente)</option>
+                  <option value="pending">⏳ Pendiente de Pago</option>
+                </select>
+              </div>
+
+              {/* 4. Projection & Summary Box */}
+              <div className="bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-emerald-500/10 border border-emerald-500/30 rounded-xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text-tertiary">Vigencia Actual:</span>
+                  <span className="font-bold text-text-primary">
+                    {selectedForRenewal.currentExpiry
+                      ? new Date(selectedForRenewal.currentExpiry).toLocaleDateString('es-CO', { year: 'numeric', month: 'numeric', day: 'numeric' })
+                      : 'Sin vigencia / Vencido'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-emerald-800 dark:text-emerald-300">Nueva Vigencia Proyectada:</span>
+                  <span className="font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-md">
+                    {calculateProjectedExpiry()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-emerald-500/20">
+                  <span className="text-text-tertiary">Comisión a Liquidar ({Math.round(renewalRate * 100)}%):</span>
+                  <span className="font-black text-emerald-700 dark:text-emerald-300 font-mono text-sm">
+                    ${Math.round(renewalAmount * renewalRate).toLocaleString('es-CO')} COP
+                  </span>
+                </div>
+              </div>
+
+              {/* 5. Mandatory Confirmation Checkbox */}
+              <label className="flex items-start gap-2.5 p-3 rounded-xl border border-amber-500/40 bg-amber-500/10 cursor-pointer hover:bg-amber-500/15 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={confirmedPayment}
+                  onChange={(e) => setConfirmedPayment(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-border-medium cursor-pointer"
+                />
+                <div className="text-xs text-amber-900 dark:text-amber-200 leading-snug">
+                  <span className="font-extrabold block">Confirmación obligatoria de pago:</span>
+                  <span>
+                    Acepto y confirmo que el cliente realizó efectivamente el pago correspondiente a este periodo (
+                    {renewalPeriod === 'monthly' ? 'Mensual' : renewalPeriod === 'quarterly' ? 'Trimestral' : renewalPeriod === 'semiannual' ? 'Semestral' : 'Anual'}
+                    ).
+                  </span>
+                </div>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border-medium/30">
+              <button
+                onClick={() => setSelectedForRenewal(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-text-secondary hover:bg-surface-hover cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleRenewPeriod}
+                disabled={!confirmedPayment || isRenewing}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer transition-all"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRenewing ? 'animate-spin' : ''}`} />
+                <span>{isRenewing ? 'Procesando...' : 'Aceptar y Registrar Renovación'}</span>
               </button>
             </div>
           </div>

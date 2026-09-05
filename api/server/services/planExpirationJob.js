@@ -60,6 +60,16 @@ const downgradeUserIfExpired = async (userId) => {
         if (!user) return { downgraded: false };
 
         const freeRoles = ['USER', 'ADMIN', 'USER_IPEVAR', 'IPEVAR'];
+
+        // Safety guard: If user's inactiveAt is still valid in the future,
+        // they are NOT expired. Sincronize userPlan.planExpiresAt and do not downgrade.
+        if (user.inactiveAt && new Date(user.inactiveAt) > now) {
+            if (userPlan && (!userPlan.planExpiresAt || new Date(userPlan.planExpiresAt).getTime() !== new Date(user.inactiveAt).getTime())) {
+                await UserPlan.updateOne({ userId: user._id }, { $set: { planExpiresAt: new Date(user.inactiveAt) } });
+            }
+            return { downgraded: false };
+        }
+
         const isUserExpired = user.inactiveAt && new Date(user.inactiveAt) <= now;
         const isPlanExpired = userPlan && userPlan.planExpiresAt && new Date(userPlan.planExpiresAt) <= now && userPlan.plan !== 'free';
 

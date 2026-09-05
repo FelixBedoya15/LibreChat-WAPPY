@@ -692,7 +692,20 @@ router.get('/dashboard', async (req, res) => {
 
             const userRole = (u.role || '').toUpperCase();
             const rawPlan = plan?.plan;
-            const expiresAt = plan?.planExpiresAt ? new Date(plan.planExpiresAt) : (u.inactiveAt ? new Date(u.inactiveAt) : null);
+            
+            // Prioritize user.inactiveAt (set by admin/wompi) or latest valid date
+            let expiresAt = null;
+            if (u.inactiveAt) {
+                expiresAt = new Date(u.inactiveAt);
+            } else if (plan?.planExpiresAt) {
+                expiresAt = new Date(plan.planExpiresAt);
+            }
+
+            // Auto-heal UserPlan.planExpiresAt if out of sync with user.inactiveAt
+            if (u.inactiveAt && plan?.planExpiresAt && new Date(u.inactiveAt).getTime() !== new Date(plan.planExpiresAt).getTime()) {
+                UserPlan.updateOne({ userId: u._id }, { $set: { planExpiresAt: new Date(u.inactiveAt) } }).catch(() => {});
+            }
+
             let daysToExpiry = null;
 
             if (expiresAt && !isNaN(expiresAt.getTime())) {
@@ -829,6 +842,16 @@ router.get('/dashboard', async (req, res) => {
         }
 
         const rawCommissions = await PartnerCommission.find(commQuery).sort({ createdAt: -1 }).lean();
+        
+        // Ensure partnersMap contains all partnerIds from rawCommissions
+        const missingPartnerIds = rawCommissions
+            .map(c => c.partnerId)
+            .filter(id => id && !partnersMap.has(String(id)));
+        if (missingPartnerIds.length > 0) {
+            const extraPartners = await Partner.find({ _id: { $in: missingPartnerIds } }).populate('userId', 'name email username').lean();
+            extraPartners.forEach(p => partnersMap.set(String(p._id), p));
+        }
+
         let totalCommissionsEarned = 0;
         let totalCommissionsPending = 0;
         let totalCommissionsPaid = 0;
@@ -836,9 +859,23 @@ router.get('/dashboard', async (req, res) => {
         const commissionsList = rawCommissions.map(c => {
             const refUser = usersMap.get(String(c.referredUserId)) || {};
             const refPlan = plansMap.get(String(c.referredUserId));
+            const partnerDoc = c.partnerId ? partnersMap.get(String(c.partnerId)) : null;
             const rawPlan = refPlan?.plan;
             const isPro = refUser.role === 'USER_PRO' || rawPlan === 'pro';
-            const expiresAt = refPlan?.planExpiresAt ? new Date(refPlan.planExpiresAt) : (refUser.inactiveAt ? new Date(refUser.inactiveAt) : null);
+
+            // Prioritize refUser.inactiveAt (set by admin/wompi) or latest valid date
+            let expiresAt = null;
+            if (refUser.inactiveAt) {
+                expiresAt = new Date(refUser.inactiveAt);
+            } else if (refPlan?.planExpiresAt) {
+                expiresAt = new Date(refPlan.planExpiresAt);
+            }
+
+            // Auto-heal UserPlan.planExpiresAt if out of sync with refUser.inactiveAt
+            if (refUser.inactiveAt && refPlan?.planExpiresAt && new Date(refUser.inactiveAt).getTime() !== new Date(refPlan.planExpiresAt).getTime()) {
+                UserPlan.updateOne({ userId: refUser._id }, { $set: { planExpiresAt: new Date(refUser.inactiveAt) } }).catch(() => {});
+            }
+
             let daysToExpiry = null;
             if (expiresAt && !isNaN(expiresAt.getTime())) {
                 daysToExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -880,6 +917,9 @@ router.get('/dashboard', async (req, res) => {
 
             return {
                 id: c._id,
+                partnerId: c.partnerId ? String(c.partnerId) : null,
+                ambassadorName: partnerDoc ? (partnerDoc.userId?.name || partnerDoc.userId?.username || partnerDoc.slug) : 'Sin embajador',
+                ambassadorSlug: partnerDoc?.slug || null,
                 userId: refUser._id || c.referredUserId,
                 referredUserName: refUser.name || refUser.username || 'Usuario',
                 referredUserEmail: refUser.email || '',
@@ -1161,6 +1201,150 @@ router.delete('/commissions/:id', async (req, res) => {
     } catch (err) {
         logger.error('[DeleteCommission] Error:', err);
         return res.status(500).json({ error: 'Error al eliminar la comisión.' });
+    }
+});
+
+/**
+ * POST /api/referrals/commissions/renew-period
+ * Register recurring payment renewal for a customer and credit commission to ambassador (Admin only)
+ */
+router.post('/commissions/renew-period', async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Solo los administradores pueden registrar renovaciones recurrentes.' });
+        }
+
+        const {
+            userId,
+            partnerId,
+            period = 'monthly', // 'monthly', 'quarterly', 'semiannual', 'annual', 'custom'
+            customDays,
+            amount,
+            commissionRate,
+            commissionStatus = 'approved',
+            confirmedPaid,
+            notes
+        } = req.body;
+
+        // Strict validation: must explicitly confirm customer paid
+        if (!confirmedPaid) {
+            return res.status(400).json({ error: 'Debe confirmar y aceptar que el cliente realizó efectivamente el pago correspondiente a este periodo.' });
+        }
+
+        if (!userId) {
+            return res.status(400).json({ error: 'El ID de usuario es requerido.' });
+        }
+
+        const User = mongoose.model('User');
+        const targetUser = await User.findById(userId);
+        if (!targetUser) {
+            return res.status(404).json({ error: 'Usuario cliente no encontrado.' });
+        }
+
+        // Calculate days to add based on period
+        let daysToAdd = 30;
+        if (period === 'monthly') daysToAdd = 30;
+        else if (period === 'quarterly') daysToAdd = 90;
+        else if (period === 'semiannual') daysToAdd = 180;
+        else if (period === 'annual') daysToAdd = 365;
+        else if (period === 'custom' && Number(customDays) > 0) daysToAdd = Number(customDays);
+
+        const now = new Date();
+        // Determine base date: if user has future expiry, extend from it. Otherwise start from now.
+        let baseDate = now;
+        const currentExpiry = targetUser.inactiveAt ? new Date(targetUser.inactiveAt) : null;
+        if (currentExpiry && !isNaN(currentExpiry.getTime()) && currentExpiry > now) {
+            baseDate = currentExpiry;
+        }
+
+        const newExpiry = new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+
+        // 1. Update User
+        targetUser.role = 'USER_PRO';
+        targetUser.accountStatus = 'active';
+        targetUser.inactiveAt = newExpiry;
+        if (!targetUser.activeAt) targetUser.activeAt = now;
+        await targetUser.save();
+
+        // 2. Synchronize UserPlan
+        await UserPlan.findOneAndUpdate(
+            { userId: targetUser._id },
+            {
+                $set: {
+                    plan: 'pro',
+                    planExpiresAt: newExpiry,
+                    planInterval: period === 'custom' ? 'monthly' : period,
+                    cancelAtPeriodEnd: false
+                }
+            },
+            { upsert: true, new: true }
+        );
+
+        // 3. Find Ambassador (Partner)
+        let resolvedPartner = null;
+        if (partnerId) {
+            resolvedPartner = await Partner.findById(partnerId);
+        }
+        if (!resolvedPartner) {
+            const refRec = await ReferralRecord.findOne({ referredUserId: targetUser._id });
+            if (refRec?.referredByPartner) {
+                resolvedPartner = await Partner.findById(refRec.referredByPartner);
+            }
+        }
+
+        let createdCommission = null;
+        if (resolvedPartner) {
+            const txAmount = Math.round(Number(amount) || 0);
+            const rate = Number(commissionRate) !== undefined && !isNaN(Number(commissionRate)) 
+                ? Number(commissionRate) 
+                : (resolvedPartner.type === 'embajador' ? 0.30 : 0.20);
+            const commAmount = Math.round(txAmount * rate);
+            const status = ['pending', 'approved', 'paid'].includes(commissionStatus) ? commissionStatus : 'approved';
+
+            createdCommission = await PartnerCommission.create({
+                partnerId: resolvedPartner._id,
+                referredUserId: targetUser._id,
+                transactionId: `RENEWAL_${period.toUpperCase()}_${Date.now()}`,
+                amount: txAmount,
+                commissionRate: rate,
+                commissionAmount: commAmount,
+                status: status,
+                payoutDate: status === 'paid' ? new Date() : null
+            });
+
+            try {
+                const Notification = mongoose.models.Notification || (mongoose.modelNames().includes('Notification') ? mongoose.model('Notification') : null);
+                if (Notification && resolvedPartner.userId) {
+                    await Notification.create({
+                        user: resolvedPartner.userId,
+                        type: 'partner_commission_pending',
+                        title: 'Comisión por Renovación Recurrente',
+                        body: `Se ha registrado la renovación del periodo ${period} para ${targetUser.name || targetUser.username || 'Cliente'}. Comisión: $${commAmount.toLocaleString('es-CO')} COP.`,
+                    });
+                }
+            } catch (notifErr) {
+                // Non-blocking notification
+            }
+        }
+
+        logger.info(`[RenewPeriod] Admin ${req.user.email} renewed user ${targetUser.email} (${period}, +${daysToAdd}d). New expiry: ${newExpiry.toISOString()}`);
+
+        return res.json({
+            success: true,
+            message: `¡Renovación de periodo exitosa! Vigencia extendida hasta el ${newExpiry.toLocaleDateString('es-CO')}.`,
+            newExpiry,
+            user: {
+                _id: targetUser._id,
+                name: targetUser.name,
+                email: targetUser.email,
+                role: targetUser.role,
+                inactiveAt: newExpiry
+            },
+            commission: createdCommission
+        });
+    } catch (err) {
+        logger.error('[RenewPeriod] Error:', err);
+        return res.status(500).json({ error: err.message || 'Error al procesar la renovación recurrente.' });
     }
 });
 

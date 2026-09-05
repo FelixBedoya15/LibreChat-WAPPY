@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
-import { BookOpen, CheckCircle, Clock, Shield, Play, Info, ChevronLeft, ChevronRight, Zap, GraduationCap, X } from 'lucide-react';
+import { BookOpen, CheckCircle, Clock, Shield, Play, Info, ChevronLeft, ChevronRight, Zap, GraduationCap, X, Plus } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import type { ContextType } from '~/common';
@@ -247,7 +247,9 @@ export default function RutaAprendizajeDashboard({ hideFloatingHeader = false }:
     const { showToast } = useToastContext();
     const navigate = useNavigate();
     const { user } = useAuthContext();
-    const isAdmin = user?.role === 'ADMIN';
+    const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com', 'felix.bedoya15@gmail.com'];
+    const isAdmin = user?.role === 'ADMIN' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
+    const isProOrAdmin = isAdmin || user?.role === 'USER_PRO' || user?.role === 'USER_CUSTOM';
     const outletContext = useOutletContext<ContextType>();
     const navVisible = outletContext?.navVisible ?? true;
     const setNavVisible = outletContext?.setNavVisible ?? (() => {});
@@ -328,14 +330,25 @@ export default function RutaAprendizajeDashboard({ hideFloatingHeader = false }:
                         </div>
                     </div>
 
-                    {isAdmin && (
-                        <button
-                            onClick={() => navigate('/ruta-aprendizaje/admin')}
-                            className="pointer-events-auto group flex items-center gap-2 sm:gap-3 bg-surface-primary/40 dark:bg-white/10 backdrop-blur-md px-4 sm:px-5 py-1.5 sm:py-2.5 border border-border-light dark:border-white/10 hover:bg-surface-hover dark:hover:bg-white/20 text-text-primary rounded-full transition-all duration-300 shadow-xl"
-                        >
-                            <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-[#10b981]" />
-                            <span className="font-bold text-[10px] sm:text-xs md:text-sm uppercase tracking-wider">Administrar</span>
-                        </button>
+                    {isProOrAdmin && (
+                        <div className="flex items-center gap-2 pointer-events-auto">
+                            <button
+                                onClick={() => navigate('/ruta-aprendizaje/admin/courses/new')}
+                                className="group flex items-center gap-1.5 bg-[#10b981] hover:bg-[#059669] text-white px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full transition-all duration-300 shadow-xl font-bold text-[10px] sm:text-xs uppercase tracking-wider cursor-pointer"
+                                title="Crear nueva ruta o curso"
+                            >
+                                <Plus className="w-4 h-4" />
+                                <span>Crear Curso</span>
+                            </button>
+                            <button
+                                onClick={() => navigate('/ruta-aprendizaje/admin')}
+                                className="group flex items-center gap-2 bg-surface-primary/40 dark:bg-white/10 backdrop-blur-md px-3.5 sm:px-4 py-1.5 sm:py-2 border border-border-light dark:border-white/10 hover:bg-surface-hover dark:hover:bg-white/20 text-text-primary rounded-full transition-all duration-300 shadow-xl cursor-pointer"
+                                title="Administrar rutas de aprendizaje"
+                            >
+                                <Shield className="w-4 h-4 text-[#10b981]" />
+                                <span className="font-bold text-[10px] sm:text-xs uppercase tracking-wider">Administrar</span>
+                            </button>
+                        </div>
                     )}
                 </div>
             )}
@@ -347,13 +360,21 @@ export default function RutaAprendizajeDashboard({ hideFloatingHeader = false }:
                         <GraduationCap className="w-16 h-16 text-[#10b981] mb-4" />
                         <h2 className="font-bold text-2xl mb-2">No hay rutas creadas</h2>
                         <p className="text-sm text-text-tertiary mb-6">Tu empresa no cuenta con rutas de aprendizaje publicadas por el momento.</p>
-                        {isAdmin && (
-                            <button
-                                onClick={() => navigate('/ruta-aprendizaje/admin')}
-                                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors shadow"
-                            >
-                                Crear una ruta
-                            </button>
+                        {isProOrAdmin && (
+                            <div className="flex flex-col sm:flex-row items-center gap-3">
+                                <button
+                                    onClick={() => navigate('/ruta-aprendizaje/admin/courses/new')}
+                                    className="px-6 py-2.5 bg-[#10b981] hover:bg-[#059669] text-white rounded-xl font-bold transition-all transform active:scale-95 shadow-lg flex items-center gap-2 cursor-pointer text-sm"
+                                >
+                                    <Plus size={18} /> Crear Curso o Ruta
+                                </button>
+                                <button
+                                    onClick={() => navigate('/ruta-aprendizaje/admin')}
+                                    className="px-6 py-2.5 bg-surface-primary hover:bg-surface-hover text-text-primary border border-border-medium rounded-xl font-semibold transition-all shadow flex items-center gap-2 cursor-pointer text-sm"
+                                >
+                                    <Shield size={18} className="text-[#10b981]" /> Panel de Gestión
+                                </button>
+                            </div>
                         )}
                     </div>
                 ) : (
