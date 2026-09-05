@@ -789,28 +789,16 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         />
                     }
                 >
-                    <div style={{ minHeight: '400px', overflowX: 'auto' }}>
-                        <div style={{ minWidth: '900px' }}>
-                            <LiveEditor
-                                ref={liveEditorRef}
-                                reportType="checklist"
-                                initialContent={analysisReport}
-                                onUpdate={(html) => { editorContentRef.current = html; }}
-                                reportSourceData={{ statuses, observations, companySize, riskLevel, currentScore, totalPoints, complianceLevel }}
-                            />
-                        </div>
+                    <div className="w-full min-w-0">
+                        <LiveEditor
+                            ref={liveEditorRef}
+                            paperMode={true}
+                            reportType="checklist"
+                            initialContent={analysisReport}
+                            onUpdate={(html) => { editorContentRef.current = html; }}
+                            reportSourceData={{ statuses, observations, companySize, riskLevel, currentScore, totalPoints, complianceLevel }}
+                        />
                     </div>
-                    <style>{`
-                        [contenteditable] table {
-                            width: 100%;
-                            min-width: 800px;
-                            border-collapse: separate;
-                            border-spacing: 0;
-                            border-radius: 12px;
-                            overflow: hidden;
-                            border: 1px solid var(--border-medium, #ddd);
-                        }
-                    `}</style>
                 </CollapsibleReportBox>
 
             {/* Report History Panel */}

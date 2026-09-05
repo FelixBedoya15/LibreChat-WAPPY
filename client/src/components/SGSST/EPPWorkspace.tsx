@@ -962,15 +962,14 @@ export default function EPPWorkspace() {
           />
         }
       >
-        <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-          <div style={{ minWidth: '900px', padding: '16px' }}>
-            <LiveEditor
-              ref={liveEditorRef}
-              initialContent={generatedReport}
-              onUpdate={(html) => { editorContentRef.current = html; }}
-              reportSourceData={{ worker: selectedWorker, doc: selectedDoc }}
-            />
-          </div>
+        <div className="w-full min-w-0">
+          <LiveEditor
+            ref={liveEditorRef}
+            paperMode={true}
+            initialContent={generatedReport}
+            onUpdate={(html) => { editorContentRef.current = html; }}
+            reportSourceData={{ worker: selectedWorker, doc: selectedDoc }}
+          />
         </div>
       </CollapsibleReportBox>
 

@@ -1029,12 +1029,12 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       <motion.button
         whileTap={{ scale: 0.95 }}
         onClick={onClick ? onClick : () => command && execCmd(command, value)}
-        className="border-border-medium/50 group relative flex h-10 min-w-[40px] shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 sm:hover:border-teal-400 sm:hover:bg-surface-hover"
+        className="border-border-medium/50 group relative flex h-7.5 w-7.5 sm:h-8 sm:w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border bg-surface-primary text-text-primary shadow-xs outline-none transition-all duration-200 hover:border-teal-400 hover:bg-surface-hover active:scale-95"
         type="button"
         aria-label={label}
       >
-        <Icon size={20} />
-        <div className="pointer-events-none absolute left-1/2 top-full z-[110] mt-2 hidden max-w-0 -translate-x-1/2 items-center overflow-hidden whitespace-nowrap rounded-md border border-teal-500/50 bg-teal-600 px-2 py-1 text-white opacity-0 shadow-xl transition-all duration-300 ease-in-out group-hover:max-w-[150px] group-hover:opacity-100 sm:flex">
+        <Icon size={15} className="sm:h-4 sm:w-4" />
+        <div className="pointer-events-none absolute left-1/2 top-full z-[110] mt-1.5 hidden max-w-0 -translate-x-1/2 items-center overflow-hidden whitespace-nowrap rounded-md border border-teal-500/50 bg-teal-600 px-2 py-0.5 text-white opacity-0 shadow-xl transition-all duration-300 ease-in-out group-hover:max-w-[150px] group-hover:opacity-100 sm:flex">
           <span className="text-[9px] font-bold uppercase tracking-wider">{label}</span>
         </div>
       </motion.button>
@@ -1151,12 +1151,12 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       return result;
     }, [editorGroups]);
 
-    const ToolbarSeparator = () => <div className="bg-border-medium/60 mx-1 h-6 w-px" />;
+    const ToolbarSeparator = () => <div className="hidden sm:block bg-border-medium/60 mx-0.5 h-4 w-px self-center" />;
 
     return (
       <div
         ref={editorWrapperRef}
-        className={`relative flex flex-col ${isFullScreen ? 'fixed inset-0 z-[99999] bg-surface-secondary' : 'h-full min-h-[600px] w-full rounded-xl bg-surface-secondary'} font-sans transition-all duration-300`}
+        className={`relative flex flex-col ${isFullScreen ? 'fixed inset-0 z-[99999] bg-surface-secondary' : 'h-full min-h-[500px] w-full rounded-xl bg-surface-secondary'} font-sans transition-all duration-300`}
       >
         {localToast && (
           <div className="pointer-events-none absolute left-1/2 top-16 z-[99999999] -translate-x-1/2 transform">
@@ -1181,11 +1181,11 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
 
         {/* Header Toolbar — hidden in collapsed mode when hideToolbarWhenCollapsed=true */}
         {(!hideToolbarWhenCollapsed || isFullScreen) && (
-          <div className="bg-surface-secondary/50 group/toolbar sticky top-0 z-50 flex flex-col items-center border-b border-border-medium p-2 backdrop-blur-sm transition-all duration-300">
-            <div className="flex flex-wrap items-center justify-center gap-1 md:gap-2">
+          <div className="bg-surface-secondary/80 group/toolbar sticky top-0 z-50 flex flex-col items-center border-b border-border-medium p-1.5 sm:p-2 backdrop-blur-sm transition-all duration-300">
+            <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-1.5">
               {editorGroups.map((group, idx) => (
                 <React.Fragment key={group.id}>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     {group.buttons.map((btn, bIdx) => (
                       <ToolbarButton key={bIdx} {...btn} />
                     ))}
@@ -1593,14 +1593,14 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
           </div>
         )}
 
-        <div className="relative flex flex-1 flex-col overflow-x-auto overflow-y-auto">
+        <div className={`relative flex flex-1 flex-col overflow-y-auto w-full min-w-0 transition-colors ${paperMode ? 'bg-slate-100/70 dark:bg-zinc-950/40 p-2 sm:p-5' : 'p-2'}`}>
           <div
             ref={editorRef}
-            className={`prose flex-1 overflow-y-auto p-3 outline-none sm:p-8 ${!paperMode ? 'dark:prose-invert' : ''} live-editor-content w-full min-w-[900px] max-w-none ${reportType === 'checklist' ? 'checklist-mode' : ''} ${paperMode ? 'paper-mode' : ''}`}
+            className={`prose outline-none transition-all live-editor-content w-full min-w-0 ${!paperMode ? 'flex-1 p-3 sm:p-6 max-w-none dark:prose-invert' : 'paper-mode max-w-4xl mx-auto'} ${reportType === 'checklist' ? 'checklist-mode' : ''}`}
             contentEditable
             onInput={handleInput}
             suppressContentEditableWarning={true}
-            style={{ minHeight: '100%', maxWidth: '100%' }}
+            style={{ minHeight: paperMode ? '600px' : '100%', maxWidth: paperMode ? '860px' : '100%' }}
           />
         </div>
         {/* Standardized report styles matching Diagnóstico/Auditoría */}
@@ -1608,40 +1608,47 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                 .live-editor-content h1 {
                     color: #004d99;
                     text-align: center;
-                    margin-bottom: 5px;
-                    font-size: 1.8em;
+                    margin-bottom: 6px;
+                    font-size: 1.5em;
                     border-bottom: 2px solid #004d99;
-                    padding-bottom: 8px;
+                    padding-bottom: 6px;
                 }
                 .live-editor-content h2 {
                     color: #004d99;
                     border-bottom: 2px solid #004d99;
-                    padding-bottom: 5px;
-                    font-size: 1.4em;
+                    padding-bottom: 4px;
+                    font-size: 1.25em;
+                    margin-top: 14px;
+                    margin-bottom: 6px;
                 }
                 .live-editor-content h3 {
                     color: #333;
-                    font-size: 1.2em;
+                    font-size: 1.1em;
+                    margin-top: 10px;
+                    margin-bottom: 4px;
                 }
                 .live-editor-content table {
-                    width: 100%;
+                    width: 100% !important;
+                    max-width: 100% !important;
                     border-collapse: separate;
                     border-spacing: 0;
-                    margin: 15px 0;
-                    font-size: 0.9em;
-                    border-radius: 12px;
+                    margin: 12px 0;
+                    font-size: 0.85em;
+                    border-radius: 10px;
                     overflow: hidden;
-                    border: 1px solid #ddd;
+                    border: 1px solid #e2e8f0;
                     table-layout: auto;
+                    word-break: break-word;
                 }
                 .live-editor-content table th {
                     background-color: #004d99;
                     color: white;
-                    padding: 10px 8px;
+                    padding: 8px 10px;
                     text-align: left;
                     font-weight: 600;
                     border-bottom: 1px solid #ddd;
                     border-right: 1px solid rgba(255,255,255,0.15);
+                    word-break: break-word;
                 }
                 /* Specific column widths for SGSST Reports */
                 .checklist-mode table th:nth-child(1) { width: 38px; } /* # - Narrowest possible */
@@ -1654,9 +1661,9 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     border-right: none;
                 }
                 .live-editor-content table td {
-                    padding: 10px 8px;
-                    border-bottom: 1px solid #ddd;
-                    border-right: 1px solid #eee;
+                    padding: 8px 10px;
+                    border-bottom: 1px solid #e2e8f0;
+                    border-right: 1px solid #f1f5f9;
                     vertical-align: top;
                     word-wrap: break-word;
                     overflow-wrap: break-word;
@@ -1668,10 +1675,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     border-bottom: none;
                 }
                 .live-editor-content table tr:nth-child(even) {
-                    background-color: #f8f9fa;
+                    background-color: #f8fafc;
                 }
                 .live-editor-content table tr:hover {
-                    background-color: #e8f0fe;
+                    background-color: #f1f5f9;
                 }
                 .live-editor-content img {
                     max-width: 100%;
@@ -1729,10 +1736,20 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                 .live-editor-content.paper-mode {
                     background-color: #ffffff !important;
                     color: #1e293b !important;
-                    padding: 40px !important;
-                    min-height: 800px;
-                    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-                    border-radius: 8px;
+                    padding: 24px 28px !important;
+                    min-height: 600px;
+                    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+                    border-radius: 12px;
+                    border: 1px solid rgba(226, 232, 240, 0.8);
+                    width: 100% !important;
+                    box-sizing: border-box !important;
+                    margin: 0 auto;
+                }
+                @media (max-width: 640px) {
+                    .live-editor-content.paper-mode {
+                        padding: 14px 12px !important;
+                        border-radius: 8px;
+                    }
                 }
                 .dark .live-editor-content.paper-mode {
                     background-color: #ffffff !important;

@@ -915,16 +915,15 @@ export default function AltaDireccionChecklist() {
                         />
                     }
                     >
-                        <div style={{ minHeight: '400px', overflowX: 'auto' }}>
-                            <div style={{ minWidth: '900px' }}>
-                                <LiveEditor
-                                    ref={liveEditorRef}
-                                    reportType="checklist"
-                                    initialContent={analysisReport}
-                                    onUpdate={(html) => { editorContentRef.current = html; }}
-                                    reportSourceData={{ statuses, observations }}
-                                />
-                            </div>
+                        <div className="w-full min-w-0">
+                            <LiveEditor
+                                ref={liveEditorRef}
+                                paperMode={true}
+                                reportType="checklist"
+                                initialContent={analysisReport}
+                                onUpdate={(html) => { editorContentRef.current = html; }}
+                                reportSourceData={{ statuses, observations }}
+                            />
                         </div>
                     </CollapsibleReportBox>
                 </div>

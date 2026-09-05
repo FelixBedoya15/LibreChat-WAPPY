@@ -693,14 +693,14 @@ export default function OraculoPredictivoH1() {
                                                     onClick={() => handleConsultOracle(worker, profile, fit)}
                                                     disabled={generatingId === worker.id}
                                                     title="Re-evaluar y generar nuevo dictamen con IA"
-                                                    className="group flex items-center justify-center h-10 px-3 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-border-medium hover:border-teal-400 sm:hover:scale-105"
+                                                    className="group flex items-center justify-center h-8 sm:h-8.5 px-2.5 min-w-[32px] sm:min-w-[34px] transition-all duration-200 shadow-xs shrink-0 cursor-pointer border rounded-lg bg-surface-primary hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-border-medium hover:border-teal-400 active:scale-95"
                                                 >
                                                     {generatingId === worker.id ? (
                                                         <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
                                                     ) : (
                                                         <Sparkles className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
                                                     )}
-                                                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
                                                         <span className="text-xs font-bold tracking-wide">Re-evaluar IA</span>
                                                     </div>
                                                 </button>
@@ -712,26 +712,20 @@ export default function OraculoPredictivoH1() {
                                             </>
                                         }
                                     >
-                                        <div className="p-4 bg-zinc-100/70 dark:bg-zinc-950/40">
-                                            <div className="mx-auto w-full max-w-5xl rounded-2xl border border-border-medium/60 bg-white dark:bg-zinc-900 shadow-xl overflow-hidden">
-                                                <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
-                                                    <div style={{ minWidth: '850px' }}>
-                                                        <LiveEditor
-                                                            paperMode={true}
-                                                            initialContent={conclusionContent}
-                                                            onUpdate={(html) => {
-                                                                setAiConclusions(prev => ({ ...prev, [worker.id]: html }));
-                                                            }}
-                                                            reportSourceData={{
-                                                                trabajador: worker,
-                                                                perfilCargo: profile,
-                                                                fitScore: score,
-                                                                alertas: displayAlerts
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        <div className="w-full min-w-0">
+                                            <LiveEditor
+                                                paperMode={true}
+                                                initialContent={conclusionContent}
+                                                onUpdate={(html) => {
+                                                    setAiConclusions(prev => ({ ...prev, [worker.id]: html }));
+                                                }}
+                                                reportSourceData={{
+                                                    trabajador: worker,
+                                                    perfilCargo: profile,
+                                                    fitScore: score,
+                                                    alertas: displayAlerts
+                                                }}
+                                            />
                                         </div>
                                     </CollapsibleReportBox>
                                 )}

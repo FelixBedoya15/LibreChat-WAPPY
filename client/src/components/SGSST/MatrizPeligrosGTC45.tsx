@@ -1248,38 +1248,17 @@ const MatrizPeligrosGTC45 = () => {
                         />
                     }
                 >
-                        <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
-                            <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor ref={liveEditorRef} initialContent={generatedReport} onUpdate={(html) => { editorContentRef.current = html; }} reportSourceData={procesos} onHistory={() => setIsHistoryOpen(!isHistoryOpen)} />
-                            </div>
-                        </div>
-                        <style>{`
-                            [contenteditable] table {
-                                width: 100%;
-                                min-width: 650px;
-                                border-collapse: separate;
-                                border-spacing: 0;
-                                table-layout: auto;
-                                border-radius: 12px;
-                                overflow: hidden;
-                                border: 1px solid var(--border-medium, #ddd);
-                            }
-                            [contenteditable] table td,
-                            [contenteditable] table th {
-                                padding: 8px 12px;
-                                border-bottom: 1px solid var(--border-medium, #ddd);
-                                border-right: 1px solid var(--border-medium, #eee);
-                                word-wrap: break-word;
-                            }
-                            [contenteditable] table td:last-child,
-                            [contenteditable] table th:last-child {
-                                border-right: none;
-                            }
-                            [contenteditable] table tr:last-child td {
-                                border-bottom: none;
-                            }
-                        `}</style>
-                    </CollapsibleReportBox>
+                    <div className="w-full min-w-0">
+                        <LiveEditor
+                            ref={liveEditorRef}
+                            paperMode={true}
+                            initialContent={generatedReport}
+                            onUpdate={(html) => { editorContentRef.current = html; }}
+                            reportSourceData={procesos}
+                            onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        />
+                    </div>
+                </CollapsibleReportBox>
             </div>
         
             {/* Upgrade Modal (Freemium Teaser) */}

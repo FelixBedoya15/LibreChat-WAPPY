@@ -1641,17 +1641,14 @@ const InvestigacionATEL = () => {
                     />
                 }
                 >
-                    <div className="p-1 overflow-hidden">
-                        <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                            <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor
-                                    ref={liveEditorRef}
-                                    initialContent={generatedObjectives || ''}
-                                    onUpdate={(html) => { editorContentRef.current = html; }}
-                                    reportSourceData={{ formData, testigosList, equipoList }}
-                                />
-                            </div>
-                        </div>
+                    <div className="w-full min-w-0">
+                        <LiveEditor
+                            ref={liveEditorRef}
+                            paperMode={true}
+                            initialContent={generatedObjectives || ''}
+                            onUpdate={(html) => { editorContentRef.current = html; }}
+                            reportSourceData={{ formData, testigosList, equipoList }}
+                        />
                     </div>
                 </CollapsibleReportBox>
             </div>

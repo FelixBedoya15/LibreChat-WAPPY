@@ -774,17 +774,14 @@ const AnalisisVulnerabilidad = () => {
                         />
                     }
           >
-            <div className="p-1 overflow-hidden">
-              <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                <div style={{ minWidth: '900px', padding: '16px' }}>
-                  <LiveEditor
-                    ref={liveEditorRef}
-                    initialContent={generatedReport}
-                    onUpdate={(html) => { editorContentRef.current = html; }}
-                    reportSourceData={amenazasList}
-                  />
-                </div>
-              </div>
+            <div className="w-full min-w-0">
+              <LiveEditor
+                ref={liveEditorRef}
+                paperMode={true}
+                initialContent={generatedReport}
+                onUpdate={(html) => { editorContentRef.current = html; }}
+                reportSourceData={amenazasList}
+              />
             </div>
           </CollapsibleReportBox>
       </div>
