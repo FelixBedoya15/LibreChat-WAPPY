@@ -51,9 +51,9 @@ export default function RutaAprendizajeCourseEditor() {
 
     // AI States
     const [isGeneratingCourse, setIsGeneratingCourse] = useState(false);
-    const [courseAIModel, setCourseAIModel] = useState('gemini-3.1-flash-lite');
+    const [courseAIModel, setCourseAIModel] = useState('gemini-3.7-flash');
     const [isGeneratingLesson, setIsGeneratingLesson] = useState(false);
-    const [lessonAIModel, setLessonAIModel] = useState('gemini-3.1-flash-lite');
+    const [lessonAIModel, setLessonAIModel] = useState('gemini-3.7-flash');
 
     const handleGenerateCourse = async () => {
         if (!title.trim()) {

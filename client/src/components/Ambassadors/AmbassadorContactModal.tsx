@@ -144,7 +144,7 @@ export default function AmbassadorContactModal({
   const [emailSubTab, setEmailSubTab] = useState<'edit' | 'preview'>('edit');
 
   // Email State (Default to 3.5 Lite)
-  const [model, setModel] = useState('gemini-3.1-flash-lite');
+  const [model, setModel] = useState('gemini-3.7-flash');
   const [emailPrompt, setEmailPrompt] = useState('');
   const [subject, setSubject] = useState(`¡Hola ${user.name.split(' ')[0]}! Novedades exclusivas en tu cuenta de Wappy IA`);
   const [bodyHtml, setBodyHtml] = useState(
@@ -487,7 +487,7 @@ export default function AmbassadorContactModal({
                         onChange={(e) => setModel(e.target.value)}
                         className="bg-surface-primary border border-border-medium/40 rounded-lg px-2.5 py-1 text-xs text-text-secondary outline-none focus:border-teal-500 font-semibold"
                       >
-                        <option value="gemini-3.1-flash-lite">Gemini 3.5 Lite (Por defecto)</option>
+                        <option value="gemini-3.7-flash">Gemini 3.5 Lite (Por defecto)</option>
                         <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
                         <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                       </select>

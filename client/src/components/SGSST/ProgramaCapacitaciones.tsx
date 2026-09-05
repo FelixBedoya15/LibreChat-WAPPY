@@ -260,7 +260,7 @@ export default function ProgramaCapacitaciones() {
       const res = await fetch('/api/sgsst/programa-capacitaciones/generate-programa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ modelName: 'gemini-3.1-flash-lite' }),
+        body: JSON.stringify({ modelName: 'gemini-3.7-flash' }),
       });
       const data = await res.json();
 

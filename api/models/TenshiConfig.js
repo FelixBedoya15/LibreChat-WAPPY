@@ -12,7 +12,7 @@ const tenshiConfigSchema = mongoose.Schema(
         },
         model: {
             type: String,
-            default: 'gemini-3.1-flash-lite',
+            default: 'gemini-3.7-flash',
         },
         systemPrompt: {
             type: String,

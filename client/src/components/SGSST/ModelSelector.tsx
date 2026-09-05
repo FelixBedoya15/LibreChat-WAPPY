@@ -1,16 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { Brain, ChevronDown, Check } from 'lucide-react';
 import { cn } from '~/utils';
+import { useGetEndpointsQuery } from '~/data-provider';
+import { EModelEndpoint } from 'librechat-data-provider';
 
-// Fallback model list (used only when query hasn't loaded yet)
+// Modern official Gemini Flash model lineup
 export const AI_MODELS = [
-  { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite' },
+  { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
   { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash' },
   { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
-  { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite' },
-  { id: 'gemini-2.5-flash-native-audio-preview-12-2025', name: 'Gemini 2.5 Audio (Dic)' },
-  { id: 'gemini-2.5-flash-native-audio-preview-09-2025', name: 'Gemini 2.5 Audio (Sep)' },
+  { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite' },
 ];
 
 interface ModelSelectorProps {
@@ -29,10 +29,50 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { data: endpointsConfig } = useGetEndpointsQuery();
 
-  const availableModels = AI_MODELS;
+  const availableModels = useMemo(() => {
+    const googleModels = endpointsConfig?.[EModelEndpoint.google]?.models;
+    if (Array.isArray(googleModels) && googleModels.length > 0) {
+      const filtered = googleModels
+        .map((m: any) => {
+          const id = typeof m === 'string' ? m : m?.id || m?.value || '';
+          return id.replace('models/', '').trim();
+        })
+        .filter((id: string) => id && !id.includes('live') && !id.includes('native-audio') && !id.includes('preview') && !id.includes('3.1'));
+
+      if (filtered.length > 0) {
+        const formatName = (id: string) => {
+          if (id === 'gemini-3.7-flash') return 'Gemini 3.7 Flash';
+          if (id === 'gemini-3.6-flash') return 'Gemini 3.6 Flash';
+          if (id === 'gemini-3.5-flash') return 'Gemini 3.5 Flash';
+          if (id === 'gemini-3.5-flash-lite') return 'Gemini 3.5 Flash Lite';
+          return id.split('-').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+        };
+        const unique = Array.from(new Set(filtered));
+        return unique.map((id: string) => ({ id, name: formatName(id) }));
+      }
+    }
+    return AI_MODELS;
+  }, [endpointsConfig]);
+
   const currentModelName =
-    availableModels.find((m) => m.id === selectedModel)?.name || selectedModel;
+    availableModels.find((m) => m.id === selectedModel)?.name ||
+    (selectedModel === 'gemini-3.7-flash' ? 'Gemini 3.7 Flash' :
+     selectedModel === 'gemini-3.6-flash' ? 'Gemini 3.6 Flash' :
+     selectedModel === 'gemini-3.5-flash' ? 'Gemini 3.5 Flash' :
+     selectedModel === 'gemini-3.5-flash-lite' ? 'Gemini 3.5 Flash Lite' :
+     availableModels[0]?.name || selectedModel);
+
+  // Auto-normalize if selectedModel is obsolete or not in available models
+  useEffect(() => {
+    if (availableModels.length > 0 && selectedModel) {
+      const isPresent = availableModels.some((m) => m.id === selectedModel);
+      if (!isPresent && (selectedModel.includes('3.1') || selectedModel.includes('2.5') || selectedModel.includes('2.0') || selectedModel.includes('1.5'))) {
+        onSelectModel(availableModels[0].id);
+      }
+    }
+  }, [availableModels, selectedModel, onSelectModel]);
 
   const calcPos = () => {
     if (buttonRef.current) {

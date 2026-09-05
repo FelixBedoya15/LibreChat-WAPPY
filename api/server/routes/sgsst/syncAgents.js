@@ -1038,8 +1038,7 @@ router.get('/migrate-names-public', async (req, res) => {
         modified = true;
       }
       
-      const isPsychologist = newName === 'Especialista en Riesgo Psicosocial' || newName === 'Psicólog@ Especialista SST' || agent.name === 'Especialista en Riesgo Psicosocial' || agent.name === 'Psicólog@ Especialista SST';
-      const targetModel = isPsychologist ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash';
+      const targetModel = (process.env.GOOGLE_MODELS || 'gemini-3.7-flash').split(',')[0].trim();
       if (agent.model !== targetModel && agent.provider === 'google') {
         agent.model = targetModel;
         modified = true;
@@ -1155,8 +1154,7 @@ router.get('/migrate-names-public', async (req, res) => {
         modified = true;
       }
       
-      const isPsychologist = newName === 'Especialista en Riesgo Psicosocial' || newName === 'Psicólog@ Especialista SST' || agent.name === 'Especialista en Riesgo Psicosocial' || agent.name === 'Psicólog@ Especialista SST';
-      const targetModel = isPsychologist ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash';
+      const targetModel = (process.env.GOOGLE_MODELS || 'gemini-3.7-flash').split(',')[0].trim();
       if (agent.model !== targetModel && agent.provider === 'google') {
         agent.model = targetModel;
         modified = true;

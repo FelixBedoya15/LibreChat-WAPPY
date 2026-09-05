@@ -966,7 +966,7 @@ REGLAS DE INTERACCIÓN EN VIVO:
             logger.info(`[VoiceSession] Starting transcription correction for: "${userText}"`);
 
             // Use Gemini 3.1 Flash Lite for high performance voice transcription corrections
-            const correctionModelName = 'gemini-3.1-flash-lite';
+            const correctionModelName = 'gemini-3.7-flash';
 
             const prompt = `
             Eres un corrector ortográfico y gramatical experto en español, especializado en Seguridad y Salud en el Trabajo (SST/HSE).

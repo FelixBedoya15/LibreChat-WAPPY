@@ -62,10 +62,38 @@ router.get('/download/:filename', async (req, res) => {
     }
 });
 
-// Helper: Get active company of a user
-async function getActiveCompanyId(userId) {
-    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
-    if (!active) active = await CompanyInfo.findOne({ user: userId });
+// Helper: Get active company of a user (or auto-create default if missing)
+async function getActiveCompanyId(reqOrUser) {
+    const user = reqOrUser?.user || (typeof reqOrUser === 'object' && reqOrUser?.id ? reqOrUser : null);
+    const userId = user?.id || user?._id || (typeof reqOrUser === 'string' ? reqOrUser : null);
+
+    if (user?.isSubUser && user?.assignedCompany) {
+        return user.assignedCompany;
+    }
+    const targetUserId = (user?.isSubUser && user?.parentUser) ? user.parentUser : userId;
+
+    if (!targetUserId) {
+        return null;
+    }
+
+    let active = await CompanyInfo.findOne({ user: targetUserId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: targetUserId });
+
+    // If no company exists yet, auto-create a default active company for this user so they are never blocked
+    if (!active) {
+        try {
+            const userName = user?.name || user?.username || 'Mi Empresa';
+            active = await CompanyInfo.create({
+                user: targetUserId,
+                companyName: `Empresa de ${userName}`,
+                isActive: true
+            });
+            logger.info(`[RutaAprendizaje] Auto-created default CompanyInfo for user ${targetUserId}`);
+        } catch (e) {
+            logger.warn('[RutaAprendizaje] Could not auto-create CompanyInfo:', e.message);
+        }
+    }
+
     return active ? active._id : null;
 }
 
@@ -73,7 +101,6 @@ async function getActiveCompanyId(userId) {
 async function getSisterCompanyIds(companyId) {
     let companyIds = [companyId];
     if (mongoose.Types.ObjectId.isValid(companyId)) {
-
         companyIds.push(new mongoose.Types.ObjectId(companyId));
     }
     try {
@@ -93,40 +120,71 @@ async function getSisterCompanyIds(companyId) {
 }
 
 // -------------------------------------------------------------
-// --- Admin Endpoints (Require JWT Authentication & ADMIN role) ---
+// --- Admin Endpoints (Require JWT Authentication & Admin/PRO role) ---
 // -------------------------------------------------------------
 
-const checkAdminRole = (req, res, next) => {
-    if (req.user && req.user.role === 'ADMIN') {
-        return next();
-    }
-    return res.status(403).json({ message: 'Forbidden: Admin access required' });
+const ADMIN_EMAILS = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com', 'felix.bedoya15@gmail.com'];
+
+const isSuperAdminUser = (user) => {
+    if (!user) return false;
+    const userRole = user.role;
+    const userEmail = user.email?.toLowerCase();
+    return userRole === 'ADMIN' || (!!userEmail && ADMIN_EMAILS.includes(userEmail));
 };
 
+const checkAdminOrProRole = (req, res, next) => {
+    const user = req.user;
+    if (!user) {
+        return res.status(401).json({ message: 'No autenticado' });
+    }
+
+    const isAdmin = isSuperAdminUser(user);
+    const isPro = user.role === 'USER_PRO' || user.role === 'USER_CUSTOM' || user.role === 'USER_IPEVAR' || user.role === 'IPEVAR';
+    const isSubUserWithPerm = !!user.isSubUser && (
+        !user.subUserPermissions ||
+        user.subUserPermissions.length === 0 ||
+        user.subUserPermissions.includes('lms:ruta_aprendizaje') ||
+        user.subUserPermissions.includes('lms:aula_estudio')
+    );
+
+    if (isAdmin || isPro || isSubUserWithPerm) {
+        return next();
+    }
+    return res.status(403).json({ message: 'Forbidden: Requiere plan WAPPY PRO o permisos de Administrador para gestionar rutas de aprendizaje.' });
+};
+
+// Alias for compatibility
+const checkAdminRole = checkAdminOrProRole;
+
 // Get all courses for the active company
-router.get('/admin/courses', requireJwtAuth, checkAdminRole, async (req, res) => {
+router.get('/admin/courses', requireJwtAuth, async (req, res) => {
     try {
-        const userId = req.user.id || req.user._id;
-        const companyId = await getActiveCompanyId(userId);
+        const companyId = await getActiveCompanyId(req);
         
         if (!companyId) {
-            return res.status(400).json({ message: 'No active company found for this user' });
+            return res.status(200).json([]);
         }
 
-        const courses = await Course.find({ isLearningPath: true, companyId }).sort({ createdAt: -1 }).lean();
+        const sisterCompanyIds = await getSisterCompanyIds(companyId);
+        const courses = await Course.find({
+            isLearningPath: true,
+            companyId: { $in: sisterCompanyIds }
+        }).sort({ createdAt: -1 }).lean();
+
         res.status(200).json(courses);
     } catch (error) {
+        logger.error('[Ruta Aprendizaje Admin] Get courses error:', error);
+        res.status(500).json({ message: 'Error retrieving courses' });
     }
 });
 
 // Get list of workers and unique cargos for the active company
-router.get('/admin/company-workers-info', requireJwtAuth, checkAdminRole, async (req, res) => {
+router.get('/admin/company-workers-info', requireJwtAuth, checkAdminOrProRole, async (req, res) => {
     try {
-        const userId = req.user.id || req.user._id;
-        const companyId = await getActiveCompanyId(userId);
+        const companyId = await getActiveCompanyId(req);
         
         if (!companyId) {
-            return res.status(400).json({ message: 'No active company found for this user' });
+            return res.status(200).json({ workers: [], cargos: [] });
         }
 
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
@@ -134,8 +192,9 @@ router.get('/admin/company-workers-info', requireJwtAuth, checkAdminRole, async 
             return res.status(200).json({ workers: [], cargos: [] });
         }
 
+        const sisterCompanyIds = await getSisterCompanyIds(companyId);
         const perfil = await PerfilSociodemograficoData.findOne({
-            companyId: companyId
+            companyId: { $in: sisterCompanyIds }
         }).lean();
 
         if (!perfil || !perfil.trabajadores) {
@@ -162,16 +221,18 @@ router.get('/admin/company-workers-info', requireJwtAuth, checkAdminRole, async 
 });
 
 // Get course by ID
-router.get('/admin/courses/:id', requireJwtAuth, checkAdminRole, async (req, res) => {
+router.get('/admin/courses/:id', requireJwtAuth, async (req, res) => {
     try {
-        const userId = req.user.id || req.user._id;
-        const companyId = await getActiveCompanyId(userId);
-        
-        if (!companyId) {
-            return res.status(400).json({ message: 'No active company found for this user' });
+        const companyId = await getActiveCompanyId(req);
+        const isSuperAdmin = isSuperAdminUser(req.user);
+
+        let filter = { _id: req.params.id, isLearningPath: true };
+        if (!isSuperAdmin && companyId) {
+            const sisterCompanyIds = await getSisterCompanyIds(companyId);
+            filter.companyId = { $in: sisterCompanyIds };
         }
 
-        const course = await Course.findOne({ _id: req.params.id, isLearningPath: true, companyId }).lean();
+        const course = await Course.findOne(filter).lean();
         if (!course) {
             return res.status(404).json({ message: 'Course not found' });
         }
@@ -183,8 +244,8 @@ router.get('/admin/courses/:id', requireJwtAuth, checkAdminRole, async (req, res
     }
 });
 
-// Upload endpoint for admin
-router.post('/admin/upload', requireJwtAuth, checkAdminRole, upload.single('file'), async (req, res) => {
+// Upload endpoint for admin & pro
+router.post('/admin/upload', requireJwtAuth, checkAdminOrProRole, upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No se ha subido ningún archivo.' });
@@ -213,10 +274,9 @@ router.post('/admin/upload', requireJwtAuth, checkAdminRole, upload.single('file
 });
 
 // Create course
-router.post('/admin/courses', requireJwtAuth, checkAdminRole, async (req, res) => {
+router.post('/admin/courses', requireJwtAuth, checkAdminOrProRole, async (req, res) => {
     try {
-        const userId = req.user.id || req.user._id;
-        const companyId = await getActiveCompanyId(userId);
+        const companyId = await getActiveCompanyId(req);
         
         if (!companyId) {
             return res.status(400).json({ message: 'No active company found for this user' });
@@ -251,13 +311,22 @@ router.post('/admin/courses', requireJwtAuth, checkAdminRole, async (req, res) =
 });
 
 // Update course
-router.put('/admin/courses/:id', requireJwtAuth, checkAdminRole, async (req, res) => {
+router.put('/admin/courses/:id', requireJwtAuth, checkAdminOrProRole, async (req, res) => {
     try {
-        const userId = req.user.id || req.user._id;
-        const companyId = await getActiveCompanyId(userId);
-        
+        const companyId = await getActiveCompanyId(req);
+        if (!companyId) {
+            return res.status(400).json({ message: 'No active company found for this user' });
+        }
+
+        const isSuperAdmin = isSuperAdminUser(req.user);
+        let filter = { _id: req.params.id, isLearningPath: true };
+        if (!isSuperAdmin) {
+            const sisterCompanyIds = await getSisterCompanyIds(companyId);
+            filter.companyId = { $in: sisterCompanyIds };
+        }
+
         const updatedCourse = await Course.findOneAndUpdate(
-            { _id: req.params.id, isLearningPath: true, companyId },
+            filter,
             { $set: req.body },
             { new: true, runValidators: true }
         );
@@ -274,17 +343,26 @@ router.put('/admin/courses/:id', requireJwtAuth, checkAdminRole, async (req, res
 });
 
 // Delete course
-router.delete('/admin/courses/:id', requireJwtAuth, checkAdminRole, async (req, res) => {
+router.delete('/admin/courses/:id', requireJwtAuth, checkAdminOrProRole, async (req, res) => {
     try {
-        const userId = req.user.id || req.user._id;
-        const companyId = await getActiveCompanyId(userId);
-        
-        const result = await Course.findOneAndDelete({ _id: req.params.id, isLearningPath: true, companyId });
+        const companyId = await getActiveCompanyId(req);
+        if (!companyId) {
+            return res.status(400).json({ message: 'No active company found for this user' });
+        }
+
+        const isSuperAdmin = isSuperAdminUser(req.user);
+        let filter = { _id: req.params.id, isLearningPath: true };
+        if (!isSuperAdmin) {
+            const sisterCompanyIds = await getSisterCompanyIds(companyId);
+            filter.companyId = { $in: sisterCompanyIds };
+        }
+
+        const result = await Course.findOneAndDelete(filter);
         if (!result) {
             return res.status(404).json({ message: 'Course not found or unauthorized' });
         }
 
-        await UserProgress.deleteMany({ course: req.params.id, companyId });
+        await UserProgress.deleteMany({ course: req.params.id });
         res.status(200).json({ message: 'Course deleted successfully' });
     } catch (error) {
         logger.error('[Ruta Aprendizaje Admin] Delete course error:', error);
@@ -293,10 +371,9 @@ router.delete('/admin/courses/:id', requireJwtAuth, checkAdminRole, async (req, 
 });
 
 // Add lesson
-router.post('/admin/courses/:courseId/lessons', requireJwtAuth, checkAdminRole, async (req, res) => {
+router.post('/admin/courses/:courseId/lessons', requireJwtAuth, checkAdminOrProRole, async (req, res) => {
     try {
-        const userId = req.user.id || req.user._id;
-        const companyId = await getActiveCompanyId(userId);
+        const companyId = await getActiveCompanyId(req);
         const { courseId } = req.params;
         const { title, content, videoUrl, order, attachments, exam } = req.body;
 
@@ -304,7 +381,14 @@ router.post('/admin/courses/:courseId/lessons', requireJwtAuth, checkAdminRole, 
             return res.status(400).json({ message: 'Lesson title is required' });
         }
 
-        const course = await Course.findOne({ _id: courseId, isLearningPath: true, companyId });
+        const isSuperAdmin = isSuperAdminUser(req.user);
+        let filter = { _id: courseId, isLearningPath: true };
+        if (!isSuperAdmin) {
+            const sisterCompanyIds = await getSisterCompanyIds(companyId);
+            filter.companyId = { $in: sisterCompanyIds };
+        }
+
+        const course = await Course.findOne(filter);
         if (!course) {
             return res.status(404).json({ message: 'Course not found or unauthorized' });
         }
@@ -322,14 +406,20 @@ router.post('/admin/courses/:courseId/lessons', requireJwtAuth, checkAdminRole, 
 });
 
 // Update lesson
-router.put('/admin/courses/:courseId/lessons/:lessonId', requireJwtAuth, checkAdminRole, async (req, res) => {
+router.put('/admin/courses/:courseId/lessons/:lessonId', requireJwtAuth, checkAdminOrProRole, async (req, res) => {
     try {
-        const userId = req.user.id || req.user._id;
-        const companyId = await getActiveCompanyId(userId);
+        const companyId = await getActiveCompanyId(req);
         const { courseId, lessonId } = req.params;
         const updates = req.body;
 
-        const course = await Course.findOne({ _id: courseId, isLearningPath: true, companyId });
+        const isSuperAdmin = isSuperAdminUser(req.user);
+        let filter = { _id: courseId, isLearningPath: true };
+        if (!isSuperAdmin) {
+            const sisterCompanyIds = await getSisterCompanyIds(companyId);
+            filter.companyId = { $in: sisterCompanyIds };
+        }
+
+        const course = await Course.findOne(filter);
         if (!course) {
             return res.status(404).json({ message: 'Course not found or unauthorized' });
         }
@@ -354,13 +444,19 @@ router.put('/admin/courses/:courseId/lessons/:lessonId', requireJwtAuth, checkAd
 });
 
 // Delete lesson
-router.delete('/admin/courses/:courseId/lessons/:lessonId', requireJwtAuth, checkAdminRole, async (req, res) => {
+router.delete('/admin/courses/:courseId/lessons/:lessonId', requireJwtAuth, checkAdminOrProRole, async (req, res) => {
     try {
-        const userId = req.user.id || req.user._id;
-        const companyId = await getActiveCompanyId(userId);
+        const companyId = await getActiveCompanyId(req);
         const { courseId, lessonId } = req.params;
 
-        const course = await Course.findOne({ _id: courseId, isLearningPath: true, companyId });
+        const isSuperAdmin = isSuperAdminUser(req.user);
+        let filter = { _id: courseId, isLearningPath: true };
+        if (!isSuperAdmin) {
+            const sisterCompanyIds = await getSisterCompanyIds(companyId);
+            filter.companyId = { $in: sisterCompanyIds };
+        }
+
+        const course = await Course.findOne(filter);
         if (!course) {
             return res.status(404).json({ message: 'Course not found or unauthorized' });
         }
@@ -381,7 +477,7 @@ router.delete('/admin/courses/:courseId/lessons/:lessonId', requireJwtAuth, chec
 });
 
 // AI Generate Content
-router.post('/admin/generate', requireJwtAuth, checkAdminRole, async (req, res) => {
+router.post('/admin/generate', requireJwtAuth, checkAdminOrProRole, async (req, res) => {
     try {
         const { type, prompt, modelName } = req.body;
 
@@ -408,7 +504,7 @@ router.post('/admin/generate', requireJwtAuth, checkAdminRole, async (req, res) 
         }
 
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.1-flash-lite' });
+        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.7-flash' });
 
         let systemPrompt = "";
         if (type === 'course') {

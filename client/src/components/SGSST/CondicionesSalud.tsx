@@ -149,7 +149,7 @@ const CondicionesSalud = () => {
     const [workerTabs, setWorkerTabs] = useState<Record<string, string>>({});
     const [activeSignatureWorkerId, setActiveSignatureWorkerId] = useState<string | null>(null);
 
-    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.5-flash-lite');
+    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.7-flash');
 
     useEffect(() => {
         if (user?.personalization?.geminiModels?.sstManagement) {

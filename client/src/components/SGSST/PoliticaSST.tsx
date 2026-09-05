@@ -39,7 +39,7 @@ const PoliticaSST = () => {
     const [commitments, setCommitments] = useState('');
     const [objectives, setObjectives] = useState('');
     const [additionalNorms, setAdditionalNorms] = useState('');
-    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.5-flash-lite');
+    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.7-flash');
 
     React.useEffect(() => {
         if (user?.personalization?.geminiModels?.sstManagement) {

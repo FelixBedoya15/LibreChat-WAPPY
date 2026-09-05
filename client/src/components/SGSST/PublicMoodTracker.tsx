@@ -169,7 +169,7 @@ export default function PublicMoodTracker() {
           endpointOption: {
             endpoint: 'agents',
             agent: agentId,
-            model: 'gemini-3.1-flash-lite',
+            model: 'gemini-3.7-flash',
           },
           isPublicChat: true,
         }),

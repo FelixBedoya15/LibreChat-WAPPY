@@ -107,24 +107,25 @@ export default function Personalization({
     // Fallback to explicitly defined GOOGLE_MODELS if backend omits them
     if (googleModels.length === 0) {
       googleModels = [
-        'gemini-3.5-flash-lite',
+        'gemini-3.7-flash',
         'gemini-3.6-flash',
         'gemini-3.5-flash',
-        'gemini-3.1-flash-lite',
-        'gemini-3.1-flash-live-preview',
-        'gemini-2.5-flash-native-audio-preview-12-2025',
-        'gemini-2.5-flash-native-audio-preview-09-2025'
+        'gemini-3.5-flash-lite',
       ];
     }
 
     const options = [
-      { value: '', label: 'Predeterminado del sistema' },
+      { value: '', label: 'Predeterminado del sistema (Gemini 3.7 Flash)' },
     ];
 
     googleModels.forEach((model) => {
       const modelId = typeof model === 'string' ? model : (model as any).id || (model as any).value;
-      const modelLabel = typeof model === 'string' ? model : (model as any).name || (model as any).label || modelId;
-      if (modelId) {
+      let modelLabel = typeof model === 'string' ? model : (model as any).name || (model as any).label || modelId;
+      if (modelId && !modelId.includes('live') && !modelId.includes('native-audio') && !modelId.includes('3.1')) {
+        if (modelId === 'gemini-3.7-flash') modelLabel = 'Gemini 3.7 Flash';
+        else if (modelId === 'gemini-3.6-flash') modelLabel = 'Gemini 3.6 Flash';
+        else if (modelId === 'gemini-3.5-flash') modelLabel = 'Gemini 3.5 Flash';
+        else if (modelId === 'gemini-3.5-flash-lite') modelLabel = 'Gemini 3.5 Flash Lite';
         options.push({ value: modelId, label: modelLabel });
       }
     });

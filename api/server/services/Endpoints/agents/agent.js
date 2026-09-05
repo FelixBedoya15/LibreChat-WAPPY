@@ -55,7 +55,7 @@ const initializeAgent = async ({
     agent.tools = [];
     agent.additional_instructions = '';
     agent.artifacts = undefined;
-    agent.model = 'gemini-3.1-flash-lite';
+    agent.model = 'gemini-3.7-flash';
     agent.instructions = `Eres un profesional en Terapia Ocupacional y Salud Mental Ocupacional. Tu único propósito en este chat es escuchar, orientar y brindar apoyo emocional y técnico a los trabajadores de la empresa en un espacio 100% privado, seguro y confidencial.
 
 IMPORTANTE: 

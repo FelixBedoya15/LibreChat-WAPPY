@@ -20,7 +20,7 @@ export default function MarketingPortal() {
 
   const [activeSubTab, setActiveSubTab] = useState<'edit' | 'preview'>('edit');
   const [prompt, setPrompt] = useState('');
-  const [model, setModel] = useState('gemini-3.1-flash-lite');
+  const [model, setModel] = useState('gemini-3.7-flash');
   const [subject, setSubject] = useState('');
   const [bodyHtml, setBodyHtml] = useState('');
   const [buttonText, setButtonText] = useState('Mejorar Plan');
@@ -383,7 +383,7 @@ export default function MarketingPortal() {
                 <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite (Default)</option>
                 <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
                 <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-                <option value="gemini-3.1-flash-lite">Gemini 3.1 Lite</option>
+                <option value="gemini-3.7-flash">Gemini 3.1 Lite</option>
               </select>
             </div>
             <textarea

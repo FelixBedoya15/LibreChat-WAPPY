@@ -900,7 +900,7 @@ export const PREMIUM_SST_COMPONENTS: SSTComponent[] = [
             <div>
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
-                    <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                    <option value="gemini-3.7-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
                     <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
@@ -4708,7 +4708,7 @@ Respuesta 5: \${w5}\`;
             <div>
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
-                    <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                    <option value="gemini-3.7-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
                     <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
@@ -7329,7 +7329,7 @@ Mensaje del usuario: \${messageText}\` }] }
             <div>
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
-                    <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                    <option value="gemini-3.7-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
                     <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
@@ -10955,7 +10955,7 @@ Respuesta 5: \${w5}\`;
             <div>
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
-                    <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                    <option value="gemini-3.7-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
                     <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
@@ -14480,7 +14480,7 @@ Respuesta 5: \${w5}\`;
             <div>
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
-                    <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                    <option value="gemini-3.7-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
                     <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
@@ -17954,7 +17954,7 @@ Respuesta 5: \${w5}\`;
             <div>
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
-                    <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                    <option value="gemini-3.7-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
                     <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
@@ -21440,7 +21440,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
             <div>
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
-                    <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                    <option value="gemini-3.7-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
                     <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
@@ -24989,7 +24989,7 @@ Respuesta 5: \${w5}\`;
             <div>
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
-                    <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                    <option value="gemini-3.7-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
                     <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
@@ -28556,7 +28556,7 @@ Respuesta 5: \${w5}\`;
             <div>
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
-                    <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                    <option value="gemini-3.7-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
                     <option value="gemini-3.5-flash" selected>Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
@@ -31355,7 +31355,7 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             <div>
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
-                    <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                    <option value="gemini-3.7-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
                     <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
@@ -34815,7 +34815,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
             <div>
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
-                    <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                    <option value="gemini-3.7-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
                     <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
@@ -38027,7 +38027,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
             <div>
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
-                    <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                    <option value="gemini-3.7-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
                     <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
@@ -42825,7 +42825,7 @@ Respuesta 5: \${w5}\`;
             <div>
                 <label class="block text-[9px] font-bold text-slate-400 mb-1">MODELO DE IA</label>
                 <select id="gemini-model" onchange="saveSelectedModel()" class="w-full rounded bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-700 p-1.5 text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:border-blue-500">
-                    <option value="gemini-3.1-flash-lite">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
+                    <option value="gemini-3.7-flash">Wappy IA Core (Velocidad Relámpago y Flujo)</option>
                     <option value="gemini-3.5-flash" selected="">Wappy IA Prime (Análisis de Agentes y Código)</option>
                 </select>
             </div>
