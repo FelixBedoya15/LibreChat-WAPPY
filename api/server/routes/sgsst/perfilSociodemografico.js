@@ -1366,6 +1366,215 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
   }
 });
 
+function cleanHtmlOutput(text) {
+  if (!text) return '';
+  return text.replace(/```html\n?/g, '').replace(/```\n?/g, '')
+    .replace(/<!DOCTYPE[^>]*>/gi, '')
+    .replace(/<html[^>]*>/gi, '').replace(/<\/html>/gi, '')
+    .replace(/<head>[\s\S]*?<\/head>/gi, '')
+    .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
+    .trim();
+}
+
+// ─── POST /dictamen/generate — Generación Oficial del Dictamen Predictivo H1 con Encabezado y Firmas ──
+router.post('/dictamen/generate', express.json({ limit: '10mb' }), requireJwtAuth, async (req, res) => {
+  try {
+    const { workerId, worker: fallbackWorker, profile, fit, modelName } = req.body;
+    if (!workerId && !fallbackWorker) {
+      return res.status(400).json({ error: 'Identificador de trabajador requerido' });
+    }
+
+    const isSub = !!req.user.isSubUser;
+    const targetUserId = (isSub && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const companyId = await getActiveCompanyId(targetUserId, isSub ? req.user.assignedCompany : null);
+
+    // 1. Cargar el trabajador desde la BD o usar fallback
+    let doc = await PerfilSociodemograficoData.findOne({
+      user: targetUserId,
+      ...(companyId ? { companyId } : {})
+    });
+    
+    let currentWorker = null;
+    let workerIndex = -1;
+    if (doc && doc.trabajadores) {
+      workerIndex = doc.trabajadores.findIndex(w => String(w.id) === String(workerId) || String(w._id) === String(workerId));
+      if (workerIndex !== -1) {
+        currentWorker = doc.trabajadores[workerIndex].toObject ? doc.trabajadores[workerIndex].toObject() : doc.trabajadores[workerIndex];
+      }
+    }
+    if (!currentWorker && fallbackWorker) {
+      currentWorker = fallbackWorker;
+    }
+    if (!currentWorker) {
+      return res.status(404).json({ error: 'Trabajador no encontrado en el sistema' });
+    }
+
+    // 2. Cargar información oficial de la empresa
+    let loadedCompanyInfo = null;
+    try {
+      if (companyId) {
+        loadedCompanyInfo = await CompanyInfo.findOne({ _id: companyId, user: targetUserId }).lean();
+      }
+      if (!loadedCompanyInfo) {
+        loadedCompanyInfo = await CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean()
+          || await CompanyInfo.findOne({ user: targetUserId }).lean();
+      }
+    } catch (ciErr) {
+      logger.warn('[OraculoH1] Error loading company info:', ciErr.message);
+    }
+
+    // 3. Obtener API key de Google/Gemini
+    const resolvedApiKey = await getApiKey(req.user.id);
+    if (!resolvedApiKey) {
+      return res.status(400).json({ error: 'No se ha configurado la clave API de Google.' });
+    }
+
+    const workerName = currentWorker.nombre || 'Colaborador';
+    const cargoName = currentWorker.cargo || profile?.nombreCargo || 'Cargo Operativo';
+    const calculatedScore = (currentWorker.biocentricScore !== undefined && currentWorker.biocentricScore !== null)
+      ? currentWorker.biocentricScore
+      : (fit?.score !== undefined ? fit.score : 85);
+
+    // 4. Construir Encabezado Corporativo Oficial Estándar (Imagen 3)
+    const fechaEmision = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+    const headerHTML = buildStandardHeader({
+      title: `DICTAMEN PREDICTIVO DE APTITUD LABORAL - ${workerName.toUpperCase()}`,
+      companyInfo: loadedCompanyInfo,
+      date: fechaEmision,
+      norm: 'Art. 16 Res. 1843 de 2025 / GTC 45:2012 / Dec. 1072 de 2015',
+      responsibleName: loadedCompanyInfo?.responsibleSST || 'Responsable SG-SST'
+    });
+
+    // 5. Preparar Contexto Detallado del Colaborador y Demandas del Cargo
+    const companyContextStr = buildCompanyContextString(loadedCompanyInfo);
+    const workerContext = `DATOS BIOMÉDRICOS Y CLÍNICOS DEL COLABORADOR:
+- Nombre Completo: ${workerName}
+- Identificación: ${currentWorker.identificacion || 'N/A'}
+- Cargo: ${cargoName}
+- Edad: ${currentWorker.edad || 'N/A'} años | Género: ${currentWorker.genero || 'N/A'}
+- Estado Civil: ${currentWorker.estadoCivil || 'N/A'} | Nivel Escolaridad: ${currentWorker.nivelEscolaridad || 'N/A'}
+- Examen Médico Ocupacional: Último realizado el ${currentWorker.fechaExamenMedico || 'No registrado'}
+- Concepto / Diagnóstico Médico: ${currentWorker.diagnosticoMedico || 'Apto / Sin Hallazgos'}
+- Recomendaciones Médicas: ${currentWorker.recomendacionesMedicas || 'Ninguna reportada'}
+- Signos Vitales: IMC=${currentWorker.imc || 'N/A'}, PA=${currentWorker.presionArterial || 'N/A'} mmHg, FC=${currentWorker.frecuenciaCardiaca || 'N/A'} lpm
+- Enfermedades declaradas: ${currentWorker.enfermedades || 'Ninguna'}
+- Medicamentos habituales: ${currentWorker.medicamentos || 'Ninguno'}
+- Restricciones Biomecánicas: ${currentWorker.limitacionesBiomecanicas || 'Ninguna'}
+- Hábitos: Fuma=${currentWorker.fuma || 'No'}, Alcohol=${currentWorker.alcohol || 'No'}, Terapia Psicológica=${currentWorker.terapiaPsicologica || 'No'}
+- Alertas Clínico-Operativas del Sistema: ${(fit?.auditItems || []).map(a => `${a.title}: ${a.description}`).join('; ') || 'Sin alertas críticas'}
+
+DEMANDAS Y EXIGENCIAS DEL PUESTO (${cargoName}):
+- Exigencia Física: ${profile?.exigenciaFisica || 'Media'}
+- Exigencia Mental / Psicoemocional: ${profile?.exigenciaMental || 'Media'}
+- Opera Maquinaria o Vehículos: ${profile?.operaMaquinaria || 'No'}
+- Nivel de Cargo: ${profile?.nivelCargo || 'Operativo'}
+- Score Biocéntrico Calculado: ${calculatedScore}% FIT`;
+
+    const promptText = `Eres un Médico Especialista en Seguridad y Salud en el Trabajo (SG-SST) y Ergonomía Ocupacional en Colombia.
+Tu labor es emitir el DICTAMEN PREDICTIVO DE APTITUD LABORAL Y ANÁLISIS DE VULNERABILIDAD para el siguiente colaborador:
+
+${companyContextStr}
+
+${workerContext}
+
+═══════════════════════════════════════════════════════════════
+      REGLAS OBLIGATORIAS Y RESTRICCIONES CRÍTICAS
+═══════════════════════════════════════════════════════════════
+1. REGLA ESTRICTA DE MARCA: ESTÁ ROTUNDAMENTE PROHIBIDO escribir o mencionar las palabras "Atenea", "Modelo Atenea" o "Colmena" en cualquier parte del informe. Cualquier mención a dichas palabras anula la validez del documento.
+2. NO incluyas un título H1 principal al inicio, ni tablas de datos de la empresa al inicio (el sistema ya genera e inyecta el encabezado oficial corporativo).
+3. NO incluyas bloques de firma al final (el sistema genera automáticamente el bloque digital interactivo con pads para firma).
+4. El informe debe ser en código HTML limpio y semántico (div, h2, h3, p, table, tr, th, td, ul, li, strong, span), con estilos CSS inline legibles y modernos. NO uses bloques markdown \`\`\`html.
+5. Usa colores armónicos acordes a la identidad SG-SST: Teal principal (#0f766e, #0d9488), bordes grises suaves (#cbd5e1), texto oscuro (#1e293b).
+
+═══════════════════════════════════════════════════════════════
+      ESTRUCTURA OBLIGATORIA DEL DICTAMEN (HTML)
+═══════════════════════════════════════════════════════════════
+
+<div style="background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 24px;">
+
+<!-- SECCIÓN 1: RESUMEN EJECUTIVO Y CALIFICACIÓN DE APTITUD -->
+Diseña una tarjeta destacada con fondo #f0fdfa con borde 1px solid #99f6e4, padding 18px, border-radius 12px que presente:
+- Nombre del Colaborador, Cargo y Cédula.
+- Badge destacado del Score Biocéntrico: ${calculatedScore}% FIT.
+- Categoría de Aptitud Legal (Apto Pleno / Apto con Observaciones y Controles Preventivos / Requiere Reubicación o Tratamiento Prioritario).
+- Juicio Clínico-Laboral Sintético: Balance entre la capacidad biológica del colaborador y las exigencias del cargo.
+
+<!-- SECCIÓN 2: MATRIZ DE COMPATIBILIDAD OPERATIVA (FACTORES OPERATIVOS 8M vs. CAPACIDAD BIOINDIVIDUAL) -->
+Crea una tabla estilizada (<table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #cbd5e1; margin: 16px 0;">):
+- Encabezado: fondo #0f766e, texto blanco, negrita, tamaño 11px, padding 10px.
+- Columnas:
+  1. Dimensión Operativa del Puesto
+  2. Exigencia del Cargo
+  3. Condición Bioindividual del Trabajador
+  4. Nivel de Compatibilidad (con badges: <span style="background:#dcfce7; color:#15803d; padding:4px 8px; border-radius:6px; font-weight:700; font-size:11px;">COMPATIBLE</span>, <span style="background:#fef9c3; color:#854d0e; padding:4px 8px; border-radius:6px; font-weight:700; font-size:11px;">CONTROL PREVENTIVO</span>, o <span style="background:#fee2e2; color:#b91c1c; padding:4px 8px; border-radius:6px; font-weight:700; font-size:11px;">ALERTA CRÍTICA</span>).
+- Filas a evaluar (Las 8 Dimensiones Operativas):
+  1. Personas (Idoneidad técnica, competencia, resistencia a fatiga)
+  2. Procedimientos y Métodos (Pausas, estandarización de tareas, ATS)
+  3. Máquinas y Equipos (Interacción mecánica, vibraciones, controles)
+  4. Herramientas de Trabajo (Ergonomía de agarre, peso, ofimática)
+  5. Elementos de Protección Personal (Compatibilidad EPP y tolerancia)
+  6. Gestión Organizacional / Gerencia (Carga mental, turnos, supervisión)
+  7. Entorno Ambiental (Ruido, iluminación, estrés térmico, superficies)
+  8. Materiales e Insumos (Manipulación manual de cargas, químicos)
+
+<!-- SECCIÓN 3: ANÁLISIS DE VULNERABILIDAD BIOCÉNTRICA Y CAUSALIDAD OPERATIVA -->
+- Dimensión Biomecánica / Osteomuscular (posturas, esfuerzos, columna).
+- Dimensión Cardiovascular y Fisiológica (tensión, IMC, resistencia aeróbica).
+- Dimensión Psicoemocional y Cognitiva (atención, estrés, responsabilidades).
+- Análisis Causal Diferenciado:
+  * Causa Suficiente: Cuál es el factor operativo primario en la fuente que debe ser intervenido por ingeniería para blindar la salud del trabajador.
+  * Causas Coadyuvantes: Factores agravantes en el entorno o hábitos del colaborador.
+
+<!-- SECCIÓN 4: PLAN DE INTERVENCIÓN JERARQUIZADO (Eliminación, Sustitución, Ingeniería, Administrativo, EPP) -->
+Recomendaciones concretas y directas para el puesto de trabajo y la empresa.
+
+<!-- SECCIÓN 5: PLAN DE ACCIÓN (PAC 5W2H) Y VIGILANCIA EPIDEMIOLÓGICA A 1 AÑO -->
+Tabla con periodicidad de valoraciones médicas, exámenes paraclínicos (audiometría, visiometría, espirometría si aplican), pausas activas y metas de seguimiento.
+
+</div>`;
+
+    const finalModelName = modelName || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+    const genAI = new GoogleGenerativeAI(resolvedApiKey);
+    const model = genAI.getGenerativeModel({ model: finalModelName });
+
+    const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText);
+    const responseText = result.response.text();
+    const cleanedReport = cleanHtmlOutput(responseText);
+
+    // 6. Ensamblar Encabezado Oficial + Cuerpo IA + Bloque Oficial de Firmas Digitales Interactivas (Imagen 4)
+    const signatureHTML = buildSignatureSection(loadedCompanyInfo, currentWorker);
+    const fullReport = `${headerHTML}\n<div style="margin-top: 20px; font-family: sans-serif;">\n${cleanedReport}\n</div>\n${signatureHTML}`;
+
+    // 7. Auto-guardar en MongoDB
+    try {
+      if (doc && workerIndex !== -1) {
+        doc.trabajadores[workerIndex].dictamenPredictivoH1 = fullReport;
+        doc.markModified('trabajadores');
+        await doc.save();
+      } else {
+        await PerfilSociodemograficoData.updateOne(
+          { 
+            user: targetUserId, 
+            ...(companyId ? { companyId } : {}),
+            $or: [
+              { 'trabajadores.id': workerId },
+              { 'trabajadores._id': workerId }
+            ]
+          },
+          { $set: { 'trabajadores.$.dictamenPredictivoH1': fullReport, updatedAt: new Date() } }
+        );
+      }
+    } catch (saveErr) {
+      logger.warn('[OraculoH1] Warning auto-saving dictamen to DB:', saveErr.message);
+    }
+
+    return res.json({ dictamen: fullReport });
+  } catch (error) {
+    logger.error('[OraculoH1] Generate dictamen error:', error);
+    return res.status(500).json({ error: error.message || 'Error generando dictamen predictivo' });
+  }
+});
+
 // ─── POST /worker/:workerId/dictamen — Guardado ultra-rápido del Dictamen Predictivo H1 ──
 router.post('/worker/:workerId/dictamen', express.json({ limit: '10mb' }), requireJwtAuth, async (req, res) => {
   try {
@@ -1379,13 +1588,39 @@ router.post('/worker/:workerId/dictamen', express.json({ limit: '10mb' }), requi
     const targetUserId = (isSub && req.user.parentUser) ? req.user.parentUser : req.user.id;
     const companyId = await getActiveCompanyId(targetUserId, isSub ? req.user.assignedCompany : null);
 
-    const result = await PerfilSociodemograficoData.updateOne(
-      { user: targetUserId, companyId, 'trabajadores.id': workerId },
+    // 1. Intentar actualización posicional directa
+    let result = await PerfilSociodemograficoData.updateOne(
+      { 
+        user: targetUserId, 
+        ...(companyId ? { companyId } : {}),
+        $or: [
+          { 'trabajadores.id': workerId },
+          { 'trabajadores.id': isNaN(Number(workerId)) ? workerId : Number(workerId) },
+          { 'trabajadores._id': workerId }
+        ]
+      },
       { $set: { 'trabajadores.$.dictamenPredictivoH1': dictamen, updatedAt: new Date() } }
     );
 
+    // 2. Fallback de seguridad si no encontró coincidencia directa
+    if (!result || result.matchedCount === 0) {
+      const doc = await PerfilSociodemograficoData.findOne({
+        user: targetUserId,
+        ...(companyId ? { companyId } : {})
+      });
+      if (doc && doc.trabajadores) {
+        const idx = doc.trabajadores.findIndex(w => String(w.id) === String(workerId) || String(w._id) === String(workerId));
+        if (idx !== -1) {
+          doc.trabajadores[idx].dictamenPredictivoH1 = dictamen;
+          doc.markModified('trabajadores');
+          await doc.save();
+          result = { matchedCount: 1, modifiedCount: 1 };
+        }
+      }
+    }
+
     logger.info(`[OraculoH1] Dictamen predictivo guardado exitosamente para trabajador ${workerId}`);
-    return res.json({ success: true, matchedCount: result.matchedCount, modifiedCount: result.modifiedCount });
+    return res.json({ success: true, matchedCount: result?.matchedCount || 0, modifiedCount: result?.modifiedCount || 0 });
   } catch (error) {
     logger.error('[OraculoH1] Error guardando dictamen:', error);
     return res.status(500).json({ error: error.message || 'Error guardando dictamen' });

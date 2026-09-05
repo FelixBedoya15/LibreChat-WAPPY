@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Sparkles, Loader2, HeartPulse, Briefcase, AlertTriangle, ShieldAlert, CheckCircle, Clock, RefreshCw, ChevronDown, ChevronUp, History } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
-import { SGSSTToolbar } from './SGSSTToolbar';
+import CollapsibleReportBox from './CollapsibleReportBox';
+import ExportDropdown from './ExportDropdown';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
@@ -319,85 +320,36 @@ export default function OraculoPredictivoH1() {
                 ? worker.biocentricScore
                 : fit.score;
 
-            const ctx = `DATOS DEL TRABAJADOR (BIOINDIVIDUO):
-- Nombre: ${worker.nombre}
-- Identificación: ${worker.identificacion || 'N/A'}
-- Cargo: ${worker.cargo || 'No especificado'}
-- Edad: ${worker.edad || 'N/A'} años | Género: ${worker.genero || 'N/A'}
-- Diagnóstico Médico: ${worker.diagnosticoMedico || 'Apto / Sin Hallazgos'}
-- Recomendaciones Médicas: ${worker.recomendacionesMedicas || 'Ninguna'}
-- Signos Vitales y Biometría: IMC=${worker.imc || 'N/A'}, Presión Arterial=${worker.presionArterial || 'N/A'} mmHg, Frecuencia Cardíaca=${worker.frecuenciaCardiaca || 'N/A'} lpm
-- Hábitos: Fuma=${worker.fuma || 'No'}, Alcohol=${worker.alcohol || 'No'}, Terapia Psicológica=${worker.terapiaPsicologica || 'No'}
-- Restricciones/Alertas detectadas: ${fit.auditItems.map((a: any) => `${a.title}: ${a.description}`).join('; ') || 'Ninguna'}
-
-DATOS DEL CARGO (DEMANDA DEL PUESTO):
-- Exigencia Física: ${profile?.exigenciaFisica || 'Media'}
-- Exigencia Mental: ${profile?.exigenciaMental || 'Media'}
-- Opera Maquinaria: ${profile?.operaMaquinaria || 'No'}
-- Nivel de Cargo: ${profile?.nivelCargo || 'Operativo'}
-- Score Biocéntrico Calculado: ${calculatedScore}% FIT`;
-
-            const inst = `Eres el Oráculo Predictivo H1 de WAPPY IA, especialista en Medicina Laboral y Seguridad y Salud en el Trabajo bajo el Modelo Causal ATENEA.
-Genera un DICTAMEN PREDICTIVO H1 DE APTITUD Y RIESGO BIOCÉNTRICO en formato HTML profesional y enriquecido para LiveEditor.
-Debe tener un diseño ejecutivo de altísima calidad visual (estilo informe pericial médico-laboral) con las siguientes secciones obligatorias:
-
-1. ENCABEZADO EJECUTIVO Y TARJETA DEL TRABAJADOR:
-   - Título: DICTAMEN PREDICTIVO H1 — EVALUACIÓN DE APTITUD Y VULNERABILIDAD BIOCÉNTRICA
-   - Banner estilizado con gradiente teal/cyan, datos generales del colaborador, cargo y badge destacado con el Score Biocéntrico (${calculatedScore}% FIT) y Categoría de Aptitud (ej. Apto con Observaciones / Requiere Intervención / Apto Pleno).
-
-2. MATRIZ COMPARATIVA DE COMPATIBILIDAD: DEMANDA DEL PUESTO (8M ATENEA) vs. CAPACIDAD BIOINDIVIDUAL:
-   Diseña una tabla HTML estilizada (<table style="width:100%; border-collapse:separate; border-spacing:0; border-radius:12px; overflow:hidden; border:1px solid #e2e8f0; margin:16px 0;">) con encabezados color teal (#0f766e, texto blanco), filas alternas y columnas:
-   - Factor 8M (Personas, Procedimientos, Máquinas, Herramientas, EPP, Gerencia, Entorno, Materiales)
-   - Exigencia Operativa del Cargo
-   - Condición Bioindividual del Trabajador
-   - Nivel de Compatibilidad (Compatible / Control Preventivo / Alerta Crítica) con badges de color.
-
-3. ANÁLISIS DE VULNERABILIDAD BIOCÉNTRICA Y DIFERENCIACIÓN DE CAUSALIDAD ATENEA:
-   - Evaluación multidimensional detallada: Dimensión Biomecánica (ergonomía, cargas, posturas), Dimensión Cardiovascular y Fisiológica, Dimensión Psicoemocional y Cognitiva.
-   - Causa Suficiente: Identifica el factor crítico en origen que debe ser mitigado por ingeniería para blindar la salud del trabajador.
-   - Causas Coadyuvantes: Factores agravantes del entorno o hábitos que requieren acompañamiento.
-
-4. PLAN DE INTERVENCIÓN JERARQUIZADO (Eliminación, Sustitución, Ingeniería, Administrativo, EPP):
-   Medidas concretas y accionables adaptadas a las alertas y patologías específicas del trabajador.
-
-5. PLAN DE ACCIÓN PAC 5W2H Y VIGILANCIA EPIDEMIOLÓGICA A 1 AÑO:
-   Cronograma de monitoreo médico, periodicidad de valoraciones, exámenes paraclínicos requeridos y metas preventivas.
-
-6. SECCIÓN OFICIAL DE FIRMAS Y AVAL:
-   Bloque de 3 firmas: Responsable SG-SST, Representante Legal, y Firma del Colaborador evaluado.
-
-IMPORTANTE: Responde ÚNICAMENTE con el código HTML interno (sin etiquetas <html> o <body>), usando etiquetas semánticas <div>, <h3>, <h4>, <p>, <table>, <tr>, <th>, <td>, <ul>, <li>, <strong> con estilos en línea limpios y legibles.`;
-
-            const res = await fetch('/api/live/ai-edit-text', {
+            const res = await fetch('/api/sgsst/perfil-sociodemografico/dictamen/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
-                    selectedText: ctx,
-                    instruction: inst,
-                    reportSourceData: {
-                        trabajador: worker,
-                        perfilCargo: profile,
+                    workerId: worker.id,
+                    worker,
+                    profile,
+                    fit: {
                         score: calculatedScore,
-                        alertas: fit.auditItems,
+                        auditItems: fit.auditItems,
+                        hasIATags: fit.hasIATags
                     }
                 }),
             });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || 'Error generando el dictamen predictivo');
+            }
+
             const data = await res.json();
-            if (data.editedText) {
-                const text = data.editedText;
+            if (data.dictamen) {
+                const text = data.dictamen;
                 setAiConclusions(prev => ({ ...prev, [worker.id]: text }));
                 setCollapsedCards(prev => ({ ...prev, [worker.id]: false }));
-                // Auto-guardado ultra rápido directo al subdocumento en MongoDB
-                fetch(`/api/sgsst/perfil-sociodemografico/worker/${worker.id}/dictamen`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ dictamen: text }),
-                }).catch(() => {});
                 setWorkers(prev => prev.map(w => w.id === worker.id ? { ...w, dictamenPredictivoH1: text } : w));
                 showToastRef.current({ message: 'Dictamen predictivo generado con éxito ✅', status: 'success' });
             }
-        } catch {
-            showToastRef.current({ message: 'Error consultando al Oráculo', status: 'error' });
+        } catch (err: any) {
+            showToastRef.current({ message: err.message || 'Error consultando al Oráculo', status: 'error' });
         } finally {
             setGeneratingId(null);
         }
@@ -419,7 +371,10 @@ IMPORTANTE: Responde ÚNICAMENTE con el código HTML interno (sin etiquetas <htm
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ dictamen: content }),
             });
-            if (!fastRes.ok) throw new Error('Error al actualizar trabajador');
+            if (!fastRes.ok) {
+                const errData = await fastRes.json().catch(() => ({}));
+                throw new Error(errData.error || 'Error al actualizar trabajador en base de datos');
+            }
 
             // 2. Guardar snapshot en historial de reportes (para auditoría y versionado)
             const workerName = currentWorker?.nombre || 'Trabajador';
@@ -440,9 +395,9 @@ IMPORTANTE: Responde ÚNICAMENTE con el código HTML interno (sin etiquetas <htm
             // 3. Actualizar estado local
             setWorkers(prev => prev.map(w => w.id === workerId ? { ...w, dictamenPredictivoH1: content } : w));
             setRefreshTrigger(prev => prev + 1);
-            showToastRef.current({ message: 'Dictamen guardado permanentemente ✅', status: 'success' });
-        } catch {
-            showToastRef.current({ message: 'Error guardando el dictamen', status: 'error' });
+            showToastRef.current({ message: 'Dictamen guardado exitosamente ✅', status: 'success' });
+        } catch (err: any) {
+            showToastRef.current({ message: err.message || 'Error guardando el dictamen', status: 'error' });
         } finally {
             setSavingId(null);
         }
@@ -678,143 +633,107 @@ IMPORTANTE: Responde ÚNICAMENTE con el código HTML interno (sin etiquetas <htm
                             </div>
 
                             {/* Conclusion Zone */}
-                            <div className="border-t border-border-light bg-gradient-to-r from-teal-50/50 to-cyan-50/50 dark:from-teal-900/10 dark:to-cyan-900/10">
+                            <div className="border-t border-border-light bg-surface-secondary/40 p-4">
                                 {!hasConclusion ? (
-                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-5 py-4">
+                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-2xl border-2 border-dashed border-teal-500/20 bg-teal-50/30 dark:bg-teal-950/10">
                                         <div>
-                                            <p className="text-sm font-bold text-teal-800 dark:text-teal-300 flex items-center gap-2">
-                                                <Sparkles className="w-4 h-4" /> Conclusión Predictiva H1
+                                            <p className="text-sm font-bold text-teal-900 dark:text-teal-200 flex items-center gap-2">
+                                                <Sparkles className="w-4 h-4 text-teal-600 dark:text-teal-400" /> Conclusión Predictiva H1
                                             </p>
-                                            <p className="text-xs text-teal-700/70 dark:text-teal-400/70 mt-0.5">Dictamen IA cruzando salud y exigencias del rol.</p>
+                                            <p className="text-xs text-text-secondary mt-0.5">Dictamen oficial cruzando salud individual y demandas del rol.</p>
                                         </div>
-                                        <div className="-my-2 flex items-center gap-2">
-                                            <SGSSTToolbar
-                                                historyButtons={[{
-                                                    id: `hist-init-${worker.id}`,
-                                                    onClick: () => {
-                                                        setHistoryWorkerId(worker.id);
-                                                        setIsHistoryOpen(true);
-                                                    },
-                                                    title: 'Historial de Dictámenes',
-                                                    label: 'Historial',
-                                                    icon: 'history',
-                                                    variant: 'history',
-                                                }]}
-                                                aiButtons={[{
-                                                    id: `consult-${worker.id}`,
-                                                    onClick: () => handleConsultOracle(worker, profile, fit),
-                                                    title: 'Generar con IA',
-                                                    label: 'Generar IA',
-                                                    icon: 'sparkles',
-                                                    variant: 'ai',
-                                                    isLoading: generatingId === worker.id,
-                                                    disabled: generatingId === worker.id,
-                                                }]}
-                                            />
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    setHistoryWorkerId(worker.id);
+                                                    setIsHistoryOpen(true);
+                                                }}
+                                                className="group flex items-center justify-center h-10 px-3 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400 border-border-medium"
+                                                title="Historial de Dictámenes"
+                                            >
+                                                <History className="h-4 w-4 shrink-0" />
+                                                <span className="hidden sm:inline-block ml-2 text-xs font-bold tracking-wide">Historial</span>
+                                            </button>
+                                            <button
+                                                onClick={() => handleConsultOracle(worker, profile, fit)}
+                                                disabled={generatingId === worker.id}
+                                                className="group flex items-center justify-center h-10 px-4 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs disabled:opacity-50"
+                                                title="Generar Dictamen con IA"
+                                            >
+                                                {generatingId === worker.id ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 shrink-0 animate-spin mr-2" />
+                                                        <span>Generando...</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Sparkles className="h-4 w-4 shrink-0 mr-2" />
+                                                        <span>Generar Dictamen IA</span>
+                                                    </>
+                                                )}
+                                            </button>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="rounded-b-2xl overflow-hidden bg-surface-primary">
-                                        {/* Conclusion Header with toolbar */}
-                                        <div
-                                            onClick={() => setCollapsedCards(prev => ({ ...prev, [worker.id]: !prev[worker.id] }))}
-                                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 border-b border-border-medium bg-gradient-to-r from-teal-50/80 to-transparent dark:from-teal-950/40 cursor-pointer hover:bg-teal-500/5 transition-colors"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 shrink-0">
-                                                    <Sparkles className="w-4 h-4" />
-                                                </div>
-                                                <div>
-                                                    <h4 className="text-xs font-black uppercase tracking-wider text-teal-800 dark:text-teal-300">
-                                                        Dictamen Predictivo (Oráculo H1)
-                                                    </h4>
-                                                    <p className="text-[10px] text-text-secondary font-medium">
-                                                        Editor en Vivo · Modifica, formatea y exporta este informe
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                                <div className="-my-2">
-                                                    <SGSSTToolbar
-                                                        historyButtons={[{
-                                                            id: `hist-${worker.id}`,
-                                                            onClick: () => {
-                                                                setHistoryWorkerId(worker.id);
-                                                                setIsHistoryOpen(true);
-                                                            },
-                                                            title: 'Historial de Dictámenes',
-                                                            label: 'Historial',
-                                                            icon: 'history',
-                                                            variant: 'history',
-                                                        }]}
-                                                        aiButtons={[{
-                                                            id: `reeval-${worker.id}`,
-                                                            onClick: () => handleConsultOracle(worker, profile, fit),
-                                                            title: 'Generar con IA',
-                                                            label: 'Generar IA',
-                                                            icon: 'sparkles',
-                                                            variant: 'ai',
-                                                            isLoading: generatingId === worker.id,
-                                                            disabled: generatingId === worker.id,
-                                                        }]}
-                                                        persistenceButtons={[{
-                                                            id: `save-${worker.id}`,
-                                                            onClick: () => handleSaveDictamen(worker.id),
-                                                            title: 'Guardar Dictamen en BD e Historial',
-                                                            label: 'Guardar',
-                                                            icon: 'database',
-                                                            variant: 'database',
-                                                            isLoading: savingId === worker.id,
-                                                            disabled: savingId === worker.id,
-                                                        }]}
-                                                        exportContent={conclusionContent}
-                                                        exportFileName={`Dictamen_Predictivo_${(worker.nombre || 'Trabajador').replace(/\s+/g, '_')}`}
-                                                    />
-                                                </div>
+                                    <CollapsibleReportBox
+                                        defaultCollapsed={false}
+                                        title={`Dictamen Predictivo H1 — ${worker.nombre}`}
+                                        icon={<Sparkles className="h-5 w-5" />}
+                                        onSave={() => handleSaveDictamen(worker.id)}
+                                        isSaving={savingId === worker.id}
+                                        saveDisabled={savingId === worker.id}
+                                        onHistory={() => {
+                                            setHistoryWorkerId(worker.id);
+                                            setIsHistoryOpen(true);
+                                        }}
+                                        isHistoryOpen={isHistoryOpen && historyWorkerId === worker.id}
+                                        actions={
+                                            <>
                                                 <button
-                                                    onClick={() => setCollapsedCards(prev => ({ ...prev, [worker.id]: !prev[worker.id] }))}
-                                                    className="p-2 rounded-xl text-text-secondary hover:bg-surface-secondary transition-colors"
-                                                    title={isExpanded ? 'Contraer' : 'Expandir'}
+                                                    onClick={() => handleConsultOracle(worker, profile, fit)}
+                                                    disabled={generatingId === worker.id}
+                                                    title="Re-evaluar y generar nuevo dictamen con IA"
+                                                    className="group flex items-center justify-center h-10 px-3 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-border-medium hover:border-teal-400 sm:hover:scale-105"
                                                 >
-                                                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                                    {generatingId === worker.id ? (
+                                                        <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                                                    ) : (
+                                                        <Sparkles className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
+                                                    )}
+                                                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                                        <span className="text-xs font-bold tracking-wide">Re-evaluar IA</span>
+                                                    </div>
                                                 </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Conclusion content - LiveEditor with Paper Canvas */}
-                                        {isExpanded ? (
-                                            <div className="p-4 bg-zinc-100/70 dark:bg-zinc-950/40 border-t border-border-light">
-                                                <div className="mx-auto w-full max-w-5xl rounded-2xl border border-border-medium/60 bg-white dark:bg-zinc-900 shadow-xl overflow-hidden">
-                                                    <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
-                                                        <div style={{ minWidth: '850px' }}>
-                                                            <LiveEditor
-                                                                paperMode={true}
-                                                                initialContent={conclusionContent}
-                                                                onUpdate={(html) => {
-                                                                    setAiConclusions(prev => ({ ...prev, [worker.id]: html }));
-                                                                }}
-                                                                reportSourceData={{
-                                                                    trabajador: worker,
-                                                                    perfilCargo: profile,
-                                                                    fitScore: score,
-                                                                    alertas: displayAlerts
-                                                                }}
-                                                            />
-                                                        </div>
+                                                <ExportDropdown
+                                                    content={conclusionContent}
+                                                    fileName={`Dictamen_Predictivo_${(worker.nombre || 'Trabajador').replace(/\s+/g, '_')}`}
+                                                    reportType="general"
+                                                />
+                                            </>
+                                        }
+                                    >
+                                        <div className="p-4 bg-zinc-100/70 dark:bg-zinc-950/40">
+                                            <div className="mx-auto w-full max-w-5xl rounded-2xl border border-border-medium/60 bg-white dark:bg-zinc-900 shadow-xl overflow-hidden">
+                                                <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
+                                                    <div style={{ minWidth: '850px' }}>
+                                                        <LiveEditor
+                                                            paperMode={true}
+                                                            initialContent={conclusionContent}
+                                                            onUpdate={(html) => {
+                                                                setAiConclusions(prev => ({ ...prev, [worker.id]: html }));
+                                                            }}
+                                                            reportSourceData={{
+                                                                trabajador: worker,
+                                                                perfilCargo: profile,
+                                                                fitScore: score,
+                                                                alertas: displayAlerts
+                                                            }}
+                                                        />
                                                     </div>
                                                 </div>
                                             </div>
-                                        ) : (
-                                            <button
-                                                onClick={() => setCollapsedCards(prev => ({ ...prev, [worker.id]: false }))}
-                                                className="w-full text-center py-3 text-xs text-teal-600 dark:text-teal-400 font-bold hover:bg-teal-500/5 transition-colors flex items-center justify-center gap-1.5"
-                                            >
-                                                <span>Ver dictamen completo ↓</span>
-                                                <ChevronDown className="w-3.5 h-3.5" />
-                                            </button>
-                                        )}
-                                    </div>
+                                        </div>
+                                    </CollapsibleReportBox>
                                 )}
                             </div>
                         </div>

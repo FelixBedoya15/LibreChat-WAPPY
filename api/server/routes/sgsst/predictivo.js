@@ -568,7 +568,7 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
         const fecha = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 
         const headerHTML = buildStandardHeader({
-            title: 'INFORME MAESTRO DE INTELIGENCIA PREDICTIVA & MODELO CAUSAL ATENEA',
+            title: 'INFORME MAESTRO DE INTELIGENCIA PREDICTIVA & ANÁLISIS DE CAUSALIDAD OPERATIVA',
             companyInfo: ci,
             date: fecha,
             norm: 'Decreto 1072 de 2015 / Res. 0312 de 2019 / Metodología Causal Avanzada',
@@ -577,20 +577,21 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
         const fullContext = await getFullSSTContext(userId, companyId);
 
         const promptText = `Eres un Experto Consultor Estratégico Senior en Seguridad y Salud en el Trabajo (SGSST) y Científico de Datos en Prevención Laboral en Colombia.
-Dominas la doctrina del **Modelo de Gestión Causal ATENEA** y el **Modelo Predictivo de Prevención (Random Forest & XGBoost con histórico de siniestralidad)**, integrados de forma pionera con la **Huella Biocéntrica (Hito 1)** y los **9 Dominios de la Matriz Bioindividual (Hito 2)** de WAPPY.
+Dominas la doctrina del **Modelo de Análisis Causal y Factores Operativos 8M** y el **Modelo Predictivo de Prevención (Random Forest & XGBoost con histórico de siniestralidad)**, integrados de forma pionera con la **Huella Biocéntrica (Hito 1)** y los **9 Dominios de la Matriz Bioindividual (Hito 2)** de WAPPY.
+REGLA ESTRICTA: NO menciones "Atenea", "Modelo Atenea" ni "Colmena" en ninguna parte de tu respuesta. Usa terminología técnico-normativa oficial SG-SST en Colombia.
 
 Datos Reales del Ecosistema de la Empresa:
 ${fullContext}
 
 ═══════════════════════════════════════════════════════════════
-      TU MISIÓN: INFORME MAESTRO DE PRONÓSTICO & CONTROL CAUSAL (ATENEA)
+      TU MISIÓN: INFORME MAESTRO DE PRONÓSTICO & CONTROL CAUSAL SG-SST
 ═══════════════════════════════════════════════════════════════
 
 Genera un INFORME DENSO, ESTRUCTURADO, ALTAMENTE TÉCNICO Y RIGUROSO.
 Debes cruzar de forma científica y matemática:
 1. **HITO 1 (Huella Biocéntrica):** Estado de salud, FIT Score %, antecedentes y vulnerabilidad individual de los trabajadores.
 2. **HITO 2 (Núcleo Bio-Evaluativo):** Evaluación en los **9 Dominios Bioindividuales** (Osteomuscular, Sensorial, Respiratorio, Cardiovascular, Neurológico, Psicoemocional, Inmunológico, Metabólico, Seguridad).
-3. **METODOLOGÍA CAUSAL ATENEA (Matriz 8M):** Desglose de causalidad en Personas, Procedimientos, Máquinas, Herramientas, EPP, Gerencia, Entorno y Materiales. Diferenciación estricta entre **Causas Suficientes** (las que al eliminarlas garantizan que el daño no ocurrirá) y **Causas Coadyuvantes**.
+3. **METODOLOGÍA DE FACTORES OPERATIVOS (Matriz 8M):** Desglose de causalidad en Personas, Procedimientos, Máquinas, Herramientas, EPP, Gerencia, Entorno y Materiales. Diferenciación estricta entre **Causas Suficientes** (las que al eliminarlas garantizan que el daño no ocurrirá) y **Causas Coadyuvantes**.
 4. **MODELO PREDICTIVO ML (Random Forest + XGBoost):** Pronóstico a **30 días (94% confiabilidad)** y a **1 año (86% confiabilidad)**.
 5. **EVALUACIÓN ECONÓMICA & SEVERIDAD:** Días perdidos temporales + **Días Cargados (Base 6.000 días por 100% PCL / Muerte)** y balance de **Costos Tangibles (Asegurados ARL vs No Asegurados Empleador)** e **Intangibles** (reputación, clima, productividad).
 
@@ -614,7 +615,7 @@ Genera una tabla visual elegante (CSS inline, fondo blanco con encabezado teal #
 - Análisis por dominios vitales (Osteomuscular, Cardiovascular, Respiratorio, Psicoemocional).
 - Cruza la **Huella Biocéntrica H1** (trabajadores con bajo FIT Score o patologías) con las exigencias del puesto para pronosticar desórdenes musculoesqueléticos (DME), crisis cardiovasculares o estrés crónico.
 
-──── SECCIÓN 4: MATRIZ DE CAUSALIDAD ATENEA (8M) & CAUSAS SUFICIENTES VS COADYUVANTES ────
+──── SECCIÓN 4: MATRIZ DE FACTORES OPERATIVOS (8M) & CAUSAS SUFICIENTES VS COADYUVANTES ────
 Presenta una tabla o bloques con el análisis de las 8 dimensiones causales para el proceso crítico:
 - **Personas, Procedimientos, Máquinas, Herramientas, EPP, Gerencia, Entorno, Materiales.**
 - Identifica explícitamente qué factor constituye la **Causa Suficiente** (prioridad de corto plazo) y cuáles son las **Causas Coadyuvantes** (mediano plazo).
