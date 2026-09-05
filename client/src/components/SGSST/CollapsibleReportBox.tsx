@@ -68,7 +68,7 @@ const CollapsibleReportBox = ({
 
                 {/* Right: history button + actions + collapse toggle */}
                 <div
-                    className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0 justify-end"
+                    className="flex flex-wrap items-center gap-2 shrink-0 justify-end"
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Save button */}
@@ -78,13 +78,13 @@ const CollapsibleReportBox = ({
                             disabled={saveDisabled || isSaving}
                             aria-label="Guardar Informe"
                             className={cn(
-                                "group flex items-center justify-center h-8 sm:h-8.5 px-2 sm:px-2.5 min-w-[32px] sm:min-w-[34px] transition-all duration-200 shadow-xs shrink-0 border outline-none rounded-lg",
-                                saveDisabled || isSaving ? "opacity-50 cursor-not-allowed bg-surface-primary border-border-medium text-text-tertiary" : "cursor-pointer bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600 active:scale-95"
+                                "group flex items-center justify-center h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 border outline-none rounded-xl",
+                                saveDisabled || isSaving ? "opacity-50 cursor-not-allowed bg-surface-primary border-border-medium text-text-tertiary" : "cursor-pointer bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600 sm:hover:-rotate-3 sm:hover:scale-105"
                             )}
                         >
-                            {isSaving ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <Save className="h-4 w-4 shrink-0" />}
-                            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                <span className="text-xs font-bold tracking-wide">Guardar Informe</span>
+                            {isSaving ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin" /> : <Save className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />}
+                            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                <span className="text-sm font-bold tracking-wide">Guardar Informe</span>
                             </div>
                         </button>
                     )}
@@ -95,15 +95,15 @@ const CollapsibleReportBox = ({
                             onClick={(e) => { e.stopPropagation(); onHistory(); }}
                             aria-label="Historial de informes"
                             className={cn(
-                                "group flex items-center justify-center h-8 sm:h-8.5 px-2 sm:px-2.5 min-w-[32px] sm:min-w-[34px] transition-all duration-200 shadow-xs shrink-0 cursor-pointer border outline-none rounded-lg active:scale-95",
+                                "group flex items-center justify-center h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:-rotate-3 sm:hover:scale-105",
                                 isHistoryOpen
                                     ? "bg-teal-100 text-teal-700 dark:bg-teal-900/10 border-teal-400"
                                     : "bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400 border-border-medium"
                             )}
                         >
-                            <History className="h-4 w-4 shrink-0" />
-                            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                <span className="text-xs font-bold tracking-wide">Historial</span>
+                            <History className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                <span className="text-sm font-bold tracking-wide">Historial</span>
                             </div>
                         </button>
                     )}
@@ -114,7 +114,7 @@ const CollapsibleReportBox = ({
                     {/* Collapse toggle */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setIsCollapsed(!isCollapsed); }}
-                        className="p-1 sm:p-1.5 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg transition-colors text-[#10b981] focus:outline-none"
+                        className="p-1.5 sm:p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl transition-colors text-[#10b981] focus:outline-none flex items-center justify-center h-8 w-8 sm:h-10 sm:w-10 shrink-0"
                     >
                         {isCollapsed ? <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5" /> : <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5" />}
                     </button>

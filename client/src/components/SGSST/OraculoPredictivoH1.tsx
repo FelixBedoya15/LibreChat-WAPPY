@@ -693,15 +693,15 @@ export default function OraculoPredictivoH1() {
                                                     onClick={() => handleConsultOracle(worker, profile, fit)}
                                                     disabled={generatingId === worker.id}
                                                     title="Re-evaluar y generar nuevo dictamen con IA"
-                                                    className="group flex items-center justify-center h-8 sm:h-8.5 px-2.5 min-w-[32px] sm:min-w-[34px] transition-all duration-200 shadow-xs shrink-0 cursor-pointer border rounded-lg bg-surface-primary hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-border-medium hover:border-teal-400 active:scale-95"
+                                                    className="group flex items-center justify-center h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] px-2 sm:px-2.5 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-border-medium hover:border-teal-400 sm:hover:-rotate-3 sm:hover:scale-105"
                                                 >
                                                     {generatingId === worker.id ? (
-                                                        <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                                                        <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin" />
                                                     ) : (
-                                                        <Sparkles className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
+                                                        <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-teal-600 dark:text-teal-400" />
                                                     )}
-                                                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                                        <span className="text-xs font-bold tracking-wide">Re-evaluar IA</span>
+                                                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                                        <span className="text-sm font-bold tracking-wide">Re-evaluar IA</span>
                                                     </div>
                                                 </button>
                                                 <ExportDropdown
