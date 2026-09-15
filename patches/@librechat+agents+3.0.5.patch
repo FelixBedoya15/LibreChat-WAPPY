@@ -299,7 +299,7 @@ index b5dfd0e..94c3cf8 100644
  Use standard 2-letter country codes: "us", "uk", "ca", "de", "fr", "jp", "br", etc.
  Provide this when the search should return results specific to a particular country.
 diff --git a/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs b/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs
-index 7f57687..3e2c878 100644
+index 7f57687..aae8e45 100644
 --- a/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs
 +++ b/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs
 @@ -184,9 +184,9 @@ const createSearXNGAPI = (instanceUrl, apiKey) => {
@@ -310,10 +310,29 @@ index 7f57687..3e2c878 100644
 +                language: process.env.SEARXNG_LANGUAGE || 'es-CO',
                  safesearch: safeSearch,
 -                engines: 'google,bing,duckduckgo',
-+                engines: process.env.SEARXNG_ENGINES || 'yandex,pubmed,wikipedia,bing',
++                engines: process.env.SEARXNG_ENGINES || 'yandex,brave,gmx,pubmed',
              };
              const headers = {
                  'Content-Type': 'application/json',
+@@ -225,7 +225,17 @@ const createSearXNGAPI = (instanceUrl, apiKey) => {
+                 return hasNewsKeywords || hasNewsPath;
+             };
+             // Transform SearXNG results to match SerperAPI format
+-            const organicResults = (data.results ?? [])
++            const blockedDomains = ['vineyardvines.com', 'doubleclick.net', 'googleadservices.com'];
++            const rawResults = (data.results ?? []).filter((r) => {
++                if (!r.url || !r.title) return false;
++                try {
++                    const host = new URL(r.url).hostname.toLowerCase();
++                    return !blockedDomains.some((d) => host.includes(d));
++                } catch {
++                    return false;
++                }
++            });
++            const organicResults = rawResults
+                 .slice(0, numResults)
+                 .map((result, index) => {
+                 let attribution = '';
 diff --git a/node_modules/@librechat/agents/dist/esm/graphs/MultiAgentGraph.mjs b/node_modules/@librechat/agents/dist/esm/graphs/MultiAgentGraph.mjs
 index 2ce0a08..9bd5b62 100644
 --- a/node_modules/@librechat/agents/dist/esm/graphs/MultiAgentGraph.mjs
@@ -447,7 +466,7 @@ index bf47fd9..abf44d5 100644
  Use standard 2-letter country codes: "us", "uk", "ca", "de", "fr", "jp", "br", etc.
  Provide this when the search should return results specific to a particular country.
 diff --git a/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs b/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs
-index 62b7ecf..4a29364 100644
+index 62b7ecf..19774b4 100644
 --- a/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs
 +++ b/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs
 @@ -182,9 +182,9 @@ const createSearXNGAPI = (instanceUrl, apiKey) => {
@@ -458,10 +477,29 @@ index 62b7ecf..4a29364 100644
 +                language: process.env.SEARXNG_LANGUAGE || 'es-CO',
                  safesearch: safeSearch,
 -                engines: 'google,bing,duckduckgo',
-+                engines: process.env.SEARXNG_ENGINES || 'yandex,pubmed,wikipedia,bing',
++                engines: process.env.SEARXNG_ENGINES || 'yandex,brave,gmx,pubmed',
              };
              const headers = {
                  'Content-Type': 'application/json',
+@@ -223,7 +223,17 @@ const createSearXNGAPI = (instanceUrl, apiKey) => {
+                 return hasNewsKeywords || hasNewsPath;
+             };
+             // Transform SearXNG results to match SerperAPI format
+-            const organicResults = (data.results ?? [])
++            const blockedDomains = ['vineyardvines.com', 'doubleclick.net', 'googleadservices.com'];
++            const rawResults = (data.results ?? []).filter((r) => {
++                if (!r.url || !r.title) return false;
++                try {
++                    const host = new URL(r.url).hostname.toLowerCase();
++                    return !blockedDomains.some((d) => host.includes(d));
++                } catch {
++                    return false;
++                }
++            });
++            const organicResults = rawResults
+                 .slice(0, numResults)
+                 .map((result, index) => {
+                 let attribution = '';
 diff --git a/node_modules/@librechat/agents/src/graphs/MultiAgentGraph.ts b/node_modules/@librechat/agents/src/graphs/MultiAgentGraph.ts
 index 8bcddd9..b2a3452 100644
 --- a/node_modules/@librechat/agents/src/graphs/MultiAgentGraph.ts
@@ -592,15 +630,18 @@ index 9a39d88..10ac23b 100644
  export const DEFAULT_COUNTRY_DESCRIPTION =
    `Country code to localize search results.
 diff --git a/node_modules/@librechat/agents/src/tools/search/search.ts b/node_modules/@librechat/agents/src/tools/search/search.ts
-index e6b4aa8..53eb203 100644
+index e6b4aa8..121b53d 100644
 --- a/node_modules/@librechat/agents/src/tools/search/search.ts
 +++ b/node_modules/@librechat/agents/src/tools/search/search.ts
-@@ -266,7 +266,7 @@ const createSearXNGAPI = (
+@@ -266,9 +266,9 @@ const createSearXNGAPI = (
          format: 'json',
          pageno: 1,
          categories: category,
 -        language: 'all',
 +        language: process.env.SEARXNG_LANGUAGE || 'es-CO',
          safesearch: safeSearch,
-         engines: 'google,bing,duckduckgo',
+-        engines: 'google,bing,duckduckgo',
++        engines: (process.env.SEARXNG_ENGINES as string) || 'yandex,brave,gmx,pubmed',
        };
+ 
+       const headers: Record<string, string> = {

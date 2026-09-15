@@ -668,6 +668,8 @@ function Account() {
         <div className="py-2"><GoogleDriveConnect /></div>
         <div className="h-px bg-border-light w-full my-1"></div>
         <div className="py-2"><OneDriveConnect /></div>
+        <div className="h-px bg-border-light w-full my-1"></div>
+        <div className="py-2"><WhatsAppConnect /></div>
 
         {user?.provider === 'local' && (
           <>
@@ -677,13 +679,6 @@ function Account() {
               <div className="pb-2">
                 <BackupCodesItem />
               </div>
-            )}
-            
-            {user?.role === 'ADMIN' && (
-              <>
-                <div className="h-px bg-border-light w-full my-1"></div>
-                <div className="py-2"><WhatsAppConnect /></div>
-              </>
             )}
           </>
         )}

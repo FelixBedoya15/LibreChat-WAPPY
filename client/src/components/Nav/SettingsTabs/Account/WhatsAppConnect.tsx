@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Button } from '@librechat/client';
+import { Button, useToastContext } from '@librechat/client';
 import { Loader2, MessageSquare, LogOut, CheckCircle2 } from 'lucide-react';
 import axios from 'axios';
 
-type WhatsAppStatus = 'OFFLINE' | 'STARTING' | 'QR_READY' | 'AUTHENTICATED';
+type WhatsAppStatus = 'OFFLINE' | 'STARTING' | 'QR_READY' | 'AUTHENTICATED' | 'READY';
 
 export default function WhatsAppConnect() {
+  const { showToast } = useToastContext();
   const [status, setStatus] = useState<WhatsAppStatus>('OFFLINE');
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -50,8 +51,13 @@ export default function WhatsAppConnect() {
     try {
       const res = await axios.post('/api/whatsapp/start');
       setStatus(res.data.status);
-    } catch (e) {
+      if (res.data.status === 'STARTING') {
+        showToast({ message: 'Iniciando conexión segura de WhatsApp...', status: 'info' });
+      }
+    } catch (e: any) {
       console.error(e);
+      const serverMsg = e.response?.data?.message || 'Error al iniciar conexión de WhatsApp.';
+      showToast({ message: serverMsg, status: 'warning' });
       setStatus('OFFLINE');
     } finally {
       setIsLoading(false);
@@ -64,12 +70,16 @@ export default function WhatsAppConnect() {
       await axios.post('/api/whatsapp/logout');
       setStatus('OFFLINE');
       setQrCode(null);
-    } catch (e) {
+      showToast({ message: 'Sesión de WhatsApp cerrada y memoria liberada.', status: 'success' });
+    } catch (e: any) {
       console.error(e);
+      showToast({ message: 'Error al desconectar sesión.', status: 'error' });
     } finally {
       setIsLoading(false);
     }
   };
+
+  const isConnected = status === 'AUTHENTICATED' || status === 'READY';
 
   return (
     <div className="flex flex-col gap-3 py-2 text-sm text-text-primary">
@@ -79,8 +89,8 @@ export default function WhatsAppConnect() {
             <MessageSquare className="w-4 h-4 text-green-500" />
             Conexión WhatsApp (Modo OpenClaw)
           </h4>
-          <p className="text-xs text-text-secondary mt-1 max-w-[280px]">
-             Vincula tu WhatsApp personal. Una vez escaneado, <strong>escríbete a ti mismo</strong> ("Tú" o "Message yourself") para conversar con los agentes de IA desde tu celular.
+          <p className="text-xs text-text-secondary mt-1 max-w-[320px]">
+             Vincula tu WhatsApp. Una vez escaneado, <strong>escríbete a ti mismo</strong> ("Tú" o "Message yourself") para chatear, enviar audios, fotos, PDFs o matrices de Excel a tus agentes de IA.
           </p>
         </div>
         
@@ -95,7 +105,7 @@ export default function WhatsAppConnect() {
           </Button>
         )}
 
-        {status === 'AUTHENTICATED' && (
+        {isConnected && (
           <Button 
              variant="outline" 
              onClick={handleLogout} 
@@ -132,12 +142,12 @@ export default function WhatsAppConnect() {
         </div>
       )}
 
-      {status === 'AUTHENTICATED' && (
+      {isConnected && (
         <div className="flex items-center gap-3 p-4 bg-green-500/10 rounded-xl mt-2 border border-green-500/20">
            <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0" />
            <div className="flex flex-col">
              <span className="font-bold text-green-600 dark:text-green-500">WhatsApp Conectado Exitosamente</span>
-             <span className="text-xs text-text-secondary">Abre WhatsApp en tu teléfono, busca un chat contigo mismo y di "Hola".</span>
+             <span className="text-xs text-text-secondary">Abre WhatsApp en tu teléfono, busca el chat contigo mismo y escribe un mensaje, envía un audio o una foto.</span>
            </div>
         </div>
       )}
