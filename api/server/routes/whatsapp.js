@@ -25,8 +25,14 @@ router.post('/start', requireJwtAuth, async (req, res) => {
   const statusObject = whatsappManager.getStatus(userId);
   
   if (statusObject.status === 'OFFLINE') {
-    // Start async without blocking response
-    whatsappManager.startClientForUser(userId);
+    const result = await whatsappManager.startClientForUser(userId);
+    if (result && result.success === false) {
+      return res.status(429).json({
+        message: result.message || 'Límite de conexiones simultáneas alcanzado en el servidor.',
+        status: 'OFFLINE',
+        error: result.error,
+      });
+    }
     res.json({ message: 'Conectando servicio...', status: 'STARTING' });
   } else {
     res.json({ message: 'El servicio ya está inicializándose o activo.', status: statusObject.status });

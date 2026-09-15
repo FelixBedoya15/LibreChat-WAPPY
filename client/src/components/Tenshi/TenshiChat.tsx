@@ -688,6 +688,26 @@ export default function TenshiChat() {
             window.dispatchEvent(
               new CustomEvent('wappy-empresa-cambiada', { detail: { empresa: companyName } })
             );
+          } else if (action.name === 'wappy_diligenciar_formulario') {
+            const rawModulo = (action.args?.modulo || 'investigacion_atel').toLowerCase().trim();
+            const campos = action.args?.campos || {};
+            const accion = action.args?.accion || 'llenar';
+
+            // Si no estamos en el módulo correspondiente, navegar hacia él
+            if (!window.location.pathname.includes('/sgsst') || !window.location.search.includes(rawModulo)) {
+              navigate(`/sgsst?hito=hito6&module=${rawModulo}`);
+            }
+
+            // Emitir evento para que el componente del formulario capture los datos
+            setTimeout(() => {
+              window.dispatchEvent(
+                new CustomEvent('wappy-diligenciar-formulario', {
+                  detail: { modulo: rawModulo, campos, accion }
+                })
+              );
+            }, 350);
+
+            resultMsg = `Formulario ${rawModulo} diligenciado exitosamente con los datos provistos`;
           } else if (action.name === 'operar_interfaz_visual') {
             const guiRes = await executeGUIAction(
               action.args.accion,
@@ -1306,12 +1326,13 @@ export default function TenshiChat() {
       const lastMessage = currentMessages.at(-1);
       const isLoopFeedback = lastMessage?.content?.startsWith('[RESULTADO_GUI]');
       
-      // Heurística de captura de DOM: solo capturar si estamos en un bucle interactivo de GUI o si el usuario pide interactuar explícitamente con la pantalla
+      // Heurística de captura de DOM: capturar si estamos en un bucle interactivo de GUI, si el usuario pide interactuar o si estamos en SGSST
       const textQuery = lastMessage?.role === 'user' ? lastMessage.content.toLowerCase() : '';
-      const uiActionKeywords = ['clic', 'click', 'pantalla', 'formulario', 'abre', 'abrir', 'llena', 'llenar', 'guarda', 'guardar', 'navega', 'navegar', 'boton', 'botón', 'scroll', 'interactua', 'digita'];
+      const uiActionKeywords = ['clic', 'click', 'pantalla', 'formulario', 'abre', 'abrir', 'llena', 'llenar', 'guarda', 'guardar', 'navega', 'navegar', 'boton', 'botón', 'scroll', 'interactua', 'digita', 'aplicativo', 'aplicacion', 'aplicación', 'escribe', 'escribir', 'reporte', 'reportar', 'investigacion', 'investigación', 'accidente', 'diligencia', 'diligenciar', 'colocar', 'datos', 'crear'];
       const isUiActionQuery = uiActionKeywords.some(kw => textQuery.includes(kw));
+      const isSgsstPage = window.location.pathname.startsWith('/sgsst');
       
-      const shouldCaptureDOM = isLoopFeedback || isUiActionQuery;
+      const shouldCaptureDOM = isLoopFeedback || isUiActionQuery || isSgsstPage;
       
       const domState = shouldCaptureDOM ? getDehydratedDOM() : '';
       console.log('[Tenshi Frontend] Dehydrated DOM length:', domState.length, '(Capture enabled:', shouldCaptureDOM, ')');

@@ -18,12 +18,25 @@ const { resolveInspectionProtocol, INSPECTION_PROTOCOLS } = require('./inspectio
  * Sanitizes voice transcription for common Spanish/SST phonetic misrecognitions
  */
 function sanitizeTranscription(text) {
-    if (!text || typeof text !== 'string') return text;
-    let s = text;
+    if (!text || typeof text !== 'string') return '';
+    let s = text.trim();
 
-    // Filter out obvious Hindi/Urdu hallucinated chunks if Gemini STT drifted
+    // 1. REJECT AND DISCARD ANY DEVANAGARI / HINDI / ARABIC / CYRILLIC OR NON-LATIN HALLUCINATION
+    if (/[\u0900-\u097F\u0600-\u06FF\u4E00-\u9FFF\u0400-\u04FF]/u.test(s)) {
+        logger.warn(`[VoiceSession] Discarding foreign script hallucination from STT: "${s}"`);
+        return '';
+    }
+
+    // 2. Reject known phantom silence hallucinations produced by STT on ambient noise
+    if (/^(yo juego a la bola|thank you for watching|suscr[ií]bete|bye|oh|ah)\.?$/i.test(s)) {
+        logger.warn(`[VoiceSession] Discarding phantom silence hallucination: "${s}"`);
+        return '';
+    }
+
+    // 3. Filter out obvious romanized Hindi/Urdu hallucinated chunks if Gemini STT drifted
     if (/\b(aur|ek\s+chhat|hai\s+na|jo\s+hamara|system\s+hai\s+na)\b/i.test(s)) {
-        s = s.replace(/aur\s+ek\s+chhat\s+dil\s+consultant\s+jo\s+system\s+hai\s+na\s+jo\s+hamara\s+jo\s+system\s+hai/gi, 'abre el sistema o consultor de la plataforma');
+        logger.warn(`[VoiceSession] Discarding romanized Hindi hallucination: "${s}"`);
+        return '';
     }
 
     // Fix affirmative false cognates (e.g. Google STT hearing "bistro" for "listo")
@@ -253,13 +266,25 @@ class VoiceSession {
                         },
                         {
                             name: "operar_interfaz_visual",
-                            description: "Ejecuta una acción visual interactiva en la pantalla del usuario (hacer clic en un botón, expandir sección, hacer scroll, abrir plan).",
+                            description: "Ejecuta una acción visual interactiva en la pantalla del usuario (hacer clic en un botón, escribir texto en un campo, scroll, abrir plan).",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     accion: {
                                         type: "string",
-                                        description: "Acción a ejecutar: 'click', 'scroll', 'esperar', 'abrir_plan'"
+                                        description: "Acción a ejecutar: 'click', 'escribir', 'scroll', 'esperar', 'abrir_plan'"
+                                    },
+                                    indice: {
+                                        type: "number",
+                                        description: "Índice numérico del elemento del DOM a interactuar."
+                                    },
+                                    texto: {
+                                        type: "string",
+                                        description: "Texto a escribir si la acción es 'escribir'."
+                                    },
+                                    direccion: {
+                                        type: "string",
+                                        description: "Dirección de scroll: 'arriba' o 'abajo'."
                                     },
                                     detalle: {
                                         type: "string",
@@ -267,6 +292,29 @@ class VoiceSession {
                                     }
                                 },
                                 required: ["accion"]
+                            }
+                        },
+                        {
+                            name: "wappy_diligenciar_formulario",
+                            description: "Diligencia, autocompleta o redacta automáticamente los campos de un formulario o aplicativo en pantalla (por ejemplo, Investigación Forense ATEL, Hoja de vida PESV, Permiso de alturas, Reporte de actos y condiciones, etc.) con datos proporcionados o inferidos.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    modulo: {
+                                        type: "string",
+                                        description: "Nombre clave del aplicativo o formulario. Ejemplos: 'investigacion_atel', 'vehicles_pesv', 'permiso_alturas', 'reporte_actos', 'metodo_owas'."
+                                    },
+                                    campos: {
+                                        type: "object",
+                                        description: "Objeto clave-valor con los campos a rellenar en el formulario. Para 'investigacion_atel': tipoEvento (Incidente|Accidente Leve|Accidente Grave), afectadoNombre, afectadoCedula, afectadoCargo, lugarEvento, descripcionHechos, consecuencias, diasIncapacidad, naturalezaLesion, agenteCausal, parteCuerpo."
+                                    },
+                                    accion: {
+                                        type: "string",
+                                        enum: ["llenar", "guardar", "generar_ia"],
+                                        description: "Acción a realizar en el formulario: 'llenar' para colocar los datos en pantalla."
+                                    }
+                                },
+                                required: ["modulo", "campos"]
                             }
                         },
                         {
@@ -298,19 +346,19 @@ class VoiceSession {
 - MAXIMA AGILIDAD: Sé ultra concisa, habla en 1 o máximo 2 oraciones cortas (10 a 15 palabras). Cero rodeos.
 
 [ROL]:
-Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes control en tiempo real para abrir cualquier agente y navegar a cualquier sección.
+Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes control en tiempo real para abrir cualquier agente, navegar a cualquier sección y diligenciar formularios en pantalla.
 
 [HERRAMIENTAS]:
-1. **wappy_abrir_chat_agente**: Abre de inmediato el chat con el agente y formula su pregunta.
-   - Parámetros: 'agente' (ej: 'psicologo_sst', 'abogado_laboral', 'medico_laboral', 'fisioterapeuta_laboral', 'ingeniero_quimico_sst', 'coordinador_seguridad_vial', 'coordinador_tareas_criticas', 'auditor_sg_sst', 'coordinador_ipevar', 'asistente_ats', 'asistente_permiso_tsa', 'creador_formatos', etc.) y 'pregunta' (la consulta textual del usuario).
-   - REGLA DE ORO: Si el usuario pide preguntar o hablar con un especialista, INVOCA INMEDIATAMENTE esta herramienta pasando 'agente' y 'pregunta'. Nunca respondas solo con voz si vas a abrir un chat.
-   - Responde oralmente en una frase: "¡Listo! Abriendo el chat con el especialista y pasándole tu consulta."
-   - Espera la respuesta técnica: NUNCA inventes lo que respondió el especialista hasta recibir el mensaje del sistema.
+1. **wappy_diligenciar_formulario**: Diligencia de inmediato formularios en pantalla (Investigación ATEL, PESV, Alturas, etc.).
+   - INVÓCALA DE INMEDIATO cuando el usuario te pida escribir, llenar, colocar, redactar o reportar información en un aplicativo.
+   - Parámetros: 'modulo' (ej: 'investigacion_atel') y 'campos' (objeto con datos como afectadoNombre, lugarEvento, descripcionHechos, etc.).
+   - Responde oralmente en una sola frase breve: "¡Listo! Ya te dejé diligenciado el reporte en el formulario."
 2. **wappy_navegar**: Navega a cualquier módulo de los 7 Hitos o aplicativo.
    - Hitos: 'diagnostico' (0312), 'responsable', 'politica', 'legal', 'rhs', 'vulnerabilidad', 'perfil_cargo', 'perfil_socio', 'condiciones_salud', 'peligros' (IPEVAR), 'animo', 'participacion_ipevar', 'vehicles_pesv', 'chemical_registry', 'permiso_alturas', 'analisis_trabajo_seguro', 'metodo_owas', 'epp_delivery', 'capacitaciones', 'ruta_aprendizaje', 'reporte_actos', 'estadisticas', 'investigacion_atel', 'control_acpm', 'auditoria', 'predictivo'.
    - Aplicativos: 'academia' (/academia?tab=cursos), 'training_admin', 'rutas', 'ruta_admin', 'events_meet', 'events_meet_admin', 'blog', 'blog_admin', 'control' (Kanban), 'animo_dashboard', 'planes', 'agents', 'live', 'chat_sst', 'roadmap', 'contactanos', 'comunidad', 'matriz', 'embajadores', 'tenshi_admin'.
    - INVÓCALA DE INMEDIATO si el usuario menciona un destino.
-3. **SÍNTESIS DE RESPUESTAS**: Cuando recibas la notificación del sistema con la respuesta del especialista, da un resumen ejecutivo de 2 oraciones al usuario y recomienda el siguiente paso.`;
+3. **wappy_abrir_chat_agente**: Abre de inmediato el chat con un especialista y formula la consulta del usuario.
+4. **SÍNTESIS DE RESPUESTAS**: Cuando recibas la notificación del sistema con la respuesta del especialista, da un resumen ejecutivo de 2 oraciones al usuario y recomienda el siguiente paso.`;
         } else {
             // Herramientas nativas para agentes SST y Fisioterapeuta Laboral
             const reportTool = {
@@ -522,12 +570,15 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             }, 3500);
         });
 
-        // Listen for USER TRANSCRIPTION  
         // Listen for USER transcription (what the user says)
         this.geminiClient.on('userTranscription', (text) => {
-            logger.info(`[VoiceSession] User transcription received: "${text}"`);
-            this.toolCalledThisTurn = false;
             const cleanText = sanitizeTranscription(text);
+            if (!cleanText || !cleanText.trim()) {
+                logger.info(`[VoiceSession] Ignored discarded/hallucinated user transcription: "${text}"`);
+                return;
+            }
+            logger.info(`[VoiceSession] User transcription received: "${cleanText}" (raw: "${text}")`);
+            this.toolCalledThisTurn = false;
             // Accumulate user text for saving
             this.userTranscriptionText += cleanText;
             // ✅ FIX: Send sanitized user transcription to client in real-time for HUD display

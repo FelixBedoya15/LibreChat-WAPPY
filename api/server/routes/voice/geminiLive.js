@@ -265,16 +265,18 @@ class GeminiLiveClient extends EventEmitter {
                                 voiceName: this.config.voice || 'Puck',
                             },
                         },
+                        languageCode: this.config.language || 'es-ES',
                     },
                 },
                 systemInstruction: {
                     parts: [
                         {
                             text: (() => {
-                                const spanishAudioLock = `[DIRECTIVA OBLIGATORIA DE IDIOMA Y AUDIO]:
-- IDIOMA EXCLUSIVO: ESPAÑOL (Colombia / Latinoamérica).
-- El usuario habla SIEMPRE en ESPAÑOL.
-- ESTÁ TERMINANTEMENTE PROHIBIDO transcribir, interpretar o decodificar el audio recibido en hindi, urdu, árabe, inglés o cualquier otro idioma ajeno. Interpreta todos los sonidos acústicos como palabras en español.`;
+                                const spanishAudioLock = `[DIRECTIVA CRÍTICA DE IDIOMA Y AUDICIÓN]:
+- IDIOMA EXCLUSIVO Y OBLIGATORIO: ESPAÑOL (Colombia / Latinoamérica).
+- El usuario habla ÚNICA Y EXCLUSIVAMENTE en ESPAÑOL.
+- ESTÁ ESTRICTAMENTE PROHIBIDO transcribir, interpretar o responder en hindi, devanagari, urdu, árabe, inglés o cualquier otro idioma.
+- Decodifica todo sonido o habla como español natural. Si hay silencio o ruido de fondo bajo, NO generes transcripciones ni respuestas por tu cuenta.`;
 
                                 let base = this.config.systemInstruction
                                     ? `${this.config.systemInstruction}\n\n${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.config.conversationContext}` : ''}`

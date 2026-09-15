@@ -8,11 +8,12 @@ class WhatsAppManager {
   constructor() {
     this.clients = new Map();
     this.qrCodes = new Map(); // userId => Base64 string
-    this.statuses = new Map(); // userId => 'OFFLINE', 'STARTING', 'QR_READY', 'AUTHENTICATED'
+    this.statuses = new Map(); // userId => 'OFFLINE', 'STARTING', 'QR_READY', 'AUTHENTICATED', 'READY'
     this.messageBuffer = new Map(); // userId => array of text parts
     this.bufferTimers = new Map(); // userId => NodeJS timeout
     this.processing = new Map(); // userId => boolean
-    this.qrAttempts = new Map(); // userId => number of QR codes generated (to limit retries)
+    this.qrAttempts = new Map(); // userId => number of QR codes generated
+    this.inactivityTimers = new Map(); // userId => NodeJS timeout (auto-hibernation)
     this.ensureSessionDir();
   }
 
@@ -58,11 +59,12 @@ class WhatsAppManager {
       // El fetch nativo de Node.js bufferiza el cuerpo internamente y no emite chunks en tiempo real.
       const http = require('http');
       const postData = JSON.stringify(payload);
+      const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3080;
 
       const responseText = await new Promise((resolve, reject) => {
         const options = {
           hostname: 'localhost',
-          port: 3080,
+          port: port,
           path: '/api/agents/chat',
           method: 'POST',
           headers: {
@@ -160,6 +162,68 @@ class WhatsAppManager {
     }
   }
 
+  resetInactivityTimer(userId) {
+    this.clearInactivityTimer(userId);
+    // 40 minutos por defecto para liberar memoria de Chromium si nadie habla
+    const timeoutMs = parseInt(process.env.WA_IDLE_TIMEOUT_MS || '2400000', 10);
+    const timer = setTimeout(async () => {
+      console.log(`[WhatsApp Manager] Hibernando sesión inactiva de usuario ${userId} (${timeoutMs / 60000} minutos sin uso). Memoria RAM liberada.`);
+      await this.cleanupClient(userId, 'Hibernación por inactividad');
+    }, timeoutMs);
+    this.inactivityTimers.set(userId, timer);
+  }
+
+  clearInactivityTimer(userId) {
+    if (this.inactivityTimers.has(userId)) {
+      clearTimeout(this.inactivityTimers.get(userId));
+      this.inactivityTimers.delete(userId);
+    }
+  }
+
+  async cleanupClient(userId, reason = 'Limpieza normal') {
+    console.log(`[WhatsApp Manager] Cerrando cliente para usuario ${userId}. Razón: ${reason}`);
+    this.clearInactivityTimer(userId);
+    if (this.bufferTimers.has(userId)) {
+      clearTimeout(this.bufferTimers.get(userId));
+      this.bufferTimers.delete(userId);
+    }
+    this.messageBuffer.delete(userId);
+    this.processing.delete(userId);
+    this.qrCodes.delete(userId);
+    this.qrAttempts.delete(userId);
+
+    const client = this.clients.get(userId);
+    this.clients.delete(userId);
+    this.statuses.set(userId, 'OFFLINE');
+
+    if (client) {
+      try {
+        const browserProcess = client.pupBrowser?.process?.();
+        const pid = browserProcess?.pid;
+
+        // Intentar cierre normal con límite de 3 segundos
+        await Promise.race([
+          client.destroy().catch(() => {}),
+          new Promise((r) => setTimeout(r, 3000)),
+        ]);
+
+        // Asegurar que el PID de Chromium no quede como proceso zombi en el VPS
+        if (pid) {
+          try {
+            process.kill(pid, 'SIGKILL');
+            console.log(`[WhatsApp Manager] Proceso Chromium PID ${pid} terminado de raíz para usuario ${userId}`);
+          } catch (e) {
+            // Ya finalizó correctamente
+          }
+        }
+      } catch (err) {
+        console.error(`[WhatsApp Manager] Error cerrando Chromium para usuario ${userId}:`, err.message);
+      }
+    }
+
+    this.cleanSingletonLock(userId);
+  }
+
   cleanSingletonLock(userId) {
     const sessionDir = path.join(this.sessionPath, `session-${userId}`);
     const pathsToClean = [
@@ -189,10 +253,20 @@ class WhatsAppManager {
   async startClientForUser(userId) {
     if (this.clients.has(userId)) {
       const currentStatus = this.statuses.get(userId);
-      if (currentStatus !== 'OFFLINE') return; // already starting or running
+      if (currentStatus !== 'OFFLINE') return { success: true, status: currentStatus };
     }
 
-    console.log(`[WhatsApp Manager] Booting client for user: ${userId}`);
+    const MAX_ACTIVE_CLIENTS = parseInt(process.env.WA_MAX_CONCURRENT_SESSIONS || '25', 10);
+    if (this.clients.size >= MAX_ACTIVE_CLIENTS) {
+      console.warn(`[WhatsApp Manager] Límite de conexiones activas (${MAX_ACTIVE_CLIENTS}) alcanzado. Rechazando conexión para ${userId}.`);
+      return {
+        success: false,
+        error: 'LIMIT_REACHED',
+        message: `El servidor ha alcanzado el límite de ${MAX_ACTIVE_CLIENTS} sesiones activas simultáneas para proteger los recursos. Por favor intenta en unos minutos.`,
+      };
+    }
+
+    console.log(`[WhatsApp Manager] Booting client for user: ${userId} (Activos: ${this.clients.size + 1}/${MAX_ACTIVE_CLIENTS})`);
     this.statuses.set(userId, 'STARTING');
     this.qrCodes.delete(userId);
 
@@ -208,20 +282,32 @@ class WhatsAppManager {
         '--disable-accelerated-2d-canvas',
         '--no-first-run',
         '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--disable-extensions',
+        '--mute-audio',
+        '--disable-background-networking',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-breakpad',
+        '--disable-component-extensions-with-background-pages',
+        '--disable-default-apps',
+        '--disable-features=AudioServiceOutOfProcess,IsolateOrigins,site-per-process',
+        '--disable-ipc-flooding-protection',
+        '--disable-renderer-backgrounding',
+        '--disable-sync',
+        '--disk-cache-size=52428800', // 50MB disk cache
+        '--media-cache-size=52428800',
+        '--js-flags=--max-old-space-size=256', // 256MB V8 heap limit: soporte fluido para fotos/PDFs/audios sin fugas
       ]
     };
 
-    // Alpine Linux instala el binario en estas rutas. 
-    // Lo forzamos para evitar que intente usar el descargado nativamente.
+    // Rutas Alpine Linux
     if (fs.existsSync('/usr/bin/chromium-browser')) {
       puppeteerOptions.executablePath = '/usr/bin/chromium-browser';
     } else if (fs.existsSync('/usr/bin/chromium')) {
       puppeteerOptions.executablePath = '/usr/bin/chromium';
     } else {
-      console.warn('[WhatsApp Manager] ADVERTENCIA: No se encontró Chromium en las rutas de Alpine. Forzando a /usr/bin/chromium para depurar.');
-      puppeteerOptions.executablePath = '/usr/bin/chromium'; // Fallback forzado
+      puppeteerOptions.executablePath = '/usr/bin/chromium';
     }
 
     const client = new Client({
@@ -229,7 +315,8 @@ class WhatsAppManager {
         clientId: userId,
         dataPath: this.sessionPath
       }),
-      puppeteer: puppeteerOptions
+      puppeteer: puppeteerOptions,
+      qrMaxRetries: 5,
     });
 
     this.clients.set(userId, client);
@@ -241,11 +328,7 @@ class WhatsAppManager {
 
       if (attempts > MAX_QR_ATTEMPTS) {
         console.warn(`[WhatsApp Manager] Usuario ${userId} superó ${MAX_QR_ATTEMPTS} intentos de QR sin escanear. Deteniendo cliente.`);
-        this.statuses.set(userId, 'OFFLINE');
-        this.qrCodes.delete(userId);
-        client.destroy().catch(() => {});
-        this.clients.delete(userId);
-        this.qrAttempts.delete(userId);
+        this.cleanupClient(userId, 'Máximo de intentos QR superado');
         return;
       }
 
@@ -257,61 +340,80 @@ class WhatsAppManager {
     client.on('ready', () => {
       console.log(`[WhatsApp Manager] ✅ Cliente listo para usuario: ${userId}`);
       this.statuses.set(userId, 'READY');
+      this.resetInactivityTimer(userId);
     });
 
     client.on('authenticated', () => {
       console.log(`[WhatsApp Manager] Autenticado: ${userId}`);
       this.statuses.set(userId, 'AUTHENTICATED');
-      this.qrAttempts.delete(userId); // Resetear contador al autenticarse exitosamente
+      this.qrAttempts.delete(userId);
+      this.resetInactivityTimer(userId);
     });
 
-    client.on('auth_failure', (msg) => {
+    client.on('auth_failure', async (msg) => {
       console.error(`[WhatsApp Manager] Auth Failure para usuario ${userId}:`, msg);
-      this.statuses.set(userId, 'OFFLINE');
-      this.clients.delete(userId);
+      await this.cleanupClient(userId, `Fallo de autenticación: ${msg}`);
     });
 
-    client.on('disconnected', (reason) => {
+    client.on('disconnected', async (reason) => {
       console.log(`[WhatsApp Manager] Desconectado para usuario ${userId}:`, reason);
-      this.statuses.set(userId, 'OFFLINE');
-      this.clients.delete(userId);
+      await this.cleanupClient(userId, `Desconexión: ${reason}`);
     });
 
-    // Usar message_create en lugar de message, ya que 'message' no dispara para msjs autoguiados.
+    // Usar message_create para capturar mensajes propios en modo OpenClaw
     client.on('message_create', async (message) => {
       try {
         const myJID = client.info?.wid?._serialized;
-        const msgBody = message.body?.trim();
+        let msgBody = message.body?.trim() || '';
 
-        // Validación robusta para el modo OpenClaw (Message Yourself/Escríbete a ti mismo)
-        // El mensaje debe ser enviado POR MI hacia MI MISMO
+        // Validación para el modo OpenClaw (Message Yourself/Escríbete a ti mismo)
         const isSelfChat = message.fromMe && (
           message.to === message.from ||
           (myJID && (message.to === myJID || message.id?.remote === myJID))
         );
 
         if (!isSelfChat) {
-          // Solo loguear si es un mensaje propio enviado a otro (útil para debug puntual)
-          // Los mensajes de grupos y estados se ignoran silenciosamente
           return;
         }
 
-        // Log de diagnóstico: solo para mensajes que sí procesaremos
-        console.log(`[WhatsApp Manager] Auto-mensaje recibido:`, {
-          fromMe: message.fromMe,
-          from: message.from,
-          to: message.to,
-          remote: message.id?.remote,
-          myJID: myJID,
-          bodySnippet: msgBody ? msgBody.substring(0, 30) : ''
-        });
+        // Renovar temporizador de inactividad con cada mensaje recibido
+        this.resetInactivityTimer(userId);
 
-        if (!msgBody) return;
+        // Soporte de archivos multimedia (Imágenes, Audios, PDFs, Excel, Videos)
+        let mediaNotice = '';
+        if (message.hasMedia) {
+          try {
+            const downloadedMedia = await message.downloadMedia();
+            if (downloadedMedia) {
+              const mime = downloadedMedia.mimetype || 'desconocido';
+              const filename = downloadedMedia.filename || 'archivo_adjunto';
+              console.log(`[WhatsApp Manager] Archivo multimedia recibido (${mime}, ${filename}) de usuario: ${userId}`);
+              
+              if (mime.startsWith('image/')) {
+                mediaNotice = `[Imagen adjunta: ${filename}]`;
+              } else if (mime.startsWith('audio/') || mime.includes('ogg')) {
+                mediaNotice = `[Nota de voz / Audio adjunto: ${filename}]`;
+              } else if (mime.includes('pdf')) {
+                mediaNotice = `[Documento PDF adjunto: ${filename}]`;
+              } else if (mime.includes('spreadsheet') || mime.includes('excel') || mime.includes('csv')) {
+                mediaNotice = `[Planilla Excel / Matriz adjunta: ${filename}]`;
+              } else {
+                mediaNotice = `[Archivo adjunto (${mime}): ${filename}]`;
+              }
+            }
+          } catch (mErr) {
+            console.error('[WhatsApp Manager] Error descargando multimedia de WhatsApp:', mErr.message);
+          }
+        }
+
+        const effectiveText = [mediaNotice, msgBody].filter(Boolean).join('\n').trim();
+
+        if (!effectiveText) return;
 
         // Ignorar respuestas propias del bot para evitar loops infinitos
-        if (msgBody.startsWith('🤖')) return;
+        if (effectiveText.startsWith('🤖')) return;
 
-        console.log(`[WhatsApp Manager] Comando interno recibido de sí mismo (${userId}): ${msgBody}`);
+        console.log(`[WhatsApp Manager] Auto-mensaje de ${userId}: ${effectiveText.substring(0, 80)}`);
 
         // Buscar el usuario en la BD
         const User = mongoose.models.User || mongoose.connection.collection('users');
@@ -323,12 +425,12 @@ class WhatsAppManager {
 
         const chat = await message.getChat();
 
-        // Sistema de buffer de 7 segundos para acumular mensajes fragmentados
+        // Sistema de buffer de 6 segundos para acumular mensajes fragmentados
         if (this.bufferTimers.has(userId)) {
           clearTimeout(this.bufferTimers.get(userId));
         }
         const currentBuffer = this.messageBuffer.get(userId) || [];
-        currentBuffer.push(msgBody);
+        currentBuffer.push(effectiveText);
         this.messageBuffer.set(userId, currentBuffer);
 
         const timer = setTimeout(async () => {
@@ -337,7 +439,7 @@ class WhatsAppManager {
           this.bufferTimers.delete(userId);
           const unifiedMessage = bufferedMessages.join('\n');
           await this.processUnifiedMessage(userId, user, chat, unifiedMessage);
-        }, 7000);
+        }, 6000);
 
         this.bufferTimers.set(userId, timer);
 
@@ -346,22 +448,16 @@ class WhatsAppManager {
       }
     });
 
-
-    client.initialize().catch((err) => {
-      console.error(`[WhatsApp Manager] Fallo al iniciar puppeteer para usario ${userId}`, err);
-      this.statuses.set(userId, 'OFFLINE');
-      this.clients.delete(userId);
+    client.initialize().catch(async (err) => {
+      console.error(`[WhatsApp Manager] Fallo al iniciar puppeteer para usuario ${userId}:`, err.message);
+      await this.cleanupClient(userId, 'Fallo de inicialización de Puppeteer');
     });
+
+    return { success: true, status: 'STARTING' };
   }
 
-  stopClientForUser(userId) {
-    const client = this.clients.get(userId);
-    if (client) {
-      client.destroy().catch(console.error);
-      this.clients.delete(userId);
-      this.statuses.set(userId, 'OFFLINE');
-      this.qrCodes.delete(userId);
-    }
+  async stopClientForUser(userId) {
+    await this.cleanupClient(userId, 'Detenido por usuario');
   }
 
   async destroyClientForUser(userId) {
@@ -370,27 +466,20 @@ class WhatsAppManager {
       try {
         await client.logout();
       } catch (err) {
-        console.error(`[WhatsApp Manager] Error during client.logout() for ${userId}:`, err);
+        console.error(`[WhatsApp Manager] Error en client.logout() para ${userId}:`, err.message);
       }
-      try {
-        await client.destroy();
-      } catch (err) {
-        console.error(`[WhatsApp Manager] Error during client.destroy() for ${userId}:`, err);
-      }
-      this.clients.delete(userId);
-      this.statuses.set(userId, 'OFFLINE');
-      this.qrCodes.delete(userId);
     }
+    await this.cleanupClient(userId, 'Cierre de sesión definitivo');
 
-    // Also delete the session folder to fully reset the session
+    // Eliminar carpeta de sesión en disco
     const sessionDir = path.join(this.sessionPath, `session-${userId}`);
     try {
       if (fs.existsSync(sessionDir)) {
         fs.rmSync(sessionDir, { recursive: true, force: true });
-        console.log(`[WhatsApp Manager] Removed session directory for user: ${userId}`);
+        console.log(`[WhatsApp Manager] Directorio de sesión eliminado para usuario: ${userId}`);
       }
     } catch (err) {
-      console.error(`[WhatsApp Manager] Error removing session directory ${sessionDir}:`, err);
+      console.error(`[WhatsApp Manager] Error eliminando directorio de sesión ${sessionDir}:`, err.message);
     }
   }
 
@@ -402,22 +491,14 @@ class WhatsAppManager {
   }
 
   async processUnifiedMessage(userId, user, chat, unifiedMessage) {
-    if (this.processing.get(userId)) return; // Prevención extrema de concurrencia
+    if (this.processing.get(userId)) return;
     this.processing.set(userId, true);
 
     try {
-      // Simulate typing indicator while LibreChat thinks
       await chat.sendStateTyping();
-
-      // Pasar null como conversationId para que LibreChat lo trate como conversación nueva.
-      // Esto es idéntico a lo que hace el chat web al abrir "+ Nuevo Chat".
-      // El uuid real del servidor se creará automáticamente en la primera respuesta.
       const responseText = await this.getAgentResponse(user, unifiedMessage, null);
-      
-      // Firma del bot y envío
       const finalMessage = `🤖 ${responseText}`;
       await chat.sendMessage(finalMessage);
-      
     } catch (err) {
       console.error(`[WhatsApp Manager] Error procesando mensaje unificado para ${userId}:`, err);
     } finally {
@@ -430,11 +511,18 @@ class WhatsAppManager {
     console.log('[WhatsApp Manager] Buscando sesiones guardadas...');
     if (!fs.existsSync(this.sessionPath)) return;
     
+    const MAX_ACTIVE_CLIENTS = parseInt(process.env.WA_MAX_CONCURRENT_SESSIONS || '25', 10);
     const folders = fs.readdirSync(this.sessionPath);
+    let count = 0;
     for (const folder of folders) {
       if (folder.startsWith('session-')) {
+        if (count >= MAX_ACTIVE_CLIENTS) {
+          console.log(`[WhatsApp Manager] Límite de arranque de sesiones alcanzado (${MAX_ACTIVE_CLIENTS}). Las restantes se activarán bajo demanda.`);
+          break;
+        }
         const userId = folder.replace('session-', '');
-        this.startClientForUser(userId);
+        await this.startClientForUser(userId);
+        count++;
       }
     }
   }

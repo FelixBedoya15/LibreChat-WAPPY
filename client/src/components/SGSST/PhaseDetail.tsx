@@ -118,16 +118,39 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
             }).catch(console.error);
     }, [token]);
 
-    // Auto-open inbox when navigating from a notification
+    // Auto-open module, expand category & inbox when navigating from a notification or AI tool
     useEffect(() => {
         if (autoOpenModule) {
+            setExpandedCategories(prev => prev.includes(autoOpenModule) ? prev : [...prev, autoOpenModule]);
             // Dispatch after a short delay to let the component render
             const timer = setTimeout(() => {
                 window.dispatchEvent(new CustomEvent('sgsst-open-inbox', { detail: { module: autoOpenModule } }));
-            }, 400);
+                const element = document.getElementById(`sgsst-category-${autoOpenModule}`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 300);
             return () => clearTimeout(timer);
         }
     }, [autoOpenModule]);
+
+    // Listen for dynamic navigate-sgsst events to expand category and scroll in real-time
+    useEffect(() => {
+        const handleNavigate = (e: any) => {
+            const { module: navModule } = e.detail || {};
+            if (navModule) {
+                setExpandedCategories(prev => prev.includes(navModule) ? prev : [...prev, navModule]);
+                setTimeout(() => {
+                    const element = document.getElementById(`sgsst-category-${navModule}`);
+                    if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 200);
+            }
+        };
+        window.addEventListener('navigate-sgsst', handleNavigate);
+        return () => window.removeEventListener('navigate-sgsst', handleNavigate);
+    }, []);
 
     const handleToggleApp = async (categoryId: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -188,12 +211,9 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                 console.error('Failed to parse saved files', e);
             }
         }
-        // Initialize all categories as expanded by default
-        // if (categories.length > 0) {
-        //     setExpandedCategories(categories.map(c => c.id));
-        // }
-        setExpandedCategories([]);
-    }, [phase.id, storageKey]);
+        // Initialize with autoOpenModule if provided via route navigation
+        setExpandedCategories(autoOpenModule ? [autoOpenModule] : []);
+    }, [phase.id, storageKey, autoOpenModule]);
 
     const saveFiles = (newFiles: any[]) => {
         setFiles(newFiles);
@@ -357,6 +377,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                         return (
                             <div 
                                 key={category.id} 
+                                id={`sgsst-category-${category.id}`}
                                 className={cn(
                                     "w-full min-w-0 rounded-[2rem] border border-border-light dark:border-white/5 bg-white/60 dark:bg-[#1a1a1a]/60 transition-all duration-500 shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)]",
                                     isCategoryDisabled && !isAdmin && "opacity-80 border-dashed border-amber-500/30"

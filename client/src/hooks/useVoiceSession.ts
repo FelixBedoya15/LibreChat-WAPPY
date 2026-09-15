@@ -118,26 +118,30 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             }
             console.log('[VoiceSession] AudioContext 16kHz listo, estado:', audioContext.state, '| sampleRate:', audioContext.sampleRate);
 
-            // 3. Helper: enviar PCM int16 a 16kHz al servidor via WebSocket
+            // 3. Helper: enviar PCM int16 a 16kHz al servidor via WebSocket con Voice Activity Gate (VAD)
             let sendCount = 0;
-            const sendPCMChunk = (float32Array: Float32Array) => {
-                if (isHardwareMutedRef.current || isPlayingAudioRef.current) return;
+            let lastSpeechTime = 0;
+            const preRollQueue: Float32Array[] = []; // Almacena ~256ms previos al inicio del habla para no cortar consonantes
+            const PRE_ROLL_MAX = 2; // 2 buffers de 2048 muestras (~256ms)
+            const VAD_RMS_THRESHOLD = 0.005; // Umbral de energía de voz
+            const VAD_HANGOVER_MS = 1000; // Mantener streaming 1000ms tras hablar para no cortar finales de palabras
+
+            const encodeAndSend = (pcmFloat32: Float32Array) => {
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
-                // Re-muestreo dinámico a 16000 Hz (crítico para Safari en macOS/iOS que opera a 44.1kHz o 48kHz)
                 const currentSampleRate = audioContext?.sampleRate || 16000;
-                let dataToEncode = float32Array;
+                let dataToEncode = pcmFloat32;
 
                 if (currentSampleRate !== 16000 && currentSampleRate > 0) {
                     const ratio = currentSampleRate / 16000;
-                    const newLength = Math.round(float32Array.length / ratio);
+                    const newLength = Math.round(pcmFloat32.length / ratio);
                     const resampled = new Float32Array(newLength);
                     for (let i = 0; i < newLength; i++) {
                         const srcIdx = i * ratio;
                         const idx = Math.floor(srcIdx);
                         const frac = srcIdx - idx;
-                        const s0 = float32Array[idx] || 0;
-                        const s1 = float32Array[idx + 1] !== undefined ? float32Array[idx + 1] : s0;
+                        const s0 = pcmFloat32[idx] || 0;
+                        const s1 = pcmFloat32[idx + 1] !== undefined ? pcmFloat32[idx + 1] : s0;
                         resampled[i] = s0 + frac * (s1 - s0);
                     }
                     dataToEncode = resampled;
@@ -159,6 +163,50 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 sendCount++;
                 if (sendCount === 1 || sendCount % 50 === 0) {
                     console.log(`[VoiceSession] Audio 16kHz enviado al servidor (chunk #${sendCount}, ${base64.length} chars, resampled: ${currentSampleRate !== 16000})`);
+                }
+            };
+
+            const sendPCMChunk = (float32Array: Float32Array) => {
+                if (isHardwareMutedRef.current || isPlayingAudioRef.current) {
+                    preRollQueue.length = 0;
+                    return;
+                }
+                if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+                    preRollQueue.length = 0;
+                    return;
+                }
+
+                // Cálculo de RMS del buffer de audio
+                let sum = 0;
+                for (let i = 0; i < float32Array.length; i++) {
+                    sum += float32Array[i] * float32Array[i];
+                }
+                const rms = Math.sqrt(sum / float32Array.length);
+
+                const now = Date.now();
+                const isSpeech = rms >= VAD_RMS_THRESHOLD;
+
+                if (isSpeech) {
+                    const wasSilent = (now - lastSpeechTime) > VAD_HANGOVER_MS;
+                    lastSpeechTime = now;
+
+                    // Si transicionamos de silencio a habla, vaciar pre-roll para no cortar la consonante inicial
+                    if (wasSilent && preRollQueue.length > 0) {
+                        while (preRollQueue.length > 0) {
+                            const queued = preRollQueue.shift();
+                            if (queued) encodeAndSend(queued);
+                        }
+                    }
+                    encodeAndSend(float32Array);
+                } else if ((now - lastSpeechTime) < VAD_HANGOVER_MS) {
+                    // Período hangover: seguir transmitiendo para preservar finales de frases y pausas cortas
+                    encodeAndSend(float32Array);
+                } else {
+                    // Silencio prolongado: almacenar en cola pre-roll y NO transmitir ruido vacío a Gemini
+                    preRollQueue.push(new Float32Array(float32Array));
+                    if (preRollQueue.length > PRE_ROLL_MAX) {
+                        preRollQueue.shift();
+                    }
                 }
             };
 

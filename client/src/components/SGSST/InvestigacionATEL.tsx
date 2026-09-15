@@ -259,6 +259,27 @@ const InvestigacionATEL = () => {
         .catch(() => {});
     }, [token]);
 
+    // Listener para recibir datos diligenciados por Tenshi (Voz o Chat)
+    useEffect(() => {
+        const handleDiligenciar = (e: any) => {
+            const { modulo, campos } = e.detail || {};
+            if (modulo === 'investigacion_atel' || modulo === 'accidentes' || modulo === 'investigacion' || modulo === 'atel') {
+                if (campos && typeof campos === 'object') {
+                    setFormData(prev => ({
+                        ...prev,
+                        ...campos,
+                    }));
+                    showToast({
+                        message: 'Tenshi ha diligenciado los datos de la investigación ATEL.',
+                        status: 'success'
+                    });
+                }
+            }
+        };
+        window.addEventListener('wappy-diligenciar-formulario', handleDiligenciar);
+        return () => window.removeEventListener('wappy-diligenciar-formulario', handleDiligenciar);
+    }, [showToast]);
+
     const fetchInvestigationsList = async (selectId?: string) => {
         if (!token) return;
         setIsLoadingList(true);

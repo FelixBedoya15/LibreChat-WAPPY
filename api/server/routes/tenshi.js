@@ -461,10 +461,33 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             }
                         };
 
+                        const diligenciarFormularioDeclaration = {
+                            name: 'wappy_diligenciar_formulario',
+                            description: 'Diligenciar Formulario: Autocompleta o redacta automáticamente campos de un formulario o aplicativo en pantalla (Investigación Forense ATEL, PESV, Alturas, Reporte de Actos, etc.) con datos estructurados.',
+                            parameters: {
+                                type: 'OBJECT',
+                                properties: {
+                                    modulo: {
+                                        type: 'STRING',
+                                        description: 'Nombre del aplicativo o formulario (ej: "investigacion_atel", "vehicles_pesv", "permiso_alturas", "reporte_actos").'
+                                    },
+                                    campos: {
+                                        type: 'OBJECT',
+                                        description: 'Objeto clave-valor con los campos y sus datos a rellenar en el formulario.'
+                                    },
+                                    accion: {
+                                        type: 'STRING',
+                                        description: 'Acción a realizar: "llenar", "guardar" o "generar_ia".'
+                                    }
+                                },
+                                required: ['modulo', 'campos']
+                            }
+                        };
+
                         const geminiModel = genAI.getGenerativeModel({
                             model: currentModel,
                             systemInstruction: systemMessage,
-                            tools: [{ functionDeclarations: [somosSSTDeclaration, consultarAgenteDeclaration, canvasDeclaration, operarGUIDeclaration] }],
+                            tools: [{ functionDeclarations: [somosSSTDeclaration, consultarAgenteDeclaration, canvasDeclaration, operarGUIDeclaration, diligenciarFormularioDeclaration] }],
                             generationConfig: { temperature: 0.7 }
                         });
 
