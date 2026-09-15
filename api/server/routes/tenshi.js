@@ -14,6 +14,7 @@ const { logger } = require('~/config');
 const { generateShortLivedToken } = require('@librechat/api');
 const CompanyInfo = require('../../models/CompanyInfo');
 const SomosSST = require('../../app/clients/tools/structured/SomosSST');
+const GoogleDrive = require('../../app/clients/tools/structured/GoogleDrive');
 const ConsultarAgenteEspecializado = require('../../app/clients/tools/structured/ConsultarAgenteEspecializado');
 const CanvasTool = require('../../app/clients/tools/structured/CanvasTool');
 const { getActiveSkillInstructions } = require('~/server/services/skillRouter');
@@ -258,8 +259,12 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
 
 ### ⚡ DIRECTIVAS CRÍTICAS DE VELOCIDAD Y HERRAMIENTAS:
 1. **RESPUESTAS INMEDIATAS A PREGUNTAS TEÓRICAS/CONCEPTUALES**: Si el usuario te hace preguntas conceptuales, definiciones teóricas (ej: "¿qué es SST?", "¿qué es un ATS?", "¿cuáles son las obligaciones del empleador?"), saludos o preguntas generales, RESPONDE DIRECTAMENTE EN TEXTO en 1 solo turno de forma concisa y alegre. ¡ESTÁ PROHIBIDO invocar herramientas como 'somos_sst' o 'resumen_empresa' para responder preguntas teóricas!
-2. **USO DE HERRAMIENTAS EXCLUSIVAMENTE CUANDO SE SOLICITE**: Ejecuta 'somos_sst', 'consultar_agente_especializado' o 'canvas_tool' ÚNICAMENTE cuando el usuario te pida consultar datos reales guardados de su empresa/trabajadores, crear actividades en el Centro de Control ACPM o generar un informe formal HTML.
-3. **GENERACIÓN DE INFORMES**: Si el usuario te pide un informe o reporte formal, usa 'somos_sst' con 'generar_informe_html', y en tu respuesta da un resumen de 2 viñetas e indícale que use el botón para descargarlo.`;
+2. **USO DE HERRAMIENTAS EXCLUSIVAMENTE CUANDO SE SOLICITE**: Ejecuta 'somos_sst', 'google_drive', 'consultar_agente_especializado' o 'canvas_tool' ÚNICAMENTE cuando el usuario te pida consultar datos reales guardados de su empresa/trabajadores, explorar su Google Drive, crear actividades en el Centro de Control ACPM o generar un informe formal HTML.
+3. **GENERACIÓN DE INFORMES**: Si el usuario te pide un informe o reporte formal, usa 'somos_sst' con 'generar_informe_html', y en tu respuesta da un resumen de 2 viñetas e indícale que use el botón para descargarlo.
+4. **GOOGLE DRIVE, INFORMACIÓN DE EMPRESA Y COBERTURA TOTAL DE SOMOS SST**:
+   - Tienes acceso nativo a 'google_drive' ('list_files_and_folders', 'read_document_content') para navegar carpetas y leer documentos (RUT, Cámara de Comercio, planillas, matrices GTC45, FDS químicas, etc.).
+   - Si lees documentos con datos de la empresa (RUT, cámara de comercio, actas), debes llamar a 'somos_sst' con 'actualizar_informacion_empresa' para autocompletar la Razón Social, NIT, Tipo de Empresa, Representante Legal, ARL, Nivel de Riesgo, CIIU, Dirección, etc.
+   - Tienes control y acceso sobre la totalidad de los 34 aplicativos de Somos SST: Perfiles de Cargo ('cargos'), Estudio de Puesto de Trabajo ('estudio_puesto'), Auditoría Interna ('auditoria'), Diagnóstico Res. 0312 ('diagnostico'), Matriz GTC-45 / IPEVAR, PESV, Químicos SGA, Alturas, ATS, EPP, Capacitaciones, Reglamentos RIT/RHS, etc., pudiendo actualizarlos con 'editar_cualquier_aplicativo' y disparar tareas con 'crear_actividad_acpm'.`;
 
         if (skillInstructions) {
             systemMessage += `\n\n${skillInstructions}`;
@@ -380,8 +385,24 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 properties: {
                                     accion: {
                                         type: 'STRING',
-                                        description: 'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, actualizar_examen_medico, registrar_accidente_atel, actualizar_hito_tarea, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, actualizar_actividad_acpm.'
+                                        description: 'La acción a ejecutar: actualizar_informacion_empresa, consultar_expediente_integral, listar_trabajadores, resumen_empresa, actualizar_examen_medico, registrar_accidente_atel, actualizar_hito_tarea, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, actualizar_actividad_acpm, crear_trabajador.'
                                     },
+                                    razon_social: { type: 'STRING', description: 'Razón Social o Nombre legal de la empresa' },
+                                    tipo_empresa: { type: 'STRING', description: '"Persona Jurídica" o "Persona Natural"' },
+                                    nit: { type: 'STRING', description: 'Número de Identificación Tributaria (NIT)' },
+                                    representante_legal: { type: 'STRING', description: 'Nombre del Representante Legal' },
+                                    cedula_representante: { type: 'STRING', description: 'Cédula o ID del Representante Legal' },
+                                    numero_trabajadores: { type: 'NUMBER', description: 'Número de trabajadores' },
+                                    arl: { type: 'STRING', description: 'Nombre de la Administradora de Riesgos Laborales (ARL)' },
+                                    actividad_economica: { type: 'STRING', description: 'Actividad económica principal' },
+                                    nivel_riesgo: { type: 'STRING', description: 'Nivel de riesgo ARL (I, II, III, IV, V)' },
+                                    ciiu: { type: 'STRING', description: 'Código CIIU' },
+                                    direccion: { type: 'STRING', description: 'Dirección física de la sede principal' },
+                                    ciudad: { type: 'STRING', description: 'Ciudad o municipio' },
+                                    departamento: { type: 'STRING', description: 'Departamento' },
+                                    telefono: { type: 'STRING', description: 'Teléfono de contacto' },
+                                    correo: { type: 'STRING', description: 'Correo electrónico corporativo' },
+                                    datos_json: { type: 'STRING', description: 'Datos estructurados en formato JSON o string para guardado masivo' },
                                     tipo_informe: { type: 'STRING' },
                                     titulo_informe: { type: 'STRING' },
                                     contenido_html: { type: 'STRING' },
@@ -393,7 +414,10 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     tipo_siniestro: { type: 'STRING' },
                                     dias_incapacidad: { type: 'STRING' },
                                     descripcion_hechos: { type: 'STRING' },
-                                    nombre_aplicativo: { type: 'STRING' },
+                                    nombre_aplicativo: { 
+                                        type: 'STRING',
+                                        description: 'Nombre del aplicativo a editar: "empresa", "cargos" (perfiles de cargo), "estudio_puesto" (EPT), "auditoria", "diagnostico", "epp", "alturas", "ats", "vehiculos", "capacitaciones", "gtc45", "owas", "actos", "vulnerabilidad", "quimicos", "kanban", "politica", "matriz_legal", "rhs", "rit", "estadisticas".'
+                                    },
                                     propiedad_o_ruta: { type: 'STRING' },
                                     nuevo_valor: { type: 'STRING' },
                                     titulo_actividad: { type: 'STRING', description: 'Título de la actividad para el Centro de Control ACPM' },
@@ -403,6 +427,37 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     tipo_actividad: { type: 'STRING', description: 'manual, medical_exam, training, other' }
                                 },
                                 required: ['accion']
+                            }
+                        };
+
+                        const googleDriveDeclaration = {
+                            name: 'google_drive',
+                            description: 'Permite interactuar con Google Drive del usuario: buscar archivos y carpetas, leer el contenido de documentos (PDFs, Word .docx, Excel .xlsx/.xls, Google Docs, Google Sheets) y crear o actualizar documentos.',
+                            parameters: {
+                                type: 'OBJECT',
+                                properties: {
+                                    action: {
+                                        type: 'STRING',
+                                        description: 'La acción a realizar: "list_files_and_folders", "read_document_content", "create_folder", "write_file".'
+                                    },
+                                    query: {
+                                        type: 'STRING',
+                                        description: 'Término de búsqueda para listar archivos (nombre, palabra clave) o el texto a escribir.'
+                                    },
+                                    fileId: {
+                                        type: 'STRING',
+                                        description: 'El ID del archivo o carpeta para leer o actualizar.'
+                                    },
+                                    fileName: {
+                                        type: 'STRING',
+                                        description: 'El nombre del archivo o carpeta que deseas crear.'
+                                    },
+                                    parentId: {
+                                        type: 'STRING',
+                                        description: 'El ID de la carpeta contenedora en Google Drive (opcional).'
+                                    }
+                                },
+                                required: ['action']
                             }
                         };
 
@@ -487,7 +542,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         const geminiModel = genAI.getGenerativeModel({
                             model: currentModel,
                             systemInstruction: systemMessage,
-                            tools: [{ functionDeclarations: [somosSSTDeclaration, consultarAgenteDeclaration, canvasDeclaration, operarGUIDeclaration, diligenciarFormularioDeclaration] }],
+                            tools: [{ functionDeclarations: [somosSSTDeclaration, googleDriveDeclaration, consultarAgenteDeclaration, canvasDeclaration, operarGUIDeclaration, diligenciarFormularioDeclaration] }],
                             generationConfig: { temperature: 0.7 }
                         });
 
@@ -515,6 +570,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
                             if (call.name === 'somos_sst') {
                                 const toolInstance = new SomosSST({ req });
+                                toolOutput = await toolInstance._call(call.args);
+                            } else if (call.name === 'google_drive') {
+                                const toolInstance = new GoogleDrive({ req });
                                 toolOutput = await toolInstance._call(call.args);
                             } else if (call.name === 'consultar_agente_especializado') {
                                 const toolInstance = new ConsultarAgenteEspecializado({ req });

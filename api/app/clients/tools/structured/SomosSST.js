@@ -27,6 +27,7 @@ class SomosSST extends Tool {
           'registrar_accidente_atel',
           'actualizar_hito_tarea',
           'editar_cualquier_aplicativo',
+          'actualizar_informacion_empresa',
           'generar_informe_html',
           'consultar_historial_informes',
           'consultar_planes_y_sistema',
@@ -36,8 +37,24 @@ class SomosSST extends Tool {
           'crear_trabajador',
         ])
         .describe(
-          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, crear_trabajador, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, o actualizar_actividad_acpm.',
+          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, crear_trabajador, actualizar_informacion_empresa, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, o actualizar_actividad_acpm.',
         ),
+      razon_social: z.string().optional().describe('Razón Social o Nombre de la empresa.'),
+      tipo_empresa: z.string().optional().describe('Tipo de empresa: "Persona Jurídica" o "Persona Natural".'),
+      nit: z.string().optional().describe('NIT o documento de identificación tributaria de la empresa.'),
+      representante_legal: z.string().optional().describe('Nombre del Representante Legal.'),
+      cedula_representante: z.string().optional().describe('Cédula del Representante Legal.'),
+      numero_trabajadores: z.union([z.number(), z.string()]).optional().describe('Número total de trabajadores.'),
+      arl: z.string().optional().describe('Nombre de la ARL a la que está afiliada la empresa (ej: Sura, Positiva, Colmena, Bolívar).'),
+      actividad_economica: z.string().optional().describe('Actividad económica principal de la empresa.'),
+      nivel_riesgo: z.string().optional().describe('Nivel de riesgo ARL principal (I, II, III, IV, V).'),
+      ciiu: z.string().optional().describe('Código CIIU de la actividad económica.'),
+      direccion: z.string().optional().describe('Dirección física de la sede principal.'),
+      ciudad: z.string().optional().describe('Ciudad o municipio de la sede principal.'),
+      departamento: z.string().optional().describe('Departamento de la sede principal.'),
+      telefono: z.string().optional().describe('Teléfono de contacto de la empresa.'),
+      correo: z.string().optional().describe('Correo electrónico institucional de la empresa.'),
+      datos_json: z.any().optional().describe('Objeto JSON, array o texto con datos estructurados para inserción o actualización masiva en el aplicativo.'),
       tipo_informe: z
         .string()
         .optional()
@@ -63,7 +80,7 @@ class SomosSST extends Tool {
       nombre_aplicativo: z
         .string()
         .optional()
-        .describe('Nombre del aplicativo o módulo a editar (ej: "epp", "alturas", "ats", "vehiculos", "capacitaciones", "gtc45", "owas", "actos", "cargos", "vulnerabilidad", "quimicos", "kanban", "politica").'),
+        .describe('Nombre del aplicativo o módulo a editar (ej: "empresa", "cargos" (perfiles de cargo), "estudio_puesto" (EPT), "auditoria", "diagnostico", "epp", "alturas", "ats", "vehiculos", "capacitaciones", "gtc45", "owas", "actos", "vulnerabilidad", "quimicos", "kanban", "politica", "matriz_legal", "rhs", "rit").'),
       identificador_o_filtro: z
         .string()
         .optional()
@@ -1229,20 +1246,315 @@ class SomosSST extends Tool {
         });
       }
 
+      // ── ACTION: ACTUALIZAR INFORMACION DE LA EMPRESA (COMPANY INFO) ─────────
+      if (accion === 'actualizar_informacion_empresa') {
+        const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
+        let company = await CompanyInfo.findOne({ user: userId, isActive: true });
+        if (!company) {
+          company = await CompanyInfo.findOne({ user: userId });
+        }
+        if (!company) {
+          company = new CompanyInfo({ user: userId, isActive: true });
+        }
+
+        if (input.razon_social) company.companyName = input.razon_social.trim();
+        if (input.tipo_empresa) company.companyType = input.tipo_empresa.trim();
+        if (input.nit) company.nit = input.nit.trim();
+        if (input.representante_legal) company.legalRepresentative = input.representante_legal.trim();
+        if (input.cedula_representante) company.legalRepresentativeId = input.cedula_representante.trim();
+        if (input.numero_trabajadores !== undefined) company.workerCount = Number(input.numero_trabajadores) || 0;
+        if (input.arl) company.arl = input.arl.trim();
+        if (input.actividad_economica) company.economicActivity = input.actividad_economica.trim();
+        if (input.nivel_riesgo) company.riskLevel = input.nivel_riesgo.trim();
+        if (input.ciiu) company.ciiu = input.ciiu.trim();
+        if (input.direccion) company.address = input.direccion.trim();
+        if (input.ciudad) company.city = input.ciudad.trim();
+        if (input.departamento) company.department = input.departamento.trim();
+        if (input.telefono) company.phone = input.telefono.trim();
+        if (input.correo) company.email = input.correo.trim();
+
+        await company.save();
+
+        // Sincronizar memoria autónoma global para todos los agentes
+        try {
+          const { setMemory } = require('~/models');
+          const memoryContent = `Razón Social / Nombre: ${company.companyName || 'N/A'}
+Tipo de Empresa: ${company.companyType || 'Persona Jurídica'}
+Documento de Identidad (NIT / CC): ${company.nit || 'N/A'}
+Representante Legal: ${company.legalRepresentative || 'N/A'}
+Cédula del Representante Legal: ${company.legalRepresentativeId || 'N/A'}
+Número de Trabajadores: ${company.workerCount || 'N/A'}
+ARL: ${company.arl || 'N/A'}
+Nivel de Riesgo (ARL): ${company.riskLevel || 'N/A'}
+Actividad Económica: ${company.economicActivity || 'N/A'}
+Código CIIU: ${company.ciiu || 'N/A'}
+Dirección: ${company.address || 'N/A'}
+Ciudad: ${company.city || 'N/A'}
+Departamento: ${company.department || 'N/A'}
+Teléfono: ${company.phone || 'N/A'}
+Correo: ${company.email || 'N/A'}`;
+
+          await setMemory({
+            userId,
+            key: 'empresa_sgsst',
+            value: memoryContent,
+            agentId: 'global',
+          });
+        } catch (memErr) {
+          console.warn('[SomosSST] Warning syncing company memory:', memErr.message);
+        }
+
+        return JSON.stringify({
+          exito: true,
+          mensaje: `Información de la empresa "${company.companyName || 'Activa'}" actualizada y sincronizada exitosamente con la memoria global de WAPPY IA.`,
+          empresa: {
+            id: company._id,
+            razon_social: company.companyName,
+            nit: company.nit,
+            tipo_empresa: company.companyType,
+            representante_legal: company.legalRepresentative,
+            cedula_representante: company.legalRepresentativeId,
+            numero_trabajadores: company.workerCount,
+            arl: company.arl,
+            nivel_riesgo: company.riskLevel,
+            actividad_economica: company.economicActivity,
+            ciiu: company.ciiu,
+            direccion: company.address,
+            ciudad: company.city,
+            departamento: company.department,
+            telefono: company.phone,
+            correo: company.email
+          }
+        });
+      }
+
       // ── ACTION: EDITAR CUALQUIER APLICATIVO (UNIVERSAL MUTATION) ────────────
       if (accion === 'editar_cualquier_aplicativo') {
         if (!input.nombre_aplicativo) {
           return JSON.stringify({ error: 'Debes proporcionar el nombre_aplicativo a editar.' });
         }
-        if (!input.campo_a_modificar) {
-          return JSON.stringify({ error: 'Debes proporcionar el campo_a_modificar.' });
+        if (!input.campo_a_modificar && !input.datos_json) {
+          return JSON.stringify({ error: 'Debes proporcionar el campo_a_modificar o datos_json.' });
         }
 
         const appName = input.nombre_aplicativo.toLowerCase().trim();
         const filterStr = (input.identificador_o_filtro || input.nombre_o_cargo || '').toLowerCase().trim();
-        const fieldToEdit = input.campo_a_modificar.trim();
-        const newValue = input.nuevo_valor !== undefined ? input.nuevo_valor : '';
+        const fieldToEdit = (input.campo_a_modificar || '').trim();
+        const newValue = input.nuevo_valor !== undefined ? input.nuevo_valor : input.datos_json;
 
+        // ── CASO ESPECIAL: EMPRESA (CompanyInfo) ──────────────────────────────
+        if (appName.includes('empresa') || appName.includes('company')) {
+          const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
+          let comp = await CompanyInfo.findOne({ user: userId, isActive: true });
+          if (!comp) comp = await CompanyInfo.findOne({ user: userId });
+          if (!comp) comp = new CompanyInfo({ user: userId, isActive: true });
+
+          const fieldMap = {
+            'razon_social': 'companyName',
+            'companyname': 'companyName',
+            'nombre': 'companyName',
+            'nit': 'nit',
+            'tipo_empresa': 'companyType',
+            'companytype': 'companyType',
+            'representante_legal': 'legalRepresentative',
+            'legalrepresentative': 'legalRepresentative',
+            'cedula_representante': 'legalRepresentativeId',
+            'legalrepresentativeid': 'legalRepresentativeId',
+            'numero_trabajadores': 'workerCount',
+            'workercount': 'workerCount',
+            'arl': 'arl',
+            'actividad_economica': 'economicActivity',
+            'economicactivity': 'economicActivity',
+            'nivel_riesgo': 'riskLevel',
+            'risklevel': 'riskLevel',
+            'ciiu': 'ciiu',
+            'direccion': 'address',
+            'address': 'address',
+            'ciudad': 'city',
+            'city': 'city',
+            'departamento': 'department',
+            'department': 'department',
+            'telefono': 'phone',
+            'phone': 'phone',
+            'correo': 'email',
+            'email': 'email'
+          };
+
+          const targetProp = fieldMap[fieldToEdit.toLowerCase()] || fieldToEdit;
+          comp[targetProp] = newValue;
+          await comp.save();
+
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Campo "${targetProp}" actualizado exitosamente en Información de la Empresa.`,
+            detalles: { aplicativo: 'Información de la Empresa', campo: targetProp, nuevoValor: newValue }
+          });
+        }
+
+        // ── CASO ESPECIAL: ESTUDIO DE PUESTO DE TRABAJO (EPT) ─────────────────
+        if (appName.includes('estudio_puesto') || appName.includes('ept') || appName.includes('puesto_trabajo')) {
+          const EstudioPuestoTrabajo = mongoose.models.EstudioPuestoTrabajo || require('~/models/EstudioPuestoTrabajo');
+          const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+          
+          let workerDoc = null;
+          if (filterStr) {
+            workerDoc = await SgsstWorker.findOne({
+              companyId: activeCompanyId,
+              $or: [
+                { documentId: new RegExp(filterStr, 'i') },
+                { firstName: new RegExp(filterStr, 'i') },
+                { lastName: new RegExp(filterStr, 'i') },
+                { jobTitle: new RegExp(filterStr, 'i') }
+              ]
+            });
+          }
+
+          const targetWorkerId = workerDoc?.documentId || filterStr || 'GEN-01';
+          const targetWorkerName = workerDoc ? `${workerDoc.firstName || ''} ${workerDoc.lastName || ''}`.trim() : (input.nombre_o_cargo || 'Trabajador Evaluado');
+          const targetCargo = workerDoc?.jobTitle || input.cargo_trabajador || 'Cargo Operativo';
+
+          let eptDoc = await EstudioPuestoTrabajo.findOne({
+            companyId: activeCompanyId,
+            workerId: targetWorkerId
+          });
+
+          if (!eptDoc) {
+            eptDoc = new EstudioPuestoTrabajo({
+              companyId: activeCompanyId,
+              user: userId,
+              workerId: targetWorkerId,
+              workerName: targetWorkerName,
+              cargo: targetCargo,
+              evaluationType: 'asistida',
+              evaluatorName: 'Tenshi IA - Auditoría Biomecánica',
+              channel: 'somos_sst',
+              riskLevel: 'Medio',
+              actionLevel: 'Nivel 2 (Se requieren cambios)',
+              summaryRecommendation: 'Optimizar postura en estación de trabajo y realizar pausas activas dirigidas.',
+            });
+          }
+
+          if (fieldToEdit && newValue !== undefined) {
+            eptDoc[fieldToEdit] = newValue;
+            if (fieldToEdit === 'telemetry' && typeof newValue === 'object') {
+              eptDoc.telemetry = { ...eptDoc.telemetry, ...newValue };
+            }
+          }
+          await eptDoc.save();
+
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Estudio de Puesto de Trabajo (EPT) actualizado para "${targetWorkerName}" (${targetCargo}).`,
+            detalles: {
+              aplicativo: 'Estudio de Puesto de Trabajo (EPT)',
+              trabajador: targetWorkerName,
+              cedula: targetWorkerId,
+              cargo: targetCargo,
+              campo: fieldToEdit,
+              nuevoValor: newValue
+            }
+          });
+        }
+
+        // ── CASO ESPECIAL: PERFILES DE CARGO ──────────────────────────────────
+        if (appName.includes('cargo') || appName.includes('perfil_cargo')) {
+          const PerfilCargoModel = modelLoader('PerfilCargoData', '~/server/routes/sgsst/perfilesCargo');
+          let cargoDoc = await PerfilCargoModel.findOne(queryObj) || await PerfilCargoModel.findOne({ user: userId });
+          if (!cargoDoc) {
+            cargoDoc = new PerfilCargoModel({ user: userId, companyId: activeCompanyId, perfilesList: [] });
+          }
+
+          let perfilesList = cargoDoc.perfilesList || [];
+          let targetIndex = -1;
+          if (filterStr) {
+            targetIndex = perfilesList.findIndex(p => 
+              (p.nombre && p.nombre.toLowerCase().includes(filterStr)) ||
+              (p.id && String(p.id).toLowerCase().includes(filterStr))
+            );
+          }
+
+          if (fieldToEdit === 'nuevo_cargo' || fieldToEdit === 'agregar_cargo' || (targetIndex === -1 && fieldToEdit === 'perfil')) {
+            const newCargoObj = typeof newValue === 'object' ? newValue : {
+              id: Date.now().toString(),
+              nombre: input.nombre_o_cargo || filterStr || newValue || 'Nuevo Cargo',
+              descripcion: typeof newValue === 'string' ? newValue : 'Descripción del cargo generada por Tenshi',
+              departamento: 'Operaciones / SST',
+              peligros: [],
+              epp: [],
+              responsabilidadesSST: 'Cumplir normas del SG-SST y reportar condiciones de riesgo.'
+            };
+            perfilesList.push(newCargoObj);
+          } else if (targetIndex >= 0) {
+            if (typeof newValue === 'object') {
+              perfilesList[targetIndex] = { ...perfilesList[targetIndex], ...newValue };
+            } else {
+              perfilesList[targetIndex][fieldToEdit] = newValue;
+            }
+          } else {
+            // General property or append
+            if (typeof newValue === 'object') {
+              perfilesList.push(newValue);
+            }
+          }
+
+          cargoDoc.perfilesList = perfilesList;
+          cargoDoc.markModified('perfilesList');
+          await cargoDoc.save();
+
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Módulo de Perfiles de Cargo actualizado exitosamente. Total perfiles: ${perfilesList.length}.`,
+            detalles: { aplicativo: 'Perfiles de Cargo (Roles)', campo: fieldToEdit, filtro: filterStr || 'General' }
+          });
+        }
+
+        // ── CASO ESPECIAL: AUDITORIA Y DIAGNÓSTICO (Report/State tags) ─────────
+        if (appName.includes('auditoria') || appName.includes('diagnostico')) {
+          const isAudit = appName.includes('auditoria');
+          const reportTag = isAudit ? 'sgsst-auditoria' : 'sgsst-diagnostico';
+          const defaultTitle = isAudit ? 'Informe de Auditoría Interna SG-SST' : 'Diagnóstico Inicial Estándares Mínimos Res. 0312';
+          
+          try {
+            const { saveConvo } = require('~/models/Conversation');
+            const { saveMessage } = require('~/models/Message');
+            const crypto = require('crypto');
+
+            const conversationId = crypto.randomUUID();
+            const messageId = crypto.randomUUID();
+            const dateStr = new Date().toLocaleString('es-CO');
+            const reportTags = [reportTag, `company-${activeCompanyId}`];
+
+            const structuredContent = typeof newValue === 'object' ? JSON.stringify(newValue, null, 2) : String(newValue);
+            const fullReportText = `<!-- SGSST_AUDIT_DATA_V1:${structuredContent} -->\n\n# ${input.titulo_informe || defaultTitle}\n**Fecha:** ${dateStr}\n**Evaluado por:** Tenshi IA - Auditor Líder\n\n### Detalle de Hallazgos y Evaluación:\n${structuredContent}`;
+
+            await saveConvo(this.req, {
+              conversationId,
+              title: `${defaultTitle} - ${dateStr}`,
+              endpoint: reportTag,
+              model: reportTag,
+              tags: reportTags,
+            }, { context: 'SomosSST Tool Audit/Diagnostic Update' });
+
+            await saveMessage(this.req, {
+              messageId,
+              conversationId,
+              text: fullReportText,
+              sender: isAudit ? 'Auditor SG-SST' : 'SGSST Diagnóstico',
+              isCreatedByUser: false,
+              parentMessageId: '00000000-0000-0000-0000-000000000000',
+            }, { context: 'SomosSST Tool Audit/Diagnostic Message' });
+
+            return JSON.stringify({
+              exito: true,
+              mensaje: `Se registró y guardó exitosamente la evaluación en "${defaultTitle}" (/sgsst/${isAudit ? 'auditoria' : 'diagnostico'}).`,
+              detalles: { aplicativo: defaultTitle, tag: reportTag, conversationId }
+            });
+          } catch (auditErr) {
+            console.warn('[SomosSST] Fallback saving audit/diagnostic report:', auditErr.message);
+          }
+        }
+
+        // ── RESOLUCIÓN DEL MODELO PARA LOS DEMÁS 30 MÓDULOS ───────────────────
         let modelObj = null;
         let modelPath = '';
 
@@ -1261,30 +1573,48 @@ class SomosSST extends Tool {
         } else if (appName.includes('capacitac')) {
           modelObj = modelLoader('ProgramaCapacitacionesData', '~/server/routes/sgsst/programaCapacitaciones');
           modelPath = 'Programa de Capacitaciones';
-        } else if (appName.includes('gtc45') || appName.includes('peligro') || appName.includes('matriz_peligro')) {
+        } else if (appName.includes('gtc45') || appName.includes('peligro') || appName.includes('matriz_peligro') || appName.includes('ipevar')) {
           modelObj = modelLoader('MatrizPeligrosData', '~/server/routes/sgsst/matrizPeligros');
-          modelPath = 'Matriz GTC-45 / Peligros';
+          modelPath = 'Matriz GTC-45 / IPEVAR';
         } else if (appName.includes('owas') || appName.includes('ergonom')) {
           modelObj = modelLoader('MetodoOwasData', '~/server/routes/sgsst/metodoOwas');
           modelPath = 'Evaluación Ergonómica OWAS';
         } else if (appName.includes('acto') || appName.includes('condicion')) {
           modelObj = modelLoader('ReporteActosData', '~/server/routes/sgsst/reporteActos');
           modelPath = 'Reporte de Actos e Incidentes';
-        } else if (appName.includes('cargo')) {
-          modelObj = modelLoader('PerfilCargoData', '~/server/routes/sgsst/perfilesCargo');
-          modelPath = 'Perfiles de Cargo';
         } else if (appName.includes('vulnerabil') || appName.includes('emergenc')) {
           modelObj = modelLoader('AnalisisVulnerabilidadData', '~/server/routes/sgsst/analisisVulnerabilidad');
-          modelPath = 'Análisis de Vulnerabilidad';
+          modelPath = 'Análisis de Vulnerabilidad y Emergencias';
         } else if (appName.includes('quimic') || appName.includes('compatibil')) {
-          modelObj = modelLoader('MatrizCompatibilidadData', '~/server/routes/sgsst/matrizCompatibilidad');
-          modelPath = 'Matriz de Compatibilidad Química';
-        } else if (appName.includes('kanban') || appName.includes('tarea') || appName.includes('plan_trabajo')) {
-          modelObj = modelLoader('KanbanData', '~/server/routes/sgsst/kanban');
-          modelPath = 'Kanban / Plan de Trabajo';
-        } else if (appName.includes('politica') || appName.includes('objetivo') || appName.includes('gerencia')) {
+          modelObj = modelLoader('MatrizCompatibilidadData', '~/server/routes/sgsst/matrizCompatibilidad') || modelLoader('SgsstChemicalData', '~/models/SgsstChemicalData');
+          modelPath = 'Matriz de Compatibilidad Química (SGA)';
+        } else if (appName.includes('kanban') || appName.includes('tarea') || appName.includes('plan_trabajo') || appName.includes('acpm')) {
+          modelObj = modelLoader('KanbanData', '~/server/routes/sgsst/kanban') || modelLoader('KanbanTask', '~/models/KanbanTask');
+          modelPath = 'Kanban / Plan de Trabajo ACPM';
+        } else if (appName.includes('politica') || appName.includes('objetivo') || appName.includes('gerencia') || appName.includes('alta_direccion')) {
           modelObj = modelLoader('AltaDireccionData', '~/server/routes/sgsst/altaDireccion') || modelLoader('PoliticaData', '~/server/routes/sgsst/politica');
-          modelPath = 'Política / Objetivos SST';
+          modelPath = 'Política / Objetivos / Alta Dirección';
+        } else if (appName.includes('legal') || appName.includes('matriz_legal')) {
+          modelObj = modelLoader('MatrizLegalData', '~/server/routes/sgsst/matriz');
+          modelPath = 'Matriz Legal SG-SST';
+        } else if (appName.includes('rhs') || appName.includes('reglamento_higiene')) {
+          modelObj = modelLoader('CompanyInfo', '~/models/CompanyInfo');
+          modelPath = 'Reglamento de Higiene y Seguridad Industrial';
+        } else if (appName.includes('rit') || appName.includes('reglamento_interno')) {
+          modelObj = modelLoader('ReglamentoInternoData', '~/server/routes/sgsst/rit') || PerfilSocioModel;
+          modelPath = 'Reglamento Interno de Trabajo (RIT)';
+        } else if (appName.includes('participacion')) {
+          modelObj = modelLoader('ParticipacionIpevarData', '~/server/routes/sgsst/participacionIpevar');
+          modelPath = 'Participación IPEVAR Comunitaria';
+        } else if (appName.includes('animo') || appName.includes('psicosocial')) {
+          modelObj = modelLoader('SgsstMoodRecord', '~/server/routes/sgsst/sgsstMood') || PerfilSocioModel;
+          modelPath = 'Termómetro Psicosocial / Ánimo';
+        } else if (appName.includes('estadistica') || appName.includes('atel')) {
+          modelObj = modelLoader('ATELAnnualData', '~/server/routes/sgsst/estadisticas');
+          modelPath = 'Estadísticas ATEL';
+        } else if (appName.includes('investigacion')) {
+          modelObj = modelLoader('InvestigacionAtelData', '~/server/routes/sgsst/investigacionAtel');
+          modelPath = 'Investigación Forense ATEL';
         } else {
           modelObj = PerfilSocioModel;
           modelPath = 'Perfil Sociodemográfico / Ecosistema General';
@@ -1299,8 +1629,18 @@ class SomosSST extends Tool {
           doc = await modelObj.findOne({ user: userId });
         }
 
+        // Si no existe el documento para la empresa, inicializarlo automáticamente
         if (!doc) {
-          return JSON.stringify({ error: `No se encontró ningún registro activo para la empresa en el aplicativo "${modelPath}".` });
+          try {
+            doc = new modelObj({
+              user: userId,
+              companyId: activeCompanyId,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
+          } catch (initErr) {
+            return JSON.stringify({ error: `No se encontró ningún registro activo para la empresa en el aplicativo "${modelPath}".` });
+          }
         }
 
         let modified = false;
@@ -1349,8 +1689,11 @@ class SomosSST extends Tool {
           if (doc.procesos) doc.markModified('procesos');
           if (doc.sesiones) doc.markModified('sesiones');
           if (doc.perfiles) doc.markModified('perfiles');
+          if (doc.perfilesList) doc.markModified('perfilesList');
           if (doc.observaciones) doc.markModified('observaciones');
           if (doc.trabajadores) doc.markModified('trabajadores');
+          if (doc.statuses) doc.markModified('statuses');
+          if (doc.seguimientos) doc.markModified('seguimientos');
           await doc.save();
 
           return JSON.stringify({

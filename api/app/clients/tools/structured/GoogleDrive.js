@@ -1,3 +1,10 @@
+const bufferModule = require('buffer');
+if (!bufferModule.SlowBuffer) {
+  bufferModule.SlowBuffer = class SlowBuffer extends Buffer {};
+  if (typeof global !== 'undefined' && !global.SlowBuffer) {
+    global.SlowBuffer = bufferModule.SlowBuffer;
+  }
+}
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const { google } = require('googleapis');
