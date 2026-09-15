@@ -246,8 +246,8 @@ const SGSST_REPORT_MODULES = [
   {
     tags: ['sgsst-reporte-actos'],
     moduleTitle: 'Hito 5: Reporte de Actos y Condiciones',
-    codes: ['4.2.4'],
-    auditIds: ['aud_4_2_4'],
+    codes: [],
+    auditIds: [],
     art3Ids: [],
     art9Ids: [],
   },
@@ -262,8 +262,8 @@ const SGSST_REPORT_MODULES = [
   {
     tags: ['sgsst-estadisticas-atel'],
     moduleTitle: 'Hito 6: Estadísticas ATEL',
-    codes: ['6.1.1', '3.2.3', '3.3.1'],
-    auditIds: ['aud_6_1_1', 'aud_3_2_3', 'aud_3_3_1'],
+    codes: ['3.2.3', '3.3.1'],
+    auditIds: ['aud_3_2_3', 'aud_3_3_1'],
     art3Ids: [],
     art9Ids: [],
   },

@@ -319,6 +319,11 @@ export default function TenshiChat() {
   } | null>(null);
 
   const isChatSubmitting = useRecoilValue(store.isSubmittingFamily(0));
+  const isChatSubmittingRef = useRef(isChatSubmitting);
+  useEffect(() => {
+    isChatSubmittingRef.current = isChatSubmitting;
+  }, [isChatSubmitting]);
+  const [isWaitingConsultation, setIsWaitingConsultation] = useState(false);
   const latestChatMessage = useRecoilValue(store.latestMessageFamily(0));
   const latestChatMessageRef = useRef(latestChatMessage);
   latestChatMessageRef.current = latestChatMessage;
@@ -640,6 +645,8 @@ export default function TenshiChat() {
               hadStarted: false,
               timestamp: Date.now(),
             };
+            setIsWaitingConsultation(true);
+            setVoiceStatusText(`Esperando a ${agentName}...`);
 
             const params = new URLSearchParams();
             if (matchedAgent?.id) {
@@ -745,6 +752,7 @@ export default function TenshiChat() {
 
   const stopVoiceMode = useCallback(() => {
     setIsVoiceActive(false);
+    setIsWaitingConsultation(false);
     playPowerDownChime();
     clearAudioQueue();
     disconnectVoice();
@@ -827,11 +835,35 @@ export default function TenshiChat() {
   }, []);
 
   // ⏱️ Auto-desactivación por inactividad tras 1 minuto (60 segundos)
+  // CRÍTICO: Si Tenshi delegó una consulta a un especialista o el chat está respondiendo,
+  // el contador de inactividad se PAUSA y se mantiene activo para no interrumpir la conversación.
   useEffect(() => {
     if (isVoiceActive) {
       lastActivityRef.current = Date.now();
       setInactivitySeconds(0);
       inactivityIntervalRef.current = setInterval(() => {
+        const isWaiting =
+          Boolean(pendingAgentConsultationRef.current?.active) ||
+          Boolean(isChatSubmittingRef.current) ||
+          Boolean(isWaitingConsultation);
+
+        if (isWaiting) {
+          // Timeout de seguridad de 10 minutos por si el agente o la red fallan completamente
+          if (
+            pendingAgentConsultationRef.current &&
+            Date.now() - pendingAgentConsultationRef.current.timestamp > 10 * 60 * 1000
+          ) {
+            console.warn('[Tenshi Voice] Timeout de seguridad (10 min) esperando respuesta del especialista.');
+            pendingAgentConsultationRef.current.active = false;
+            setIsWaitingConsultation(false);
+          } else {
+            // Mantener actividad fresca y el contador en cero mientras el especialista genera su dictamen
+            lastActivityRef.current = Date.now();
+            setInactivitySeconds(0);
+            return;
+          }
+        }
+
         const elapsed = Math.floor((Date.now() - lastActivityRef.current) / 1000);
         setInactivitySeconds(elapsed);
         if (elapsed >= 60) {
@@ -860,7 +892,7 @@ export default function TenshiChat() {
         inactivityIntervalRef.current = null;
       }
     };
-  }, [isVoiceActive, stopVoiceMode]);
+  }, [isVoiceActive, isWaitingConsultation, stopVoiceMode]);
 
   // 🧠 Escuchar y procesar la respuesta del especialista para que Tenshi aprenda y hable al usuario
   useEffect(() => {
@@ -877,9 +909,15 @@ export default function TenshiChat() {
     }
 
     // El agente en el chat terminó de generar su respuesta (isChatSubmitting pasó de true a false)
-    if (wasSubmitting && !isChatSubmitting && pendingAgentConsultationRef.current.hadStarted) {
+    if (
+      wasSubmitting &&
+      !isChatSubmitting &&
+      (pendingAgentConsultationRef.current.hadStarted ||
+        Date.now() - pendingAgentConsultationRef.current.timestamp > 2000)
+    ) {
       const consultation = { ...pendingAgentConsultationRef.current };
       pendingAgentConsultationRef.current.active = false;
+      setIsWaitingConsultation(false);
 
       setTimeout(() => {
         // Usar la referencia más reciente para evitar closures desactualizados
@@ -907,6 +945,7 @@ export default function TenshiChat() {
         // 1. Si el Modo Voz está activo, instruir a Tenshi Live para que hable al usuario con su conocimiento
         if (isVoiceActive) {
           lastActivityRef.current = Date.now();
+          setVoiceStatusText(`Tenshi respondiendo sobre ${consultation.agentName}...`);
           const promptForTenshi = `[SISTEMA INTERNO WAPPY]: El usuario te pidió consultar a ${consultation.agentName} sobre: "${consultation.question}". El ${consultation.agentName} acaba de responder lo siguiente en el chat:\n\n"""\n${lastMsg.substring(0, 1200)}\n"""\n\nINSTRUCCIÓN PARA TENSHI: En voz alta al usuario, habla con tu estilo fresco, profesional y cercano. Confírmale en 2 o 3 oraciones concisas el punto técnico principal que dictaminó el ${consultation.agentName}, y añade tu recomendación como Tenshi para avanzar en la plataforma o en el SG-SST.`;
           sendTextMessage(promptForTenshi);
         }
@@ -919,7 +958,7 @@ export default function TenshiChat() {
             content: `💡 **Tenshi:** He revisado la respuesta que te dio **${consultation.agentName}** sobre *"${consultation.question}"*. En el chat central puedes consultar todo el sustento técnico y normativo detallado. Si deseas que articulemos esto con algún hito o matriz de WAPPY, solo indícamelo.`,
           },
         ]);
-      }, 500);
+      }, 700);
     }
   }, [isChatSubmitting, isVoiceActive, sendTextMessage]);
 
@@ -1883,10 +1922,23 @@ export default function TenshiChat() {
 
               {/* Inactivity countdown indicator: auto-pausa a 1 minuto */}
               {isVoiceActive ? (
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium" title="Se desactiva automáticamente tras 1 minuto sin usar">
-                  <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
-                  <span>Auto-pausa: {Math.max(0, 60 - inactivitySeconds)}s</span>
-                </div>
+                isWaitingConsultation || isChatSubmitting ? (
+                  <div
+                    className="flex items-center gap-1.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 animate-pulse"
+                    title="Tenshi está esperando la respuesta del especialista para continuar la conversación hablada"
+                  >
+                    <span className="flex h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
+                    <span>Esperando al especialista...</span>
+                  </div>
+                ) : (
+                  <div
+                    className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium"
+                    title="Se desactiva automáticamente tras 1 minuto sin usar"
+                  >
+                    <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+                    <span>Auto-pausa: {Math.max(0, 60 - inactivitySeconds)}s</span>
+                  </div>
+                )
               ) : (
                 <span className="text-[10px] font-medium tracking-tight text-gray-400">
                   Tenshi por WAPPY IA
