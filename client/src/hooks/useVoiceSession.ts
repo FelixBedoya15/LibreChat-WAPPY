@@ -118,34 +118,39 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             }
             console.log('[VoiceSession] AudioContext 16kHz listo, estado:', audioContext.state, '| sampleRate:', audioContext.sampleRate);
 
-            // 3. Helper: enviar PCM int16 a 16kHz al servidor via WebSocket con Voice Activity Gate (VAD)
+            // 3. Helper: enviar PCM int16 a 16kHz al servidor via WebSocket
             let sendCount = 0;
-            let lastSpeechTime = 0;
-            const preRollQueue: Float32Array[] = []; // Almacena ~256ms previos al inicio del habla para no cortar consonantes
-            const PRE_ROLL_MAX = 2; // 2 buffers de 2048 muestras (~256ms)
-            const VAD_RMS_THRESHOLD = 0.005; // Umbral de energía de voz
-            const VAD_HANGOVER_MS = 1000; // Mantener streaming 1000ms tras hablar para no cortar finales de palabras
+            let resamplePhase = 0;
 
-            const encodeAndSend = (pcmFloat32: Float32Array) => {
+            const sendPCMChunk = (float32Array: Float32Array) => {
+                if (isHardwareMutedRef.current || isPlayingAudioRef.current) return;
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
                 const currentSampleRate = audioContext?.sampleRate || 16000;
-                let dataToEncode = pcmFloat32;
+                let dataToEncode = float32Array;
 
+                // Re-muestreo continuo con fase preservada (crítico para Safari en macOS/iOS a 44.1kHz o 48kHz)
                 if (currentSampleRate !== 16000 && currentSampleRate > 0) {
                     const ratio = currentSampleRate / 16000;
-                    const newLength = Math.round(pcmFloat32.length / ratio);
+                    const availableSamples = float32Array.length - resamplePhase;
+                    const newLength = Math.max(0, Math.floor(availableSamples / ratio));
                     const resampled = new Float32Array(newLength);
+                    let srcIdx = resamplePhase;
                     for (let i = 0; i < newLength; i++) {
-                        const srcIdx = i * ratio;
                         const idx = Math.floor(srcIdx);
                         const frac = srcIdx - idx;
-                        const s0 = pcmFloat32[idx] || 0;
-                        const s1 = pcmFloat32[idx + 1] !== undefined ? pcmFloat32[idx + 1] : s0;
+                        const s0 = float32Array[idx] || 0;
+                        const s1 = (idx + 1 < float32Array.length) ? float32Array[idx + 1] : s0;
                         resampled[i] = s0 + frac * (s1 - s0);
+                        srcIdx += ratio;
                     }
+                    resamplePhase = Math.max(0, srcIdx - float32Array.length);
                     dataToEncode = resampled;
+                } else {
+                    resamplePhase = 0;
                 }
+
+                if (dataToEncode.length === 0) return;
 
                 const int16Data = new Int16Array(dataToEncode.length);
                 for (let j = 0; j < dataToEncode.length; j++) {
@@ -162,60 +167,32 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
 
                 sendCount++;
                 if (sendCount === 1 || sendCount % 50 === 0) {
-                    console.log(`[VoiceSession] Audio 16kHz enviado al servidor (chunk #${sendCount}, ${base64.length} chars, resampled: ${currentSampleRate !== 16000})`);
+                    console.log(`[VoiceSession] Audio 16kHz enviado al servidor (chunk #${sendCount}, ${base64.length} chars, inRate: ${currentSampleRate})`);
                 }
             };
 
-            const sendPCMChunk = (float32Array: Float32Array) => {
-                if (isHardwareMutedRef.current || isPlayingAudioRef.current) {
-                    preRollQueue.length = 0;
-                    return;
-                }
-                if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-                    preRollQueue.length = 0;
-                    return;
-                }
-
-                // Cálculo de RMS del buffer de audio
-                let sum = 0;
-                for (let i = 0; i < float32Array.length; i++) {
-                    sum += float32Array[i] * float32Array[i];
-                }
-                const rms = Math.sqrt(sum / float32Array.length);
-
-                const now = Date.now();
-                const isSpeech = rms >= VAD_RMS_THRESHOLD;
-
-                if (isSpeech) {
-                    const wasSilent = (now - lastSpeechTime) > VAD_HANGOVER_MS;
-                    lastSpeechTime = now;
-
-                    // Si transicionamos de silencio a habla, vaciar pre-roll para no cortar la consonante inicial
-                    if (wasSilent && preRollQueue.length > 0) {
-                        while (preRollQueue.length > 0) {
-                            const queued = preRollQueue.shift();
-                            if (queued) encodeAndSend(queued);
-                        }
-                    }
-                    encodeAndSend(float32Array);
-                } else if ((now - lastSpeechTime) < VAD_HANGOVER_MS) {
-                    // Período hangover: seguir transmitiendo para preservar finales de frases y pausas cortas
-                    encodeAndSend(float32Array);
-                } else {
-                    // Silencio prolongado: almacenar en cola pre-roll y NO transmitir ruido vacío a Gemini
-                    preRollQueue.push(new Float32Array(float32Array));
-                    if (preRollQueue.length > PRE_ROLL_MAX) {
-                        preRollQueue.shift();
-                    }
-                }
-            };
-
-            // 4. Crear grafo de audio — intentar AudioWorklet primero, ScriptProcessor como fallback
+            // 4. Crear grafo de audio con filtro anti-aliasing hardware
             const source = audioContext.createMediaStreamSource(stream);
+            let audioInputNode: AudioNode = source;
+
+            // En frecuencias > 16kHz (ej. 44.1k o 48k en Safari), atenuar por encima de 7.5kHz para evitar aliasing
+            if (audioContext.sampleRate > 16000) {
+                try {
+                    const lowPassFilter = audioContext.createBiquadFilter();
+                    lowPassFilter.type = 'lowpass';
+                    lowPassFilter.frequency.value = 7500;
+                    lowPassFilter.Q.value = 0.707;
+                    source.connect(lowPassFilter);
+                    audioInputNode = lowPassFilter;
+                } catch (filterErr) {
+                    console.warn('[VoiceSession] No se pudo crear BiquadFilter, usando source directo:', filterErr);
+                }
+            }
+
             const analyser = audioContext.createAnalyser();
             analyser.fftSize = 256;
             inputAnalyserRef.current = analyser;
-            source.connect(analyser);
+            audioInputNode.connect(analyser);
 
             let useWorklet = false;
             if (audioContext.audioWorklet) {

@@ -1311,6 +1311,12 @@ class AgentClient extends BaseClient {
         .filter(Boolean)
         .filter((m) => !m.includes('native-audio') && !m.includes('-live-'));
       const agentModelFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)];
+      const SAFE_HIGH_QUOTA_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      for (const sm of SAFE_HIGH_QUOTA_MODELS) {
+        if (!agentModelFallbacks.includes(sm)) {
+          agentModelFallbacks.push(sm);
+        }
+      }
 
       let attemptErrors = [];
       let success = false;
