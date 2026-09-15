@@ -71,7 +71,7 @@ const AGENT_MAPS = {
   'profesional_sst': { name: 'Profesional SST', category: 'gestion_consultoria_sg_sst', avatar: 'profesional_sst.png', desc: 'Soy tu Profesional en Seguridad y Salud en el Trabajo (SST). Te asesoro en la identificación, evaluación y control de riesgos de campo, jerarquía de controles e inspecciones de seguridad.', firstLine: 'Eres el Profesional SST de WAPPY IA...' },
   'fisioterapeuta_laboral': { name: 'Fisioterapeuta Laboral', category: 'ergonomia_salud_bienestar', avatar: 'fisioterapeuta.png', desc: 'Soy tu Fisioterapeuta Laboral. Te asesoro en la prevención de lesiones musculoesqueléticas, ergonomía postural con métodos ROSA y OWAS, y adaptación de puestos de trabajo.', firstLine: 'Eres el Fisioterapeuta Laboral de WAPPY IA...' },
   'psicologo_sst': { name: 'Psicólogo SST', category: 'ergonomia_salud_bienestar', avatar: 'psicologo_sst.png', desc: 'Soy tu Psicólogo SST. Te asesoro en la evaluación y control del riesgo psicosocial, aplicación de la batería del Ministerio, y prevención del estrés y el acoso laboral.', firstLine: 'Eres el Psicólogo SST de WAPPY IA...' },
-  'terapeuta_salud_mental': { name: 'Terapeuta en Salud Mental', category: 'ergonomia_salud_bienestar', avatar: 'salud_mental.png', desc: 'Soy tu Terapeuta en Salud Mental. Te brindo apoyo emocional, primeros auxilios psicológicos y asesoría en el autocuidado y prevención del agotamiento laboral (burnout).', firstLine: 'Eres el Terapeuta en Salud Mental de WAPPY IA...' },
+  'terapeuta_salud_mental': { name: 'Terapeuta en Salud Mental', category: 'ergonomia_salud_bienestar', avatar: 'salud_mental.png', model: 'gemini-3.5-flash-lite', desc: 'Soy tu Terapeuta en Salud Mental. Te brindo apoyo emocional, primeros auxilios psicológicos y asesoría en el autocuidado y prevención del agotamiento laboral (burnout).', firstLine: 'Eres el Terapeuta en Salud Mental de WAPPY IA...' },
   'nutricionista_laboral': { name: 'Nutricionista Laboral', category: 'ergonomia_salud_bienestar', avatar: 'nutricionista.png', desc: 'Soy tu Nutricionista Laboral. Te asesoro en estilos de vida saludable, hábitos alimentarios equilibrados en la empresa y prevención del riesgo cardiovascular y metabólico.', firstLine: 'Eres la Nutricionista Laboral de WAPPY IA...' },
   'primer_respondiente': { name: 'Primer Respondiente', category: 'ergonomia_salud_bienestar', avatar: 'primeros_auxilios.png', desc: 'Soy tu Primer Respondiente. Te guío en la primera respuesta ante accidentes de trabajo, reanimación RCP básica, control de hemorragias y uso correcto del botiquín.', firstLine: 'Eres el Primer Respondiente de WAPPY IA...' },
   'coordinador_emergencias': { name: 'Coordinador de Emergencias', category: 'especialistas_riesgos_especificos', avatar: 'emergencias.png', desc: 'Soy tu Coordinador de Emergencias. Te asesoro en el diseño del Plan de Emergencia (PAE), análisis de vulnerabilidad, rutas de evacuación, conformación de brigadas y simulacros.', firstLine: 'Eres el Coordinador de Emergencias de WAPPY IA...' },
@@ -342,6 +342,7 @@ ${cleanContent}
     tools = [...new Set(tools)];
 
     const defaultModel = (process.env.GOOGLE_MODELS || 'gemini-3.7-flash').split(',')[0].trim();
+    const agentModel = val.model || defaultModel;
 
     let agent = await Agent.findOne({ name: val.name });
     const isNewAgent = !agent; // Indicador para saber si el agente es nuevo
@@ -362,7 +363,7 @@ ${cleanContent}
         description: val.desc,
         instructions: finalInstructions,
         provider: 'google',
-        model: defaultModel,
+        model: agentModel,
         tools,
         category: val.category,
         author: authorId,
@@ -374,7 +375,7 @@ ${cleanContent}
           description: val.desc,
           instructions: finalInstructions,
           provider: 'google',
-          model: defaultModel,
+          model: agentModel,
           tools,
           createdAt: timestamp,
           updatedAt: timestamp
@@ -391,7 +392,7 @@ ${cleanContent}
             description: val.desc,
             instructions: finalInstructions,
             category: val.category,
-            model: defaultModel,
+            model: agentModel,
             tools: tools,
             skills: Array.from(new Set([...(AGENT_SKILLS_MAP[val.name] || []), ...GLOBAL_SKILLS])),
             avatar: finalAvatar,
@@ -401,7 +402,7 @@ ${cleanContent}
               description: val.desc,
               instructions: finalInstructions,
               provider: 'google',
-              model: defaultModel,
+              model: agentModel,
               tools,
               createdAt: agent.createdAt || timestamp,
               updatedAt: timestamp

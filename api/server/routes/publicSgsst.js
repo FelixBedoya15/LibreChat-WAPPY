@@ -1099,7 +1099,7 @@ router.post('/mood/chat/:companyId', async (req, res) => {
       token,
       agentId: resolvedAgentId,
       agentName: agent.name || 'Terapeuta en Salud Mental',
-      agentModel: agent.model || undefined,
+      agentModel: agent.model || 'gemini-3.5-flash-lite',
       conversationId,
     });
   } catch (error) {
