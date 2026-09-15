@@ -340,6 +340,37 @@ class VoiceSession {
                                 },
                                 required: ["agente"]
                             }
+                        },
+                        {
+                            name: "google_drive",
+                            description: "Permite interactuar directamente con el Google Drive del usuario: buscar y listar archivos y carpetas (matrices GTC45, reglamentos, actas, inspecciones, etc.) o leer el contenido de documentos (Excel .xlsx/.xls, Word .docx, PDFs, Google Docs, Google Sheets). INVÓCALA SIEMPRE que el usuario te pida entrar, revisar, ver, buscar o consultar archivos de su Google Drive.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    action: {
+                                        type: "string",
+                                        enum: ["list_files_and_folders", "read_document_content", "create_folder", "write_file"],
+                                        description: "Acción a realizar en Google Drive: 'list_files_and_folders' para buscar o listar archivos, 'read_document_content' para leer un archivo específico."
+                                    },
+                                    query: {
+                                        type: "string",
+                                        description: "Término de búsqueda para listar archivos (ej: 'matriz', 'gtc45', 'rut', 'politica') o el texto a escribir."
+                                    },
+                                    fileId: {
+                                        type: "string",
+                                        description: "El ID del archivo en Google Drive para leer su contenido."
+                                    },
+                                    fileName: {
+                                        type: "string",
+                                        description: "El nombre del archivo o carpeta que deseas crear."
+                                    },
+                                    parentId: {
+                                        type: "string",
+                                        description: "El ID de la carpeta contenedora en Google Drive (opcional)."
+                                    }
+                                },
+                                required: ["action"]
+                            }
                         }
                     ]
                 }
@@ -352,21 +383,25 @@ class VoiceSession {
 - MAXIMA AGILIDAD: Sé ultra concisa, habla en 1 o máximo 2 oraciones cortas (10 a 15 palabras). Cero rodeos.
 
 [ROL]:
-Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes control en tiempo real para abrir cualquier agente, navegar a cualquier sección y diligenciar formularios en pantalla.
+Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes control en tiempo real para abrir cualquier agente, navegar a cualquier sección, entrar a Google Drive y diligenciar formularios en pantalla.
 
 [HERRAMIENTAS]:
-1. **wappy_diligenciar_formulario**: Diligencia de inmediato formularios en pantalla (Investigación ATEL, PESV, Alturas, etc.).
+1. **google_drive**: Tienes acceso directo a Google Drive mediante tu herramienta 'google_drive'.
+   - INVÓCALA DE INMEDIATO siempre que el usuario te pida entrar, buscar, revisar o mirar su Google Drive o sus archivos (ej: 'matriz de riesgos', 'política', etc.).
+   - Usa action: 'list_files_and_folders' para listar archivos.
+   - Responde oralmente en 1 o 2 oraciones breves y amigables resumiendo los archivos principales encontrados (ej: la Matriz de Riesgos GTC 45) y preguntando el siguiente paso.
+2. **wappy_diligenciar_formulario**: Diligencia de inmediato formularios en pantalla (Investigación ATEL, PESV, Alturas, etc.).
    - INVÓCALA DE INMEDIATO cuando el usuario te pida escribir, llenar, colocar, redactar o reportar información en un aplicativo.
    - Parámetros: 'modulo' (ej: 'investigacion_atel') y 'campos' (objeto con datos como afectadoNombre, lugarEvento, descripcionHechos, etc.).
    - Responde oralmente en una sola frase breve: "¡Listo! Ya te dejé diligenciado el reporte en el formulario."
-2. **wappy_navegar**: Navega a cualquier módulo de los 7 Hitos o aplicativo.
+3. **wappy_navegar**: Navega a cualquier módulo de los 7 Hitos o aplicativo.
    - Hitos: 'diagnostico' (0312), 'responsable', 'politica', 'legal', 'rhs', 'vulnerabilidad', 'perfil_cargo', 'perfil_socio', 'condiciones_salud', 'peligros' (IPEVAR), 'animo', 'participacion_ipevar', 'vehicles_pesv', 'chemical_registry', 'permiso_alturas', 'analisis_trabajo_seguro', 'metodo_owas', 'epp_delivery', 'capacitaciones', 'ruta_aprendizaje', 'reporte_actos', 'estadisticas', 'investigacion_atel', 'control_acpm', 'auditoria', 'predictivo'.
    - Aplicativos: 'academia' (/academia?tab=cursos), 'training_admin', 'rutas', 'ruta_admin', 'events_meet', 'events_meet_admin', 'blog', 'blog_admin', 'control' (Kanban), 'animo_dashboard', 'planes', 'agents', 'live', 'chat_sst', 'roadmap', 'contactanos', 'comunidad', 'matriz', 'embajadores', 'tenshi_admin'.
    - INVÓCALA DE INMEDIATO si el usuario menciona un destino.
-3. **wappy_abrir_chat_agente**: Abre de inmediato el chat con un especialista (ej: 'abogado_laboral', 'medico_laboral', etc.) y formula la consulta técnica del usuario.
+4. **wappy_abrir_chat_agente**: Abre de inmediato el chat con un especialista (ej: 'abogado_laboral', 'medico_laboral', etc.) y formula la consulta técnica del usuario.
    - REGLA CRÍTICA PARA 'pregunta': Debe ser una formulación técnica, clara y estructurada basada en lo que el usuario necesita del especialista (mínimo 5 a 10 palabras con contexto legal o SST).
    - ESTÁ TERMINANTEMENTE PROHIBIDO enviar saludos vacíos como 'Hola cómo estás el día de hoy', ni palabras sueltas como 'por' o 'qué'. Ejemplo: Si el usuario dice 'pregúntale al abogado sobre el despido', formula: 'Hola, requiero asesoría sobre las causales legales y el procedimiento para un despido con justa causa según el CST.'
-4. **SÍNTESIS DE RESPUESTAS**: Cuando recibas la notificación del sistema con la respuesta del especialista, da un resumen ejecutivo de 2 oraciones al usuario y recomienda el siguiente paso.`;
+5. **SÍNTESIS DE RESPUESTAS**: Cuando recibas la notificación del sistema con la respuesta del especialista, da un resumen ejecutivo de 2 oraciones al usuario y recomienda el siguiente paso.`;
         } else {
             // Herramientas nativas para agentes SST y Fisioterapeuta Laboral
             const reportTool = {
@@ -659,7 +694,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
         });
 
         // Listen for Tool Calls
-        this.geminiClient.on('toolCall', (toolCall) => {
+        this.geminiClient.on('toolCall', async (toolCall) => {
             logger.info('[VoiceSession] Tool Call received:', JSON.stringify(toolCall));
             this.toolCalledThisTurn = true;
 
@@ -723,6 +758,38 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                             this.generateReport(this.config.conversationContext).finally(() => {
                                 this.isGeneratingReport = false;
                             });
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de herramienta de Google Drive en modo voz
+                    if (fc.name === 'google_drive') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "google_drive" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Consultando Google Drive...' }
+                        });
+                        try {
+                            const GoogleDrive = require('~/app/clients/tools/structured/GoogleDrive');
+                            const googleDriveTool = new GoogleDrive({ req: { user: { id: this.userId } } });
+                            const driveResult = await googleDriveTool._call(fc.args || { action: 'list_files_and_folders' });
+                            logger.info(`[VoiceSession] google_drive executed successfully. Result length: ${driveResult?.length || 0}`);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: driveResult }
+                                }]);
+                            }
+                        } catch (driveErr) {
+                            logger.error('[VoiceSession] Error executing google_drive in voice mode:', driveErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `No se pudo acceder a Google Drive: ${driveErr.message}` }
+                                }]);
+                            }
                         }
                         continue;
                     }
