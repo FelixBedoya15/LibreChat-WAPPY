@@ -299,7 +299,7 @@ index b5dfd0e..94c3cf8 100644
  Use standard 2-letter country codes: "us", "uk", "ca", "de", "fr", "jp", "br", etc.
  Provide this when the search should return results specific to a particular country.
 diff --git a/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs b/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs
-index 7f57687..48296c4 100644
+index 7f57687..3e2c878 100644
 --- a/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs
 +++ b/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs
 @@ -184,9 +184,9 @@ const createSearXNGAPI = (instanceUrl, apiKey) => {
@@ -310,7 +310,7 @@ index 7f57687..48296c4 100644
 +                language: process.env.SEARXNG_LANGUAGE || 'es-CO',
                  safesearch: safeSearch,
 -                engines: 'google,bing,duckduckgo',
-+                engines: process.env.SEARXNG_ENGINES || 'bing,qwant,startpage,google',
++                engines: process.env.SEARXNG_ENGINES || 'yandex,pubmed,wikipedia,bing',
              };
              const headers = {
                  'Content-Type': 'application/json',
@@ -447,7 +447,7 @@ index bf47fd9..abf44d5 100644
  Use standard 2-letter country codes: "us", "uk", "ca", "de", "fr", "jp", "br", etc.
  Provide this when the search should return results specific to a particular country.
 diff --git a/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs b/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs
-index 62b7ecf..e7f70b5 100644
+index 62b7ecf..4a29364 100644
 --- a/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs
 +++ b/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs
 @@ -182,9 +182,9 @@ const createSearXNGAPI = (instanceUrl, apiKey) => {
@@ -458,7 +458,7 @@ index 62b7ecf..e7f70b5 100644
 +                language: process.env.SEARXNG_LANGUAGE || 'es-CO',
                  safesearch: safeSearch,
 -                engines: 'google,bing,duckduckgo',
-+                engines: process.env.SEARXNG_ENGINES || 'bing,qwant,startpage,google',
++                engines: process.env.SEARXNG_ENGINES || 'yandex,pubmed,wikipedia,bing',
              };
              const headers = {
                  'Content-Type': 'application/json',

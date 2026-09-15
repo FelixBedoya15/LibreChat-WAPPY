@@ -523,8 +523,8 @@ webSearch:
   searchProvider: "searxng"
   searxngInstanceUrl: "${SEARXNG_INSTANCE_URL}"
   rerankerType: "jina"
-  jinaApiUrl: "${RERANKER_API_URL}"
-  jinaApiKey: "${JINA_API_KEY}"
+  jinaApiUrl: "${RERANKER_API_URL:-http://librechat-reranker-d58plj:80/v1/rerank}"
+  jinaApiKey: "local-dummy-key"
 
 
 # Memory configuration for user memories
