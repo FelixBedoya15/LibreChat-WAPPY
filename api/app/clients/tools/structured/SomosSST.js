@@ -44,7 +44,7 @@ class SomosSST extends Tool {
       nit: z.string().optional().describe('NIT o documento de identificación tributaria de la empresa.'),
       representante_legal: z.string().optional().describe('Nombre del Representante Legal.'),
       cedula_representante: z.string().optional().describe('Cédula del Representante Legal.'),
-      numero_trabajadores: z.union([z.number(), z.string()]).optional().describe('Número total de trabajadores.'),
+      numero_trabajadores: z.coerce.number().optional().describe('Número total de trabajadores.'),
       arl: z.string().optional().describe('Nombre de la ARL a la que está afiliada la empresa (ej: Sura, Positiva, Colmena, Bolívar).'),
       actividad_economica: z.string().optional().describe('Actividad económica principal de la empresa.'),
       nivel_riesgo: z.string().optional().describe('Nivel de riesgo ARL principal (I, II, III, IV, V).'),
@@ -54,7 +54,7 @@ class SomosSST extends Tool {
       departamento: z.string().optional().describe('Departamento de la sede principal.'),
       telefono: z.string().optional().describe('Teléfono de contacto de la empresa.'),
       correo: z.string().optional().describe('Correo electrónico institucional de la empresa.'),
-      datos_json: z.any().optional().describe('Objeto JSON, array o texto con datos estructurados para inserción o actualización masiva en el aplicativo.'),
+      datos_json: z.string().optional().describe('Objeto JSON stringificado o texto con datos estructurados para inserción o actualización masiva en el aplicativo.'),
       tipo_informe: z
         .string()
         .optional()
@@ -1340,7 +1340,13 @@ Correo: ${company.email || 'N/A'}`;
         const appName = input.nombre_aplicativo.toLowerCase().trim();
         const filterStr = (input.identificador_o_filtro || input.nombre_o_cargo || '').toLowerCase().trim();
         const fieldToEdit = (input.campo_a_modificar || '').trim();
-        const newValue = input.nuevo_valor !== undefined ? input.nuevo_valor : input.datos_json;
+        let parsedData = input.datos_json;
+        if (typeof parsedData === 'string') {
+          try {
+            parsedData = JSON.parse(parsedData);
+          } catch (_) {}
+        }
+        const newValue = input.nuevo_valor !== undefined ? input.nuevo_valor : parsedData;
 
         // ── CASO ESPECIAL: EMPRESA (CompanyInfo) ──────────────────────────────
         if (appName.includes('empresa') || appName.includes('company')) {
