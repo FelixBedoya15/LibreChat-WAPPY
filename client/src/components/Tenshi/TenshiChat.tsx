@@ -631,11 +631,21 @@ export default function TenshiChat() {
           } else if (action.name === 'wappy_abrir_chat_agente') {
             const rawAgente = (action.args?.agente || '').trim();
             let pregunta = (action.args?.pregunta || '').trim();
-            if (!pregunta && lastUserTranscriptionRef.current) {
-              pregunta = lastUserTranscriptionRef.current.trim();
-            }
             const matchedAgent = findMatchingAgent(rawAgente, agentsRef.current);
             const agentName = matchedAgent ? matchedAgent.name : rawAgente;
+
+            // Detectar y enriquecer si la pregunta es un saludo genérico, ruido o vacía
+            const isGenericGreeting = (text: string) =>
+              /^(hola|buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches|c[oó]mo\s+est[aá]s|hola\s+c[oó]mo\s+est[aá]s|hola\s+c[oó]mo\s+est[aá]s\s+el\s+d[ií]a\s+de\s+hoy|ciao|por|qu[eé])\.?$/i.test(text.trim());
+
+            if (!pregunta || isGenericGreeting(pregunta) || pregunta.length < 8) {
+              const lastUserText = (lastUserTranscriptionRef.current || '').trim();
+              if (lastUserText && !isGenericGreeting(lastUserText) && lastUserText.length >= 8) {
+                pregunta = lastUserText;
+              } else {
+                pregunta = `Hola ${agentName}, necesito orientación y asesoría técnica especializada sobre la normativa y procedimientos aplicables.`;
+              }
+            }
 
             // Registrar consulta pendiente para que Tenshi escuche la respuesta del agente
             pendingAgentConsultationRef.current = {

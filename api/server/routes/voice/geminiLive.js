@@ -265,7 +265,6 @@ class GeminiLiveClient extends EventEmitter {
                                 voiceName: this.config.voice || 'Puck',
                             },
                         },
-                        languageCode: this.config.language || 'es-ES',
                     },
                 },
                 systemInstruction: {
@@ -299,10 +298,10 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
                         },
                     ],
                 },
-                // Using BOTH transcriptions simultaneously
-                // inputAudioTranscription = transcribes user's voice
-                // outputAudioTranscription = transcribes AI's voice
-                inputAudioTranscription: {},
+                // Bloqueo explícito de idioma en la transcripción de entrada (elimina auto-detección a otros idiomas)
+                inputAudioTranscription: {
+                    languageCodes: ['es-CO', 'es-ES', 'es-419'],
+                },
                 outputAudioTranscription: {},
                 // Standard Tools support
                 tools: this.config.tools || [{ googleSearch: {} }],

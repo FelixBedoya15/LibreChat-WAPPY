@@ -223,7 +223,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
 
   // Ejecutor robusto de auto-envío para consultas delegadas por Tenshi
   const triggerTenshiSend = useCallback(
-    (promptToSend: string, agentId?: string) => {
+    async (promptToSend: string, agentId?: string) => {
       if (!promptToSend || !promptToSend.trim()) return;
       const prompt = promptToSend.trim();
 
@@ -232,9 +232,9 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
       // 1. Si se especificó un agente y es diferente al actual, seleccionarlo formalmente
       if (agentId && conversation?.agent_id !== agentId) {
         try {
-          onSelectAgent(agentId).catch((err) => {
-            console.error('[ChatForm] Error al seleccionar agente delegado por Tenshi:', err);
-          });
+          await onSelectAgent(agentId);
+          // Breve espera para que el estado del agente en Recoil y React se asiente
+          await new Promise((r) => setTimeout(r, 150));
         } catch (err) {
           console.error('[ChatForm] Error al invocar onSelectAgent:', err);
         }
@@ -270,23 +270,27 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
 
       // Si ya está listo el botón, click inmediato
       if (!tryClickSend()) {
-        // Reintentar en ráfaga (150ms, 300ms, 600ms, 1000ms, 1500ms) hasta que el botón esté habilitado
-        const delays = [150, 300, 600, 1000, 1500];
+        // Reintentar en ráfaga progresiva hasta que el botón esté habilitado
+        const delays = [200, 400, 800, 1200, 1800];
         delays.forEach((delay, idx) => {
           setTimeout(() => {
             if (submitted) return;
             if (!tryClickSend() && idx === delays.length - 1) {
-              // Respaldo final si no se pudo hacer click: invocar submitMessage directamente
+              // Respaldo final: invocar handleSubmit y submitMessage
               console.log('[ChatForm] Respaldo final: submitMessage directo');
               submitted = true;
               methods.setValue('text', prompt, { shouldValidate: true });
-              submitMessage({ text: prompt });
+              try {
+                methods.handleSubmit(submitMessage)();
+              } catch (_) {
+                submitMessage({ text: prompt });
+              }
             }
           }, delay);
         });
       }
     },
-    [methods, submitMessage, textAreaRef, onSelectAgent, conversation?.agent_id],
+    [methods, submitMessage, textAreaRef, onSelectAgent, conversation?.agent_id, submitButtonRef],
   );
 
   // Listener para auto-envío de consultas delegadas por Tenshi
@@ -315,6 +319,14 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
 
       if (urlSubmit && urlPrompt) {
         console.log('[ChatForm] Auto-submit detectado en URL:', urlPrompt);
+        // Limpiar parámetros de la URL para evitar ejecuciones repetidas
+        try {
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.delete('submit');
+          newUrl.searchParams.delete('prompt');
+          newUrl.searchParams.delete('q');
+          window.history.replaceState({}, '', newUrl.pathname + (newUrl.search ? newUrl.search : ''));
+        } catch (_) {}
         triggerTenshiSend(urlPrompt, urlAgent);
       }
     } catch (e) {
