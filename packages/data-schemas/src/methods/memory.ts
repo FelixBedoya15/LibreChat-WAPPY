@@ -116,8 +116,8 @@ export function createMemoryMethods(mongoose: typeof import('mongoose')) {
     try {
       const MemoryEntry = mongoose.models.MemoryEntry;
       const filter: Record<string, unknown> = { userId };
-      if (agentId) {
-        filter.agentId = agentId;
+      if (agentId && agentId !== 'all') {
+        filter.agentId = agentId === 'global' ? 'global' : { $in: [agentId, 'global'] };
       }
       return (await MemoryEntry.find(filter).lean()) as t.IMemoryEntryLean[];
     } catch (error) {

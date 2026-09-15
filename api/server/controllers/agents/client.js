@@ -282,23 +282,75 @@ class AgentClient extends BaseClient {
     // ARL, etc.). Relying on recall_memory (on-demand) is unreliable because the LLM
     // often doesn't infer it needs personalized context for normative SST queries.
     // Solution: Always inject empresa_sgsst (agentId='global') at the top of the system prompt
-    // for any SST-domain agent.
-    const agentName = this.options.agent?.name ?? '';
-    const agentInstructions = this.options.agent?.instructions ?? '';
-    const SST_KEYWORDS = ['SG-SST', 'SST', 'IPEVAR', 'GTC-45', 'Salud en el Trabajo', 'Seguridad y Salud', 'PESV', 'ARL', 'Riesgo Laboral', 'Emergencias', 'Ergon'];
-    const isSSTagent = SST_KEYWORDS.some((kw) =>
-      agentName.includes(kw) || agentInstructions.slice(0, 500).includes(kw)
+    // for any SST/legal/operational agent.
+    const targetUserId = (this.options.req.user?.isSubUser && this.options.req.user?.parentUser)
+      ? this.options.req.user.parentUser + ''
+      : this.options.req.user.id + '';
+
+    const nameLower = (this.options.agent?.name ?? '').toLowerCase();
+    const instructionsLower = (this.options.agent?.instructions ?? '').toLowerCase();
+    const SST_KEYWORDS = [
+      'sst', 'sg-sst', 'sgsst', 'salud', 'seguridad', 'laboral', 'abogado', 'juridico',
+      'jurídico', 'legal', 'derecho', 'contrato', 'ipevar', 'gtc-45', 'gtc45', 'gtc 45',
+      'pesv', 'seguridad vial', 'vial', 'transito', 'tránsito', 'arl', 'riesgo',
+      'accidente', 'atel', 'enfermedad', 'medico', 'médico', 'psicolog', 'psicólog',
+      'ergon', 'quimic', 'químic', 'ambiental', 'emergencia', 'copasst', 'cocolab',
+      'auditor', 'inspeccion', 'inspección', 'capacitacion', 'capacitación', 'brigada',
+      'matriz', 'clima laboral', 'normatividad', 'decreto 1072', 'resolucion 0312', 'resolución 0312'
+    ];
+    const hasSSTTool = (this.options.agent?.tools || []).some((t) => {
+      const toolName = typeof t === 'string' ? t : (t?.name || '');
+      return ['somos_sst', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'editor_rit'].includes(toolName);
+    });
+    const isSSTagent = hasSSTTool || SST_KEYWORDS.some((kw) =>
+      nameLower.includes(kw) || instructionsLower.includes(kw)
     );
 
     if (isSSTagent) {
       try {
-        const { withoutKeys: companyContext } = await getFormattedMemories({
-          userId: this.options.req.user.id + '',
+        let { withoutKeys: companyContext } = await getFormattedMemories({
+          userId: targetUserId,
           agentId: 'global',
         });
+
+        // Fallback: If global memories don't contain company data yet, try reading from CompanyInfo
+        if (!companyContext || !companyContext.includes('Razón Social')) {
+          try {
+            const mongoose = require('mongoose');
+            const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
+            let info = null;
+            if (this.options.req.user?.isSubUser && this.options.req.user?.assignedCompany) {
+              info = await CompanyInfo.findOne({ _id: this.options.req.user.assignedCompany, user: targetUserId });
+            }
+            if (!info) {
+              info = await CompanyInfo.findOne({ user: targetUserId, isActive: true });
+            }
+            if (!info) {
+              info = await CompanyInfo.findOne({ user: targetUserId });
+            }
+
+            if (info) {
+              const fallbackStr = `Razón Social / Nombre: ${info.companyName || 'N/A'}\n` +
+                `Tipo de Empresa: ${info.companyType || 'Persona Jurídica'}\n` +
+                `Documento de Identidad (NIT / CC): ${info.nit || 'N/A'}\n` +
+                `Representante Legal: ${info.legalRepresentative || 'N/A'}\n` +
+                `Número de Trabajadores: ${info.workerCount || 'N/A'}\n` +
+                `ARL: ${info.arl || 'N/A'}\n` +
+                `Nivel de Riesgo (ARL): ${info.riskLevel || 'N/A'}\n` +
+                `Actividad Económica: ${info.economicActivity || 'N/A'}\n` +
+                `Código CIIU: ${info.ciiu || 'N/A'}\n` +
+                `Dirección: ${info.address || 'N/A'} (Ciudad: ${info.city || 'N/A'}, Departamento: ${info.department || 'N/A'})\n` +
+                `Responsable SG-SST: ${info.responsibleSST || 'N/A'}`;
+              companyContext = companyContext ? `${companyContext}\n\n${fallbackStr}` : fallbackStr;
+            }
+          } catch (fallbackErr) {
+            logger.debug('[buildMessages] CompanyInfo fallback check failed:', fallbackErr.message);
+          }
+        }
+
         if (companyContext) {
-          systemContent = `## CONTEXTO DE LA EMPRESA ACTIVA (DATOS REALES - NO VOLVER A PREGUNTAR):\n${companyContext}\n\n---\n\n` + systemContent;
-          logger.debug(`[buildMessages] Injected empresa_sgsst into SST agent "${agentName}" system prompt`);
+          systemContent = `## CONTEXTO DE LA EMPRESA ACTIVA DEL USUARIO (DATOS REALES Y VIGENTES - NO VOLVER A PREGUNTAR):\n${companyContext}\n\nREGLA DE ORO: Ya conoces estos datos corporativos (Razón Social, NIT, ARL, Nivel de Riesgo, Trabajadores, Actividad Económica, CIIU, Sedes, etc.). Úsalos directamente en todas tus respuestas, documentos y análisis sin pedirle al usuario que los proporcione nuevamente.\n\n---\n\n` + systemContent;
+          logger.debug(`[buildMessages] Injected empresa_sgsst into SST agent "${this.options.agent?.name}" system prompt`);
         }
       } catch (memErr) {
         logger.warn('[buildMessages] Could not inject empresa_sgsst into SST agent:', memErr.message);
@@ -307,7 +359,7 @@ class AgentClient extends BaseClient {
 
     // Register the recall_memory tool so the agent can retrieve memories on-demand
     const recallTool = createRecallMemoryTool({
-      userId: this.options.req.user.id + '',
+      userId: targetUserId,
       agentId,
       getFormattedMemories,
     });

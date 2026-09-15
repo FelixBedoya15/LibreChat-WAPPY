@@ -27,6 +27,7 @@ class SomosSST extends Tool {
           'registrar_accidente_atel',
           'actualizar_hito_tarea',
           'editar_cualquier_aplicativo',
+          'consultar_informacion_empresa',
           'actualizar_informacion_empresa',
           'generar_informe_html',
           'consultar_historial_informes',
@@ -37,7 +38,7 @@ class SomosSST extends Tool {
           'crear_trabajador',
         ])
         .describe(
-          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, crear_trabajador, actualizar_informacion_empresa, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, o actualizar_actividad_acpm.',
+          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, consultar_informacion_empresa, crear_trabajador, actualizar_informacion_empresa, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, o actualizar_actividad_acpm.',
         ),
       razon_social: z.string().optional().describe('Razón Social o Nombre de la empresa.'),
       tipo_empresa: z.string().optional().describe('Tipo de empresa: "Persona Jurídica" o "Persona Natural".'),
@@ -1243,6 +1244,60 @@ class SomosSST extends Tool {
             hito: input.nombre_tarea_o_hito,
             nuevoEstado
           }
+        });
+      }
+
+      // ── ACTION: CONSULTAR INFORMACION DE LA EMPRESA (COMPANY INFO) ─────────
+      if (accion === 'consultar_informacion_empresa') {
+        const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
+        const targetUserId = (this.req?.user?.isSubUser && this.req?.user?.parentUser)
+          ? this.req.user.parentUser
+          : userId;
+
+        let company = null;
+        if (this.req?.user?.isSubUser && this.req?.user?.assignedCompany) {
+          company = await CompanyInfo.findOne({ _id: this.req.user.assignedCompany, user: targetUserId });
+        }
+        if (!company) {
+          company = await CompanyInfo.findOne({ user: targetUserId, isActive: true });
+        }
+        if (!company) {
+          company = await CompanyInfo.findOne({ user: targetUserId });
+        }
+
+        if (!company) {
+          return JSON.stringify({
+            exito: false,
+            mensaje: 'No se encontró información de empresa activa en SOMOS SST para este usuario.',
+          });
+        }
+
+        return JSON.stringify({
+          exito: true,
+          mensaje: `Información de la empresa activa "${company.companyName || 'Sin Nombre'}" consultada exitosamente.`,
+          empresa: {
+            id: company._id,
+            razon_social: company.companyName,
+            tipo_empresa: company.companyType,
+            nit: company.nit,
+            representante_legal: company.legalRepresentative,
+            cedula_representante: company.legalRepresentativeId,
+            numero_trabajadores: company.workerCount,
+            arl: company.arl,
+            actividad_economica: company.economicActivity,
+            nivel_riesgo: company.riskLevel,
+            ciiu: company.ciiu,
+            direccion: company.address,
+            ciudad: company.city,
+            departamento: company.department,
+            telefono: company.phone,
+            correo: company.email,
+            responsable_sst: company.responsibleSST,
+            nivel_formacion_sst: company.formationLevel,
+            licencia_sst: company.licenseNumber,
+            vigencia_licencia: company.licenseExpiry,
+            sedes: company.sedes || [],
+          },
         });
       }
 
