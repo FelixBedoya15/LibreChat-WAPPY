@@ -95,6 +95,10 @@ module.exports = {
       const messages = await getMessages({ conversationId }, '_id');
       const update = { ...convo, messages, user: req.user.id };
 
+      if (req?.body?.isPublicChat === true) {
+        update.tags = Array.from(new Set([...(update.tags || []), 'sgsst-mood', 'sgsst-psicosocial', 'sgsst-termometro']));
+      }
+
       if (newConversationId) {
         update.conversationId = newConversationId;
       }
@@ -197,7 +201,10 @@ module.exports = {
         'sgsst-objetivos',
         'sgsst-reporte-actos',
         'sgsst-ats',
-        'sgsst-automation'
+        'sgsst-automation',
+        'sgsst-mood',
+        'sgsst-psicosocial',
+        'sgsst-termometro'
       ];
       filters.push({ $or: [{ tags: { $exists: false } }, { tags: { $nin: internalTags } }] });
     }

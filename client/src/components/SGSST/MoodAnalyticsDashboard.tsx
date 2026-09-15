@@ -654,17 +654,34 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
           </h3>
           
           <div className="flex-1 overflow-y-auto space-y-4 max-h-[400px] scrollbar-thin pr-1 pt-2">
-            {filteredData.some(d => d.details) ? (
-              filteredData
-                .filter(d => d.details)
-                .map((d, i) => (
+            {filteredData.length > 0 ? (
+              filteredData.map((d, i) => {
+                let displayDetails = d.details;
+                if (!displayDetails || !displayDetails.trim()) {
+                  if (d.mood === 'happy') {
+                    displayDetails = 'Reporte de bienestar y motivación registrado por el colaborador.';
+                  } else if (d.stressors && d.stressors.length > 0) {
+                    displayDetails = 'Reporte de sobrecarga o estrés laboral con factores de riesgo seleccionados.';
+                  } else if (d.mood === 'sad') {
+                    displayDetails = 'Reporte de sobrecarga o fatiga laboral registrado sin comentarios adicionales.';
+                  } else {
+                    displayDetails = 'Reporte de jornada normal o estable registrado por el colaborador.';
+                  }
+                }
+
+                return (
                   <div key={d._id || i} className="p-3.5 bg-surface-secondary border border-border-light rounded-xl space-y-2 text-xs relative group">
                     <div className="flex items-center justify-between text-[10px] text-text-secondary font-bold uppercase tracking-wider">
-                      <span className="flex items-center gap-1.5">
+                      <span className="flex items-center gap-1.5 flex-wrap">
                         <Calendar className="w-3.5 h-3.5" />
                         {new Date(d.createdAt).toLocaleDateString('es-CO', {
                           day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
                         })}
+                        {d.department && (
+                          <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded font-semibold normal-case">
+                            {d.department}
+                          </span>
+                        )}
                       </span>
                       <div className="flex items-center gap-1.5">
                         <span className={`px-2 py-0.5 rounded-full border text-[9px] font-bold ${
@@ -686,8 +703,8 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
                       </div>
                     </div>
 
-                    <p className="text-text-primary leading-relaxed font-medium">
-                      {d.details}
+                    <p className="text-text-primary leading-relaxed font-medium whitespace-pre-line">
+                      {displayDetails}
                     </p>
 
                     {d.stressors && d.stressors.length > 0 && (
@@ -703,7 +720,8 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
                       </div>
                     )}
                   </div>
-                ))
+                );
+              })
             ) : (
               <div className="text-center py-12 text-xs text-text-secondary h-full flex items-center justify-center">
                 No hay hallazgos de conversaciones registrados aún.

@@ -226,11 +226,30 @@ export default function PublicMoodTracker() {
         if (res.data.agentModel) setAgentModel(res.data.agentModel);
         setConversationId(res.data.conversationId);
 
-        // Prepopulate first message from Specialist Agent
+        // Compute labels of selected stressors
+        const selectedLabels = selectedStressors.map(
+          (id) => stressorsList.find((s) => s.id === id)?.label || id
+        );
+        const stressorsSummary = selectedLabels.length > 0 ? selectedLabels.join(', ') : 'Ninguno seleccionado';
+
+        // Save stressors immediately to telemetry so findings are NEVER lost if user closes tab
+        axios.post(`/api/public-sgsst/mood/update/${telemetryId}`, {
+          stressors: selectedStressors,
+          details: `Sesión con el Terapeuta iniciada. Factores señalados: ${stressorsSummary}.`,
+        }).catch((e) => console.warn('Could not update initial stressors:', e));
+
+        // Prepopulate context-aware greeting from Specialist Agent
+        let greetingText = '';
+        if (selectedLabels.length > 0) {
+          greetingText = `Hola. Veo que hoy te sientes ${mood === 'sad' ? 'estresado o con sobrecarga' : 'con inquietudes'}${department.trim() ? ` en tu labor en ${department.trim()}` : ''}, y señalaste como factores: ${selectedLabels.join(', ')}. Estoy aquí como tu Terapeuta en Salud Mental para escucharte en un espacio 100% privado, confidencial y seguro. Cuéntame con toda confianza, ¿qué es lo que más te está afectando o cómo te has sentido con esto últimamente?`;
+        } else {
+          greetingText = `Hola. Veo que hoy te sientes ${mood === 'sad' ? 'estresado o agotado' : 'en una jornada tranquila'}${department.trim() ? ` en el área de ${department.trim()}` : ''}. Estoy aquí como tu Terapeuta en Salud Mental para escucharte en un espacio 100% privado y confidencial. ¿Hay algo en particular que te gustaría compartir o desahogar?`;
+        }
+
         setMessages([
           {
             sender: 'agent',
-            text: 'Hola. Lamento escuchar que hoy te sientes estresado o cansado. Estoy aquí como tu Terapeuta Ocupacional y de Salud Mental para escucharte en un espacio 100% privado y anónimo. ¿Te gustaría contarme qué te preocupa o cómo te has sentido en el trabajo últimamente?',
+            text: greetingText,
           },
         ]);
         setStep(3);
@@ -260,6 +279,10 @@ export default function PublicMoodTracker() {
     setMessages((prev) => [...prev, { sender: 'agent', text: '' }]);
 
     try {
+      const selectedLabels = selectedStressors.map(
+        (id) => stressorsList.find((s) => s.id === id)?.label || id
+      );
+
       const response = await fetch('/api/agents/chat', {
         method: 'POST',
         headers: {
@@ -275,9 +298,14 @@ export default function PublicMoodTracker() {
           endpointOption: {
             endpoint: 'agents',
             agent: agentId,
-            model: agentModel || 'gemini-3.7-flash',
+            model: agentModel || 'gemini-3.5-flash-lite',
           },
           isPublicChat: true,
+          moodContext: {
+            mood,
+            department: department.trim(),
+            stressors: selectedLabels,
+          },
         }),
       });
 
@@ -414,6 +442,25 @@ export default function PublicMoodTracker() {
       });
     } finally {
       setIsTyping(false);
+      // Sincronizar automáticamente el progreso de la conversación con telemetría
+      if (telemetryId && accumulatedText) {
+        try {
+          const currentConversation = [
+            ...messages,
+            { sender: 'user', text: userText },
+            { sender: 'agent', text: accumulatedText },
+          ]
+            .filter((m) => m.text && m.text.trim())
+            .map((m) => `${m.sender === 'user' ? 'Trabajador' : 'Terapeuta'}: ${m.text}`)
+            .join('\n')
+            .slice(0, 1500);
+
+          axios.post(`/api/public-sgsst/mood/update/${telemetryId}`, {
+            stressors: selectedStressors,
+            details: `Conversación con el Terapeuta:\n${currentConversation}`,
+          }).catch(() => {});
+        } catch (e) {}
+      }
     }
   };
 
@@ -423,13 +470,14 @@ export default function PublicMoodTracker() {
     try {
       // Calculate a brief context summary of the chat
       const chatDetails = messages
-        .map((m) => `${m.sender === 'user' ? 'Trabajador' : 'Psicólogo'}: ${m.text}`)
+        .filter((m) => m.text && m.text.trim())
+        .map((m) => `${m.sender === 'user' ? 'Trabajador' : 'Terapeuta'}: ${m.text}`)
         .join('\n')
-        .slice(0, 1000); // Truncate to avoid large payloads
+        .slice(0, 1500);
 
       await axios.post(`/api/public-sgsst/mood/update/${telemetryId}`, {
         stressors: selectedStressors,
-        details: `Conversación anónima entablada. Resumen chat:\n${chatDetails}`,
+        details: `Conversación anónima completada:\n${chatDetails}`,
       });
     } catch (error) {
       console.error('Error saving final chat summary:', error);

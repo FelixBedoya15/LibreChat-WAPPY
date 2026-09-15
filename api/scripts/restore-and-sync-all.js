@@ -477,6 +477,28 @@ ${cleanContent}
     console.error('⚠️ Error eliminando herramientas desactivadas:', err);
   }
 
+  // 6. Ocultar y aislar de la bandeja de entrada chats anónimos previos del Terapeuta en Salud Mental
+  try {
+    const convoCollection = mongoose.connection.collection('conversations');
+    const terapeutaAgent = await Agent.findOne({ name: 'Terapeuta en Salud Mental' }).lean();
+    if (terapeutaAgent) {
+      const updateResult = await convoCollection.updateMany(
+        {
+          agent_id: terapeutaAgent.id,
+          tags: { $nin: ['sgsst-mood'] }
+        },
+        {
+          $addToSet: { tags: { $each: ['sgsst-mood', 'sgsst-psicosocial', 'sgsst-termometro'] } }
+        }
+      );
+      if (updateResult.modifiedCount > 0) {
+        console.log(`   🔒 Se aislaron ${updateResult.modifiedCount} conversaciones previas del Terapeuta para garantizar anonimato.`);
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️ No se pudieron actualizar tags de conversaciones previas:', err.message);
+  }
+
   await mongoose.disconnect();
   console.log('🔌 Desconectado de MongoDB.');
 

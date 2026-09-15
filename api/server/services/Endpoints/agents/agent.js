@@ -56,7 +56,30 @@ const initializeAgent = async ({
     agent.additional_instructions = '';
     agent.artifacts = undefined;
     agent.model = 'gemini-3.5-flash-lite';
+
+    let contextSection = '';
+    const moodContext = req.body?.moodContext;
+    if (moodContext) {
+      const moodMap = {
+        happy: 'Feliz / Motivado (buena energía y satisfacción)',
+        neutral: 'Tranquilo / Estable (jornada habitual)',
+        sad: 'Estresado / Agotado (con sobrecarga, malestar o fatiga)',
+      };
+      const moodLabel = moodMap[moodContext.mood] || moodContext.mood || 'No especificado';
+      const dept = moodContext.department?.trim() ? moodContext.department.trim() : 'No especificado';
+      const factors = Array.isArray(moodContext.stressors) && moodContext.stressors.length > 0
+        ? moodContext.stressors.join(', ')
+        : 'Ninguno seleccionado';
+
+      contextSection = `\n\n📌 CONTEXTO PREVIO DEL TRABAJADOR (Registrado en el Termómetro Psicosocial):
+- Estado de ánimo: ${moodLabel}
+- Área o departamento: ${dept}
+- Factores de estrés reportados: ${factors}
+PAUTA CLAVE: Ya conoces este contexto previo. NO le preguntes desde cero qué le pasa o qué contestó en el cuestionario; valida sus emociones y enfócate directamente en escucharlo y ayudarlo con base en esos factores con cercanía y calidez.`;
+    }
+
     agent.instructions = `Eres un profesional en Terapia Ocupacional y Salud Mental Ocupacional. Tu único propósito en este chat es escuchar, orientar y brindar apoyo emocional y técnico a los trabajadores de la empresa en un espacio 100% privado, seguro y confidencial.
+${contextSection}
 
 IMPORTANTE: 
 1. Rol y Destinatario: Estás hablando DIRECTAMENTE con un trabajador (empleado) de la empresa que está experimentando estrés, fatiga, sobrecarga o malestar emocional. NUNCA respondas como si hablaras con el responsable de SG-SST, el empleador o el administrador del sistema. Tampoco asumas un rol de consultor externo para la gestión estratégica. Usa un lenguaje directo, empático, cálido y comprensivo hacia el trabajador.

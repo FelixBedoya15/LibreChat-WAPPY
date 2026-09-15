@@ -926,12 +926,22 @@ router.post('/mood/:companyId', async (req, res) => {
       }
     }
 
+    let initialDetails = '';
+    if (mood === 'happy') {
+      initialDetails = 'El colaborador reportó sentirse feliz y motivado en su jornada laboral.';
+    } else if (mood === 'neutral') {
+      initialDetails = 'Reporte de jornada normal / estable registrado por el colaborador.';
+    } else if (mood === 'sad') {
+      initialDetails = 'Reporte de sobrecarga o estrés laboral registrado por el colaborador.';
+    }
+
     const telemetry = new MoodTelemetry({
       companyId: company._id,
       mood,
       department: department || '',
       deviceId: deviceId ? String(deviceId).trim() : '',
       isDemo: isBypassAllowed,
+      details: initialDetails,
     });
 
     await telemetry.save();
@@ -954,8 +964,15 @@ router.post('/mood/update/:telemetryId', async (req, res) => {
     }
 
     const MoodTelemetry = require('~/models/MoodTelemetry');
+    const updateFields = {};
+    if (Array.isArray(stressors)) {
+      updateFields.stressors = stressors;
+    }
+    if (details !== undefined && details !== null) {
+      updateFields.details = details;
+    }
     await MoodTelemetry.findByIdAndUpdate(telemetryId, {
-      $set: { stressors: stressors || [], details: details || '' },
+      $set: updateFields,
     });
 
     return res.json({ success: true });
@@ -1093,6 +1110,23 @@ router.post('/mood/chat/:companyId', async (req, res) => {
 
     const crypto = require('crypto');
     const conversationId = crypto.randomUUID();
+
+    // Pre-crear la conversación con tags internos para que NUNCA aparezca en la bandeja ni historial del usuario
+    try {
+      const Conversation = mongoose.models.Conversation || require('~/db/models').Conversation;
+      if (Conversation) {
+        await Conversation.create({
+          conversationId,
+          user: userId,
+          endpoint: 'agents',
+          agent_id: resolvedAgentId,
+          title: 'Sesión Anónima Termómetro Psicosocial',
+          tags: ['sgsst-mood', 'sgsst-psicosocial', 'sgsst-termometro', `company-${company._id}`],
+        });
+      }
+    } catch (convoErr) {
+      logger.warn('[Public SGSST] No se pudo pre-crear conversación aislada:', convoErr?.message);
+    }
 
     return res.json({
       success: true,

@@ -40,7 +40,7 @@ index 702a29d..4e48e88 100644
                      });
                  }, {
 diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs b/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
-index 48c6de6..3df5c06 100644
+index 48c6de6..f03931e 100644
 --- a/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
 +++ b/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
 @@ -72,6 +72,14 @@ class CustomChatGoogleGenerativeAI extends googleGenai.ChatGoogleGenerativeAI {
@@ -58,7 +58,7 @@ index 48c6de6..3df5c06 100644
      static lc_name() {
          return 'LibreChatGoogleGenerativeAI';
      }
-@@ -102,6 +110,29 @@ class CustomChatGoogleGenerativeAI extends googleGenai.ChatGoogleGenerativeAI {
+@@ -102,9 +110,54 @@ class CustomChatGoogleGenerativeAI extends googleGenai.ChatGoogleGenerativeAI {
              ...parameters,
              contents: actualPrompt,
          };
@@ -66,10 +66,10 @@ index 48c6de6..3df5c06 100644
 +            for (const item of request.contents) {
 +                if (item && Array.isArray(item.parts)) {
 +                    item.parts = item.parts.filter((part) => {
-+                        if (part && part.inlineData && typeof part.inlineData.data === 'string' && part.inlineData.data.length > 2000000) {
++                        if (part && part.inlineData && typeof part.inlineData.data === 'string' && part.inlineData.data.length > 35000000) {
 +                            return false;
 +                        }
-+                        if (part && part.inline_data && typeof part.inline_data.data === 'string' && part.inline_data.data.length > 2000000) {
++                        if (part && part.inline_data && typeof part.inline_data.data === 'string' && part.inline_data.data.length > 35000000) {
 +                            return false;
 +                        }
 +                        return true;
@@ -86,8 +86,34 @@ index 48c6de6..3df5c06 100644
 +            });
 +        }
          const stream = await this.caller.callWithOptions({ signal: options.signal }, async () => {
++            const clientToUse = new generativeAi.GoogleGenerativeAI(this.apiKey).getGenerativeModel({
++                model: this.model,
++                safetySettings: this.safetySettings,
++                generationConfig: {
++                    stopSequences: this.stopSequences,
++                    maxOutputTokens: this.maxOutputTokens,
++                    temperature: this.temperature,
++                    topP: this.topP,
++                    topK: this.topK,
++                    ...(this.json != null
++                        ? { responseMimeType: 'application/json' }
++                        : {}),
++                    ...(this.thinkingConfig != null
++                        ? { thinkingConfig: this.thinkingConfig }
++                        : {}),
++                },
++                systemInstruction: this.client?.systemInstruction,
++            }, {
++                apiVersion: this.apiVersion,
++                baseUrl: this.baseUrl,
++                customHeaders: this.customHeaders,
++            });
              /** @ts-ignore */
-             const { stream } = await this.client.generateContentStream(request);
+-            const { stream } = await this.client.generateContentStream(request);
++            const { stream } = await clientToUse.generateContentStream(request);
+             return stream;
+         });
+         let lastUsageMetadata;
 diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs b/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
 index 450e0d6..f3fe3ec 100644
 --- a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
@@ -186,7 +212,7 @@ index 450e0d6..f3fe3ec 100644
          additional_kwargs.reasoning = reasoningParts.join('');
      }
 diff --git a/node_modules/@librechat/agents/dist/cjs/messages/format.cjs b/node_modules/@librechat/agents/dist/cjs/messages/format.cjs
-index 3579d89..e392374 100644
+index 3579d89..a3e4b1e 100644
 --- a/node_modules/@librechat/agents/dist/cjs/messages/format.cjs
 +++ b/node_modules/@librechat/agents/dist/cjs/messages/format.cjs
 @@ -78,7 +78,11 @@ const formatMessage = ({ message, userName, endpoint, assistantName, langChain =
@@ -196,7 +222,7 @@ index 3579d89..e392374 100644
 -        mediaParts.push(...documents);
 +        const safeDocs = documents.filter((doc) => {
 +            const len = doc?.data?.length || doc?.file_data?.length || 0;
-+            return len <= 3500000;
++            return len <= 35000000;
 +        });
 +        mediaParts.push(...safeDocs);
      }
@@ -209,7 +235,7 @@ index 3579d89..e392374 100644
 -        mediaParts.push(...image_urls);
 +        const safeImages = image_urls.filter((img) => {
 +            const urlStr = typeof img === 'string' ? img : (img?.image_url?.url || img?.url || '');
-+            return urlStr.length <= 3500000;
++            return urlStr.length <= 35000000;
 +        });
 +        mediaParts.push(...safeImages);
      }
@@ -229,6 +255,18 @@ index 3579d89..e392374 100644
                  formattedMessages.push(new messages.ToolMessage({
                      tool_call_id: tool_call.id ?? '',
                      name: tool_call.name,
+diff --git a/node_modules/@librechat/agents/dist/cjs/tools/search/firecrawl.cjs b/node_modules/@librechat/agents/dist/cjs/tools/search/firecrawl.cjs
+index ad3dd64..96a790b 100644
+--- a/node_modules/@librechat/agents/dist/cjs/tools/search/firecrawl.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/tools/search/firecrawl.cjs
+@@ -35,6 +35,7 @@ class FirecrawlScraper {
+         this.version = config.version ?? 'v2';
+         const baseUrl = config.apiUrl ??
+             process.env.FIRECRAWL_BASE_URL ??
++            process.env.FIRECRAWL_API_URL ??
+             'https://api.firecrawl.dev';
+         this.apiUrl = `${baseUrl.replace(/\/+$/, '')}/${this.version}/scrape`;
+         this.defaultFormats = config.formats ?? ['markdown', 'rawHtml'];
 diff --git a/node_modules/@librechat/agents/dist/cjs/tools/search/schema.cjs b/node_modules/@librechat/agents/dist/cjs/tools/search/schema.cjs
 index b5dfd0e..94c3cf8 100644
 --- a/node_modules/@librechat/agents/dist/cjs/tools/search/schema.cjs
@@ -261,18 +299,21 @@ index b5dfd0e..94c3cf8 100644
  Use standard 2-letter country codes: "us", "uk", "ca", "de", "fr", "jp", "br", etc.
  Provide this when the search should return results specific to a particular country.
 diff --git a/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs b/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs
-index 7f57687..94fa4f0 100644
+index 7f57687..48296c4 100644
 --- a/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs
 +++ b/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs
-@@ -184,7 +184,7 @@ const createSearXNGAPI = (instanceUrl, apiKey) => {
+@@ -184,9 +184,9 @@ const createSearXNGAPI = (instanceUrl, apiKey) => {
                  format: 'json',
                  pageno: 1,
                  categories: category,
 -                language: 'all',
 +                language: process.env.SEARXNG_LANGUAGE || 'es-CO',
                  safesearch: safeSearch,
-                 engines: 'google,bing,duckduckgo',
+-                engines: 'google,bing,duckduckgo',
++                engines: process.env.SEARXNG_ENGINES || 'bing,qwant,startpage,google',
              };
+             const headers = {
+                 'Content-Type': 'application/json',
 diff --git a/node_modules/@librechat/agents/dist/esm/graphs/MultiAgentGraph.mjs b/node_modules/@librechat/agents/dist/esm/graphs/MultiAgentGraph.mjs
 index 2ce0a08..9bd5b62 100644
 --- a/node_modules/@librechat/agents/dist/esm/graphs/MultiAgentGraph.mjs
@@ -362,6 +403,18 @@ index 02305d8..0eb8cd6 100644
          const content = {
              role: actualRole,
              parts,
+diff --git a/node_modules/@librechat/agents/dist/esm/tools/search/firecrawl.mjs b/node_modules/@librechat/agents/dist/esm/tools/search/firecrawl.mjs
+index c75aa27..6eccf9b 100644
+--- a/node_modules/@librechat/agents/dist/esm/tools/search/firecrawl.mjs
++++ b/node_modules/@librechat/agents/dist/esm/tools/search/firecrawl.mjs
+@@ -33,6 +33,7 @@ class FirecrawlScraper {
+         this.version = config.version ?? 'v2';
+         const baseUrl = config.apiUrl ??
+             process.env.FIRECRAWL_BASE_URL ??
++            process.env.FIRECRAWL_API_URL ??
+             'https://api.firecrawl.dev';
+         this.apiUrl = `${baseUrl.replace(/\/+$/, '')}/${this.version}/scrape`;
+         this.defaultFormats = config.formats ?? ['markdown', 'rawHtml'];
 diff --git a/node_modules/@librechat/agents/dist/esm/tools/search/schema.mjs b/node_modules/@librechat/agents/dist/esm/tools/search/schema.mjs
 index bf47fd9..abf44d5 100644
 --- a/node_modules/@librechat/agents/dist/esm/tools/search/schema.mjs
@@ -394,18 +447,21 @@ index bf47fd9..abf44d5 100644
  Use standard 2-letter country codes: "us", "uk", "ca", "de", "fr", "jp", "br", etc.
  Provide this when the search should return results specific to a particular country.
 diff --git a/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs b/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs
-index 62b7ecf..51bf791 100644
+index 62b7ecf..e7f70b5 100644
 --- a/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs
 +++ b/node_modules/@librechat/agents/dist/esm/tools/search/search.mjs
-@@ -182,7 +182,7 @@ const createSearXNGAPI = (instanceUrl, apiKey) => {
+@@ -182,9 +182,9 @@ const createSearXNGAPI = (instanceUrl, apiKey) => {
                  format: 'json',
                  pageno: 1,
                  categories: category,
 -                language: 'all',
 +                language: process.env.SEARXNG_LANGUAGE || 'es-CO',
                  safesearch: safeSearch,
-                 engines: 'google,bing,duckduckgo',
+-                engines: 'google,bing,duckduckgo',
++                engines: process.env.SEARXNG_ENGINES || 'bing,qwant,startpage,google',
              };
+             const headers = {
+                 'Content-Type': 'application/json',
 diff --git a/node_modules/@librechat/agents/src/graphs/MultiAgentGraph.ts b/node_modules/@librechat/agents/src/graphs/MultiAgentGraph.ts
 index 8bcddd9..b2a3452 100644
 --- a/node_modules/@librechat/agents/src/graphs/MultiAgentGraph.ts
