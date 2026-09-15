@@ -221,11 +221,22 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     setBackupBadges([]);
   }, [backupBadges, setBadges, setIsEditingBadges]);
 
+  const lastSubmittedPromptRef = useRef<string>('');
+  const lastSubmitTimeRef = useRef<number>(0);
+
   // Ejecutor robusto de auto-envío para consultas delegadas por Tenshi
   const triggerTenshiSend = useCallback(
     async (promptToSend: string, agentId?: string) => {
       if (!promptToSend || !promptToSend.trim()) return;
       const prompt = promptToSend.trim();
+
+      // Evitar envíos duplicados en ráfaga
+      if (lastSubmittedPromptRef.current === prompt && Date.now() - lastSubmitTimeRef.current < 4000) {
+        console.log('[ChatForm] Prompt ya enviado recientemente, ignorando duplicado:', prompt);
+        return;
+      }
+      lastSubmittedPromptRef.current = prompt;
+      lastSubmitTimeRef.current = Date.now();
 
       console.log('[ChatForm] triggerTenshiSend ejecutando para:', prompt, { agentId });
 
@@ -249,6 +260,13 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         textAreaRef.current.focus();
       }
 
+      const clearInput = () => {
+        methods.setValue('text', '', { shouldValidate: false });
+        if (textAreaRef.current) {
+          textAreaRef.current.value = '';
+        }
+      };
+
       // 3. Intentar hacer click en el botón nativo de envío (#send-button)
       let submitted = false;
       const tryClickSend = () => {
@@ -263,6 +281,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
           console.log('[ChatForm] Click programático exitoso en send-button');
           submitted = true;
           sendBtn.click();
+          setTimeout(clearInput, 50);
           return true;
         }
         return false;
@@ -271,20 +290,20 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
       // Si ya está listo el botón, click inmediato
       if (!tryClickSend()) {
         // Reintentar en ráfaga progresiva hasta que el botón esté habilitado
-        const delays = [200, 400, 800, 1200, 1800];
+        const delays = [200, 400, 800, 1200];
         delays.forEach((delay, idx) => {
           setTimeout(() => {
             if (submitted) return;
             if (!tryClickSend() && idx === delays.length - 1) {
-              // Respaldo final: invocar handleSubmit y submitMessage
+              // Respaldo final: invocar submitMessage directamente
               console.log('[ChatForm] Respaldo final: submitMessage directo');
               submitted = true;
-              methods.setValue('text', prompt, { shouldValidate: true });
               try {
                 methods.handleSubmit(submitMessage)();
               } catch (_) {
                 submitMessage({ text: prompt });
               }
+              setTimeout(clearInput, 50);
             }
           }, delay);
         });

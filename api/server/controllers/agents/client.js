@@ -1327,18 +1327,24 @@ class AgentClient extends BaseClient {
         const currentModel = agentModelFallbacks[mi];
         if (mi > 0) {
           // Apply the fallback model before retrying
-          logger.warn(`[AgentClient] 503 / overloaded — rotating agent model to "${currentModel}" (fallback ${mi}/${agentModelFallbacks.length - 1})`);
+          logger.warn(`[AgentClient] Quota/Overloaded — rotating agent model to "${currentModel}" (fallback ${mi}/${agentModelFallbacks.length - 1})`);
           this.options.agent.model_parameters.model = currentModel;
+          this.options.agent.model = currentModel;
+          this.model = currentModel;
           if (config?.configurable?.endpointOption?.model_parameters) {
             config.configurable.endpointOption.model_parameters.model = currentModel;
           }
+          if (config?.configurable?.endpointOption) {
+            config.configurable.endpointOption.model = currentModel;
+          }
 
-          // Apply fallback model to all secondary agents that match primaryAgentModel
+          // Apply fallback model to all secondary agents
           if (this.agentConfigs && this.agentConfigs.size > 0) {
             for (const secondaryAg of this.agentConfigs.values()) {
-              if (secondaryAg.model_parameters && secondaryAg.model_parameters.model === primaryAgentModel) {
+              if (secondaryAg.model_parameters) {
                 secondaryAg.model_parameters.model = currentModel;
               }
+              secondaryAg.model = currentModel;
             }
           }
           // Reset attempt errors for new model

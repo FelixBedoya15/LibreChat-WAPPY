@@ -341,8 +341,7 @@ ${cleanContent}
 
     tools = [...new Set(tools)];
 
-    const configuredModels = (process.env.GOOGLE_MODELS || '').split(',').map(m => m.trim()).filter(Boolean);
-    const defaultModel = configuredModels.find(m => m.includes('2.5-flash')) || configuredModels[0] || 'gemini-2.5-flash';
+    const defaultModel = (process.env.GOOGLE_MODELS || 'gemini-3.7-flash').split(',')[0].trim();
     const agentModel = val.model || defaultModel;
 
     let agent = await Agent.findOne({ name: val.name });

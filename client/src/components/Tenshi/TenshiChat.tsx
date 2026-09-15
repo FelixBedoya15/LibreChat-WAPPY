@@ -316,6 +316,7 @@ export default function TenshiChat() {
     active: boolean;
     hadStarted: boolean;
     timestamp: number;
+    initialMessageId: string | null;
   } | null>(null);
 
   const isChatSubmitting = useRecoilValue(store.isSubmittingFamily(0));
@@ -648,12 +649,14 @@ export default function TenshiChat() {
             }
 
             // Registrar consulta pendiente para que Tenshi escuche la respuesta del agente
+            const initialMessageId = latestChatMessageRef.current?.messageId || null;
             pendingAgentConsultationRef.current = {
               agentName,
               question: pregunta,
               active: true,
               hadStarted: false,
               timestamp: Date.now(),
+              initialMessageId,
             };
             setIsWaitingConsultation(true);
             setVoiceStatusText(`Esperando a ${agentName}...`);
@@ -671,20 +674,15 @@ export default function TenshiChat() {
             const targetRoute = `/c/new${params.toString() ? `?${params.toString()}` : ''}`;
             navigate(targetRoute);
 
-            // Emitir evento inmediatamente y con reintentos para asegurar que ChatForm lo capture al montarse
-            const emitPromptEvent = () => {
-              window.dispatchEvent(
-                new CustomEvent('tenshi-submit-agent-prompt', {
-                  detail: {
-                    agentId: matchedAgent?.id,
-                    prompt: pregunta,
-                  },
-                })
-              );
-            };
-            emitPromptEvent();
-            setTimeout(emitPromptEvent, 350);
-            setTimeout(emitPromptEvent, 800);
+            // Emitir evento para asegurar que ChatForm lo capture de inmediato
+            window.dispatchEvent(
+              new CustomEvent('tenshi-submit-agent-prompt', {
+                detail: {
+                  agentId: matchedAgent?.id,
+                  prompt: pregunta,
+                },
+              })
+            );
 
             // Mantener drawer de Tenshi abierto para que el usuario conserve a Tenshi
             // setIsOpen(false);
@@ -951,22 +949,45 @@ export default function TenshiChat() {
 
       setTimeout(() => {
         // Usar la referencia más reciente para evitar closures desactualizados
-        let lastMsg = (latestChatMessageRef.current?.text || '').trim();
+        const currentMsg = latestChatMessageRef.current;
+        let lastMsg = (currentMsg?.text || '').trim();
 
-        // Fallback: si aún no está en Recoil, intentar extraerlo del último elemento del chat en el DOM
-        if (!lastMsg || lastMsg.length < 15) {
-          const domMessages = document.querySelectorAll('.message-content, [data-message-id]');
-          if (domMessages.length > 0) {
-            const lastDomEl = domMessages[domMessages.length - 1];
-            const domText = (lastDomEl?.textContent || '').trim();
-            if (domText.length > 15) {
-              lastMsg = domText;
-            }
+        // Validar si la respuesta es genuinamente del especialista:
+        // 1. Debe existir un mensaje
+        // 2. No debe ser el mismo mensaje anterior (initialMessageId)
+        // 3. No debe ser creado por el usuario (isCreatedByUser === true)
+        // 4. No debe tener bandera de error (error === true)
+        // 5. Debe tener longitud suficiente
+        const isGenuineResponse =
+          Boolean(currentMsg) &&
+          currentMsg?.messageId !== consultation.initialMessageId &&
+          !currentMsg?.isCreatedByUser &&
+          !currentMsg?.error &&
+          lastMsg.length >= 15;
+
+        if (!isGenuineResponse) {
+          console.warn('[Tenshi] No se obtuvo respuesta válida del especialista o hubo un error en la solicitud:', {
+            currentMsgId: currentMsg?.messageId,
+            initialMsgId: consultation.initialMessageId,
+            isCreatedByUser: currentMsg?.isCreatedByUser,
+            error: currentMsg?.error,
+          });
+
+          if (isVoiceActive) {
+            lastActivityRef.current = Date.now();
+            setVoiceStatusText(`Error con ${consultation.agentName}`);
+            const errorPromptForTenshi = `[SISTEMA INTERNO WAPPY]: Hubo un problema al procesar la consulta con el especialista ${consultation.agentName}. El chat central reportó un error o sobrecarga técnica en el modelo (límite de cuota o servicio no disponible) y no generó la respuesta.
+INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercanía y profesionalismo que el especialista ${consultation.agentName} tuvo una intermitencia o error en el chat y no pudo generar la respuesta en este momento. Sugiérele reintentar la consulta en un momento o preguntarte otra cosa mientras se restablece. NO inventes que el especialista respondió ni uses contenido de conversaciones anteriores.`;
+            sendTextMessage(errorPromptForTenshi);
           }
-        }
 
-        if (!lastMsg || lastMsg.length < 15) {
-          console.warn('[Tenshi] Respuesta del agente aún no consolidada o vacía.');
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: 'assistant',
+              content: `⚠️ **Tenshi:** Hubo un inconveniente al consultar a **${consultation.agentName}** sobre *"${consultation.question}"* (el servicio del especialista reportó un error o sobrecarga en el chat). Por favor reintenta en unos instantes.`,
+            },
+          ]);
           return;
         }
 

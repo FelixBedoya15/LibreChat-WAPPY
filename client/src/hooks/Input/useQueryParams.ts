@@ -281,8 +281,16 @@ export default function useQueryParams({
     if (sendBtn && !sendBtn.disabled) {
       console.log('[useQueryParams] Auto-submitting vía click en #send-button');
       sendBtn.click();
+      setTimeout(() => {
+        methods.setValue('text', '', { shouldValidate: false });
+        if (textAreaRef.current) textAreaRef.current.value = '';
+      }, 50);
     } else {
       submitMessage({ text: textToSend });
+      setTimeout(() => {
+        methods.setValue('text', '', { shouldValidate: false });
+        if (textAreaRef.current) textAreaRef.current.value = '';
+      }, 50);
     }
 
     const newUrl = window.location.pathname;
