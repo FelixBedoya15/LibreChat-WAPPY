@@ -519,13 +519,11 @@ endpoints:
 #     quality: 0.92  # JPEG quality for compression (0.0-1.0, default: 0.92)
 # # https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/assistants_endpoint
 
-# Web Search Configuration (SearXNG + Self-Hosted OpenSource BGE Reranker)
+# Web Search Configuration (SearXNG Direct - Ultra-fast & 0% CPU)
 webSearch:
   searchProvider: "searxng"
   searxngInstanceUrl: "${SEARXNG_INSTANCE_URL}"
-  rerankerType: "jina"
-  jinaApiUrl: "${RERANKER_API_URL:-http://librechat-reranker-d58plj:80/v1/rerank}"
-  jinaApiKey: "local-dummy-key"
+  rerankerType: "none"
 
 
 # Memory configuration for user memories
