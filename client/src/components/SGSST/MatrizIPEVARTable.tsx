@@ -137,6 +137,54 @@ const FilterSelect = ({
   );
 };
 
+// ── FillHandle: Tirador de Relleno estilo Excel (Arrastrar o Doble Clic) ──────
+interface FillHandleProps {
+  displayIdx: number;
+  field: keyof MatrixRow;
+  value: any;
+  onStartDrag: (e: React.MouseEvent, displayIdx: number, field: keyof MatrixRow, value: any) => void;
+  onDoubleClick: (e: React.MouseEvent, displayIdx: number, field: keyof MatrixRow, value: any) => void;
+  totalFiltered: number;
+}
+
+const FillHandle: React.FC<FillHandleProps> = ({
+  displayIdx,
+  field,
+  value,
+  onStartDrag,
+  onDoubleClick,
+  totalFiltered,
+}) => {
+  const remaining = Math.max(0, totalFiltered - 1 - displayIdx);
+  return (
+    <div
+      onMouseDown={(e) => onStartDrag(e, displayIdx, field, value)}
+      onDoubleClick={(e) => onDoubleClick(e, displayIdx, field, value)}
+      className="absolute bottom-0 right-0 z-30 h-2.5 w-2.5 cursor-crosshair rounded-[1px] border border-white bg-teal-600 shadow-sm transition-transform hover:scale-150 active:scale-125 opacity-0 group-hover/cell:opacity-100 group-focus-within/cell:opacity-100 dark:border-gray-950 dark:bg-teal-400"
+      title={`Controlador de relleno (Excel):\n• Arrastra hacia arriba o abajo para copiar en filas contiguas\n• Doble clic para rellenar las ${remaining} filas filtradas siguientes\n• Shift + Doble clic para rellenar TODAS las filas filtradas (${totalFiltered})`}
+    />
+  );
+};
+
+const recalcRowFormulas = (row: MatrixRow) => {
+  row.np = (Number(row.nd) || 0) * (Number(row.ne) || 0);
+  row.interpretacion_np = getInterpretacionNP(row.np);
+  row.nr = row.np * (Number(row.nc) || 0);
+  if (row.nr >= 600) {
+    row.interpretacion_nr = 'I';
+    row.aceptabilidad = 'No Aceptable';
+  } else if (row.nr >= 150) {
+    row.interpretacion_nr = 'II';
+    row.aceptabilidad = 'No Aceptable o Aceptable con Control Específico';
+  } else if (row.nr >= 40) {
+    row.interpretacion_nr = 'III';
+    row.aceptabilidad = 'Mejorable';
+  } else {
+    row.interpretacion_nr = 'IV';
+    row.aceptabilidad = 'Aceptable';
+  }
+};
+
 // ── Selector Anexo C: ND Cualitativo (con estilo del sistema) ─────────────────
 const AnnexCSelector = ({
   row,
@@ -1629,23 +1677,7 @@ export default function MatrizIPEVARTable({
     // @ts-ignore
     newRows[index][field] = value;
     if (['nd', 'ne', 'nc'].includes(field as string)) {
-      const row = newRows[index];
-      row.np = (Number(row.nd) || 0) * (Number(row.ne) || 0);
-      row.interpretacion_np = getInterpretacionNP(row.np);
-      row.nr = row.np * (Number(row.nc) || 0);
-      if (row.nr >= 600) {
-        row.interpretacion_nr = 'I';
-        row.aceptabilidad = 'No Aceptable';
-      } else if (row.nr >= 150) {
-        row.interpretacion_nr = 'II';
-        row.aceptabilidad = 'No Aceptable o Aceptable con Control Específico';
-      } else if (row.nr >= 40) {
-        row.interpretacion_nr = 'III';
-        row.aceptabilidad = 'Mejorable';
-      } else {
-        row.interpretacion_nr = 'IV';
-        row.aceptabilidad = 'Aceptable';
-      }
+      recalcRowFormulas(newRows[index]);
     }
     isDirtyRef.current = true;
     setMatrixRows(newRows);
@@ -1957,6 +1989,202 @@ export default function MatrizIPEVARTable({
     ) : (
       <span className="ml-1 opacity-30">↕</span>
     );
+
+  // ── Drag & Fill estilo Excel (Arrastre de casillas y Doble Clic) ───────────
+  interface DragFillState {
+    active: boolean;
+    field: keyof MatrixRow | null;
+    sourceDisplayIdx: number | null;
+    targetDisplayIdx: number | null;
+    value: any;
+  }
+
+  const [dragFillState, setDragFillState] = useState<DragFillState>({
+    active: false,
+    field: null,
+    sourceDisplayIdx: null,
+    targetDisplayIdx: null,
+    value: '',
+  });
+
+  const dragFillStateRef = useRef(dragFillState);
+  dragFillStateRef.current = dragFillState;
+
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const isCellInDragRange = useCallback(
+    (dIdx: number, field: keyof MatrixRow) => {
+      if (!dragFillState.active || dragFillState.field !== field) return false;
+      if (dragFillState.sourceDisplayIdx === null || dragFillState.targetDisplayIdx === null) return false;
+      const min = Math.min(dragFillState.sourceDisplayIdx, dragFillState.targetDisplayIdx);
+      const max = Math.max(dragFillState.sourceDisplayIdx, dragFillState.targetDisplayIdx);
+      return dIdx >= min && dIdx <= max;
+    },
+    [dragFillState],
+  );
+
+  const getDragCellStyles = useCallback(
+    (dIdx: number, field: keyof MatrixRow) => {
+      if (!isCellInDragRange(dIdx, field)) return '';
+      const min = Math.min(dragFillState.sourceDisplayIdx!, dragFillState.targetDisplayIdx!);
+      const max = Math.max(dragFillState.sourceDisplayIdx!, dragFillState.targetDisplayIdx!);
+
+      let borderClasses = 'bg-teal-500/15 dark:bg-teal-500/25 ring-1 ring-teal-500/80 transition-colors select-none';
+      if (dIdx === min) borderClasses += ' border-t-2 border-teal-500';
+      if (dIdx === max) borderClasses += ' border-b-2 border-teal-500';
+      borderClasses += ' border-l-2 border-r-2 border-teal-500';
+
+      return borderClasses;
+    },
+    [isCellInDragRange, dragFillState],
+  );
+
+  const applyFillToRange = useCallback(
+    (startDisplayIdx: number, endDisplayIdx: number, field: keyof MatrixRow, fillValue: any) => {
+      const newRows = [...matrixRows];
+      let updatedCount = 0;
+
+      for (let dIdx = startDisplayIdx; dIdx <= endDisplayIdx; dIdx++) {
+        const item = displayRows[dIdx];
+        if (item) {
+          const rowGlobalIdx = item.idx;
+          const targetRow = { ...newRows[rowGlobalIdx] };
+          // @ts-ignore
+          targetRow[field] = fillValue;
+
+          if (['nd', 'ne', 'nc'].includes(field as string)) {
+            recalcRowFormulas(targetRow);
+          }
+
+          newRows[rowGlobalIdx] = targetRow;
+          updatedCount++;
+        }
+      }
+
+      if (updatedCount > 0) {
+        setMatrixRows(newRows);
+        isDirtyRef.current = true;
+        showToast({
+          message: `⚡ Se rellenó "${fillValue || '(vacío)'}" en ${updatedCount} ${
+            updatedCount === 1 ? 'fila' : 'filas filtradas'
+          }`,
+          status: 'success',
+        });
+      }
+    },
+    [displayRows, matrixRows, showToast],
+  );
+
+  const handleFillStart = useCallback(
+    (e: React.MouseEvent, displayIdx: number, field: keyof MatrixRow, value: any) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragFillState({
+        active: true,
+        field,
+        sourceDisplayIdx: displayIdx,
+        targetDisplayIdx: displayIdx,
+        value,
+      });
+      setMousePos({ x: e.clientX, y: e.clientY });
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'crosshair';
+    },
+    [],
+  );
+
+  const handleCellMouseEnter = useCallback(
+    (displayIdx: number, field: keyof MatrixRow) => {
+      if (dragFillStateRef.current.active && dragFillStateRef.current.field === field) {
+        if (dragFillStateRef.current.targetDisplayIdx !== displayIdx) {
+          setDragFillState((prev) => ({ ...prev, targetDisplayIdx: displayIdx }));
+        }
+      }
+    },
+    [],
+  );
+
+  const handleFillDoubleClick = useCallback(
+    (e: React.MouseEvent, sourceDisplayIdx: number, field: keyof MatrixRow, value: any) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (displayRows.length <= 1) return;
+
+      const fillAll = e.shiftKey || e.altKey || sourceDisplayIdx === displayRows.length - 1;
+      const startIdx = fillAll ? 0 : sourceDisplayIdx + 1;
+      const endIdx = displayRows.length - 1;
+
+      if (startIdx <= endIdx) {
+        applyFillToRange(startIdx, endIdx, field, value);
+      }
+    },
+    [displayRows.length, applyFillToRange],
+  );
+
+  useEffect(() => {
+    if (!dragFillState.active) return;
+
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      setMousePos({ x: e.clientX, y: e.clientY });
+
+      // Auto-scroll horizontal/vertical al acercarse a los bordes
+      if (tableContainerRef.current) {
+        const rect = tableContainerRef.current.getBoundingClientRect();
+        const threshold = 45;
+        if (e.clientY > rect.bottom - threshold && e.clientY < rect.bottom + 80) {
+          tableContainerRef.current.scrollTop += 15;
+        } else if (e.clientY < rect.top + threshold && e.clientY > rect.top - 80) {
+          tableContainerRef.current.scrollTop -= 15;
+        }
+      }
+
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const targetCell = el?.closest(`[data-display-field="${dragFillStateRef.current.field}"]`);
+      if (targetCell) {
+        const dIdxAttr = targetCell.getAttribute('data-display-idx');
+        if (dIdxAttr !== null) {
+          const dIdx = Number(dIdxAttr);
+          if (!isNaN(dIdx) && dIdx !== dragFillStateRef.current.targetDisplayIdx) {
+            setDragFillState((prev) => (prev.active ? { ...prev, targetDisplayIdx: dIdx } : prev));
+          }
+        }
+      }
+    };
+
+    const handleWindowMouseUp = () => {
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+
+      const state = dragFillStateRef.current;
+      if (state.active && state.sourceDisplayIdx !== null && state.targetDisplayIdx !== null && state.field) {
+        if (state.sourceDisplayIdx !== state.targetDisplayIdx) {
+          const min = Math.min(state.sourceDisplayIdx, state.targetDisplayIdx);
+          const max = Math.max(state.sourceDisplayIdx, state.targetDisplayIdx);
+          applyFillToRange(min, max, state.field, state.value);
+        }
+      }
+
+      setDragFillState({
+        active: false,
+        field: null,
+        sourceDisplayIdx: null,
+        targetDisplayIdx: null,
+        value: '',
+      });
+    };
+
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [dragFillState.active, applyFillToRange]);
 
   const renderModals = () => (
     <>
@@ -2568,13 +2796,39 @@ export default function MatrizIPEVARTable({
             </span>
           </button>
         )}
-        <span className="ml-auto text-xs font-medium tabular-nums text-text-secondary">
-          {displayRows.length} / {matrixRows.length} riesgos
-        </span>
+        <div className="ml-auto flex items-center gap-3">
+          <div className="hidden xl:flex items-center gap-1.5 rounded-xl border border-teal-500/20 bg-teal-500/5 px-2.5 py-1 text-[11px] text-teal-700 dark:text-teal-300">
+            <span className="inline-block h-2 w-2 rounded-[1px] bg-teal-600 dark:bg-teal-400 shadow-sm" />
+            <span>Arrastra la esquina de una casilla o haz doble clic para autorellenar filas (Excel)</span>
+          </div>
+          <span className="text-xs font-medium tabular-nums text-text-secondary">
+            {displayRows.length} / {matrixRows.length} riesgos
+          </span>
+        </div>
       </div>
 
+      {/* Floating drag preview banner */}
+      {dragFillState.active && (
+        <div
+          className="pointer-events-none fixed z-[99999] flex items-center gap-2 -translate-x-1/2 -translate-y-full rounded-xl border border-teal-400/50 bg-teal-950/95 px-3 py-1.5 text-xs font-semibold text-teal-100 shadow-2xl backdrop-blur-md"
+          style={{ left: mousePos.x, top: mousePos.y - 16 }}
+        >
+          <Zap className="h-4 w-4 text-teal-400 shrink-0 animate-bounce" />
+          <span>
+            Rellenando{' '}
+            <strong className="text-teal-300 font-bold">
+              {Math.abs(dragFillState.targetDisplayIdx! - dragFillState.sourceDisplayIdx!) + 1}
+            </strong>{' '}
+            filas con:{' '}
+            <span className="text-white font-bold truncate max-w-[200px] inline-block align-bottom">
+              "{String(dragFillState.value || '(vacío)')}"
+            </span>
+          </span>
+        </div>
+      )}
+
       {/* ── Tabla ──────────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto custom-scrollbar-ipevar">
+      <div ref={tableContainerRef} className="flex-1 overflow-auto custom-scrollbar-ipevar">
         <style>{`
           .custom-scrollbar-ipevar::-webkit-scrollbar {
             height: 10px;
@@ -2739,22 +2993,42 @@ export default function MatrizIPEVARTable({
                 </tr>
               </thead>
               <tbody>
-                {paginatedRows.map(({ row, idx }) => (
+                {paginatedRows.map(({ row, idx }, pageRowIdx) => {
+                  const displayIdx = (currentPage - 1) * pageSize + pageRowIdx;
+                  return (
                   <tr
                     key={idx}
                     className="hover:bg-surface-secondary/50 group border-b border-border-light transition-colors"
                   >
                     {/* Proceso */}
-                    <td className="px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="proceso"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'proceso')}
+                      className={`group/cell relative px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'proceso')}`}
+                    >
                       <textarea
                         rows={2}
                         className="w-full min-w-[140px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
                         value={row.proceso || ''}
                         onChange={(e) => handleCellChange(idx, 'proceso', e.target.value)}
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="proceso"
+                        value={row.proceso || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
                     {/* Cargo */}
-                    <td className="px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="cargo"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'cargo')}
+                      className={`group/cell relative px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'cargo')}`}
+                    >
                       <input
                         type="text"
                         list="available-cargos-list"
@@ -2763,34 +3037,86 @@ export default function MatrizIPEVARTable({
                         value={row.cargo || ''}
                         onChange={(e) => handleCellChange(idx, 'cargo', e.target.value)}
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="cargo"
+                        value={row.cargo || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
-                    <td className="px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="zona"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'zona')}
+                      className={`group/cell relative px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'zona')}`}
+                    >
                       <textarea
                         rows={2}
                         className="w-full min-w-[120px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
                         value={row.zona || ''}
                         onChange={(e) => handleCellChange(idx, 'zona', e.target.value)}
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="zona"
+                        value={row.zona || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
-                    <td className="px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="actividad"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'actividad')}
+                      className={`group/cell relative px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'actividad')}`}
+                    >
                       <textarea
                         rows={2}
                         className="w-full min-w-[150px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
                         value={row.actividad || ''}
                         onChange={(e) => handleCellChange(idx, 'actividad', e.target.value)}
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="actividad"
+                        value={row.actividad || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
-                    <td className="px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="tareas"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'tareas')}
+                      className={`group/cell relative px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'tareas')}`}
+                    >
                       <textarea
                         rows={2}
                         className="w-full min-w-[190px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
                         value={row.tareas || ''}
                         onChange={(e) => handleCellChange(idx, 'tareas', e.target.value)}
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="tareas"
+                        value={row.tareas || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
 
                     {/* Rutinaria toggle */}
-                    <td className="px-4 py-3 text-center align-middle">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="rutinaria"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'rutinaria')}
+                      className={`group/cell relative px-4 py-3 text-center align-middle transition-colors ${getDragCellStyles(displayIdx, 'rutinaria')}`}
+                    >
                       <button
                         onClick={() =>
                           handleCellChange(idx, 'rutinaria', row.rutinaria === 'Sí' ? 'No' : 'Sí')
@@ -2799,10 +3125,23 @@ export default function MatrizIPEVARTable({
                       >
                         {row.rutinaria}
                       </button>
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="rutinaria"
+                        value={row.rutinaria}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
 
                     {/* Peligro */}
-                    <td className="border-l border-border-light px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="peligro_descripcion"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'peligro_descripcion')}
+                      className={`group/cell relative border-l border-border-light px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'peligro_descripcion')}`}
+                    >
                       <AITextarea
                         value={row.peligro_descripcion || ''}
                         onChange={(v) => handleCellChange(idx, 'peligro_descripcion', v)}
@@ -2812,8 +3151,21 @@ export default function MatrizIPEVARTable({
                         token={token}
                         selectedModel={selectedModel}
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="peligro_descripcion"
+                        value={row.peligro_descripcion || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
-                    <td className="px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="peligro_clasificacion"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'peligro_clasificacion')}
+                      className={`group/cell relative px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'peligro_clasificacion')}`}
+                    >
                       <textarea
                         rows={2}
                         className="w-full min-w-[140px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
@@ -2822,8 +3174,21 @@ export default function MatrizIPEVARTable({
                           handleCellChange(idx, 'peligro_clasificacion', e.target.value)
                         }
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="peligro_clasificacion"
+                        value={row.peligro_clasificacion || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
-                    <td className="px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="efectos_posibles"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'efectos_posibles')}
+                      className={`group/cell relative px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'efectos_posibles')}`}
+                    >
                       <AITextarea
                         value={row.efectos_posibles || ''}
                         onChange={(v) => handleCellChange(idx, 'efectos_posibles', v)}
@@ -2833,10 +3198,23 @@ export default function MatrizIPEVARTable({
                         token={token}
                         selectedModel={selectedModel}
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="efectos_posibles"
+                        value={row.efectos_posibles || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
 
                     {/* Controles existentes */}
-                    <td className="border-l border-border-light bg-blue-500/5 px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="controles_fuente"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'controles_fuente')}
+                      className={`group/cell relative border-l border-border-light bg-blue-500/5 px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'controles_fuente')}`}
+                    >
                       <AITextarea
                         value={row.controles_fuente || ''}
                         onChange={(v) => handleCellChange(idx, 'controles_fuente', v)}
@@ -2846,8 +3224,21 @@ export default function MatrizIPEVARTable({
                         token={token}
                         selectedModel={selectedModel}
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="controles_fuente"
+                        value={row.controles_fuente || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
-                    <td className="bg-blue-500/5 px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="controles_medio"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'controles_medio')}
+                      className={`group/cell relative bg-blue-500/5 px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'controles_medio')}`}
+                    >
                       <AITextarea
                         value={row.controles_medio || ''}
                         onChange={(v) => handleCellChange(idx, 'controles_medio', v)}
@@ -2857,8 +3248,21 @@ export default function MatrizIPEVARTable({
                         token={token}
                         selectedModel={selectedModel}
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="controles_medio"
+                        value={row.controles_medio || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
-                    <td className="bg-blue-500/5 px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="controles_individuo"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'controles_individuo')}
+                      className={`group/cell relative bg-blue-500/5 px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'controles_individuo')}`}
+                    >
                       <AITextarea
                         value={row.controles_individuo || ''}
                         onChange={(v) => handleCellChange(idx, 'controles_individuo', v)}
@@ -2867,6 +3271,14 @@ export default function MatrizIPEVARTable({
                         row={row}
                         token={token}
                         selectedModel={selectedModel}
+                      />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="controles_individuo"
+                        value={row.controles_individuo || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
                       />
                     </td>
 
@@ -2975,7 +3387,12 @@ export default function MatrizIPEVARTable({
                       })()}
                     </td>
                     {/* Criterios para establecer controles */}
-                    <td className="bg-sky-500/5 px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="nro_expuestos"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'nro_expuestos')}
+                      className={`group/cell relative bg-sky-500/5 px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'nro_expuestos')}`}
+                    >
                       <input
                         type="number"
                         className="w-16 border-transparent bg-transparent text-center font-mono outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
@@ -2983,8 +3400,21 @@ export default function MatrizIPEVARTable({
                         onChange={(e) => handleCellChange(idx, 'nro_expuestos', Number(e.target.value) || 0)}
                         min={0}
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="nro_expuestos"
+                        value={row.nro_expuestos !== undefined ? row.nro_expuestos : 1}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
-                    <td className="bg-sky-500/5 px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="peor_consecuencia"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'peor_consecuencia')}
+                      className={`group/cell relative bg-sky-500/5 px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'peor_consecuencia')}`}
+                    >
                       <textarea
                         rows={2}
                         className="w-full min-w-[150px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 text-xs"
@@ -2992,8 +3422,21 @@ export default function MatrizIPEVARTable({
                         onChange={(e) => handleCellChange(idx, 'peor_consecuencia', e.target.value)}
                         placeholder="Ej. Lesión grave..."
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="peor_consecuencia"
+                        value={row.peor_consecuencia || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
-                    <td className="bg-sky-500/5 px-4 py-3 text-center">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="requisito_legal"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'requisito_legal')}
+                      className={`group/cell relative bg-sky-500/5 px-4 py-3 text-center transition-colors ${getDragCellStyles(displayIdx, 'requisito_legal')}`}
+                    >
                       <select
                         className="border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer"
                         value={row.requisito_legal || ''}
@@ -3003,6 +3446,14 @@ export default function MatrizIPEVARTable({
                         <option value="Sí" className="bg-surface-primary dark:bg-surface-secondary text-text-primary">Sí</option>
                         <option value="No" className="bg-surface-primary dark:bg-surface-secondary text-text-primary">No</option>
                       </select>
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="requisito_legal"
+                        value={row.requisito_legal || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
 
                     {/* Clasificación visible con badge de color */}
@@ -3034,7 +3485,12 @@ export default function MatrizIPEVARTable({
                     </td>
 
                     {/* Medidas propuestas */}
-                    <td className="border-l-2 border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="medida_eliminacion"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'medida_eliminacion')}
+                      className={`group/cell relative border-l-2 border-emerald-500/20 bg-emerald-500/5 px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'medida_eliminacion')}`}
+                    >
                       <AITextarea
                         value={row.medida_eliminacion || ''}
                         onChange={(v) => handleCellChange(idx, 'medida_eliminacion', v)}
@@ -3044,8 +3500,21 @@ export default function MatrizIPEVARTable({
                         token={token}
                         selectedModel={selectedModel}
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="medida_eliminacion"
+                        value={row.medida_eliminacion || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
-                    <td className="bg-emerald-500/5 px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="medida_sustitucion"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'medida_sustitucion')}
+                      className={`group/cell relative bg-emerald-500/5 px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'medida_sustitucion')}`}
+                    >
                       <AITextarea
                         value={row.medida_sustitucion || ''}
                         onChange={(v) => handleCellChange(idx, 'medida_sustitucion', v)}
@@ -3055,8 +3524,21 @@ export default function MatrizIPEVARTable({
                         token={token}
                         selectedModel={selectedModel}
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="medida_sustitucion"
+                        value={row.medida_sustitucion || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
-                    <td className="bg-emerald-500/5 px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="medida_ingenieria"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'medida_ingenieria')}
+                      className={`group/cell relative bg-emerald-500/5 px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'medida_ingenieria')}`}
+                    >
                       <AITextarea
                         value={row.medida_ingenieria || ''}
                         onChange={(v) => handleCellChange(idx, 'medida_ingenieria', v)}
@@ -3066,8 +3548,21 @@ export default function MatrizIPEVARTable({
                         token={token}
                         selectedModel={selectedModel}
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="medida_ingenieria"
+                        value={row.medida_ingenieria || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
-                    <td className="bg-emerald-500/5 px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="medida_administrativa"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'medida_administrativa')}
+                      className={`group/cell relative bg-emerald-500/5 px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'medida_administrativa')}`}
+                    >
                       <AITextarea
                         value={row.medida_administrativa || ''}
                         onChange={(v) => handleCellChange(idx, 'medida_administrativa', v)}
@@ -3077,8 +3572,21 @@ export default function MatrizIPEVARTable({
                         token={token}
                         selectedModel={selectedModel}
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="medida_administrativa"
+                        value={row.medida_administrativa || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
-                    <td className="bg-emerald-500/5 px-4 py-3">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="medida_eppu"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'medida_eppu')}
+                      className={`group/cell relative bg-emerald-500/5 px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'medida_eppu')}`}
+                    >
                       <AITextarea
                         value={row.medida_eppu || ''}
                         onChange={(v) => handleCellChange(idx, 'medida_eppu', v)}
@@ -3088,10 +3596,23 @@ export default function MatrizIPEVARTable({
                         token={token}
                         selectedModel={selectedModel}
                       />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="medida_eppu"
+                        value={row.medida_eppu || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
                     </td>
 
                     {/* Anexo E — Factores de Reducción */}
-                    <td className="border-l-2 border-purple-400/30 bg-purple-50/50 px-4 py-3 dark:bg-purple-900/10">
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="factores_reduccion"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'factores_reduccion')}
+                      className={`group/cell relative border-l-2 border-purple-400/30 bg-purple-50/50 px-4 py-3 dark:bg-purple-900/10 transition-colors ${getDragCellStyles(displayIdx, 'factores_reduccion')}`}
+                    >
                       <AITextarea
                         value={row.factores_reduccion || ''}
                         onChange={(v) => handleCellChange(idx, 'factores_reduccion', v)}
@@ -3100,6 +3621,14 @@ export default function MatrizIPEVARTable({
                         row={row}
                         token={token}
                         selectedModel={selectedModel}
+                      />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="factores_reduccion"
+                        value={row.factores_reduccion || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
                       />
                     </td>
 
@@ -3127,7 +3656,8 @@ export default function MatrizIPEVARTable({
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
