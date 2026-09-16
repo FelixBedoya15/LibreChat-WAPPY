@@ -335,7 +335,7 @@ index 7f57687..aae8e45 100644
 +                language: process.env.SEARXNG_LANGUAGE || 'es-CO',
                  safesearch: safeSearch,
 -                engines: 'google,bing,duckduckgo',
-+                engines: process.env.SEARXNG_ENGINES || 'yandex,brave,gmx,pubmed',
++                engines: process.env.SEARXNG_ENGINES || 'startpage,duckduckgo,google,wikipedia,brave',
              };
              const headers = {
                  'Content-Type': 'application/json',
@@ -534,7 +534,7 @@ index 62b7ecf..19774b4 100644
 +                language: process.env.SEARXNG_LANGUAGE || 'es-CO',
                  safesearch: safeSearch,
 -                engines: 'google,bing,duckduckgo',
-+                engines: process.env.SEARXNG_ENGINES || 'yandex,brave,gmx,pubmed',
++                engines: process.env.SEARXNG_ENGINES || 'startpage,duckduckgo,google,wikipedia,brave',
              };
              const headers = {
                  'Content-Type': 'application/json',
@@ -730,7 +730,7 @@ index e6b4aa8..121b53d 100644
 +        language: process.env.SEARXNG_LANGUAGE || 'es-CO',
          safesearch: safeSearch,
 -        engines: 'google,bing,duckduckgo',
-+        engines: (process.env.SEARXNG_ENGINES as string) || 'yandex,brave,gmx,pubmed',
++        engines: (process.env.SEARXNG_ENGINES as string) || 'startpage,duckduckgo,google,wikipedia,brave',
        };
  
        const headers: Record<string, string> = {
