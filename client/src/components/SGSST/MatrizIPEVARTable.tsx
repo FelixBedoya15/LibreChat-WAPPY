@@ -25,6 +25,7 @@ import {
   X,
   Star,
   BarChart3,
+  FileSpreadsheet,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuthContext } from '~/hooks';
@@ -2122,9 +2123,23 @@ export default function MatrizIPEVARTable({
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="flex items-center h-8 sm:h-10 px-3 rounded-xl border border-teal-500/20 bg-teal-500/10 text-teal-700 dark:text-teal-300 text-xs font-bold shadow-sm">
-                {matrixRows.length} {matrixRows.length === 1 ? 'Peligro Evaluado' : 'Peligros Evaluados'}
-              </span>
+              {/* Peligros Evaluados */}
+              <div
+                title={`${matrixRows.length} ${matrixRows.length === 1 ? 'Peligro Evaluado' : 'Peligros Evaluados'}`}
+                className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+              >
+                <div className="relative flex flex-shrink-0 items-center justify-center">
+                  <FileSpreadsheet className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                  <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                    {matrixRows.length}
+                  </span>
+                </div>
+                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                  <span className="text-sm font-bold tracking-wide">
+                    {matrixRows.length} {matrixRows.length === 1 ? 'Peligro Evaluado' : 'Peligros Evaluados'}
+                  </span>
+                </div>
+              </div>
 
               {/* Añadir Riesgo */}
               <button
@@ -2279,13 +2294,21 @@ export default function MatrizIPEVARTable({
               {/* Botón Establecer como Matriz Oficial (cuando se visualiza dentro de un chat) */}
               {!isOfficialApp && matrixRows.length > 0 && (
                 isCurrentConvoOfficial ? (
-                  <span
+                  <div
                     title="Esta matriz está activa como la Matriz Oficial del Sistema SG-SST"
-                    className="inline-flex h-8 sm:h-10 items-center gap-1.5 px-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold shadow-sm"
+                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-2 sm:px-2.5 text-emerald-600 dark:text-emerald-400 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                   >
-                    <Star className="h-4 w-4 fill-emerald-500 text-emerald-500 shrink-0" />
-                    <span>Matriz Oficial</span>
-                  </span>
+                    <div className="relative flex flex-shrink-0 items-center justify-center">
+                      <Star className="h-4 w-4 sm:h-5 sm:w-5 fill-emerald-500 text-emerald-500 shrink-0" />
+                      <span className="absolute -right-1 -top-1 flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                      </span>
+                    </div>
+                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                      <span className="text-sm font-bold tracking-wide">Matriz Oficial</span>
+                    </div>
+                  </div>
                 ) : (
                   <button
                     type="button"
@@ -3049,9 +3072,17 @@ export default function MatrizIPEVARTable({
                 </p>
               </div>
             </div>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold border border-purple-500/20">
-              Visualización Gráfica
-            </span>
+            <div
+              title="Visualización Gráfica GTC 45"
+              className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+            >
+              <div className="relative flex flex-shrink-0 items-center justify-center">
+                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 dark:text-purple-400 shrink-0" />
+              </div>
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                <span className="text-sm font-bold tracking-wide">Visualización Gráfica</span>
+              </div>
+            </div>
           </button>
 
           {isDashboardExpanded && (

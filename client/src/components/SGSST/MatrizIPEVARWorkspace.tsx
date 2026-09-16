@@ -183,44 +183,105 @@ export default function MatrizIPEVARWorkspace() {
                   {officialInfo.officialTitle}
                 </h2>
                 {officialInfo.hasOfficial ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-0.5 text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                    <span className="relative flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-                    </span>
-                    <Star className="h-3 w-3 fill-emerald-500 text-emerald-500" />
-                    Matriz Oficial Activa
-                  </span>
+                  <div
+                    title="Matriz Oficial Activa"
+                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                  >
+                    <div className="relative flex flex-shrink-0 items-center justify-center">
+                      <Star className="h-3.5 w-3.5 fill-emerald-500 text-emerald-500 shrink-0" />
+                      <span className="absolute -right-1 -top-1 flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                      </span>
+                    </div>
+                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                      <span className="text-xs font-black uppercase tracking-wider">Matriz Oficial Activa</span>
+                    </div>
+                  </div>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-0.5 text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                    ⚠️ Sin Matriz Oficial Seleccionada
-                  </span>
+                  <div
+                    title="Sin Matriz Oficial Seleccionada"
+                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                  >
+                    <div className="relative flex flex-shrink-0 items-center justify-center">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    </div>
+                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                      <span className="text-xs font-black uppercase tracking-wider">Sin Matriz Oficial</span>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              {/* Badges de Métricas Conectadas */}
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-text-secondary">
-                <span className="inline-flex items-center gap-1 rounded-lg bg-surface-tertiary px-2.5 py-1 border border-border-light">
-                  <FileSpreadsheet className="h-3.5 w-3.5 text-teal-500" />
-                  <strong>{officialInfo.rowCount}</strong> peligros evaluados
-                </span>
+              {/* Badges de Métricas Conectadas con Estilo Expansible Estándar */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {/* Peligros Evaluados */}
+                <div
+                  title={`${officialInfo.rowCount} Peligros Evaluados`}
+                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                >
+                  <div className="relative flex flex-shrink-0 items-center justify-center">
+                    <FileSpreadsheet className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                    <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                      {officialInfo.rowCount}
+                    </span>
+                  </div>
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
+                    <span className="text-sm font-bold tracking-wide">
+                      {officialInfo.rowCount} {officialInfo.rowCount === 1 ? 'Peligro Evaluado' : 'Peligros Evaluados'}
+                    </span>
+                  </div>
+                </div>
 
+                {/* Críticos (Nivel I / II) */}
                 {officialInfo.criticalCount > 0 && (
-                  <span className="inline-flex items-center gap-1 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2.5 py-1 border border-rose-500/20">
-                    <Flame className="h-3.5 w-3.5 fill-rose-500" />
-                    <strong>{officialInfo.criticalCount}</strong> Críticos (Nivel I / II)
-                  </span>
+                  <div
+                    title={`${officialInfo.criticalCount} Críticos (Nivel I / II)`}
+                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                  >
+                    <div className="relative flex flex-shrink-0 items-center justify-center">
+                      <Flame className="h-4 w-4 sm:h-5 sm:w-5 fill-rose-500 text-rose-500 shrink-0" />
+                      <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                        {officialInfo.criticalCount}
+                      </span>
+                    </div>
+                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
+                      <span className="text-sm font-bold tracking-wide">
+                        {officialInfo.criticalCount} Críticos (Nivel I / II)
+                      </span>
+                    </div>
+                  </div>
                 )}
 
-                <span className="inline-flex items-center gap-1 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2.5 py-1 border border-purple-500/20">
-                  <BrainCircuit className="h-3.5 w-3.5" />
-                  Conectada al Acto Predictivo ML
-                </span>
+                {/* Acto Predictivo ML */}
+                <div
+                  title="Conectada al Acto Predictivo ML"
+                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                >
+                  <div className="relative flex flex-shrink-0 items-center justify-center">
+                    <BrainCircuit className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 dark:text-purple-400 shrink-0" />
+                  </div>
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                    <span className="text-sm font-bold tracking-wide">
+                      Conectada al Acto Predictivo ML
+                    </span>
+                  </div>
+                </div>
 
-                <span className="inline-flex items-center gap-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2.5 py-1 border border-blue-500/20">
-                  <Scale className="h-3.5 w-3.5" />
-                  Res. 0312: CUMPLE
-                </span>
+                {/* Res. 0312: CUMPLE */}
+                <div
+                  title="Res. 0312: CUMPLE (Estándares 4.1.1 y 4.2.1)"
+                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                >
+                  <div className="relative flex flex-shrink-0 items-center justify-center">
+                    <Scale className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 shrink-0" />
+                  </div>
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                    <span className="text-sm font-bold tracking-wide">
+                      Res. 0312: CUMPLE
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
