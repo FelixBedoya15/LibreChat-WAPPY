@@ -100,10 +100,25 @@ const cjsTryPattern = /try\s*\{\s*if\s*\(!?this\.apiKey[\s\S]*?catch\s*\(error\)
 
 if (cjsTryPattern.test(cjs)) {
   cjs = cjs.replace(cjsTryPattern, teiRerankLogicCjs.trim());
+}
+
+// Forzar a createReranker a usar siempre el Reranker local TEI (evitando Cohere y avisos innecesarios)
+const createRerankerPattern = /const createReranker = \(config\) => \{[\s\S]*?switch \([\s\S]*?return new JinaReranker\(\{ apiKey: jinaApiKey, apiUrl: jinaApiUrl, logger: defaultLogger \}\);\s*\}\s*\};/;
+const customCreateReranker = `const createReranker = (config) => {
+    const { jinaApiKey, jinaApiUrl, logger } = config || {};
+    const defaultLogger = logger || utils.createDefaultLogger();
+    const effectiveUrl = jinaApiUrl || process.env.RERANKER_API_URL || 'http://librechat-reranker-d58plj:80/rerank';
+    const effectiveKey = jinaApiKey || process.env.JINA_API_KEY || 'local-dummy-key';
+    return new JinaReranker({ apiKey: effectiveKey, apiUrl: effectiveUrl, logger: defaultLogger });
+};`;
+
+if (createRerankerPattern.test(cjs)) {
+  cjs = cjs.replace(createRerankerPattern, customCreateReranker);
   fs.writeFileSync(rerankersCjsPath, cjs, 'utf8');
-  console.log('✓ rerankers.cjs parcheado con soporte nativo para TEI y Jina');
+  console.log('✓ rerankers.cjs configurado para usar SIEMPRE el Reranker TEI local');
 } else {
-  console.log('! Advertencia: patron no coincidio en rerankers.cjs o ya fue parcheado');
+  fs.writeFileSync(rerankersCjsPath, cjs, 'utf8');
+  console.log('✓ rerankers.cjs actualizado');
 }
 
 // 2. Parchear search.cjs (motores limpios, bloqueo de publicidad, pre-reranking de resultados)
