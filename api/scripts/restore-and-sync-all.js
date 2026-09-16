@@ -525,6 +525,20 @@ ${cleanContent}
     console.error('⚠️ Error ejecutando la limpieza de memorias duplicadas:', err.message);
   }
 
+  // Ejecutar parche de optimización HuggingFace TEI Reranker y Búsqueda Limpia
+  try {
+    const { execSync } = require('child_process');
+    const localPatch = path.resolve(__dirname, 'patch-reranker-tei.js');
+    const rootPatch = path.resolve(__dirname, '../../scripts/patch-reranker-tei.js');
+    const patchScript = fs.existsSync(localPatch) ? localPatch : (fs.existsSync(rootPatch) ? rootPatch : null);
+    if (patchScript) {
+      console.log('⚡ Aplicando optimización de Reranker HuggingFace TEI y Búsqueda Limpia...');
+      execSync(`node "${patchScript}"`, { stdio: 'inherit' });
+    }
+  } catch (err) {
+    console.error('⚠️ Error ejecutando el parche de Reranker TEI:', err.message);
+  }
+
   console.log('🎉 PROCESO COMPLETADO CON ÉXITO.');
 }
 

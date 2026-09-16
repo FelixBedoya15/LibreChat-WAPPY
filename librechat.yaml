@@ -524,7 +524,7 @@ webSearch:
   searchProvider: "searxng"
   searxngInstanceUrl: "${SEARXNG_INSTANCE_URL}"
   rerankerType: "jina"
-  jinaApiUrl: "${RERANKER_API_URL:-http://librechat-reranker-d58plj:80/v1/rerank}"
+  jinaApiUrl: "${RERANKER_API_URL:-http://librechat-reranker-d58plj:80/rerank}"
   jinaApiKey: "local-dummy-key"
 
 
