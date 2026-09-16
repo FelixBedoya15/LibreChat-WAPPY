@@ -523,7 +523,6 @@ endpoints:
 webSearch:
   searchProvider: "searxng"
   searxngInstanceUrl: "${SEARXNG_INSTANCE_URL}"
-  rerankerType: "none"
 
 
 # Memory configuration for user memories
