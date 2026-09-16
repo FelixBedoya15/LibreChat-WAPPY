@@ -340,12 +340,15 @@ class STTService {
   async correctTranscription(userText, chatHistory, userId) {
     try {
       logger.info(`[STTService] Starting transcription correction for: "${userText}"`);
-      const correctionModelName = process.env.TRANSCRIPTION_CORRECTION_MODEL || 'gemini-2.5-flash-lite-preview-09-2025';
+      const correctionModelName = process.env.TRANSCRIPTION_CORRECTION_MODEL || 'gemini-3.5-flash-lite';
       logger.info(`[STTService] Using correction model: ${correctionModelName}`);
 
-      // Get user's Google API key
+      // Get user's Google API key, or fall back to system environment key
       let apiKey = await getUserKey({ userId, name: EModelEndpoint.google });
       if (!apiKey) {
+        apiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
+      }
+      if (!apiKey || apiKey === 'user_provided') {
         logger.warn('[STTService] No Google API key found, skipping transcription correction');
         return userText;
       }
@@ -366,7 +369,7 @@ class STTService {
       const model = genAI.getGenerativeModel({ model: correctionModelName });
 
       const prompt = `
-      Eres un corrector ortográfico y gramatical experto en español, especializado en Seguridad y Salud en el Trabajo (SST/HSE).
+      Eres un corrector ortográfico y gramatical experto en español, especializado en Seguridad y Salud en el Trabajo (SST/HSE) y Seguridad Vial (PESV).
       Tu tarea es corregir y refinar la transcripción de voz utilizando el contexto del chat.
 
       CONTEXTO (Historial reciente del chat):
@@ -381,7 +384,7 @@ class STTService {
 
       REGLAS DE ORO:
       1. MANTÉN ESTRICTAMENTE EL TEXTO EN ESPAÑOL. Está absolutamente prohibido traducir cualquier palabra al inglés o cambiar su idioma.
-      2. Reconoce y respeta siglas y términos de SST como: "SST", "EPP", "RULA", "REBA", "GTC 45", "ISO 45001", "Decreto 1072", "LOTO", "línea de vida", "arnés", "dieléctrico", etc. (Ejemplo: si la transcripción dice "e pp", corrígelo a "EPP").
+      2. Reconoce y respeta siglas y términos de SST/PESV/Química como: "SST", "EPP", "IPEVAR", "PESV", "COPASST", "Decreto 1072", "Resolución 0312", "Resolución 20223040040595", "SGA", "NFPA", "fuero de salud", "estabilidad laboral reforzada", "RULA", "REBA", "GTC 45", "ISO 45001", "LOTO", "línea de vida", "arnés", "dieléctrico", "hoja de seguridad", "FDS", etc. (Ejemplo: si la transcripción dice "e pp", corrígelo a "EPP"; si dice "ipe var", corrígelo a "IPEVAR").
       3. Si la transcripción es ininteligible o muy corta (ej: "hola"), devuélvela exactamente igual.
       4. Si el texto original está en español correcto, devuélvelo tal cual sin inventar nada.
       5. DEVUELVE ÚNICA Y EXCLUSIVAMENTE EL TEXTO CORREGIDO. Sin explicaciones, introducciones ni despedidas.
@@ -399,6 +402,72 @@ class STTService {
       logger.error('[STTService] Error correcting transcription:', error);
       return userText; // Fallback to original
     }
+  }
+
+  /**
+   * Transcribe audio using Google Gemini API (gemini-3.5-transcribe / gemini-3.5-flash)
+   * @async
+   * @param {Buffer} audioBuffer - Audio data
+   * @param {Object} audioFile - Audio file metadata
+   * @param {string} [userId] - User ID for resolving personal API key
+   * @returns {Promise<string>} Transcribed text
+   */
+  async transcribeWithGemini(audioBuffer, audioFile, userId) {
+    let apiKey = userId ? await getUserKey({ userId, name: EModelEndpoint.google }) : null;
+    if (!apiKey) {
+      apiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
+    }
+    if (!apiKey || apiKey === 'user_provided') {
+      throw new Error('No Google API key configured for Gemini transcription');
+    }
+
+    try {
+      const parsed = JSON.parse(apiKey);
+      apiKey = parsed.GOOGLE_API_KEY || parsed;
+    } catch (_) {}
+
+    if (typeof apiKey === 'string') {
+      apiKey = apiKey.split(',')[0].trim();
+    }
+
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(apiKey);
+
+    const mimeType = audioFile.mimetype || 'audio/webm';
+    const inlineData = {
+      inlineData: {
+        data: audioBuffer.toString('base64'),
+        mimeType: mimeType,
+      },
+    };
+
+    const modelsToTry = [
+      process.env.TRANSCRIPTION_MODEL || 'gemini-3.5-transcribe',
+      'gemini-3.5-flash',
+      'gemini-3.7-flash',
+    ];
+
+    let lastError = null;
+    for (const modelName of modelsToTry) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent([
+          inlineData,
+          'Transcribe este audio a texto en español con máxima fidelidad. Devuelve ÚNICA Y EXCLUSIVAMENTE la transcripción literal del audio, sin introducciones, sin comentarios, sin formato extra ni explicaciones. Respeta siglas técnicas de SST, PESV, SGA y medicina laboral si son mencionadas.',
+        ]);
+        const response = await result.response;
+        const text = response.text()?.trim();
+        if (text) {
+          logger.info(`[STTService] Gemini (${modelName}) transcription succeeded: "${text.substring(0, 80)}..."`);
+          return text;
+        }
+      } catch (err) {
+        logger.warn(`[STTService] Gemini model "${modelName}" failed: ${err.message}`);
+        lastError = err;
+      }
+    }
+
+    throw lastError || new Error('All Gemini transcription models failed');
   }
 
   /**
@@ -421,16 +490,24 @@ class STTService {
     };
 
     try {
-      const [provider, sttSchema] = await this.getProviderSchema(req);
-      const language = req.body?.language || '';
-      let text = await this.sttRequest(provider, sttSchema, { audioBuffer, audioFile, language });
-      logger.info(`[STTService] Initial transcription: "${text}"`);
+      let text = '';
+      try {
+        const [provider, sttSchema] = await this.getProviderSchema(req);
+        const language = req.body?.language || '';
+        text = await this.sttRequest(provider, sttSchema, { audioBuffer, audioFile, language });
+        logger.info(`[STTService] Initial transcription: "${text}"`);
+      } catch (providerError) {
+        logger.warn(
+          `[STTService] Standard STT provider not configured or failed (${providerError.message}), falling back to Google Gemini Transcribe...`,
+        );
+        text = await this.transcribeWithGemini(audioBuffer, audioFile, req.user?.id);
+      }
 
       // FASE 7: Transcription Correction using chat history
       const conversationId = req.body?.conversationId;
       const userId = req.user?.id;
 
-      if (userId && conversationId) {
+      if (userId && conversationId && text) {
         logger.info(`[STTService] Attempting correction with conversationId: ${conversationId}`);
         const chatHistory = await this.loadChatHistory(userId, conversationId);
         text = await this.correctTranscription(text, chatHistory, userId);

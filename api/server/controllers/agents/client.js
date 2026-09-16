@@ -1355,12 +1355,12 @@ class AgentClient extends BaseClient {
       // Build model fallback list from GOOGLE_MODELS env for quota/overload rotation
       // Exclude audio/live-only models: they return 404 for streamGenerateContent
       const primaryAgentModel = this.options.agent?.model_parameters?.model || '';
-      const defaultModels = 'gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite';
+      const defaultModels = 'gemini-3.7-flash,gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite';
       const envAgentModels = (process.env.GOOGLE_MODELS || defaultModels)
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean)
-        .filter((m) => !m.includes('native-audio') && !m.includes('-live-'));
+        .filter((m) => !m.includes('native-audio') && !m.includes('-live-') && !m.includes('-transcribe'));
       const agentModelFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
 
       let attemptErrors = [];
