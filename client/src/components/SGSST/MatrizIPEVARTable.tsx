@@ -2969,10 +2969,9 @@ export default function MatrizIPEVARTable({
           )}
         </div>
       </div>
-      {(!isOfficialApp || isMaximized || isTableExpanded) && (
-        <div className="hidden" />
-      )}
-    </div>
+          </div>
+        )}
+      </div>
 
       {/* ── 3. Dashboard analítico y Resizer ───────────────────────────────────── */}
       {!isOfficialApp && (
