@@ -418,6 +418,34 @@ async function scanComplianceForUser(userId, user = {}) {
     }
   }
 
+  // Verificar directamente la Matriz IPEVAR Oficial Activa de la empresa
+  try {
+    const GTC45WorkspaceSession = mongoose.models.GTC45WorkspaceSession || require('~/models/GTC45WorkspaceSession');
+    if (GTC45WorkspaceSession) {
+      const officialMatrix = (await GTC45WorkspaceSession.findOne({
+        user: targetUserId,
+        ...(companyId ? { companyId } : {}),
+        isOfficial: true,
+        'matrixRows.0': { $exists: true }
+      }).lean()) || (await GTC45WorkspaceSession.findOne({
+        conversationId: `official-${companyId || targetUserId}`,
+        'matrixRows.0': { $exists: true }
+      }).lean());
+
+      if (officialMatrix && officialMatrix.matrixRows?.length) {
+        const rowsCount = officialMatrix.matrixRows.length;
+        const ipevarTitle = officialMatrix.officialTitle || 'Matriz IPEVAR Oficial';
+        tagReports['sgsst-matriz-ipevar'] = {
+          conversationId: officialMatrix.conversationId,
+          title: `${ipevarTitle} (${rowsCount} peligros evaluados bajo GTC 45)`,
+          updatedAt: officialMatrix.updatedAt,
+        };
+      }
+    }
+  } catch (errIpevar) {
+    logger.warn('[ComplianceScanner] Official IPEVAR check skip:', errIpevar.message);
+  }
+
   // 5. Strictly populate evidenceMap ONLY for modules with confirmed saved reports
   const evidenceMap = {};
   const modulesWithData = [];

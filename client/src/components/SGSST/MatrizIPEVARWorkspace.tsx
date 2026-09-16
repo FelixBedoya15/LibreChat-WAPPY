@@ -1,0 +1,393 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAuthContext } from '~/hooks';
+import { useToastContext } from '@librechat/client';
+import {
+  AlertTriangle,
+  Star,
+  RefreshCw,
+  CheckCircle2,
+  BrainCircuit,
+  Scale,
+  Sparkles,
+  ChevronDown,
+  Layers,
+  FileSpreadsheet,
+  X,
+  Loader2,
+  Calendar,
+  MessageSquare,
+  ShieldCheck,
+  Flame,
+} from 'lucide-react';
+import MatrizIPEVARTable from './MatrizIPEVARTable';
+
+interface ChatMatrixItem {
+  conversationId: string;
+  title: string;
+  isOfficial: boolean;
+  rowCount: number;
+  criticalCount: number;
+  sourceConversationId?: string | null;
+  promotedAt?: string | null;
+  updatedAt: string;
+}
+
+export default function MatrizIPEVARWorkspace() {
+  const { token, user } = useAuthContext();
+  const { showToast } = useToastContext();
+
+  const [officialInfo, setOfficialInfo] = useState<{
+    hasOfficial: boolean;
+    officialTitle: string;
+    rowCount: number;
+    criticalCount: number;
+    sourceConversationId: string | null;
+    promotedAt: string | null;
+    updatedAt: string | null;
+  }>({
+    hasOfficial: false,
+    officialTitle: 'Matriz IPEVAR Oficial',
+    rowCount: 0,
+    criticalCount: 0,
+    sourceConversationId: null,
+    promotedAt: null,
+    updatedAt: null,
+  });
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const [chatMatrices, setChatMatrices] = useState<ChatMatrixItem[]>([]);
+  const [isLoadingMatrices, setIsLoadingMatrices] = useState(false);
+  const [isSettingOfficial, setIsSettingOfficial] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Cargar estado de la matriz oficial
+  const fetchOfficialStatus = useCallback(async () => {
+    if (!token) return;
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/sgsst/gtc45-workspace/official', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const rows = data.matrixRows || [];
+        const critical = rows.filter((r: any) => (Number(r.nr) || 0) >= 150).length;
+        setOfficialInfo({
+          hasOfficial: data.hasOfficial || rows.length > 0,
+          officialTitle: data.officialTitle || 'Matriz IPEVAR Oficial',
+          rowCount: rows.length,
+          criticalCount: critical,
+          sourceConversationId: data.sourceConversationId || null,
+          promotedAt: data.promotedAt || null,
+          updatedAt: data.updatedAt || null,
+        });
+      }
+    } catch (err) {
+      console.error('[MatrizIPEVARWorkspace] Error loading official matrix:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchOfficialStatus();
+  }, [fetchOfficialStatus, refreshKey]);
+
+  // Escuchar eventos globales de sincronización
+  useEffect(() => {
+    const handleSync = () => {
+      fetchOfficialStatus();
+      setRefreshKey((k) => k + 1);
+    };
+    window.addEventListener('ipevar-official-updated', handleSync);
+    return () => window.removeEventListener('ipevar-official-updated', handleSync);
+  }, [fetchOfficialStatus]);
+
+  // Abrir selector y cargar matrices creadas en los chats
+  const handleOpenSelector = async () => {
+    setIsSelectorOpen(true);
+    if (!token) return;
+    try {
+      setIsLoadingMatrices(true);
+      const res = await fetch('/api/sgsst/gtc45-workspace/list-user-matrices', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setChatMatrices(data.matrices || []);
+      }
+    } catch (err) {
+      console.error('[MatrizIPEVARWorkspace] Error listing matrices:', err);
+    } finally {
+      setIsLoadingMatrices(false);
+    }
+  };
+
+  // Establecer una matriz de chat como oficial
+  const handleSelectOfficial = async (item: ChatMatrixItem) => {
+    if (!token) return;
+    try {
+      setIsSettingOfficial(true);
+      const res = await fetch('/api/sgsst/gtc45-workspace/set-official', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          sourceConversationId: item.conversationId,
+          officialTitle: item.title,
+        }),
+      });
+
+      if (res.ok) {
+        showToast({
+          message: '¡Matriz establecida como Oficial en el Sistema exitosamente!',
+          status: 'success',
+        });
+        setIsSelectorOpen(false);
+        setRefreshKey((k) => k + 1);
+        window.dispatchEvent(new CustomEvent('ipevar-official-updated'));
+      } else {
+        throw new Error('Error en la respuesta del servidor');
+      }
+    } catch (err: any) {
+      console.error('[MatrizIPEVARWorkspace] Error setting official matrix:', err);
+      showToast({
+        message: 'No se pudo fijar la matriz oficial.',
+        status: 'error',
+      });
+    } finally {
+      setIsSettingOfficial(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-6 w-full">
+      {/* ─── BANNER DE CONTROL Y ESTADO DE MATRIZ OFICIAL ─── */}
+      <div className="relative overflow-hidden rounded-3xl border border-teal-500/30 bg-gradient-to-br from-surface-primary via-surface-secondary to-teal-500/5 p-6 shadow-xl backdrop-blur-md">
+        {/* Glow de fondo */}
+        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl dark:bg-teal-400/10" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          {/* Lado Izquierdo: Información y Estado */}
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-400 text-white shadow-lg shadow-teal-500/20">
+              <AlertTriangle className="h-7 w-7" />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-black tracking-tight text-text-primary">
+                  {officialInfo.officialTitle}
+                </h2>
+                {officialInfo.hasOfficial ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-0.5 text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                    </span>
+                    <Star className="h-3 w-3 fill-emerald-500 text-emerald-500" />
+                    Matriz Oficial Activa
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-0.5 text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                    ⚠️ Sin Matriz Oficial Seleccionada
+                  </span>
+                )}
+              </div>
+
+              <p className="text-xs text-text-secondary leading-relaxed max-w-2xl">
+                Columna vertebral preventiva del SG-SST. Todos los agentes, el{' '}
+                <strong className="text-teal-600 dark:text-teal-400 font-bold">Acto Predictivo</strong> y la auditoría de{' '}
+                <strong className="text-teal-600 dark:text-teal-400 font-bold">Res. 0312 (Estándares 4.1.1 y 4.2.1)</strong> se alimentan de esta única matriz oficial institucional.
+              </p>
+
+              {/* Badges de Métricas Conectadas */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-text-secondary">
+                <span className="inline-flex items-center gap-1 rounded-lg bg-surface-tertiary px-2.5 py-1 border border-border-light">
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-teal-500" />
+                  <strong>{officialInfo.rowCount}</strong> peligros evaluados
+                </span>
+
+                {officialInfo.criticalCount > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2.5 py-1 border border-rose-500/20">
+                    <Flame className="h-3.5 w-3.5 fill-rose-500" />
+                    <strong>{officialInfo.criticalCount}</strong> Críticos (Nivel I / II)
+                  </span>
+                )}
+
+                <span className="inline-flex items-center gap-1 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2.5 py-1 border border-purple-500/20">
+                  <BrainCircuit className="h-3.5 w-3.5" />
+                  Conectada al Acto Predictivo ML
+                </span>
+
+                <span className="inline-flex items-center gap-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2.5 py-1 border border-blue-500/20">
+                  <Scale className="h-3.5 w-3.5" />
+                  Res. 0312: CUMPLE
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Lado Derecho: Botón de Selección de Matriz */}
+          <div className="flex md:flex-col items-end justify-center gap-2 shrink-0">
+            <button
+              onClick={handleOpenSelector}
+              className="flex items-center gap-2 rounded-2xl border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 font-bold text-xs px-4 py-3 shadow-md hover:scale-[1.02] transition-all cursor-pointer"
+            >
+              <RefreshCw className="h-4 w-4 text-teal-500" />
+              <span>Cambiar / Vincular desde Chats</span>
+            </button>
+            {officialInfo.updatedAt && (
+              <span className="text-[10px] text-text-tertiary">
+                Última actualización: {new Date(officialInfo.updatedAt).toLocaleDateString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── MODAL SELECTOR DE MATRICES DESDE LOS CHATS ─── */}
+      {isSelectorOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="flex flex-col max-h-[85vh] w-full max-w-2xl rounded-3xl border border-border-medium bg-surface-primary shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Header Modal */}
+            <div className="flex items-center justify-between border-b border-border-light px-6 py-4 bg-surface-secondary">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-teal-500/10 text-teal-600">
+                  <Star className="h-5 w-5 fill-teal-500 text-teal-500" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-text-primary">
+                    Seleccionar Matriz Oficial para el Aplicativo
+                  </h3>
+                  <p className="text-xs text-text-secondary">
+                    Solo puede existir 1 matriz activa a la vez en el aplicativo institucional.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsSelectorOpen(false)}
+                className="rounded-full p-1.5 text-text-secondary hover:bg-surface-tertiary transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Body Modal */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-3">
+              {isLoadingMatrices ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-2 text-text-secondary">
+                  <Loader2 className="h-6 w-6 animate-spin text-teal-500" />
+                  <span className="text-xs font-semibold">Consultando tus matrices en los chats…</span>
+                </div>
+              ) : chatMatrices.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+                  <FileSpreadsheet className="h-10 w-10 text-text-tertiary" />
+                  <p className="text-sm font-bold text-text-secondary">
+                    No se encontraron matrices en otros chats
+                  </p>
+                  <p className="text-xs text-text-tertiary max-w-sm">
+                    Puedes interactuar con el agente en el chat para crear una matriz o editarla directamente en la tabla inferior de este aplicativo.
+                  </p>
+                </div>
+              ) : (
+                chatMatrices.map((mat) => (
+                  <div
+                    key={mat.conversationId}
+                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                      mat.isOfficial
+                        ? 'border-emerald-500 bg-emerald-500/5 dark:bg-emerald-500/10 shadow-sm'
+                        : 'border-border-medium hover:border-teal-400 bg-surface-secondary/50 hover:bg-surface-secondary'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3 min-w-0 flex-1 mr-4">
+                      <div className="mt-1">
+                        {mat.isOfficial ? (
+                          <Star className="h-4 w-4 fill-emerald-500 text-emerald-500 shrink-0" />
+                        ) : (
+                          <MessageSquare className="h-4 w-4 text-text-tertiary shrink-0" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-text-primary truncate">
+                            {mat.title}
+                          </p>
+                          {mat.isOfficial && (
+                            <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500 text-white shrink-0">
+                              Activa Oficial
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-text-secondary mt-1">
+                          <span>
+                            <strong>{mat.rowCount}</strong> peligros
+                          </span>
+                          {mat.criticalCount > 0 && (
+                            <span className="text-rose-500 font-semibold">
+                              · {mat.criticalCount} críticos
+                            </span>
+                          )}
+                          <span className="text-text-tertiary">
+                            · {new Date(mat.updatedAt).toLocaleDateString('es-CO')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      {mat.isOfficial ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 px-3 py-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                          <CheckCircle2 className="h-4 w-4" /> Seleccionada
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleSelectOfficial(mat)}
+                          disabled={isSettingOfficial}
+                          className="flex items-center gap-1.5 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 px-3.5 py-2 rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          {isSettingOfficial ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Star className="h-3.5 w-3.5" />
+                          )}
+                          Fijar como Oficial
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Footer Modal */}
+            <div className="border-t border-border-light px-6 py-4 bg-surface-secondary flex items-center justify-between">
+              <span className="text-xs text-text-secondary">
+                Tip: En cualquier momento puedes modificarla en la tabla o pedirle a un agente que evalúe más riesgos.
+              </span>
+              <button
+                onClick={() => setIsSelectorOpen(false)}
+                className="rounded-xl px-4 py-2 text-xs font-bold text-text-primary bg-surface-tertiary hover:bg-surface-hover transition-colors cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── TABLA INTERACTIVA COMPLETA EN MODO OFICIAL ─── */}
+      <div className="w-full">
+        <MatrizIPEVARTable
+          key={`official-ipevar-table-${refreshKey}`}
+          conversationId="official"
+          isOfficialApp={true}
+          onRefreshOfficialList={fetchOfficialStatus}
+        />
+      </div>
+    </div>
+  );
+}

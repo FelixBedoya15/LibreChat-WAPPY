@@ -52,6 +52,7 @@ import EPPWorkspace from './EPPWorkspace';
 import VehiclesWorkspace from './VehiclesWorkspace';
 import HeightsWorkspace from './HeightsWorkspace';
 import ChemicalsWorkspace from './ChemicalsWorkspace';
+import MatrizIPEVARWorkspace from './MatrizIPEVARWorkspace';
 
 // Manual Icon Map to avoid dynamic import issues
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -470,6 +471,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                 {category.id === 'diagnostico' && (
                                                     <div className="mb-6">
                                                         <DiagnosticoChecklist />
+                                                    </div>
+                                                )}
+
+                                                {/* Show MatrizIPEVARWorkspace for matriz_ipevar_oficial category */}
+                                                {category.id === 'matriz_ipevar_oficial' && (
+                                                    <div className="mb-6">
+                                                        <MatrizIPEVARWorkspace />
                                                     </div>
                                                 )}
 

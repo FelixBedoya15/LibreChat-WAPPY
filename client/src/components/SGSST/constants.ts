@@ -7,6 +7,11 @@ export const PHASE_CATEGORIES = {
             normativity: 'Hito 1: Gobernanza y Cimiento Legal' 
         },
         { 
+            id: 'matriz_ipevar_oficial', title: 'Matriz IPEVAR (GTC 45) Oficial', icon: 'AlertTriangle',
+            bioRationale: 'Columna vertebral preventiva del SG-SST. Identifica peligros, evalúa y valora riesgos bajo GTC 45:2012 para proteger la integridad de los colaboradores.', 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (GTC 45:2012 / Dec. 1072 / Res. 0312)' 
+        },
+        { 
             id: 'responsable', title: 'Responsable SG-SST', icon: 'UserCheck',
             bioRationale: 'Custodia de la idoneidad técnica, licencia vigente y asignación del líder empático como principal guardián del bienestar.', 
             normativity: 'Hito 1: Gobernanza y Cimiento Legal' 

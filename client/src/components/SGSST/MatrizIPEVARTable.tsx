@@ -22,9 +22,11 @@ import {
   Upload,
   Download,
   X,
+  Star,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuthContext } from '~/hooks';
+import { useToastContext } from '@librechat/client';
 import {
   MatrixRow,
   ANNEX_C_CRITERIA,
@@ -566,11 +568,18 @@ const getValueByKeys = (obj: any, aliases: string[]): string => {
 export default function MatrizIPEVARTable({
   conversationId,
   workerId,
+  isOfficialApp = false,
+  onRefreshOfficialList,
 }: {
   conversationId: string | null;
   workerId?: string;
+  isOfficialApp?: boolean;
+  onRefreshOfficialList?: () => void;
 }) {
+  const { showToast } = useToastContext();
   const [matrixRows, setMatrixRows] = useState<MatrixRow[]>([]);
+  const [isCurrentConvoOfficial, setIsCurrentConvoOfficial] = useState(false);
+  const [isSettingOfficial, setIsSettingOfficial] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [isSaving, setIsSaving] = useState(false);
@@ -1126,6 +1135,20 @@ export default function MatrizIPEVARTable({
     async (id?: string | null) => {
       try {
         setIsLoading(true);
+
+        // Modo Oficial del Aplicativo (Hito 1)
+        if (isOfficialApp) {
+          const res = await fetch('/api/sgsst/gtc45-workspace/official', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.matrixRows) setMatrixRows(data.matrixRows);
+            if (data?.chartConclusions) setChartConclusions(data.chartConclusions);
+          }
+          return;
+        }
+
         // Lógica Bio-individual
         if (workerId) {
           const res = await fetch(`/api/sgsst/workers/worker/${workerId}`, {
@@ -1149,16 +1172,41 @@ export default function MatrizIPEVARTable({
         const data = await res.json();
         if (data?.matrixRows) setMatrixRows(data.matrixRows);
         if (data?.chartConclusions) setChartConclusions(data.chartConclusions);
+
+        // Verificar si este chat es la matriz oficial del sistema
+        if (token && targetConvoId && targetConvoId !== 'new' && !targetConvoId.startsWith('temp-')) {
+          fetch('/api/sgsst/gtc45-workspace/official', {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+            .then((r) => r.json())
+            .then((offData) => {
+              if (
+                offData?.hasOfficial &&
+                (offData?.sourceConversationId === targetConvoId ||
+                  offData?.conversationId === targetConvoId)
+              ) {
+                setIsCurrentConvoOfficial(true);
+              } else {
+                setIsCurrentConvoOfficial(false);
+              }
+            })
+            .catch(() => {});
+        }
       } catch (e) {
         console.error('[Matriz] Fetch error:', e);
       } finally {
         setIsLoading(false);
       }
     },
-    [actualConvoId, token, workerId, userId],
+    [actualConvoId, token, workerId, userId, isOfficialApp],
   );
 
   useEffect(() => {
+    if (isOfficialApp) {
+      fetchMatrix();
+      return;
+    }
+
     if (workerId) {
       fetchMatrix();
       return;
@@ -1192,23 +1240,26 @@ export default function MatrizIPEVARTable({
     } else {
       fetchMatrix(actualConvoId);
     }
-  }, [actualConvoId, workerId, userId]);
+  }, [actualConvoId, workerId, userId, isOfficialApp]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isSubmitting) {
-      if (workerId) {
+      if (isOfficialApp) {
+        interval = setInterval(() => fetchMatrix(), 3000);
+      } else if (workerId) {
         interval = setInterval(() => fetchMatrix(), 3000);
       } else if (actualConvoId && actualConvoId !== 'new') {
         interval = setInterval(() => fetchMatrix(actualConvoId), 3000);
       }
     }
     if (!isSubmitting) {
-      if (workerId) fetchMatrix();
+      if (isOfficialApp) fetchMatrix();
+      else if (workerId) fetchMatrix();
       else if (actualConvoId && actualConvoId !== 'new') fetchMatrix(actualConvoId);
     }
     return () => clearInterval(interval);
-  }, [isSubmitting, actualConvoId, workerId]);
+  }, [isSubmitting, actualConvoId, workerId, isOfficialApp]);
 
   async function saveMatrixData(rows: MatrixRow[]) {
     const normalizedRows = rows.map((r) => ({
@@ -1218,6 +1269,18 @@ export default function MatrizIPEVARTable({
     }));
     try {
       setIsSaving(true);
+      if (isOfficialApp) {
+        await fetch('/api/sgsst/gtc45-workspace/official', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ matrixRows: normalizedRows }),
+        });
+        setMatrixRows(normalizedRows);
+        window.dispatchEvent(new CustomEvent('ipevar-official-updated'));
+        if (onRefreshOfficialList) onRefreshOfficialList();
+        return;
+      }
+
       if (workerId) {
         await fetch(`/api/sgsst/workers/${workerId}/ipevar`, {
           method: 'PUT',
@@ -1243,6 +1306,44 @@ export default function MatrizIPEVARTable({
       console.error('[Matriz] Save error:', e);
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  const handleSetAsOfficial = async () => {
+    if (!token) return;
+    const targetConvoId = (!actualConvoId || actualConvoId === 'new')
+      ? (userId ? `temp-${userId}` : null)
+      : actualConvoId;
+    if (!targetConvoId) return;
+
+    try {
+      setIsSettingOfficial(true);
+      const res = await fetch('/api/sgsst/gtc45-workspace/set-official', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          sourceConversationId: targetConvoId,
+          matrixRows,
+          chartConclusions,
+        }),
+      });
+
+      if (res.ok) {
+        setIsCurrentConvoOfficial(true);
+        showToast({
+          message: '¡Matriz establecida como Oficial en el Sistema SG-SST exitosamente!',
+          status: 'success',
+        });
+        window.dispatchEvent(new CustomEvent('ipevar-official-updated'));
+        if (onRefreshOfficialList) onRefreshOfficialList();
+      } else {
+        throw new Error('Error al establecer matriz oficial');
+      }
+    } catch (err) {
+      console.error('[MatrizIPEVARTable] Error set-official:', err);
+      showToast({ message: 'No se pudo fijar la matriz oficial.', status: 'error' });
+    } finally {
+      setIsSettingOfficial(false);
     }
   };
 
@@ -1848,6 +1949,35 @@ export default function MatrizIPEVARTable({
               {isSaving ? 'Guardando…' : 'Guardar'}
             </span>
           </button>
+
+          {/* Botón Establecer como Matriz Oficial (cuando se visualiza dentro de un chat) */}
+          {!isOfficialApp && matrixRows.length > 0 && (
+            isCurrentConvoOfficial ? (
+              <span
+                title="Esta matriz está activa como la Matriz Oficial del Sistema SG-SST"
+                className="inline-flex h-10 items-center gap-1.5 px-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold shadow-sm"
+              >
+                <Star className="h-4 w-4 fill-emerald-500 text-emerald-500 shrink-0" />
+                <span>Matriz Oficial</span>
+              </span>
+            ) : (
+              <button
+                onClick={handleSetAsOfficial}
+                disabled={isSettingOfficial}
+                title="Copiar y fijar como la Matriz Oficial en el Aplicativo SG-SST (Hito 1)"
+                className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 text-amber-700 dark:text-amber-300 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 disabled:opacity-50"
+              >
+                {isSettingOfficial ? (
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin text-amber-500" />
+                ) : (
+                  <Star className="h-4 w-4 shrink-0 fill-amber-500/30 text-amber-500" />
+                )}
+                <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100">
+                  {isSettingOfficial ? 'Guardando…' : 'Fijar como Matriz Oficial'}
+                </span>
+              </button>
+            )
+          )}
 
           {/* Limpiar Matriz */}
           {matrixRows.length > 0 && (

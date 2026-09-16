@@ -30,6 +30,23 @@ const gtc45WorkspaceSessionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    isOfficial: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    officialTitle: {
+      type: String,
+      default: 'Matriz IPEVAR Oficial',
+    },
+    sourceConversationId: {
+      type: String,
+      default: null,
+    },
+    promotedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

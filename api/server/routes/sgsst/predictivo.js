@@ -122,24 +122,61 @@ async function getFullSSTContext(userId, companyId) {
         }
 
         // ─── HITO 2: NÚCLEO BIO-EVALUATIVO (9 DOMINIOS BIOINDIVIDUALES & IPEVAR) ───
-        fullContext += `\n[HITO 2 - NÚCLEO BIO-EVALUATIVO: 9 DOMINIOS VITALES & MATRIZ BIO-IPEVAR]\n`;
-        const MatrizPeligrosData = mongoose.models.MatrizPeligrosData;
-        if (MatrizPeligrosData) {
-            const mpd = await MatrizPeligrosData.findOne({ user: userId, companyId }).lean();
-            if (mpd?.procesos?.length) {
-                let totalPeligros = 0, nivelI = 0, nivelII = 0;
-                mpd.procesos.forEach(p => {
-                    (p.peligros || []).forEach(h => {
-                        totalPeligros++;
-                        const nr = h.nivelRiesgo || 0;
-                        const cat = nr >= 600 ? 'I (Inaceptable)' : nr >= 150 ? 'II (Crítico)' : 'III/IV (Controlado)';
-                        if (nr >= 600) nivelI++;
-                        else if (nr >= 150) nivelII++;
-                        fullContext += `  • Proceso: ${p.proceso} | Peligro: "${h.descripcionPeligro || 'N'}" | Tipo/Dominio: ${h.tipoPeligro || 'N'} | NR: ${nr} [Cat ${cat}] | Controles: ${h.controlesExistentes || 'Ninguno'}\n`;
+        fullContext += `\n[HITO 2 - NÚCLEO BIO-EVALUATIVO: 9 DOMINIOS VITALES & MATRIZ BIO-IPEVAR OFICIAL]\n`;
+        const GTC45WorkspaceSession = mongoose.models.GTC45WorkspaceSession || require('~/models/GTC45WorkspaceSession');
+        let officialIpevarSession = null;
+        if (GTC45WorkspaceSession) {
+            officialIpevarSession = await GTC45WorkspaceSession.findOne({
+                user: userId,
+                ...(companyId ? { companyId } : {}),
+                isOfficial: true,
+            }).lean();
+            if (!officialIpevarSession) {
+                officialIpevarSession = await GTC45WorkspaceSession.findOne({
+                    conversationId: `official-${companyId || userId}`
+                }).lean();
+            }
+            if (!officialIpevarSession) {
+                officialIpevarSession = await GTC45WorkspaceSession.findOne({
+                    user: userId,
+                    'matrixRows.0': { $exists: true }
+                }).sort({ updatedAt: -1 }).lean();
+            }
+        }
+
+        if (officialIpevarSession?.matrixRows?.length) {
+            let totalPeligros = officialIpevarSession.matrixRows.length;
+            let nivelI = 0, nivelII = 0;
+            fullContext += `Matriz Oficial Activa: "${officialIpevarSession.officialTitle || 'Matriz GTC-45'}" (${totalPeligros} peligros evaluados)\n`;
+            officialIpevarSession.matrixRows.forEach(h => {
+                const nr = Number(h.nr) || 0;
+                const cat = nr >= 600 ? 'I (Inaceptable)' : nr >= 150 ? 'II (Crítico)' : 'III/IV (Controlado)';
+                if (nr >= 600) nivelI++;
+                else if (nr >= 150) nivelII++;
+                if (nr >= 150) {
+                    fullContext += `  • Proceso: ${h.proceso} | Peligro: "${h.peligro_descripcion || 'N'}" | Clasificación: ${h.peligro_clasificacion || 'N'} | NR: ${nr} [Cat ${cat}] | Medidas: ${h.medida_ingenieria || h.medida_eliminacion || h.medida_administrativa || 'En evaluación'}\n`;
+                }
+            });
+            fullContext += `  RESUMEN MATRIZ OFICIAL: ${totalPeligros} peligros totales | Nivel I (Inaceptable): ${nivelI} | Nivel II (Crítico): ${nivelII}\n`;
+        } else {
+            const MatrizPeligrosData = mongoose.models.MatrizPeligrosData;
+            if (MatrizPeligrosData) {
+                const mpd = await MatrizPeligrosData.findOne({ user: userId, companyId }).lean();
+                if (mpd?.procesos?.length) {
+                    let totalPeligros = 0, nivelI = 0, nivelII = 0;
+                    mpd.procesos.forEach(p => {
+                        (p.peligros || []).forEach(h => {
+                            totalPeligros++;
+                            const nr = h.nivelRiesgo || 0;
+                            const cat = nr >= 600 ? 'I (Inaceptable)' : nr >= 150 ? 'II (Crítico)' : 'III/IV (Controlado)';
+                            if (nr >= 600) nivelI++;
+                            else if (nr >= 150) nivelII++;
+                            fullContext += `  • Proceso: ${p.proceso} | Peligro: "${h.descripcionPeligro || 'N'}" | Tipo/Dominio: ${h.tipoPeligro || 'N'} | NR: ${nr} [Cat ${cat}] | Controles: ${h.controlesExistentes || 'Ninguno'}\n`;
+                        });
                     });
-                });
-                fullContext += `  RESUMEN MATRIZ: ${totalPeligros} peligros evaluados | Nivel I (Inaceptable): ${nivelI} | Nivel II (Crítico): ${nivelII}\n`;
-            } else fullContext += `Sin matriz de peligros general registrada.\n`;
+                    fullContext += `  RESUMEN MATRIZ: ${totalPeligros} peligros evaluados | Nivel I (Inaceptable): ${nivelI} | Nivel II (Crítico): ${nivelII}\n`;
+                } else fullContext += `Sin matriz de peligros oficial registrada aún.\n`;
+            }
         }
 
         // ─── HITO 3: DINÁMICA DE EXPOSICIÓN (OPERACIONES Y CONTROLES) ───
@@ -544,26 +581,83 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                 }
             }
             
-            // Hito 2: Matriz Bio-IPEVAR / GTC-45
-            const mData = mongoose.models.MatrizPeligrosData;
-            if (mData) {
-                const doc = await mData.findOne({ user: userId, companyId }).lean();
-                if (doc?.procesos?.length) {
-                    doc.procesos.forEach(p => {
-                        (p.peligros || []).forEach(h => {
-                            totalHazards++;
-                            if (h.nivelRiesgo >= 150) { 
-                                totalHazardsI_II++;
-                                if (p.proceso) criticalAreasMap[p.proceso] = (criticalAreasMap[p.proceso] || 0) + 2;
-                                specificIpevarHazards.push({
-                                    proceso: p.proceso,
-                                    descripcionPeligro: h.descripcionPeligro || h.peligro || 'Peligro Crítico',
-                                    nivelRiesgo: h.nivelRiesgo,
-                                    tipoPeligro: h.tipoPeligro || 'Seguridad'
-                                });
-                            }
+            // Hito 2: Matriz Bio-IPEVAR / GTC-45 Oficial
+            const GTC45WorkspaceSession = mongoose.models.GTC45WorkspaceSession || require('~/models/GTC45WorkspaceSession');
+            let officialIpevarDoc = null;
+            if (GTC45WorkspaceSession) {
+                officialIpevarDoc = await GTC45WorkspaceSession.findOne({
+                    user: userId,
+                    ...(companyId ? { companyId } : {}),
+                    isOfficial: true,
+                }).lean();
+                if (!officialIpevarDoc) {
+                    officialIpevarDoc = await GTC45WorkspaceSession.findOne({
+                        conversationId: `official-${companyId || userId}`
+                    }).lean();
+                }
+                if (!officialIpevarDoc) {
+                    officialIpevarDoc = await GTC45WorkspaceSession.findOne({
+                        user: userId,
+                        'matrixRows.0': { $exists: true }
+                    }).sort({ updatedAt: -1 }).lean();
+                }
+            }
+
+            if (officialIpevarDoc?.matrixRows?.length) {
+                officialIpevarDoc.matrixRows.forEach(h => {
+                    totalHazards++;
+                    const nr = Number(h.nr) || 0;
+                    const proc = h.proceso || 'Operaciones';
+                    const clasif = (h.peligro_clasificacion || '').toLowerCase();
+
+                    // Mapeo biométrico a los 9 dominios bioindividuales
+                    if (clasif.includes('biomec') || clasif.includes('ergon') || clasif.includes('postur') || clasif.includes('carga')) {
+                        domainRiskScores.Osteomuscular = (domainRiskScores.Osteomuscular || 0) + (nr >= 150 ? 3 : 1);
+                    } else if (clasif.includes('psico') || clasif.includes('estrés') || clasif.includes('mental')) {
+                        domainRiskScores.Psicoemocional = (domainRiskScores.Psicoemocional || 0) + (nr >= 150 ? 3 : 1);
+                    } else if (clasif.includes('químic') || clasif.includes('quimic') || clasif.includes('vapor') || clasif.includes('gas') || clasif.includes('polvo')) {
+                        domainRiskScores.Respiratorio = (domainRiskScores.Respiratorio || 0) + (nr >= 150 ? 3 : 1);
+                        domainRiskScores.Inmunológico = (domainRiskScores.Inmunológico || 0) + (nr >= 150 ? 2 : 1);
+                    } else if (clasif.includes('ruido') || clasif.includes('audit')) {
+                        domainRiskScores.Auditivo = (domainRiskScores.Auditivo || 0) + (nr >= 150 ? 3 : 1);
+                    } else if (clasif.includes('biológ') || clasif.includes('biolog') || clasif.includes('virus')) {
+                        domainRiskScores.Inmunológico = (domainRiskScores.Inmunológico || 0) + (nr >= 150 ? 3 : 1);
+                    } else {
+                        domainRiskScores.Seguridad = (domainRiskScores.Seguridad || 0) + (nr >= 150 ? 2.5 : 1);
+                    }
+
+                    if (nr >= 150) { 
+                        totalHazardsI_II++;
+                        if (proc) criticalAreasMap[proc] = (criticalAreasMap[proc] || 0) + 2.5;
+                        specificIpevarHazards.push({
+                            proceso: proc,
+                            descripcionPeligro: h.peligro_descripcion || 'Peligro Crítico Evaluado',
+                            nivelRiesgo: nr,
+                            tipoPeligro: h.peligro_clasificacion || 'Seguridad'
                         });
-                    });
+                    }
+                });
+            } else {
+                const mData = mongoose.models.MatrizPeligrosData;
+                if (mData) {
+                    const doc = await mData.findOne({ user: userId, companyId }).lean();
+                    if (doc?.procesos?.length) {
+                        doc.procesos.forEach(p => {
+                            (p.peligros || []).forEach(h => {
+                                totalHazards++;
+                                if (h.nivelRiesgo >= 150) { 
+                                    totalHazardsI_II++;
+                                    if (p.proceso) criticalAreasMap[p.proceso] = (criticalAreasMap[p.proceso] || 0) + 2;
+                                    specificIpevarHazards.push({
+                                        proceso: p.proceso,
+                                        descripcionPeligro: h.descripcionPeligro || h.peligro || 'Peligro Crítico',
+                                        nivelRiesgo: h.nivelRiesgo,
+                                        tipoPeligro: h.tipoPeligro || 'Seguridad'
+                                    });
+                                }
+                            });
+                        });
+                    }
                 }
             }
             

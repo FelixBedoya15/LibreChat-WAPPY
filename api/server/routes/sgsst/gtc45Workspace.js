@@ -5,6 +5,7 @@ const router = express.Router();
 const { logger } = require('@librechat/data-schemas');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
+const mongoose = require('mongoose');
 const CompanyInfo = require('~/models/CompanyInfo');
 const SgsstWorker = require('~/models/SgsstWorker');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
@@ -22,6 +23,239 @@ async function getActiveCompanyId(userId) {
     if (!active) active = await CompanyInfo.findOne({ user: userId });
     return active ? active._id : null;
 }
+
+// ─── OFICIAL: Obtener la matriz oficial del SG-SST ────────────────────────────
+router.get('/official', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const officialConvoId = `official-${companyId || userId}`;
+
+    // 1. Buscar sesión marcada explícitamente como oficial
+    let session = await GTC45WorkspaceSession.findOne({
+      user: userId,
+      ...(companyId ? { companyId } : {}),
+      isOfficial: true,
+    });
+
+    // 2. Fallback a la sesión maestra 'official-*'
+    if (!session) {
+      session = await GTC45WorkspaceSession.findOne({ conversationId: officialConvoId });
+    }
+
+    if (!session) {
+      return res.json({
+        hasOfficial: false,
+        conversationId: officialConvoId,
+        matrixRows: [],
+        chartConclusions: {},
+        officialTitle: 'Matriz IPEVAR Oficial',
+        sourceConversationId: null,
+      });
+    }
+
+    res.json({
+      hasOfficial: true,
+      conversationId: session.conversationId,
+      matrixRows: session.matrixRows || [],
+      chartConclusions: session.chartConclusions || {},
+      officialTitle: session.officialTitle || 'Matriz IPEVAR Oficial',
+      sourceConversationId: session.sourceConversationId || null,
+      promotedAt: session.promotedAt || session.updatedAt,
+      updatedAt: session.updatedAt,
+    });
+  } catch (error) {
+    logger.error('[GTC45Workspace GET /official] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch official matrix' });
+  }
+});
+
+// ─── OFICIAL: Establecer / Promover una matriz a Oficial del Sistema ───────────
+router.post('/set-official', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const { sourceConversationId, officialTitle, matrixRows, chartConclusions } = req.body;
+
+    const officialConvoId = `official-${companyId || userId}`;
+
+    // 1. Desmarcar cualquier otra matriz oficial de esta empresa
+    await GTC45WorkspaceSession.updateMany(
+      { user: userId, ...(companyId ? { companyId } : {}), isOfficial: true },
+      { $set: { isOfficial: false } }
+    );
+
+    let rowsToSave = matrixRows;
+    let conclusionsToSave = chartConclusions;
+    let sourceTitle = officialTitle;
+
+    // Si viene desde un chat específico, obtener datos de esa sesión
+    if (sourceConversationId && (!rowsToSave || rowsToSave.length === 0)) {
+      const sourceSession = await GTC45WorkspaceSession.findOne({ conversationId: sourceConversationId });
+      if (sourceSession) {
+        rowsToSave = sourceSession.matrixRows;
+        conclusionsToSave = sourceSession.chartConclusions;
+        sourceSession.isOfficial = true;
+        sourceSession.promotedAt = new Date();
+        if (officialTitle) sourceSession.officialTitle = officialTitle;
+        await sourceSession.save();
+      }
+
+      if (!sourceTitle) {
+        const ConversationModel = mongoose.models.Conversation || require('~/db/models').Conversation;
+        if (ConversationModel) {
+          const cDoc = await ConversationModel.findOne({ conversationId: sourceConversationId }).lean();
+          if (cDoc?.title) sourceTitle = cDoc.title;
+        }
+      }
+    }
+
+    const normalizedRows = (rowsToSave || []).map(row => ({
+      ...row,
+      proceso: toSentenceCase(row.proceso),
+      zona: toSentenceCase(row.zona)
+    }));
+
+    // 2. Guardar o actualizar la sesión oficial maestra
+    const officialSession = await GTC45WorkspaceSession.findOneAndUpdate(
+      { conversationId: officialConvoId },
+      {
+        $set: {
+          user: userId,
+          companyId,
+          matrixRows: normalizedRows,
+          chartConclusions: conclusionsToSave || {},
+          isOfficial: true,
+          officialTitle: sourceTitle || 'Matriz IPEVAR Oficial SG-SST',
+          sourceConversationId: sourceConversationId || null,
+          promotedAt: new Date(),
+        },
+      },
+      { upsert: true, new: true }
+    );
+
+    logger.info(`[GTC45Workspace /set-official] Official matrix established. Rows: ${normalizedRows.length}, user: ${userId}`);
+
+    res.json({
+      success: true,
+      officialSession: {
+        conversationId: officialSession.conversationId,
+        matrixRows: officialSession.matrixRows,
+        chartConclusions: officialSession.chartConclusions,
+        officialTitle: officialSession.officialTitle,
+        sourceConversationId: officialSession.sourceConversationId,
+        promotedAt: officialSession.promotedAt,
+      },
+    });
+  } catch (error) {
+    logger.error('[GTC45Workspace POST /set-official] Error:', error);
+    res.status(500).json({ error: 'Failed to set official matrix' });
+  }
+});
+
+// ─── OFICIAL: Modificar la matriz oficial directamente desde el aplicativo ──────
+router.put('/official', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const { matrixRows, chartConclusions, officialTitle } = req.body;
+
+    const officialConvoId = `official-${companyId || userId}`;
+
+    const normalizedRows = (matrixRows || []).map(row => ({
+      ...row,
+      proceso: toSentenceCase(row.proceso),
+      zona: toSentenceCase(row.zona)
+    }));
+
+    const updateFields = {
+      user: userId,
+      companyId,
+      matrixRows: normalizedRows,
+      isOfficial: true,
+    };
+    if (chartConclusions !== undefined) updateFields.chartConclusions = chartConclusions;
+    if (officialTitle) updateFields.officialTitle = officialTitle;
+
+    const session = await GTC45WorkspaceSession.findOneAndUpdate(
+      { conversationId: officialConvoId },
+      { $set: updateFields },
+      { upsert: true, new: true }
+    );
+
+    res.json({
+      success: true,
+      matrixRows: session.matrixRows,
+      chartConclusions: session.chartConclusions,
+      officialTitle: session.officialTitle,
+      updatedAt: session.updatedAt,
+    });
+  } catch (error) {
+    logger.error('[GTC45Workspace PUT /official] Error:', error);
+    res.status(500).json({ error: 'Failed to update official matrix' });
+  }
+});
+
+// ─── OFICIAL: Listar todas las matrices de los chats para el selector ──────────
+router.get('/list-user-matrices', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const tempId = `temp-${userId}`;
+    const officialConvoId = `official-${companyId || userId}`;
+
+    // Buscar sesiones del usuario con al menos 1 fila
+    const sessions = await GTC45WorkspaceSession.find({
+      user: userId,
+      conversationId: { $ne: tempId },
+      'matrixRows.0': { $exists: true },
+    }).sort({ updatedAt: -1 }).lean();
+
+    const ConversationModel = mongoose.models.Conversation || require('~/db/models').Conversation;
+    const convoIds = sessions
+      .map(s => s.conversationId)
+      .filter(id => id && !id.startsWith('official-'));
+
+    let titleMap = {};
+    if (ConversationModel && convoIds.length > 0) {
+      try {
+        const convos = await ConversationModel.find({ conversationId: { $in: convoIds } }).select('conversationId title').lean();
+        convos.forEach(c => {
+          titleMap[c.conversationId] = c.title || 'Chat sin título';
+        });
+      } catch (err) {
+        logger.warn('[GTC45Workspace /list-user-matrices] Error fetching titles:', err.message);
+      }
+    }
+
+    const items = sessions.map(s => {
+      const isMasterOfficial = s.conversationId === officialConvoId || s.isOfficial === true;
+      let displayTitle = s.officialTitle || titleMap[s.conversationId] || 'Matriz de Peligros';
+      if (s.conversationId === officialConvoId) {
+        displayTitle = s.officialTitle || '⭐ Matriz Oficial del Sistema';
+      }
+
+      const rows = s.matrixRows || [];
+      const criticalCount = rows.filter(r => (Number(r.nr) || 0) >= 150).length;
+
+      return {
+        conversationId: s.conversationId,
+        title: displayTitle,
+        isOfficial: isMasterOfficial,
+        rowCount: rows.length,
+        criticalCount,
+        sourceConversationId: s.sourceConversationId || null,
+        promotedAt: s.promotedAt || null,
+        updatedAt: s.updatedAt,
+      };
+    });
+
+    res.json({ matrices: items });
+  } catch (error) {
+    logger.error('[GTC45Workspace GET /list-user-matrices] Error:', error);
+    res.status(500).json({ error: 'Failed to list user matrices' });
+  }
+});
 
 // GET matrix for a conversation
 router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
