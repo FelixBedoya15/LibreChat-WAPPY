@@ -110,14 +110,14 @@ if (cjsTryPattern.test(cjs)) {
 const searchCjsPath = path.join(targetDir, 'dist/cjs/tools/search/search.cjs');
 let searchCjs = fs.readFileSync(searchCjsPath, 'utf8');
 
-// Eliminar yandex/gmx y colocar motores seguros
+// Eliminar bing/yandex basura de otros paises y usar yandex,wikipedia que devuelven resultados de Colombia
 searchCjs = searchCjs.replace(
   /engines:\s*process\.env\.SEARXNG_ENGINES\s*\|\|\s*'[^']+'/g,
-  "engines: process.env.SEARXNG_ENGINES || 'google,bing,duckduckgo,wikipedia'"
+  "engines: process.env.SEARXNG_ENGINES || 'yandex,wikipedia'"
 );
 
-// Actualizar lista de dominios bloqueados
-const blockedDomainsStr = "const blockedDomains = ['clipchamp.com', 'microsoft.com', 'doubleclick.net', 'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se', 'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io'];";
+// Actualizar lista de dominios bloqueados (DoorDash, Clipchamp, Interval, AOL, publicidad, etc.)
+const blockedDomainsStr = "const blockedDomains = ['doordash.com', 'clipchamp.com', 'intervalworld.com', 'aol.com', 'microsoft.com', 'doubleclick.net', 'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se', 'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io', 'meudanfe.com.br'];";
 if (searchCjs.includes('blockedDomains = [')) {
   searchCjs = searchCjs.replace(
     /const blockedDomains\s*=\s*\[[^\]]+\];/g,
@@ -163,6 +163,29 @@ if (!searchCjs.includes('searchSnippets')) {
   console.log('✓ search.cjs parcheado con motores limpios, dominios bloqueados y pre-reranking');
 } else {
   console.log('✓ search.cjs ya tiene pre-reranking');
+}
+
+// 3. Parchear tool.cjs para que el modal de Fuentes en la UI solo reciba las fuentes verificadas y pre-clasificadas por el Reranker
+const toolCjsPath = path.join(targetDir, 'dist/cjs/tools/search/tool.cjs');
+if (fs.existsSync(toolCjsPath)) {
+  let toolCjs = fs.readFileSync(toolCjsPath, 'utf8');
+  const oldToolPattern = /onSearchResults\?\.(\(searchResult\));\s*const processedSources = await sourceProcessor\.processSources\(\{[\s\S]*?numElements: maxSources,\s*\}\);/;
+  if (oldToolPattern.test(toolCjs)) {
+    const newToolLogic = `const processedSources = await sourceProcessor.processSources({
+                query,
+                news,
+                result: searchResult,
+                proMode,
+                onGetHighlights,
+                numElements: maxSources,
+            });
+            onSearchResults?.({ success: true, data: processedSources });`;
+    toolCjs = toolCjs.replace(oldToolPattern, newToolLogic);
+    fs.writeFileSync(toolCjsPath, toolCjs, 'utf8');
+    console.log('✓ tool.cjs parcheado para emitir solo fuentes verificadas y ordenadas por el Reranker a la UI');
+  } else {
+    console.log('✓ tool.cjs ya estaba actualizado o patron aplicado');
+  }
 }
 
 console.log('=== Parche completado exitosamente ===');
