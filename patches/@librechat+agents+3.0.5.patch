@@ -344,7 +344,7 @@ index 7f57687..aae8e45 100644
              };
              // Transform SearXNG results to match SerperAPI format
 -            const organicResults = (data.results ?? [])
-+            const blockedDomains = ['vineyardvines.com', 'doubleclick.net', 'googleadservices.com'];
++            const blockedDomains = ['clipchamp.com', 'microsoft.com', 'doubleclick.net', 'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se', 'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io'];
 +            const rawResults = (data.results ?? []).filter((r) => {
 +                if (!r.url || !r.title) return false;
 +                try {
@@ -543,7 +543,7 @@ index 62b7ecf..19774b4 100644
              };
              // Transform SearXNG results to match SerperAPI format
 -            const organicResults = (data.results ?? [])
-+            const blockedDomains = ['vineyardvines.com', 'doubleclick.net', 'googleadservices.com'];
++            const blockedDomains = ['clipchamp.com', 'microsoft.com', 'doubleclick.net', 'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se', 'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io'];
 +            const rawResults = (data.results ?? []).filter((r) => {
 +                if (!r.url || !r.title) return false;
 +                try {
