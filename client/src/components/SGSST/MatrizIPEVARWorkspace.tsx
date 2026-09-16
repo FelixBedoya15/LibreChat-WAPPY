@@ -198,12 +198,6 @@ export default function MatrizIPEVARWorkspace() {
                 )}
               </div>
 
-              <p className="text-xs text-text-secondary leading-relaxed max-w-2xl">
-                Columna vertebral preventiva del SG-SST. Todos los agentes, el{' '}
-                <strong className="text-teal-600 dark:text-teal-400 font-bold">Acto Predictivo</strong> y la auditoría de{' '}
-                <strong className="text-teal-600 dark:text-teal-400 font-bold">Res. 0312 (Estándares 4.1.1 y 4.2.1)</strong> se alimentan de esta única matriz oficial institucional.
-              </p>
-
               {/* Badges de Métricas Conectadas */}
               <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-text-secondary">
                 <span className="inline-flex items-center gap-1 rounded-lg bg-surface-tertiary px-2.5 py-1 border border-border-light">

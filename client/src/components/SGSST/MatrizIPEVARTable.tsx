@@ -16,6 +16,7 @@ import {
   Loader2,
   Sparkles,
   ChevronDown,
+  ChevronRight,
   Check,
   FileText as FileTextIcon,
   History,
@@ -23,6 +24,7 @@ import {
   Download,
   X,
   Star,
+  BarChart3,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuthContext } from '~/hooks';
@@ -40,6 +42,7 @@ import ExportDropdown from './ExportDropdown';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
+import SGSSTToolbar from './SGSSTToolbar';
 
 // ── FilterSelect: dropdown con estilo del sistema (reemplaza <select> nativo) ────────────────
 const FilterSelect = ({
@@ -597,6 +600,192 @@ export default function MatrizIPEVARTable({
   const [reportConversationId, setReportConversationId] = useState<string | null>(null);
   const [reportMessageId, setReportMessageId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isTableExpanded, setIsTableExpanded] = useState(true);
+  const [isDashboardExpanded, setIsDashboardExpanded] = useState(false);
+
+  const handleDummyData = () => {
+    const dummyRows: MatrixRow[] = [
+      {
+        proceso: 'Operativo / Construcción',
+        zona: 'Torre A - Pisos 3 a 8',
+        actividad: 'Armado de encofrados y fundición de losas',
+        tareas: 'Instalación de formaleta en borde de placa',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Condiciones de seguridad',
+        peligro_descripcion: 'Caída a diferente nivel por trabajo en alturas (> 1.50 m)',
+        efectos_posibles: 'Politraumatismos graves, fracturas óseas, invalidez o muerte',
+        controles_fuente: 'Sistema de líneas de vida fijas certificadas',
+        controles_medio: 'Redes de seguridad periféricas y barandas de borde',
+        controles_individuo: 'Arnés de cuerpo entero multipropósito certificado, eslinga con absorbedor de choque',
+        nd: 6,
+        ne: 3,
+        np: 18,
+        nc: 60,
+        nr: 1080,
+        interpretacion_nr: 'I - No Aceptable',
+        aceptabilidad: 'No Aceptable',
+        medida_eliminacion: 'Prearmado de formaletas en nivel cero para reducir tiempo en altura',
+        medida_sustitucion: 'Sustitución de andamios convencionales por sistemas multidireccionales certificados',
+        medida_ingenieria: 'Puntos de anclaje fijos estructurales certificados bajo Res. 4272/2021',
+        medida_administrativa: 'Permiso de trabajo en alturas, ATS diario, coordinador de alturas en sitio',
+        medida_eppu: 'Arnés dieléctrico con 4 argollas, línea de vida vertical de 16mm con freno absorbedor',
+        nro_expuestos: 14,
+        peor_consecuencia: 'Muerte por caída en altura',
+        requisito_legal: 'Sí',
+      },
+      {
+        proceso: 'Almacenamiento y Logística',
+        zona: 'Bodega Central de Materiales',
+        actividad: 'Recepción, descargue y apilamiento de bultos de cemento',
+        tareas: 'Levantamiento manual de cargas pesadas',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Biomecánico',
+        peligro_descripcion: 'Manipulación manual de cargas y sobreesfuerzo lumbar continuo',
+        efectos_posibles: 'Lumbalgia aguda, hernia discal lumbosacra, fatiga muscular crónica',
+        controles_fuente: 'No implementado',
+        controles_medio: 'Carretillas y transpaletas hidráulicas de carga',
+        controles_individuo: 'Capacitación en higiene postural y técnica de levantamiento',
+        nd: 6,
+        ne: 4,
+        np: 24,
+        nc: 25,
+        nr: 600,
+        interpretacion_nr: 'I - No Aceptable',
+        aceptabilidad: 'No Aceptable',
+        medida_eliminacion: 'Adquisición de sacos de cemento fraccionados a 25 kg según ergonomía',
+        medida_sustitucion: 'Implementación de montacargas eléctrico para descargue paletizado',
+        medida_ingenieria: 'Mesa elevadora hidráulica para descarga a nivel de cintura',
+        medida_administrativa: 'Rotación de cuadrillas de cargue cada 45 minutos, pausas activas osteomusculares',
+        medida_eppu: 'Guantes de alta adherencia con refuerzo palmar, faja ergonómica biomecánica',
+        nro_expuestos: 8,
+        peor_consecuencia: 'Discapacidad laboral permanente por hernia discal',
+        requisito_legal: 'Sí',
+      },
+      {
+        proceso: 'Acabados y Pintura',
+        zona: 'Sótanos y áreas de parqueadero',
+        actividad: 'Aplicación de pintura epóxica y selladores con solventes',
+        tareas: 'Mezcla de resinas y aplicación con pistola aerográfica',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Químico',
+        peligro_descripcion: 'Vapores orgánicos de solventes aromáticos y nieblas epóxicas (SGA)',
+        efectos_posibles: 'Cefalea, mareos, irritación ocular y respiratoria, toxicidad hepatorrenal',
+        controles_fuente: 'Sistema de mezclado sellado',
+        controles_medio: 'Extractores axiales de aire en sótanos confinados',
+        controles_individuo: 'Respirador de media cara con filtros contra vapores orgánicos y partículas',
+        nd: 2,
+        ne: 3,
+        np: 6,
+        nc: 25,
+        nr: 150,
+        interpretacion_nr: 'II - Aceptable con control específico',
+        aceptabilidad: 'Aceptable con control específico',
+        medida_eliminacion: 'No aplica',
+        medida_sustitucion: 'Sustitución de pinturas base solvente por recubrimientos epóxicos base agua de bajo VOC',
+        medida_ingenieria: 'Sistema de ventilación forzada por inyección-extracción continua',
+        medida_administrativa: 'Ficha de datos de seguridad (FDS) según SGA visible, rotulado de envases',
+        medida_eppu: 'Respirador siliconado doble cartucho (NIOSH OV/P100), monogafas, guantes de nitrilo',
+        nro_expuestos: 6,
+        peor_consecuencia: 'Intoxicación aguda sistémica con compromiso respiratorio',
+        requisito_legal: 'Sí',
+      },
+      {
+        proceso: 'Gestión Administrativa y de Obra',
+        zona: 'Oficinas de Campamento y Dirección Técnica',
+        actividad: 'Programación de obra, control presupuestal y coordinación de contratistas',
+        tareas: 'Gestión de cronogramas críticos y resolución de conflictos contractuales',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Psicosocial',
+        peligro_descripcion: 'Demandas cuantitativas de trabajo, presión por tiempos y sobrecarga mental',
+        efectos_posibles: 'Síndrome de Burnout, ansiedad, insomnio, estrés laboral crónico',
+        controles_fuente: 'Definición de perfiles de cargo y alcance',
+        controles_medio: 'Distribución de tareas en software de gestión',
+        controles_individuo: 'Programa de gestión del tiempo y liderazgo positivo',
+        nd: 6,
+        ne: 3,
+        np: 18,
+        nc: 10,
+        nr: 180,
+        interpretacion_nr: 'II - Aceptable con control específico',
+        aceptabilidad: 'Aceptable con control específico',
+        psicosocial_dominio: 'Demandas del trabajo',
+        psicosocial_dimension: 'Exigencias cuantitativas',
+        medida_eliminacion: 'No aplica',
+        medida_sustitucion: 'Redistribución de hitos y balanceo de cargas laborales en equipo técnico',
+        medida_ingenieria: 'Automatización de reportes mediante la plataforma WAPPY',
+        medida_administrativa: 'Batería de Riesgo Psicosocial (Res. 2764/2022), talleres de resiliencia',
+        medida_eppu: 'No aplica',
+        nro_expuestos: 10,
+        peor_consecuencia: 'Trastorno depresivo mayor con incapacidad laboral prolongada',
+        requisito_legal: 'Sí',
+      },
+      {
+        proceso: 'Instalaciones Especiales',
+        zona: 'Subestación provisional y tableros de distribución de obra',
+        actividad: 'Tendido de redes provisionales y conexionado de tableros',
+        tareas: 'Mantenimiento y reubicación de tableros eléctricos bajo tensión',
+        rutinaria: 'Sí',
+        peligro_clasificacion: 'Condiciones de seguridad',
+        peligro_descripcion: 'Contacto eléctrico directo e indirecto con circuitos energizados (RETIE)',
+        efectos_posibles: 'Fibrilación ventricular, quemaduras de tercer grado, electrocución',
+        controles_fuente: 'Interruptores termomagnéticos y diferenciales (GFCI) en tableros',
+        controles_medio: 'Cerramiento y señalización perimetral de subestación provisional',
+        controles_individuo: 'Procedimiento de las 5 Reglas de Oro eléctricas, verificación de ausencia de tensión',
+        nd: 6,
+        ne: 2,
+        np: 12,
+        nc: 60,
+        nr: 720,
+        interpretacion_nr: 'I - No Aceptable',
+        aceptabilidad: 'No Aceptable',
+        medida_eliminacion: 'Desenergización total y bloqueo/etiquetado (LOTO) previo a intervención',
+        medida_sustitucion: 'Uso de herramientas y luminarias de extra baja tensión (24V)',
+        medida_ingenieria: 'Instalación de relés diferenciales de alta sensibilidad (30mA) en tableros',
+        medida_administrativa: 'Técnico electricista con matrícula CONALTE vigente, permiso de trabajo eléctrico',
+        medida_eppu: 'Guantes dieléctricos Clase 0 (1000V) con sobreguantes de cuero, careta facial, botas dieléctricas',
+        nro_expuestos: 4,
+        peor_consecuencia: 'Muerte por electrocución o choque eléctrico',
+        requisito_legal: 'Sí',
+      },
+      {
+        proceso: 'Movimiento de Tierras y Cimentación',
+        zona: 'Descapote y excavaciones profundas',
+        actividad: 'Limpieza de terreno vegetal y trazado de cimentación',
+        tareas: 'Retiro manual de maleza y escombros',
+        rutinaria: 'No',
+        peligro_clasificacion: 'Biológico',
+        peligro_descripcion: 'Exposición a animales ponzoñosos (serpientes, arañas) y picaduras de insectos',
+        efectos_posibles: 'Envenenamiento sistémico, reacciones anafilácticas, infecciones cutáneas',
+        controles_fuente: 'Control biológico de plagas previo a inicio',
+        controles_medio: 'Despeje mecánico con retroexcavadora antes del ingreso de cuadrillas',
+        controles_individuo: 'Uso de polainas de carnaza y repelente de insectos',
+        nd: 2,
+        ne: 2,
+        np: 4,
+        nc: 25,
+        nr: 100,
+        interpretacion_nr: 'III - Mejorable',
+        aceptabilidad: 'Mejorable',
+        medida_eliminacion: 'No aplica',
+        medida_sustitucion: 'No aplica',
+        medida_ingenieria: 'Fumigación y cerramiento perimetral de la zona de excavación',
+        medida_administrativa: 'Protocolo de primeros auxilios y disponibilidad de suero antiofídico en centro de referencia',
+        medida_eppu: 'Botas de caña alta, polainas de cuero rígido, guantes de vaqueta largos',
+        nro_expuestos: 12,
+        peor_consecuencia: 'Shock anafiláctico o falla multiorgánica por envenenamiento',
+        requisito_legal: 'Sí',
+      },
+    ];
+
+    setMatrixRows(dummyRows);
+    isDirtyRef.current = true;
+    saveMatrixData(dummyRows);
+    showToast({
+      message: 'Datos de prueba GTC-45 generados y guardados exitosamente.',
+      status: 'success',
+      severity: 'success',
+    });
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isPendingImport = useRef(false);
@@ -1852,172 +2041,278 @@ export default function MatrizIPEVARTable({
   const renderContent = () => (
     <div
       ref={containerRef}
-      className={`flex h-full flex-col border-l border-border-light transition-colors duration-300 ${isMaximized ? 'fixed inset-0 z-[999999] m-0 h-screen w-screen rounded-none bg-surface-primary shadow-2xl' : 'w-full bg-surface-primary'}`}
+      className={`flex flex-col transition-colors duration-300 ${
+        isMaximized
+          ? 'fixed inset-0 z-[999999] m-0 h-screen w-screen rounded-none bg-surface-primary shadow-2xl'
+          : isOfficialApp
+            ? 'w-full bg-transparent gap-6'
+            : 'w-full h-full border-l border-border-light bg-surface-primary'
+      }`}
     >
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div
-        className="relative z-[300] flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border-light bg-surface-secondary px-3 py-2 sm:px-4 sm:py-0"
-        style={{ minHeight: '4rem' }}
-      >
-        <div className="flex min-w-0 flex-shrink items-center gap-2 sm:gap-3 overflow-hidden text-ellipsis">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-teal-500/20 bg-teal-500/10 text-teal-600 shadow-sm">
-            <ShieldAlert className="h-5 w-5" />
-          </div>
-          <div className="min-w-0 overflow-hidden">
-            <h2 className="truncate text-sm font-semibold text-text-primary">Matriz IPEVAR Live</h2>
-            <div className="flex items-center gap-1.5 overflow-hidden">
-              <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-green-500" />
-              <span className="truncate text-xs text-text-secondary">Sincronización Activa</span>
+      {/* ── 1. Barra Flotante de Herramientas SGSST (Modo Aplicativo Oficial) ── */}
+      {isOfficialApp && !isMaximized && (
+        <>
+          <SGSSTToolbar
+            onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+            isHistoryOpen={isHistoryOpen}
+            onAnalyze={handleAnalyzeMatrix}
+            isAnalyzing={isAnalyzing}
+            selectedModel={selectedModel}
+            onSelectModel={setSelectedModel}
+            onSaveLocal={() => {
+              saveMatrixData(matrixRows);
+              showToast({
+                message: 'Matriz Oficial guardada y sincronizada exitosamente.',
+                status: 'success',
+                severity: 'success',
+              });
+            }}
+            hasContent={!!reportContent || matrixRows.length > 0}
+            onImportExcel={() => fileInputRef.current?.click()}
+            onExportExcel={handleExportExcel}
+            exportContent={reportContent || ''}
+            exportFileName={`Informe_IPEVAR_GTC45_${new Date().toISOString().slice(0, 10)}`}
+            onDummy={handleDummyData}
+          />
+
+          {isHistoryOpen && (
+            <div className="overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary shadow-sm">
+              <ReportHistory
+                onSelectReport={handleSelectReport}
+                isOpen={isHistoryOpen}
+                toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)}
+                refreshTrigger={refreshTrigger}
+                tags={['sgsst-matriz-ipevar']}
+              />
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── 2. Contenedor de la Matriz (Tarjeta con Acabado Premium Somos SST) ── */}
+      <div className={isOfficialApp && !isMaximized ? "overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary shadow-sm transition-all duration-300" : "flex flex-col flex-1 min-h-0"}>
+        {isOfficialApp && !isMaximized ? (
+          <div className="flex flex-wrap items-center justify-between p-4 bg-surface-tertiary/50 border-b border-border-light gap-3">
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsTableExpanded(!isTableExpanded)}
+                className="flex items-center gap-2 text-left font-semibold text-text-primary hover:text-teal-600 transition-colors"
+              >
+                {isTableExpanded ? (
+                  <ChevronDown className="h-5 w-5 text-text-secondary" />
+                ) : (
+                  <ChevronRight className="h-5 w-5 text-text-secondary" />
+                )}
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+                  <ShieldAlert className="h-5 w-5" />
+                </div>
+                <div>
+                  <span className="text-base font-bold text-text-primary">
+                    Matriz IPEVAR Live (GTC 45:2012)
+                  </span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+                      Sincronización Activa con Ecosistema SST
+                    </span>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="rounded-full bg-teal-500/10 px-3 py-1 text-xs font-bold text-teal-700 dark:text-teal-300 border border-teal-500/20">
+                {matrixRows.length} {matrixRows.length === 1 ? 'Peligro Evaluado' : 'Peligros Evaluados'}
+              </span>
+
+              <button
+                type="button"
+                onClick={addRow}
+                className="flex items-center gap-1.5 rounded-xl border border-teal-500/40 bg-surface-primary hover:bg-teal-500/10 px-3 py-1.5 text-xs font-bold text-teal-600 dark:text-teal-400 transition-all shadow-sm cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Añadir Riesgo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 rounded-xl border border-border-medium bg-surface-primary hover:bg-surface-hover px-3 py-1.5 text-xs font-bold text-text-primary transition-all shadow-sm cursor-pointer"
+              >
+                <Upload className="h-3.5 w-3.5 text-text-secondary" />
+                <span>Importar Excel</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsMaximized(true)}
+                className="flex items-center gap-1 rounded-xl border border-border-medium bg-surface-primary hover:bg-surface-hover px-2.5 py-1.5 text-xs font-medium text-text-secondary transition-all shadow-sm cursor-pointer"
+                title="Pantalla Completa"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+              </button>
             </div>
           </div>
-        </div>
-
-        <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2 overflow-visible py-1">
-          {isLoading && <RefreshCw className="h-4 w-4 animate-spin text-text-secondary" />}
-
-          {isMaximized && (
-            <ModelSelector
-              selectedModel={selectedModel}
-              onSelectModel={setSelectedModel}
-              hideTooltip={true}
-            />
-          )}
-
-          {/* Añadir Fila */}
-          <button
-            onClick={addRow}
-            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-surface-primary px-2.5 text-teal-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-900/20"
+        ) : (
+          /* ── Header Clásico para Chat / Pantalla Completa ── */
+          <div
+            className="relative z-[300] flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border-light bg-surface-secondary px-3 py-2 sm:px-4 sm:py-0"
+            style={{ minHeight: '4rem' }}
           >
-            <Plus className="h-4 w-4 shrink-0" />
-            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-              Añadir Riesgo
-            </span>
-          </button>
+            <div className="flex min-w-0 flex-shrink items-center gap-2 sm:gap-3 overflow-hidden text-ellipsis">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-teal-500/20 bg-teal-500/10 text-teal-600 shadow-sm">
+                <ShieldAlert className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 overflow-hidden">
+                <h2 className="truncate text-sm font-semibold text-text-primary">Matriz IPEVAR Live</h2>
+                <div className="flex items-center gap-1.5 overflow-hidden">
+                  <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-green-500" />
+                  <span className="truncate text-xs text-text-secondary">Sincronización Activa</span>
+                </div>
+              </div>
+            </div>
 
-          {/* Analizar Matriz Completa */}
-          {isMaximized && (
-            <button
-              onClick={handleAnalyzeMatrix}
-              disabled={isAnalyzing || matrixRows.length === 0}
-              className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-purple-500/40 bg-surface-primary px-2.5 text-purple-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
-            >
-              {isAnalyzing ? (
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-              ) : (
-                <FileTextIcon className="h-4 w-4 shrink-0" />
+            <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2 overflow-visible py-1">
+              {isLoading && <RefreshCw className="h-4 w-4 animate-spin text-text-secondary" />}
+
+              {isMaximized && (
+                <ModelSelector
+                  selectedModel={selectedModel}
+                  onSelectModel={setSelectedModel}
+                  hideTooltip={true}
+                />
               )}
-              <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-                {isAnalyzing ? 'Generando…' : 'Análisis IPEVAR'}
-              </span>
-            </button>
-          )}
 
-          {/* Importar */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover"
-          >
-            <Upload className="h-4 w-4 shrink-0" />
-            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-              Importar
-            </span>
-          </button>
-
-          <input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
-            accept=".xlsx,.xls,.json"
-            onChange={handleImportFile}
-          />
-
-          {/* Exportar — informe (HTML/Word/PDF) + Matriz (Excel) */}
-          <ExportDropdown
-            content={reportContent || ''}
-            fileName={`Informe_IPEVAR_GTC45_${new Date().toISOString().slice(0, 10)}`}
-            reportType="general"
-            onExportExcel={handleExportExcel}
-          />
-
-          {/* Guardar */}
-          <button
-            onClick={() => saveMatrixData(matrixRows)}
-            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-green-500/40 bg-surface-primary px-2.5 text-green-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-green-50 disabled:opacity-50 dark:text-green-400 dark:hover:bg-green-900/20"
-          >
-            <Save className="h-4 w-4 shrink-0" />
-            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-              {isSaving ? 'Guardando…' : 'Guardar'}
-            </span>
-          </button>
-
-          {/* Botón Establecer como Matriz Oficial (cuando se visualiza dentro de un chat) */}
-          {!isOfficialApp && matrixRows.length > 0 && (
-            isCurrentConvoOfficial ? (
-              <span
-                title="Esta matriz está activa como la Matriz Oficial del Sistema SG-SST"
-                className="inline-flex h-10 items-center gap-1.5 px-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold shadow-sm"
-              >
-                <Star className="h-4 w-4 fill-emerald-500 text-emerald-500 shrink-0" />
-                <span>Matriz Oficial</span>
-              </span>
-            ) : (
+              {/* Añadir Fila */}
               <button
-                onClick={handleSetAsOfficial}
-                disabled={isSettingOfficial}
-                title="Copiar y fijar como la Matriz Oficial en el Aplicativo SG-SST (Hito 1)"
-                className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 text-amber-700 dark:text-amber-300 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 disabled:opacity-50"
+                onClick={addRow}
+                className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-surface-primary px-2.5 text-teal-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-900/20"
               >
-                {isSettingOfficial ? (
-                  <Loader2 className="h-4 w-4 shrink-0 animate-spin text-amber-500" />
-                ) : (
-                  <Star className="h-4 w-4 shrink-0 fill-amber-500/30 text-amber-500" />
-                )}
-                <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100">
-                  {isSettingOfficial ? 'Guardando…' : 'Fijar como Matriz Oficial'}
+                <Plus className="h-4 w-4 shrink-0" />
+                <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                  Añadir Riesgo
                 </span>
               </button>
-            )
-          )}
 
-          {/* Limpiar Matriz */}
-          {matrixRows.length > 0 && (
-            <button
-              onClick={() => {
-                if (window.confirm('¿Estás seguro de que deseas vaciar y limpiar la matriz de este chat?')) {
-                  setMatrixRows([]);
-                  setChartConclusions({});
-                  isDirtyRef.current = true;
-                  saveMatrixData([]);
-                }
-              }}
-              title="Limpiar / Vaciar Matriz"
-              className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-red-500/30 bg-surface-primary px-2.5 text-red-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-            >
-              <Trash2 className="h-4 w-4 shrink-0" />
-              <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-                Limpiar Matriz
-              </span>
-            </button>
-          )}
+              {/* Analizar Matriz Completa */}
+              {isMaximized && (
+                <button
+                  onClick={handleAnalyzeMatrix}
+                  disabled={isAnalyzing || matrixRows.length === 0}
+                  className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-purple-500/40 bg-surface-primary px-2.5 text-purple-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                >
+                  {isAnalyzing ? (
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                  ) : (
+                    <FileTextIcon className="h-4 w-4 shrink-0" />
+                  )}
+                  <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                    {isAnalyzing ? 'Generando…' : 'Análisis IPEVAR'}
+                  </span>
+                </button>
+              )}
 
-          {/* Maximizar */}
-          <button
-            onClick={() => setIsMaximized((m) => !m)}
-            className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover"
-          >
-            {isMaximized ? (
-              <Minimize2 className="h-4 w-4 shrink-0" />
-            ) : (
-              <Maximize2 className="h-4 w-4 shrink-0" />
-            )}
-            <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-              {isMaximized ? 'Restaurar' : 'Expandir'}
-            </span>
-          </button>
-        </div>
-      </div>
+              {/* Importar */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover"
+              >
+                <Upload className="h-4 w-4 shrink-0" />
+                <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                  Importar
+                </span>
+              </button>
 
-      {/* Informe ahora va en el LiveEditor de abajo — panel antiguo eliminado */}
+              {/* Exportar — informe (HTML/Word/PDF) + Matriz (Excel) */}
+              <ExportDropdown
+                content={reportContent || ''}
+                fileName={`Informe_IPEVAR_GTC45_${new Date().toISOString().slice(0, 10)}`}
+                reportType="general"
+                onExportExcel={handleExportExcel}
+              />
+
+              {/* Guardar */}
+              <button
+                onClick={() => saveMatrixData(matrixRows)}
+                className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-green-500/40 bg-surface-primary px-2.5 text-green-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-green-50 disabled:opacity-50 dark:text-green-400 dark:hover:bg-green-900/20"
+              >
+                <Save className="h-4 w-4 shrink-0" />
+                <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                  {isSaving ? 'Guardando…' : 'Guardar'}
+                </span>
+              </button>
+
+              {/* Botón Establecer como Matriz Oficial (cuando se visualiza dentro de un chat) */}
+              {!isOfficialApp && matrixRows.length > 0 && (
+                isCurrentConvoOfficial ? (
+                  <span
+                    title="Esta matriz está activa como la Matriz Oficial del Sistema SG-SST"
+                    className="inline-flex h-10 items-center gap-1.5 px-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold shadow-sm"
+                  >
+                    <Star className="h-4 w-4 fill-emerald-500 text-emerald-500 shrink-0" />
+                    <span>Matriz Oficial</span>
+                  </span>
+                ) : (
+                  <button
+                    onClick={handleSetAsOfficial}
+                    disabled={isSettingOfficial}
+                    title="Copiar y fijar como la Matriz Oficial en el Aplicativo SG-SST (Hito 1)"
+                    className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 text-amber-700 dark:text-amber-300 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 disabled:opacity-50"
+                  >
+                    {isSettingOfficial ? (
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-amber-500" />
+                    ) : (
+                      <Star className="h-4 w-4 shrink-0 fill-amber-500/30 text-amber-500" />
+                    )}
+                    <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100">
+                      {isSettingOfficial ? 'Guardando…' : 'Fijar como Matriz Oficial'}
+                    </span>
+                  </button>
+                )
+              )}
+
+              {/* Limpiar Matriz */}
+              {matrixRows.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (window.confirm('¿Estás seguro de que deseas vaciar y limpiar la matriz de este chat?')) {
+                      setMatrixRows([]);
+                      setChartConclusions({});
+                      isDirtyRef.current = true;
+                      saveMatrixData([]);
+                    }
+                  }}
+                  title="Limpiar / Vaciar Matriz"
+                  className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-red-500/30 bg-surface-primary px-2.5 text-red-600 shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                >
+                  <Trash2 className="h-4 w-4 shrink-0" />
+                  <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                    Limpiar Matriz
+                  </span>
+                </button>
+              )}
+
+              {/* Maximizar */}
+              <button
+                onClick={() => setIsMaximized((m) => !m)}
+                className="group flex h-10 min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2.5 text-text-primary shadow-sm outline-none transition-all duration-300 hover:-rotate-3 hover:scale-105 hover:bg-surface-hover"
+              >
+                {isMaximized ? (
+                  <Minimize2 className="h-4 w-4 shrink-0" />
+                ) : (
+                  <Maximize2 className="h-4 w-4 shrink-0" />
+                )}
+                <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+                  {isMaximized ? 'Restaurar' : 'Expandir'}
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {(!isOfficialApp || isMaximized || isTableExpanded) && (
+          <div className="flex flex-col flex-1 min-h-0 bg-surface-primary">
 
       {/* ── Barra de Filtros ──────────────────────────────────────────────── */}
       <div className="relative z-[200] flex shrink-0 flex-wrap items-center gap-2 border-b border-border-light bg-surface-secondary px-4 py-2.5">
@@ -2674,44 +2969,174 @@ export default function MatrizIPEVARTable({
           )}
         </div>
       </div>
+      {(!isOfficialApp || isMaximized || isTableExpanded) && (
+        <div className="hidden" />
+      )}
+    </div>
 
-      {/* ── Dashboard analítico y Resizer ───────────────────────────────────── */}
-      <div
-        onMouseDown={startDrag}
-        onTouchStart={startDrag}
-        className="group/resizer relative z-20 flex h-4 shrink-0 cursor-row-resize touch-none items-center justify-center border-y border-border-light bg-surface-tertiary transition-colors hover:bg-teal-500/20"
-      >
-        <div className="h-1 w-12 rounded-full bg-border-heavy group-hover/resizer:bg-teal-500/50" />
-      </div>
+      {/* ── 3. Dashboard analítico y Resizer ───────────────────────────────────── */}
+      {!isOfficialApp && (
+        <div
+          onMouseDown={startDrag}
+          onTouchStart={startDrag}
+          className="group/resizer relative z-20 flex h-4 shrink-0 cursor-row-resize touch-none items-center justify-center border-y border-border-light bg-surface-tertiary transition-colors hover:bg-teal-500/20"
+        >
+          <div className="h-1 w-12 rounded-full bg-border-heavy group-hover/resizer:bg-teal-500/50" />
+        </div>
+      )}
 
-      <div
-        className="shrink-0 overflow-y-auto bg-surface-primary px-4 py-2"
-        style={{ height: `${dashboardHeight}%` }}
-      >
-        <MatrizIPEVARDashboard
-          matrixRows={matrixRows}
-          conversationId={actualConvoId}
-          token={token || ''}
-          savedConclusions={chartConclusions}
-          onConclusionSaved={(type, text) =>
-            setChartConclusions((prev) => ({ ...prev, [type]: text }))
-          }
-          isMaximized={isMaximized}
-        />
+      {isOfficialApp && !isMaximized ? (
+        <div className="overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary shadow-sm transition-all duration-300">
+          <button
+            type="button"
+            onClick={() => setIsDashboardExpanded(!isDashboardExpanded)}
+            className="w-full flex items-center justify-between p-4 bg-surface-tertiary/50 hover:bg-surface-tertiary transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              {isDashboardExpanded ? (
+                <ChevronDown className="h-5 w-5 text-text-secondary" />
+              ) : (
+                <ChevronRight className="h-5 w-5 text-text-secondary" />
+              )}
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                <BarChart3 className="h-5 w-5" />
+              </div>
+              <div className="text-left">
+                <span className="text-base font-bold text-text-primary">
+                  Dashboard y Analítica de Riesgos (GTC 45)
+                </span>
+                <p className="text-xs text-text-secondary">
+                  Distribución de peligros, matrices de calor y conclusiones analíticas con IA.
+                </p>
+              </div>
+            </div>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold border border-purple-500/20">
+              Visualización Gráfica
+            </span>
+          </button>
 
-        {/* ── Informe Ejecutivo GTC-45 (LiveEditor) ────────────────────────
-          El contenido se genera presionando 'Crear Informe' en el toolbar
-        */}
-        <div id="ipevar-report-editor" className="mb-4 mt-6">
+          {isDashboardExpanded && (
+            <div className="p-4 border-t border-border-light bg-surface-primary">
+              <MatrizIPEVARDashboard
+                matrixRows={matrixRows}
+                conversationId={actualConvoId}
+                token={token || ''}
+                savedConclusions={chartConclusions}
+                onConclusionSaved={(type, text) =>
+                  setChartConclusions((prev) => ({ ...prev, [type]: text }))
+                }
+                isMaximized={isMaximized}
+              />
+            </div>
+          )}
+        </div>
+      ) : (
+        <div
+          className="shrink-0 overflow-y-auto bg-surface-primary px-4 py-2"
+          style={{ height: `${dashboardHeight}%` }}
+        >
+          <MatrizIPEVARDashboard
+            matrixRows={matrixRows}
+            conversationId={actualConvoId}
+            token={token || ''}
+            savedConclusions={chartConclusions}
+            onConclusionSaved={(type, text) =>
+              setChartConclusions((prev) => ({ ...prev, [type]: text }))
+            }
+            isMaximized={isMaximized}
+          />
+
+          <div id="ipevar-report-editor" className="mb-4 mt-6">
+            <CollapsibleReportBox
+              onSave={handleSaveReport}
+              onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+              isHistoryOpen={isHistoryOpen}
+              title="Informe Ejecutivo IPEVAR — GTC-45"
+              icon={<FileTextIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
+              actions={
+                <ExportDropdown
+                  content={reportContent || ''}
+                  fileName={`Informe_IPEVAR_GTC45_${new Date().toISOString().slice(0, 10)}`}
+                  reportType="general"
+                  onExportExcel={handleExportExcel}
+                />
+              }
+            >
+              {isHistoryOpen && (
+                <div className="mx-2 mb-4 mt-4 overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary shadow-sm">
+                  <ReportHistory
+                    onSelectReport={handleSelectReport}
+                    isOpen={isHistoryOpen}
+                    toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)}
+                    refreshTrigger={refreshTrigger}
+                    tags={['sgsst-matriz-ipevar']}
+                  />
+                </div>
+              )}
+
+              <div className="p-2">
+                {reportContent ? (
+                  <div style={{ minHeight: '500px', width: '100%' }}>
+                    <LiveEditor
+                      ref={liveEditorRef}
+                      initialContent={reportContent}
+                      onUpdate={(html: string) => {
+                        reportContentRef.current = html;
+                      }}
+                      reportSourceData={{ matrixRows, chartConclusions }}
+                      onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-4 py-16 text-text-secondary">
+                    <FileTextIcon className="h-12 w-12 opacity-20" />
+                    <p className="max-w-sm text-center text-sm">
+                      Presiona <span className="font-bold text-teal-600">“Generar IA”</span> en
+                      la barra superior para que la IA elabore el Informe Ejecutivo GTC-45 con análisis
+                      de peligros, jerarquía de controles y recomendaciones normativas.
+                    </p>
+                    <div className="mt-2 flex gap-4">
+                      <button
+                        onClick={handleAnalyzeMatrix}
+                        disabled={isAnalyzing || matrixRows.length === 0}
+                        className="flex items-center gap-2 rounded-xl border border-teal-500 bg-teal-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-teal-700 disabled:opacity-50 shadow-md"
+                      >
+                        {isAnalyzing ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                        {isAnalyzing ? 'Generando informe…' : 'Generar Informe con IA'}
+                      </button>
+                      <button
+                        onClick={() => setIsHistoryOpen(true)}
+                        className="flex items-center gap-2 rounded-xl border border-border-medium bg-surface-primary px-4 py-2 text-sm font-bold text-text-primary shadow-sm transition-colors hover:bg-surface-hover"
+                      >
+                        <History className="h-4 w-4" />
+                        Cargar desde Historial
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CollapsibleReportBox>
+          </div>
+        </div>
+      )}
+
+      {/* ── 4. Informe Ejecutivo GTC-45 Standalone en Modo Oficial ── */}
+      {isOfficialApp && !isMaximized && (
+        <div id="ipevar-report-editor" className="mb-6">
           <CollapsibleReportBox
+            onSave={handleSaveReport}
             onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
             isHistoryOpen={isHistoryOpen}
-            title="Matriz IPEVAR — GTC-45"
-            icon={<FileTextIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
+            title="Informe Ejecutivo IPEVAR — GTC-45"
+            icon={<FileTextIcon className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
             actions={
               <ExportDropdown
                 content={reportContent || ''}
-                fileName="Informe_IPEVAR_GTC45"
+                fileName={`Informe_IPEVAR_GTC45_${new Date().toISOString().slice(0, 10)}`}
                 reportType="general"
                 onExportExcel={handleExportExcel}
               />
@@ -2746,26 +3171,26 @@ export default function MatrizIPEVARTable({
                 <div className="flex flex-col items-center justify-center gap-4 py-16 text-text-secondary">
                   <FileTextIcon className="h-12 w-12 opacity-20" />
                   <p className="max-w-sm text-center text-sm">
-                    Presiona <span className="font-bold text-purple-600">“Análisis IPEVAR”</span> en
-                    la barra superior para que la IA genere el Informe Ejecutivo GTC-45 con análisis
-                    de riesgos, controles y recomendaciones.
+                    Presiona <span className="font-bold text-teal-600">“Generar IA”</span> en
+                    la barra superior para que la IA elabore el Informe Ejecutivo GTC-45 con análisis
+                    de peligros, jerarquía de controles y recomendaciones normativas.
                   </p>
                   <div className="mt-2 flex gap-4">
                     <button
                       onClick={handleAnalyzeMatrix}
                       disabled={isAnalyzing || matrixRows.length === 0}
-                      className="flex items-center gap-2 rounded-xl border border-purple-400 bg-purple-50 px-4 py-2 text-sm font-bold text-purple-700 transition-colors hover:bg-purple-100 disabled:opacity-50 dark:bg-purple-900/20 dark:text-purple-300"
+                      className="flex items-center gap-2 rounded-xl border border-teal-500 bg-teal-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-teal-700 disabled:opacity-50 shadow-md"
                     >
                       {isAnalyzing ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <FileTextIcon className="h-4 w-4" />
+                        <Sparkles className="h-4 w-4" />
                       )}
-                      {isAnalyzing ? 'Generando informe…' : 'Generar Informe Ahora'}
+                      {isAnalyzing ? 'Generando informe…' : 'Generar Informe con IA'}
                     </button>
                     <button
                       onClick={() => setIsHistoryOpen(true)}
-                      className="flex items-center gap-2 rounded-xl border border-teal-400 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-700 shadow-sm transition-colors hover:bg-teal-100 dark:bg-teal-900/20 dark:text-teal-300"
+                      className="flex items-center gap-2 rounded-xl border border-border-medium bg-surface-primary px-4 py-2 text-sm font-bold text-text-primary shadow-sm transition-colors hover:bg-surface-hover"
                     >
                       <History className="h-4 w-4" />
                       Cargar desde Historial
@@ -2776,7 +3201,8 @@ export default function MatrizIPEVARTable({
             </div>
           </CollapsibleReportBox>
         </div>
-      </div>
+      )}
+
       {renderModals()}
     </div>
   );
