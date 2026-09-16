@@ -95,7 +95,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   wsDash.getCell('B9').value = { formula: `IF($C$6="TODOS", COUNTA('Matriz IPEVAR'!A2:A${totalRows}), COUNTIF('Matriz IPEVAR'!A2:A${totalRows}, $C$6))` };
   wsDash.getCell('B9').font = { size: 24, bold: true, color: { argb: 'FF0F172A' }, name: 'Book Antiqua' }; // Slate 900
 
-  wsDash.getCell('C9').value = { formula: `IF($C$6="TODOS", COUNTIF('Matriz IPEVAR'!S2:S${totalRows}, "No Aceptable"), COUNTIFS('Matriz IPEVAR'!S2:S${totalRows}, "No Aceptable", 'Matriz IPEVAR'!A2:A${totalRows}, $C$6))` };
+  wsDash.getCell('C9').value = { formula: `IF($C$6="TODOS", COUNTIF('Matriz IPEVAR'!T2:T${totalRows}, "No Aceptable"), COUNTIFS('Matriz IPEVAR'!T2:T${totalRows}, "No Aceptable", 'Matriz IPEVAR'!A2:A${totalRows}, $C$6))` };
   wsDash.getCell('C9').font = { size: 24, bold: true, color: { argb: 'FFEF4444' }, name: 'Book Antiqua' }; // Rojo
 
   wsDash.getCell('D9').value = { formula: `IF(B9=0, 0, C9/B9)` };
@@ -162,7 +162,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   const startCard1 = dashRow;
 
   aceptabilidades.forEach((ac, idx) => {
-    addCardRow(dashRow, ac.name, getInteractiveFormula('S', ac.name), idx === aceptabilidades.length - 1, ac.color);
+    addCardRow(dashRow, ac.name, getInteractiveFormula('T', ac.name), idx === aceptabilidades.length - 1, ac.color);
     dashRow++;
   });
 
@@ -194,7 +194,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   const startCard3 = dashRow;
 
   clasificaciones.forEach((clasif, idx) => {
-    addCardRow(dashRow, clasif, getInteractiveFormula('G', clasif), idx === clasificaciones.length - 1, 'FF8B5CF6'); // Violet neon
+    addCardRow(dashRow, clasif, getInteractiveFormula('H', clasif), idx === clasificaciones.length - 1, 'FF8B5CF6'); // Violet neon
     dashRow++;
   });
 
@@ -214,11 +214,12 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   // Activar Filtros Automáticos sin usar addTable para no perder control del color de cabecera
   wsMatriz.autoFilter = {
     from: { row: 1, column: 1 },
-    to: { row: totalRows, column: 28 }
+    to: { row: totalRows, column: 29 }
   };
 
   wsMatriz.columns = [
     { header: 'Proceso', key: 'proceso', width: 28 },
+    { header: 'Cargo / Puesto de Trabajo', key: 'cargo', width: 26 },
     { header: 'Zona / Lugar', key: 'zona', width: 22 },
     { header: 'Actividad', key: 'actividad', width: 28 },
     { header: 'Tareas', key: 'tareas', width: 35 },
@@ -262,6 +263,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     const rowNumber = index + 2;
     const addedRow = wsMatriz.addRow({
       proceso: row.proceso,
+      cargo: row.cargo || '',
       zona: row.zona,
       actividad: row.actividad,
       tareas: row.tareas,
@@ -274,10 +276,10 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
       controles_individuo: row.controles_individuo,
       nd: Number(row.nd) || 0,
       ne: Number(row.ne) || 0,
-      np: { formula: `L${rowNumber}*M${rowNumber}`, result: row.np },
+      np: { formula: `M${rowNumber}*N${rowNumber}`, result: row.np },
       interpretacion_np: getInterpretacionNP(row.np),
       nc: Number(row.nc) || 0,
-      nr: { formula: `N${rowNumber}*P${rowNumber}`, result: row.nr },
+      nr: { formula: `O${rowNumber}*Q${rowNumber}`, result: row.nr },
       interpretacion_nr: row.interpretacion_nr,
       aceptabilidad: row.aceptabilidad,
       nro_expuestos: row.nro_expuestos !== undefined ? row.nro_expuestos : 1,
@@ -300,7 +302,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBgColor } };
       cell.alignment = { vertical: 'top', wrapText: true, indent: 1 }; // Indentación ligera
       
-      if (colNumber === 5 || (colNumber >= 12 && colNumber <= 18)) {
+      if (colNumber === 6 || (colNumber >= 13 && colNumber <= 19)) {
         cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; 
       }
       
@@ -314,9 +316,9 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   // -- Formato Condicional (Semaforización Nativa a Medida) --
   const finalTotalRows = matrixRows.length > 0 ? matrixRows.length + 1 : 2;
 
-  // NP (Columna N)
+  // NP (Columna O)
   wsMatriz.addConditionalFormatting({
-    ref: `N2:N${finalTotalRows}`,
+    ref: `O2:O${finalTotalRows}`,
     rules: [
       { type: 'cellIs', operator: 'between', formulae: ['24', '40'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Rojo
       { type: 'cellIs', operator: 'between', formulae: ['10', '20'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF97316' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Naranja
@@ -325,9 +327,9 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     ]
   });
 
-  // NR (Columna Q)
+  // NR (Columna R)
   wsMatriz.addConditionalFormatting({
-    ref: `Q2:Q${finalTotalRows}`,
+    ref: `R2:R${finalTotalRows}`,
     rules: [
       { type: 'cellIs', operator: 'between', formulae: ['600', '4000'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Rojo
       { type: 'cellIs', operator: 'between', formulae: ['150', '500'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF97316' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Naranja
@@ -336,9 +338,9 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     ]
   });
 
-  // Interpretación NR (Columna R)
+  // Interpretación NR (Columna S)
   wsMatriz.addConditionalFormatting({
-    ref: `R2:R${finalTotalRows}`,
+    ref: `S2:S${finalTotalRows}`,
     rules: [
       { type: 'cellIs', operator: 'equal', formulae: ['"I"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Rojo
       { type: 'cellIs', operator: 'equal', formulae: ['"II"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF97316' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Naranja
@@ -347,9 +349,9 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     ]
   });
 
-  // Aceptabilidad (Columna S)
+  // Aceptabilidad (Columna T)
   wsMatriz.addConditionalFormatting({
-    ref: `S2:S${finalTotalRows}`,
+    ref: `T2:T${finalTotalRows}`,
     rules: [
       { type: 'cellIs', operator: 'equal', formulae: ['"No Aceptable"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Rojo
       { type: 'cellIs', operator: 'equal', formulae: ['"No Aceptable o Aceptable con Control Específico"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF97316' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Naranja
@@ -358,10 +360,10 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     ]
   });
 
-  // Lista Desplegable (Data Validation) para Rutinaria (Columna E)
+  // Lista Desplegable (Data Validation) para Rutinaria (Columna F)
   const validationRows = Math.max(finalTotalRows + 50, 100); // Aplicar a más filas por si el usuario añade nuevas
   for (let r = 2; r <= validationRows; r++) {
-    wsMatriz.getCell(`E${r}`).dataValidation = {
+    wsMatriz.getCell(`F${r}`).dataValidation = {
       type: 'list',
       allowBlank: true,
       formulae: ['"Sí,No"'],

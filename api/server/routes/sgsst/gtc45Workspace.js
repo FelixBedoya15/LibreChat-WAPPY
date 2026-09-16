@@ -112,6 +112,7 @@ router.post('/set-official', requireJwtAuth, async (req, res) => {
 
     const normalizedRows = (rowsToSave || []).map(row => ({
       ...row,
+      cargo: toSentenceCase(row.cargo || ''),
       proceso: toSentenceCase(row.proceso),
       zona: toSentenceCase(row.zona)
     }));
@@ -164,6 +165,7 @@ router.put('/official', requireJwtAuth, async (req, res) => {
 
     const normalizedRows = (matrixRows || []).map(row => ({
       ...row,
+      cargo: toSentenceCase(row.cargo || ''),
       proceso: toSentenceCase(row.proceso),
       zona: toSentenceCase(row.zona)
     }));
@@ -325,6 +327,7 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
 
     const normalizedRows = (matrixRows || []).map(row => ({
       ...row,
+      cargo: toSentenceCase(row.cargo || ''),
       proceso: toSentenceCase(row.proceso),
       zona: toSentenceCase(row.zona)
     }));
@@ -960,6 +963,7 @@ ${JSON.stringify(chunk, null, 2)}
         else if (rawReq.includes('no')) mappedReq = 'No';
 
         return {
+          cargo: toSentenceCase(row.cargo || ''),
           proceso: toSentenceCase(row.proceso || ''),
           zona: toSentenceCase(row.zona || ''),
           actividad: row.actividad || '',
@@ -1005,5 +1009,143 @@ ${JSON.stringify(chunk, null, 2)}
   }
 });
 
+// ─── OFICIAL / CHAT: Auto-asignar Cargos a las filas de la matriz con IA ────────
+router.post('/auto-assign-cargos', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const { matrixRows, conversationId, modelName = 'gemini-2.5-flash' } = req.body;
+
+    if (!matrixRows || !Array.isArray(matrixRows) || matrixRows.length === 0) {
+      return res.status(400).json({ error: 'No se enviaron filas de la matriz para procesar.' });
+    }
+
+    // 1. Obtener los perfiles de cargo existentes de la empresa
+    const PerfilCargoModel = mongoose.models.PerfilCargoData;
+    let availableCargos = [];
+    if (PerfilCargoModel) {
+      try {
+        const cargoDoc = await PerfilCargoModel.findOne({
+          user: userId,
+          ...(companyId ? { companyId } : {}),
+        }).lean();
+        if (cargoDoc && Array.isArray(cargoDoc.perfilesList)) {
+          availableCargos = cargoDoc.perfilesList
+            .map(p => p.nombreCargo)
+            .filter(Boolean)
+            .map(c => toSentenceCase(c));
+        }
+      } catch (err) {
+        logger.warn('[GTC45Workspace /auto-assign-cargos] Error loading PerfilCargoData:', err.message);
+      }
+    }
+
+    // 2. Extraer información de la empresa si existe
+    let companyContext = '';
+    const company = await CompanyInfo.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
+    if (company) {
+      companyContext = `Empresa: ${company.companyName || ''}, Actividad: ${company.economicActivity || ''}, Sector: ${company.sector || ''}`;
+    }
+
+    // 3. Preparar resumen compacto de filas para optimizar tokens
+    const rowsSummary = matrixRows.map((r, index) => ({
+      index,
+      proceso: r.proceso || '',
+      zona: r.zona || '',
+      actividad: r.actividad || '',
+      tareas: r.tareas || '',
+      peligro: r.peligro_descripcion || '',
+      clasificacion: r.peligro_clasificacion || '',
+      cargoActual: r.cargo || '',
+    }));
+
+    const prompt = `Eres un Director Senior de Seguridad y Salud en el Trabajo (SG-SST) experto en perfiles de cargo y matrices de peligros IPEVAR (GTC-45).
+Tu misión es ASIGNAR el CARGO o puesto de trabajo expuesto más exacto y coherente a cada fila de riesgo de la matriz.
+
+CONTEXTO EMPRESARIAL:
+${companyContext || 'No especificado'}
+
+CARGOS REGISTRADOS EN EL SISTEMA DE LA EMPRESA (DAR PRIORIDAD A ESTOS SI ENCAJAN):
+${availableCargos.length > 0 ? availableCargos.map(c => `- ${c}`).join('\n') : 'No hay cargos registrados aún en el aplicativo de Perfiles; infiere los cargos estándar de la industria.'}
+
+FILAS A CLASIFICAR (Array JSON):
+${JSON.stringify(rowsSummary, null, 2)}
+
+INSTRUCCIONES ESTRICTAS:
+1. Revisa cada fila: su proceso, actividad, tareas y descripción del peligro.
+2. Determina el cargo exacto que realiza esa actividad o está expuesto al peligro.
+3. Si el cargo coincide o es análogo a uno de los CARGOS REGISTRADOS DE LA EMPRESA, DEBES usar exactamente el nombre de ese cargo registrado para garantizar la sincronización perfecta con el aplicativo de Perfiles de Cargo.
+4. Si la actividad es propia de otro puesto no registrado, asígnale un nombre técnico profesional y conciso en español (Ej: "Soldador", "Operario de Montacargas", "Conductor de Carga", "Auxiliar Administrativo", "Inspector de Calidad", "Electricista Industrial").
+5. Si una fila ya tiene un cargo coherente y válido asignado, puedes conservarlo.
+6. Responde ÚNICAMENTE con un JSON array válido de objetos con este formato exacto, sin texto adicional ni explicaciones:
+[
+  { "index": 0, "cargo": "Nombre del Cargo" },
+  { "index": 1, "cargo": "Nombre del Cargo" }
+]`;
+
+    const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });
+    let text = result.response.text().trim();
+    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+    let assignedList = [];
+    try {
+      assignedList = JSON.parse(text);
+    } catch (e) {
+      logger.warn('[GTC45Workspace /auto-assign-cargos] Direct JSON parse failed, repairing...', e.message);
+      const startIdx = text.indexOf('[');
+      const endIdx = text.lastIndexOf(']');
+      if (startIdx !== -1 && endIdx !== -1) {
+        try {
+          assignedList = JSON.parse(text.substring(startIdx, endIdx + 1));
+        } catch (e2) {
+          logger.error('[GTC45Workspace /auto-assign-cargos] Repair failed:', e2.message);
+        }
+      }
+    }
+
+    if (!Array.isArray(assignedList)) {
+      throw new Error('La respuesta de la IA no tuvo el formato esperado.');
+    }
+
+    const assignedMap = new Map();
+    assignedList.forEach(item => {
+      if (item && item.index !== undefined && item.cargo) {
+        assignedMap.set(Number(item.index), toSentenceCase(item.cargo));
+      }
+    });
+
+    const updatedRows = matrixRows.map((row, idx) => {
+      const assignedCargo = assignedMap.get(idx);
+      return {
+        ...row,
+        cargo: assignedCargo || toSentenceCase(row.cargo || 'Operario General'),
+        proceso: toSentenceCase(row.proceso || ''),
+        zona: toSentenceCase(row.zona || '')
+      };
+    });
+
+    // Si se pasa conversationId, actualizar directamente la sesión en base de datos
+    if (conversationId) {
+      const isOfficial = conversationId.startsWith('official-');
+      await GTC45WorkspaceSession.findOneAndUpdate(
+        { conversationId, ...(isOfficial ? {} : { user: userId }) },
+        { $set: { matrixRows: updatedRows } }
+      );
+      logger.info(`[GTC45Workspace /auto-assign-cargos] Persisted ${updatedRows.length} rows to session ${conversationId}`);
+    }
+
+    res.json({
+      success: true,
+      message: `Se asignaron cargos automáticamente a ${updatedRows.length} filas con IA.`,
+      matrixRows: updatedRows,
+      availableCargosCount: availableCargos.length,
+    });
+  } catch (error) {
+    logger.error('[GTC45Workspace POST /auto-assign-cargos] Error:', error);
+    res.status(500).json({ error: error.message || 'Error al auto-asignar cargos con IA' });
+  }
+});
+
 module.exports = router;
+
 

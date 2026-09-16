@@ -14,10 +14,12 @@ class MatrizIPEVAR extends Tool {
     this.schema = z.object({
       accion: z.enum(['leer', 'escribir', 'borrar', 'consultar_contexto_sgsst']).describe('Usa consultar_contexto_sgsst para datos de la empresa, leer para consultar, escribir para guardar, borrar para eliminar.'),
       filtro_proceso: z.string().optional().describe('Filtro para leer, o cargo a buscar en el contexto sgsst.'),
+      filtro_cargo: z.string().optional().describe('Filtro por cargo para leer.'),
       filtro_actividad: z.string().optional().describe('Filtro para leer.'),
       filtro_peligro: z.string().optional().describe('Filtro para leer.'),
       ids_a_borrar: z.array(z.string()).optional().describe('Arreglo de IDs de los riesgos que deseas eliminar. Solamente usado cuando accion="borrar".'),
       riesgos: z.array(z.object({
+        cargo: z.string().optional().describe('Cargo, puesto de trabajo o rol ocupacional expuesto al peligro (ej. "Soldador", "Operario de Producción", "Conductor", "Auxiliar Administrativo"). CRÍTICO: Parametriza directamente con el módulo de Perfiles de Cargo.'),
         proceso: z.string().describe('El proceso o área general.'),
         zona: z.string().describe('Lugar o zona de trabajo.'),
         actividad: z.string().describe('Actividad específica que realiza el trabajador.'),
@@ -70,7 +72,7 @@ class MatrizIPEVAR extends Tool {
         return JSON.stringify({ error: errorMsg });
       }
 
-      const { accion, riesgos, filtro_proceso, filtro_actividad, filtro_peligro, ids_a_borrar } = input;
+      const { accion, riesgos, filtro_proceso, filtro_cargo, filtro_actividad, filtro_peligro, ids_a_borrar } = input;
 
       // Obtener sesión
       const userId = this.req?.user?.id;
@@ -191,6 +193,9 @@ class MatrizIPEVAR extends Tool {
         if (filtro_proceso) {
           rows = rows.filter(r => r.proceso && r.proceso.toLowerCase().includes(filtro_proceso.toLowerCase()));
         }
+        if (filtro_cargo) {
+          rows = rows.filter(r => r.cargo && r.cargo.toLowerCase().includes(filtro_cargo.toLowerCase()));
+        }
         if (filtro_actividad) {
           rows = rows.filter(r => r.actividad && r.actividad.toLowerCase().includes(filtro_actividad.toLowerCase()));
         }
@@ -269,6 +274,7 @@ class MatrizIPEVAR extends Tool {
         else if (interpretacion_nr === 'III') aceptabilidad = 'Mejorable';
 
         const row = {
+          cargo: riesgo.cargo || '',
           ...riesgo,
           np,
           interpretacion_np,
@@ -280,6 +286,7 @@ class MatrizIPEVAR extends Tool {
 
         // Find existing row using a composite key
         const targetIndex = session.matrixRows.findIndex(r => 
+          (riesgo.cargo ? r.cargo?.toLowerCase() === riesgo.cargo?.toLowerCase() : true) &&
           r.proceso?.toLowerCase() === riesgo.proceso?.toLowerCase() &&
           r.actividad?.toLowerCase() === riesgo.actividad?.toLowerCase() &&
           r.tareas?.toLowerCase() === riesgo.tareas?.toLowerCase() &&

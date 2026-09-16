@@ -26,6 +26,7 @@ import {
   Star,
   BarChart3,
   FileSpreadsheet,
+  Briefcase,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuthContext } from '~/hooks';
@@ -913,6 +914,7 @@ export default function MatrizIPEVARTable({
 
             const withIds = parsed.map(r => ({
               ...r,
+              cargo: toSentenceCase(r.cargo || r.Cargo || ''),
               proceso: toSentenceCase(r.proceso || r.Proceso || ''),
               zona: toSentenceCase(r.zona || r.Zona || ''),
               id: r.id || Date.now().toString() + Math.random().toString(36).substring(7),
@@ -924,6 +926,7 @@ export default function MatrizIPEVARTable({
             }));
             const preCleaned = parsed.map((r: any) => ({
               ...r,
+              Cargo: toSentenceCase(r.Cargo || r.cargo || ''),
               Proceso: toSentenceCase(r.Proceso || r.proceso || ''),
               Zona: toSentenceCase(r.Zona || r.zona || ''),
             }));
@@ -1170,15 +1173,16 @@ export default function MatrizIPEVARTable({
             if (rawReq.includes('si') || rawReq.includes('sí')) mappedReq = 'Sí';
             else if (rawReq.includes('no')) mappedReq = 'No';
 
-            let proc = getValueByKeys(r, ['area', 'proceso', 'areadeproceso', 'seccion', 'cargo', 'cargos']);
+            let proc = getValueByKeys(r, ['proceso', 'areadeproceso', 'seccion', 'area']);
+            let cargoVal = getValueByKeys(r, ['cargopuestodetrabajo', 'puestodetrabajo', 'puesto', 'cargo', 'cargos', 'ocupacion', 'rol', 'oficio']);
             let zona = getValueByKeys(r, ['areadetrabajo', 'zonayolugar', 'zonalugar', 'zona', 'lugar', 'sede', 'planta']);
-            let cargo = getValueByKeys(r, ['cargo', 'cargos', 'actividad', 'actividades']);
+            let actividad = getValueByKeys(r, ['actividad', 'actividades']);
             let tarea = getValueByKeys(r, ['tarea', 'tareas']);
 
             // Forward fill hierarchy if blank (for merged cells or grouped rows)
             if (proc) lastProceso = proc; else proc = lastProceso;
+            if (cargoVal) lastCargo = cargoVal; else cargoVal = lastCargo;
             if (zona) lastZona = zona; else zona = lastZona;
-            if (cargo) lastCargo = cargo; else cargo = lastCargo;
             if (tarea) lastTarea = tarea; else tarea = lastTarea;
 
             // Clean up rutinaria value: map 'x', 'si', '1' to 'Sí', 'no' to 'No'
@@ -1191,10 +1195,11 @@ export default function MatrizIPEVARTable({
             }
 
             return {
+              cargo: toSentenceCase(cargoVal),
               proceso: toSentenceCase(proc),
               zona: toSentenceCase(zona),
-              actividad: cargo || tarea,
-              tareas: tarea || cargo,
+              actividad: actividad || tarea || cargoVal,
+              tareas: tarea || actividad || cargoVal,
               rutinaria: mappedRut,
               peligro_descripcion: getValueByKeys(r, ['peligro', 'descripcion', 'peligrosdescripcion', 'descripcionfactorderiesgoverlistadefactoresderiesgo', 'peligroorigen', 'peligrodescripcion', 'descripcionpeligro']),
               peligro_clasificacion: getValueByKeys(r, ['riesgo', 'clasificacion', 'peligrosclasificacion', 'clasificaciondelriesgo', 'clasificaciondelpeligro', 'tipodepeligro', 'peligroclasificacion']),
@@ -1226,13 +1231,17 @@ export default function MatrizIPEVARTable({
 
           let rawLastProceso = '';
           let rawLastZona = '';
+          let rawLastCargo = '';
           const preCleaned = allSheetRows.map((r: any) => {
-            let pVal = getValueByKeys(r, ['area', 'proceso', 'areadeproceso', 'seccion', 'cargo', 'cargos']);
+            let pVal = getValueByKeys(r, ['proceso', 'areadeproceso', 'seccion', 'area']);
+            let cVal = getValueByKeys(r, ['cargopuestodetrabajo', 'puestodetrabajo', 'puesto', 'cargo', 'cargos', 'ocupacion', 'rol', 'oficio']);
             let zVal = getValueByKeys(r, ['areadetrabajo', 'zonayolugar', 'zonalugar', 'zona', 'lugar', 'sede', 'planta']);
             if (pVal) rawLastProceso = pVal; else pVal = rawLastProceso;
+            if (cVal) rawLastCargo = cVal; else cVal = rawLastCargo;
             if (zVal) rawLastZona = zVal; else zVal = rawLastZona;
             const copy = { ...r };
             if (pVal) copy['Proceso'] = toSentenceCase(pVal);
+            if (cVal) copy['Cargo'] = toSentenceCase(cVal);
             if (zVal) copy['Zona'] = toSentenceCase(zVal);
             return copy;
           });
@@ -1261,16 +1270,19 @@ export default function MatrizIPEVARTable({
   // ── Filters & Sort ──────────────────────────────────────────────────────
   const [filterText, setFilterText] = useState('');
   const [filterProceso, setFilterProceso] = useState('');
+  const [filterCargo, setFilterCargo] = useState('');
   const [filterCalificacion, setFilterCalificacion] = useState('');
   const [filterClasificacion, setFilterClasificacion] = useState('');
+  const [availableCargos, setAvailableCargos] = useState<string[]>([]);
+  const [isAutoAssigningCargos, setIsAutoAssigningCargos] = useState(false);
   const [sortField, setSortField] = useState<
-    'proceso' | 'nr' | 'peligro_clasificacion' | 'interpretacion_nr' | ''
+    'cargo' | 'proceso' | 'nr' | 'peligro_clasificacion' | 'interpretacion_nr' | ''
   >('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterText, filterProceso, filterCalificacion, filterClasificacion]);
+  }, [filterText, filterProceso, filterCargo, filterCalificacion, filterClasificacion]);
 
   // ── Drag & Resize Drawer ────────────────────────────────────────────────
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1537,6 +1549,81 @@ export default function MatrizIPEVARTable({
     }
   };
 
+  // ── Cargar Cargos de la Empresa desde Perfiles de Cargo ───────────────────
+  useEffect(() => {
+    if (!token) return;
+    fetch('/api/sgsst/perfiles-cargo/data', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.perfilesList && Array.isArray(data.perfilesList)) {
+          const names = data.perfilesList
+            .map((p: any) => p.nombreCargo)
+            .filter(Boolean)
+            .map((c: string) => toSentenceCase(c));
+          setAvailableCargos([...new Set(names)]);
+        }
+      })
+      .catch((err) => console.error('[MatrizIPEVARTable] Error loading perfiles de cargo:', err));
+  }, [token]);
+
+  // ── Auto-Asignar Cargos con IA (Sin editar fila por fila) ─────────────────
+  const handleAutoAssignCargos = async () => {
+    if (matrixRows.length === 0) {
+      showToast({ message: 'No hay riesgos en la matriz para clasificar cargos.', status: 'warning' });
+      return;
+    }
+    try {
+      setIsAutoAssigningCargos(true);
+      const targetConvoId = isOfficialApp
+        ? null
+        : (!actualConvoId || actualConvoId === 'new')
+          ? (userId ? `temp-${userId}` : null)
+          : actualConvoId;
+
+      const res = await fetch('/api/sgsst/gtc45-workspace/auto-assign-cargos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          matrixRows,
+          conversationId: targetConvoId,
+          modelName: selectedModel,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Error al auto-asignar cargos con IA');
+      }
+      if (data.matrixRows && Array.isArray(data.matrixRows)) {
+        setMatrixRows(data.matrixRows);
+        isDirtyRef.current = true;
+        if (isOfficialApp) {
+          await fetch('/api/sgsst/gtc45-workspace/official', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ matrixRows: data.matrixRows }),
+          });
+        }
+        showToast({
+          message: data.message || `Cargos asignados automáticamente con IA a ${data.matrixRows.length} riesgos.`,
+          status: 'success',
+        });
+      }
+    } catch (error: any) {
+      console.error('[MatrizIPEVARTable] Error auto-assigning cargos:', error);
+      showToast({
+        message: error.message || 'Error al auto-asignar cargos con IA.',
+        status: 'error',
+      });
+    } finally {
+      setIsAutoAssigningCargos(false);
+    }
+  };
+
   const handleCellChange = (index: number, field: keyof MatrixRow, value: any) => {
     const newRows = [...matrixRows];
     // @ts-ignore
@@ -1566,6 +1653,7 @@ export default function MatrizIPEVARTable({
 
   const addRow = () => {
     const newRow: MatrixRow = {
+      cargo: '',
       proceso: '',
       zona: '',
       actividad: '',
@@ -1798,7 +1886,9 @@ export default function MatrizIPEVARTable({
       rows = rows.filter(({ row }) =>
         [
           row.proceso,
+          row.cargo,
           row.actividad,
+          row.tareas,
           row.peligro_clasificacion,
           row.peligro_descripcion,
           row.efectos_posibles,
@@ -1806,6 +1896,7 @@ export default function MatrizIPEVARTable({
       );
     }
     if (filterProceso) rows = rows.filter(({ row }) => row.proceso === filterProceso);
+    if (filterCargo) rows = rows.filter(({ row }) => row.cargo === filterCargo);
     if (filterCalificacion)
       rows = rows.filter(({ row }) => row.interpretacion_nr === filterCalificacion);
     if (filterClasificacion)
@@ -1826,6 +1917,7 @@ export default function MatrizIPEVARTable({
     matrixRows,
     filterText,
     filterProceso,
+    filterCargo,
     filterCalificacion,
     filterClasificacion,
     sortField,
@@ -1841,6 +1933,10 @@ export default function MatrizIPEVARTable({
   const procesosUnicos = useMemo(
     () => [...new Set(matrixRows.map((r) => r.proceso).filter(Boolean))],
     [matrixRows],
+  );
+  const cargosUnicos = useMemo(
+    () => [...new Set([...matrixRows.map((r) => r.cargo).filter(Boolean), ...availableCargos])],
+    [matrixRows, availableCargos],
   );
   const clasificacionesUnicas = useMemo(
     () => [...new Set(matrixRows.map((r) => r.peligro_clasificacion).filter(Boolean))],
@@ -2277,6 +2373,27 @@ export default function MatrizIPEVARTable({
                 onExportExcel={handleExportExcel}
               />
 
+              {/* Auto-Asignar Cargos con IA (Sin editar a mano) */}
+              {matrixRows.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleAutoAssignCargos}
+                  disabled={isAutoAssigningCargos}
+                  title="Auto-asignar cargos con IA a todas las filas según los perfiles de la empresa (sin editar fila por fila)"
+                  aria-label="Auto-asignar cargos con IA"
+                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 px-2 sm:px-2.5 text-teal-700 dark:text-teal-300 shadow-sm outline-none transition-all duration-300 disabled:opacity-50 sm:hover:-rotate-3 sm:hover:scale-105"
+                >
+                  {isAutoAssigningCargos ? (
+                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin text-teal-600 dark:text-teal-400" />
+                  ) : (
+                    <Briefcase className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-teal-600 dark:text-teal-400" />
+                  )}
+                  <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100">
+                    {isAutoAssigningCargos ? 'Asignando Cargos…' : '⚡ Auto-Asignar Cargos IA'}
+                  </span>
+                </button>
+              )}
+
               {/* Guardar */}
               <button
                 type="button"
@@ -2401,7 +2518,15 @@ export default function MatrizIPEVARTable({
           options={procesosUnicos.map((p) => ({ value: p, label: p }))}
         />
 
-        {/* Filtro Clasificación (Peligros) — 2do lugar después de Procesos */}
+        {/* Filtro Cargo */}
+        <FilterSelect
+          value={filterCargo}
+          onChange={setFilterCargo}
+          placeholder="Todos los cargos"
+          options={cargosUnicos.map((c) => ({ value: c, label: c }))}
+        />
+
+        {/* Filtro Clasificación (Peligros) — 3er lugar */}
         <FilterSelect
           value={filterClasificacion}
           onChange={setFilterClasificacion}
@@ -2423,11 +2548,12 @@ export default function MatrizIPEVARTable({
         />
 
         {/* Limpiar filtros */}
-        {(filterText || filterProceso || filterCalificacion || filterClasificacion) && (
+        {(filterText || filterProceso || filterCargo || filterCalificacion || filterClasificacion) && (
           <button
             onClick={() => {
               setFilterText('');
               setFilterProceso('');
+              setFilterCargo('');
               setFilterCalificacion('');
               setFilterClasificacion('');
             }}
@@ -2436,7 +2562,7 @@ export default function MatrizIPEVARTable({
             ✕ Limpiar
             <span className="rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] font-black text-white">
               {
-                [filterText, filterProceso, filterCalificacion, filterClasificacion].filter(Boolean)
+                [filterText, filterProceso, filterCargo, filterCalificacion, filterClasificacion].filter(Boolean)
                   .length
               }
             </span>
@@ -2492,6 +2618,11 @@ export default function MatrizIPEVARTable({
           </div>
         ) : (
           <div className="min-w-max">
+            <datalist id="available-cargos-list">
+              {cargosUnicos.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-[100] bg-surface-secondary text-xs font-bold uppercase tracking-wide text-text-secondary">
                 <tr>
@@ -2501,6 +2632,12 @@ export default function MatrizIPEVARTable({
                     onClick={() => toggleSort('proceso')}
                   >
                     PROCESO <SortIcon field="proceso" />
+                  </th>
+                  <th
+                    className="min-w-[160px] cursor-pointer px-4 py-3 text-left hover:text-teal-600"
+                    onClick={() => toggleSort('cargo')}
+                  >
+                    CARGO <SortIcon field="cargo" />
                   </th>
                   <th className="min-w-[130px] px-4 py-3 text-left">ZONA</th>
                   <th className="min-w-[160px] px-4 py-3 text-left">ACTIVIDAD</th>
@@ -2614,6 +2751,17 @@ export default function MatrizIPEVARTable({
                         className="w-full min-w-[140px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
                         value={row.proceso || ''}
                         onChange={(e) => handleCellChange(idx, 'proceso', e.target.value)}
+                      />
+                    </td>
+                    {/* Cargo */}
+                    <td className="px-4 py-3">
+                      <input
+                        type="text"
+                        list="available-cargos-list"
+                        placeholder="Cargo / Rol…"
+                        className="w-full min-w-[140px] rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-xs font-semibold text-teal-700 dark:text-teal-300 outline-none transition-colors hover:border-border-medium focus:border-teal-500 focus:bg-surface-primary dark:focus:bg-surface-secondary"
+                        value={row.cargo || ''}
+                        onChange={(e) => handleCellChange(idx, 'cargo', e.target.value)}
                       />
                     </td>
                     <td className="px-4 py-3">

@@ -602,6 +602,117 @@ const PerfilesCargo = () => {
             .catch(err => console.error('[PerfilesCargo] Error loading data:', err));
     }, [token]);
 
+    // ─── Matriz IPEVAR Oficial Integration ────────────────────────────────────
+    const [officialMatrixRows, setOfficialMatrixRows] = useState<any[]>([]);
+    const [isIpevarHazardsExpanded, setIsIpevarHazardsExpanded] = useState(false);
+
+    useEffect(() => {
+        if (!token) return;
+        fetch('/api/sgsst/gtc45-workspace/official', {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data?.matrixRows && Array.isArray(data.matrixRows)) {
+                    setOfficialMatrixRows(data.matrixRows);
+                }
+            })
+            .catch(err => console.error('[PerfilesCargo] Error loading official matrix:', err));
+    }, [token]);
+
+    const matchingIpevarRows = useMemo(() => {
+        if (!formData?.nombreCargo || officialMatrixRows.length === 0) return [];
+        const cargoNorm = formData.nombreCargo.toLowerCase().trim();
+        return officialMatrixRows.filter(r => {
+            const rowCargo = (r.cargo || '').toLowerCase().trim();
+            if (rowCargo && (rowCargo === cargoNorm || rowCargo.includes(cargoNorm) || cargoNorm.includes(rowCargo))) {
+                return true;
+            }
+            const act = (r.actividad || '').toLowerCase();
+            const tar = (r.tareas || '').toLowerCase();
+            return act.includes(cargoNorm) || tar.includes(cargoNorm);
+        });
+    }, [formData?.nombreCargo, officialMatrixRows]);
+
+    const handleSyncFromIpevar = () => {
+        if (matchingIpevarRows.length === 0) {
+            showToast({
+                message: `No se encontraron peligros en la Matriz IPEVAR para el cargo "${formData.nombreCargo}". Asigna este cargo en la matriz primero.`,
+                severity: NotificationSeverity.WARNING,
+            });
+            return;
+        }
+
+        const newEpps = new Set<string>(formData.eppSeleccionados || []);
+        matchingIpevarRows.forEach(r => {
+            const eppTexts = [r.medida_eppu, r.controles_individuo];
+            eppTexts.forEach(txt => {
+                if (txt && txt !== 'Ninguno' && txt !== 'No aplica') {
+                    const parts = txt.split(/[,;\n•\-\/]+/).map((s: string) => s.trim()).filter((s: string) => s.length > 2);
+                    parts.forEach((p: string) => {
+                        const capitalized = p.charAt(0).toUpperCase() + p.slice(1);
+                        newEpps.add(capitalized);
+                    });
+                }
+            });
+        });
+
+        const newFuente = new Set<string>(formData.controlesFuenteSeleccionados || []);
+        matchingIpevarRows.forEach(r => {
+            const fuenteTexts = [r.medida_ingenieria, r.controles_fuente, r.medida_eliminacion, r.medida_sustitucion];
+            fuenteTexts.forEach(txt => {
+                if (txt && txt !== 'Ninguno' && txt !== 'No aplica') {
+                    const parts = txt.split(/[,;\n•\-]+/).map((s: string) => s.trim()).filter((s: string) => s.length > 3);
+                    parts.forEach((p: string) => {
+                        const capitalized = p.charAt(0).toUpperCase() + p.slice(1);
+                        newFuente.add(capitalized);
+                    });
+                }
+            });
+        });
+
+        const newMedio = new Set<string>(formData.controlesMedioSeleccionados || []);
+        matchingIpevarRows.forEach(r => {
+            const medioTexts = [r.controles_medio];
+            medioTexts.forEach(txt => {
+                if (txt && txt !== 'Ninguno' && txt !== 'No aplica') {
+                    const parts = txt.split(/[,;\n•\-]+/).map((s: string) => s.trim()).filter((s: string) => s.length > 3);
+                    parts.forEach((p: string) => {
+                        const capitalized = p.charAt(0).toUpperCase() + p.slice(1);
+                        newMedio.add(capitalized);
+                    });
+                }
+            });
+        });
+
+        const newEntrenamientos = new Set<string>(formData.entrenamientosSeleccionados || []);
+        matchingIpevarRows.forEach(r => {
+            const adminTexts = [r.medida_administrativa];
+            adminTexts.forEach(txt => {
+                if (txt && txt !== 'Ninguno' && txt !== 'No aplica') {
+                    const parts = txt.split(/[,;\n•\-]+/).map((s: string) => s.trim()).filter((s: string) => s.length > 3);
+                    parts.forEach((p: string) => {
+                        const capitalized = p.charAt(0).toUpperCase() + p.slice(1);
+                        newEntrenamientos.add(capitalized);
+                    });
+                }
+            });
+        });
+
+        setFormData(prev => ({
+            ...prev,
+            eppSeleccionados: Array.from(newEpps),
+            controlesFuenteSeleccionados: Array.from(newFuente),
+            controlesMedioSeleccionados: Array.from(newMedio),
+            entrenamientosSeleccionados: Array.from(newEntrenamientos),
+        }));
+
+        showToast({
+            message: `¡Controles, EPPs y capacitaciones sincronizados desde ${matchingIpevarRows.length} peligros de la Matriz IPEVAR!`,
+            severity: NotificationSeverity.SUCCESS,
+        });
+    };
+
     // Keep the perfiles list synchronized with form changes in real-time
     useEffect(() => {
         if (!formData || !formData.id) return;
@@ -1427,6 +1538,107 @@ const PerfilesCargo = () => {
                             </div>
                         </div>
                     ))}
+                    {/* ── CARD: Articulación Parametrizada con Matriz IPEVAR ── */}
+                    <div className="bg-gradient-to-r from-teal-500/10 via-cyan-500/5 to-emerald-500/10 dark:from-teal-950/30 dark:via-cyan-950/20 dark:to-emerald-950/30 p-5 rounded-3xl border border-teal-500/30 shadow-lg relative transition-all duration-300">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-teal-500/20 text-teal-600 dark:text-teal-300 rounded-2xl shrink-0 shadow-sm">
+                                    <ShieldAlert className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="font-extrabold text-sm text-text-primary">
+                                            Articulación con Matriz de Peligros IPEVAR (GTC-45)
+                                        </h4>
+                                        {matchingIpevarRows.length > 0 ? (
+                                            <span className="rounded-full bg-teal-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-sm">
+                                                {matchingIpevarRows.length} Peligros Vinculados
+                                            </span>
+                                        ) : (
+                                            <span className="rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[10px] font-bold">
+                                                Sin vincular
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-text-secondary mt-0.5">
+                                        {matchingIpevarRows.length > 0
+                                            ? `Riesgos evaluados oficialmente para "${formData.nombreCargo || 'este cargo'}". Sincroniza controles y EPPs sin escribir nada a mano.`
+                                            : `Asigna el cargo "${formData.nombreCargo || 'este cargo'}" en la Matriz de Peligros para sincronizar EPPs y controles automáticamente.`}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {matchingIpevarRows.length > 0 && (
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsIpevarHazardsExpanded(prev => !prev)}
+                                        className="h-8 sm:h-9 px-3 rounded-xl border border-border-medium bg-surface-primary text-xs font-semibold text-text-secondary hover:bg-surface-secondary transition-all"
+                                    >
+                                        {isIpevarHazardsExpanded ? 'Ocultar Peligros' : `Ver ${matchingIpevarRows.length} Peligros`}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSyncFromIpevar}
+                                        title="Importar y poblar EPPs, controles en la fuente, medio y capacitaciones evaluados en la matriz sin editar nada"
+                                        className="flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border border-teal-500 bg-teal-600 px-3.5 text-xs font-bold text-white shadow-md transition-all hover:bg-teal-700 hover:shadow-lg active:scale-95"
+                                    >
+                                        <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                                        <span>⚡ Sincronizar desde IPEVAR</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Listado desplegable de los peligros IPEVAR para este cargo */}
+                        {isIpevarHazardsExpanded && matchingIpevarRows.length > 0 && (
+                            <div className="mt-4 pt-3 border-t border-teal-500/20 space-y-2">
+                                <div className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
+                                    Peligros identificados en la Matriz IPEVAR para este puesto:
+                                </div>
+                                <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                                    {matchingIpevarRows.map((r, i) => (
+                                        <div
+                                            key={i}
+                                            className="flex items-start justify-between gap-3 p-2.5 rounded-xl bg-surface-primary/80 border border-border-light text-xs shadow-sm"
+                                        >
+                                            <div className="space-y-0.5">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-teal-700 dark:text-teal-400">
+                                                        [{r.peligro_clasificacion || 'General'}]
+                                                    </span>
+                                                    <span className="text-text-primary font-medium">
+                                                        {r.peligro_descripcion}
+                                                    </span>
+                                                </div>
+                                                <div className="text-[11px] text-text-secondary">
+                                                    Proceso: <span className="font-semibold">{r.proceso}</span> | Actividad: {r.actividad}
+                                                    {r.medida_eppu && r.medida_eppu !== 'Ninguno' && (
+                                                        <span className="ml-2 text-teal-600 dark:text-teal-400 font-semibold">
+                                                            • EPP: {r.medida_eppu}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="shrink-0 flex items-center gap-1.5">
+                                                <span
+                                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                        r.interpretacion_nr === 'I'
+                                                            ? 'bg-red-500/10 text-red-600 border border-red-500/20'
+                                                            : r.interpretacion_nr === 'II'
+                                                            ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20'
+                                                            : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                                                    }`}
+                                                >
+                                                    NR {r.interpretacion_nr || r.nr}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     <div className="space-y-5 bg-surface-primary/30 backdrop-blur-md p-6 rounded-3xl border border-border-medium/20 shadow-xl relative transition-all duration-300 hover:shadow-2xl hover:border-teal-500/20">
                         <div className="flex items-center gap-3 pb-3 border-b border-border-medium/30">

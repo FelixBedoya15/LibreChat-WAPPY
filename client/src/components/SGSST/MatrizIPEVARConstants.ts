@@ -5,6 +5,8 @@
  */
 
 export interface MatrixRow {
+  id?: string;
+  cargo?: string; // Cargo o puesto de trabajo expuesto (vinculado con Perfiles de Cargo)
   proceso: string;
   zona: string;
   actividad: string;
