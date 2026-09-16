@@ -97,6 +97,28 @@ export async function parseText({
 }
 
 /**
+ * Cleans and compacts raw CSV text from Excel sheets:
+ * 1. Strips trailing empty commas caused by blank right-hand columns
+ * 2. Removes empty rows and rows consisting only of commas/whitespace
+ */
+export function compactSheetCsv(csv: string): string {
+  if (!csv || !csv.trim()) {
+    return '';
+  }
+  const lines = csv.split('\n');
+  const cleaned: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.replace(/,+$/, '').trim();
+    if (trimmed && !/^,+$/.test(trimmed)) {
+      cleaned.push(trimmed);
+    }
+  }
+
+  return cleaned.join('\n').trim();
+}
+
+/**
  * Native JavaScript text parsing fallback
  * Simple text file reading - complex formats handled by RAG API
  * @param file - The uploaded file
@@ -132,9 +154,10 @@ export async function parseTextNative(file: Express.Multer.File): Promise<{
       let excelContent = '';
       for (const sheetName of workbook.SheetNames) {
         const worksheet = workbook.Sheets[sheetName];
-        const csv = XLSX.utils.sheet_to_csv(worksheet);
-        if (csv.trim()) {
-          excelContent += `Sheet: ${sheetName}\n${csv}\n\n`;
+        const rawCsv = XLSX.utils.sheet_to_csv(worksheet);
+        const compacted = compactSheetCsv(rawCsv);
+        if (compacted) {
+          excelContent += `Sheet: ${sheetName}\n${compacted}\n\n`;
         }
       }
       text = excelContent.trim();

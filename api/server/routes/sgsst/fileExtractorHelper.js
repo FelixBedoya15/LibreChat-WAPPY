@@ -71,6 +71,28 @@ async function parsePdfBuffer(buffer) {
 }
 
 /**
+ * Limpia y compacta CSVs crudos generados de hojas de cálculo de Excel:
+ * 1. Remueve comas vacías residuales al final de cada fila
+ * 2. Filtra filas completamente vacías o compuestas únicamente de comas y espacios
+ */
+function compactSheetCsv(csv) {
+  if (!csv || !csv.trim()) {
+    return '';
+  }
+  const lines = csv.split('\n');
+  const cleaned = [];
+
+  for (const line of lines) {
+    const trimmed = line.replace(/,+$/, '').trim();
+    if (trimmed && !/^,+$/.test(trimmed)) {
+      cleaned.push(trimmed);
+    }
+  }
+
+  return cleaned.join('\n').trim();
+}
+
+/**
  * Extrae texto legible a partir de un buffer y metadatos de archivo
  * @param {Object} params
  * @param {Buffer} params.buffer - Buffer binario del archivo
@@ -134,9 +156,10 @@ async function extractTextFromFile({ buffer, fileName = '', mimeType = '' }) {
       let extractedSheets = '';
       workbook.SheetNames.forEach(sheetName => {
         const worksheet = workbook.Sheets[sheetName];
-        const csv = XLSX.utils.sheet_to_csv(worksheet);
-        if (csv && csv.trim()) {
-          extractedSheets += `--- Hoja: ${sheetName} ---\n${csv.trim()}\n\n`;
+        const rawCsv = XLSX.utils.sheet_to_csv(worksheet);
+        const compacted = compactSheetCsv(rawCsv);
+        if (compacted) {
+          extractedSheets += `--- Hoja: ${sheetName} ---\n${compacted}\n\n`;
         }
       });
       if (extractedSheets.trim()) {
@@ -223,4 +246,5 @@ function cleanAndParseJson(rawString) {
 module.exports = {
   extractTextFromFile,
   cleanAndParseJson,
+  compactSheetCsv,
 };

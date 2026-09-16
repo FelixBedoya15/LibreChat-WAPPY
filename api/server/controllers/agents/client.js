@@ -93,6 +93,56 @@ function logToolError(graph, error, toolId) {
   });
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Extrae el tiempo de espera recomendado (en milisegundos) a partir de respuestas de error de Google u otros proveedores:
+ * - "Please retry in 31.61208232s."
+ * - '{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"31s"}'
+ * - Headers 'retry-after'
+ */
+const extractRetryDelayMs = (err) => {
+  if (!err) return null;
+  const msg =
+    (err.message || '') +
+    ' ' +
+    (typeof err.response?.data === 'string'
+      ? err.response.data
+      : JSON.stringify(err.response?.data || ''));
+
+  // 1. Regex para "retry in Xs", "retry after Xs", o '"retryDelay":"Xs"'
+  const matchSeconds =
+    msg.match(/retry in ([0-9.]+)\s*s/i) ||
+    msg.match(/retry after ([0-9.]+)\s*s/i) ||
+    msg.match(/"retryDelay"\s*:\s*"(\d+)s"/i);
+
+  if (matchSeconds && matchSeconds[1]) {
+    const sec = parseFloat(matchSeconds[1]);
+    if (!isNaN(sec) && sec > 0) {
+      return Math.round(sec * 1000);
+    }
+  }
+
+  // 2. RetryInfo o retryDelay directo en el objeto de error
+  if (err.retryDelay) {
+    const sec = parseFloat(String(err.retryDelay).replace('s', ''));
+    if (!isNaN(sec) && sec > 0) {
+      return Math.round(sec * 1000);
+    }
+  }
+
+  // 3. Header HTTP 'retry-after'
+  const retryHeader = err.response?.headers?.['retry-after'];
+  if (retryHeader) {
+    const sec = parseFloat(retryHeader);
+    if (!isNaN(sec) && sec > 0) {
+      return Math.round(sec * 1000);
+    }
+  }
+
+  return null;
+};
+
 class AgentClient extends BaseClient {
   constructor(options = {}) {
     super(null, options);
@@ -1443,13 +1493,54 @@ class AgentClient extends BaseClient {
               rotateToNextModel = true;
               break;
             } else if (isRetryable && i < keys.length - 1) {
-              logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : isNetworkError ? 'Network / Fetch failed' : isServiceUnavailable ? 'Model unavailable/overloaded (503)' : 'Rate limit / Quota'}). Retrying with next API key ${i + 2}...`);
+              const retryDelayMs = extractRetryDelayMs(err);
+              if (retryDelayMs && isQuotaEvent) {
+                const pauseMs = Math.min(retryDelayMs, 2000);
+                logger.warn(`[AgentClient] Quota/Rate limit encountered on Key ${i + 1}. Pausing ${pauseMs}ms before trying Key ${i + 2}...`);
+                await sleep(pauseMs);
+              } else {
+                logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : isNetworkError ? 'Network / Fetch failed' : isServiceUnavailable ? 'Model unavailable/overloaded (503)' : 'Rate limit / Quota'}). Retrying with next API key ${i + 2}...`);
+              }
               continue; // Try next key, same model
             } else if (isRetryable) {
-              // Last key also failed or model unavailable → rotate to next model
-              logger.warn(`[AgentClient] All ${keys.length} API keys exhausted, network error, or model unavailable for "${currentModel}". Rotating to next model...`);
-              rotateToNextModel = true;
-              break; // Break key loop → outer loop advances to next model
+              // Last key also failed or model unavailable → check if Google requested a retryDelay
+              const retryDelayMs = extractRetryDelayMs(err);
+              if (isQuotaEvent && retryDelayMs && retryDelayMs <= 32000) {
+                const waitSec = Math.round(retryDelayMs / 1000);
+                logger.warn(`[AgentClient] All ${keys.length} API keys hit rate limit for model "${currentModel}". Google requested retry in ${waitSec}s. Backing off ${waitSec}s before final retry...`);
+                await sleep(retryDelayMs);
+                try {
+                  this.options.agent.model_parameters.apiKey = keys[0];
+                  if (config?.configurable?.endpointOption?.model_parameters) {
+                    config.configurable.endpointOption.model_parameters.apiKey = keys[0];
+                  }
+                  if (this.agentConfigs && this.agentConfigs.size > 0) {
+                    for (const secondaryAg of this.agentConfigs.values()) {
+                      if (!secondaryAg.model_parameters) {
+                        secondaryAg.model_parameters = {};
+                      }
+                      secondaryAg.model_parameters.apiKey = keys[0];
+                    }
+                  }
+                  const { messages: pristineMessages } = formatAgentMessages(
+                    payload,
+                    this.indexTokenCountMap,
+                    toolSet,
+                  );
+                  await runAgents(pristineMessages);
+                  success = true;
+                  break;
+                } catch (backoffErr) {
+                  logger.error(`[AgentClient] Final retry after ${waitSec}s backoff failed: ${backoffErr?.message}`);
+                  lastErr = backoffErr;
+                }
+              }
+
+              if (!success) {
+                logger.warn(`[AgentClient] All ${keys.length} API keys exhausted, network error, or model unavailable for "${currentModel}". Rotating to next model...`);
+                rotateToNextModel = true;
+                break; // Break key loop → outer loop advances to next model
+              }
             } else {
               break; // Non-recoverable error, stop all retries
             }
