@@ -86,6 +86,11 @@ const RootIndexRedirect = () => {
   return <Navigate to={{ pathname: '/c/new', search: location.search }} replace={true} />;
 };
 
+const BillingRedirect = () => {
+  const location = useLocation();
+  return <Navigate to={{ pathname: '/planes', search: location.search }} replace={true} />;
+};
+
 const AuthLayout = () => (
   <AuthContextProvider>
     <Outlet />
@@ -256,6 +261,16 @@ export const router = createBrowserRouter(
           <ApiErrorWatcher />
         </AuthContextProvider>
       ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'dashboard/billing',
+      element: <BillingRedirect />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'billing',
+      element: <BillingRedirect />,
       errorElement: <RouteErrorBoundary />,
     },
     {

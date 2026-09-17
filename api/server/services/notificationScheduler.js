@@ -129,7 +129,7 @@ const runNotificationChecks = async () => {
                 planName: userPlan.plan,
                 daysRemaining: diffDays,
                 expiryDate: getBogotaDateString(expiry),
-                billingUrl: 'https://wappy.club/dashboard/billing',
+                billingUrl: `${(process.env.DOMAIN_CLIENT || 'https://wappy.club').replace(/\/+$/, '')}/planes`,
                 year: new Date().getFullYear(),
               },
               template: 'planExpiration.handlebars',
