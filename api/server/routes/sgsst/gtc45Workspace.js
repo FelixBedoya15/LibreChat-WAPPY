@@ -417,6 +417,30 @@ router.post('/ai-update-row', requireJwtAuth, async (req, res) => {
 
     if (!row) return res.status(400).json({ error: 'Se requiere el objeto row.' });
 
+    const companyId = await getActiveCompanyId(userId);
+
+    // Obtener perfiles de cargo de la empresa para sugerir con prioridad
+    let companyCargos = Array.isArray(req.body.availableCargos) ? req.body.availableCargos : [];
+    if (companyCargos.length === 0) {
+      const PerfilCargoModel = mongoose.models.PerfilCargoData;
+      if (PerfilCargoModel) {
+        try {
+          const cargoDoc = await PerfilCargoModel.findOne({
+            user: userId,
+            ...(companyId ? { companyId } : {}),
+          }).lean();
+          if (cargoDoc && Array.isArray(cargoDoc.perfilesList)) {
+            companyCargos = cargoDoc.perfilesList
+              .map(p => p.nombreCargo)
+              .filter(Boolean)
+              .map(c => toSentenceCase(c));
+          }
+        } catch (err) {
+          logger.warn('[GTC45Workspace /ai-update-row] Error loading PerfilCargoData:', err.message);
+        }
+      }
+    }
+
     let workerContext = '';
     if (workerId) {
         const worker = await SgsstWorker.findOne({ _id: workerId, user: req.user.id });
@@ -430,19 +454,24 @@ Condiciones de Salud / Limitaciones Previas: ${worker.condicionesSalud || 'Ningu
         }
     }
 
+    const cleanCargoActual = (row.cargo || '').trim();
+    const cleanZonaActual = (row.zona || '').trim();
+
     const prompt = `Eres un experto certificado en Seguridad y Salud en el Trabajo y en la metodología GTC-45:2012 colombiana.
 ${workerContext}
-Tienes esta fila de Matriz IPEVAR con datos YA fijados por el usuario que JAMÁS debes modificar:
+Tienes esta fila de Matriz IPEVAR:
 
-═══ DATOS FIJOS (NO MODIFICAR) ═══
-PROCESO: ${row.proceso || ''}
-ZONA: ${row.zona || ''}
-ACTIVIDAD: ${row.actividad || ''}
-TAREAS: ${row.tareas || ''}
-PELIGRO描述: ${row.peligro_descripcion || 'No especificado'}
+═══ DATOS DE LA ACTIVIDAD Y PELIGRO ═══
+PROCESO: ${row.proceso || 'No especificado'}
+CARGO ACTUAL: ${cleanCargoActual ? cleanCargoActual : '[VACÍO - REQUIERE ASIGNACIÓN POR IA]'}
+ZONA / LUGAR ACTUAL: ${cleanZonaActual ? cleanZonaActual : '[VACÍO - REQUIERE ASIGNACIÓN POR IA]'}
+ACTIVIDAD: ${row.actividad || 'No especificada'}
+TAREAS: ${row.tareas || 'No especificadas'}
+RUTINARIA: ${row.rutinaria || 'Sí'}
+PELIGRO DESCRIPCIÓN: ${row.peligro_descripcion || 'No especificado'}
 CLASIFICACIÓN: ${row.peligro_clasificacion || 'No especificada'}
 EFECTOS POSIBLES: ${row.efectos_posibles || 'No definidos'}
-CONTROLES EXISTENTES (YA REGISTRADOS POR EL USUARIO — NO INVENTAR NI MODIFICAR):
+CONTROLES EXISTENTES (REGISTRADOS POR EL USUARIO — CONSERVAR):
   - Fuente: ${row.controles_fuente || 'Ninguno'}
   - Medio: ${row.controles_medio || 'Ninguno'}
   - Individuo: ${row.controles_individuo || 'Ninguno'}
@@ -450,19 +479,28 @@ ND actual: ${row.nd || 'No definido'} | NE actual: ${row.ne || 'No definido'} | 
 Nro. Expuestos: ${row.nro_expuestos || 1}
 Peor Consecuencia: ${row.peor_consecuencia || 'No definida'}
 Requisito Legal: ${row.requisito_legal || 'No especificado'}
+${companyCargos.length > 0 ? `\n═══ LISTA DE CARGOS DE LA EMPRESA (PRIORIZAR SI APLICAN) ═══\n${companyCargos.join(', ')}\n` : ''}
 
-═══ TU ÚNICA TAREA ═══
-Basándote EXCLUSIVAMENTE en los datos fijos de arriba:
-1. Determina ND, NE, NC correctos según GTC-45:2012. 
+═══ TUS TAREAS OBLIGATORIAS ═══
+1. CARGO:
+   - Si CARGO ACTUAL está vacío o no especificado, DEBES deducir el cargo o rol ocupacional más idóneo basándote en la actividad, tareas y proceso (por ejemplo: si la actividad es "SOCIO DIRECTOR, SOCIOS GERENTES", el cargo es "Socio Director" o "Gerente General"; si es soldadura, "Soldador"; si es administrativo, "Auxiliar Administrativo" o "Asistente de Gestión").
+   - Si alguno de los CARGOS DE LA EMPRESA coincide o es idóneo para esta labor, usa prioritariamente ese nombre.
+   - Si el usuario YA tenía un cargo válido en CARGO ACTUAL, consérvalo tal cual.
+2. ZONA / LUGAR:
+   - Si ZONA / LUGAR ACTUAL está vacía o no especificada, deduce la zona, área o locación física adecuada para este proceso y actividad (ej: "Oficinas Administrativas", "Área de Dirección", "Planta de Producción", "Almacén", "Obra", etc.).
+   - Si ya tenía una zona fijada por el usuario, consérvala tal cual.
+3. Determina ND, NE, NC correctos según GTC-45:2012. 
    IMPORTANTE DE ESTABILIDAD: Si ND actual (${row.nd}), NE actual (${row.ne}) y NC actual (${row.nc}) ya tienen valores numéricos válidos en la escala GTC-45 (ND en [0, 2, 6, 10], NE en [1, 2, 3, 4], NC en [10, 25, 60, 100]), DEBES conservarlos exactamente igual en tu respuesta en los campos "nd", "ne" y "nc". Solo recalcula si están vacíos, son cero o si el usuario modificó sustancialmente los controles existentes arriba.
-2. Propón medidas de ELIMINACIÓN, SUSTITUCIÓN, INGENIERÍA, ADMINISTRATIVAS y EPP adecuadas a futuro.
-3. Completa factores_reduccion con justificación técnica y costo-beneficio (Anexo E). NUNCA dejar vacío.
-4. Si los campos nro_expuestos, peor_consecuencia y requisito_legal están vacíos o no definidos, propón o estima valores adecuados basados en el peligro. De lo contrario, consérvalos.
+4. Propón medidas de ELIMINACIÓN, SUSTITUCIÓN, INGENIERÍA, ADMINISTRATIVAS y EPP adecuadas a futuro.
+5. Completa factores_reduccion con justificación técnica y costo-beneficio (Anexo E). NUNCA dejar vacío.
+6. Si los campos nro_expuestos, peor_consecuencia y requisito_legal están vacíos o no definidos, propón o estima valores adecuados basados en el peligro. De lo contrario, consérvalos.
 
 REGLA ABSOLUTA: Los campos "controles_fuente", "controles_medio" y "controles_individuo" en tu respuesta JSON DEBEN ser exactamente iguales a los valores de los controles existentes mostrados arriba. NO los cambies.
 
 Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos exactos:
 {
+  "cargo": "<nombre del cargo deducido o conservado>",
+  "zona": "<nombre de la zona deducida o conservada>",
   "nd": <número 1-10>,
   "ne": <número 1-4>,
   "nc": <número 10|25|60|100>,
@@ -522,6 +560,14 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos 
     else if (interpretacion_nr === 'III') aceptabilidad = 'Mejorable';
     else aceptabilidad = 'Aceptable';
     updatedFields.aceptabilidad = aceptabilidad;
+
+    // Sanitize and format cargo and zona
+    if (updatedFields.cargo) {
+      updatedFields.cargo = toSentenceCase(String(updatedFields.cargo).replace(/^["']|["']$/g, '').replace(/\.$/, '').trim());
+    }
+    if (updatedFields.zona) {
+      updatedFields.zona = toSentenceCase(String(updatedFields.zona).replace(/^["']|["']$/g, '').replace(/\.$/, '').trim());
+    }
 
     // Enforce default existing controls just in case
     updatedFields.controles_fuente = row.controles_fuente || 'Ninguno';

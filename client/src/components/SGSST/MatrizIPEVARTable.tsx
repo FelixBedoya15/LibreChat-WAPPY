@@ -633,21 +633,15 @@ const AITextarea = ({
   </div>
 );
 
-// ── AICargoCell: Dropdown con estilo del sistema WAPPY + Edición Libre + IA ──
+// ── AICargoCell: Dropdown con estilo del sistema WAPPY + Edición Libre ────────
 const AICargoCell = ({
   value,
   onChange,
   cargosList,
-  row,
-  token,
-  selectedModel,
 }: {
   value: string;
   onChange: (v: string) => void;
   cargosList: string[];
-  row: MatrixRow;
-  token?: string;
-  selectedModel?: string;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState(value || '');
@@ -707,13 +701,13 @@ const AICargoCell = ({
           onKeyDown={(e) => {
             if (e.key === 'Escape') setIsOpen(false);
           }}
-          className="w-full min-w-[140px] rounded-lg border border-transparent bg-transparent py-1.5 pl-2 pr-12 text-xs font-semibold text-teal-700 dark:text-teal-300 outline-none transition-colors hover:border-border-medium focus:border-teal-500 focus:bg-surface-primary dark:focus:bg-surface-secondary"
+          className="w-full min-w-[140px] rounded-lg border border-transparent bg-transparent py-1.5 pl-2 pr-8 text-xs font-semibold text-teal-700 dark:text-teal-300 outline-none transition-colors hover:border-border-medium focus:border-teal-500 focus:bg-surface-primary dark:focus:bg-surface-secondary"
         />
         <button
           type="button"
           tabIndex={-1}
           onClick={() => setIsOpen((prev) => !prev)}
-          className="absolute right-7 top-1/2 -translate-y-1/2 rounded p-1 text-text-tertiary opacity-40 transition-opacity hover:text-teal-600 hover:opacity-100 group-hover/cell:opacity-100"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-text-tertiary opacity-40 transition-opacity hover:text-teal-600 hover:opacity-100 group-hover/cell:opacity-100 cursor-pointer"
           title="Ver cargos disponibles"
         >
           <ChevronDown
@@ -721,19 +715,6 @@ const AICargoCell = ({
           />
         </button>
       </div>
-
-      {/* AI Bubble para Cargo */}
-      <CellAIBubble
-        fieldLabel="Cargo / Rol"
-        currentValue={value}
-        row={row}
-        token={token}
-        selectedModel={selectedModel}
-        onResult={(newCargo) => {
-          setQuery(newCargo);
-          onChange(newCargo);
-        }}
-      />
 
       {/* Custom styled dropdown matching WAPPY system */}
       {isOpen && (
@@ -1961,17 +1942,21 @@ export default function MatrizIPEVARTable({
       const res = await fetch('/api/sgsst/gtc45-workspace/ai-update-row', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ row: matrixRows[index], modelName: selectedModel, workerId }),
+        body: JSON.stringify({
+          row: matrixRows[index],
+          modelName: selectedModel,
+          workerId,
+          availableCargos,
+        }),
       });
       const data = await res.json();
       if (data.updatedFields) {
         const newRows = [...matrixRows];
         const original = newRows[index];
 
-        // ─── Campos que el usuario definió desde el chat → NUNCA sobreescribir ───
+        // ─── Campos protegidos que el usuario definió manualmente ───
         const PROTECTED_FIELDS = [
           'proceso',
-          'zona',
           'actividad',
           'tareas',
           'rutinaria',
@@ -1985,16 +1970,46 @@ export default function MatrizIPEVARTable({
 
         const safeUpdate = { ...data.updatedFields };
         for (const field of PROTECTED_FIELDS) {
-          // If the original already had a value, restore it — AI cannot change it
-          if (original[field]) safeUpdate[field] = original[field];
+          if (original[field] && String(original[field]).trim() !== '') {
+            safeUpdate[field] = original[field];
+          }
+        }
+
+        // Cargo: si estaba vacío o sin definir, asignar el deducido por la IA
+        const originalCargoClean = (original.cargo || '').trim();
+        if (!originalCargoClean || originalCargoClean.toLowerCase() === 'cargo / rol...') {
+          if (data.updatedFields.cargo) {
+            safeUpdate.cargo = data.updatedFields.cargo;
+          }
+        } else {
+          safeUpdate.cargo = original.cargo;
+        }
+
+        // Zona: si estaba vacía o sin definir, asignar la deducida por la IA
+        const originalZonaClean = (original.zona || '').trim();
+        if (!originalZonaClean || originalZonaClean.toLowerCase() === 'zona / lugar…') {
+          if (data.updatedFields.zona) {
+            safeUpdate.zona = data.updatedFields.zona;
+          }
+        } else {
+          safeUpdate.zona = original.zona;
         }
 
         newRows[index] = { ...original, ...safeUpdate };
         isDirtyRef.current = true;
         setMatrixRows(newRows);
+        saveMatrixData(newRows);
+
+        showToast({
+          message: `¡Fila #${index + 1} actualizada con IA! Cargo: "${newRows[index].cargo || 'No asignado'}" · Zona: "${newRows[index].zona || 'No asignada'}".`,
+          status: 'success',
+        });
+      } else if (data.error) {
+        showToast({ message: data.error, status: 'error' });
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('[Matriz] AI row update error:', e);
+      showToast({ message: 'Error al actualizar fila con IA.', status: 'error' });
     } finally {
       setAiRowLoading(null);
     }
@@ -2609,6 +2624,18 @@ export default function MatrizIPEVARTable({
             isHistoryOpen={isHistoryOpen}
             onAnalyze={handleAnalyzeMatrix}
             isAnalyzing={isAnalyzing}
+            aiButtons={[
+              {
+                id: 'auto-assign-cargos-official',
+                onClick: handleAutoAssignCargos,
+                title: 'Auto-asignar cargos con IA a todas las filas según los perfiles de la empresa',
+                label: isAutoAssigningCargos ? 'Asignando Cargos…' : 'Auto-Asignar Cargos IA',
+                icon: Briefcase,
+                variant: 'ai',
+                disabled: isAutoAssigningCargos || matrixRows.length === 0,
+                isLoading: isAutoAssigningCargos,
+              },
+            ]}
             selectedModel={selectedModel}
             onSelectModel={setSelectedModel}
             onSaveLocal={() => {
@@ -3255,9 +3282,6 @@ export default function MatrizIPEVARTable({
                         value={row.cargo || ''}
                         onChange={(v) => handleCellChange(idx, 'cargo', v)}
                         cargosList={cargosUnicos}
-                        row={row}
-                        token={token}
-                        selectedModel={selectedModel}
                       />
                       <FillHandle
                         displayIdx={displayIdx}
@@ -3275,14 +3299,12 @@ export default function MatrizIPEVARTable({
                       onMouseEnter={() => handleCellMouseEnter(displayIdx, 'zona')}
                       className={`group/cell relative px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'zona')}`}
                     >
-                      <AITextarea
+                      <textarea
+                        rows={2}
+                        className="w-full min-w-[120px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
                         value={row.zona || ''}
-                        onChange={(v) => handleCellChange(idx, 'zona', v)}
-                        minW="120px"
-                        fieldLabel="Zona / Lugar"
-                        row={row}
-                        token={token}
-                        selectedModel={selectedModel}
+                        onChange={(e) => handleCellChange(idx, 'zona', e.target.value)}
+                        placeholder="Zona / Lugar…"
                       />
                       <FillHandle
                         displayIdx={displayIdx}
