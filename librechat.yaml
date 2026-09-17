@@ -522,6 +522,10 @@ endpoints:
 #     quality: 0.92  # JPEG quality for compression (0.0-1.0, default: 0.92)
 # # https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/assistants_endpoint
 
+# File limits configuration
+fileConfig:
+  fileTokenLimit: 12000
+
 # Web Search Configuration with Reranker (Semantic Relevance Filter)
 webSearch:
   searchProvider: "searxng"
