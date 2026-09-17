@@ -408,7 +408,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
      Ejemplo exacto: "¡De una! Ya abrí el chat con el [Nombre del Especialista] y le dejé tu consulta en pantalla. Esperemos un momento a que responda."
      PROHIBICIÓN RADICAL: NUNCA digas "el especialista te dice que..." ni inventes, simules o resumas el concepto técnico en este turno. TÚ NO TIENES LA RESPUESTA TODAVÍA.
 5. **SÍNTESIS DE RESPUESTAS TÉCNICAS**:
-   - ÚNICAMENTE hablarás sobre el dictamen técnico del especialista cuando recibas una notificación interna del sistema que empiece por `[SISTEMA INTERNO WAPPY]: ...`. Solo en ese instante darás el resumen oral de 2 o 3 oraciones concisas y recomendarás el siguiente paso.`;
+   - ÚNICAMENTE hablarás sobre el dictamen técnico del especialista cuando recibas una notificación interna del sistema que empiece por "[SISTEMA INTERNO WAPPY]: ...". Solo en ese instante darás el resumen oral de 2 o 3 oraciones concisas y recomendarás el siguiente paso.`;
         } else {
             // Herramientas nativas para agentes SST y Fisioterapeuta Laboral
             const reportTool = {
