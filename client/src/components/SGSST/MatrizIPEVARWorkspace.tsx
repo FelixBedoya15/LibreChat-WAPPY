@@ -46,7 +46,7 @@ export default function MatrizIPEVARWorkspace() {
     updatedAt: string | null;
   }>({
     hasOfficial: false,
-    officialTitle: 'Matriz IPEVAR Oficial',
+    officialTitle: 'Matriz IPEVAR SG-SST',
     rowCount: 0,
     criticalCount: 0,
     sourceConversationId: null,
@@ -61,7 +61,7 @@ export default function MatrizIPEVARWorkspace() {
   const [isSettingOfficial, setIsSettingOfficial] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Cargar estado de la matriz oficial
+  // Cargar estado de la matriz
   const fetchOfficialStatus = useCallback(async () => {
     if (!token) return;
     try {
@@ -73,9 +73,10 @@ export default function MatrizIPEVARWorkspace() {
         const data = await res.json();
         const rows = data.matrixRows || [];
         const critical = rows.filter((r: any) => (Number(r.nr) || 0) >= 150).length;
+        const cleanTitle = data.officialTitle ? data.officialTitle.replace(/\bOficial\s*/gi, '').trim() : '';
         setOfficialInfo({
           hasOfficial: data.hasOfficial || rows.length > 0,
-          officialTitle: data.officialTitle || 'Matriz IPEVAR Oficial',
+          officialTitle: cleanTitle || 'Matriz IPEVAR SG-SST',
           rowCount: rows.length,
           criticalCount: critical,
           sourceConversationId: data.sourceConversationId || null,
@@ -143,8 +144,7 @@ export default function MatrizIPEVARWorkspace() {
 
       if (res.ok) {
         showToast({
-          message: '¡Matriz establecida como Oficial en el Sistema exitosamente!',
-          status: 'success',
+          message: '¡Matriz establecida en el Sistema exitosamente!',
         });
         setIsSelectorOpen(false);
         setRefreshKey((k) => k + 1);
@@ -155,7 +155,7 @@ export default function MatrizIPEVARWorkspace() {
     } catch (err: any) {
       console.error('[MatrizIPEVARWorkspace] Error setting official matrix:', err);
       showToast({
-        message: 'No se pudo fijar la matriz oficial.',
+        message: 'No se pudo fijar la matriz.',
         status: 'error',
       });
     } finally {
@@ -165,7 +165,7 @@ export default function MatrizIPEVARWorkspace() {
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      {/* ─── BANNER DE CONTROL Y ESTADO DE MATRIZ OFICIAL ─── */}
+      {/* ─── BANNER DE CONTROL Y ESTADO DE MATRIZ ─── */}
       <div className="relative overflow-hidden rounded-3xl border border-teal-500/30 bg-gradient-to-br from-surface-primary via-surface-secondary to-teal-500/5 p-6 shadow-xl backdrop-blur-md">
         {/* Glow de fondo */}
         <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl dark:bg-teal-400/10" />
@@ -184,7 +184,7 @@ export default function MatrizIPEVARWorkspace() {
                 </h2>
                 {officialInfo.hasOfficial ? (
                   <div
-                    title="Matriz Oficial Activa"
+                    title="Matriz Activa"
                     className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                   >
                     <div className="relative flex flex-shrink-0 items-center justify-center">
@@ -195,19 +195,19 @@ export default function MatrizIPEVARWorkspace() {
                       </span>
                     </div>
                     <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                      <span className="text-xs font-black uppercase tracking-wider">Matriz Oficial Activa</span>
+                      <span className="text-xs font-black uppercase tracking-wider">Matriz Activa</span>
                     </div>
                   </div>
                 ) : (
                   <div
-                    title="Sin Matriz Oficial Seleccionada"
+                    title="Sin Matriz Vinculada"
                     className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                   >
                     <div className="relative flex flex-shrink-0 items-center justify-center">
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                     </div>
                     <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                      <span className="text-xs font-black uppercase tracking-wider">Sin Matriz Oficial</span>
+                      <span className="text-xs font-black uppercase tracking-wider">Sin Matriz Vinculada</span>
                     </div>
                   </div>
                 )}
@@ -323,7 +323,7 @@ export default function MatrizIPEVARWorkspace() {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-text-primary">
-                    Seleccionar Matriz Oficial para el Aplicativo
+                    Seleccionar Matriz para el Aplicativo
                   </h3>
                   <p className="text-xs text-text-secondary">
                     Solo puede existir 1 matriz activa a la vez en el aplicativo institucional.
@@ -380,7 +380,7 @@ export default function MatrizIPEVARWorkspace() {
                           </p>
                           {mat.isOfficial && (
                             <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500 text-white shrink-0">
-                              Activa Oficial
+                              Activa
                             </span>
                           )}
                         </div>
@@ -410,8 +410,8 @@ export default function MatrizIPEVARWorkspace() {
                           type="button"
                           onClick={() => handleSelectOfficial(mat)}
                           disabled={isSettingOfficial}
-                          title="Fijar como Matriz Oficial"
-                          aria-label="Fijar como Matriz Oficial"
+                          title="Fijar en Aplicativo"
+                          aria-label="Fijar en Aplicativo"
                           className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-600 bg-teal-600 hover:bg-teal-700 text-white px-2 shadow-sm outline-none transition-all duration-300 disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105"
                         >
                           <div className="relative flex flex-shrink-0 items-center justify-center">
@@ -422,7 +422,7 @@ export default function MatrizIPEVARWorkspace() {
                             )}
                           </div>
                           <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                            <span className="text-sm font-bold tracking-wide">Fijar como Oficial</span>
+                            <span className="text-sm font-bold tracking-wide">Fijar en Aplicativo</span>
                           </div>
                         </button>
                       )}
@@ -448,7 +448,7 @@ export default function MatrizIPEVARWorkspace() {
         </div>
       )}
 
-      {/* ─── TABLA INTERACTIVA COMPLETA EN MODO OFICIAL ─── */}
+      {/* ─── TABLA INTERACTIVA COMPLETA ─── */}
       <div className="w-full">
         <MatrizIPEVARTable
           key={`official-ipevar-table-${refreshKey}`}

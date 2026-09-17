@@ -1562,7 +1562,7 @@ const PerfilesCargo = () => {
                                     </div>
                                     <p className="text-xs text-text-secondary mt-0.5">
                                         {matchingIpevarRows.length > 0
-                                            ? `Riesgos evaluados oficialmente para "${formData.nombreCargo || 'este cargo'}". Sincroniza controles y EPPs sin escribir nada a mano.`
+                                            ? `Riesgos vinculados en la Matriz IPEVAR para "${formData.nombreCargo || 'este cargo'}". Sincroniza controles y EPPs sin escribir nada a mano.`
                                             : `Asigna el cargo "${formData.nombreCargo || 'este cargo'}" en la Matriz de Peligros para sincronizar EPPs y controles automáticamente.`}
                                     </p>
                                 </div>

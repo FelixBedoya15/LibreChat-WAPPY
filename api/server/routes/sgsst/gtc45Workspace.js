@@ -49,7 +49,7 @@ router.get('/official', requireJwtAuth, async (req, res) => {
         conversationId: officialConvoId,
         matrixRows: [],
         chartConclusions: {},
-        officialTitle: 'Matriz IPEVAR Oficial',
+        officialTitle: 'Matriz IPEVAR SG-SST',
         sourceConversationId: null,
       });
     }
@@ -59,7 +59,7 @@ router.get('/official', requireJwtAuth, async (req, res) => {
       conversationId: session.conversationId,
       matrixRows: session.matrixRows || [],
       chartConclusions: session.chartConclusions || {},
-      officialTitle: session.officialTitle || 'Matriz IPEVAR Oficial',
+      officialTitle: session.officialTitle ? session.officialTitle.replace(/\bOficial\s*/gi, '').trim() : 'Matriz IPEVAR SG-SST',
       sourceConversationId: session.sourceConversationId || null,
       promotedAt: session.promotedAt || session.updatedAt,
       updatedAt: session.updatedAt,
@@ -127,7 +127,7 @@ router.post('/set-official', requireJwtAuth, async (req, res) => {
           matrixRows: normalizedRows,
           chartConclusions: conclusionsToSave || {},
           isOfficial: true,
-          officialTitle: sourceTitle || 'Matriz IPEVAR Oficial SG-SST',
+          officialTitle: (sourceTitle ? sourceTitle.replace(/\bOficial\s*/gi, '').trim() : '') || 'Matriz IPEVAR SG-SST',
           sourceConversationId: sourceConversationId || null,
           promotedAt: new Date(),
         },
@@ -232,9 +232,9 @@ router.get('/list-user-matrices', requireJwtAuth, async (req, res) => {
 
     const items = sessions.map(s => {
       const isMasterOfficial = s.conversationId === officialConvoId || s.isOfficial === true;
-      let displayTitle = s.officialTitle || titleMap[s.conversationId] || 'Matriz de Peligros';
+      let displayTitle = s.officialTitle ? s.officialTitle.replace(/\bOficial\s*/gi, '').trim() : (titleMap[s.conversationId] || 'Matriz de Peligros');
       if (s.conversationId === officialConvoId) {
-        displayTitle = s.officialTitle || '⭐ Matriz Oficial del Sistema';
+        displayTitle = displayTitle || '⭐ Matriz Activa del Sistema';
       }
 
       const rows = s.matrixRows || [];

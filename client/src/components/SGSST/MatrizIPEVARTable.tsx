@@ -427,7 +427,7 @@ const AnnexCSelector = ({
   );
 };
 
-// ── Mini AI Bubble para Textareas ────────────────────────────────────────────
+// ── Mini AI Bubble para Textareas y Celdas ──────────────────────────────────
 const CellAIBubble = ({
   fieldLabel,
   currentValue,
@@ -448,6 +448,46 @@ const CellAIBubble = ({
   const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  const isCargo = fieldLabel.toLowerCase().includes('cargo');
+  const isZona = fieldLabel.toLowerCase().includes('zona');
+
+  const suggestionPills = useMemo(() => {
+    if (isCargo) {
+      return [
+        {
+          label: '⚡ Sugerir según fila',
+          prompt: 'Sugiere el cargo u ocupación laboral más idóneo y preciso para este peligro, proceso y actividad. Responde ÚNICAMENTE con el nombre del cargo, sin explicaciones ni puntos.',
+        },
+        {
+          label: '✨ Formalizar nombre',
+          prompt: 'Formaliza y estandariza la redacción del nombre de este cargo con mayúsculas iniciales profesionales. Responde ÚNICAMENTE el nombre del cargo corregido.',
+        },
+      ];
+    }
+    if (isZona) {
+      return [
+        {
+          label: '⚡ Sugerir según proceso',
+          prompt: 'Sugiere el área, zona o lugar de trabajo más apropiado para este proceso y actividad laboral. Responde ÚNICAMENTE con el nombre de la zona, sin explicaciones ni puntos.',
+        },
+        {
+          label: '✨ Estandarizar lugar',
+          prompt: 'Estandariza y formaliza la redacción del nombre de este lugar o zona de trabajo. Responde ÚNICAMENTE el nombre corregido.',
+        },
+      ];
+    }
+    return [
+      {
+        label: '✨ Redacción técnica',
+        prompt: 'Mejora la redacción haciéndola más técnica, profesional y clara según la norma GTC 45.',
+      },
+      {
+        label: '⚡ Resumir conciso',
+        prompt: 'Sintetiza y resume el texto de forma concisa manteniendo los aspectos críticos de SST.',
+      },
+    ];
+  }, [isCargo, isZona]);
+
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -456,8 +496,9 @@ const CellAIBubble = ({
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [open]);
 
-  const apply = async () => {
-    if (!instruction.trim()) return;
+  const apply = async (customInst?: string) => {
+    const textToRun = (customInst !== undefined ? customInst : instruction).trim();
+    if (!textToRun) return;
     setLoading(true);
     try {
       const res = await fetch('/api/live/ai-edit-text', {
@@ -465,14 +506,18 @@ const CellAIBubble = ({
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           selectedText: currentValue || `[Campo vacío: ${fieldLabel}]`,
-          instruction,
+          instruction: textToRun,
           reportSourceData: { currentRow: row, field: fieldLabel },
           modelName: selectedModel,
         }),
       });
       const data = await res.json();
       if (data.editedText) {
-        onResult(data.editedText);
+        let cleanText = data.editedText.trim();
+        if (isCargo || isZona) {
+          cleanText = cleanText.replace(/^["']|["']$/g, '').replace(/\.$/, '').trim();
+        }
+        onResult(cleanText);
         setOpen(false);
         setInstruction('');
       }
@@ -487,32 +532,58 @@ const CellAIBubble = ({
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="absolute -bottom-1 right-0 flex items-center gap-1 text-[9px] font-bold text-teal-500 opacity-0 transition-opacity hover:text-teal-700 group-hover/cell:opacity-100"
+        className="absolute bottom-0 right-3.5 flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-bold text-teal-600 dark:text-teal-400 bg-surface-primary/90 backdrop-blur-xs border border-teal-500/20 shadow-xs opacity-0 transition-opacity hover:bg-teal-500/10 hover:text-teal-700 group-hover/cell:opacity-100 group-focus-within/cell:opacity-100 z-20 cursor-pointer"
         type="button"
+        title={`Editar ${fieldLabel} con IA`}
       >
-        <Sparkles className="h-3 w-3" /> IA
+        <Sparkles className="h-2.5 w-2.5" /> IA
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-[150] mt-1 w-64 space-y-2 rounded-xl border border-border-medium bg-surface-primary p-3 shadow-2xl">
-          <p className="text-[10px] font-bold uppercase text-text-secondary">{fieldLabel}</p>
-          <input
-            autoFocus
-            className="w-full rounded-lg border border-border-medium bg-surface-primary px-2 py-1.5 text-xs outline-none focus:border-teal-400"
-            placeholder="Instrucción (ej: hazlo más técnico)"
-            value={instruction}
-            onChange={(e) => setInstruction(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && apply()}
-          />
-          <div className="flex gap-2">
+        <div className="absolute right-0 top-full z-[150] mt-1 w-72 space-y-2 rounded-xl border border-border-medium bg-surface-primary p-3 shadow-2xl dark:bg-surface-secondary text-left">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 flex items-center gap-1">
+              <Sparkles className="h-3 w-3" /> IA · {fieldLabel}
+            </p>
             <button
-              onClick={apply}
-              disabled={loading}
-              className="flex-1 rounded-lg bg-teal-500 py-1.5 text-[10px] font-bold text-white hover:bg-teal-600 disabled:opacity-50"
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded p-0.5 text-text-tertiary hover:text-text-primary"
             >
-              {loading ? <Loader2 className="mx-auto h-3 w-3 animate-spin" /> : 'Aplicar'}
+              <X className="h-3 w-3" />
             </button>
-            <button onClick={() => setOpen(false)} className="px-2 text-[10px] text-text-secondary">
-              ✕
+          </div>
+
+          {/* Botones de sugerencia rápida */}
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {suggestionPills.map((pill, pIdx) => (
+              <button
+                key={pIdx}
+                type="button"
+                disabled={loading}
+                onClick={() => apply(pill.prompt)}
+                className="inline-flex items-center rounded-lg border border-teal-500/30 bg-teal-500/10 px-2 py-1 text-[10px] font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {pill.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-1.5 pt-1">
+            <input
+              autoFocus
+              className="flex-1 rounded-lg border border-border-medium bg-surface-primary px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-teal-500 dark:bg-surface-tertiary"
+              placeholder="O escribe una instrucción…"
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && apply()}
+            />
+            <button
+              type="button"
+              onClick={() => apply()}
+              disabled={loading || !instruction.trim()}
+              className="rounded-lg bg-teal-600 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-teal-700 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Aplicar'}
             </button>
           </div>
         </div>
@@ -561,6 +632,162 @@ const AITextarea = ({
     />
   </div>
 );
+
+// ── AICargoCell: Dropdown con estilo del sistema WAPPY + Edición Libre + IA ──
+const AICargoCell = ({
+  value,
+  onChange,
+  cargosList,
+  row,
+  token,
+  selectedModel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  cargosList: string[];
+  row: MatrixRow;
+  token?: string;
+  selectedModel?: string;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState(value || '');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setQuery(value || '');
+  }, [value]);
+
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [isOpen]);
+
+  const filteredCargos = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return cargosList;
+    return cargosList.filter((c) => c.toLowerCase().includes(q));
+  }, [cargosList, query]);
+
+  const exactMatch = useMemo(() => {
+    return cargosList.some((c) => c.toLowerCase() === query.trim().toLowerCase());
+  }, [cargosList, query]);
+
+  const handleSelect = (selectedCargo: string) => {
+    setQuery(selectedCargo);
+    onChange(selectedCargo);
+    setIsOpen(false);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextVal = e.target.value;
+    setQuery(nextVal);
+    onChange(nextVal);
+    if (!isOpen) setIsOpen(true);
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className="group/cell relative w-full transition-all focus-within:z-[100] hover:z-[90]"
+    >
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          placeholder="Cargo / Rol…"
+          value={query}
+          onFocus={() => setIsOpen(true)}
+          onChange={handleInputChange}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setIsOpen(false);
+          }}
+          className="w-full min-w-[140px] rounded-lg border border-transparent bg-transparent py-1.5 pl-2 pr-12 text-xs font-semibold text-teal-700 dark:text-teal-300 outline-none transition-colors hover:border-border-medium focus:border-teal-500 focus:bg-surface-primary dark:focus:bg-surface-secondary"
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="absolute right-7 top-1/2 -translate-y-1/2 rounded p-1 text-text-tertiary opacity-40 transition-opacity hover:text-teal-600 hover:opacity-100 group-hover/cell:opacity-100"
+          title="Ver cargos disponibles"
+        >
+          <ChevronDown
+            className={`h-3.5 w-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180 text-teal-600' : ''}`}
+          />
+        </button>
+      </div>
+
+      {/* AI Bubble para Cargo */}
+      <CellAIBubble
+        fieldLabel="Cargo / Rol"
+        currentValue={value}
+        row={row}
+        token={token}
+        selectedModel={selectedModel}
+        onResult={(newCargo) => {
+          setQuery(newCargo);
+          onChange(newCargo);
+        }}
+      />
+
+      {/* Custom styled dropdown matching WAPPY system */}
+      {isOpen && (
+        <div className="custom-scrollbar-ipevar absolute left-0 top-full z-[140] mt-1.5 max-h-60 w-64 overflow-y-auto rounded-xl border border-border-medium bg-surface-primary p-1.5 shadow-2xl dark:bg-surface-secondary">
+          <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
+            Cargos de la Empresa ({filteredCargos.length})
+          </div>
+
+          {filteredCargos.length === 0 && (
+            <div className="px-3 py-2 text-xs text-text-tertiary italic">
+              No hay coincidencias en la lista
+            </div>
+          )}
+
+          {filteredCargos.map((cargo) => {
+            const isSelected = cargo.toLowerCase() === value?.toLowerCase();
+            return (
+              <button
+                key={cargo}
+                type="button"
+                onClick={() => handleSelect(cargo)}
+                className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors cursor-pointer ${
+                  isSelected
+                    ? 'bg-teal-500/15 font-bold text-teal-700 dark:text-teal-300'
+                    : 'text-text-primary hover:bg-surface-tertiary hover:text-teal-600 dark:hover:text-teal-400'
+                }`}
+              >
+                <span className="flex items-center gap-2 truncate">
+                  <Briefcase className="h-3.5 w-3.5 shrink-0 text-teal-600 dark:text-teal-400" />
+                  <span className="truncate">{cargo}</span>
+                </span>
+                {isSelected && (
+                  <Check className="h-3.5 w-3.5 shrink-0 text-teal-600 dark:text-teal-400 ml-1" />
+                )}
+              </button>
+            );
+          })}
+
+          {/* Opción para confirmar o crear nuevo cargo libre */}
+          {query.trim() && !exactMatch && (
+            <button
+              type="button"
+              onClick={() => handleSelect(query.trim())}
+              className="mt-1 flex w-full items-center gap-2 rounded-lg border-t border-border-light px-2.5 py-2 text-left text-xs font-semibold text-teal-600 dark:text-teal-400 hover:bg-teal-500/10 transition-colors cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Usar cargo: &quot;{query.trim()}&quot;</span>
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const toSentenceCase = (str: string): string => {
   if (!str) return '';
@@ -893,7 +1120,7 @@ export default function MatrizIPEVARTable({
         isDirtyRef.current = true;
         saveMatrixData(combined);
         alert(
-          `¡Éxito! La IA de Wappy ha reconstruido y mapeado ${data.matrixRows.length} riesgos de tu matriz al formato oficial de Wappy.`
+          `¡Éxito! La IA de Wappy ha reconstruido y mapeado ${data.matrixRows.length} riesgos de tu matriz al formato estándar GTC 45.`
         );
       } else {
         alert('No se pudieron recuperar filas procesadas.');
@@ -1581,17 +1808,17 @@ export default function MatrizIPEVARTable({
       if (res.ok) {
         setIsCurrentConvoOfficial(true);
         showToast({
-          message: '¡Matriz establecida como Oficial en el Sistema SG-SST exitosamente!',
+          message: '¡Matriz establecida en el Sistema SG-SST exitosamente!',
           status: 'success',
         });
         window.dispatchEvent(new CustomEvent('ipevar-official-updated'));
         if (onRefreshOfficialList) onRefreshOfficialList();
       } else {
-        throw new Error('Error al establecer matriz oficial');
+        throw new Error('Error al establecer matriz');
       }
     } catch (err) {
       console.error('[MatrizIPEVARTable] Error set-official:', err);
-      showToast({ message: 'No se pudo fijar la matriz oficial.', status: 'error' });
+      showToast({ message: 'No se pudo fijar la matriz.', status: 'error' });
     } finally {
       setIsSettingOfficial(false);
     }
@@ -2387,7 +2614,7 @@ export default function MatrizIPEVARTable({
             onSaveLocal={() => {
               saveMatrixData(matrixRows);
               showToast({
-                message: 'Matriz Oficial guardada y sincronizada exitosamente.',
+                message: 'Matriz guardada y sincronizada exitosamente.',
                 status: 'success',
                 severity: 'success',
               });
@@ -2640,7 +2867,7 @@ export default function MatrizIPEVARTable({
               {!isOfficialApp && matrixRows.length > 0 && (
                 isCurrentConvoOfficial ? (
                   <div
-                    title="Esta matriz está activa como la Matriz Oficial del Sistema SG-SST"
+                    title="Esta matriz está activa en el Sistema SG-SST"
                     className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-2 sm:px-2.5 text-emerald-600 dark:text-emerald-400 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                   >
                     <div className="relative flex flex-shrink-0 items-center justify-center">
@@ -2651,7 +2878,7 @@ export default function MatrizIPEVARTable({
                       </span>
                     </div>
                     <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                      <span className="text-sm font-bold tracking-wide">Matriz Oficial</span>
+                      <span className="text-sm font-bold tracking-wide">Matriz Activa</span>
                     </div>
                   </div>
                 ) : (
@@ -2659,8 +2886,8 @@ export default function MatrizIPEVARTable({
                     type="button"
                     onClick={handleSetAsOfficial}
                     disabled={isSettingOfficial}
-                    title="Copiar y fijar como la Matriz Oficial en el Aplicativo SG-SST (Hito 1)"
-                    aria-label="Fijar como Matriz Oficial"
+                    title="Fijar en el Aplicativo SG-SST (Hito 1)"
+                    aria-label="Fijar en Aplicativo"
                     className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 px-2 sm:px-2.5 text-amber-700 dark:text-amber-300 shadow-sm outline-none transition-all duration-300 disabled:opacity-50 sm:hover:-rotate-3 sm:hover:scale-105"
                   >
                     {isSettingOfficial ? (
@@ -2669,7 +2896,7 @@ export default function MatrizIPEVARTable({
                       <Star className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 fill-amber-500/30 text-amber-500" />
                     )}
                     <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100">
-                      {isSettingOfficial ? 'Guardando…' : 'Fijar como Matriz Oficial'}
+                      {isSettingOfficial ? 'Guardando…' : 'Fijar en Aplicativo'}
                     </span>
                   </button>
                 )
@@ -2872,11 +3099,6 @@ export default function MatrizIPEVARTable({
           </div>
         ) : (
           <div className="min-w-max">
-            <datalist id="available-cargos-list">
-              {cargosUnicos.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-[100] bg-surface-secondary text-xs font-bold uppercase tracking-wide text-text-secondary">
                 <tr>
@@ -3029,13 +3251,13 @@ export default function MatrizIPEVARTable({
                       onMouseEnter={() => handleCellMouseEnter(displayIdx, 'cargo')}
                       className={`group/cell relative px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'cargo')}`}
                     >
-                      <input
-                        type="text"
-                        list="available-cargos-list"
-                        placeholder="Cargo / Rol…"
-                        className="w-full min-w-[140px] rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-xs font-semibold text-teal-700 dark:text-teal-300 outline-none transition-colors hover:border-border-medium focus:border-teal-500 focus:bg-surface-primary dark:focus:bg-surface-secondary"
+                      <AICargoCell
                         value={row.cargo || ''}
-                        onChange={(e) => handleCellChange(idx, 'cargo', e.target.value)}
+                        onChange={(v) => handleCellChange(idx, 'cargo', v)}
+                        cargosList={cargosUnicos}
+                        row={row}
+                        token={token}
+                        selectedModel={selectedModel}
                       />
                       <FillHandle
                         displayIdx={displayIdx}
@@ -3046,17 +3268,21 @@ export default function MatrizIPEVARTable({
                         totalFiltered={displayRows.length}
                       />
                     </td>
+                    {/* Zona */}
                     <td
                       data-display-idx={displayIdx}
                       data-display-field="zona"
                       onMouseEnter={() => handleCellMouseEnter(displayIdx, 'zona')}
                       className={`group/cell relative px-4 py-3 transition-colors ${getDragCellStyles(displayIdx, 'zona')}`}
                     >
-                      <textarea
-                        rows={2}
-                        className="w-full min-w-[120px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
+                      <AITextarea
                         value={row.zona || ''}
-                        onChange={(e) => handleCellChange(idx, 'zona', e.target.value)}
+                        onChange={(v) => handleCellChange(idx, 'zona', v)}
+                        minW="120px"
+                        fieldLabel="Zona / Lugar"
+                        row={row}
+                        token={token}
+                        selectedModel={selectedModel}
                       />
                       <FillHandle
                         displayIdx={displayIdx}
