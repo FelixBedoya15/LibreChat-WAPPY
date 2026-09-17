@@ -202,7 +202,8 @@ export default function PublicMoodTracker() {
     try {
       await axios.post(`/api/public-sgsst/mood/update/${telemetryId}`, {
         stressors: selectedStressors,
-        details: 'El trabajador prefirió no iniciar el chat interactivo.',
+        department: department.trim(),
+        generateAICase: true,
       });
       setStep(4);
     } catch (error) {
@@ -232,25 +233,12 @@ export default function PublicMoodTracker() {
         const selectedLabels = selectedStressors.map(
           (id) => stressorsList.find((s) => s.id === id)?.label || id
         );
-        const stressorsSummary = selectedLabels.length > 0 ? selectedLabels.join(', ') : 'Ninguno seleccionado';
 
-        // Save initial SST case follow-up note so findings are NEVER lost if user closes tab
-        const areaSuffix = department.trim() ? ` en el área de ${department.trim()}` : '';
-        const initialRecs: string[] = [];
-        if (selectedStressors.includes('sobrecarga')) initialRecs.push(`Revisar cargas de trabajo y volumen de tareas${areaSuffix}`);
-        if (selectedStressors.includes('liderazgo')) initialRecs.push(`Fortalecer canales de diálogo y liderazgo empático`);
-        if (selectedStressors.includes('entorno')) initialRecs.push(`Verificar ergonomía y adecuación de herramientas de trabajo${areaSuffix}`);
-        if (selectedStressors.includes('personal')) initialRecs.push(`Brindar flexibilidad y soporte desde bienestar organizacional`);
-        if (selectedStressors.includes('funciones')) initialRecs.push(`Clarificar alcance de roles y prioridades laborales${areaSuffix}`);
-        if (selectedStressors.includes('fatiga')) initialRecs.push(`Monitorear pausas activas y tiempos de descanso efectivo`);
-        if (initialRecs.length === 0) initialRecs.push(`Monitorear factores de riesgo reportados y pausas activas${areaSuffix}`);
-
-        const initialRec = initialRecs.slice(0, 2).join('. ') + '.';
-        const initialCaseNote = `📋 Caso de Seguimiento SG-SST (Confidencial):\n• Factores de Riesgo Laboral: ${stressorsSummary}.\n• Recomendación de Intervención: ${initialRec}\n• Orientación Brindada: Sesión privada de orientación emocional iniciada con el Terapeuta.`;
-
+        // Actualizar estresores y solicitar al backend generar el caso con IA
         axios.post(`/api/public-sgsst/mood/update/${telemetryId}`, {
           stressors: selectedStressors,
-          details: initialCaseNote,
+          department: department.trim(),
+          sessionStarted: true,
         }).catch((e) => console.warn('Could not update initial stressors:', e));
 
         // Prepopulate context-aware greeting from Specialist Agent

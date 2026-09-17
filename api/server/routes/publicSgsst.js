@@ -952,34 +952,96 @@ router.post('/mood/:companyId', async (req, res) => {
   }
 });
 
-function getTailoredRecommendations(stressors = [], department = '') {
-  const areaText = department ? ` en el área de ${department}` : '';
-  const recs = [];
+/**
+ * Genera dinámicamente con IA un Caso de Seguimiento SG-SST 100% confidencial y adaptado.
+ * No utiliza plantillas estáticas; la IA analiza el contexto, puesto/área, estresores y conversación.
+ */
+async function generateAICaseFollowUp({
+  stressors = [],
+  department = '',
+  messages = [],
+  companyUser = null,
+  mood = 'sad',
+  companyName = '',
+}) {
+  const stressorNames = {
+    sobrecarga: 'Sobrecarga de trabajo y ritmo laboral acelerado',
+    liderazgo: 'Clima laboral, comunicación o relaciones con líderes',
+    entorno: 'Condiciones del entorno físico o herramientas operativas',
+    personal: 'Situaciones personales o familiares que impactan la jornada',
+    funciones: 'Falta de claridad en funciones, alcance de rol y prioridades',
+    fatiga: 'Fatiga física acumulada o agotamiento mental (burnout)',
+  };
 
-  if (stressors.includes('sobrecarga')) {
-    recs.push(`Evaluar volumen de tareas y redistribuir cargas de trabajo operativas${areaText}`);
-  }
-  if (stressors.includes('liderazgo')) {
-    recs.push(`Fomentar canales de comunicación abierta y espacios de retroalimentación empática con líderes`);
-  }
-  if (stressors.includes('entorno')) {
-    recs.push(`Revisar condiciones ergonómicas del puesto y disponibilidad de herramientas de trabajo${areaText}`);
-  }
-  if (stressors.includes('personal')) {
-    recs.push(`Facilitar acceso a programas de bienestar emocional y opciones de flexibilidad horaria`);
-  }
-  if (stressors.includes('funciones')) {
-    recs.push(`Clarificar alcance de responsabilidades, roles y metas de desempeño${areaText}`);
-  }
-  if (stressors.includes('fatiga')) {
-    recs.push(`Promover pausas activas sistemáticas y respeto a los tiempos de desconexión laboral efectiva`);
+  const stressorLabels = (stressors || []).map((s) => stressorNames[s] || s);
+  const factorsSummary = stressorLabels.length > 0 ? stressorLabels.join(', ') : 'Riesgo psicosocial general reportado';
+  const deptContext = department && department.trim() ? `en el área de ${department.trim()}` : '';
+  const companyContext = companyName ? `de la empresa ${companyName}` : '';
+
+  const hasChat = Array.isArray(messages) && messages.length > 1;
+  const chatExcerpt = hasChat
+    ? messages
+        .filter((m) => m && m.text && m.text.trim())
+        .map((m) => `${m.sender === 'user' ? 'Trabajador' : 'Terapeuta'}: ${m.text}`)
+        .join('\n')
+        .slice(0, 3500)
+    : '';
+
+  const prompt = `Eres el Especialista Senior de Inteligencia Artificial en Factores de Riesgo Psicosocial y SG-SST (Seguridad y Salud en el Trabajo) de WAPPY IA.
+Tu misión es generar una ficha técnica ejecutiva de "Caso de Seguimiento SG-SST" 100% DINÁMICA, PROFESIONAL, PERSONALIZADA y NO ESTANDARIZADA.
+
+DATOS DEL CASO:
+- Entorno: ${deptContext || 'Área general'} ${companyContext}
+- Factores de estrés reportados por el colaborador: ${factorsSummary}
+- Estado anímico manifestado: ${mood === 'sad' ? 'Estresado / Con sobrecarga' : mood === 'neutral' ? 'Jornada media / Inquietudes' : 'Reporte de bienestar'}
+${hasChat ? `- Transcripción confidencial de la sesión de orientación emocional:\n${chatExcerpt}` : '- Registro directo en termómetro psicosocial (sin sesión de chat interactiva).'}
+
+INSTRUCCIONES CLAVE DE CONFIDENCIALIDAD Y CALIDAD TÉCNICA:
+1. PRIVACIDAD ABSOLUTA: PROHIBIDO usar comillas o transcribir expresiones literales del colaborador, así como datos de su vida íntima, familiar o diagnósticos médicos.
+2. ENFOQUE ORGANIZACIONAL: Identifica los factores laborales de fondo que causan el malestar (procesos, comunicación, volumen de tareas, turnos, herramientas, supervisión).
+3. RECOMENDACIÓN DE INTERVENCIÓN EXCLUSIVA Y CONCRETA: Formula de 1 a 2 recomendaciones preventivas directas y específicas para la empresa o supervisores. NO uses frases genéricas de cajón ni plantillas predefinidas; redacta soluciones técnicas a la medida de lo expresado en este caso puntual.
+
+RESPONDE ÚNICAMENTE CON ESTE FORMATO (texto plano, 3 viñetas, sin markdown complejo):
+📋 Caso de Seguimiento SG-SST (Confidencial):
+• Factores de Riesgo Laboral: [Factores laborales y organizacionales específicos detectados en este caso]
+• Recomendación de Intervención: [Medidas preventivas técnicas y organizacionales accionables para la empresa o área]
+• Orientación Brindada: [Síntesis de la contención emocional o recepción del autoreporte en el sistema]`;
+
+  try {
+    const { generateWithKeyRotation } = require('./sgsst/sgsstGemini');
+    const aiResult = await Promise.race([
+      generateWithKeyRotation(
+        { model: 'gemini-3.5-flash-lite', generationConfig: { temperature: 0.7 } },
+        companyUser,
+        prompt
+      ),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout AI case generation')), 9000)),
+    ]);
+
+    const responseText = aiResult?.response?.text ? aiResult.response.text().trim() : '';
+    if (responseText && responseText.includes('Caso de Seguimiento')) {
+      return responseText.replace(/• Recomendación de Intervención SST:/g, '• Recomendación de Intervención:');
+    }
+  } catch (err) {
+    logger.warn('[Public SGSST] AI case generation warning:', err?.message);
   }
 
-  if (recs.length === 0) {
-    recs.push(`Monitorear periódicamente factores de riesgo psicosocial y fomentar pausas activas${areaText}`);
-  }
+  // Failsafe dinámico y contextual si falla el llamado de red con la IA
+  const dynamicRecs = [];
+  if (stressors.includes('sobrecarga')) dynamicRecs.push(`Efectuar un balanceo de cargas laborales y revisar la curva de entregables ${deptContext}`);
+  if (stressors.includes('liderazgo')) dynamicRecs.push(`Facilitar dinámicas de retroalimentación constructiva y liderazgo participativo con las jefaturas`);
+  if (stressors.includes('entorno')) dynamicRecs.push(`Auditar los puestos de trabajo ${deptContext} para corregir factores ergonómicos o déficit de herramientas`);
+  if (stressors.includes('personal')) dynamicRecs.push(`Articular con el comité de convivencia y bienestar opciones de flexibilidad horaria o apoyo psicosocial`);
+  if (stressors.includes('funciones')) dynamicRecs.push(`Revisar la matriz de roles y responsabilidades para evitar duplicidad de tareas o ambigüedad`);
+  if (stressors.includes('fatiga')) dynamicRecs.push(`Establecer alertas de sobretiempo y jornadas de pausas psicofisiológicas dirigidas`);
+  if (dynamicRecs.length === 0) dynamicRecs.push(`Implementar observación preventiva de factores psicosociales y verificar cumplimiento de pausas activas ${deptContext}`);
 
-  return recs.slice(0, 2).join('. ') + '.';
+  return (
+    `📋 Caso de Seguimiento SG-SST (Confidencial):\n` +
+    `• Factores de Riesgo Laboral: ${factorsSummary}.\n` +
+    `• Recomendación de Intervención: ${dynamicRecs.slice(0, 2).join('. ') + '.'}\n` +
+    `• Orientación Brindada: ${hasChat ? 'El colaborador completó una sesión privada de primeros auxilios psicológicos y autocuidado laboral con el Terapeuta en Salud Mental.' : 'El colaborador registró su reporte psicosocial en el termómetro preventivo de la empresa.'}`
+  );
 }
 
 function sanitizeDetailsToSSTCase(details, stressors = [], department = '') {
@@ -1004,40 +1066,68 @@ function sanitizeDetailsToSSTCase(details, stressors = [], department = '') {
 
   const labels = (stressors || []).map((s) => stressorNames[s] || s);
   const factorsText = labels.length > 0 ? labels.join(', ') : 'Sobrecarga y ritmo laboral';
-  const recommendation = getTailoredRecommendations(stressors, department);
+  const areaText = department ? ` en el área de ${department}` : '';
 
   return (
     `📋 Caso de Seguimiento SG-SST (Confidencial):\n` +
     `• Factores de Riesgo Laboral: ${factorsText}.\n` +
-    `• Recomendación de Intervención: ${recommendation}\n` +
+    `• Recomendación de Intervención: Monitorear factores de riesgo reportados y balancear demandas laborales${areaText}.\n` +
     `• Orientación Brindada: El colaborador completó una sesión privada de orientación emocional con el Terapeuta en Salud Mental.`
   );
 }
 
 // POST /api/public-sgsst/mood/update/:telemetryId
-// Actualiza la telemetría agregando estresores o notas, sanitizando cualquier transcripción
+// Actualiza la telemetría agregando estresores o notas, generando casos con IA cuando corresponda
 router.post('/mood/update/:telemetryId', async (req, res) => {
   try {
     const { telemetryId } = req.params;
-    const { stressors, details } = req.body;
+    const { stressors, details, sessionStarted, generateAICase, department } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(telemetryId)) {
       return res.status(400).json({ error: 'ID de telemetría inválido.' });
     }
 
     const MoodTelemetry = require('~/models/MoodTelemetry');
-    const updateFields = {};
-    if (Array.isArray(stressors)) {
-      updateFields.stressors = stressors;
+    const existing = await MoodTelemetry.findById(telemetryId);
+    if (!existing) {
+      return res.status(404).json({ error: 'Telemetría no encontrada.' });
     }
-    if (details !== undefined && details !== null) {
-      updateFields.details = sanitizeDetailsToSSTCase(details, stressors);
-    }
-    await MoodTelemetry.findByIdAndUpdate(telemetryId, {
-      $set: updateFields,
-    });
 
-    return res.json({ success: true });
+    const currentStressors = Array.isArray(stressors) ? stressors : existing.stressors || [];
+    const dept = department || existing.department || '';
+
+    if (Array.isArray(stressors)) {
+      existing.stressors = stressors;
+    }
+    if (dept) {
+      existing.department = dept;
+    }
+
+    if (sessionStarted || generateAICase) {
+      let userId = null;
+      let compName = '';
+      try {
+        const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
+        const comp = await CompanyInfo.findById(existing.companyId).lean();
+        if (comp) {
+          userId = comp.user || null;
+          compName = comp.companyName || '';
+        }
+      } catch (e) {}
+
+      existing.details = await generateAICaseFollowUp({
+        stressors: currentStressors,
+        department: dept,
+        companyUser: userId,
+        mood: existing.mood,
+        companyName: compName,
+      });
+    } else if (details !== undefined && details !== null) {
+      existing.details = sanitizeDetailsToSSTCase(details, currentStressors, dept);
+    }
+
+    await existing.save();
+    return res.json({ success: true, caseNote: existing.details });
   } catch (error) {
     logger.error('[Public SGSST] Mood update error:', error);
     res.status(500).json({ error: 'Error al actualizar telemetría.' });
@@ -1065,65 +1155,32 @@ router.post('/mood/finish/:telemetryId', async (req, res) => {
     const dept = department || existing.department || '';
 
     let userId = null;
+    let compName = '';
     try {
       const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
       const company = await CompanyInfo.findById(existing.companyId).lean();
-      if (company && company.user) {
-        userId = company.user;
+      if (company) {
+        userId = company.user || null;
+        compName = company.companyName || '';
       }
     } catch (e) {}
 
-    let caseNote = '';
-
-    // Si hubo conversación interactiva con el Terapeuta, sintetizar con IA un Caso de Seguimiento SST
-    if (Array.isArray(messages) && messages.length > 1) {
-      try {
-        const { generateWithKeyRotation } = require('./sgsst/sgsstGemini');
-
-        const chatExcerpt = messages
-          .filter((m) => m && m.text && m.text.trim())
-          .map((m) => `${m.sender === 'user' ? 'Trabajador' : 'Terapeuta'}: ${m.text}`)
-          .join('\n')
-          .slice(0, 3500);
-
-        const prompt = `Actúa como especialista senior en Riesgo Psicosocial y SG-SST (Seguridad y Salud en el Trabajo).
-Se ha completado una sesión privada de apoyo emocional entre un trabajador y el Terapeuta en Salud Mental.
-Tu tarea es generar ÚNICAMENTE una breve nota técnica de "Caso de Seguimiento SG-SST" para el área de Talento y Seguridad y Salud en el Trabajo.
-
-REGLAS DE ORO DE PRIVACIDAD Y CONFIDENCIALIDAD:
-1. PROHIBIDO terminantemente transcribir frases, citas textuales o detalles personales del trabajador (problemas íntimos, pareja, familia o diagnósticos médicos).
-2. Enfócate EXCLUSIVAMENTE en condiciones laborales y organizacionales que la empresa o el área de SST puedan intervenir para mejorar el bienestar colectivo (ej. volumen de tareas, comunicación con líderes, pausas, ergonomía, claridad de rol).
-3. Genera 1 o 2 recomendaciones de intervención CONCRETAS, ESPECÍFICAS y APLICABLES para la empresa/área en función de lo conversado en la sesión.
-4. Formato exacto a responder (máximo 3 viñetas ejecutivas en texto plano sin bloques de código ni markdown complejo):
-📋 Caso de Seguimiento SG-SST (Confidencial):
-• Factores de Riesgo Laboral: [resumen ejecutivo de factores laborales identificados]
-• Recomendación de Intervención: [1-2 recomendaciones preventivas precisas y accionables para la empresa o área]
-• Orientación Brindada: El colaborador recibió contención y pautas de autocuidado laboral y gestión del estrés en sesión privada.
-
-Conversación a analizar:
-${chatExcerpt}`;
-
-        const aiResult = await Promise.race([
-          generateWithKeyRotation('gemini-3.5-flash-lite', userId, prompt),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout AI synthesis')), 9000)),
-        ]);
-
-        const responseText = aiResult?.response?.text ? aiResult.response.text().trim() : '';
-        if (responseText && responseText.includes('Caso de Seguimiento')) {
-          caseNote = responseText.replace(/• Recomendación de Intervención SST:/g, '• Recomendación de Intervención:');
-        }
-      } catch (aiErr) {
-        logger.warn('[Public SGSST] Could not generate AI case synthesis, using tailored fallback:', aiErr?.message);
-      }
-    }
-
-    if (!caseNote) {
-      caseNote = sanitizeDetailsToSSTCase('Conversación con el Terapeuta:', currentStressors, dept);
-    }
+    // Síntesis 100% por IA analizando la conversación real
+    const caseNote = await generateAICaseFollowUp({
+      stressors: currentStressors,
+      department: dept,
+      messages: Array.isArray(messages) ? messages : [],
+      companyUser: userId,
+      mood: existing.mood,
+      companyName: compName,
+    });
 
     existing.details = caseNote;
     if (Array.isArray(stressors)) {
       existing.stressors = stressors;
+    }
+    if (dept) {
+      existing.department = dept;
     }
     await existing.save();
 

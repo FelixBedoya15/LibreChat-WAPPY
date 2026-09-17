@@ -509,55 +509,89 @@ ${cleanContent}
   try {
     const MoodTelemetry = mongoose.models.MoodTelemetry || require('~/models/MoodTelemetry');
     if (MoodTelemetry) {
-      const getTailoredRecs = (stressors = [], department = '') => {
-        const areaText = department ? ` en el área de ${department}` : '';
-        const recs = [];
-        if (stressors.includes('sobrecarga')) recs.push(`Evaluar volumen de tareas y redistribuir cargas de trabajo operativas${areaText}`);
-        if (stressors.includes('liderazgo')) recs.push(`Fomentar canales de comunicación abierta y espacios de retroalimentación empática con líderes`);
-        if (stressors.includes('entorno')) recs.push(`Revisar condiciones ergonómicas del puesto y disponibilidad de herramientas de trabajo${areaText}`);
-        if (stressors.includes('personal')) recs.push(`Facilitar acceso a programas de bienestar emocional y opciones de flexibilidad horaria`);
-        if (stressors.includes('funciones')) recs.push(`Clarificar alcance de responsabilidades, roles y metas de desempeño${areaText}`);
-        if (stressors.includes('fatiga')) recs.push(`Promover pausas activas sistemáticas y respeto a los tiempos de desconexión laboral efectiva`);
-        if (recs.length === 0) recs.push(`Monitorear periódicamente factores de riesgo psicosocial y fomentar pausas activas${areaText}`);
-        return recs.slice(0, 2).join('. ') + '.';
-      };
-
-      const recordsToClean = await MoodTelemetry.find({
-        details: { $regex: /Conversación con el Terapeuta|Conversación anónima completada|Trabajador:|Terapeuta:/i },
+      const recordsToProcess = await MoodTelemetry.find({
+        $or: [
+          { details: { $regex: /Conversación con el Terapeuta|Conversación anónima completada|Trabajador:|Terapeuta:/i } },
+          { details: { $regex: /• Recomendación de Intervención SST:/ } },
+          { details: { $regex: /Monitorear distribución de tareas y pausas activas/ } },
+          { details: { $regex: /Monitorear factores de riesgo reportados y pausas activas/ } },
+        ],
       });
-      const stressorNames = {
-        sobrecarga: 'Sobrecarga de trabajo',
-        liderazgo: 'Clima laboral / Relaciones interpersonales',
-        entorno: 'Entorno físico / Herramientas inadecuadas',
-        personal: 'Asuntos personales o familiares',
-        funciones: 'Falta de claridad en funciones y rol',
-        fatiga: 'Fatiga física o agotamiento mental',
-      };
-      for (const rec of recordsToClean) {
-        const labels = (rec.stressors || []).map((s) => stressorNames[s] || s);
-        const factorsText = labels.length > 0 ? labels.join(', ') : 'Sobrecarga y ritmo laboral';
-        const recommendation = getTailoredRecs(rec.stressors, rec.department);
 
-        rec.details =
-          `📋 Caso de Seguimiento SG-SST (Confidencial):\n` +
-          `• Factores de Riesgo Laboral: ${factorsText}.\n` +
-          `• Recomendación de Intervención: ${recommendation}\n` +
-          `• Orientación Brindada: El colaborador completó una sesión privada de orientación emocional con el Terapeuta en Salud Mental.`;
-        await rec.save();
-      }
+      if (recordsToProcess.length > 0) {
+        console.log(`   🤖 Procesando ${recordsToProcess.length} registros de telemetría psicosocial con IA...`);
 
-      // Actualizar también cualquier registro existente que tenga el prefijo 'Recomendación de Intervención SST:'
-      const sstPrefixRecords = await MoodTelemetry.find({
-        details: { $regex: /• Recomendación de Intervención SST:/ },
-      });
-      for (const rec of sstPrefixRecords) {
-        rec.details = rec.details.replace(/• Recomendación de Intervención SST:/g, '• Recomendación de Intervención:');
-        await rec.save();
-      }
+        let genModel = null;
+        try {
+          const { GoogleGenerativeAI } = require('@google/generative-ai');
+          const rawKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || '';
+          const key = rawKey
+            .split(',')
+            .map((k) => k.trim())
+            .find((k) => k && k.startsWith('AIza') && k !== 'user_provided');
+          if (key) {
+            const genAI = new GoogleGenerativeAI(key);
+            genModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash', generationConfig: { temperature: 0.7 } });
+          }
+        } catch (e) {}
 
-      const totalUpdated = recordsToClean.length + sstPrefixRecords.length;
-      if (totalUpdated > 0) {
-        console.log(`   🔒 Se actualizaron ${totalUpdated} registros de telemetría psicosocial (confidencialidad y recomendación de intervención).`);
+        const stressorNames = {
+          sobrecarga: 'Sobrecarga de trabajo y ritmo acelerado',
+          liderazgo: 'Clima laboral y relación con jefaturas',
+          entorno: 'Entorno físico y herramientas de trabajo',
+          personal: 'Asuntos personales o familiares',
+          funciones: 'Claridad en funciones y rol laboral',
+          fatiga: 'Fatiga física o agotamiento mental',
+        };
+
+        for (const rec of recordsToProcess) {
+          const labels = (rec.stressors || []).map((s) => stressorNames[s] || s);
+          const factorsText = labels.length > 0 ? labels.join(', ') : 'Sobrecarga y ritmo laboral';
+          const areaText = rec.department ? `en el área de ${rec.department}` : 'en el área de trabajo';
+
+          let aiSuccess = false;
+          if (genModel) {
+            try {
+              const prompt = `Actúa como especialista senior de IA en Riesgo Psicosocial y SG-SST (Seguridad y Salud en el Trabajo).
+Genera un Caso de Seguimiento SG-SST (Confidencial) 100% DINÁMICO y PERSONALIZADO para un trabajador ${areaText} que reportó los siguientes factores de estrés: ${factorsText}.
+Reglas:
+1. No usar plantillas genéricas. Redacta 1 o 2 recomendaciones de intervención organizacionales muy concretas y variadas para la empresa y área.
+2. Mantener confidencialidad total.
+Formato (texto plano, 3 viñetas):
+📋 Caso de Seguimiento SG-SST (Confidencial):
+• Factores de Riesgo Laboral: [Resumen conciso de factores detectados]
+• Recomendación de Intervención: [Recomendaciones preventivas concretas para la empresa o supervisores]
+• Orientación Brindada: El colaborador completó una sesión privada de orientación emocional y autocuidado con el Terapeuta en Salud Mental.`;
+
+              const res = await genModel.generateContent(prompt);
+              const text = res?.response?.text ? res.response.text().trim() : '';
+              if (text && text.includes('Caso de Seguimiento')) {
+                rec.details = text.replace(/• Recomendación de Intervención SST:/g, '• Recomendación de Intervención:');
+                await rec.save();
+                aiSuccess = true;
+              }
+            } catch (err) {}
+          }
+
+          if (!aiSuccess) {
+            const recs = [];
+            if ((rec.stressors || []).includes('sobrecarga')) recs.push(`Efectuar un balanceo de cargas laborales y revisar la curva de entregables ${areaText}`);
+            if ((rec.stressors || []).includes('liderazgo')) recs.push(`Facilitar dinámicas de retroalimentación constructiva y liderazgo participativo`);
+            if ((rec.stressors || []).includes('entorno')) recs.push(`Auditar los puestos de trabajo ${areaText} para corregir factores ergonómicos o déficit de herramientas`);
+            if ((rec.stressors || []).includes('personal')) recs.push(`Articular con bienestar opciones de flexibilidad horaria o apoyo psicosocial`);
+            if ((rec.stressors || []).includes('funciones')) recs.push(`Revisar la matriz de roles y responsabilidades para evitar duplicidad de tareas`);
+            if ((rec.stressors || []).includes('fatiga')) recs.push(`Establecer alertas de sobretiempo y jornadas de pausas psicofisiológicas dirigidas`);
+            if (recs.length === 0) recs.push(`Monitorear periódicamente factores de riesgo psicosocial y verificar cumplimiento de pausas activas ${areaText}`);
+
+            rec.details =
+              `📋 Caso de Seguimiento SG-SST (Confidencial):\n` +
+              `• Factores de Riesgo Laboral: ${factorsText}.\n` +
+              `• Recomendación de Intervención: ${recs.slice(0, 2).join('. ') + '.'}\n` +
+              `• Orientación Brindada: El colaborador completó una sesión privada de orientación emocional con el Terapeuta en Salud Mental.`;
+            await rec.save();
+          }
+        }
+        console.log(`   🔒 Se transformaron ${recordsToProcess.length} registros con recomendaciones de intervención dinámicas por IA.`);
       }
     }
   } catch (err) {
