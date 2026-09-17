@@ -337,8 +337,21 @@ router.get('/mood', requireJwtAuth, async (req, res) => {
             fatiga: 'Fatiga física o agotamiento mental',
         };
 
+        const getTailoredRecs = (stressors = [], department = '') => {
+            const areaText = department ? ` en el área de ${department}` : '';
+            const recs = [];
+            if (stressors.includes('sobrecarga')) recs.push(`Evaluar volumen de tareas y redistribuir cargas de trabajo operativas${areaText}`);
+            if (stressors.includes('liderazgo')) recs.push(`Fomentar canales de comunicación abierta y espacios de retroalimentación empática con líderes`);
+            if (stressors.includes('entorno')) recs.push(`Revisar condiciones ergonómicas del puesto y disponibilidad de herramientas de trabajo${areaText}`);
+            if (stressors.includes('personal')) recs.push(`Facilitar acceso a programas de bienestar emocional y opciones de flexibilidad horaria`);
+            if (stressors.includes('funciones')) recs.push(`Clarificar alcance de responsabilidades, roles y metas de desempeño${areaText}`);
+            if (stressors.includes('fatiga')) recs.push(`Promover pausas activas sistemáticas y respeto a los tiempos de desconexión laboral efectiva`);
+            if (recs.length === 0) recs.push(`Monitorear periódicamente factores de riesgo psicosocial y fomentar pausas activas${areaText}`);
+            return recs.slice(0, 2).join('. ') + '.';
+        };
+
         const sanitizedData = telemetryData.map((d) => {
-            const raw = d.details || '';
+            let raw = d.details || '';
             const isRawChat =
                 raw.includes('Conversación con el Terapeuta') ||
                 raw.includes('Conversación anónima completada') ||
@@ -348,17 +361,24 @@ router.get('/mood', requireJwtAuth, async (req, res) => {
             if (isRawChat) {
                 const labels = (d.stressors || []).map((s) => stressorNames[s] || s);
                 const factorsText = labels.length > 0 ? labels.join(', ') : 'Sobrecarga y ritmo laboral';
-                const areaText = d.department ? ` en el área de ${d.department}` : '';
+                const recommendation = getTailoredRecs(d.stressors, d.department);
 
                 const cleanDetails =
                     `📋 Caso de Seguimiento SG-SST (Confidencial):\n` +
                     `• Factores de Riesgo Laboral: ${factorsText}.\n` +
-                    `• Recomendación de Intervención SST: Monitorear distribución de tareas y pausas activas${areaText}. Realizar seguimiento preventivo a factores psicosociales preservando la identidad del colaborador.\n` +
+                    `• Recomendación de Intervención: ${recommendation}\n` +
                     `• Orientación Brindada: El colaborador completó una sesión privada de orientación emocional con el Terapeuta en Salud Mental.`;
 
                 MoodTelemetry.updateOne({ _id: d._id }, { $set: { details: cleanDetails } }).catch(() => {});
                 return { ...d, details: cleanDetails };
             }
+
+            if (raw.includes('• Recomendación de Intervención SST:')) {
+                const fixedDetails = raw.replace(/• Recomendación de Intervención SST:/g, '• Recomendación de Intervención:');
+                MoodTelemetry.updateOne({ _id: d._id }, { $set: { details: fixedDetails } }).catch(() => {});
+                return { ...d, details: fixedDetails };
+            }
+
             return d;
         });
 

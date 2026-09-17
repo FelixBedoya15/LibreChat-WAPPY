@@ -509,6 +509,19 @@ ${cleanContent}
   try {
     const MoodTelemetry = mongoose.models.MoodTelemetry || require('~/models/MoodTelemetry');
     if (MoodTelemetry) {
+      const getTailoredRecs = (stressors = [], department = '') => {
+        const areaText = department ? ` en el área de ${department}` : '';
+        const recs = [];
+        if (stressors.includes('sobrecarga')) recs.push(`Evaluar volumen de tareas y redistribuir cargas de trabajo operativas${areaText}`);
+        if (stressors.includes('liderazgo')) recs.push(`Fomentar canales de comunicación abierta y espacios de retroalimentación empática con líderes`);
+        if (stressors.includes('entorno')) recs.push(`Revisar condiciones ergonómicas del puesto y disponibilidad de herramientas de trabajo${areaText}`);
+        if (stressors.includes('personal')) recs.push(`Facilitar acceso a programas de bienestar emocional y opciones de flexibilidad horaria`);
+        if (stressors.includes('funciones')) recs.push(`Clarificar alcance de responsabilidades, roles y metas de desempeño${areaText}`);
+        if (stressors.includes('fatiga')) recs.push(`Promover pausas activas sistemáticas y respeto a los tiempos de desconexión laboral efectiva`);
+        if (recs.length === 0) recs.push(`Monitorear periódicamente factores de riesgo psicosocial y fomentar pausas activas${areaText}`);
+        return recs.slice(0, 2).join('. ') + '.';
+      };
+
       const recordsToClean = await MoodTelemetry.find({
         details: { $regex: /Conversación con el Terapeuta|Conversación anónima completada|Trabajador:|Terapeuta:/i },
       });
@@ -523,17 +536,28 @@ ${cleanContent}
       for (const rec of recordsToClean) {
         const labels = (rec.stressors || []).map((s) => stressorNames[s] || s);
         const factorsText = labels.length > 0 ? labels.join(', ') : 'Sobrecarga y ritmo laboral';
-        const areaText = rec.department ? ` en el área de ${rec.department}` : '';
+        const recommendation = getTailoredRecs(rec.stressors, rec.department);
 
         rec.details =
           `📋 Caso de Seguimiento SG-SST (Confidencial):\n` +
           `• Factores de Riesgo Laboral: ${factorsText}.\n` +
-          `• Recomendación de Intervención SST: Monitorear distribución de tareas y pausas activas${areaText}. Realizar seguimiento preventivo a factores psicosociales preservando la identidad del colaborador.\n` +
+          `• Recomendación de Intervención: ${recommendation}\n` +
           `• Orientación Brindada: El colaborador completó una sesión privada de orientación emocional con el Terapeuta en Salud Mental.`;
         await rec.save();
       }
-      if (recordsToClean.length > 0) {
-        console.log(`   🔒 Se sanitizaron ${recordsToClean.length} registros de telemetría psicosocial para garantizar confidencialidad.`);
+
+      // Actualizar también cualquier registro existente que tenga el prefijo 'Recomendación de Intervención SST:'
+      const sstPrefixRecords = await MoodTelemetry.find({
+        details: { $regex: /• Recomendación de Intervención SST:/ },
+      });
+      for (const rec of sstPrefixRecords) {
+        rec.details = rec.details.replace(/• Recomendación de Intervención SST:/g, '• Recomendación de Intervención:');
+        await rec.save();
+      }
+
+      const totalUpdated = recordsToClean.length + sstPrefixRecords.length;
+      if (totalUpdated > 0) {
+        console.log(`   🔒 Se actualizaron ${totalUpdated} registros de telemetría psicosocial (confidencialidad y recomendación de intervención).`);
       }
     }
   } catch (err) {

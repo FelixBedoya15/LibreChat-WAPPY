@@ -236,7 +236,17 @@ export default function PublicMoodTracker() {
 
         // Save initial SST case follow-up note so findings are NEVER lost if user closes tab
         const areaSuffix = department.trim() ? ` en el área de ${department.trim()}` : '';
-        const initialCaseNote = `📋 Caso de Seguimiento SG-SST (Confidencial):\n• Factores de Riesgo Laboral: ${stressorsSummary}.\n• Recomendación de Intervención SST: Monitorear factores de riesgo reportados y pausas activas${areaSuffix}.\n• Orientación Brindada: Sesión privada de orientación emocional iniciada con el Terapeuta.`;
+        const initialRecs: string[] = [];
+        if (selectedStressors.includes('sobrecarga')) initialRecs.push(`Revisar cargas de trabajo y volumen de tareas${areaSuffix}`);
+        if (selectedStressors.includes('liderazgo')) initialRecs.push(`Fortalecer canales de diálogo y liderazgo empático`);
+        if (selectedStressors.includes('entorno')) initialRecs.push(`Verificar ergonomía y adecuación de herramientas de trabajo${areaSuffix}`);
+        if (selectedStressors.includes('personal')) initialRecs.push(`Brindar flexibilidad y soporte desde bienestar organizacional`);
+        if (selectedStressors.includes('funciones')) initialRecs.push(`Clarificar alcance de roles y prioridades laborales${areaSuffix}`);
+        if (selectedStressors.includes('fatiga')) initialRecs.push(`Monitorear pausas activas y tiempos de descanso efectivo`);
+        if (initialRecs.length === 0) initialRecs.push(`Monitorear factores de riesgo reportados y pausas activas${areaSuffix}`);
+
+        const initialRec = initialRecs.slice(0, 2).join('. ') + '.';
+        const initialCaseNote = `📋 Caso de Seguimiento SG-SST (Confidencial):\n• Factores de Riesgo Laboral: ${stressorsSummary}.\n• Recomendación de Intervención: ${initialRec}\n• Orientación Brindada: Sesión privada de orientación emocional iniciada con el Terapeuta.`;
 
         axios.post(`/api/public-sgsst/mood/update/${telemetryId}`, {
           stressors: selectedStressors,
@@ -468,7 +478,7 @@ export default function PublicMoodTracker() {
           department: department.trim(),
           messages: messages.map((m) => ({ sender: m.sender, text: m.text })),
         },
-        { timeout: 6000 }
+        { timeout: 12000 }
       );
     } catch (error) {
       console.warn('Fallback en finalización de chat:', error);
@@ -478,9 +488,19 @@ export default function PublicMoodTracker() {
           (id) => stressorsList.find((s) => s.id === id)?.label || id
         );
         const stressorsSummary = selectedLabels.length > 0 ? selectedLabels.join(', ') : 'Sobrecarga y ritmo laboral';
+        const fallbackRecs: string[] = [];
+        if (selectedStressors.includes('sobrecarga')) fallbackRecs.push(`Evaluar volumen de tareas y redistribuir cargas de trabajo operativas${areaSuffix}`);
+        if (selectedStressors.includes('liderazgo')) fallbackRecs.push(`Fomentar comunicación asertiva y espacios de escucha con líderes`);
+        if (selectedStressors.includes('entorno')) fallbackRecs.push(`Revisar condiciones físicas del puesto y herramientas asignadas${areaSuffix}`);
+        if (selectedStressors.includes('personal')) fallbackRecs.push(`Ofrecer orientación y apoyo desde los programas de bienestar laboral`);
+        if (selectedStressors.includes('funciones')) fallbackRecs.push(`Clarificar responsabilidades y objetivos operativos${areaSuffix}`);
+        if (selectedStressors.includes('fatiga')) fallbackRecs.push(`Programar pausas activas sistemáticas y vigilar límites de jornada`);
+        if (fallbackRecs.length === 0) fallbackRecs.push(`Monitorear factores de riesgo psicosocial y pausas activas${areaSuffix}`);
+
+        const tailoredFallbackRec = fallbackRecs.slice(0, 2).join('. ') + '.';
         await axios.post(`/api/public-sgsst/mood/update/${telemetryId}`, {
           stressors: selectedStressors,
-          details: `📋 Caso de Seguimiento SG-SST (Confidencial):\n• Factores de Riesgo Laboral: ${stressorsSummary}.\n• Recomendación de Intervención SST: Monitorear distribución de cargas y pausas ergonómicas${areaSuffix}. Fomentar canales de comunicación y bienestar.\n• Orientación Brindada: El colaborador completó una sesión privada de orientación emocional con el Terapeuta en Salud Mental.`,
+          details: `📋 Caso de Seguimiento SG-SST (Confidencial):\n• Factores de Riesgo Laboral: ${stressorsSummary}.\n• Recomendación de Intervención: ${tailoredFallbackRec}\n• Orientación Brindada: El colaborador completó una sesión privada de orientación emocional con el Terapeuta en Salud Mental.`,
         });
       } catch (e) {}
     } finally {

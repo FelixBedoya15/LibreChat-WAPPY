@@ -657,6 +657,10 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
             {filteredData.length > 0 ? (
               filteredData.map((d, i) => {
                 let displayDetails = d.details;
+                if (displayDetails && displayDetails.includes('• Recomendación de Intervención SST:')) {
+                  displayDetails = displayDetails.replace(/• Recomendación de Intervención SST:/g, '• Recomendación de Intervención:');
+                }
+
                 if (
                   displayDetails &&
                   (displayDetails.includes('Conversación con el Terapeuta') ||
@@ -676,7 +680,19 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
                   const factorsText = labels.length > 0 ? labels.join(', ') : 'Sobrecarga y ritmo laboral';
                   const areaText = d.department ? ` en el área de ${d.department}` : '';
 
-                  displayDetails = `📋 Caso de Seguimiento SG-SST (Confidencial):\n• Factores de Riesgo Laboral: ${factorsText}.\n• Recomendación de Intervención SST: Monitorear distribución de tareas y pausas activas${areaText}. Realizar seguimiento preventivo a factores psicosociales preservando la confidencialidad del colaborador.\n• Orientación Brindada: Sesión confidencial con el Terapeuta en Salud Mental completada satisfactoriamente.`;
+                  const recs: string[] = [];
+                  const stList = d.stressors || [];
+                  if (stList.includes('sobrecarga')) recs.push(`Evaluar volumen de tareas y redistribuir cargas de trabajo operativas${areaText}`);
+                  if (stList.includes('liderazgo')) recs.push(`Fomentar canales de comunicación abierta y espacios de retroalimentación empática con líderes`);
+                  if (stList.includes('entorno')) recs.push(`Revisar condiciones ergonómicas del puesto y herramientas de trabajo${areaText}`);
+                  if (stList.includes('personal')) recs.push(`Facilitar acceso a programas de bienestar emocional y opciones de flexibilidad horaria`);
+                  if (stList.includes('funciones')) recs.push(`Clarificar alcance de responsabilidades, roles y metas de desempeño${areaText}`);
+                  if (stList.includes('fatiga')) recs.push(`Promover pausas activas sistemáticas y respeto a los tiempos de desconexión laboral efectiva`);
+                  if (recs.length === 0) recs.push(`Monitorear factores de riesgo psicosocial y fomentar pausas activas${areaText}`);
+
+                  const recText = recs.slice(0, 2).join('. ') + '.';
+
+                  displayDetails = `📋 Caso de Seguimiento SG-SST (Confidencial):\n• Factores de Riesgo Laboral: ${factorsText}.\n• Recomendación de Intervención: ${recText}\n• Orientación Brindada: Sesión confidencial con el Terapeuta en Salud Mental completada satisfactoriamente.`;
                 }
 
                 if (!displayDetails || !displayDetails.trim()) {
