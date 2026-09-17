@@ -483,9 +483,10 @@ ${companyCargos.length > 0 ? `\n═══ LISTA DE CARGOS DE LA EMPRESA (PRIORIZ
 
 ═══ TUS TAREAS OBLIGATORIAS ═══
 1. CARGO:
-   - Si CARGO ACTUAL está vacío o no especificado, DEBES deducir el cargo o rol ocupacional más idóneo basándote en la actividad, tareas y proceso (por ejemplo: si la actividad es "SOCIO DIRECTOR, SOCIOS GERENTES", el cargo es "Socio Director" o "Gerente General"; si es soldadura, "Soldador"; si es administrativo, "Auxiliar Administrativo" o "Asistente de Gestión").
-   - Si alguno de los CARGOS DE LA EMPRESA coincide o es idóneo para esta labor, usa prioritariamente ese nombre.
-   - Si el usuario YA tenía un cargo válido en CARGO ACTUAL, consérvalo tal cual.
+   - Si CARGO ACTUAL ya tiene un valor válido asignado por el usuario, DEBES conservarlo exactamente igual sin modificarlo.
+   - Si CARGO ACTUAL está vacío o no especificado:
+     * REGLA 1 (REUTILIZAR EXISTENTES): Revisa la LISTA DE CARGOS DE LA EMPRESA. Si alguno de esos cargos existentes coincide, abarca o es idóneo para la actividad, tareas y proceso (por ejemplo: si la actividad es de socios/gerencia y existe "Socio Director" o "Gerente General"; o si es administrativa y existe "Personal Administrativo"), DEBES asignar EXACTAMENTE ese nombre de cargo registrado.
+     * REGLA 2 (CREAR NUEVO SOLO SI NO EXISTE): ÚNICAMENTE si ABSOLUTAMENTE NINGUNO de los cargos registrados de la empresa corresponde a la labor, deduce y crea un nuevo nombre de cargo profesional, técnico y conciso en español para esa actividad (por ejemplo: si la actividad es "SOCIO DIRECTOR, SOCIOS GERENTES" y no existía, el cargo es "Socio Director"; si es soldadura, "Soldador"). NUNCA fuerces un cargo administrativo si la labor es gerencial/directiva o de manufactura/operativa.
 2. ZONA / LUGAR:
    - Si ZONA / LUGAR ACTUAL está vacía o no especificada, deduce la zona, área o locación física adecuada para este proceso y actividad (ej: "Oficinas Administrativas", "Área de Dirección", "Planta de Producción", "Almacén", "Obra", etc.).
    - Si ya tenía una zona fijada por el usuario, consérvala tal cual.
@@ -1119,11 +1120,11 @@ ${JSON.stringify(rowsSummary, null, 2)}
 
 INSTRUCCIONES ESTRICTAS:
 1. Revisa cada fila: su proceso, actividad, tareas y descripción del peligro.
-2. Determina el cargo exacto que realiza esa actividad o está expuesto al peligro.
-3. Si el cargo coincide o es análogo a uno de los CARGOS REGISTRADOS DE LA EMPRESA, DEBES usar exactamente el nombre de ese cargo registrado para garantizar la sincronización perfecta con el aplicativo de Perfiles de Cargo.
-4. Si la actividad es propia de otro puesto no registrado, asígnale un nombre técnico profesional y conciso en español (Ej: "Soldador", "Operario de Montacargas", "Conductor de Carga", "Auxiliar Administrativo", "Inspector de Calidad", "Electricista Industrial").
-5. Si una fila ya tiene un cargo coherente y válido asignado, puedes conservarlo.
-6. Responde ÚNICAMENTE con un JSON array válido de objetos con este formato exacto, sin texto adicional ni explicaciones:
+2. Si una fila YA tiene un cargo asignado válido en cargoActual, CONSÉRVALO exactamente igual.
+3. Si la fila NO tiene cargo (o está vacío):
+   a) PRIORIDAD ABSOLUTA A CARGOS EXISTENTES: Revisa la lista de CARGOS REGISTRADOS EN EL SISTEMA DE LA EMPRESA. Si alguno de los cargos existentes coincide, encaja o abarca la labor de esa fila, asigna EXACTAMENTE ese nombre de cargo registrado para sincronizar con el aplicativo de Perfiles de Cargo.
+   b) CREAR NUEVO SOLO SI NO EXISTE: SOLO si ningún cargo registrado de la empresa describe ni aplica a la actividad de la fila, crea y asigna un cargo nuevo específico, técnico y profesional en español acorde a la labor (ej: "Socio Director", "Operario de Producción", "Soldador"). NUNCA fuerces un cargo administrativo si la labor es gerencial, directiva o de planta industrial.
+4. Responde ÚNICAMENTE con un JSON array válido de objetos con este formato exacto, sin texto adicional ni explicaciones:
 [
   { "index": 0, "cargo": "Nombre del Cargo" },
   { "index": 1, "cargo": "Nombre del Cargo" }

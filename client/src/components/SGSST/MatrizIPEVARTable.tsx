@@ -654,6 +654,7 @@ const AICargoCell = ({
   useEffect(() => {
     const handleOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setQuery(value || '');
         setIsOpen(false);
       }
     };
@@ -661,29 +662,70 @@ const AICargoCell = ({
       document.addEventListener('mousedown', handleOutside);
     }
     return () => document.removeEventListener('mousedown', handleOutside);
-  }, [isOpen]);
+  }, [isOpen, value]);
 
-  const filteredCargos = useMemo(() => {
+  // Lista normalizada, desduplicada y ordenada alfabéticamente
+  const normalizedList = useMemo(() => {
+    const set = new Set<string>();
+    (cargosList || []).forEach((c) => {
+      const clean = (c || '').trim();
+      if (
+        clean &&
+        clean.toLowerCase() !== 'cargo / rol…' &&
+        clean.toLowerCase() !== 'cargo / rol...' &&
+        clean.toLowerCase() !== 'cargo / rol'
+      ) {
+        set.add(toSentenceCase(clean));
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+  }, [cargosList]);
+
+  // Se considera búsqueda activa SOLO si el usuario escribió un texto diferente al valor guardado
+  const isActivelySearching = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return cargosList;
-    return cargosList.filter((c) => c.toLowerCase().includes(q));
-  }, [cargosList, query]);
+    const v = (value || '').trim().toLowerCase();
+    return q.length > 0 && q !== v;
+  }, [query, value]);
+
+  const displayedCargos = useMemo(() => {
+    if (!isActivelySearching) {
+      return normalizedList;
+    }
+    const q = query.trim().toLowerCase();
+    return normalizedList.filter((c) => c.toLowerCase().includes(q));
+  }, [normalizedList, isActivelySearching, query]);
 
   const exactMatch = useMemo(() => {
-    return cargosList.some((c) => c.toLowerCase() === query.trim().toLowerCase());
-  }, [cargosList, query]);
+    const q = query.trim().toLowerCase();
+    return normalizedList.some((c) => c.toLowerCase() === q);
+  }, [normalizedList, query]);
 
   const handleSelect = (selectedCargo: string) => {
-    setQuery(selectedCargo);
-    onChange(selectedCargo);
+    const clean = selectedCargo.trim();
+    setQuery(clean);
+    onChange(clean);
     setIsOpen(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nextVal = e.target.value;
     setQuery(nextVal);
-    onChange(nextVal);
     if (!isOpen) setIsOpen(true);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      setQuery(value || '');
+      setIsOpen(false);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (displayedCargos.length === 1 && isActivelySearching) {
+        handleSelect(displayedCargos[0]);
+      } else if (query.trim()) {
+        handleSelect(toSentenceCase(query.trim()));
+      }
+    }
   };
 
   return (
@@ -698,11 +740,24 @@ const AICargoCell = ({
           value={query}
           onFocus={() => setIsOpen(true)}
           onChange={handleInputChange}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setIsOpen(false);
-          }}
-          className="w-full min-w-[140px] rounded-lg border border-transparent bg-transparent py-1.5 pl-2 pr-8 text-xs font-semibold text-teal-700 dark:text-teal-300 outline-none transition-colors hover:border-border-medium focus:border-teal-500 focus:bg-surface-primary dark:focus:bg-surface-secondary"
+          onKeyDown={handleKeyDown}
+          className="w-full min-w-[140px] rounded-lg border border-transparent bg-transparent py-1.5 pl-2 pr-12 text-xs font-semibold text-teal-700 dark:text-teal-300 outline-none transition-colors hover:border-border-medium focus:border-teal-500 focus:bg-surface-primary dark:focus:bg-surface-secondary"
         />
+        {query && (
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={(e) => {
+              e.stopPropagation();
+              setQuery('');
+              if (!isOpen) setIsOpen(true);
+            }}
+            className="absolute right-6 top-1/2 -translate-y-1/2 rounded p-0.5 text-text-tertiary opacity-40 transition-opacity hover:text-red-500 hover:opacity-100 cursor-pointer"
+            title="Limpiar búsqueda"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
         <button
           type="button"
           tabIndex={-1}
@@ -718,50 +773,79 @@ const AICargoCell = ({
 
       {/* Custom styled dropdown matching WAPPY system */}
       {isOpen && (
-        <div className="custom-scrollbar-ipevar absolute left-0 top-full z-[140] mt-1.5 max-h-60 w-64 overflow-y-auto rounded-xl border border-border-medium bg-surface-primary p-1.5 shadow-2xl dark:bg-surface-secondary">
-          <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
-            Cargos de la Empresa ({filteredCargos.length})
+        <div className="custom-scrollbar-ipevar absolute left-0 top-full z-[140] mt-1.5 max-h-64 w-64 overflow-hidden rounded-xl border border-border-medium bg-surface-primary p-1.5 shadow-2xl dark:bg-surface-secondary">
+          <div className="flex items-center justify-between border-b border-border-light/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
+            <span>
+              {isActivelySearching
+                ? `Coincidencias (${displayedCargos.length} de ${normalizedList.length})`
+                : `Cargos Registrados (${normalizedList.length})`}
+            </span>
+            {isActivelySearching && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                className="text-[10px] font-semibold text-teal-600 hover:underline dark:text-teal-400 cursor-pointer normal-case"
+              >
+                Ver todos
+              </button>
+            )}
           </div>
 
-          {filteredCargos.length === 0 && (
-            <div className="px-3 py-2 text-xs text-text-tertiary italic">
-              No hay coincidencias en la lista
-            </div>
-          )}
-
-          {filteredCargos.map((cargo) => {
-            const isSelected = cargo.toLowerCase() === value?.toLowerCase();
-            return (
+          <div className="custom-scrollbar-ipevar max-h-48 overflow-y-auto py-1">
+            {/* Opción para quitar cargo */}
+            {value && !isActivelySearching && (
               <button
-                key={cargo}
                 type="button"
-                onClick={() => handleSelect(cargo)}
-                className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors cursor-pointer ${
-                  isSelected
-                    ? 'bg-teal-500/15 font-bold text-teal-700 dark:text-teal-300'
-                    : 'text-text-primary hover:bg-surface-tertiary hover:text-teal-600 dark:hover:text-teal-400'
-                }`}
+                onClick={() => handleSelect('')}
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1 text-left text-[11px] text-text-tertiary hover:bg-surface-tertiary hover:text-red-500 transition-colors cursor-pointer border-b border-border-light/40 mb-1"
               >
-                <span className="flex items-center gap-2 truncate">
-                  <Briefcase className="h-3.5 w-3.5 shrink-0 text-teal-600 dark:text-teal-400" />
-                  <span className="truncate">{cargo}</span>
-                </span>
-                {isSelected && (
-                  <Check className="h-3.5 w-3.5 shrink-0 text-teal-600 dark:text-teal-400 ml-1" />
-                )}
+                <X className="h-3 w-3 shrink-0 text-red-400" />
+                <span className="italic">Quitar cargo (dejar vacío)</span>
               </button>
-            );
-          })}
+            )}
 
-          {/* Opción para confirmar o crear nuevo cargo libre */}
+            {displayedCargos.length === 0 && (
+              <div className="px-3 py-2 text-xs text-text-tertiary italic">
+                {normalizedList.length === 0
+                  ? 'No hay cargos registrados aún'
+                  : 'No se encontraron coincidencias en los cargos registrados'}
+              </div>
+            )}
+
+            {displayedCargos.map((cargo) => {
+              const isSelected = cargo.toLowerCase() === value?.toLowerCase();
+              return (
+                <button
+                  key={cargo}
+                  type="button"
+                  onClick={() => handleSelect(cargo)}
+                  className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors cursor-pointer ${
+                    isSelected
+                      ? 'bg-teal-500/15 font-bold text-teal-700 dark:text-teal-300'
+                      : 'text-text-primary hover:bg-surface-tertiary hover:text-teal-600 dark:hover:text-teal-400'
+                  }`}
+                >
+                  <span className="flex items-center gap-2 truncate">
+                    <Briefcase className="h-3.5 w-3.5 shrink-0 text-teal-600 dark:text-teal-400" />
+                    <span className="truncate">{cargo}</span>
+                  </span>
+                  {isSelected && (
+                    <Check className="h-3.5 w-3.5 shrink-0 text-teal-600 dark:text-teal-400 ml-1" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Opción para confirmar o crear nuevo cargo libre SOLO si no existe en la lista */}
           {query.trim() && !exactMatch && (
             <button
               type="button"
-              onClick={() => handleSelect(query.trim())}
+              onClick={() => handleSelect(toSentenceCase(query.trim()))}
               className="mt-1 flex w-full items-center gap-2 rounded-lg border-t border-border-light px-2.5 py-2 text-left text-xs font-semibold text-teal-600 dark:text-teal-400 hover:bg-teal-500/10 transition-colors cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Usar cargo: &quot;{query.trim()}&quot;</span>
+              <span className="truncate">Crear nuevo cargo: &quot;{toSentenceCase(query.trim())}&quot;</span>
             </button>
           )}
         </div>
