@@ -3,11 +3,12 @@ const logger = require('~/config/winston');
 const GeminiLiveClient = require('./geminiLive');
 const { getUserKey } = require('~/server/services/UserService');
 const { EModelEndpoint } = require('librechat-data-provider');
-const { saveMessage, saveConvo, getMessages, updateMessage } = require('~/models');
+const { saveMessage, saveConvo, getMessages, updateMessage, getAllUserMemories, setMemory, deleteMemory } = require('~/models');
 const { v4: uuidv4 } = require('uuid');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, LIVE_FALLBACK_MODELS } = require('../sgsst/sgsstGemini');
 const mongoose = require('mongoose');
 const CompanyInfo = require('~/models/CompanyInfo');
+const { syncCompanyMemory } = require('../sgsst/companyInfo');
 const { buildSignatureSection, buildStandardHeader, buildWorkerSubHeader } = require('../sgsst/reportHeader');
 const fs = require('fs');
 const path = require('path');
@@ -271,6 +272,42 @@ class VoiceSession {
                             }
                         },
                         {
+                            name: "gestionar_memoria",
+                            description: "Permite consultar, guardar o eliminar datos clave en la memoria permanente del usuario (como datos de la empresa, procesos, notas importantes, preferencias).",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    accion: {
+                                        type: "string",
+                                        enum: ["consultar", "guardar", "eliminar"],
+                                        description: "Acción a realizar: 'consultar' para leer memorias, 'guardar' para almacenar o actualizar un dato, 'eliminar' para borrar un dato."
+                                    },
+                                    clave: {
+                                        type: "string",
+                                        description: "Clave o tema de la memoria (ej: 'empresa_activa', 'macroprocesos', 'politica_sst', etc.)."
+                                    },
+                                    valor: {
+                                        type: "string",
+                                        description: "Contenido detallado a guardar cuando la acción sea 'guardar'."
+                                    }
+                                },
+                                required: ["accion"]
+                            }
+                        },
+                        {
+                            name: "leer_pantalla",
+                            description: "Lee e inspecciona el texto, tablas, registros, tarjetas e informes que están visibles en la pantalla actual del usuario. Úsala siempre que el usuario te pida leerle lo que hay en pantalla, leerle un informe reciente o revisar los datos visibles de un aplicativo.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    seccion: {
+                                        type: "string",
+                                        description: "Sección o informe específico a leer (opcional, ej: 'informe', 'tabla', 'todo')."
+                                    }
+                                }
+                            }
+                        },
+                        {
                             name: "operar_interfaz_visual",
                             description: "Ejecuta una acción visual interactiva en la pantalla del usuario (hacer clic en un botón, escribir texto en un campo, scroll, abrir plan).",
                             parameters: {
@@ -408,7 +445,13 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
      Ejemplo exacto: "¡De una! Ya abrí el chat con el [Nombre del Especialista] y le dejé tu consulta en pantalla. Esperemos un momento a que responda."
      PROHIBICIÓN RADICAL: NUNCA digas "el especialista te dice que..." ni inventes, simules o resumas el concepto técnico en este turno. TÚ NO TIENES LA RESPUESTA TODAVÍA.
 5. **SÍNTESIS DE RESPUESTAS TÉCNICAS**:
-   - ÚNICAMENTE hablarás sobre el dictamen técnico del especialista cuando recibas una notificación interna del sistema que empiece por "[SISTEMA INTERNO WAPPY]: ...". Solo en ese instante darás el resumen oral de 2 o 3 oraciones concisas y recomendarás el siguiente paso.`;
+   - ÚNICAMENTE hablarás sobre el dictamen técnico del especialista cuando recibas una notificación interna del sistema que empiece por "[SISTEMA INTERNO WAPPY]: ...". Solo en ese instante darás el resumen oral de 2 o 3 oraciones concisas y recomendarás el siguiente paso.
+6. **LEER LA PANTALLA O INFORMES VISIBLES**:
+   - Tienes la herramienta 'leer_pantalla' para inspeccionar, extraer y leer lo que el usuario tiene abierto en pantalla (informes, tablas, registros, tarjetas o formularios).
+   - Si el usuario te pide: "Ábreme x aplicativo y léeme el informe más reciente" o "Léeme lo que hay en la pantalla":
+     1. Primero navegas al módulo solicitado con 'wappy_navegar'.
+     2. Invocas 'leer_pantalla' para extraer el contenido visible de ese informe o tabla.
+     3. Resumes oralmente el informe en 2 o 3 oraciones breves y claras indicándole al usuario los datos clave (ej: fecha, afectado, evento, medidas).`;
         } else {
             // Herramientas nativas para agentes SST y Fisioterapeuta Laboral
             const reportTool = {
@@ -487,6 +530,63 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     }
                 } catch (error) {
                     logger.error(`[VoiceSession] Error loading history:`, error);
+                }
+            }
+
+            // Inyectar contexto de Empresa Activa y Memoria en modo Tenshi Voice
+            if (this.config.mode === 'tenshi_voice') {
+                try {
+                    let targetUserId = this.userId;
+                    try {
+                        const User = mongoose.models.User || require('~/models/User');
+                        const userDoc = await User.findById(this.userId).select('isSubUser parentUser assignedCompany').lean();
+                        if (userDoc?.isSubUser && userDoc?.parentUser) {
+                            targetUserId = userDoc.parentUser.toString();
+                        }
+                    } catch (uErr) {
+                        targetUserId = this.userId;
+                    }
+
+                    const [companyInfo, rawMemories] = await Promise.all([
+                        CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean().catch(() => null)
+                            .then(async (c) => c || await CompanyInfo.findOne({ user: targetUserId }).lean().catch(() => null)),
+                        getAllUserMemories(targetUserId).catch(() => [])
+                    ]);
+
+                    let companyAndMemoryPrompt = '';
+                    if (companyInfo) {
+                        const companyType = companyInfo.companyType || 'Persona Jurídica';
+                        const nitLabel = companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT';
+                        let sedesStr = '';
+                        if (companyInfo.sedes && Array.isArray(companyInfo.sedes) && companyInfo.sedes.length > 0) {
+                            sedesStr = ' Sedes adicionales: ' + companyInfo.sedes.map(s => `${s.nombre || 'Sede'} (${s.city || 'N/A'})`).join(', ');
+                        }
+                        companyAndMemoryPrompt += `\n\n[EMPRESA ACTIVA DEL USUARIO]:
+- Empresa: ${companyInfo.companyName || 'N/A'} (${companyType}, ${nitLabel}: ${companyInfo.nit || 'N/A'}).
+- Representante: ${companyInfo.legalRepresentative || 'N/A'}. Trabajadores: ${companyInfo.workerCount ?? 'N/A'}.
+- ARL: ${companyInfo.arl || 'N/A'} (Riesgo: ${companyInfo.riskLevel || 'N/A'}). Actividad: ${companyInfo.economicActivity || 'N/A'}. CIIU: ${companyInfo.ciiu || 'N/A'}.
+- Ubicación: ${companyInfo.address || 'N/A'}, ${companyInfo.city || 'N/A'}, ${companyInfo.departamento || 'N/A'}.
+- Responsable SST: ${companyInfo.responsibleSST || 'N/A'}.${sedesStr}`;
+                    }
+
+                    if (Array.isArray(rawMemories) && rawMemories.length > 0) {
+                        const uniqueMap = new Map();
+                        const sortedRaw = [...rawMemories].sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
+                        for (const m of sortedRaw) {
+                            if (m.key && !uniqueMap.has(m.key)) uniqueMap.set(m.key, m.value);
+                        }
+                        companyAndMemoryPrompt += `\n\n[MEMORIA PERMANENTE DEL USUARIO]:\n`;
+                        for (const [k, val] of uniqueMap.entries()) {
+                            companyAndMemoryPrompt += `- [${k}]: ${val}\n`;
+                        }
+                    }
+
+                    companyAndMemoryPrompt += `\n\n[REGLA DE CONOCIMIENTO CORPORATIVO]: Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.`;
+
+                    this.liveConfig.systemInstruction = (this.liveConfig.systemInstruction || '') + companyAndMemoryPrompt;
+                    logger.info(`[VoiceSession] Injected active company & ${rawMemories?.length || 0} memories into Tenshi Voice instructions`);
+                } catch (memErr) {
+                    logger.warn(`[VoiceSession] Could not inject company/memories into Tenshi Voice:`, memErr.message);
                 }
             }
 
@@ -795,6 +895,138 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                                     id: fc.id,
                                     name: fc.name,
                                     response: { error: `No se pudo acceder a Google Drive: ${driveErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de selección y activación de empresa en modo voz
+                    if (fc.name === 'wappy_seleccionar_empresa') {
+                        const term = fc.args?.nombre_o_id;
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "wappy_seleccionar_empresa" with term: "${term}"`);
+                        try {
+                            let targetUserId = this.userId;
+                            try {
+                                const User = mongoose.models.User || require('~/models/User');
+                                const userDoc = await User.findById(this.userId).select('isSubUser parentUser').lean();
+                                if (userDoc?.isSubUser && userDoc?.parentUser) {
+                                    targetUserId = userDoc.parentUser.toString();
+                                }
+                            } catch (uErr) { }
+
+                            let query = { user: targetUserId };
+                            if (mongoose.isValidObjectId(term)) {
+                                query._id = term;
+                            } else {
+                                const safeRegex = new RegExp(String(term || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+                                query.$or = [
+                                    { companyName: safeRegex },
+                                    { nit: term }
+                                ];
+                            }
+                            const found = await CompanyInfo.findOne(query);
+                            if (found) {
+                                await CompanyInfo.updateMany({ user: targetUserId }, { isActive: false });
+                                found.isActive = true;
+                                await found.save();
+                                await syncCompanyMemory(targetUserId, found);
+                                logger.info(`[VoiceSession] Activated company "${found.companyName}" (${found._id})`);
+
+                                this.sendToClient({
+                                    type: 'wappy_action',
+                                    data: {
+                                        id: fc.id,
+                                        name: fc.name,
+                                        args: fc.args,
+                                        result: { success: true, companyName: found.companyName, companyId: found._id }
+                                    }
+                                });
+
+                                if (this.geminiClient) {
+                                    this.geminiClient.sendToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: { result: `Empresa "${found.companyName}" seleccionada y activada con éxito en el sistema.` }
+                                    }]);
+                                }
+                            } else {
+                                if (this.geminiClient) {
+                                    this.geminiClient.sendToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: { error: `No se encontró ninguna empresa registrada con el nombre o identificador "${term}".` }
+                                    }]);
+                                }
+                            }
+                        } catch (selErr) {
+                            logger.error('[VoiceSession] Error in wappy_seleccionar_empresa:', selErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error activando empresa: ${selErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de consulta y guardado de memoria en modo voz
+                    if (fc.name === 'gestionar_memoria') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "gestionar_memoria" with args:`, JSON.stringify(fc.args));
+                        try {
+                            let targetUserId = this.userId;
+                            try {
+                                const User = mongoose.models.User || require('~/models/User');
+                                const userDoc = await User.findById(this.userId).select('isSubUser parentUser').lean();
+                                if (userDoc?.isSubUser && userDoc?.parentUser) {
+                                    targetUserId = userDoc.parentUser.toString();
+                                }
+                            } catch (uErr) { }
+
+                            const accion = fc.args?.accion || 'consultar';
+                            const clave = fc.args?.clave;
+                            const valor = fc.args?.valor;
+
+                            if (accion === 'guardar' && clave && valor) {
+                                await setMemory({ userId: targetUserId, agentId: 'global', key: clave, value: valor });
+                                if (this.geminiClient) {
+                                    this.geminiClient.sendToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: { result: `Dato guardado exitosamente en la memoria bajo la clave "${clave}".` }
+                                    }]);
+                                }
+                            } else if (accion === 'eliminar' && clave) {
+                                await deleteMemory({ userId: targetUserId, agentId: 'global', key: clave });
+                                if (this.geminiClient) {
+                                    this.geminiClient.sendToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: { result: `Memoria "${clave}" eliminada con éxito.` }
+                                    }]);
+                                }
+                            } else {
+                                const rawMems = await getAllUserMemories(targetUserId);
+                                const unique = new Map();
+                                (rawMems || []).forEach(m => { if (m.key && !unique.has(m.key)) unique.set(m.key, m.value); });
+                                const list = Array.from(unique.entries()).map(([k, v]) => `[${k}]: ${v}`).join('\n');
+                                if (this.geminiClient) {
+                                    this.geminiClient.sendToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: { result: list || 'No hay memorias registradas aún.' }
+                                    }]);
+                                }
+                            }
+                        } catch (memErr) {
+                            logger.error('[VoiceSession] Error executing gestionar_memoria:', memErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error gestionando memoria: ${memErr.message}` }
                                 }]);
                             }
                         }

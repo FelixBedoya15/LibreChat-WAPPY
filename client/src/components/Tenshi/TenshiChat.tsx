@@ -8,7 +8,7 @@ import { useListAgentsQuery } from '~/data-provider';
 import { useRecoilValue } from 'recoil';
 import store from '~/store';
 import Markdown from '~/components/Chat/Messages/Content/Markdown';
-import { getDehydratedDOM, executeGUIAction } from '../Chat/TenshiPageController';
+import { getDehydratedDOM, executeGUIAction, getVisibleScreenContent } from '../Chat/TenshiPageController';
 import { useVoiceSession } from '~/hooks/useVoiceSession';
 import { cn } from '~/utils';
 
@@ -721,6 +721,9 @@ export default function TenshiChat() {
             }, 350);
 
             resultMsg = `Formulario ${rawModulo} diligenciado exitosamente con los datos provistos`;
+          } else if (action.name === 'leer_pantalla') {
+            const screenText = getVisibleScreenContent(action.args?.seccion);
+            resultMsg = screenText;
           } else if (action.name === 'operar_interfaz_visual') {
             const guiRes = await executeGUIAction(
               action.args.accion,
@@ -1396,13 +1399,18 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
       
       // Heurística de captura de DOM: capturar si estamos en un bucle interactivo de GUI, si el usuario pide interactuar o si estamos en SGSST
       const textQuery = lastMessage?.role === 'user' ? lastMessage.content.toLowerCase() : '';
-      const uiActionKeywords = ['clic', 'click', 'pantalla', 'formulario', 'abre', 'abrir', 'llena', 'llenar', 'guarda', 'guardar', 'navega', 'navegar', 'boton', 'botón', 'scroll', 'interactua', 'digita', 'aplicativo', 'aplicacion', 'aplicación', 'escribe', 'escribir', 'reporte', 'reportar', 'investigacion', 'investigación', 'accidente', 'diligencia', 'diligenciar', 'colocar', 'datos', 'crear'];
+      const uiActionKeywords = ['clic', 'click', 'pantalla', 'formulario', 'abre', 'abrir', 'llena', 'llenar', 'guarda', 'guardar', 'navega', 'navegar', 'boton', 'botón', 'scroll', 'interactua', 'digita', 'aplicativo', 'aplicacion', 'aplicación', 'escribe', 'escribir', 'reporte', 'reportar', 'investigacion', 'investigación', 'accidente', 'diligencia', 'diligenciar', 'colocar', 'datos', 'crear', 'lee', 'leeme', 'léeme', 'muestra', 'muéstrame', 'informe', 'registros', 'que hay', 'qué hay'];
       const isUiActionQuery = uiActionKeywords.some(kw => textQuery.includes(kw));
       const isSgsstPage = window.location.pathname.startsWith('/sgsst');
       
       const shouldCaptureDOM = isLoopFeedback || isUiActionQuery || isSgsstPage;
       
-      const domState = shouldCaptureDOM ? getDehydratedDOM() : '';
+      let domState = '';
+      if (shouldCaptureDOM) {
+        const dehydrated = getDehydratedDOM();
+        const visibleContent = getVisibleScreenContent();
+        domState = `${dehydrated}\n\n=== CONTENIDO VISIBLE E INFORMES DE PANTALLA ===\n${visibleContent}`;
+      }
       console.log('[Tenshi Frontend] Dehydrated DOM length:', domState.length, '(Capture enabled:', shouldCaptureDOM, ')');
       
       setTenshiStatus('Consultando con Tenshi...');

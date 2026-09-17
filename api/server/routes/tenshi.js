@@ -11,8 +11,10 @@ const axios = require('axios');
 const { AuthKeys } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
 const { logger } = require('~/config');
-const { generateShortLivedToken } = require('@librechat/api');
+const { generateShortLivedToken, Tokenizer } = require('@librechat/api');
+const { getAllUserMemories, setMemory, deleteMemory } = require('~/models');
 const CompanyInfo = require('../../models/CompanyInfo');
+const { syncCompanyMemory } = require('./sgsst/companyInfo');
 const SomosSST = require('../../app/clients/tools/structured/SomosSST');
 const GoogleDrive = require('../../app/clients/tools/structured/GoogleDrive');
 const ConsultarAgenteEspecializado = require('../../app/clients/tools/structured/ConsultarAgenteEspecializado');
@@ -210,35 +212,83 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             TenshiMessage.create({ user: req.user.id, role: 'user', content: userQuery }).catch(e => console.error('Error saving user TenshiMessage:', e));
         }
 
+        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+
         // Fetch dynamic knowledge concurrently via Promise.all for maximum response speed
-        const [latestBlogs, latestCourses, ticketContext, companyInfo] = await Promise.all([
+        const [latestBlogs, latestCourses, ticketContext, companyInfo, rawMemories] = await Promise.all([
             BlogPost.find({ isPublished: true }).sort({ createdAt: -1 }).limit(3).lean().catch(() => []),
             Course.find({ isPublished: true }).sort({ createdAt: -1 }).limit(2).lean().catch(() => []),
             getRelevantTickets(req, userQuery).catch(() => ''),
-            CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean().catch(() => null)
+            (async () => {
+                let info = null;
+                if (req.user?.isSubUser && req.user?.assignedCompany) {
+                    info = await CompanyInfo.findOne({ _id: req.user.assignedCompany, user: targetUserId }).lean().catch(() => null);
+                }
+                if (!info) {
+                    info = await CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean().catch(() => null);
+                }
+                if (!info) {
+                    info = await CompanyInfo.findOne({ user: targetUserId }).lean().catch(() => null);
+                }
+                return info;
+            })(),
+            getAllUserMemories(targetUserId).catch(() => [])
         ]);
 
         const blogStr = latestBlogs.map(b => `- BLOG: ${b.title}`).join('\n');
         const courseStr = latestCourses.map(c => `- CURSO: ${c.title}`).join('\n');
         const manualContent = getPlatformManual();
 
-        let companyInfoStr = 'El usuario no ha registrado la información de su empresa en el Gestor SG-SST.';
+        let fullCompanyAndMemoryBlock = '';
         if (companyInfo) {
             const companyType = companyInfo.companyType || 'Persona Jurídica';
             const nitLabel = companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT';
-            companyInfoStr = `INFORMACIÓN DE LA EMPRESA DEL USUARIO:\n` +
+            let sedesStr = '';
+            if (companyInfo.sedes && Array.isArray(companyInfo.sedes) && companyInfo.sedes.length > 0) {
+                sedesStr = '\n  * Sedes Adicionales:\n' + companyInfo.sedes.map(s => `    - Sede: ${s.nombre || 'N/A'} (Ciudad: ${s.city || 'N/A'}, Depto: ${s.departamento || 'N/A'}, Dirección: ${s.address || 'N/A'}, Actividades: ${s.generalActivities || 'N/A'})`).join('\n');
+            }
+            fullCompanyAndMemoryBlock += `### 🏢 INFORMACIÓN DE LA EMPRESA ACTIVA DEL USUARIO (DATOS OFICIALES SG-SST):\n` +
                 `- Razón Social / Nombre: ${companyInfo.companyName || 'N/A'}\n` +
                 `- Tipo de Empresa: ${companyType}\n` +
                 `- ${nitLabel}: ${companyInfo.nit || 'N/A'}\n` +
-                `- Representante Legal: ${companyInfo.legalRepresentative || 'N/A'}\n` +
-                `- Cédula del Representante Legal: ${companyInfo.legalRepresentativeId || 'N/A'}\n` +
-                `- Número de Trabajadores: ${companyInfo.workerCount || 'N/A'}\n` +
-                `- ARL: ${companyInfo.arl || 'N/A'}\n` +
+                `- Representante Legal: ${companyInfo.legalRepresentative || 'N/A'}` + (companyInfo.legalRepresentativeId ? ` (Cédula: ${companyInfo.legalRepresentativeId})` : '') + `\n` +
+                `- Número de Trabajadores: ${companyInfo.workerCount ?? 'N/A'}\n` +
+                `- ARL: ${companyInfo.arl || 'N/A'} (Nivel de Riesgo ARL: ${companyInfo.riskLevel || 'N/A'})\n` +
                 `- Actividad Económica: ${companyInfo.economicActivity || 'N/A'}\n` +
-                `- Nivel de Riesgo: ${companyInfo.riskLevel || 'N/A'}\n` +
-                `- Ciudad: ${companyInfo.city || 'N/A'}, Departamento: ${companyInfo.departamento || 'N/A'}\n` +
-                `- Responsable SG-SST: ${companyInfo.responsibleSST || 'N/A'}`;
+                `- Código CIIU: ${companyInfo.ciiu || 'N/A'}\n` +
+                `- Sector: ${companyInfo.sector || 'N/A'}\n` +
+                `- Ubicación Sede Principal: ${companyInfo.address || 'N/A'} (Ciudad: ${companyInfo.city || 'N/A'}, Departamento: ${companyInfo.departamento || 'N/A'})\n` +
+                `- Responsable SG-SST: ${companyInfo.responsibleSST || 'N/A'}` + (companyInfo.licenseNumber ? ` (Licencia SST: ${companyInfo.licenseNumber}, Vigencia: ${companyInfo.licenseExpiry || 'N/A'})` : '') + `\n` +
+                `- Nivel de Formación SST: ${companyInfo.formationLevel || 'N/A'}\n` +
+                `- Estado Curso 50/20H: ${companyInfo.courseStatus || 'N/A'}\n` +
+                `- Descripción General de Actividades: ${companyInfo.generalActivities || 'N/A'}` +
+                (sedesStr ? `${sedesStr}\n\n` : '\n\n');
+        } else {
+            fullCompanyAndMemoryBlock += `### 🏢 INFORMACIÓN DE LA EMPRESA ACTIVA:\nNo se ha registrado una empresa en el Gestor SG-SST aún.\n\n`;
         }
+
+        // Deduplicate user memories by key (most recent first)
+        const uniqueMemMap = new Map();
+        if (Array.isArray(rawMemories)) {
+            const sorted = [...rawMemories].sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
+            for (const m of sorted) {
+                if (m.key && !uniqueMemMap.has(m.key)) {
+                    uniqueMemMap.set(m.key, m.value);
+                }
+            }
+        }
+
+        if (uniqueMemMap.size > 0) {
+            fullCompanyAndMemoryBlock += `### 🧠 MEMORIAS REGISTRADAS DEL USUARIO (BASE DE CONOCIMIENTO PERMANENTE / MEMORIA WAPPY):\n`;
+            for (const [k, v] of uniqueMemMap.entries()) {
+                fullCompanyAndMemoryBlock += `📌 [${k}]:\n${v}\n\n`;
+            }
+        }
+
+        fullCompanyAndMemoryBlock += `### ⚡ REGLA DE ORO DE CONOCIMIENTO CORPORATIVO Y MEMORIA:
+- TIENES ACCESO PLENO E INMEDIATO a toda la información de la empresa activa y a la memoria del usuario descritas arriba.
+- Conoces de antemano la Razón Social, NIT, Representante Legal, Trabajadores, ARL, Sedes, Macroprocesos y datos de la memoria.
+- NUNCA digas "no tengo acceso a la empresa", "no sé qué empresa está activa" ni le pidas al usuario que repita datos que ya están en esta ficha o memoria. Úsalos con total familiaridad y exactitud en todas tus respuestas.`;
 
         const skillInstructions = getActiveSkillInstructions(userQuery, config.skills || []);
 
@@ -252,7 +302,7 @@ ${manualContent}
 ${blogStr ? `ÚLTIMAS PUBLICACIONES DEL BLOG:\n${blogStr}\n` : ''}
 ${courseStr ? `CURSOS DE FORMACIÓN DISPONIBLES:\n${courseStr}\n` : ''}
 ${ticketContext ? `CONOCIMIENTO DINÁMICO (Contexto extraído por RAG):\n${ticketContext}\n` : ''}
-${companyInfoStr}
+${fullCompanyAndMemoryBlock}
 
 ### 🎯 ROL Y PERSONALIDAD DE TENSHI
 Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administras la plataforma central Somos SST (ubicada en /sgsst). Tu personalidad es alegre, carismática, empática, muy espontánea y respetuosa, utilizando modismos paisas colombianos naturales ("parce", "listo", "qué más pues", "bacano", "de una", "hágale").
@@ -539,10 +589,62 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             }
                         };
 
+                        const seleccionarEmpresaDeclaration = {
+                            name: 'seleccionar_empresa',
+                            description: 'Permite cambiar o activar la empresa en uso en la plataforma WAPPY por su nombre, NIT o ID. Si el usuario te pide cambiar de empresa o activar otra empresa, invoca esta función.',
+                            parameters: {
+                                type: 'OBJECT',
+                                properties: {
+                                    nombre_o_id: {
+                                        type: 'STRING',
+                                        description: 'Nombre de la empresa, NIT o ID a seleccionar y activar.'
+                                    }
+                                },
+                                required: ['nombre_o_id']
+                            }
+                        };
+
+                        const gestionarMemoriaDeclaration = {
+                            name: 'gestionar_memoria',
+                            description: 'Permite consultar, guardar o eliminar datos clave en la memoria permanente del usuario (como datos de la empresa, procesos, notas importantes, directrices). Úsala si el usuario te pide guardar o recordar un dato en su memoria.',
+                            parameters: {
+                                type: 'OBJECT',
+                                properties: {
+                                    accion: {
+                                        type: 'STRING',
+                                        description: 'Acción a realizar: "consultar", "guardar" o "eliminar".'
+                                    },
+                                    clave: {
+                                        type: 'STRING',
+                                        description: 'Clave o tema de la memoria (ej: "empresa_activa", "macroprocesos", "nota", etc.).'
+                                    },
+                                    valor: {
+                                        type: 'STRING',
+                                        description: 'Contenido a guardar cuando la acción sea "guardar".'
+                                    }
+                                },
+                                required: ['accion']
+                            }
+                        };
+
+                        const leerPantallaDeclaration = {
+                            name: 'leer_pantalla',
+                            description: 'Lee e inspecciona el texto, tablas, registros, tarjetas e informes que están visibles en la pantalla actual del usuario. Úsala siempre que el usuario te pida leerle lo que hay en pantalla, leerle un informe reciente o revisar los datos visibles de un aplicativo.',
+                            parameters: {
+                                type: 'OBJECT',
+                                properties: {
+                                    seccion: {
+                                        type: 'STRING',
+                                        description: 'Sección o informe específico a leer (opcional: "informe", "tabla", "formulario", "todo").'
+                                    }
+                                }
+                            }
+                        };
+
                         const geminiModel = genAI.getGenerativeModel({
                             model: currentModel,
                             systemInstruction: systemMessage,
-                            tools: [{ functionDeclarations: [somosSSTDeclaration, googleDriveDeclaration, consultarAgenteDeclaration, canvasDeclaration, operarGUIDeclaration, diligenciarFormularioDeclaration] }],
+                            tools: [{ functionDeclarations: [somosSSTDeclaration, googleDriveDeclaration, consultarAgenteDeclaration, canvasDeclaration, operarGUIDeclaration, diligenciarFormularioDeclaration, seleccionarEmpresaDeclaration, gestionarMemoriaDeclaration, leerPantallaDeclaration] }],
                             generationConfig: { temperature: 0.7 }
                         });
 
@@ -580,6 +682,52 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             } else if (call.name === 'canvas_tool' || call.name === 'canvas') {
                                 const toolInstance = new CanvasTool({ req });
                                 toolOutput = await toolInstance._call(call.args);
+                            } else if (call.name === 'seleccionar_empresa' || call.name === 'wappy_seleccionar_empresa') {
+                                const term = call.args?.nombre_o_id;
+                                let query = { user: targetUserId };
+                                if (mongoose.isValidObjectId(term)) {
+                                    query._id = term;
+                                } else {
+                                    const safeRegex = new RegExp(String(term || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+                                    query.$or = [
+                                        { companyName: safeRegex },
+                                        { nit: term }
+                                    ];
+                                }
+                                const found = await CompanyInfo.findOne(query);
+                                if (found) {
+                                    await CompanyInfo.updateMany({ user: targetUserId }, { isActive: false });
+                                    found.isActive = true;
+                                    await found.save();
+                                    await syncCompanyMemory(targetUserId, found);
+                                    toolOutput = JSON.stringify({ success: true, message: `Empresa "${found.companyName}" activada y sincronizada exitosamente con la memoria.` });
+                                } else {
+                                    toolOutput = JSON.stringify({ success: false, error: `No se encontró ninguna empresa que coincida con "${term}".` });
+                                }
+                            } else if (call.name === 'gestionar_memoria') {
+                                const accion = call.args?.accion || 'consultar';
+                                const clave = call.args?.clave;
+                                const valor = call.args?.valor;
+                                if (accion === 'guardar' && clave && valor) {
+                                    const tokenCount = Tokenizer.getTokenCount(valor, 'o200k_base') || 0;
+                                    await setMemory({ userId: targetUserId, agentId: 'global', key: clave, value: valor, tokenCount });
+                                    toolOutput = JSON.stringify({ success: true, message: `Dato guardado exitosamente en la memoria bajo la clave "${clave}".` });
+                                } else if (accion === 'eliminar' && clave) {
+                                    await deleteMemory({ userId: targetUserId, agentId: 'global', key: clave });
+                                    toolOutput = JSON.stringify({ success: true, message: `Memoria "${clave}" eliminada con éxito.` });
+                                } else {
+                                    const rawMems = await getAllUserMemories(targetUserId);
+                                    const unique = new Map();
+                                    (rawMems || []).forEach(m => { if (m.key && !unique.has(m.key)) unique.set(m.key, m.value); });
+                                    const list = Array.from(unique.entries()).map(([k, v]) => `[${k}]: ${v}`).join('\n\n');
+                                    toolOutput = JSON.stringify({ success: true, memorias: list || 'No hay memorias registradas aún.' });
+                                }
+                            } else if (call.name === 'leer_pantalla') {
+                                if (browserState && browserState.length > 30) {
+                                    toolOutput = JSON.stringify({ success: true, contenido_pantalla: browserState });
+                                } else {
+                                    toolOutput = JSON.stringify({ success: true, message: 'La pantalla actual no contiene texto o elementos adicionales visibles.' });
+                                }
                             } else if (call.name === 'operar_interfaz_visual') {
                                 const guiCalls = calls.filter(c => c.name === 'operar_interfaz_visual');
                                 requestedGuiActions = guiCalls.map(c => ({

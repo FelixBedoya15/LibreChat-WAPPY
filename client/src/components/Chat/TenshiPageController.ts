@@ -221,15 +221,134 @@ export function getDehydratedDOM(): string {
 }
 
 /**
+ * Extrae de forma limpia, estructurada y legible el contenido visible de la pantalla actual:
+ * títulos, informes abiertos, tarjetas de datos, tablas, modales y formularios.
+ */
+export function getVisibleScreenContent(section?: string): string {
+  try {
+    const lines: string[] = [];
+    const currentUrl = window.location.pathname + window.location.search;
+    lines.push(`[PANTALLA ACTUAL: ${currentUrl}]`);
+
+    // 1. Detectar si hay un modal o diálogo activo en primer plano
+    const modalEl = document.querySelector<HTMLElement>(
+      '[role="dialog"], [aria-modal="true"], .modal, .dialog, [data-headlessui-state="open"]'
+    );
+    const rootScope: HTMLElement = (modalEl && isElementVisible(modalEl)) ? modalEl : document.body;
+
+    if (rootScope !== document.body) {
+      lines.push('[EN PRIMER PLANO: Ventana emergente / Modal de informe abierta]');
+    }
+
+    // 2. Extraer Título Principal del módulo o pantalla
+    const headers = Array.from(rootScope.querySelectorAll<HTMLElement>('h1, h2, h3, header h4'));
+    const visibleHeaders = headers.filter(h => isElementVisible(h) && !h.closest('.tenshi-widget-container'));
+    if (visibleHeaders.length > 0) {
+      lines.push('TÍTULOS Y SECCIONES:');
+      visibleHeaders.slice(0, 5).forEach(h => {
+        const text = h.innerText?.trim();
+        if (text) lines.push(`- ${text}`);
+      });
+      lines.push('');
+    }
+
+    // 3. Extraer Tablas de datos visibles (registros de informes, trabajadores, mediciones)
+    const tables = Array.from(rootScope.querySelectorAll<HTMLTableElement>('table'));
+    const visibleTables = tables.filter(t => isElementVisible(t) && !t.closest('.tenshi-widget-container'));
+    if (visibleTables.length > 0) {
+      lines.push('TABLA DE DATOS / REGISTROS:');
+      visibleTables.slice(0, 2).forEach((table) => {
+        const rows = Array.from(table.querySelectorAll('tr')).filter(r => isElementVisible(r));
+        if (rows.length > 0) {
+          rows.slice(0, 10).forEach(row => {
+            const cells = Array.from(row.querySelectorAll('th, td')).map(c => (c as HTMLElement).innerText?.trim().replace(/\n+/g, ' ') || '');
+            if (cells.some(c => c)) {
+              lines.push(`| ${cells.join(' | ')} |`);
+            }
+          });
+          lines.push('');
+        }
+      });
+    }
+
+    // 4. Extraer Tarjetas, Artículos o Contenedores de Informes / Reportes
+    const reportCards = Array.from(rootScope.querySelectorAll<HTMLElement>(
+      'article, [role="article"], .report-card, .card, [class*="card"], [class*="report"], [class*="record"]'
+    )).filter(c => isElementVisible(c) && !c.closest('.tenshi-widget-container') && (c.innerText?.length || 0) > 30);
+
+    if (reportCards.length > 0) {
+      lines.push('INFORMES / REGISTROS VISIBLES EN PANTALLA:');
+      reportCards.slice(0, 6).forEach((card, idx) => {
+        const text = card.innerText?.trim().replace(/\n{3,}/g, '\n\n');
+        if (text && text.length > 20) {
+          const truncated = text.length > 500 ? text.substring(0, 500) + '...' : text;
+          lines.push(`--- Registro #${idx + 1} ---`);
+          lines.push(truncated);
+        }
+      });
+      lines.push('');
+    }
+
+    // 5. Extraer campos de formulario con sus valores actuales si hay un formulario visible
+    const formInputs = Array.from(rootScope.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+      'input, textarea, select'
+    )).filter(i => isElementVisible(i) && !i.closest('.tenshi-widget-container'));
+
+    if (formInputs.length > 0) {
+      const filledInputs = formInputs.filter(input => {
+        const val = input.value?.trim();
+        return val && val !== 'on' && val !== 'false';
+      });
+      if (filledInputs.length > 0) {
+        lines.push('CAMPOS DILIGENCIADOS EN PANTALLA:');
+        filledInputs.slice(0, 15).forEach(input => {
+          const label = getInputLabel(input) || input.getAttribute('placeholder') || input.name || 'Campo';
+          lines.push(`* ${label}: ${input.value}`);
+        });
+        lines.push('');
+      }
+    }
+
+    // 6. Si no hubo tablas ni tarjetas estructuradas, volcar el texto visible de los bloques principales
+    if (visibleTables.length === 0 && reportCards.length === 0) {
+      const textBlocks = Array.from(rootScope.querySelectorAll<HTMLElement>('p, li, blockquote, [class*="content"]'))
+        .filter(b => isElementVisible(b) && !b.closest('.tenshi-widget-container'))
+        .map(b => b.innerText?.trim())
+        .filter(t => t && t.length > 15);
+
+      if (textBlocks.length > 0) {
+        lines.push('CONTENIDO TEXTUAL:');
+        lines.push(textBlocks.slice(0, 15).join('\n'));
+      }
+    }
+
+    const fullResult = lines.join('\n').trim();
+    if (fullResult.length < 50) {
+      return `[PANTALLA ACTUAL: ${currentUrl}]\nNo se detectó un informe abierto en primer plano. Puedes pedirme que abra el aplicativo para ver los registros.`;
+    }
+
+    // Limitar a ~4000 caracteres para respuesta rápida
+    return fullResult.length > 4000 ? fullResult.substring(0, 4000) + '\n... [Contenido truncado por longitud]' : fullResult;
+  } catch (err: any) {
+    return `Error extrayendo contenido de pantalla: ${err.message}`;
+  }
+}
+
+/**
  * Ejecuta una acción de UI simulada en un elemento indexado
  */
 export async function executeGUIAction(
-  action: 'click' | 'escribir' | 'scroll' | 'esperar',
+  action: 'click' | 'escribir' | 'scroll' | 'esperar' | 'leer_pantalla',
   index?: number,
   texto?: string,
   direccion?: 'arriba' | 'abajo'
 ): Promise<{ success: boolean; message: string }> {
   
+  if (action === 'leer_pantalla') {
+    const content = getVisibleScreenContent();
+    return { success: true, message: content };
+  }
+
   if (action === 'esperar') {
     await new Promise(resolve => setTimeout(resolve, 1500));
     return { success: true, message: 'Espera de 1.5s completada.' };

@@ -373,3 +373,5 @@ router.put('/:id/activate', requireJwtAuth, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.syncCompanyMemory = syncCompanyMemory;
+
