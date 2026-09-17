@@ -1,4 +1,5 @@
 const diagnostico = require('./diagnostico');
+const auditoria = require('./auditoria');
 const companyInfo = require('./companyInfo');
 const config = require('./config');
 const politica = require('./politica');
@@ -36,6 +37,7 @@ const investigacionProfunda = require('./investigacionProfunda');
 
 module.exports = {
     diagnostico,
+    auditoria,
     companyInfo,
     config,
     politica,

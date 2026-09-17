@@ -11,6 +11,8 @@ const { saveConvo } = require('~/models/Conversation');
 const { saveMessage, updateMessageText, getMessages } = require('~/models/Message');
 const { updateTagsForConversation } = require('~/models/ConversationTag');
 const CompanyInfo = require('~/models/CompanyInfo');
+const DiagnosticoData = require('../../../models/DiagnosticoData');
+const KanbanTask = require('../../../models/KanbanTask');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 const { scanComplianceForUser } = require('./complianceScanner');
 
@@ -767,5 +769,182 @@ router.get('/report-history', requireJwtAuth, async (req, res) => {
     }
 });
 
+// ─── GET /data — Cargar estado persistente del diagnóstico ───────────────────
+router.get('/data', requireJwtAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        let activeCompany = await CompanyInfo.findOne({ user: userId, isActive: true }).lean();
+        if (!activeCompany) activeCompany = await CompanyInfo.findOne({ user: userId }).lean();
+        const companyId = activeCompany?._id;
+
+        const doc = await DiagnosticoData.findOne({ user: userId, companyId }).lean();
+        if (doc) {
+            return res.json({
+                statusData: doc.statusData || [],
+                companySize: doc.companySize || 'medium',
+                riskLevel: doc.riskLevel || 3,
+                score: doc.score || 0,
+                totalPoints: doc.totalPoints || 100,
+                complianceLevel: doc.complianceLevel || '',
+                updatedAt: doc.updatedAt,
+            });
+        }
+
+        res.json({
+            statusData: [],
+            companySize: 'medium',
+            riskLevel: 3,
+            score: 0,
+            totalPoints: 100,
+            complianceLevel: '',
+        });
+    } catch (error) {
+        logger.error('[SGSST Diagnostico] Error loading data:', error);
+        res.status(500).json({ error: 'Error al cargar datos del diagnóstico' });
+    }
+});
+
+// ─── POST /save-state — Guardar estado del checklist ─────────────────────────
+router.post('/save-state', requireJwtAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        let activeCompany = await CompanyInfo.findOne({ user: userId, isActive: true });
+        if (!activeCompany) activeCompany = await CompanyInfo.findOne({ user: userId });
+        const companyId = activeCompany?._id;
+        if (!companyId) {
+            return res.status(400).json({ error: 'No se encontró empresa activa' });
+        }
+
+        const { statusData, companySize, riskLevel, score, totalPoints, complianceLevel } = req.body;
+
+        const doc = await DiagnosticoData.findOneAndUpdate(
+            { user: userId, companyId },
+            {
+                $set: {
+                    statusData: statusData || [],
+                    companySize: companySize || 'medium',
+                    riskLevel: typeof riskLevel === 'number' ? riskLevel : 3,
+                    score: typeof score === 'number' ? score : 0,
+                    totalPoints: typeof totalPoints === 'number' ? totalPoints : 100,
+                    complianceLevel: complianceLevel || '',
+                    updatedAt: new Date(),
+                },
+            },
+            { upsert: true, new: true }
+        );
+
+        res.json({ success: true, doc });
+    } catch (error) {
+        logger.error('[SGSST Diagnostico] Error saving state:', error);
+        res.status(500).json({ error: 'Error al guardar estado del diagnóstico' });
+    }
+});
+
+// ─── POST /sync-kanban — Sincronizar hallazgos del Diagnóstico al ACPM ─────────
+router.post('/sync-kanban', requireJwtAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        let activeCompany = await CompanyInfo.findOne({ user: userId, isActive: true });
+        if (!activeCompany) activeCompany = await CompanyInfo.findOne({ user: userId });
+        const companyId = activeCompany?._id;
+        if (!companyId) {
+            return res.status(400).json({ error: 'No se encontró empresa activa' });
+        }
+
+        const { statusData, customActions } = req.body;
+        const items = Array.isArray(statusData) ? statusData : [];
+        const syncedTasks = [];
+        const today = new Date();
+
+        for (const item of items) {
+            if (item.status !== 'no_cumple' && item.status !== 'parcial') {
+                const refId = `diag-${item.itemId || item.id}`;
+                await KanbanTask.updateMany(
+                    { user: userId, companyId, referenceId: refId, status: { $ne: 'done' } },
+                    { status: 'done', completedAt: new Date() }
+                );
+                continue;
+            }
+
+            const isNoCumple = item.status === 'no_cumple';
+            const code = item.code || item.itemId || '';
+            const name = item.name || 'Estándar Mínimo';
+            const referenceId = `diag-${item.itemId || item.id}`;
+            const referenceName = `Diagnóstico Inicial (${code})`;
+
+            const dueDate = new Date(today);
+            dueDate.setDate(dueDate.getDate() + (isNoCumple ? 30 : 45));
+
+            const title = `[Diagnóstico Inicial] ${code ? code + ' - ' : ''}${name}`;
+            const description = isNoCumple
+                ? `Estándar No Cumplido según Diagnóstico Inicial. Criterio: ${name}. ${item.description || ''}. ${item.observation ? 'Observación: ' + item.observation : 'Requiere plan de mejoramiento para cumplimiento legal.'}`
+                : `Estándar con Cumplimiento Parcial según Diagnóstico Inicial. ${name}. ${item.observation ? 'Observación: ' + item.observation : 'Requiere subsanación para alcanzar conformidad total.'}`;
+
+            let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
+            if (!task) {
+                task = await KanbanTask.create({
+                    user: userId,
+                    companyId,
+                    title,
+                    description,
+                    dueDate,
+                    status: 'todo',
+                    type: 'diagnostico_finding',
+                    priority: isNoCumple ? 'alta' : 'media',
+                    actionType: isNoCumple ? 'correctiva' : 'mejora',
+                    sourceModule: 'diagnostico',
+                    referenceId,
+                    referenceName,
+                });
+            } else if (task.status !== 'done') {
+                task.title = title;
+                task.description = description;
+                task.priority = isNoCumple ? 'alta' : 'media';
+                task.actionType = isNoCumple ? 'correctiva' : 'mejora';
+                await task.save();
+            }
+            syncedTasks.push(task);
+        }
+
+        if (Array.isArray(customActions)) {
+            for (const act of customActions) {
+                if (!act.title) continue;
+                const refId = act.id ? `diag-custom-${act.id}` : `diag-custom-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+                const dueDate = act.dueDate ? new Date(act.dueDate) : new Date(Date.now() + 30 * 86400000);
+
+                let task = await KanbanTask.findOne({ user: userId, companyId, referenceId: refId });
+                if (!task) {
+                    task = await KanbanTask.create({
+                        user: userId,
+                        companyId,
+                        title: act.title,
+                        description: act.description || '',
+                        dueDate,
+                        status: act.status || 'todo',
+                        type: 'diagnostico_finding',
+                        priority: act.priority || 'media',
+                        actionType: act.actionType || 'correctiva',
+                        assignedTo: act.responsible || '',
+                        sourceModule: 'diagnostico',
+                        referenceId: refId,
+                        referenceName: 'Plan de Mejoramiento Diagnóstico',
+                    });
+                }
+                syncedTasks.push(task);
+            }
+        }
+
+        res.json({
+            success: true,
+            syncedCount: syncedTasks.length,
+            tasks: syncedTasks,
+        });
+    } catch (error) {
+        logger.error('[SGSST Diagnostico] Error syncing to Kanban:', error);
+        res.status(500).json({ error: 'Error al sincronizar hallazgos del diagnóstico' });
+    }
+});
+
 module.exports = router;
+
 

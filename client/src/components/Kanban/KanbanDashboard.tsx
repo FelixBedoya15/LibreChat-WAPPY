@@ -20,7 +20,14 @@ import {
   EyeOff,
   BarChart2,
   Upload,
-  X
+  X,
+  ClipboardCheck,
+  Stethoscope,
+  Briefcase,
+  ShieldAlert,
+  Wrench,
+  Activity,
+  Layers,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -32,7 +39,30 @@ interface KanbanTask {
   description?: string;
   status: 'todo' | 'due_soon' | 'overdue' | 'done';
   dueDate: string;
-  type: 'manual' | 'medical_exam' | 'soat' | 'rtm' | 'driver_license' | 'training' | 'other';
+  type: 
+    | 'manual' 
+    | 'medical_exam' 
+    | 'soat' 
+    | 'rtm' 
+    | 'driver_license' 
+    | 'training' 
+    | 'audit_finding'
+    | 'diagnostico_finding'
+    | 'alta_direccion_finding'
+    | 'unsafe_act_finding'
+    | 'ipevar_finding'
+    | 'atel_finding'
+    | 'ats_finding'
+    | 'alturas_finding'
+    | 'ergonomia_finding'
+    | 'vulnerabilidad_finding'
+    | 'pesv_inspection_finding'
+    | 'heights_inspection_finding'
+    | 'other';
+  priority?: 'alta' | 'media' | 'baja';
+  actionType?: 'correctiva' | 'preventiva' | 'mejora';
+  sourceModule?: string;
+  assignedTo?: string;
   referenceId?: string;
   referenceName?: string;
   companyId?: string;
@@ -566,6 +596,18 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
   const todoPct = totalCount > 0 ? Math.round((todoTasks.length / totalCount) * 100) : 0;
 
   const categoryInfo: Record<string, { label: string; color: string; bg: string }> = {
+    audit_finding: { label: 'Auditoría SG-SST', color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-600' },
+    diagnostico_finding: { label: 'Diagnóstico Inicial', color: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-600' },
+    alta_direccion_finding: { label: 'Alta Dirección', color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-600' },
+    unsafe_act_finding: { label: 'Actos y Condiciones', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-600' },
+    ipevar_finding: { label: 'Peligros GTC 45', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-600' },
+    atel_finding: { label: 'Investigación ATEL', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-600' },
+    ats_finding: { label: 'Análisis Trabajo Seguro', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-600' },
+    alturas_finding: { label: 'Trabajo en Alturas', color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-600' },
+    ergonomia_finding: { label: 'Ergonomía (OWAS/EPT)', color: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-600' },
+    vulnerabilidad_finding: { label: 'Plan de Emergencias', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-600' },
+    pesv_inspection_finding: { label: 'Inspección PESV', color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-600' },
+    heights_inspection_finding: { label: 'Inspección Alturas', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-600' },
     medical_exam: { label: 'Exámenes Médicos', color: 'text-blue-500 dark:text-blue-400', bg: 'bg-blue-500' },
     soat: { label: 'SOAT Vehículos', color: 'text-purple-500 dark:text-purple-400', bg: 'bg-purple-500' },
     rtm: { label: 'Técnico-Mecánica', color: 'text-amber-500 dark:text-amber-400', bg: 'bg-amber-500' },
@@ -606,6 +648,66 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
       text = 'Capacitación Programada';
       color = 'bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800/40';
       redirectPath = '/sgsst?tab=capacitaciones';
+    } else if (task.type === 'audit_finding') {
+      icon = <ClipboardCheck className="w-3.5 h-3.5" />;
+      text = 'Auditoría SG-SST';
+      color = 'bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800/40';
+      redirectPath = '/sgsst?tab=auditoria';
+    } else if (task.type === 'diagnostico_finding') {
+      icon = <Stethoscope className="w-3.5 h-3.5" />;
+      text = 'Diagnóstico Inicial';
+      color = 'bg-cyan-50 text-cyan-700 border border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-400 dark:border-cyan-800/40';
+      redirectPath = '/sgsst?tab=diagnostico';
+    } else if (task.type === 'alta_direccion_finding') {
+      icon = <Briefcase className="w-3.5 h-3.5" />;
+      text = 'Alta Dirección';
+      color = 'bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800/40';
+      redirectPath = '/sgsst?tab=alta_direccion';
+    } else if (task.type === 'unsafe_act_finding') {
+      icon = <AlertTriangle className="w-3.5 h-3.5" />;
+      text = 'Acto / Condición';
+      color = 'bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800/40';
+      redirectPath = '/sgsst?tab=reporte_actos';
+    } else if (task.type === 'ipevar_finding') {
+      icon = <ShieldAlert className="w-3.5 h-3.5" />;
+      text = 'Peligro Crítico GTC-45';
+      color = 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/40';
+      redirectPath = '/sgsst?tab=matriz_ipevar_oficial';
+    } else if (task.type === 'atel_finding') {
+      icon = <Activity className="w-3.5 h-3.5" />;
+      text = 'Investigación ATEL';
+      color = 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/40';
+      redirectPath = '/sgsst?tab=investigacion_atel';
+    } else if (task.type === 'ats_finding') {
+      icon = <ShieldAlert className="w-3.5 h-3.5" />;
+      text = 'Análisis Trabajo Seguro';
+      color = 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/40';
+      redirectPath = '/sgsst?tab=analisis_trabajo_seguro';
+    } else if (task.type === 'alturas_finding') {
+      icon = <Wrench className="w-3.5 h-3.5" />;
+      text = 'Trabajo en Alturas';
+      color = 'bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800/40';
+      redirectPath = '/sgsst?tab=permiso_alturas';
+    } else if (task.type === 'ergonomia_finding') {
+      icon = <Activity className="w-3.5 h-3.5" />;
+      text = 'Ergonomía';
+      color = 'bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-900/30 dark:text-sky-400 dark:border-sky-800/40';
+      redirectPath = '/sgsst?tab=metodo_owas';
+    } else if (task.type === 'vulnerabilidad_finding') {
+      icon = <ShieldAlert className="w-3.5 h-3.5" />;
+      text = 'Plan de Emergencias';
+      color = 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800/40';
+      redirectPath = '/sgsst?tab=vulnerabilidad';
+    } else if (task.type === 'pesv_inspection_finding') {
+      icon = <Car className="w-3.5 h-3.5" />;
+      text = 'Inspección PESV';
+      color = 'bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800/40';
+      redirectPath = '/sgsst?tab=vehicles_pesv';
+    } else if (task.type === 'heights_inspection_finding') {
+      icon = <Wrench className="w-3.5 h-3.5" />;
+      text = 'Inspección Alturas';
+      color = 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/40';
+      redirectPath = '/sgsst?tab=heights_lifecycle';
     } else if (task.type === 'medical_exam') {
       icon = <User className="w-3.5 h-3.5" />;
       text = 'Examen Médico';
@@ -634,19 +736,42 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     }
 
     return (
-      <div className="flex items-center justify-between gap-1.5 mt-2.5">
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${color}`}>
-          {icon}
-          {text}
-        </span>
-        
+      <div className="flex flex-col gap-1.5 mt-2.5">
+        <div className="flex items-center justify-between gap-1.5 flex-wrap">
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${color}`}>
+            {icon}
+            {text}
+          </span>
+          
+          <div className="flex items-center gap-1">
+            {task.priority && (
+              <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full border ${
+                task.priority === 'alta' 
+                  ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/50' 
+                  : task.priority === 'baja'
+                  ? 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
+                  : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/50'
+              }`}>
+                {task.priority}
+              </span>
+            )}
+            {task.actionType && (
+              <span className="text-[9px] font-semibold capitalize px-1.5 py-0.5 rounded-full bg-surface-secondary text-text-secondary border border-border-medium/30">
+                {task.actionType}
+              </span>
+            )}
+          </div>
+        </div>
+
         {redirectPath && task.status !== 'done' && (
-          <a 
-            href={redirectPath}
-            className="text-[10px] text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-0.5 font-semibold"
-          >
-            Actualizar <ExternalLink className="w-2.5 h-2.5" />
-          </a>
+          <div className="flex justify-end">
+            <a 
+              href={redirectPath}
+              className="text-[10px] text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-0.5 font-semibold"
+            >
+              Ver en origen <ExternalLink className="w-2.5 h-2.5" />
+            </a>
+          </div>
         )}
       </div>
     );

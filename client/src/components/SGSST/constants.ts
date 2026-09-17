@@ -2,7 +2,7 @@ export const PHASE_CATEGORIES = {
     // ─── HITO 01: GOBERNANZA Y CIMIENTO LEGAL ───
     hito1: [
         { 
-            id: 'diagnostico', title: 'Diagnóstico Inicial (Res. 0312)', icon: 'Stethoscope',
+            id: 'diagnostico', title: 'Diagnóstico Inicial', icon: 'Stethoscope',
             bioRationale: 'Evalúa el grado de madurez preventiva y el nivel de cumplimiento legal de los estándares mínimos para recibir de forma segura al ser humano.', 
             normativity: 'Hito 1: Gobernanza y Cimiento Legal' 
         },

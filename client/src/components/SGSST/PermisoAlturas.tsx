@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { UpgradeWall } from './UpgradeWall';
 import { useTranslation } from 'react-i18next';
 import {
@@ -29,6 +29,7 @@ import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
 import SingleSelect from './SingleSelect';
 import CollapsibleReportBox from './CollapsibleReportBox';
+import AcpmActionPlanBox, { type ActionPlanItem } from './AcpmActionPlanBox';
 
 const WorkerAutocomplete = ({
     value,
@@ -188,6 +189,33 @@ const PermisoAlturas = () => {
             })
             .catch(err => console.error('Error fetching permiso alturas data', err));
     }, [token]);
+
+    const alturasInitialActions = useMemo<ActionPlanItem[]>(() => {
+        const items: ActionPlanItem[] = [];
+        if (formData.lugarTrabajo || formData.actividadGlobal) {
+            items.push({
+                id: 'alturas-1',
+                title: `Inspección de Equipos Contra Caídas y Puntos de Anclaje - ${formData.lugarTrabajo || 'Área de Alturas'}`,
+                description: `Inspección preoperacional de arneses de cuerpo entero, eslingas, conectores y certificación vigente del anclaje estructural.`,
+                responsible: (responsablesList[0]?.nombre) || 'Coordinador de Trabajo en Alturas',
+                dueDate: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
+                priority: 'alta',
+                actionType: 'preventiva',
+                type: 'alturas_finding',
+            });
+            items.push({
+                id: 'alturas-2',
+                title: `Verificación de Plan de Rescate en Alturas y Botiquín`,
+                description: `Asegurar disponibilidad inmediata del sistema y equipos de rescate en alturas y brigadista capacitado en sitio (${formData.lugarTrabajo || 'Área de Trabajo'}).`,
+                responsible: 'Brigadista / Coordinador de Alturas',
+                dueDate: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
+                priority: 'media',
+                actionType: 'preventiva',
+                type: 'alturas_finding',
+            });
+        }
+        return items;
+    }, [formData.lugarTrabajo, formData.actividadGlobal, responsablesList]);
 
     const handleDummyData = () => {
         const dummy = generateDummyData.permisoAlturas();
@@ -906,7 +934,16 @@ const PermisoAlturas = () => {
                 )}
             </div>
 
-                <CollapsibleReportBox onSave={handleSave}
+            {/* ── Plan de Acción ACPM Consolidado ── */}
+            <div className="mt-4">
+                <AcpmActionPlanBox
+                    sourceModule="alturas"
+                    sourceTitle="Permiso de Trabajo en Alturas"
+                    initialActions={alturasInitialActions}
+                />
+            </div>
+
+            <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title="Permiso de Trabajo en Alturas"

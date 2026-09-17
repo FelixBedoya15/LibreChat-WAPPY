@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { UpgradeWall } from './UpgradeWall';
 import { QRCodeSVG } from 'qrcode.react';
 import ReactDOM from 'react-dom';
@@ -28,7 +28,6 @@ import {
     Link,
     QrCode,
     Check,
-    Trash2,
     ShieldAlert, Download, Info } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -42,6 +41,7 @@ import { generateDummyData } from '~/utils/dummyDataGenerator';
 import ModelSelector from './ModelSelector';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import CollapsibleReportBox from './CollapsibleReportBox';
+import AcpmActionPlanBox, { type ActionPlanItem } from './AcpmActionPlanBox';
 
 // ─── Worker Autocomplete (identical to PermisoAlturas) ────────────────────────
 const WorkerAutocomplete = ({
@@ -398,6 +398,43 @@ const InvestigacionATEL = () => {
             fetchInvestigationsList();
         }
     }, [token]);
+
+    const atelInitialActions = useMemo<ActionPlanItem[]>(() => {
+        const items: ActionPlanItem[] = [];
+        if (formData.afectadoNombre || formData.descripcionHechos) {
+            items.push({
+                id: 'atel-1',
+                title: `Intervención de Causa Inmediata / Condición - ${formData.afectadoNombre || 'Caso ATEL'}`,
+                description: `Corrección inmediata de la causa raíz identificada en la investigación (${formData.agenteCausal || 'Riesgo evaluado'}). Medidas de ingeniería o sustitución en el puesto.`,
+                responsible: formData.afectadoCargo || 'Jefe de Operaciones / Mantenimiento',
+                dueDate: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
+                priority: 'alta',
+                actionType: 'correctiva',
+                type: 'atel_finding',
+            });
+            items.push({
+                id: 'atel-2',
+                title: `Divulgación de Lección Aprendida y Reentrenamiento`,
+                description: `Socialización con el COPASST y personal operativo de los hechos ocurridos y los controles requeridos para prevenir recurrencia.`,
+                responsible: 'Encargado SST / HSEQ',
+                dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+                priority: 'media',
+                actionType: 'preventiva',
+                type: 'atel_finding',
+            });
+            items.push({
+                id: 'atel-3',
+                title: `Actualización de Matriz IPEVAR GTC 45 post-evento`,
+                description: `Reevaluar la probabilidad y consecuencia del peligro asociado en la matriz de riesgos tras el evento laboral.`,
+                responsible: 'Coordinador SST',
+                dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+                priority: 'media',
+                actionType: 'mejora',
+                type: 'atel_finding',
+            });
+        }
+        return items;
+    }, [formData.afectadoNombre, formData.descripcionHechos, formData.agenteCausal, formData.afectadoCargo]);
 
     // Fetch saved form data when activeInvestId changes
     useEffect(() => {
@@ -1691,6 +1728,15 @@ const InvestigacionATEL = () => {
                         </div>
                     </div>
                 )}
+            </div>
+
+            {/* ── Plan de Acción ACPM Consolidado ── */}
+            <div className="mt-4">
+                <AcpmActionPlanBox
+                    sourceModule="atel"
+                    sourceTitle="Investigación ATEL"
+                    initialActions={atelInitialActions}
+                />
             </div>
 
             {/* ── Report Viewer ── */}

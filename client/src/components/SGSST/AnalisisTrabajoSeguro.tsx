@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { UpgradeWall } from './UpgradeWall';
 import { useTranslation } from 'react-i18next';
 import {
@@ -23,6 +23,7 @@ import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
 import SingleSelect from './SingleSelect';
 import CollapsibleReportBox from './CollapsibleReportBox';
+import AcpmActionPlanBox, { type ActionPlanItem } from './AcpmActionPlanBox';
 
 const WorkerAutocomplete = ({
     value,
@@ -183,6 +184,33 @@ const AnalisisTrabajoSeguro = () => {
             })
             .catch(err => console.error('Error fetching ATS data', err));
     }, [token]);
+
+    const atsInitialActions = useMemo<ActionPlanItem[]>(() => {
+        const items: ActionPlanItem[] = [];
+        if (formData.actividad || formData.lugar) {
+            items.push({
+                id: 'ats-1',
+                title: `Verificación Previa y Control de Peligros - ${formData.actividad || 'Actividad ATS'}`,
+                description: `Implementar barreras duras, delimitar área de trabajo y verificar EPP antes de iniciar labores en ${formData.lugar || 'obra / instalación'}.`,
+                responsible: (responsablesList[0]?.nombre) || 'Supervisor de Operaciones / HSE',
+                dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+                priority: 'alta',
+                actionType: 'preventiva',
+                type: 'ats_finding',
+            });
+            items.push({
+                id: 'ats-2',
+                title: `Charla Preoperacional de 5 Minutos y Permiso de Trabajo Seguro`,
+                description: `Divulgar los pasos del ATS a los ${trabajadoresList.length} trabajadores participantes y validar competencias antes del inicio.`,
+                responsible: 'Líder de Cuadrilla / Vigía SST',
+                dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+                priority: 'media',
+                actionType: 'preventiva',
+                type: 'ats_finding',
+            });
+        }
+        return items;
+    }, [formData.actividad, formData.lugar, responsablesList, trabajadoresList]);
 
     const handleSaveData = async (silent = false) => {
         if (!token) return;
@@ -798,6 +826,15 @@ const AnalisisTrabajoSeguro = () => {
                         </div>
                     </div>
                 )}
+            </div>
+
+            {/* ── Plan de Acción ACPM Consolidado ── */}
+            <div className="mt-4">
+                <AcpmActionPlanBox
+                    sourceModule="ats"
+                    sourceTitle="Análisis de Trabajo Seguro (ATS)"
+                    initialActions={atsInitialActions}
+                />
             </div>
 
             {/* Generated ATS Editor */}

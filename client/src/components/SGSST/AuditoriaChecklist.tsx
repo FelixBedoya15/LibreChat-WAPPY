@@ -17,6 +17,9 @@ import {
   Loader2,
   HelpCircle,
   AlertTriangle,
+  Trello,
+  ExternalLink,
+  Send,
 } from 'lucide-react';
 import { Button, useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
@@ -33,6 +36,7 @@ import ExportDropdown from './ExportDropdown';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
 import CollapsibleReportBox from './CollapsibleReportBox';
+import AcpmActionPlanBox, { type ActionPlanItem } from './AcpmActionPlanBox';
 
 interface AuditoriaChecklistProps {
   onAnalysisComplete?: (report: string) => void;
@@ -268,7 +272,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
     }
   }, [token, runComplianceScan]);
 
-  // Load draft from local storage
+  // Load draft from local storage & sync with MongoDB
   React.useEffect(() => {
     try {
       const saved = localStorage.getItem(AUDIT_STORAGE_KEY);
@@ -280,7 +284,22 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
     } catch (e) {
       console.error('[SGSST Audit Storage] Load error:', e);
     }
-  }, []);
+
+    if (token) {
+      axios.get('/api/sgsst/auditoria/data', { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => {
+          if (res.data?.statusData && res.data.statusData.length > 0) {
+            setStatuses(res.data.statusData);
+            const obs: Record<string, string> = {};
+            res.data.statusData.forEach((s: any) => {
+              if (s.observation) obs[s.itemId] = s.observation;
+            });
+            setObservations(prev => ({ ...obs, ...prev }));
+          }
+        })
+        .catch(e => console.error('[AuditoriaChecklist] Error loading MongoDB audit:', e));
+    }
+  }, [token]);
 
   // Filter out any orphaned statuses (from old saved audits)
   const validStatuses = useMemo(() => {
@@ -378,29 +397,137 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
     });
   }, []);
 
-  const handleDummyData = () => {
+  const [isSyncingKanban, setIsSyncingKanban] = useState(false);
+
+  // Derive structured Action Plan items from current findings
+  const auditActionPlanItems = useMemo<ActionPlanItem[]>(() => {
+    const items: ActionPlanItem[] = [];
+    AUDITORIA_ITEMS.forEach(item => {
+      const status = getItemStatus(item.id);
+      if (status === 'no_cumple' || status === 'parcial') {
+        const isNoCumple = status === 'no_cumple';
+        const obs = observations[item.id] || '';
+        items.push({
+          id: item.id,
+          title: `[${item.code}] ${item.name}`,
+          description: obs || (isNoCumple ? `Subsanar no conformidad: ${item.description}` : `Oportunidad de mejora: ${item.description}`),
+          priority: isNoCumple ? 'alta' : 'media',
+          actionType: isNoCumple ? 'correctiva' : 'mejora',
+          dueDate: new Date(Date.now() + (isNoCumple ? 30 : 45) * 86400000).toISOString().split('T')[0],
+          status: 'todo',
+        });
+      }
+    });
+    return items;
+  }, [validStatuses, observations]);
+
+  const handleSyncToKanban = useCallback(async () => {
+    if (!token) return;
+    try {
+      setIsSyncingKanban(true);
+      const itemsToSync = AUDITORIA_ITEMS.map(item => ({
+        itemId: item.id,
+        code: item.code,
+        name: item.name,
+        description: item.description,
+        criteria: item.criteria,
+        status: getItemStatus(item.id),
+        observation: observations[item.id] || '',
+      }));
+
+      await axios.post('/api/sgsst/auditoria/save', {
+        statusData: itemsToSync,
+        score: compliantCount,
+        compliancePercentage,
+        weightedScore,
+        weightedPercentage,
+      }, { headers: { Authorization: `Bearer ${token}` } });
+
+      const syncRes = await axios.post('/api/sgsst/auditoria/sync-kanban', {
+        statusData: itemsToSync,
+      }, { headers: { Authorization: `Bearer ${token}` } });
+
+      showToast({
+        message: `¡${syncRes.data.syncedCount || 0} hallazgos sincronizados como Plan de Acción ACPM en el Centro de Control!`,
+        status: 'success',
+        severity: 'success',
+      });
+    } catch (e) {
+      console.error('[AuditoriaChecklist] Sync to Kanban error:', e);
+      showToast({ message: 'Error al sincronizar hallazgos con Centro de Control', status: 'error' });
+    } finally {
+      setIsSyncingKanban(false);
+    }
+  }, [token, validStatuses, observations, compliantCount, compliancePercentage, weightedScore, weightedPercentage, showToast]);
+
+  const handleDummyData = async () => {
     const dummyItems = generateDummyData.checklist(AUDITORIA_ITEMS);
+    // Explicitly configure realistic non-conformities & improvement opportunities
     const newStatuses: ComplianceStatus[] = dummyItems.map((item: any) => ({
       itemId: item.id,
       status:
-        item.estado === 'Cumple'
-          ? 'cumple'
-          : item.estado === 'No Cumple'
-            ? 'no_cumple'
-            : 'no_aplica',
+        item.id === 'aud_1_1_3' ? 'parcial' :
+        item.id === 'aud_2_11_1' ? 'no_cumple' :
+        item.id === 'aud_3_1_2' ? 'no_cumple' :
+        item.id === 'aud_4_1_1' ? 'parcial' :
+        item.estado === 'Cumple' ? 'cumple' :
+        item.estado === 'No Cumple' ? 'no_cumple' : 'cumple',
     }));
+
     const newObservations: Record<string, string> = {};
     dummyItems.forEach((item: any) => {
       if (item.evidencia) newObservations[item.id] = item.evidencia;
     });
 
+    newObservations['aud_1_1_3'] = 'Presupuesto general aprobado pero el rubro específico para exámenes médicos periódicos no está desagregado.';
+    newObservations['aud_2_11_1'] = 'No se evidenció procedimiento documentado para la gestión del cambio en la adquisición de nueva maquinaria.';
+    newObservations['aud_3_1_2'] = 'Falta verificación de la eficacia de controles de ingeniería para fuentes generadoras de ruido en área operativa.';
+    newObservations['aud_4_1_1'] = 'Indicadores de severidad y frecuencia ATEL calculados, pero no están articulados con el plan de trabajo anual.';
+
     setStatuses(newStatuses);
     setObservations(newObservations);
-    showToast({
-      message: 'Resultados de auditoría simulados generados correctamente',
-      status: 'success',
-      severity: 'success',
-    });
+
+    // Auto-save and sync to Kanban
+    try {
+      const itemsToSync = AUDITORIA_ITEMS.map(item => {
+        const found = newStatuses.find(s => s.itemId === item.id);
+        return {
+          itemId: item.id,
+          code: item.code,
+          name: item.name,
+          description: item.description,
+          criteria: item.criteria,
+          status: found?.status || 'cumple',
+          observation: newObservations[item.id] || '',
+        };
+      });
+
+      if (token) {
+        await axios.post('/api/sgsst/auditoria/save', {
+          statusData: itemsToSync,
+          score: newStatuses.filter(s => s.status === 'cumple').length,
+          compliancePercentage: 88.5,
+          weightedScore: 88.5,
+          weightedPercentage: 88.5,
+        }, { headers: { Authorization: `Bearer ${token}` } });
+
+        await axios.post('/api/sgsst/auditoria/sync-kanban', {
+          statusData: itemsToSync,
+        }, { headers: { Authorization: `Bearer ${token}` } });
+      }
+
+      showToast({
+        message: '¡Auditoría realizada y Plan de Acción ACPM consolidado en el Centro de Control!',
+        status: 'success',
+        severity: 'success',
+      });
+    } catch (e) {
+      console.error('[AuditoriaChecklist] Auto sync error:', e);
+      showToast({
+        message: 'Resultados de auditoría simulados generados correctamente',
+        status: 'success',
+      });
+    }
   };
 
   const toggleItemExpanded = useCallback((itemId: string) => {
@@ -883,6 +1010,50 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
         />
       </div>
 
+      {/* Action Plan & Kanban Sync Bar */}
+      <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-teal-500/10 via-purple-500/10 to-blue-500/10 border border-purple-500/20 shadow-xs flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-purple-600 text-white shadow-xs">
+            <Trello className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-extrabold text-text-primary flex items-center gap-2">
+              <span>Plan de Acción y Hallazgos ACPM</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300">
+                {validStatuses.filter(s => s.status === 'no_cumple' || s.status === 'parcial').length} Hallazgos
+              </span>
+            </h4>
+            <p className="text-xs text-text-secondary">
+              Las no conformidades y oportunidades de mejora se consolidan en el Centro de Control.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSyncToKanban}
+            disabled={isSyncingKanban}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition-all disabled:opacity-50"
+          >
+            {isSyncingKanban ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Trello className="w-4 h-4" />
+            )}
+            <span>Sincronizar con Centro de Control</span>
+          </button>
+
+          <a
+            href="/sgsst?tab=acpm"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-surface-primary hover:bg-surface-secondary text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800 transition-colors"
+          >
+            <span>Ver Plan ACPM</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
+      </div>
+
       <div className="space-y-4">
         {['planear', 'hacer', 'verificar', 'actuar'].map((category) => {
           const items = groupedItems[category];
@@ -1022,6 +1193,13 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
           );
         })}
       </div>
+
+      {/* Universal ACPM Action Plan Drawer */}
+      <AcpmActionPlanBox
+        sourceModule="auditoria"
+        sourceTitle="Auditoría SG-SST"
+        initialActions={auditActionPlanItems}
+      />
 
       <CollapsibleReportBox
         onSave={handleSave}

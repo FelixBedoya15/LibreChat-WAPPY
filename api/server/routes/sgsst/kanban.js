@@ -21,6 +21,20 @@ if (!mongoose.models.ProgramaCapacitacionesData) {
 }
 const ProgramaCapacitacionesData = mongoose.models.ProgramaCapacitacionesData;
 
+if (!mongoose.models.AltaDireccionData) {
+  require('./altaDireccion');
+}
+const AltaDireccionData = mongoose.models.AltaDireccionData;
+
+if (!mongoose.models.ReporteActosData) {
+  require('./reporteActos');
+}
+const ReporteActosData = mongoose.models.ReporteActosData;
+
+const AuditoriaData = require('../../../models/AuditoriaData');
+const DiagnosticoData = require('../../../models/DiagnosticoData');
+const GTC45WorkspaceSession = require('../../../models/GTC45WorkspaceSession');
+
 const router = express.Router();
 
 // ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
@@ -330,12 +344,301 @@ router.get('/data', requireJwtAuth, async (req, res) => {
       }
     });
 
-    // 4. Fetch and return all tasks for user and company
+    // 4. Sync Auditoría SG-SST findings (no_cumple & parcial)
+    const auditData = await AuditoriaData.findOne({ user: userId, companyId }).lean();
+    if (auditData && Array.isArray(auditData.statusData)) {
+      for (const item of auditData.statusData) {
+        if (item.status === 'no_cumple' || item.status === 'parcial') {
+          const isNoCumple = item.status === 'no_cumple';
+          const code = item.code || item.itemId || '';
+          const name = item.name || 'Requisito de Auditoría';
+          const referenceId = `audit-${item.itemId || item.id}`;
+          const referenceName = `Auditoría SG-SST (${code})`;
+          const dueDate = addDays(today, isNoCumple ? 30 : 45);
+
+          const title = `[Auditoría SG-SST] ${code ? code + ' - ' : ''}${name}`;
+          const description = isNoCumple
+            ? `No Conformidad identificada en Auditoría Interna: ${name}. ${item.description || ''}. Criterio: ${item.criteria || 'Dec. 1072 / Res. 0312'}. ${item.observation ? 'Hallazgo específico: ' + item.observation : 'Requiere formulación de plan de acción correctivo inmediato.'}`
+            : `Oportunidad de Mejora identificada en Auditoría Interna: ${name}. ${item.description || ''}. ${item.observation ? 'Observación: ' + item.observation : 'Requiere plan de acción preventivo.'}`;
+
+          let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
+          if (!task) {
+            await KanbanTask.create({
+              user: userId,
+              companyId,
+              title,
+              description,
+              dueDate,
+              status: 'todo',
+              type: 'audit_finding',
+              priority: isNoCumple ? 'alta' : 'media',
+              actionType: isNoCumple ? 'correctiva' : 'mejora',
+              sourceModule: 'auditoria',
+              referenceId,
+              referenceName,
+            });
+          } else if (task.status !== 'done') {
+            if (task.title !== title || task.description !== description) {
+              task.title = title;
+              task.description = description;
+              task.priority = isNoCumple ? 'alta' : 'media';
+              task.actionType = isNoCumple ? 'correctiva' : 'mejora';
+              await task.save();
+            }
+          }
+        }
+      }
+    }
+
+    // 5. Sync Diagnóstico Inicial findings (no_cumple & parcial)
+    const diagData = await DiagnosticoData.findOne({ user: userId, companyId }).lean();
+    if (diagData && Array.isArray(diagData.statusData)) {
+      for (const item of diagData.statusData) {
+        if (item.status === 'no_cumple' || item.status === 'parcial') {
+          const isNoCumple = item.status === 'no_cumple';
+          const code = item.code || item.itemId || '';
+          const name = item.name || 'Estándar Mínimo';
+          const referenceId = `diag-${item.itemId || item.id}`;
+          const referenceName = `Diagnóstico Inicial (${code})`;
+          const dueDate = addDays(today, isNoCumple ? 30 : 45);
+
+          const title = `[Diagnóstico Inicial] ${code ? code + ' - ' : ''}${name}`;
+          const description = isNoCumple
+            ? `Estándar Mínimo No Cumplido según Diagnóstico Inicial. Criterio: ${name}. ${item.description || ''}. ${item.observation ? 'Observación: ' + item.observation : 'Requiere plan de mejoramiento para cumplimiento legal.'}`
+            : `Estándar con Cumplimiento Parcial según Diagnóstico Inicial. ${name}. ${item.observation ? 'Observación: ' + item.observation : 'Requiere subsanación para alcanzar conformidad total.'}`;
+
+          let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
+          if (!task) {
+            await KanbanTask.create({
+              user: userId,
+              companyId,
+              title,
+              description,
+              dueDate,
+              status: 'todo',
+              type: 'diagnostico_finding',
+              priority: isNoCumple ? 'alta' : 'media',
+              actionType: isNoCumple ? 'correctiva' : 'mejora',
+              sourceModule: 'diagnostico',
+              referenceId,
+              referenceName,
+            });
+          } else if (task.status !== 'done') {
+            if (task.title !== title || task.description !== description) {
+              task.title = title;
+              task.description = description;
+              task.priority = isNoCumple ? 'alta' : 'media';
+              task.actionType = isNoCumple ? 'correctiva' : 'mejora';
+              await task.save();
+            }
+          }
+        }
+      }
+    }
+
+    // 6. Sync Alta Dirección requirements
+    if (AltaDireccionData) {
+      const altaDirDoc = await AltaDireccionData.findOne({ user: userId, companyId }).lean();
+      if (altaDirDoc && Array.isArray(altaDirDoc.statusData)) {
+        for (const item of altaDirDoc.statusData) {
+          if (item.status === 'no_cumple' || item.status === 'parcial') {
+            const isNoCumple = item.status === 'no_cumple';
+            const itemId = item.itemId || 'Item';
+            const referenceId = `altadireccion-${itemId}`;
+            const referenceName = `Alta Dirección (Punto ${itemId})`;
+            const dueDate = addDays(today, isNoCumple ? 20 : 35);
+
+            const title = `[Alta Dirección] Revisión Gerencial Punto ${itemId}`;
+            const description = `Compromiso / No conformidad de Revisión por la Alta Dirección: ${item.observation || item.itemText || 'Requiere intervención gerencial y asignación de recursos.'}`;
+
+            let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
+            if (!task) {
+              await KanbanTask.create({
+                user: userId,
+                companyId,
+                title,
+                description,
+                dueDate,
+                status: 'todo',
+                type: 'alta_direccion_finding',
+                priority: isNoCumple ? 'alta' : 'media',
+                actionType: isNoCumple ? 'correctiva' : 'mejora',
+                sourceModule: 'alta_direccion',
+                referenceId,
+                referenceName,
+              });
+            } else if (task.status !== 'done') {
+              if (task.description !== description || task.title !== title) {
+                task.description = description;
+                task.title = title;
+                await task.save();
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 7. Sync Actos y Condiciones Inseguras
+    if (ReporteActosData) {
+      const actosDoc = await ReporteActosData.findOne({ user: userId, companyId }).lean();
+      if (actosDoc && Array.isArray(actosDoc.inboxPublico)) {
+        for (const rep of actosDoc.inboxPublico) {
+          if (rep.estado !== 'cerrado') {
+            const isCondicion = rep.tipo === 'condicion';
+            const referenceId = `acto-${rep.id}`;
+            const referenceName = isCondicion ? 'Condición Insegura' : 'Acto Inseguro';
+            const dueDate = addDays(today, 7);
+
+            const title = `[${isCondicion ? 'Condición Insegura' : 'Acto Inseguro'}] ${(rep.descripcion || 'Peligro en terreno').slice(0, 60)}`;
+            const description = `Reporte de seguridad en terreno. Tipo: ${isCondicion ? 'Condición Insegura' : 'Acto Inseguro'}. Ubicación: ${rep.ubicacion || 'No especificada'}. Fecha reporte: ${rep.fecha || 'Reciente'}. Detalle: ${rep.descripcion || ''}.`;
+
+            let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
+            if (!task) {
+              await KanbanTask.create({
+                user: userId,
+                companyId,
+                title,
+                description,
+                dueDate,
+                status: 'todo',
+                type: 'unsafe_act_finding',
+                priority: 'alta',
+                actionType: 'correctiva',
+                sourceModule: 'reporte_actos',
+                referenceId,
+                referenceName,
+              });
+            } else if (task.status !== 'done') {
+              if (task.description !== description || task.title !== title) {
+                task.description = description;
+                task.title = title;
+                await task.save();
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 8. Sync Peligros Críticos IPEVAR (Nivel I - No Aceptable)
+    if (GTC45WorkspaceSession) {
+      const gtcDoc = await GTC45WorkspaceSession.findOne({
+        $or: [{ user: userId, isOfficial: true }, { companyId, isOfficial: true }]
+      }).lean();
+      if (gtcDoc && Array.isArray(gtcDoc.matrixRows)) {
+        for (let i = 0; i < gtcDoc.matrixRows.length; i++) {
+          const row = gtcDoc.matrixRows[i];
+          const isCritical = (row.nd >= 6 && row.nc >= 25) || (row.nr >= 500) ||
+            (typeof row.aceptabilidad === 'string' && (row.aceptabilidad.includes('I') || row.aceptabilidad.toLowerCase().includes('no aceptable')));
+          if (isCritical) {
+            const rowId = row.id || `row-${i}`;
+            const referenceId = `ipevar-${rowId}`;
+            const referenceName = `Matriz IPEVAR (${row.peligro_clasificacion || 'Peligro'})`;
+            const dueDate = addDays(today, 15);
+
+            const title = `[Peligro Crítico GTC-45] ${row.peligro_clasificacion || 'Peligro'} - ${row.proceso || 'Operativo'}`;
+            const description = `Peligro evaluado en Nivel I (No Aceptable / Situación Crítica). Proceso: ${row.proceso || ''}. Actividad/Tarea: ${row.actividad || ''} - ${row.tareas || ''}. Peligro: ${row.peligro_descripcion || ''}. Control Propuesto: ${row.medida_eliminacion && row.medida_eliminacion !== 'Ninguno' ? row.medida_eliminacion : row.medida_ingenieria && row.medida_ingenieria !== 'Ninguno' ? row.medida_ingenieria : row.medida_administrativa || 'Intervención inmediata'}.`;
+
+            let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
+            if (!task) {
+              await KanbanTask.create({
+                user: userId,
+                companyId,
+                title,
+                description,
+                dueDate,
+                status: 'todo',
+                type: 'ipevar_finding',
+                priority: 'alta',
+                actionType: 'correctiva',
+                sourceModule: 'matriz_ipevar',
+                referenceId,
+                referenceName,
+              });
+            } else if (task.status !== 'done') {
+              if (task.description !== description || task.title !== title) {
+                task.description = description;
+                task.title = title;
+                await task.save();
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 9. Fetch and return all tasks for user and company
     const tasks = await KanbanTask.find({ user: userId, companyId }).sort({ dueDate: 1 });
     res.json(tasks);
   } catch (error) {
     logger.error('[SGSST Kanban] Load error:', error);
     res.status(500).json({ error: 'Error al cargar el tablero de tareas' });
+  }
+});
+
+// ─── POST /dispatch-actions — Recibir y consolidar acciones de cualquier aplicativo ──
+router.post('/dispatch-actions', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    if (!companyId) {
+      return res.status(400).json({ error: 'No se encontró empresa activa' });
+    }
+
+    const { actions, sourceModule } = req.body;
+    if (!Array.isArray(actions) || actions.length === 0) {
+      return res.status(400).json({ error: 'La lista de acciones es requerida' });
+    }
+
+    const createdTasks = [];
+    const today = new Date();
+
+    for (const act of actions) {
+      if (!act.title) continue;
+      const refId = act.referenceId || `${sourceModule || 'app'}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      let dueDate = act.dueDate ? new Date(act.dueDate) : addDays(today, 30);
+      if (isNaN(dueDate.getTime())) dueDate = addDays(today, 30);
+
+      let task = await KanbanTask.findOne({ user: userId, companyId, referenceId: refId });
+      if (!task) {
+        task = await KanbanTask.create({
+          user: userId,
+          companyId,
+          title: act.title,
+          description: act.description || '',
+          dueDate,
+          status: act.status || 'todo',
+          type: act.type || `${sourceModule || 'manual'}_finding`,
+          priority: act.priority || 'media',
+          actionType: act.actionType || 'correctiva',
+          assignedTo: act.assignedTo || act.responsible || '',
+          sourceModule: sourceModule || act.sourceModule || 'general',
+          referenceId: refId,
+          referenceName: act.referenceName || sourceModule || 'Plan de Acción ACPM',
+        });
+      } else {
+        task.title = act.title;
+        task.description = act.description || task.description;
+        task.dueDate = dueDate;
+        task.priority = act.priority || task.priority;
+        task.actionType = act.actionType || task.actionType;
+        if (act.assignedTo || act.responsible) {
+          task.assignedTo = act.assignedTo || act.responsible;
+        }
+        await task.save();
+      }
+      createdTasks.push(task);
+    }
+
+    res.json({
+      success: true,
+      count: createdTasks.length,
+      tasks: createdTasks,
+    });
+  } catch (error) {
+    logger.error('[SGSST Kanban] Error dispatching actions:', error);
+    res.status(500).json({ error: 'Error al despachar acciones al Centro de Control' });
   }
 });
 
@@ -505,6 +808,10 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         }
       }
 
+      if (req.body.priority) updateData.priority = req.body.priority;
+      if (req.body.actionType) updateData.actionType = req.body.actionType;
+      if (req.body.assignedTo !== undefined) updateData.assignedTo = req.body.assignedTo;
+
       const updatedTask = await KanbanTask.findOneAndUpdate(
         { _id, user: userId, companyId },
         { $set: updateData },
@@ -525,6 +832,9 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         dueDate: new Date(dueDate),
         status: status || 'todo',
         type: type || 'manual',
+        priority: req.body.priority || 'media',
+        actionType: req.body.actionType || 'correctiva',
+        assignedTo: req.body.assignedTo || '',
       });
       return res.json(task);
     }

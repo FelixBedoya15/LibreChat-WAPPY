@@ -28,6 +28,7 @@ import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import QRCode from 'qrcode';
 import CollapsibleReportBox from './CollapsibleReportBox';
+import AcpmActionPlanBox, { type ActionPlanItem } from './AcpmActionPlanBox';
 
 const STATUS_OPTIONS = [
     { value: 'cumple' as const, label: 'Cumple', icon: CheckCircle2, color: 'text-green-500 bg-green-500/10' },
@@ -119,6 +120,25 @@ export default function AltaDireccionChecklist() {
         (statuses || []).filter(s => s.status !== 'pendiente').length,
         [statuses]
     );
+
+    const altaDireccionActionPlanItems = useMemo<ActionPlanItem[]>(() => {
+        const nonCompliant = (statuses || []).filter(s => s.status === 'no_cumple' || s.status === 'parcial');
+        return nonCompliant.map((s) => {
+            const itemDef = ALTA_DIRECCION_ITEMS.find(it => it.id === s.itemId);
+            const obs = observations[s.itemId];
+            const isNoCumple = s.status === 'no_cumple';
+            return {
+                id: `alta-dir-${s.itemId}`,
+                title: `[Alta Dirección] ${itemDef?.title || `Punto ${s.itemId}`}`,
+                description: obs || `Revisión gerencial punto ${s.itemId}: ${itemDef?.description || 'Requiere intervención gerencial y asignación de recursos.'}`,
+                responsible: 'Gerencia General / Alta Dirección',
+                dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+                priority: isNoCumple ? 'alta' : 'media',
+                actionType: isNoCumple ? 'correctiva' : 'mejora',
+                type: 'alta_direccion_finding',
+            };
+        });
+    }, [statuses, observations]);
 
     // Listen for cross-component inbox open requests (from notifications)
     useEffect(() => {
@@ -900,9 +920,18 @@ export default function AltaDireccionChecklist() {
                 </button>
             </div>
 
+            {/* ─── Plan de Acción ACPM Consolidado ─── */}
+            <div className="mt-4">
+                <AcpmActionPlanBox
+                    sourceModule="alta_direccion"
+                    sourceTitle="Revisión Alta Dirección"
+                    initialActions={altaDireccionActionPlanItems}
+                />
+            </div>
+
             {/* ─── Analysis Report ──────────────────────────────────────── */}
-                <div className="mt-4">
-                    <CollapsibleReportBox onSave={handleSave}
+            <div className="mt-4">
+                <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title="Revisión Alta Dirección"

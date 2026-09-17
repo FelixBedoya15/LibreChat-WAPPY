@@ -26,6 +26,9 @@ import {
   Users,
   Building2,
   AlertTriangle,
+  Trello,
+  ExternalLink,
+  Send,
 } from 'lucide-react';
 import { Button, useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
@@ -52,6 +55,7 @@ import SGSSTToolbar from './SGSSTToolbar';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SingleSelect from './SingleSelect';
 import CollapsibleReportBox from './CollapsibleReportBox';
+import AcpmActionPlanBox, { type ActionPlanItem } from './AcpmActionPlanBox';
 
 // Force rebuild verification
 console.log('DiagnosticoChecklist loaded');
@@ -245,16 +249,81 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     });
   }, []);
 
-  const handleDummyData = () => {
+  const [isSyncingKanban, setIsSyncingKanban] = useState(false);
+
+  // Derive Action Plan items from non-compliant standards
+  const diagActionPlanItems = useMemo<ActionPlanItem[]>(() => {
+    const items: ActionPlanItem[] = [];
+    checklist.forEach(item => {
+      const st = statuses.find(s => s.itemId === item.id)?.status;
+      if (st === 'no_cumple' || st === 'parcial') {
+        const isNoCumple = st === 'no_cumple';
+        const obs = observations[item.id] || '';
+        items.push({
+          id: item.id,
+          title: `[${item.code}] ${item.name}`,
+          description: obs || (isNoCumple ? `Subsanar estándar no cumplido: ${item.description}` : `Subsanar estándar parcial: ${item.description}`),
+          priority: isNoCumple ? 'alta' : 'media',
+          actionType: isNoCumple ? 'correctiva' : 'mejora',
+          dueDate: new Date(Date.now() + (isNoCumple ? 30 : 45) * 86400000).toISOString().split('T')[0],
+          status: 'todo',
+        });
+      }
+    });
+    return items;
+  }, [checklist, statuses, observations]);
+
+  const handleSyncToKanban = useCallback(async () => {
+    if (!token) return;
+    try {
+      setIsSyncingKanban(true);
+      const itemsToSync = checklist.map(item => ({
+        itemId: item.id,
+        code: item.code,
+        name: item.name,
+        description: item.description,
+        evaluation: item.evaluation,
+        points: item.points,
+        status: statuses.find(s => s.itemId === item.id)?.status || 'pendiente',
+        observation: observations[item.id] || '',
+      }));
+
+      await axios.post('/api/sgsst/diagnostico/save-state', {
+        statusData: itemsToSync,
+        companySize,
+        riskLevel,
+        score: currentScore,
+        totalPoints,
+        complianceLevel: complianceLevel.label,
+      }, { headers: { Authorization: `Bearer ${token}` } });
+
+      const syncRes = await axios.post('/api/sgsst/diagnostico/sync-kanban', {
+        statusData: itemsToSync,
+      }, { headers: { Authorization: `Bearer ${token}` } });
+
+      showToast({
+        message: `¡${syncRes.data.syncedCount || 0} estándares sincronizados como Plan de Acción en el Centro de Control!`,
+        status: 'success',
+        severity: 'success',
+      });
+    } catch (e) {
+      console.error('[DiagnosticoChecklist] Sync to Kanban error:', e);
+      showToast({ message: 'Error al sincronizar con Centro de Control', status: 'error' });
+    } finally {
+      setIsSyncingKanban(false);
+    }
+  }, [token, checklist, statuses, observations, companySize, riskLevel, currentScore, totalPoints, complianceLevel, showToast]);
+
+  const handleDummyData = async () => {
     const dummyItems = generateDummyData.checklist(checklist);
-    const newStatuses: ComplianceStatus[] = (dummyItems || []).map((item: any) => ({
+    const newStatuses: ComplianceStatus[] = (dummyItems || []).map((item: any, idx: number) => ({
       itemId: item.id,
       status:
-        item.estado === 'Cumple'
-          ? 'cumple'
-          : item.estado === 'No Cumple'
-            ? 'no_cumple'
-            : 'no_aplica',
+        idx === 1 ? 'parcial' :
+        idx === 3 ? 'no_cumple' :
+        idx === 5 ? 'no_cumple' :
+        item.estado === 'Cumple' ? 'cumple' :
+        item.estado === 'No Cumple' ? 'no_cumple' : 'cumple',
     }));
     const newObservations: Record<string, string> = {};
     dummyItems.forEach((item: any) => {
@@ -263,11 +332,47 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
     setStatuses(newStatuses);
     setObservations(newObservations);
-    showToast({
-      message: 'Resultados simulados generados correctamente',
-      status: 'success',
-      severity: 'success',
-    });
+
+    // Auto-save and sync to Kanban
+    try {
+      if (token) {
+        const itemsToSync = checklist.map((item, idx) => ({
+          itemId: item.id,
+          code: item.code,
+          name: item.name,
+          description: item.description,
+          evaluation: item.evaluation,
+          points: item.points,
+          status: newStatuses[idx]?.status || 'cumple',
+          observation: newObservations[item.id] || '',
+        }));
+
+        await axios.post('/api/sgsst/diagnostico/save-state', {
+          statusData: itemsToSync,
+          companySize,
+          riskLevel,
+          score: 85,
+          totalPoints,
+          complianceLevel: 'Aceptable',
+        }, { headers: { Authorization: `Bearer ${token}` } });
+
+        await axios.post('/api/sgsst/diagnostico/sync-kanban', {
+          statusData: itemsToSync,
+        }, { headers: { Authorization: `Bearer ${token}` } });
+      }
+
+      showToast({
+        message: '¡Diagnóstico simulado y Plan de Acción ACPM sincronizado con Centro de Control!',
+        status: 'success',
+        severity: 'success',
+      });
+    } catch (e) {
+      console.error('[DiagnosticoChecklist] Auto sync error:', e);
+      showToast({
+        message: 'Resultados simulados generados correctamente',
+        status: 'success',
+      });
+    }
   };
 
   const toggleItemExpanded = useCallback((itemId: string) => {
@@ -981,6 +1086,50 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         onDummy={handleDummyData}
       />
 
+      {/* Action Plan & Kanban Sync Bar */}
+      <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-blue-500/10 border border-cyan-500/20 shadow-xs flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-cyan-600 text-white shadow-xs">
+            <Trello className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-extrabold text-text-primary flex items-center gap-2">
+              <span>Plan de Mejoramiento Diagnóstico (ACPM)</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-cyan-100 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-300">
+                {statuses.filter(s => s.status === 'no_cumple' || s.status === 'parcial').length} Estándares por Subsanar
+              </span>
+            </h4>
+            <p className="text-xs text-text-secondary">
+              Los estándares no conformes o parciales se consolidan en el Centro de Control para su subsanación legal.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSyncToKanban}
+            disabled={isSyncingKanban}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm transition-all disabled:opacity-50"
+          >
+            {isSyncingKanban ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Trello className="w-4 h-4" />
+            )}
+            <span>Sincronizar con Centro de Control</span>
+          </button>
+
+          <a
+            href="/sgsst?tab=acpm"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-surface-primary hover:bg-surface-secondary text-cyan-600 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-800 transition-colors"
+          >
+            <span>Ver Plan ACPM</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
+      </div>
+
       {/* Checklist Items by Category */}
       <div className="space-y-4">
         {Object.entries(groupedItems).map(([category, items]) => {
@@ -1143,6 +1292,14 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
           );
         })}
       </div>
+
+      {/* Universal ACPM Action Plan Drawer */}
+      <AcpmActionPlanBox
+        sourceModule="diagnostico"
+        sourceTitle="Diagnóstico Inicial"
+        initialActions={diagActionPlanItems}
+      />
+
       {/* Bottom Action Button */}
       <div className="mb-4 mt-6 flex justify-center gap-4">
         <button

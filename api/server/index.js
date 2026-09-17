@@ -257,6 +257,7 @@ const startServer = async () => {
   app.use('/api/voice', routes.voice);
   app.use('/api/ads', routes.ads);
   app.use('/api/sgsst/diagnostico', routes.sgsst.diagnostico);
+  app.use('/api/sgsst/auditoria', routes.sgsst.auditoria);
   app.use('/api/sgsst/company-info', routes.sgsst.companyInfo);
   app.use('/api/sgsst/config', routes.sgsst.config);
   app.use('/api/sgsst/signatures', routes.sgsst.signatures);

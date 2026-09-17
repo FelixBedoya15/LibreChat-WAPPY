@@ -56,7 +56,7 @@ const getUnifiedHitos = (): Array<{
         id: 'hito1',
         title: 'Gobernanza y Cimiento Legal',
         subtitle: 'El Marco Institucional (PHVA)',
-        description: 'Diagnóstico 0312, Responsable SG-SST, Políticas, Objetivos, Matriz Legal, Reglamentos y Emergencias.',
+        description: 'Diagnóstico Inicial, Responsable SG-SST, Políticas, Objetivos, Matriz Legal, Reglamentos y Emergencias.',
         extendedPhilosophy: 'El cimiento estructural y normativo que sostiene la vida colectiva en la empresa. Define la ética de protección y las normas claras que garantizan la coexistencia segura y el cumplimiento de los estándares legales de prevención.',
         accent: 'text-[#0d9488]',
         bgGlow: 'bg-[#0d9488]/5',
