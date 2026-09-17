@@ -657,6 +657,28 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
             {filteredData.length > 0 ? (
               filteredData.map((d, i) => {
                 let displayDetails = d.details;
+                if (
+                  displayDetails &&
+                  (displayDetails.includes('Conversación con el Terapeuta') ||
+                    displayDetails.includes('Conversación anónima completada') ||
+                    displayDetails.includes('Trabajador:') ||
+                    displayDetails.includes('Terapeuta:'))
+                ) {
+                  const stressorNames: Record<string, string> = {
+                    sobrecarga: 'Sobrecarga de trabajo',
+                    liderazgo: 'Clima laboral / Relaciones interpersonales',
+                    entorno: 'Entorno físico / Herramientas inadecuadas',
+                    personal: 'Asuntos personales o familiares',
+                    funciones: 'Falta de claridad en funciones y rol',
+                    fatiga: 'Fatiga física o agotamiento mental',
+                  };
+                  const labels = (d.stressors || []).map((s: string) => stressorNames[s] || s);
+                  const factorsText = labels.length > 0 ? labels.join(', ') : 'Sobrecarga y ritmo laboral';
+                  const areaText = d.department ? ` en el área de ${d.department}` : '';
+
+                  displayDetails = `📋 Caso de Seguimiento SG-SST (Confidencial):\n• Factores de Riesgo Laboral: ${factorsText}.\n• Recomendación de Intervención SST: Monitorear distribución de tareas y pausas activas${areaText}. Realizar seguimiento preventivo a factores psicosociales preservando la confidencialidad del colaborador.\n• Orientación Brindada: Sesión confidencial con el Terapeuta en Salud Mental completada satisfactoriamente.`;
+                }
+
                 if (!displayDetails || !displayDetails.trim()) {
                   if (d.mood === 'happy') {
                     displayDetails = 'Reporte de bienestar y motivación registrado por el colaborador.';

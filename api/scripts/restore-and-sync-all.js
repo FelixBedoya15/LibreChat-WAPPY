@@ -505,6 +505,41 @@ ${cleanContent}
     console.warn('⚠️ No se pudieron actualizar tags de conversaciones previas:', err.message);
   }
 
+  // 7. Sanitizar telemetría psicosocial previa para garantizar confidencialidad absoluta
+  try {
+    const MoodTelemetry = mongoose.models.MoodTelemetry || require('~/models/MoodTelemetry');
+    if (MoodTelemetry) {
+      const recordsToClean = await MoodTelemetry.find({
+        details: { $regex: /Conversación con el Terapeuta|Conversación anónima completada|Trabajador:|Terapeuta:/i },
+      });
+      const stressorNames = {
+        sobrecarga: 'Sobrecarga de trabajo',
+        liderazgo: 'Clima laboral / Relaciones interpersonales',
+        entorno: 'Entorno físico / Herramientas inadecuadas',
+        personal: 'Asuntos personales o familiares',
+        funciones: 'Falta de claridad en funciones y rol',
+        fatiga: 'Fatiga física o agotamiento mental',
+      };
+      for (const rec of recordsToClean) {
+        const labels = (rec.stressors || []).map((s) => stressorNames[s] || s);
+        const factorsText = labels.length > 0 ? labels.join(', ') : 'Sobrecarga y ritmo laboral';
+        const areaText = rec.department ? ` en el área de ${rec.department}` : '';
+
+        rec.details =
+          `📋 Caso de Seguimiento SG-SST (Confidencial):\n` +
+          `• Factores de Riesgo Laboral: ${factorsText}.\n` +
+          `• Recomendación de Intervención SST: Monitorear distribución de tareas y pausas activas${areaText}. Realizar seguimiento preventivo a factores psicosociales preservando la identidad del colaborador.\n` +
+          `• Orientación Brindada: El colaborador completó una sesión privada de orientación emocional con el Terapeuta en Salud Mental.`;
+        await rec.save();
+      }
+      if (recordsToClean.length > 0) {
+        console.log(`   🔒 Se sanitizaron ${recordsToClean.length} registros de telemetría psicosocial para garantizar confidencialidad.`);
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️ No se pudo sanitizar telemetría previa:', err.message);
+  }
+
   await mongoose.disconnect();
   console.log('🔌 Desconectado de MongoDB.');
 

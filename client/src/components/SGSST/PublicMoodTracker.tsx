@@ -234,10 +234,13 @@ export default function PublicMoodTracker() {
         );
         const stressorsSummary = selectedLabels.length > 0 ? selectedLabels.join(', ') : 'Ninguno seleccionado';
 
-        // Save stressors immediately to telemetry so findings are NEVER lost if user closes tab
+        // Save initial SST case follow-up note so findings are NEVER lost if user closes tab
+        const areaSuffix = department.trim() ? ` en el área de ${department.trim()}` : '';
+        const initialCaseNote = `📋 Caso de Seguimiento SG-SST (Confidencial):\n• Factores de Riesgo Laboral: ${stressorsSummary}.\n• Recomendación de Intervención SST: Monitorear factores de riesgo reportados y pausas activas${areaSuffix}.\n• Orientación Brindada: Sesión privada de orientación emocional iniciada con el Terapeuta.`;
+
         axios.post(`/api/public-sgsst/mood/update/${telemetryId}`, {
           stressors: selectedStressors,
-          details: `Sesión con el Terapeuta iniciada. Factores señalados: ${stressorsSummary}.`,
+          details: initialCaseNote,
         }).catch((e) => console.warn('Could not update initial stressors:', e));
 
         // Prepopulate context-aware greeting from Specialist Agent
@@ -450,25 +453,6 @@ export default function PublicMoodTracker() {
       });
     } finally {
       setIsTyping(false);
-      // Sincronizar automáticamente el progreso de la conversación con telemetría
-      if (telemetryId && accumulatedText) {
-        try {
-          const currentConversation = [
-            ...messages,
-            { sender: 'user', text: userText },
-            { sender: 'agent', text: accumulatedText },
-          ]
-            .filter((m) => m.text && m.text.trim())
-            .map((m) => `${m.sender === 'user' ? 'Trabajador' : 'Terapeuta'}: ${m.text}`)
-            .join('\n')
-            .slice(0, 1500);
-
-          axios.post(`/api/public-sgsst/mood/update/${telemetryId}`, {
-            stressors: selectedStressors,
-            details: `Conversación con el Terapeuta:\n${currentConversation}`,
-          }).catch(() => {});
-        } catch (e) {}
-      }
     }
   };
 
@@ -476,19 +460,29 @@ export default function PublicMoodTracker() {
     if (!telemetryId) return;
 
     try {
-      // Calculate a brief context summary of the chat
-      const chatDetails = messages
-        .filter((m) => m.text && m.text.trim())
-        .map((m) => `${m.sender === 'user' ? 'Trabajador' : 'Terapeuta'}: ${m.text}`)
-        .join('\n')
-        .slice(0, 1500);
-
-      await axios.post(`/api/public-sgsst/mood/update/${telemetryId}`, {
-        stressors: selectedStressors,
-        details: `Conversación anónima completada:\n${chatDetails}`,
-      });
+      // Solicitar al backend sintetizar un caso de seguimiento SG-SST 100% confidencial
+      await axios.post(
+        `/api/public-sgsst/mood/finish/${telemetryId}`,
+        {
+          stressors: selectedStressors,
+          department: department.trim(),
+          messages: messages.map((m) => ({ sender: m.sender, text: m.text })),
+        },
+        { timeout: 6000 }
+      );
     } catch (error) {
-      console.error('Error saving final chat summary:', error);
+      console.warn('Fallback en finalización de chat:', error);
+      try {
+        const areaSuffix = department.trim() ? ` en el área de ${department.trim()}` : '';
+        const selectedLabels = selectedStressors.map(
+          (id) => stressorsList.find((s) => s.id === id)?.label || id
+        );
+        const stressorsSummary = selectedLabels.length > 0 ? selectedLabels.join(', ') : 'Sobrecarga y ritmo laboral';
+        await axios.post(`/api/public-sgsst/mood/update/${telemetryId}`, {
+          stressors: selectedStressors,
+          details: `📋 Caso de Seguimiento SG-SST (Confidencial):\n• Factores de Riesgo Laboral: ${stressorsSummary}.\n• Recomendación de Intervención SST: Monitorear distribución de cargas y pausas ergonómicas${areaSuffix}. Fomentar canales de comunicación y bienestar.\n• Orientación Brindada: El colaborador completó una sesión privada de orientación emocional con el Terapeuta en Salud Mental.`,
+        });
+      } catch (e) {}
     } finally {
       setStep(4);
     }

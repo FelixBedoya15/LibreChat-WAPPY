@@ -327,7 +327,42 @@ router.get('/mood', requireJwtAuth, async (req, res) => {
 
         const MoodTelemetry = require('~/models/MoodTelemetry');
         const telemetryData = await MoodTelemetry.find({ companyId: company._id }).sort({ createdAt: -1 }).lean();
-        return res.json(telemetryData);
+
+        const stressorNames = {
+            sobrecarga: 'Sobrecarga de trabajo',
+            liderazgo: 'Clima laboral / Relaciones interpersonales',
+            entorno: 'Entorno físico / Herramientas inadecuadas',
+            personal: 'Asuntos personales o familiares',
+            funciones: 'Falta de claridad en funciones y rol',
+            fatiga: 'Fatiga física o agotamiento mental',
+        };
+
+        const sanitizedData = telemetryData.map((d) => {
+            const raw = d.details || '';
+            const isRawChat =
+                raw.includes('Conversación con el Terapeuta') ||
+                raw.includes('Conversación anónima completada') ||
+                raw.includes('Trabajador:') ||
+                raw.includes('Terapeuta:');
+
+            if (isRawChat) {
+                const labels = (d.stressors || []).map((s) => stressorNames[s] || s);
+                const factorsText = labels.length > 0 ? labels.join(', ') : 'Sobrecarga y ritmo laboral';
+                const areaText = d.department ? ` en el área de ${d.department}` : '';
+
+                const cleanDetails =
+                    `📋 Caso de Seguimiento SG-SST (Confidencial):\n` +
+                    `• Factores de Riesgo Laboral: ${factorsText}.\n` +
+                    `• Recomendación de Intervención SST: Monitorear distribución de tareas y pausas activas${areaText}. Realizar seguimiento preventivo a factores psicosociales preservando la identidad del colaborador.\n` +
+                    `• Orientación Brindada: El colaborador completó una sesión privada de orientación emocional con el Terapeuta en Salud Mental.`;
+
+                MoodTelemetry.updateOne({ _id: d._id }, { $set: { details: cleanDetails } }).catch(() => {});
+                return { ...d, details: cleanDetails };
+            }
+            return d;
+        });
+
+        return res.json(sanitizedData);
     } catch (error) {
         logger.error('[SGSST Estadísticas] Mood telemetry fetch error:', error);
         res.status(500).json({ error: 'Error interno al consultar la telemetría psicosocial.' });
