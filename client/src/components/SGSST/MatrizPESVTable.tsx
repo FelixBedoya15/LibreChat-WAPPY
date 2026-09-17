@@ -259,7 +259,8 @@ const AITextarea = ({
   <div className="group/cell relative w-full transition-all focus-within:z-[100] hover:z-[90]">
     <textarea
       rows={rows}
-      className={`w-full min-w-[${minW}] resize border-transparent bg-transparent text-sm outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200`}
+      className="w-full resize border-transparent bg-transparent text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100 dark:placeholder:text-gray-500"
+      style={{ minWidth: minW }}
       value={value || ''}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
@@ -1467,6 +1468,15 @@ export default function MatrizPESVTable({
           .dark .custom-scrollbar-ipevar::-webkit-scrollbar-thumb:hover {
             background: #0284c7;
           }
+          /* Safari & WebKit font contrast protection */
+          .custom-scrollbar-ipevar textarea,
+          .custom-scrollbar-ipevar input:not([type="checkbox"]) {
+            -webkit-text-fill-color: #0f172a;
+          }
+          .dark .custom-scrollbar-ipevar textarea,
+          .dark .custom-scrollbar-ipevar input:not([type="checkbox"]) {
+            -webkit-text-fill-color: #f8fafc;
+          }
         `}</style>
         {matrixRows.length === 0 && !isLoading ? (
           <div className="flex h-48 flex-col items-center justify-center gap-3 text-text-secondary">
@@ -1483,7 +1493,7 @@ export default function MatrizPESVTable({
           </div>
         ) : (
           <div className="min-w-max">
-            <table className="w-full border-collapse text-xs">
+            <table className="w-full border-collapse text-xs text-gray-900 dark:text-gray-100">
               <thead className="sticky top-0 z-[100] bg-surface-secondary text-xs font-bold uppercase tracking-wide text-text-secondary border-b border-border-medium">
                 <tr>
                   <th
@@ -1534,20 +1544,20 @@ export default function MatrizPESVTable({
                   <th className="sticky right-0 z-[200] min-w-[100px] border-l border-border-light bg-surface-secondary px-4 py-3 text-center shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.06)]">ACCIONES</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="text-gray-900 dark:text-gray-100">
                 {paginatedRows.map(({ row, idx }) => {
                   const crit = getCriticidadLabel(row.calificacion || 0);
 
                   return (
                     <tr
                       key={row.id || idx}
-                      className="hover:bg-surface-secondary/50 group border-b border-border-light transition-colors"
+                      className="hover:bg-surface-secondary/50 group border-b border-border-light transition-colors text-gray-900 dark:text-gray-100"
                     >
                       {/* Grupo Trabajo */}
                       <td className="px-4 py-3">
                         <textarea
                           rows={2}
-                          className="w-full min-w-[140px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
+                          className="w-full min-w-[140px] resize border-transparent bg-transparent text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100 dark:placeholder:text-gray-500"
                           value={row.grupo_trabajo || ''}
                           onChange={(e) => handleCellChange(idx, 'grupo_trabajo', e.target.value)}
                         />
@@ -1557,7 +1567,7 @@ export default function MatrizPESVTable({
                       <td className="px-4 py-3">
                         <textarea
                           rows={2}
-                          className="w-full min-w-[140px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
+                          className="w-full min-w-[140px] resize border-transparent bg-transparent text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100 dark:placeholder:text-gray-500"
                           value={row.cargo || ''}
                           onChange={(e) => handleCellChange(idx, 'cargo', e.target.value)}
                         />
@@ -1566,7 +1576,7 @@ export default function MatrizPESVTable({
                       {/* Tipo Desplazamiento */}
                       <td className="px-4 py-3 text-center">
                         <select
-                          className="border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer font-medium"
+                          className="border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 text-gray-900 dark:text-gray-100 cursor-pointer font-medium"
                           value={row.tipo_desplazamiento || 'Misional'}
                           onChange={(e) => handleCellChange(idx, 'tipo_desplazamiento', e.target.value)}
                         >
@@ -1802,7 +1812,7 @@ export default function MatrizPESVTable({
                       <td className="border-l border-border-light px-4 py-3">
                         <textarea
                           rows={2}
-                          className="w-full min-w-[140px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
+                          className="w-full min-w-[140px] resize border-transparent bg-transparent text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100 dark:placeholder:text-gray-500"
                           value={row.responsable || ''}
                           onChange={(e) => handleCellChange(idx, 'responsable', e.target.value)}
                         />
@@ -1812,7 +1822,7 @@ export default function MatrizPESVTable({
                       <td className="px-4 py-3">
                         <textarea
                           rows={2}
-                          className="w-full min-w-[140px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
+                          className="w-full min-w-[140px] resize border-transparent bg-transparent text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100 dark:placeholder:text-gray-500"
                           value={row.fecha_programacion || ''}
                           onChange={(e) => handleCellChange(idx, 'fecha_programacion', e.target.value)}
                         />
@@ -1821,7 +1831,7 @@ export default function MatrizPESVTable({
                       {/* Estado */}
                       <td className="px-4 py-3 text-center">
                         <select
-                          className="border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer font-semibold"
+                          className="border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 text-gray-900 dark:text-gray-100 cursor-pointer font-semibold"
                           value={row.estado || 'PLANEADA'}
                           onChange={(e) => handleCellChange(idx, 'estado', e.target.value)}
                         >

@@ -617,7 +617,8 @@ const AITextarea = ({
   <div className="group/cell relative w-full transition-all focus-within:z-[100] hover:z-[90]">
     <textarea
       rows={rows}
-      className={`w-full min-w-[${minW}] resize border-transparent bg-transparent text-sm outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200`}
+      className="w-full resize border-transparent bg-transparent text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100 dark:placeholder:text-gray-500"
+      style={{ minWidth: minW }}
       value={value || ''}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
@@ -3244,6 +3245,21 @@ export default function MatrizIPEVARTable({
           .dark .custom-scrollbar-ipevar::-webkit-scrollbar-thumb:hover {
             background: #0f766e;
           }
+          /* Safari & WebKit font contrast protection */
+          .custom-scrollbar-ipevar textarea,
+          .custom-scrollbar-ipevar input:not([type="checkbox"]) {
+            -webkit-text-fill-color: #0f172a;
+          }
+          .dark .custom-scrollbar-ipevar textarea,
+          .dark .custom-scrollbar-ipevar input:not([type="checkbox"]) {
+            -webkit-text-fill-color: #f8fafc;
+          }
+          .custom-scrollbar-ipevar input[placeholder*="Cargo"] {
+            -webkit-text-fill-color: #0f766e;
+          }
+          .dark .custom-scrollbar-ipevar input[placeholder*="Cargo"] {
+            -webkit-text-fill-color: #5eead4;
+          }
         `}</style>
         {matrixRows.length === 0 && !isLoading ? (
           <div className="flex h-48 flex-col items-center justify-center gap-3 text-text-secondary">
@@ -3261,7 +3277,7 @@ export default function MatrizIPEVARTable({
           </div>
         ) : (
           <div className="min-w-max">
-            <table className="w-full border-collapse text-sm">
+            <table className="w-full border-collapse text-sm text-gray-900 dark:text-gray-100">
               <thead className="sticky top-0 z-[100] bg-surface-secondary text-xs font-bold uppercase tracking-wide text-text-secondary">
                 <tr>
                   {/* Identificación */}
@@ -3376,13 +3392,13 @@ export default function MatrizIPEVARTable({
                   </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="text-gray-900 dark:text-gray-100">
                 {paginatedRows.map(({ row, idx }, pageRowIdx) => {
                   const displayIdx = (currentPage - 1) * pageSize + pageRowIdx;
                   return (
                   <tr
                     key={idx}
-                    className="hover:bg-surface-secondary/50 group border-b border-border-light transition-colors"
+                    className="hover:bg-surface-secondary/50 group border-b border-border-light transition-colors text-gray-900 dark:text-gray-100"
                   >
                     {/* Proceso */}
                     <td
@@ -3393,7 +3409,7 @@ export default function MatrizIPEVARTable({
                     >
                       <textarea
                         rows={2}
-                        className="w-full min-w-[140px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
+                        className="w-full min-w-[140px] resize border-transparent bg-transparent text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100 dark:placeholder:text-gray-500"
                         value={row.proceso || ''}
                         onChange={(e) => handleCellChange(idx, 'proceso', e.target.value)}
                       />
@@ -3437,7 +3453,7 @@ export default function MatrizIPEVARTable({
                     >
                       <textarea
                         rows={2}
-                        className="w-full min-w-[120px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
+                        className="w-full min-w-[120px] resize border-transparent bg-transparent text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100 dark:placeholder:text-gray-500"
                         value={row.zona || ''}
                         onChange={(e) => handleCellChange(idx, 'zona', e.target.value)}
                         placeholder="Zona / Lugar…"
@@ -3459,7 +3475,7 @@ export default function MatrizIPEVARTable({
                     >
                       <textarea
                         rows={2}
-                        className="w-full min-w-[150px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
+                        className="w-full min-w-[150px] resize border-transparent bg-transparent text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100 dark:placeholder:text-gray-500"
                         value={row.actividad || ''}
                         onChange={(e) => handleCellChange(idx, 'actividad', e.target.value)}
                       />
@@ -3480,7 +3496,7 @@ export default function MatrizIPEVARTable({
                     >
                       <textarea
                         rows={2}
-                        className="w-full min-w-[190px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
+                        className="w-full min-w-[190px] resize border-transparent bg-transparent text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100 dark:placeholder:text-gray-500"
                         value={row.tareas || ''}
                         onChange={(e) => handleCellChange(idx, 'tareas', e.target.value)}
                       />
@@ -3552,7 +3568,7 @@ export default function MatrizIPEVARTable({
                     >
                       <textarea
                         rows={2}
-                        className="w-full min-w-[140px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
+                        className="w-full min-w-[140px] resize border-transparent bg-transparent text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100 dark:placeholder:text-gray-500"
                         value={row.peligro_clasificacion || ''}
                         onChange={(e) =>
                           handleCellChange(idx, 'peligro_clasificacion', e.target.value)
@@ -3673,7 +3689,7 @@ export default function MatrizIPEVARTable({
                     >
                       <input
                         type="number"
-                        className="w-14 border-transparent bg-transparent text-center font-mono outline-none focus:border-transparent focus:outline-none focus:ring-0"
+                        className="w-14 border-transparent bg-transparent text-center font-mono text-sm font-medium text-gray-900 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100"
                         value={row.nd}
                         onChange={(e) => handleCellChange(idx, 'nd', e.target.value)}
                       />
@@ -3693,7 +3709,7 @@ export default function MatrizIPEVARTable({
                     <td className="bg-purple-500/5 px-4 py-3">
                       <input
                         type="number"
-                        className="w-12 border-transparent bg-transparent text-center font-mono outline-none focus:border-transparent focus:outline-none focus:ring-0"
+                        className="w-12 border-transparent bg-transparent text-center font-mono text-sm font-medium text-gray-900 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100"
                         value={row.ne}
                         onChange={(e) => handleCellChange(idx, 'ne', e.target.value)}
                       />
@@ -3722,7 +3738,7 @@ export default function MatrizIPEVARTable({
                     <td className="bg-purple-500/5 px-4 py-3">
                       <input
                         type="number"
-                        className="w-12 border-transparent bg-transparent text-center font-mono outline-none focus:border-transparent focus:outline-none focus:ring-0"
+                        className="w-12 border-transparent bg-transparent text-center font-mono text-sm font-medium text-gray-900 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100"
                         value={row.nc}
                         onChange={(e) => handleCellChange(idx, 'nc', e.target.value)}
                       />
@@ -3779,7 +3795,7 @@ export default function MatrizIPEVARTable({
                     >
                       <input
                         type="number"
-                        className="w-16 border-transparent bg-transparent text-center font-mono outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200"
+                        className="w-16 border-transparent bg-transparent text-center font-mono text-sm font-medium text-gray-900 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100"
                         value={row.nro_expuestos !== undefined ? row.nro_expuestos : 1}
                         onChange={(e) => handleCellChange(idx, 'nro_expuestos', Number(e.target.value) || 0)}
                         min={0}
@@ -3801,7 +3817,7 @@ export default function MatrizIPEVARTable({
                     >
                       <textarea
                         rows={2}
-                        className="w-full min-w-[150px] resize border-transparent bg-transparent outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 text-xs"
+                        className="w-full min-w-[150px] resize border-transparent bg-transparent text-xs font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100 dark:placeholder:text-gray-500"
                         value={row.peor_consecuencia || ''}
                         onChange={(e) => handleCellChange(idx, 'peor_consecuencia', e.target.value)}
                         placeholder="Ej. Lesión grave..."
@@ -3822,7 +3838,7 @@ export default function MatrizIPEVARTable({
                       className={`group/cell relative bg-sky-500/5 px-4 py-3 text-center transition-colors ${getDragCellStyles(displayIdx, 'requisito_legal')}`}
                     >
                       <select
-                        className="border-transparent bg-transparent text-xs outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-200 cursor-pointer"
+                        className="border-transparent bg-transparent text-xs font-medium text-gray-900 outline-none focus:border-transparent focus:outline-none focus:ring-0 dark:text-gray-100 cursor-pointer"
                         value={row.requisito_legal || ''}
                         onChange={(e) => handleCellChange(idx, 'requisito_legal', e.target.value)}
                       >
