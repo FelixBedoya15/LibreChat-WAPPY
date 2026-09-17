@@ -41,6 +41,9 @@ const teiRerankLogicCjs = `        try {
             }
             const isTEI = !this.apiUrl.includes('jina.ai');
             let targetUrl = this.apiUrl;
+            if (targetUrl.includes('://reranker')) {
+                targetUrl = targetUrl.replace('://reranker', '://librechat-reranker-d58plj');
+            }
             if (isTEI && targetUrl.endsWith('/v1/rerank')) {
                 targetUrl = targetUrl.replace(/\\/v1\\/rerank$/, '/rerank');
             }
@@ -102,18 +105,21 @@ const teiRerankLogicCjs = `        try {
             return this.getDefaultRanking(documents, topK);
         }`;
 
-const cjsTryPattern = /try\s*\{\s*if\s*\(!?this\.apiKey[\s\S]*?catch\s*\(error\)\s*\{\s*this\.logger\.error\('Error using Jina reranker:',\s*error\);[\s\S]*?return this\.getDefaultRanking\(documents,\s*topK\);\s*\}/;
+const cjsTryPattern = /try\s*\{\s*if\s*\(!?this\.apiKey[\s\S]*?catch\s*\(error\)\s*\{\s*this\.logger\.error\('Error using (?:Jina )?reranker:',\s*error\);[\s\S]*?return this\.getDefaultRanking\(documents,\s*topK\);\s*\}/;
 
 if (cjsTryPattern.test(cjs)) {
   cjs = cjs.replace(cjsTryPattern, teiRerankLogicCjs.trim());
 }
 
 // Forzar a createReranker a usar siempre el Reranker local TEI
-const createRerankerPattern = /const createReranker = \(config\) => \{[\s\S]*?switch \([\s\S]*?return new JinaReranker\(\{ apiKey: jinaApiKey, apiUrl: jinaApiUrl, logger: defaultLogger \}\);\s*\}\s*\};/;
+const createRerankerPattern = /const createReranker = \(config\) => \{[\s\S]*?return new JinaReranker\(\{ apiKey: [^}]+ \}\);\s*(?:\}\s*\};|\};)/;
 const customCreateReranker = `const createReranker = (config) => {
     const { jinaApiKey, jinaApiUrl, logger } = config || {};
     const defaultLogger = logger || utils.createDefaultLogger();
-    const effectiveUrl = jinaApiUrl || process.env.RERANKER_API_URL || 'http://librechat-reranker-d58plj:80/rerank';
+    let effectiveUrl = jinaApiUrl || process.env.RERANKER_API_URL || 'http://librechat-reranker-d58plj:80/rerank';
+    if (effectiveUrl.includes('://reranker')) {
+        effectiveUrl = effectiveUrl.replace('://reranker', '://librechat-reranker-d58plj');
+    }
     const effectiveKey = jinaApiKey || process.env.JINA_API_KEY || 'local-dummy-key';
     return new JinaReranker({ apiKey: effectiveKey, apiUrl: effectiveUrl, logger: defaultLogger });
 };`;
@@ -135,8 +141,8 @@ searchCjs = searchCjs.replace(
   "engines: process.env.SEARXNG_ENGINES || 'yandex,wikipedia'"
 );
 
-// Bloquear dominios de publicidad, spam, prestamos financieros y bolsas de empleo extranjeras
-const blockedDomainsStr = "const blockedDomains = ['corporatefinanceinstitute.com', 'gao.gov', 'doordash.com', 'clipchamp.com', 'intervalworld.com', 'aol.com', 'microsoft.com', 'doubleclick.net', 'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se', 'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io', 'meudanfe.com.br', 'softonic.com', 'droidcam.com', 'capterra.com', 'g2.com', 'trustpilot.com', 'pinterest.com', 'anu.edu.au', '.edu.au'];";
+// Bloquear dominios de publicidad, spam, Reddit, xvideos, prestamos financieros y bolsas de empleo extranjeras
+const blockedDomainsStr = "const blockedDomains = ['corporatefinanceinstitute.com', 'gao.gov', 'doordash.com', 'clipchamp.com', 'intervalworld.com', 'aol.com', 'microsoft.com', 'doubleclick.net', 'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se', 'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io', 'meudanfe.com.br', 'softonic.com', 'droidcam.com', 'capterra.com', 'g2.com', 'trustpilot.com', 'pinterest.com', 'anu.edu.au', '.edu.au', 'reddit.com', 'redd.it', 'everfulwholesale.com', 'towelsupercenter.com', 'xvideos.com', 'xvideos'];";
 if (searchCjs.includes('blockedDomains = [')) {
   searchCjs = searchCjs.replace(
     /const blockedDomains\s*=\s*\[[^\]]+\];/g,
@@ -146,6 +152,17 @@ if (searchCjs.includes('blockedDomains = [')) {
   searchCjs = searchCjs.replace(
     "const isNewsResult = (result) => {",
     blockedDomainsStr + "\n            const isNewsResult = (result) => {"
+  );
+}
+
+// Desactivar scraping profundo por defecto para evitar timeouts de 7.5s, errores 403 y 429
+if (!searchCjs.includes("ENABLE_DEEP_SCRAPING !== 'true'")) {
+  searchCjs = searchCjs.replace(
+    'const fetchContents = async ({ links, query, target, onGetHighlights, onContentScraped, }) => {',
+    `const fetchContents = async ({ links, query, target, onGetHighlights, onContentScraped, }) => {
+        if (process.env.ENABLE_DEEP_SCRAPING !== 'true') {
+            return;
+        }`
   );
 }
 

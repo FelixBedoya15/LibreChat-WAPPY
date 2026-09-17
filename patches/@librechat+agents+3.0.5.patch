@@ -292,6 +292,152 @@ index ad3dd64..96a790b 100644
              'https://api.firecrawl.dev';
          this.apiUrl = `${baseUrl.replace(/\/+$/, '')}/${this.version}/scrape`;
          this.defaultFormats = config.formats ?? ['markdown', 'rawHtml'];
+diff --git a/node_modules/@librechat/agents/dist/cjs/tools/search/rerankers.cjs b/node_modules/@librechat/agents/dist/cjs/tools/search/rerankers.cjs
+index 54e1e16..8eaa394 100644
+--- a/node_modules/@librechat/agents/dist/cjs/tools/search/rerankers.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/tools/search/rerankers.cjs
+@@ -13,7 +13,7 @@ class BaseReranker {
+     getDefaultRanking(documents, topK) {
+         return documents
+             .slice(0, Math.min(topK, documents.length))
+-            .map((doc) => ({ text: doc, score: 0 }));
++            .map((doc, index) => ({ text: doc, score: 0, index }));
+     }
+ }
+ class JinaReranker extends BaseReranker {
+@@ -30,51 +30,69 @@ class JinaReranker extends BaseReranker {
+                 this.logger.warn('JINA_API_KEY is not set. Using default ranking.');
+                 return this.getDefaultRanking(documents, topK);
+             }
+-            const requestData = {
+-                model: 'jina-reranker-v2-base-multilingual',
+-                query: query,
+-                top_n: topK,
+-                documents: documents,
+-                return_documents: true,
+-            };
+-            const response = await axios.post(this.apiUrl, requestData, {
+-                headers: {
+-                    'Content-Type': 'application/json',
+-                    Authorization: `Bearer ${this.apiKey}`,
+-                },
+-            });
+-            this.logger.debug('Jina API Model:', response.data?.model);
+-            this.logger.debug('Jina API Usage:', response.data?.usage);
+-            if (response.data && response.data.results.length) {
++            const isTEI = !this.apiUrl.includes('jina.ai');
++            let targetUrl = this.apiUrl;
++            if (targetUrl.includes('://reranker')) {
++                targetUrl = targetUrl.replace('://reranker', '://librechat-reranker-d58plj');
++            }
++            if (isTEI && targetUrl.endsWith('/v1/rerank')) {
++                targetUrl = targetUrl.replace(/\/v1\/rerank$/, '/rerank');
++            }
++            const headers = { 'Content-Type': 'application/json' };
++            if (this.apiKey && this.apiKey !== 'local-dummy-key') {
++                headers['Authorization'] = 'Bearer ' + this.apiKey;
++            }
++            let requestData;
++            if (isTEI) {
++                requestData = {
++                    query: query,
++                    texts: documents,
++                    raw_scores: false,
++                    return_text: false,
++                };
++            } else {
++                requestData = {
++                    model: 'jina-reranker-v2-base-multilingual',
++                    query: query,
++                    top_n: topK,
++                    documents: documents,
++                    return_documents: true,
++                };
++            }
++            const response = await axios.post(targetUrl, requestData, { headers });
++            if (Array.isArray(response.data)) {
++                const sorted = [...response.data]
++                    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
++                    .slice(0, topK);
++                return sorted.map((res) => {
++                    const docIndex = res.index;
++                    const score = res.score ?? 0;
++                    const text = documents[docIndex] ?? '';
++                    return { text, score, index: docIndex };
++                });
++            } else if (response.data && response.data.results && response.data.results.length) {
+                 return response.data.results.map((result) => {
+                     const docIndex = result.index;
+                     const score = result.relevance_score;
+                     let text = '';
+-                    // If return_documents is true, the document field will be present
+                     if (result.document != null) {
+                         const doc = result.document;
+                         if (typeof doc === 'object' && 'text' in doc) {
+                             text = doc.text;
+-                        }
+-                        else if (typeof doc === 'string') {
++                        } else if (typeof doc === 'string') {
+                             text = doc;
+                         }
+-                    }
+-                    else {
+-                        // Otherwise, use the index to get the document
++                    } else {
+                         text = documents[docIndex];
+                     }
+-                    return { text, score };
++                    return { text, score, index: docIndex };
+                 });
+-            }
+-            else {
+-                this.logger.warn('Unexpected response format from Jina API. Using default ranking.');
++            } else {
++                this.logger.warn('Unexpected response format from reranker. Using default ranking.');
+                 return this.getDefaultRanking(documents, topK);
+             }
+-        }
+-        catch (error) {
+-            this.logger.error('Error using Jina reranker:', error);
+-            // Fallback to default ranking on error
++        } catch (error) {
++            this.logger.error('Error using reranker:', error);
+             return this.getDefaultRanking(documents, topK);
+         }
+     }
+@@ -140,26 +158,14 @@ class InfinityReranker extends BaseReranker {
+  * Creates the appropriate reranker based on type and configuration
+  */
+ const createReranker = (config) => {
+-    const { rerankerType, jinaApiKey, jinaApiUrl, cohereApiKey, logger } = config;
+-    // Create a default logger if none is provided
++    const { jinaApiKey, jinaApiUrl, logger } = config || {};
+     const defaultLogger = logger || utils.createDefaultLogger();
+-    switch (rerankerType.toLowerCase()) {
+-        case 'jina':
+-            return new JinaReranker({ apiKey: jinaApiKey, apiUrl: jinaApiUrl, logger: defaultLogger });
+-        case 'cohere':
+-            return new CohereReranker({
+-                apiKey: cohereApiKey,
+-                logger: defaultLogger,
+-            });
+-        case 'infinity':
+-            return new InfinityReranker(defaultLogger);
+-        case 'none':
+-            defaultLogger.debug('Skipping reranking as reranker is set to "none"');
+-            return undefined;
+-        default:
+-            defaultLogger.warn(`Unknown reranker type: ${rerankerType}. Defaulting to InfinityReranker.`);
+-            return new JinaReranker({ apiKey: jinaApiKey, apiUrl: jinaApiUrl, logger: defaultLogger });
++    let effectiveUrl = jinaApiUrl || process.env.RERANKER_API_URL || 'http://librechat-reranker-d58plj:80/rerank';
++    if (effectiveUrl.includes('://reranker')) {
++        effectiveUrl = effectiveUrl.replace('://reranker', '://librechat-reranker-d58plj');
+     }
++    const effectiveKey = jinaApiKey || process.env.JINA_API_KEY || 'local-dummy-key';
++    return new JinaReranker({ apiKey: effectiveKey, apiUrl: effectiveUrl, logger: defaultLogger });
+ };
+ // Example usage:
+ // const jinaReranker = new JinaReranker();
 diff --git a/node_modules/@librechat/agents/dist/cjs/tools/search/schema.cjs b/node_modules/@librechat/agents/dist/cjs/tools/search/schema.cjs
 index b5dfd0e..94c3cf8 100644
 --- a/node_modules/@librechat/agents/dist/cjs/tools/search/schema.cjs
@@ -324,7 +470,7 @@ index b5dfd0e..94c3cf8 100644
  Use standard 2-letter country codes: "us", "uk", "ca", "de", "fr", "jp", "br", etc.
  Provide this when the search should return results specific to a particular country.
 diff --git a/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs b/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs
-index 7f57687..aae8e45 100644
+index 7f57687..1eb7162 100644
 --- a/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs
 +++ b/node_modules/@librechat/agents/dist/cjs/tools/search/search.cjs
 @@ -184,9 +184,9 @@ const createSearXNGAPI = (instanceUrl, apiKey) => {
@@ -335,18 +481,19 @@ index 7f57687..aae8e45 100644
 +                language: process.env.SEARXNG_LANGUAGE || 'es-CO',
                  safesearch: safeSearch,
 -                engines: 'google,bing,duckduckgo',
-+                engines: process.env.SEARXNG_ENGINES || 'bing,wikipedia,mojeek,startpage,duckduckgo',
++                engines: process.env.SEARXNG_ENGINES || 'yandex,wikipedia',
              };
              const headers = {
                  'Content-Type': 'application/json',
-@@ -225,7 +225,17 @@ const createSearXNGAPI = (instanceUrl, apiKey) => {
+@@ -225,7 +225,18 @@ const createSearXNGAPI = (instanceUrl, apiKey) => {
                  return hasNewsKeywords || hasNewsPath;
              };
              // Transform SearXNG results to match SerperAPI format
 -            const organicResults = (data.results ?? [])
-+            const blockedDomains = ['clipchamp.com', 'microsoft.com', 'doubleclick.net', 'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se', 'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io'];
++            const blockedDomains = ['corporatefinanceinstitute.com', 'gao.gov', 'doordash.com', 'clipchamp.com', 'intervalworld.com', 'aol.com', 'microsoft.com', 'doubleclick.net', 'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se', 'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io', 'meudanfe.com.br', 'softonic.com', 'droidcam.com', 'capterra.com', 'g2.com', 'trustpilot.com', 'pinterest.com', 'anu.edu.au', '.edu.au', 'reddit.com', 'redd.it', 'everfulwholesale.com', 'towelsupercenter.com', 'xvideos.com', 'xvideos'];
 +            const rawResults = (data.results ?? []).filter((r) => {
 +                if (!r.url || !r.title) return false;
++                if (r.url.toLowerCase().includes('.pdf')) return false;
 +                try {
 +                    const host = new URL(r.url).hostname.toLowerCase();
 +                    return !blockedDomains.some((d) => host.includes(d));
@@ -358,6 +505,80 @@ index 7f57687..aae8e45 100644
                  .slice(0, numResults)
                  .map((result, index) => {
                  let attribution = '';
+@@ -406,6 +417,9 @@ const createSourceProcessor = (config = {}, scraperInstance) => {
+         },
+     };
+     const fetchContents = async ({ links, query, target, onGetHighlights, onContentScraped, }) => {
++        if (process.env.ENABLE_DEEP_SCRAPING !== 'true') {
++            return;
++        }
+         const initialLinks = links.slice(0, target);
+         // const remainingLinks = links.slice(target).reverse();
+         const results = await webScraper.scrapeMany({
+@@ -465,6 +479,33 @@ const createSourceProcessor = (config = {}, scraperInstance) => {
+                     }
+                 }
+                 return result.data;
++            }
++                        if (reranker && result.data.organic && result.data.organic.length > 1) {
++                try {
++                    const searchSnippets = result.data.organic.map((s) => (s.title || '') + '. ' + (s.snippet || ''));
++                    const ranked = await reranker.rerank(query, searchSnippets, result.data.organic.length);
++                    if (Array.isArray(ranked) && ranked.length > 0) {
++                        const reordered = [];
++                        const seenIndices = new Set();
++                        for (const r of ranked) {
++                            if (typeof r.index === 'number' && result.data.organic[r.index] && !seenIndices.has(r.index)) {
++                                seenIndices.add(r.index);
++                                reordered.push(result.data.organic[r.index]);
++                            }
++                        }
++                        for (let i = 0; i < result.data.organic.length; i++) {
++                            if (!seenIndices.has(i)) {
++                                reordered.push(result.data.organic[i]);
++                            }
++                        }
++                        const targetLimit = Math.min(reordered.length, numElements || 5);
++                        result.data.organic = reordered.slice(0, targetLimit);
++                    }
++                } catch (e) {
++                    logger_.warn('Error pre-ranking organic search results:', e);
++                }
++            } else if (result.data.organic && result.data.organic.length > (numElements || 5)) {
++                result.data.organic = result.data.organic.slice(0, numElements || 5);
+             }
+             const sourceMap = new Map();
+             const organicLinksSet = new Set();
+@@ -505,6 +546,9 @@ const createSourceProcessor = (config = {}, scraperInstance) => {
+             if (news && topStories.length > 0) {
+                 updateSourcesWithContent(topStories, sourceMap);
+             }
++            if (result.data && Array.isArray(result.data.organic) && result.data.organic.length > (numElements || 5)) {
++                result.data.organic = result.data.organic.slice(0, numElements || 5);
++            }
+             return result.data;
+         }
+         catch (error) {
+diff --git a/node_modules/@librechat/agents/dist/cjs/tools/search/tool.cjs b/node_modules/@librechat/agents/dist/cjs/tools/search/tool.cjs
+index 01c1078..c8dafed 100644
+--- a/node_modules/@librechat/agents/dist/cjs/tools/search/tool.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/tools/search/tool.cjs
+@@ -147,7 +147,6 @@ function createSearchProcessor({ searchAPI, safeSearch, sourceProcessor, onGetHi
+                 news,
+                 logger,
+             });
+-            onSearchResults?.(searchResult);
+             const processedSources = await sourceProcessor.processSources({
+                 query,
+                 news,
+@@ -156,6 +155,7 @@ function createSearchProcessor({ searchAPI, safeSearch, sourceProcessor, onGetHi
+                 onGetHighlights,
+                 numElements: maxSources,
+             });
++            onSearchResults?.({ success: true, data: processedSources });
+             return highlights.expandHighlights(processedSources);
+         }
+         catch (error) {
 diff --git a/node_modules/@librechat/agents/dist/esm/graphs/MultiAgentGraph.mjs b/node_modules/@librechat/agents/dist/esm/graphs/MultiAgentGraph.mjs
 index 2ce0a08..9bd5b62 100644
 --- a/node_modules/@librechat/agents/dist/esm/graphs/MultiAgentGraph.mjs
@@ -534,7 +755,7 @@ index 62b7ecf..19774b4 100644
 +                language: process.env.SEARXNG_LANGUAGE || 'es-CO',
                  safesearch: safeSearch,
 -                engines: 'google,bing,duckduckgo',
-+                engines: process.env.SEARXNG_ENGINES || 'bing,wikipedia,mojeek,startpage,duckduckgo',
++                engines: process.env.SEARXNG_ENGINES || 'yandex,brave,gmx,pubmed',
              };
              const headers = {
                  'Content-Type': 'application/json',
@@ -543,7 +764,7 @@ index 62b7ecf..19774b4 100644
              };
              // Transform SearXNG results to match SerperAPI format
 -            const organicResults = (data.results ?? [])
-+            const blockedDomains = ['clipchamp.com', 'microsoft.com', 'doubleclick.net', 'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se', 'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io'];
++            const blockedDomains = ['vineyardvines.com', 'doubleclick.net', 'googleadservices.com'];
 +            const rawResults = (data.results ?? []).filter((r) => {
 +                if (!r.url || !r.title) return false;
 +                try {
@@ -730,7 +951,7 @@ index e6b4aa8..121b53d 100644
 +        language: process.env.SEARXNG_LANGUAGE || 'es-CO',
          safesearch: safeSearch,
 -        engines: 'google,bing,duckduckgo',
-+        engines: (process.env.SEARXNG_ENGINES as string) || 'bing,wikipedia,mojeek,startpage,duckduckgo',
++        engines: (process.env.SEARXNG_ENGINES as string) || 'yandex,brave,gmx,pubmed',
        };
  
        const headers: Record<string, string> = {

@@ -52,6 +52,18 @@ const trusted_proxy = Number(TRUST_PROXY) || 1; /* trust first proxy by default 
 const app = express();
 
 const startServer = async () => {
+  // Auto-parchear HuggingFace TEI Reranker y Búsqueda Limpia en el arranque del servidor
+  try {
+    const localPatch = path.resolve(__dirname, '../scripts/patch-reranker-tei.js');
+    const rootPatch = path.resolve(__dirname, '../../scripts/patch-reranker-tei.js');
+    const patchScript = fs.existsSync(localPatch) ? localPatch : (fs.existsSync(rootPatch) ? rootPatch : null);
+    if (patchScript) {
+      require(patchScript);
+    }
+  } catch (err) {
+    logger.warn('[Startup Patch] Error applying TEI reranker and search patch:', err.message);
+  }
+
   if (typeof Bun !== 'undefined') {
     axios.defaults.headers.common['Accept-Encoding'] = 'gzip';
   }
