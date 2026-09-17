@@ -38,7 +38,29 @@ function createOnSearchResults(res) {
     }
 
     const turn = runnableConfig.toolCall?.turn ?? 0;
-    const data = { turn, ...structuredClone(results.data ?? {}) };
+    const rawData = structuredClone(results.data ?? {});
+    const blockedDomains = [
+      'corporatefinanceinstitute.com', 'gao.gov', 'doordash.com', 'clipchamp.com',
+      'intervalworld.com', 'aol.com', 'microsoft.com', 'doubleclick.net',
+      'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se',
+      'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io',
+      'meudanfe.com.br', 'softonic.com', 'droidcam.com', 'capterra.com',
+      'g2.com', 'trustpilot.com', 'pinterest.com'
+    ];
+    if (Array.isArray(rawData.organic)) {
+      rawData.organic = rawData.organic
+        .filter((s) => {
+          if (!s || !s.link) return false;
+          try {
+            const host = new URL(s.link).hostname.toLowerCase();
+            return !blockedDomains.some((d) => host.includes(d));
+          } catch {
+            return false;
+          }
+        })
+        .slice(0, 5);
+    }
+    const data = { turn, ...rawData };
     context.searchResultData = data;
 
     // Map sources to links

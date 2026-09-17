@@ -924,94 +924,104 @@ export default function TenshiChat() {
 
   // 🧠 Escuchar y procesar la respuesta del especialista para que Tenshi aprenda y hable al usuario
   useEffect(() => {
-    const wasSubmitting = prevIsChatSubmittingRef.current;
-    prevIsChatSubmittingRef.current = isChatSubmitting;
-
     if (!pendingAgentConsultationRef.current || !pendingAgentConsultationRef.current.active) {
       return;
     }
 
-    if (isChatSubmitting) {
-      pendingAgentConsultationRef.current.hadStarted = true;
+    const consultation = pendingAgentConsultationRef.current;
+    const currentMsg = latestChatMessage;
+
+    // Detectar si el especialista ya creó su mensaje de respuesta
+    const isAssistantMsg =
+      Boolean(currentMsg) &&
+      currentMsg?.messageId !== consultation.initialMessageId &&
+      !currentMsg?.isCreatedByUser;
+
+    if (isAssistantMsg) {
+      consultation.hadStarted = true;
+    }
+
+    // CASO 1: Error explícito en el mensaje del chat
+    if (isAssistantMsg && currentMsg?.error === true && !isChatSubmitting) {
+      console.warn('[Tenshi] El especialista reportó un error explícito en el chat:', currentMsg);
+      consultation.active = false;
+      setIsWaitingConsultation(false);
+
+      if (isVoiceActive) {
+        lastActivityRef.current = Date.now();
+        setVoiceStatusText(`Error con ${consultation.agentName}`);
+        const errorPromptForTenshi = `[SISTEMA INTERNO WAPPY]: Hubo un problema al procesar la consulta con el especialista ${consultation.agentName}. El chat central reportó un error o sobrecarga técnica en el modelo y no generó la respuesta.
+INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercanía y profesionalismo que el especialista ${consultation.agentName} tuvo una intermitencia o error en el chat y no pudo generar la respuesta en este momento. Sugiérele reintentar la consulta en un momento o preguntarte otra cosa mientras se restablece. NO inventes que el especialista respondió ni uses contenido de conversaciones anteriores.`;
+        sendTextMessage(errorPromptForTenshi);
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `⚠️ **Tenshi:** Hubo un inconveniente al consultar a **${consultation.agentName}** sobre *"${consultation.question}"* (el servicio del especialista reportó un error en el chat). Por favor reintenta en unos instantes.`,
+        },
+      ]);
       return;
     }
 
-    // El agente en el chat terminó de generar su respuesta (isChatSubmitting pasó de true a false)
-    if (
-      wasSubmitting &&
-      !isChatSubmitting &&
-      (pendingAgentConsultationRef.current.hadStarted ||
-        Date.now() - pendingAgentConsultationRef.current.timestamp > 2000)
-    ) {
-      const consultation = { ...pendingAgentConsultationRef.current };
-      pendingAgentConsultationRef.current.active = false;
+    // CASO 2: El especialista sigue generando (streaming, pensando, o usando herramientas como Web Search)
+    const isStillGenerating = isChatSubmitting || currentMsg?.unfinished === true;
+    if (isStillGenerating) {
+      if (isAssistantMsg) {
+        setVoiceStatusText(`${consultation.agentName} respondiendo...`);
+      } else {
+        setVoiceStatusText(`Esperando a ${consultation.agentName}...`);
+      }
+      return;
+    }
+
+    // CASO 3: El especialista completó exitosamente su respuesta
+    let lastMsg = (currentMsg?.text || '').trim();
+
+    // Fallback: si aún no está en Recoil, intentar extraerlo del último elemento del chat en el DOM
+    if (!lastMsg || lastMsg.length < 15) {
+      const domMessages = document.querySelectorAll('.message-content, [data-message-id]');
+      if (domMessages.length > 0) {
+        const lastDomEl = domMessages[domMessages.length - 1];
+        const domText = (lastDomEl?.textContent || '').trim();
+        if (domText.length >= 15 && !domText.includes(consultation.question)) {
+          lastMsg = domText;
+        }
+      }
+    }
+
+    if (isAssistantMsg && !isStillGenerating && lastMsg.length >= 15 && !currentMsg?.error) {
+      consultation.active = false;
       setIsWaitingConsultation(false);
 
-      setTimeout(() => {
-        // Usar la referencia más reciente para evitar closures desactualizados
-        const currentMsg = latestChatMessageRef.current;
-        let lastMsg = (currentMsg?.text || '').trim();
+      console.log(
+        `[Tenshi] ✅ Respuesta técnica capturada exitosamente de ${consultation.agentName}:`,
+        lastMsg.substring(0, 120),
+      );
 
-        // Validar si la respuesta es genuinamente del especialista:
-        // 1. Debe existir un mensaje
-        // 2. No debe ser el mismo mensaje anterior (initialMessageId)
-        // 3. No debe ser creado por el usuario (isCreatedByUser === true)
-        // 4. No debe tener bandera de error (error === true)
-        // 5. Debe tener longitud suficiente
-        const isGenuineResponse =
-          Boolean(currentMsg) &&
-          currentMsg?.messageId !== consultation.initialMessageId &&
-          !currentMsg?.isCreatedByUser &&
-          !currentMsg?.error &&
-          lastMsg.length >= 15;
+      // 1. Si el Modo Voz está activo, instruir a Tenshi Live para que hable al usuario con su conocimiento
+      if (isVoiceActive) {
+        lastActivityRef.current = Date.now();
+        setVoiceStatusText(`Tenshi respondiendo sobre ${consultation.agentName}...`);
+        const promptForTenshi = `[SISTEMA INTERNO WAPPY]: El usuario te pidió consultar a ${consultation.agentName} sobre: "${consultation.question}". El ${consultation.agentName} acaba de responder lo siguiente en el chat:\n\n"""\n${lastMsg.substring(0, 1200)}\n"""\n\nINSTRUCCIÓN PARA TENSHI: En voz alta al usuario, habla con tu estilo fresco, profesional y cercano. Confírmale en 2 o 3 oraciones concisas el punto técnico principal que dictaminó el ${consultation.agentName}, y añade tu recomendación como Tenshi para avanzar en la plataforma o en el SG-SST.`;
+        sendTextMessage(promptForTenshi);
+      }
 
-        if (!isGenuineResponse) {
-          console.warn('[Tenshi] No se obtuvo respuesta válida del especialista o hubo un error en la solicitud:', {
-            currentMsgId: currentMsg?.messageId,
-            initialMsgId: consultation.initialMessageId,
-            isCreatedByUser: currentMsg?.isCreatedByUser,
-            error: currentMsg?.error,
-          });
-
-          if (isVoiceActive) {
-            lastActivityRef.current = Date.now();
-            setVoiceStatusText(`Error con ${consultation.agentName}`);
-            const errorPromptForTenshi = `[SISTEMA INTERNO WAPPY]: Hubo un problema al procesar la consulta con el especialista ${consultation.agentName}. El chat central reportó un error o sobrecarga técnica en el modelo (límite de cuota o servicio no disponible) y no generó la respuesta.
-INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercanía y profesionalismo que el especialista ${consultation.agentName} tuvo una intermitencia o error en el chat y no pudo generar la respuesta en este momento. Sugiérele reintentar la consulta en un momento o preguntarte otra cosa mientras se restablece. NO inventes que el especialista respondió ni uses contenido de conversaciones anteriores.`;
-            sendTextMessage(errorPromptForTenshi);
-          }
-
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: 'assistant',
-              content: `⚠️ **Tenshi:** Hubo un inconveniente al consultar a **${consultation.agentName}** sobre *"${consultation.question}"* (el servicio del especialista reportó un error o sobrecarga en el chat). Por favor reintenta en unos instantes.`,
-            },
-          ]);
-          return;
-        }
-
-        console.log(`[Tenshi] Respuesta técnica capturada de ${consultation.agentName}:`, lastMsg.substring(0, 120));
-
-        // 1. Si el Modo Voz está activo, instruir a Tenshi Live para que hable al usuario con su conocimiento
-        if (isVoiceActive) {
-          lastActivityRef.current = Date.now();
-          setVoiceStatusText(`Tenshi respondiendo sobre ${consultation.agentName}...`);
-          const promptForTenshi = `[SISTEMA INTERNO WAPPY]: El usuario te pidió consultar a ${consultation.agentName} sobre: "${consultation.question}". El ${consultation.agentName} acaba de responder lo siguiente en el chat:\n\n"""\n${lastMsg.substring(0, 1200)}\n"""\n\nINSTRUCCIÓN PARA TENSHI: En voz alta al usuario, habla con tu estilo fresco, profesional y cercano. Confírmale en 2 o 3 oraciones concisas el punto técnico principal que dictaminó el ${consultation.agentName}, y añade tu recomendación como Tenshi para avanzar en la plataforma o en el SG-SST.`;
-          sendTextMessage(promptForTenshi);
-        }
-
-        // 2. Registrar en la conversación interna de Tenshi
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: 'assistant',
-            content: `💡 **Tenshi:** He revisado la respuesta que te dio **${consultation.agentName}** sobre *"${consultation.question}"*. En el chat central puedes consultar todo el sustento técnico y normativo detallado. Si deseas que articulemos esto con algún hito o matriz de WAPPY, solo indícamelo.`,
-          },
-        ]);
-      }, 700);
+      // 2. Registrar en la conversación interna de Tenshi
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `💡 **Tenshi:** He revisado la respuesta que te dio **${consultation.agentName}** sobre *"${consultation.question}"*. En el chat central puedes consultar todo el sustento técnico y normativo detallado. Si deseas que articulemos esto con algún hito o matriz de WAPPY, solo indícamelo.`,
+        },
+      ]);
+      return;
     }
-  }, [isChatSubmitting, isVoiceActive, sendTextMessage]);
+
+    // Si aún no hay mensaje del asistente o la respuesta no se ha consolidado:
+    // NO hacer nada, seguir esperando pacientemente mientras el especialista procesa.
+  }, [latestChatMessage, isChatSubmitting, isVoiceActive, sendTextMessage]);
 
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
