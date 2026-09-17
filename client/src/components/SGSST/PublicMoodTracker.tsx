@@ -218,12 +218,14 @@ export default function PublicMoodTracker() {
 
     try {
       const targetCompanyId = company?._id || companyId;
-      const res = await axios.post(`/api/public-sgsst/mood/chat/${targetCompanyId}`);
-      if (res.data.success) {
+      const res = await axios.post(`/api/public-sgsst/mood/chat/${targetCompanyId}`, {}, {
+        timeout: 15000,
+      });
+      if (res.data?.success) {
         setChatToken(res.data.token);
         setAgentId(res.data.agentId);
         if (res.data.agentName) setAgentName(res.data.agentName);
-        if (res.data.agentModel) setAgentModel(res.data.agentModel);
+        setAgentModel(res.data.agentModel || 'gemini-3.5-flash-lite');
         setConversationId(res.data.conversationId);
 
         // Compute labels of selected stressors
@@ -241,9 +243,9 @@ export default function PublicMoodTracker() {
         // Prepopulate context-aware greeting from Specialist Agent
         let greetingText = '';
         if (selectedLabels.length > 0) {
-          greetingText = `Hola. Veo que hoy te sientes ${mood === 'sad' ? 'estresado o con sobrecarga' : 'con inquietudes'}${department.trim() ? ` en tu labor en ${department.trim()}` : ''}, y señalaste como factores: ${selectedLabels.join(', ')}. Estoy aquí como tu Terapeuta en Salud Mental para escucharte en un espacio 100% privado, confidencial y seguro. Cuéntame con toda confianza, ¿qué es lo que más te está afectando o cómo te has sentido con esto últimamente?`;
+          greetingText = `Hola. Veo que hoy te sientes ${selectedMood === 'sad' ? 'estresado o con sobrecarga' : 'con inquietudes'}${department.trim() ? ` en tu labor en ${department.trim()}` : ''}, y señalaste como factores: ${selectedLabels.join(', ')}. Estoy aquí como tu Terapeuta en Salud Mental para escucharte en un espacio 100% privado, confidencial y seguro. Cuéntame con toda confianza, ¿qué es lo que más te está afectando o cómo te has sentido con esto últimamente?`;
         } else {
-          greetingText = `Hola. Veo que hoy te sientes ${mood === 'sad' ? 'estresado o agotado' : 'en una jornada tranquila'}${department.trim() ? ` en el área de ${department.trim()}` : ''}. Estoy aquí como tu Terapeuta en Salud Mental para escucharte en un espacio 100% privado y confidencial. ¿Hay algo en particular que te gustaría compartir o desahogar?`;
+          greetingText = `Hola. Veo que hoy te sientes ${selectedMood === 'sad' ? 'estresado o agotado' : 'en una jornada tranquila'}${department.trim() ? ` en el área de ${department.trim()}` : ''}. Estoy aquí como tu Terapeuta en Salud Mental para escucharte en un espacio 100% privado y confidencial. ¿Hay algo en particular que te gustaría compartir o desahogar?`;
         }
 
         setMessages([
@@ -256,9 +258,12 @@ export default function PublicMoodTracker() {
       }
     } catch (error: any) {
       console.error('Error initializing chat:', error);
-      const errMsg =
-        error.response?.data?.error ||
-        'No se pudo conectar con el Terapeuta. Por favor, intenta de nuevo o comunícate con el área de SST.';
+      let errMsg = 'No se pudo conectar con el Terapeuta. Por favor, intenta de nuevo o comunícate con el área de SST.';
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errMsg = 'El servidor tardó en responder. Por favor, intenta de nuevo en unos segundos.';
+      } else if (error.response?.data?.error) {
+        errMsg = error.response.data.error;
+      }
       setChatError(errMsg);
     } finally {
       setStartingChat(false);
@@ -276,6 +281,7 @@ export default function PublicMoodTracker() {
 
     // Generate a temporary response placeholder for streaming
     let agentMessageId = '';
+    let accumulatedText = '';
     setMessages((prev) => [...prev, { sender: 'agent', text: '' }]);
 
     try {
@@ -298,11 +304,14 @@ export default function PublicMoodTracker() {
           endpointOption: {
             endpoint: 'agents',
             agent: agentId,
-            model: agentModel || 'gemini-3.5-flash-lite',
+            model: 'gemini-3.5-flash-lite',
+            model_parameters: {
+              model: 'gemini-3.5-flash-lite',
+            },
           },
           isPublicChat: true,
           moodContext: {
-            mood,
+            mood: selectedMood || 'neutral',
             department: department.trim(),
             stressors: selectedLabels,
           },
@@ -321,7 +330,6 @@ export default function PublicMoodTracker() {
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let accumulatedText = '';
 
       if (reader) {
         while (true) {

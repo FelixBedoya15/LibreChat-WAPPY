@@ -53,9 +53,14 @@ const initializeAgent = async ({
   const isPublicChat = req.body?.isPublicChat === true;
   if (isPublicChat) {
     agent.tools = [];
+    agent.skills = [];
     agent.additional_instructions = '';
     agent.artifacts = undefined;
     agent.model = 'gemini-3.5-flash-lite';
+    if (!agent.model_parameters) {
+      agent.model_parameters = {};
+    }
+    agent.model_parameters.model = 'gemini-3.5-flash-lite';
 
     let contextSection = '';
     const moodContext = req.body?.moodContext;
@@ -216,12 +221,19 @@ IMPORTANTE:
 
   if (isPublicChat) {
     tools = [];
+    agent.tools = [];
+    agent.skills = [];
   }
 
   /** @type {import('@librechat/agents').ClientOptions} */
   agent.model_parameters = { ...options.llmConfig };
   if (options.configOptions) {
     agent.model_parameters.configuration = options.configOptions;
+  }
+
+  if (isPublicChat) {
+    agent.model = 'gemini-3.5-flash-lite';
+    agent.model_parameters.model = 'gemini-3.5-flash-lite';
   }
 
   if (agent.instructions && agent.instructions !== '') {

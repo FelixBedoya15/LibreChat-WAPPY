@@ -203,6 +203,19 @@ const loadAgent = async ({ req, spec, agent_id, endpoint, model_parameters }) =>
     }
   }
 
+  // Chats públicos anónimos (ej: Terapeuta en Salud Mental / Termómetro Psicosocial):
+  // Aislar completamente de herramientas pesadas, MCP de archivos locales, canvas y disco duro
+  if (req.body?.isPublicChat === true) {
+    agent.tools = [];
+    agent.skills = [];
+    agent.model = 'gemini-3.5-flash-lite';
+    if (!agent.model_parameters) {
+      agent.model_parameters = {};
+    }
+    agent.model_parameters.model = 'gemini-3.5-flash-lite';
+    return agent;
+  }
+
   // Auto-activación inteligente de Canvas y Gmail basada en la consulta del usuario
   let userQuery = (req.body?.text || '').toLowerCase();
   if (!userQuery && Array.isArray(req.body?.messages) && req.body.messages.length > 0) {

@@ -87,6 +87,22 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
     throw new Error('Agent not found');
   }
 
+  const isPublicChat = req.body?.isPublicChat === true;
+  if (isPublicChat) {
+    primaryAgent.tools = [];
+    primaryAgent.skills = [];
+    primaryAgent.model = 'gemini-3.5-flash-lite';
+    if (!primaryAgent.model_parameters) {
+      primaryAgent.model_parameters = {};
+    }
+    primaryAgent.model_parameters.model = 'gemini-3.5-flash-lite';
+    if (!endpointOption.model_parameters) {
+      endpointOption.model_parameters = {};
+    }
+    endpointOption.model_parameters.model = 'gemini-3.5-flash-lite';
+    endpointOption.model = 'gemini-3.5-flash-lite';
+  }
+
   const modelsConfig = await getModelsConfig(req);
   const validationResult = await validateAgentModel({
     req,

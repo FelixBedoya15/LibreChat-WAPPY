@@ -1120,6 +1120,7 @@ router.post('/mood/chat/:companyId', async (req, res) => {
           user: userId,
           endpoint: 'agents',
           agent_id: resolvedAgentId,
+          model: 'gemini-3.5-flash-lite',
           title: 'Sesión Anónima Termómetro Psicosocial',
           tags: ['sgsst-mood', 'sgsst-psicosocial', 'sgsst-termometro', `company-${company._id}`],
         });
@@ -1133,7 +1134,7 @@ router.post('/mood/chat/:companyId', async (req, res) => {
       token,
       agentId: resolvedAgentId,
       agentName: agent.name || 'Terapeuta en Salud Mental',
-      agentModel: agent.model || 'gemini-3.5-flash-lite',
+      agentModel: 'gemini-3.5-flash-lite',
       conversationId,
     });
   } catch (error) {
