@@ -49,7 +49,7 @@ const automationSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['active', 'inactive'],
+      enum: ['active', 'inactive', 'paused_error'],
       default: 'active',
       index: true,
     },
@@ -58,7 +58,7 @@ const automationSchema = new mongoose.Schema(
     },
     lastRunStatus: {
       type: String,
-      enum: ['success', 'failed', 'running'],
+      enum: ['success', 'failed', 'running', 'stopped'],
     },
     lastRunResult: {
       type: String,

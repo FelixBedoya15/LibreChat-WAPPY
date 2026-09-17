@@ -14,18 +14,14 @@ const MAX_AGENT_EXECUTION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes safety cap 
 function createCloseHandler(abortController) {
   return function (manual) {
     if (!manual) {
-      logger.info('[AgentController] Request closed');
+      logger.info(
+        '[AgentController] HTTP connection closed by client (user navigated away or switched tabs). Request continues in background until finished, user Stop, or 10m safety timeout.',
+      );
     }
-    if (!abortController) {
-      return;
-    } else if (abortController.signal.aborted) {
-      return;
-    } else if (abortController.requestCompleted) {
-      return;
-    }
-
-    abortController.abort();
-    logger.info('[AgentController] Request aborted on close');
+    // Do not abort on socket disconnect. The agent will finish generating and save to MongoDB.
+    // The request will only abort if:
+    // 1) The user explicitly clicks the "Stop" button (POST /api/agents/chat/abort)
+    // 2) The 10-minute MAX_AGENT_EXECUTION_TIMEOUT_MS expires.
   };
 }
 

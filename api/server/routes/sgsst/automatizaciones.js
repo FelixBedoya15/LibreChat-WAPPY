@@ -4,7 +4,7 @@ const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const CompanyInfo = require('~/models/CompanyInfo');
 const Automation = require('~/models/Automation');
 const AutomationLog = require('~/models/AutomationLog');
-const { runAutomation, calculateNextRun } = require('~/server/services/automationScheduler');
+const { runAutomation, calculateNextRun, stopAutomation } = require('~/server/services/automationScheduler');
 
 const UserPlan = require('~/db/models/UserPlan');
 
@@ -160,7 +160,7 @@ router.put('/:id', async (req, res) => {
     
     // Si cambia el estado, o cambia la configuración del schedule, recalculamos nextRunAt
     if (status !== undefined) {
-      if (status === 'active' && automation.status === 'inactive') {
+      if (status === 'active' && automation.status !== 'active') {
         const { limit: effectiveLimit, plan: userPlanName } = await getEffectiveAutomationLimit(req.user.id, req.user.role);
         const activeCount = await Automation.countDocuments({ user: req.user.id, status: 'active' });
         if (activeCount >= effectiveLimit) {
@@ -246,6 +246,28 @@ router.post('/:id/run', async (req, res) => {
   } catch (error) {
     console.error('[API Automatizaciones] Error triggering run:', error);
     res.status(500).json({ error: 'Error al iniciar la ejecución manual.' });
+  }
+});
+
+/**
+ * POST /api/sgsst/automatizaciones/:id/stop
+ * Detiene inmediatamente una automatización en ejecución.
+ */
+router.post('/:id/stop', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const companyId = await getActiveCompanyId(req.user.id);
+
+    const automation = await Automation.findOne({ _id: id, companyId });
+    if (!automation) {
+      return res.status(404).json({ error: 'Automatización no encontrada.' });
+    }
+
+    const result = await stopAutomation(id);
+    res.json(result);
+  } catch (error) {
+    console.error('[API Automatizaciones] Error stopping run:', error);
+    res.status(500).json({ error: 'Error al detener la automatización.' });
   }
 });
 

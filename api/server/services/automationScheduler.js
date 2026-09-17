@@ -8,6 +8,7 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const sendEmail = require('~/server/utils/sendEmail');
 
 let schedulerInterval = null;
+const runningAutomations = new Map(); // automationId -> { abortController, timeoutId, startedAt, automationName, logId }
 
 const BOGOTA_OFFSET_HOURS = -5; // America/Bogota is UTC-5 (no DST)
 
@@ -276,7 +277,8 @@ function calculateNextRun(scheduleType, config) {
 }
 
 async function runAutomation(automation, isManual = false) {
-  console.log(`[AutomationScheduler] Starting execution for automation "${automation.name}" (${automation._id})`);
+  const automationIdStr = automation._id.toString();
+  console.log(`[AutomationScheduler] Starting execution for automation "${automation.name}" (${automationIdStr})`);
   
   // Update Automation state to running
   await Automation.updateOne(
@@ -301,6 +303,14 @@ async function runAutomation(automation, isManual = false) {
     console.warn(`[AutomationScheduler] Automation "${automation.name}" timed out after 10 minutes. Aborting execution.`);
     prelimAbortController.abort();
   }, 600000);
+
+  runningAutomations.set(automationIdStr, {
+    abortController: prelimAbortController,
+    timeoutId,
+    startedAt: new Date(),
+    automationName: automation.name,
+    logId: log._id,
+  });
 
   try {
     // 1. Fetch app config
@@ -392,12 +402,19 @@ async function runAutomation(automation, isManual = false) {
 
     // 8. Execute agent call with safety limit of 8 minutes
     console.log(`[AutomationScheduler] STEP 3: Executing prompt for "${automation.name}" via agent "${agent?.name || 'Default'}"...`);
+    let raceTimeoutId = null;
     const response = await Promise.race([
       client.sendMessage(automation.prompt, messageOptions),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Tiempo límite de ejecución superado (8 minutos).')), 480000)
-      )
+      new Promise((_, reject) => {
+        raceTimeoutId = setTimeout(() => {
+          prelimAbortController.abort();
+          reject(new Error('Tiempo límite de ejecución superado (8 minutos).'));
+        }, 480000);
+      }),
     ]);
+    if (raceTimeoutId) {
+      clearTimeout(raceTimeoutId);
+    }
     
     // Desactivar el temporizador de 10 minutos de inmediato
     clearTimeout(timeoutId);
@@ -533,33 +550,111 @@ async function runAutomation(automation, isManual = false) {
 
   } catch (err) {
     console.error(`[AutomationScheduler] Error executing automation "${automation.name}":`, err);
-    
+
+    prelimAbortController.abort();
+
+    const isStoppedManually =
+      err?.message?.includes('Detenida manualmente') ||
+      err?.name === 'AbortError' ||
+      err?.name === 'CancelledError';
+
     // Update Log to failed
     await AutomationLog.updateOne(
       { _id: log._id },
       {
         $set: {
           status: 'failed',
-          error: err.message || 'Error desconocido'
+          error: isStoppedManually ? 'Detenida manualmente por el usuario.' : (err.message || 'Error desconocido')
         }
       }
     );
 
+    // If all API keys failed, quota exceeded, or critical execution failure:
+    // Pause immediately in this single run so it doesn't repeat on future schedules.
+    const isExhaustionOrCritical =
+      !isStoppedManually &&
+      (err?.message?.includes('All available API keys failed') ||
+        err?.message?.includes('429') ||
+        err?.message?.includes('quota') ||
+        err?.message?.includes('Quota') ||
+        err?.message?.includes('API_KEY_INVALID') ||
+        err?.message?.includes('overloaded') ||
+        err?.message?.includes('Tiempo límite de ejecución superado'));
+
     // Update Automation last run stats
     const updateDoc = {
       lastRunAt: new Date(),
-      lastRunStatus: 'failed',
-      lastRunResult: `Error: ${err.message}`
+      lastRunStatus: isStoppedManually ? 'stopped' : 'failed',
+      lastRunResult: isStoppedManually
+        ? 'Detenida manualmente por el usuario en tiempo real.'
+        : isExhaustionOrCritical
+          ? `Pausada automáticamente: se rotaron todas las claves API y modelos de respaldo sin éxito (${err.message}). Revise sus claves o prompt y presione Reactivar.`
+          : `Error: ${err.message}`
     };
 
-    if (isManual && automation.status === 'active') {
+    if (isExhaustionOrCritical) {
+      updateDoc.status = 'paused_error';
+      updateDoc.nextRunAt = null;
+      console.warn(`[AutomationScheduler] Automation "${automation.name}" paused immediately due to exhaustion/critical failure.`);
+    } else if (isManual && automation.status === 'active') {
       updateDoc.nextRunAt = calculateNextRun(automation.scheduleType, automation.scheduleConfig);
     }
 
     await Automation.updateOne({ _id: automation._id }, { $set: updateDoc });
   } finally {
     clearTimeout(timeoutId);
+    runningAutomations.delete(automationIdStr);
   }
+}
+
+/**
+ * Stops an active running automation immediately in real time.
+ * @param {string} automationId
+ * @returns {Promise<{ success: boolean, message: string }>}
+ */
+async function stopAutomation(automationId) {
+  const idStr = automationId ? automationId.toString() : '';
+  const running = runningAutomations.get(idStr);
+
+  if (running) {
+    console.log(`[AutomationScheduler] Stopping running automation "${running.automationName || idStr}"...`);
+    if (running.timeoutId) {
+      clearTimeout(running.timeoutId);
+    }
+    if (running.abortController && !running.abortController.signal.aborted) {
+      running.abortController.abort();
+    }
+    runningAutomations.delete(idStr);
+  }
+
+  // Update MongoDB state to stopped
+  await Promise.all([
+    Automation.updateOne(
+      { _id: idStr },
+      {
+        $set: {
+          lastRunStatus: 'stopped',
+          lastRunResult: 'Detenida manualmente por el usuario en tiempo real.'
+        }
+      }
+    ),
+    AutomationLog.updateMany(
+      { automation: idStr, status: 'running' },
+      {
+        $set: {
+          status: 'failed',
+          error: 'Detenida manualmente por el usuario.'
+        }
+      }
+    )
+  ]);
+
+  return {
+    success: true,
+    message: running
+      ? 'Automatización detenida inmediatamente en segundo plano.'
+      : 'Estado de la automatización actualizado a detenido.'
+  };
 }
 
 async function checkAndRunAutomations() {
@@ -715,6 +810,7 @@ module.exports = {
   startAutomationScheduler,
   stopAutomationScheduler,
   runAutomation,
-  calculateNextRun
+  calculateNextRun,
+  stopAutomation,
 };
 

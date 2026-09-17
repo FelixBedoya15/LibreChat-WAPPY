@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { 
   Play, 
+  Square,
   Trash2, 
   Edit3, 
   Plus, 
@@ -46,9 +47,9 @@ interface Automation {
   scheduleType: 'daily' | 'weekly' | 'monthly' | 'hourly';
   scheduleConfig: ScheduleConfig;
   emails: string[];
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'paused_error';
   lastRunAt?: string;
-  lastRunStatus?: 'success' | 'failed' | 'running';
+  lastRunStatus?: 'success' | 'failed' | 'running' | 'stopped';
   lastRunResult?: string;
   nextRunAt?: string;
   conversationId?: string;
@@ -513,6 +514,27 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     }
   };
 
+  // Trigger immediate stop (Stop Now in real time)
+  const handleStop = async (id: string) => {
+    setActionLoadingId(id);
+    try {
+      await axios.post(`/api/sgsst/automatizaciones/${id}/stop`);
+      showToast({
+        message: 'Detención solicitada. La automatización se ha detenido.',
+        status: 'success'
+      });
+      fetchAutomations();
+      if (activeTab === 'logs') fetchLogs();
+    } catch (err: any) {
+      showToast({
+        message: err.response?.data?.error || 'Error al detener la automatización.',
+        status: 'error'
+      });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   const formatScheduleText = (auto: Automation) => {
     const config = auto.scheduleConfig || {};
     const time = `${String(config.hour ?? 8).padStart(2, '0')}:${String(config.minute ?? 0).padStart(2, '0')}`;
@@ -870,17 +892,24 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   className="flex flex-col bg-white dark:bg-gray-900 border border-border-medium/30 hover:border-purple-300 dark:hover:border-purple-900/50 rounded-2xl shadow-sm transition-all duration-300 p-5 group relative"
                 >
                   {/* Status Switch Indicator */}
-                  <button
-                    onClick={() => handleToggleStatus(auto)}
-                    className="absolute top-5 right-5 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition"
-                    title={auto.status === 'active' ? 'Desactivar' : 'Activar'}
-                  >
-                    {auto.status === 'active' ? (
-                      <ToggleRight className="w-10 h-10 text-purple-600" />
-                    ) : (
-                      <ToggleLeft className="w-10 h-10 text-gray-400" />
+                  <div className="absolute top-5 right-5 flex items-center gap-2">
+                    {auto.status === 'paused_error' && (
+                      <span className="inline-flex items-center gap-1 text-[10px] bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 font-bold px-2.5 py-0.5 rounded-full border border-rose-200 dark:border-rose-900/50 uppercase tracking-wider" title="Pausada automáticamente por agotamiento de claves/modelos. Haga clic en el switch para reactivar.">
+                        <AlertTriangle className="w-3 h-3 text-rose-500" /> Pausada por error
+                      </span>
                     )}
-                  </button>
+                    <button
+                      onClick={() => handleToggleStatus(auto)}
+                      className="text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition"
+                      title={auto.status === 'active' ? 'Desactivar' : auto.status === 'paused_error' ? 'Reactivar automatización' : 'Activar'}
+                    >
+                      {auto.status === 'active' ? (
+                        <ToggleRight className="w-10 h-10 text-purple-600" />
+                      ) : (
+                        <ToggleLeft className={`w-10 h-10 ${auto.status === 'paused_error' ? 'text-rose-400' : 'text-gray-400'}`} />
+                      )}
+                    </button>
+                  </div>
 
                   {/* Title */}
                   <div className="flex items-start gap-3 pr-12 mb-3">
@@ -940,6 +969,10 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                         <span className="inline-flex items-center gap-1 text-[10px] bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                           <CheckCircle className="w-3 h-3" /> Exitoso
                         </span>
+                      ) : auto.lastRunStatus === 'stopped' ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                          <AlertCircle className="w-3 h-3" /> Detenido
+                        </span>
                       ) : auto.lastRunStatus === 'failed' ? (
                         <span className="inline-flex items-center gap-1 text-[10px] bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                           <XCircle className="w-3 h-3" /> Fallido
@@ -987,18 +1020,33 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                         </a>
                       )}
 
-                      <button
-                        onClick={() => handleRunNow(auto._id)}
-                        disabled={actionLoadingId === auto._id || auto.lastRunStatus === 'running'}
-                        className="p-1.5 bg-purple-50 text-purple-600 hover:bg-purple-100 disabled:bg-gray-100 disabled:text-gray-400 dark:bg-purple-950/30 dark:text-purple-400 dark:hover:bg-purple-900/40 rounded-lg transition"
-                        title="Ejecutar ahora"
-                      >
-                        {actionLoadingId === auto._id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Play className="w-3.5 h-3.5 fill-current" />
-                        )}
-                      </button>
+                      {auto.lastRunStatus === 'running' ? (
+                        <button
+                          onClick={() => handleStop(auto._id)}
+                          disabled={actionLoadingId === auto._id}
+                          className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400 dark:hover:bg-rose-900/40 rounded-lg transition"
+                          title="Detener ejecución en caliente"
+                        >
+                          {actionLoadingId === auto._id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Square className="w-3.5 h-3.5 fill-current" />
+                          )}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleRunNow(auto._id)}
+                          disabled={actionLoadingId === auto._id}
+                          className="p-1.5 bg-purple-50 text-purple-600 hover:bg-purple-100 disabled:bg-gray-100 disabled:text-gray-400 dark:bg-purple-950/30 dark:text-purple-400 dark:hover:bg-purple-900/40 rounded-lg transition"
+                          title="Ejecutar ahora"
+                        >
+                          {actionLoadingId === auto._id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                          )}
+                        </button>
+                      )}
 
                       <button
                         onClick={() => handleEditOpen(auto)}
