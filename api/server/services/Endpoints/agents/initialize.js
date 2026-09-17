@@ -246,8 +246,7 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
     iconURL: endpointOption.iconURL,
     attachments: primaryConfig.attachments,
     endpointType: endpointOption.endpointType,
-    resendFiles:
-      process.env.AGENT_RESEND_FILES === 'false' ? false : (primaryConfig.resendFiles ?? true),
+    resendFiles: primaryConfig.resendFiles ?? true,
     maxContextTokens: primaryConfig.maxContextTokens,
     endpoint:
       primaryConfig.id === Constants.EPHEMERAL_AGENT_ID

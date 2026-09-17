@@ -179,29 +179,11 @@ IMPORTANTE:
     options.llmConfig?.maxTokens,
     0,
   );
-  const envMaxContext = process.env.AGENT_MAX_CONTEXT_TOKENS
-    ? parseInt(process.env.AGENT_MAX_CONTEXT_TOKENS, 10)
-    : undefined;
-
-  let agentMaxContextTokens = optionalChainWithEmptyCheck(
+  const agentMaxContextTokens = optionalChainWithEmptyCheck(
     maxContextTokens,
-    envMaxContext,
     getModelMaxTokens(tokensModel, providerEndpointMap[provider], options.endpointTokenConfig),
     18000,
   );
-
-  // Safe context ceiling: Google Gemini models report 1,000,000 max tokens.
-  // In chat/agent mode, sending 64k-1M tokens per turn burns the 250k TPM limit (429 Quota Exceeded)
-  // and adds massive latency. Cap to 32,000 tokens unless explicitly overridden by AGENT_MAX_CONTEXT_TOKENS.
-  const isGoogleProvider =
-    provider === Providers.GOOGLE ||
-    provider === 'google' ||
-    (agent.endpoint && agent.endpoint.toLowerCase().includes('google'));
-  const safeGoogleCap = envMaxContext ?? 32000;
-
-  if (isGoogleProvider && agentMaxContextTokens > safeGoogleCap) {
-    agentMaxContextTokens = safeGoogleCap;
-  }
 
   if (
     agent.endpoint === EModelEndpoint.azureOpenAI &&
