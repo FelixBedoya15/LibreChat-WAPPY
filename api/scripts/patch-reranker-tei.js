@@ -28,6 +28,12 @@ console.log('Directorio encontrado:', targetDir);
 const rerankersCjsPath = path.join(targetDir, 'dist/cjs/tools/search/rerankers.cjs');
 let cjs = fs.readFileSync(rerankersCjsPath, 'utf8');
 
+// Asegurar que getDefaultRanking incluya index
+cjs = cjs.replace(
+  /\.map\(\(doc\)\s*=>\s*\(\{\s*text:\s*doc,\s*score:\s*0\s*\}\)\);/g,
+  '.map((doc, index) => ({ text: doc, score: 0, index }));'
+);
+
 const teiRerankLogicCjs = `        try {
             if (this.apiKey == null || this.apiKey === '') {
                 this.logger.warn('JINA_API_KEY is not set. Using default ranking.');
@@ -102,7 +108,7 @@ if (cjsTryPattern.test(cjs)) {
   cjs = cjs.replace(cjsTryPattern, teiRerankLogicCjs.trim());
 }
 
-// Forzar a createReranker a usar siempre el Reranker local TEI (evitando Cohere y avisos innecesarios)
+// Forzar a createReranker a usar siempre el Reranker local TEI
 const createRerankerPattern = /const createReranker = \(config\) => \{[\s\S]*?switch \([\s\S]*?return new JinaReranker\(\{ apiKey: jinaApiKey, apiUrl: jinaApiUrl, logger: defaultLogger \}\);\s*\}\s*\};/;
 const customCreateReranker = `const createReranker = (config) => {
     const { jinaApiKey, jinaApiUrl, logger } = config || {};
@@ -114,25 +120,23 @@ const customCreateReranker = `const createReranker = (config) => {
 
 if (createRerankerPattern.test(cjs)) {
   cjs = cjs.replace(createRerankerPattern, customCreateReranker);
-  fs.writeFileSync(rerankersCjsPath, cjs, 'utf8');
-  console.log('✓ rerankers.cjs configurado para usar SIEMPRE el Reranker TEI local');
-} else {
-  fs.writeFileSync(rerankersCjsPath, cjs, 'utf8');
-  console.log('✓ rerankers.cjs actualizado');
 }
 
-// 2. Parchear search.cjs (motores limpios, bloqueo de publicidad, pre-reranking de resultados)
+fs.writeFileSync(rerankersCjsPath, cjs, 'utf8');
+console.log('✓ rerankers.cjs configurado para usar SIEMPRE el Reranker TEI local');
+
+// 2. Parchear search.cjs
 const searchCjsPath = path.join(targetDir, 'dist/cjs/tools/search/search.cjs');
 let searchCjs = fs.readFileSync(searchCjsPath, 'utf8');
 
-// Eliminar bing/yandex basura de otros paises y usar yandex,wikipedia que devuelven resultados de Colombia
+// Eliminar bing y usar estrictamente yandex,wikipedia que entregan fuentes genuinas de Colombia y SST
 searchCjs = searchCjs.replace(
-  /engines:\s*process\.env\.SEARXNG_ENGINES\s*\|\|\s*'[^']+'/g,
+  /engines:\s*(?:process\.env\.SEARXNG_ENGINES\s*\|\|\s*)?'[^']+'/g,
   "engines: process.env.SEARXNG_ENGINES || 'yandex,wikipedia'"
 );
 
-// Actualizar lista de dominios bloqueados (DoorDash, Clipchamp, Interval, AOL, publicidad, etc.)
-const blockedDomainsStr = "const blockedDomains = ['doordash.com', 'clipchamp.com', 'intervalworld.com', 'aol.com', 'microsoft.com', 'doubleclick.net', 'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se', 'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io', 'meudanfe.com.br'];";
+// Bloquear dominios de publicidad, spam, prestamos financieros y bolsas de empleo extranjeras
+const blockedDomainsStr = "const blockedDomains = ['corporatefinanceinstitute.com', 'gao.gov', 'doordash.com', 'clipchamp.com', 'intervalworld.com', 'aol.com', 'microsoft.com', 'doubleclick.net', 'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se', 'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io', 'meudanfe.com.br', 'softonic.com', 'droidcam.com', 'capterra.com', 'g2.com', 'trustpilot.com', 'pinterest.com'];";
 if (searchCjs.includes('blockedDomains = [')) {
   searchCjs = searchCjs.replace(
     /const blockedDomains\s*=\s*\[[^\]]+\];/g,
@@ -145,7 +149,7 @@ if (searchCjs.includes('blockedDomains = [')) {
   );
 }
 
-// Agregar pre-reranking de resultados organicos antes de scrapear
+// Agregar o actualizar pre-reranking de resultados orgánicos y corte estricto al top numElements
 const organicPreRankCjs = `            if (reranker && result.data.organic && result.data.organic.length > 1) {
                 try {
                     const searchSnippets = result.data.organic.map((s) => (s.title || '') + '. ' + (s.snippet || ''));
@@ -164,21 +168,39 @@ const organicPreRankCjs = `            if (reranker && result.data.organic && re
                                 reordered.push(result.data.organic[i]);
                             }
                         }
-                        result.data.organic = reordered;
+                        const targetLimit = Math.min(reordered.length, numElements || 5);
+                        result.data.organic = reordered.slice(0, targetLimit);
                     }
                 } catch (e) {
                     logger_.warn('Error pre-ranking organic search results:', e);
                 }
+            } else if (result.data.organic && result.data.organic.length > (numElements || 5)) {
+                result.data.organic = result.data.organic.slice(0, numElements || 5);
             }
             const sourceMap = new Map();`;
 
-if (!searchCjs.includes('searchSnippets')) {
+// Si ya existía una versión anterior de pre-ranking, reemplazarla limpiamente
+const existingPreRankPattern = /if\s*\(reranker\s*&&[\s\S]*?const sourceMap = new Map\(\);/;
+if (existingPreRankPattern.test(searchCjs)) {
+  searchCjs = searchCjs.replace(existingPreRankPattern, organicPreRankCjs.trim());
+} else if (searchCjs.includes('const sourceMap = new Map();')) {
   searchCjs = searchCjs.replace('const sourceMap = new Map();', organicPreRankCjs);
-  fs.writeFileSync(searchCjsPath, searchCjs, 'utf8');
-  console.log('✓ search.cjs parcheado con motores limpios, dominios bloqueados y pre-reranking');
-} else {
-  console.log('✓ search.cjs ya tiene pre-reranking');
 }
+
+// Garantizar que antes de salir de processSources la lista esté limitada al top numElements
+searchCjs = searchCjs.replace(
+  /updateSourcesWithContent\(topStories,\s*sourceMap\);\s*\}\s*return result\.data;/g,
+  `updateSourcesWithContent(topStories, sourceMap);
+            }
+            if (result.data && Array.isArray(result.data.organic) && result.data.organic.length > (numElements || 5)) {
+                result.data.organic = result.data.organic.slice(0, numElements || 5);
+            }
+            return result.data;`
+);
+
+// Guardar SIEMPRE search.cjs
+fs.writeFileSync(searchCjsPath, searchCjs, 'utf8');
+console.log('✓ search.cjs parcheado con motores limpios (yandex,wikipedia), dominios bloqueados y corte al top 5');
 
 // 3. Parchear tool.cjs para que el modal de Fuentes en la UI solo reciba las fuentes verificadas y pre-clasificadas por el Reranker
 const toolCjsPath = path.join(targetDir, 'dist/cjs/tools/search/tool.cjs');
