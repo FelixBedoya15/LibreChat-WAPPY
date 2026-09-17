@@ -1390,6 +1390,10 @@ class AgentClient extends BaseClient {
       const initialContentPartsLength = this.contentParts.length;
 
       for (let mi = 0; mi < agentModelFallbacks.length && !success; mi++) {
+        if (abortController?.signal?.aborted) {
+          logger.info('[AgentClient] Request aborted. Halting model fallback loop.');
+          break;
+        }
         const currentModel = agentModelFallbacks[mi];
         if (mi > 0) {
           // Apply the fallback model before retrying
@@ -1419,6 +1423,10 @@ class AgentClient extends BaseClient {
 
         let rotateToNextModel = false;
         for (let i = 0; i < keys.length; i++) {
+          if (abortController?.signal?.aborted) {
+            logger.info('[AgentClient] Request aborted. Halting key loop.');
+            break;
+          }
           try {
             if (keys[i]) {
               // Inject rotated key into the primary agent
@@ -1453,6 +1461,17 @@ class AgentClient extends BaseClient {
             success = true;
             break; // Exit key loop on success
           } catch (err) {
+            if (
+              abortController?.signal?.aborted ||
+              err?.name === 'AbortError' ||
+              err?.name === 'CancelledError' ||
+              err?.message?.includes('aborted')
+            ) {
+              logger.info('[AgentClient] Request aborted by user/signal. Halting all retries and model rotations.');
+              lastErr = err;
+              break;
+            }
+
             const safeMsg = (err?.message || '').substring(0, 1000);
             const safeStack = (err?.stack || '').substring(0, 2000);
             logger.error(`[AgentClient ERROR DUMP] [Key ${i}] Name: ${err?.name}, Status: ${err?.status}, Message: ${safeMsg}\nSTACK: ${safeStack}`);
@@ -1514,23 +1533,35 @@ class AgentClient extends BaseClient {
               rotateToNextModel = true;
               break;
             } else if (isRetryable && i < keys.length - 1) {
+              if (abortController?.signal?.aborted) {
+                break;
+              }
               const retryDelayMs = extractRetryDelayMs(err);
               if (retryDelayMs && isQuotaEvent) {
                 const pauseMs = Math.min(retryDelayMs, 2000);
                 logger.warn(`[AgentClient] Quota/Rate limit encountered on Key ${i + 1}. Pausing ${pauseMs}ms before trying Key ${i + 2}...`);
-                await sleep(pauseMs);
+                await sleep(pauseMs, abortController?.signal);
               } else {
                 logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : isNetworkError ? 'Network / Fetch failed' : isServiceUnavailable ? 'Model unavailable/overloaded (503)' : 'Rate limit / Quota'}). Retrying with next API key ${i + 2}...`);
               }
+              if (abortController?.signal?.aborted) {
+                break;
+              }
               continue; // Try next key, same model
             } else if (isRetryable) {
+              if (abortController?.signal?.aborted) {
+                break;
+              }
               // Si aún quedan modelos de respaldo disponibles, rotar inmediatamente sin dormir 30 segundos
               const hasMoreFallbackModels = mi < agentModelFallbacks.length - 1;
               const retryDelayMs = extractRetryDelayMs(err);
               if (!hasMoreFallbackModels && isQuotaEvent && retryDelayMs && retryDelayMs <= 32000) {
                 const waitSec = Math.round(retryDelayMs / 1000);
                 logger.warn(`[AgentClient] All ${keys.length} API keys hit rate limit for model "${currentModel}". Google requested retry in ${waitSec}s. Backing off ${waitSec}s before final retry...`);
-                await sleep(retryDelayMs);
+                await sleep(retryDelayMs, abortController?.signal);
+                if (abortController?.signal?.aborted) {
+                  break;
+                }
                 try {
                   this.options.agent.model_parameters.apiKey = keys[0];
                   if (config?.configurable?.endpointOption?.model_parameters) {
@@ -1553,11 +1584,24 @@ class AgentClient extends BaseClient {
                   success = true;
                   break;
                 } catch (backoffErr) {
+                  if (
+                    abortController?.signal?.aborted ||
+                    backoffErr?.name === 'AbortError' ||
+                    backoffErr?.name === 'CancelledError' ||
+                    backoffErr?.message?.includes('aborted')
+                  ) {
+                    logger.info('[AgentClient] Request aborted during backoff retry.');
+                    lastErr = backoffErr;
+                    break;
+                  }
                   logger.error(`[AgentClient] Final retry after ${waitSec}s backoff failed: ${backoffErr?.message}`);
                   lastErr = backoffErr;
                 }
               }
 
+              if (abortController?.signal?.aborted) {
+                break;
+              }
               if (!success) {
                 logger.warn(`[AgentClient] All ${keys.length} API keys exhausted, network error, or model unavailable for "${currentModel}". Rotating to next model...`);
                 rotateToNextModel = true;
@@ -1567,6 +1611,10 @@ class AgentClient extends BaseClient {
               break; // Non-recoverable error, stop all retries
             }
           }
+        }
+        if (abortController?.signal?.aborted) {
+          logger.info('[AgentClient] Request aborted. Stopping model fallback loop.');
+          break;
         }
         if (rotateToNextModel && !success) {
           attemptErrors = [];
@@ -1578,6 +1626,9 @@ class AgentClient extends BaseClient {
       }
 
       if (!success && lastErr) {
+        if (abortController?.signal?.aborted) {
+          throw lastErr;
+        }
         if (attemptErrors.length > 1) {
           throw new Error(`All available API keys failed.\n` + attemptErrors.join('\n'));
         }
@@ -1785,6 +1836,9 @@ class AgentClient extends BaseClient {
     let titleResult;
 
     for (let i = 0; i < keys.length; i++) {
+      if (abortController?.signal?.aborted) {
+        break;
+      }
       try {
         if (keys[i]) {
           clientOptions.apiKey = keys[i];
@@ -1813,6 +1867,9 @@ class AgentClient extends BaseClient {
         success = true;
         break; // Exit loop on success
       } catch (err) {
+        if (abortController?.signal?.aborted || err?.name === 'AbortError') {
+          break;
+        }
         lastErr = err;
         const isQuotaEvent = err?.status === 429 || err?.message?.includes('429');
         const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
