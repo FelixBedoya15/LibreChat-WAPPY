@@ -27,6 +27,7 @@ import {
   BarChart3,
   FileSpreadsheet,
   Briefcase,
+  CheckSquare,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuthContext } from '~/hooks';
@@ -476,6 +477,19 @@ const CellAIBubble = ({
         },
       ];
     }
+    const isAnexoE = fieldLabel.toLowerCase().includes('factores de reducción') || fieldLabel.toLowerCase().includes('anexo e');
+    if (isAnexoE) {
+      return [
+        {
+          label: '🎯 Costo-Beneficio Óptimo',
+          prompt: 'Evalúa los controles propuestos en esta labor (eliminación, sustitución, ingeniería, administrativos y EPP). Determina cuál ofrece la mejor relación costo-beneficio según el Anexo E de la GTC 45, justificando extensamente por qué es prioritario frente al costo de incapacidades o ausentismo.',
+        },
+        {
+          label: '⚡ Justificar Anexo E',
+          prompt: 'Redacta un párrafo analítico y estructurado de justificación técnica y financiera de reducción de riesgo bajo el Anexo E de la GTC 45 para los controles de esta actividad.',
+        },
+      ];
+    }
     return [
       {
         label: '✨ Redacción técnica',
@@ -486,7 +500,7 @@ const CellAIBubble = ({
         prompt: 'Sintetiza y resume el texto de forma concisa manteniendo los aspectos críticos de SST.',
       },
     ];
-  }, [isCargo, isZona]);
+  }, [isCargo, isZona, fieldLabel]);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -1628,6 +1642,7 @@ export default function MatrizIPEVARTable({
   const [filterClasificacion, setFilterClasificacion] = useState('');
   const [availableCargos, setAvailableCargos] = useState<string[]>([]);
   const [isAutoAssigningCargos, setIsAutoAssigningCargos] = useState(false);
+  const [isSyncingControles, setIsSyncingControles] = useState(false);
   const [sortField, setSortField] = useState<
     'cargo' | 'proceso' | 'nr' | 'peligro_clasificacion' | 'interpretacion_nr' | ''
   >('');
@@ -1974,6 +1989,64 @@ export default function MatrizIPEVARTable({
       });
     } finally {
       setIsAutoAssigningCargos(false);
+    }
+  };
+
+  // ── Sincronizar Controles y Factores de Reducción (Anexo E) con Centro de Control ──
+  const handleSyncControlesAnexoE = async () => {
+    if (matrixRows.length === 0) {
+      showToast({ message: 'No hay riesgos en la matriz para analizar y sincronizar controles.', status: 'warning' });
+      return;
+    }
+    try {
+      setIsSyncingControles(true);
+      const targetConvoId = isOfficialApp
+        ? null
+        : (!actualConvoId || actualConvoId === 'new')
+          ? (userId ? `temp-${userId}` : null)
+          : actualConvoId;
+
+      const res = await fetch('/api/sgsst/gtc45-workspace/sync-controles-anexo-e', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          matrixRows,
+          conversationId: targetConvoId,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Error al sincronizar controles y Anexo E');
+      }
+
+      if (data.matrixRows && Array.isArray(data.matrixRows)) {
+        setMatrixRows(data.matrixRows);
+        isDirtyRef.current = true;
+        if (isOfficialApp) {
+          await fetch('/api/sgsst/gtc45-workspace/official', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ matrixRows: data.matrixRows }),
+          });
+        }
+        window.dispatchEvent(new CustomEvent('kanban-tasks-updated'));
+        showToast({
+          message: data.message || `¡Se analizaron y sincronizaron ${data.syncedCount || 0} controles propuestos (Anexo E Costo/Beneficio) con el Centro de Control!`,
+          status: 'success',
+        });
+      }
+    } catch (error: any) {
+      console.error('[MatrizIPEVARTable] Error syncing controles Anexo E:', error);
+      showToast({
+        message: error.message || 'Error al sincronizar controles y Anexo E.',
+        status: 'error',
+      });
+    } finally {
+      setIsSyncingControles(false);
     }
   };
 
@@ -2771,6 +2844,16 @@ export default function MatrizIPEVARTable({
                 disabled: isAutoAssigningCargos || matrixRows.length === 0,
                 isLoading: isAutoAssigningCargos,
               },
+              {
+                id: 'sync-controles-anexo-e-official',
+                onClick: handleSyncControlesAnexoE,
+                title: 'Analizar Factores de Reducción (Anexo E Costo/Beneficio) y enviar controles propuestos al Centro de Control (Kanban)',
+                label: isSyncingControles ? 'Sincronizando…' : '⚡ Controles y Anexo E (Kanban)',
+                icon: CheckSquare,
+                variant: 'ai',
+                disabled: isSyncingControles || matrixRows.length === 0,
+                isLoading: isSyncingControles,
+              },
             ]}
             selectedModel={selectedModel}
             onSelectModel={setSelectedModel}
@@ -3008,6 +3091,27 @@ export default function MatrizIPEVARTable({
                   )}
                   <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100">
                     {isAutoAssigningCargos ? 'Asignando Cargos…' : '⚡ Auto-Asignar Cargos IA'}
+                  </span>
+                </button>
+              )}
+
+              {/* Sincronizar Controles y Anexo E con Centro de Control (Kanban) */}
+              {matrixRows.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleSyncControlesAnexoE}
+                  disabled={isSyncingControles}
+                  title="Analizar Factores de Reducción (Anexo E Costo/Beneficio) y enviar controles propuestos al Centro de Control (Kanban)"
+                  aria-label="Sincronizar Controles y Anexo E con Centro de Control"
+                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 px-2 sm:px-2.5 text-indigo-700 dark:text-indigo-300 shadow-sm outline-none transition-all duration-300 disabled:opacity-50 sm:hover:-rotate-3 sm:hover:scale-105"
+                >
+                  {isSyncingControles ? (
+                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin text-indigo-600 dark:text-indigo-400" />
+                  ) : (
+                    <CheckSquare className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                  )}
+                  <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100">
+                    {isSyncingControles ? 'Sincronizando…' : '⚡ Controles y Anexo E (Kanban)'}
                   </span>
                 </button>
               )}

@@ -641,7 +641,7 @@ export default function AmbassadorDashboard() {
     csv += detailHeaders.join(';') + '\n';
 
     exportUsers.forEach(u => {
-      const crmStageLabel = CRM_STAGES.find(s => s.id === (u.crmStage || 'nuevo'))?.label || u.crmStage || 'Sin Contactar';
+      const crmStageLabel = CRM_STAGES.find(s => s.key === (u.crmStage || 'nuevo'))?.label || u.crmStage || 'Sin Contactar';
       csv += [
         `"${u.name.replace(/"/g, '""')}"`,
         `"${u.email}"`,
@@ -721,7 +721,7 @@ export default function AmbassadorDashboard() {
       (u.department && u.department.toLowerCase().includes(searchTerm.toLowerCase())) ||
       u.ambassadorName.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+    const matchesRole = roleFilter === 'all' || u.role === roleFilter || (roleFilter === 'USER_IPEVAR' && (u.role === 'USER_IPEVAR' || u.role === 'IPEVAR'));
     const matchesStatus = statusFilter === 'all' || u.accountStatus === statusFilter;
     const matchesLight = lightFilter === 'all' || u.trafficLight === lightFilter;
 
@@ -745,14 +745,14 @@ export default function AmbassadorDashboard() {
 
   const totalLeadsCount = ambassadorFilteredUsers.length;
   const contactedLeadsCount = ambassadorFilteredUsers.filter(u => {
-    const st = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') ? 'ganado' : 'nuevo');
+    const st = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') || u.subscriptionType === 'vital' || u.role === 'USER_IPEVAR' || u.role === 'IPEVAR' ? 'ganado' : 'nuevo');
     return st !== 'nuevo' && st !== 'invalido';
   }).length;
   const interestedLeadsCount = ambassadorFilteredUsers.filter(u => (u.crmStage || '') === 'interesado').length;
   const proposalsSentCount = ambassadorFilteredUsers.filter(u => (u.crmStage || '') === 'propuesta').length;
   const wonLeadsCount = ambassadorFilteredUsers.filter(u => {
-    const st = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') ? 'ganado' : 'nuevo');
-    return st === 'ganado' || u.role === 'USER_PRO' || u.paymentStatus === 'paid';
+    const st = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') || u.subscriptionType === 'vital' || u.role === 'USER_IPEVAR' || u.role === 'IPEVAR' ? 'ganado' : 'nuevo');
+    return st === 'ganado' || u.role === 'USER_PRO' || u.role === 'USER_IPEVAR' || u.role === 'IPEVAR' || u.paymentStatus === 'paid' || u.subscriptionType === 'vital';
   }).length;
   const contactRate = totalLeadsCount > 0 ? Math.round((contactedLeadsCount / totalLeadsCount) * 100) : 0;
   const conversionRate = totalLeadsCount > 0 ? Math.round((wonLeadsCount / totalLeadsCount) * 100) : 0;
@@ -1215,6 +1215,7 @@ export default function AmbassadorDashboard() {
                     <option value="all">Todos los Roles</option>
                     <option value="USER">USER (Invitado)</option>
                     <option value="USER_PRO">USER_PRO (Wappy Pro)</option>
+                    <option value="USER_IPEVAR">USER_IPEVAR (Wappy Vital)</option>
                     <option value="ADMIN">ADMIN</option>
                   </select>
 
@@ -1312,7 +1313,7 @@ export default function AmbassadorDashboard() {
                             {/* CRM Stage Badge */}
                             <td className="px-4 py-3.5 align-middle">
                               {(() => {
-                                const uStage = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') ? 'ganado' : 'nuevo');
+                                const uStage = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') || u.subscriptionType === 'vital' || u.role === 'USER_IPEVAR' || u.role === 'IPEVAR' ? 'ganado' : 'nuevo');
                                 const stObj = CRM_STAGES.find(s => s.key === uStage);
                                 return (
                                   <button
@@ -1328,9 +1329,35 @@ export default function AmbassadorDashboard() {
                             </td>
 
                             <td className="px-4 py-3.5 align-middle">
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 whitespace-nowrap">
-                                {u.role}
-                              </span>
+                              {(() => {
+                                const r = (u.role || '').toUpperCase();
+                                if (r === 'USER_IPEVAR' || r === 'IPEVAR') {
+                                  return (
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 whitespace-nowrap">
+                                      Wappy Vital
+                                    </span>
+                                  );
+                                }
+                                if (r === 'USER_PRO' || r === 'PRO') {
+                                  return (
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 whitespace-nowrap">
+                                      Wappy Pro
+                                    </span>
+                                  );
+                                }
+                                if (r === 'ADMIN') {
+                                  return (
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20 whitespace-nowrap">
+                                      Admin
+                                    </span>
+                                  );
+                                }
+                                return (
+                                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-slate-500/10 text-slate-700 dark:text-slate-300 border border-slate-500/20 whitespace-nowrap">
+                                    {r === 'USER' ? 'Invitado' : r}
+                                  </span>
+                                );
+                              })()}
                               <div className="text-[10px] text-text-tertiary uppercase font-bold mt-1 tracking-wider">
                                 {u.accountStatus}
                               </div>

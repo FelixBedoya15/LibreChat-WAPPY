@@ -8,6 +8,7 @@ const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
 const mongoose = require('mongoose');
 const CompanyInfo = require('~/models/CompanyInfo');
 const SgsstWorker = require('~/models/SgsstWorker');
+const KanbanTask = require('~/models/KanbanTask');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, cleanRawRows } = require('./sgsstGemini');
 const { ensurePerfilExists } = require('./perfilesCargo');
@@ -1221,6 +1222,217 @@ INSTRUCCIONES ESTRICTAS:
   } catch (error) {
     logger.error('[GTC45Workspace POST /auto-assign-cargos] Error:', error);
     res.status(500).json({ error: error.message || 'Error al auto-asignar cargos con IA' });
+  }
+});
+
+// ─── OFICIAL / CHAT: Sincronizar Controles Propuestos y Generar Factores de Reducción (Anexo E) con Centro de Control ──
+router.post('/sync-controles-anexo-e', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const { matrixRows, conversationId } = req.body;
+
+    if (!matrixRows || !Array.isArray(matrixRows) || matrixRows.length === 0) {
+      return res.status(400).json({ error: 'No se enviaron filas de la matriz para procesar.' });
+    }
+
+    const cleanControlText = (val) => {
+      if (!val || typeof val !== 'string') return '';
+      const trimmed = val.trim();
+      const lower = trimmed.toLowerCase();
+      if (['ninguno', 'ninguna', 'no aplica', 'n/a', 'na', 'ninguno.', 'no'].includes(lower)) return '';
+      return trimmed;
+    };
+
+    const addDays = (date, days) => {
+      const result = new Date(date);
+      result.setDate(result.getDate() + days);
+      return result;
+    };
+
+    const today = new Date();
+    let syncedCount = 0;
+
+    // Actualizar filas y sintetizar Anexo E en caso de estar vacío o en "No aplica"
+    const updatedRows = matrixRows.map((row, idx) => {
+      const controls = [];
+      const elim = cleanControlText(row.medida_eliminacion);
+      if (elim) controls.push({ category: 'Eliminación', text: elim, hierarchy: 1, actionType: 'correctiva' });
+
+      const sust = cleanControlText(row.medida_sustitucion);
+      if (sust) controls.push({ category: 'Sustitución', text: sust, hierarchy: 2, actionType: 'correctiva' });
+
+      const ing = cleanControlText(row.medida_ingenieria);
+      if (ing) controls.push({ category: 'Ingeniería', text: ing, hierarchy: 3, actionType: 'correctiva' });
+
+      const adm = cleanControlText(row.medida_administrativa);
+      if (adm) controls.push({ category: 'Administrativo', text: adm, hierarchy: 4, actionType: 'preventiva' });
+
+      const epp = cleanControlText(row.medida_eppu);
+      if (epp) controls.push({ category: 'EPP', text: epp, hierarchy: 5, actionType: 'preventiva' });
+
+      const isCritical = (row.nd >= 6 && row.nc >= 25) || (row.nr >= 500) ||
+        (typeof row.aceptabilidad === 'string' && (row.aceptabilidad.includes('I') || row.aceptabilidad.toLowerCase().includes('no aceptable')));
+      const isHigh = (row.nr >= 150) || (typeof row.interpretacion_nr === 'string' && row.interpretacion_nr === 'II');
+
+      let newFactores = row.factores_reduccion || '';
+      const needsAnexoE = !newFactores || newFactores.trim() === '' || newFactores.toLowerCase().includes('no aplica');
+
+      if (controls.length > 0 || isCritical || isHigh) {
+        let bestControl = controls.find((c) => c.category === 'Ingeniería')
+          || controls.find((c) => c.category === 'Sustitución')
+          || controls.find((c) => c.category === 'Eliminación')
+          || controls.find((c) => c.category === 'Administrativo')
+          || controls.find((c) => c.category === 'EPP');
+
+        if (!bestControl) {
+          bestControl = {
+            category: 'Intervención Crítica',
+            text: 'Diseñar e implementar controles de mitigación inmediata en la fuente o medio',
+            actionType: 'correctiva',
+          };
+        }
+
+        if (needsAnexoE) {
+          const controlTipo = bestControl.category;
+          const controlTexto = bestControl.text.replace(/^[*•-]\s*/, '').trim();
+          const peligro = row.peligro_clasificacion || 'este factor de riesgo';
+          const cargo = row.cargo || 'personal del área';
+          const peorCons = row.peor_consecuencia || 'incapacidades laborales y deterioro de la salud';
+          const proceso = row.proceso || 'la operación';
+
+          newFactores = `Control óptimo en relación costo-beneficio (Anexo E GTC-45): Se prioriza la medida de ${controlTipo} ("${controlTexto}") al mitigar el peligro (${peligro}) en el origen o medio de forma colectiva y duradera para el cargo de ${cargo} en ${proceso}. Frente al costo potencial de ${peorCons} y contingencias legales, esta intervención representa la mayor rentabilidad técnica y financiera comparada con medidas puramente administrativas o de protección individual.`;
+        }
+      }
+
+      return {
+        ...row,
+        factores_reduccion: newFactores || row.factores_reduccion || 'No aplica',
+      };
+    });
+
+    // Sincronizar en base de datos de Kanban (KanbanTask)
+    if (KanbanTask) {
+      for (let i = 0; i < updatedRows.length; i++) {
+        const row = updatedRows[i];
+        const rowId = row.id || `row-${i}`;
+
+        const controls = [];
+        const elim = cleanControlText(row.medida_eliminacion);
+        if (elim) controls.push({ category: 'Eliminación', text: elim, hierarchy: 1, actionType: 'correctiva' });
+        const sust = cleanControlText(row.medida_sustitucion);
+        if (sust) controls.push({ category: 'Sustitución', text: sust, hierarchy: 2, actionType: 'correctiva' });
+        const ing = cleanControlText(row.medida_ingenieria);
+        if (ing) controls.push({ category: 'Ingeniería', text: ing, hierarchy: 3, actionType: 'correctiva' });
+        const adm = cleanControlText(row.medida_administrativa);
+        if (adm) controls.push({ category: 'Administrativo', text: adm, hierarchy: 4, actionType: 'preventiva' });
+        const epp = cleanControlText(row.medida_eppu);
+        if (epp) controls.push({ category: 'EPP', text: epp, hierarchy: 5, actionType: 'preventiva' });
+
+        const isCritical = (row.nd >= 6 && row.nc >= 25) || (row.nr >= 500) ||
+          (typeof row.aceptabilidad === 'string' && (row.aceptabilidad.includes('I') || row.aceptabilidad.toLowerCase().includes('no aceptable')));
+        const isHigh = (row.nr >= 150) || (typeof row.interpretacion_nr === 'string' && row.interpretacion_nr === 'II');
+
+        if (controls.length > 0 || isCritical || isHigh) {
+          let bestControl = controls.find((c) => c.category === 'Ingeniería')
+            || controls.find((c) => c.category === 'Sustitución')
+            || controls.find((c) => c.category === 'Eliminación')
+            || controls.find((c) => c.category === 'Administrativo')
+            || controls.find((c) => c.category === 'EPP');
+
+          if (!bestControl) {
+            bestControl = {
+              category: 'Intervención Crítica',
+              text: 'Diseñar e implementar controles de mitigación inmediata en la fuente o medio',
+              actionType: 'correctiva',
+            };
+          }
+
+          const otherControls = controls.filter((c) => c !== bestControl);
+          const anexoE = row.factores_reduccion;
+          const dueDate = isCritical ? addDays(today, 15) : isHigh ? addDays(today, 30) : addDays(today, 60);
+          const priority = (isCritical || isHigh) ? 'alta' : 'media';
+          const actionType = bestControl.actionType || 'correctiva';
+
+          const cleanText = bestControl.text.replace(/^[*•-]\s*/, '').trim();
+          const title = `[Control Propuesto · ${bestControl.category}] ${cleanText.length > 70 ? cleanText.substring(0, 67) + '…' : cleanText}`;
+
+          const description = `Control propuesto con mejor relación costo-beneficio según Factores de Reducción (Anexo E GTC-45).
+• Proceso: ${row.proceso || 'Operativo'} | Zona/Lugar: ${row.zona || 'Área general'}
+• Peligro: ${row.peligro_clasificacion || 'Peligro'} - ${row.peligro_descripcion || 'No especificado'}
+• Nivel de Riesgo: ${row.interpretacion_nr ? `Nivel ${row.interpretacion_nr}` : 'Evaluado'} (NR: ${row.nr || 'N/A'}) - ${row.aceptabilidad || ''}
+• Cargo Expuesto: ${row.cargo || 'Personal'} (Expuestos: ${row.nro_expuestos || 1})
+• Control Óptimo (Costo/Beneficio): [${bestControl.category}] ${bestControl.text}
+${otherControls.length > 0 ? `• Controles Complementarios: ${otherControls.map((c) => `[${c.category}] ${c.text}`).join(' | ')}\n` : ''}• Factores de Reducción (Anexo E): ${anexoE}`;
+
+          const referenceId = `ipevar-control-${rowId}`;
+          const referenceName = `Matriz IPEVAR (${row.peligro_clasificacion || 'GTC-45'})`;
+
+          let task = await KanbanTask.findOne({
+            user: userId,
+            companyId,
+            referenceId: { $in: [referenceId, `ipevar-${rowId}`] },
+          });
+
+          if (!task) {
+            await KanbanTask.create({
+              user: userId,
+              companyId,
+              title,
+              description,
+              dueDate,
+              status: 'todo',
+              type: 'ipevar_finding',
+              priority,
+              actionType,
+              assignedTo: row.cargo || 'Coordinador SST',
+              sourceModule: 'matriz_ipevar',
+              referenceId,
+              referenceName,
+            });
+            syncedCount++;
+          } else if (task.status !== 'done' && task.status !== 'dismissed') {
+            task.referenceId = referenceId;
+            task.title = title;
+            task.description = description;
+            task.priority = priority;
+            task.actionType = actionType;
+            await task.save();
+            syncedCount++;
+          }
+        }
+      }
+    }
+
+    // Persistir filas actualizadas en la sesión activa / oficial
+    if (conversationId) {
+      const isOfficial = conversationId.startsWith('official-');
+      await GTC45WorkspaceSession.findOneAndUpdate(
+        { conversationId, ...(isOfficial ? {} : { user: userId }) },
+        { $set: { matrixRows: updatedRows } }
+      );
+    } else {
+      await GTC45WorkspaceSession.findOneAndUpdate(
+        {
+          $or: [
+            { user: userId, isOfficial: true },
+            ...(companyId ? [{ companyId, isOfficial: true }] : []),
+            { conversationId: `official-${companyId || userId}` },
+          ],
+        },
+        { $set: { matrixRows: updatedRows } }
+      );
+    }
+
+    res.json({
+      success: true,
+      message: `Se analizaron y sincronizaron ${syncedCount} controles propuestos (Anexo E Costo/Beneficio) con el Centro de Control.`,
+      matrixRows: updatedRows,
+      syncedCount,
+    });
+  } catch (error) {
+    logger.error('[GTC45Workspace POST /sync-controles-anexo-e] Error:', error);
+    res.status(500).json({ error: error.message || 'Error al sincronizar controles y Anexo E' });
   }
 });
 

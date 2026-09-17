@@ -535,26 +535,110 @@ router.get('/data', requireJwtAuth, async (req, res) => {
       }
     }
 
-    // 8. Sync Peligros Críticos IPEVAR (Nivel I - No Aceptable)
+    // 8. Sync Controles Propuestos y Peligros IPEVAR GTC-45 (Mejor Costo/Beneficio - Anexo E)
     if (GTC45WorkspaceSession) {
-      const gtcDoc = await GTC45WorkspaceSession.findOne({
-        $or: [{ user: userId, isOfficial: true }, { companyId, isOfficial: true }]
+      let gtcDoc = await GTC45WorkspaceSession.findOne({
+        $or: [
+          { user: userId, isOfficial: true },
+          ...(companyId ? [{ companyId, isOfficial: true }] : []),
+          { conversationId: `official-${companyId || userId}` },
+        ],
       }).lean();
+
+      if (!gtcDoc) {
+        gtcDoc = await GTC45WorkspaceSession.findOne({
+          $or: [{ user: userId }, ...(companyId ? [{ companyId }] : [])],
+          'matrixRows.0': { $exists: true },
+        }).sort({ updatedAt: -1 }).lean();
+      }
+
       if (gtcDoc && Array.isArray(gtcDoc.matrixRows)) {
+        const cleanControlText = (val) => {
+          if (!val || typeof val !== 'string') return '';
+          const trimmed = val.trim();
+          const lower = trimmed.toLowerCase();
+          if (['ninguno', 'ninguna', 'no aplica', 'n/a', 'na', 'ninguno.', 'no'].includes(lower)) return '';
+          return trimmed;
+        };
+
         for (let i = 0; i < gtcDoc.matrixRows.length; i++) {
           const row = gtcDoc.matrixRows[i];
+          const rowId = row.id || `row-${i}`;
+
+          // Extraer controles propuestos
+          const controls = [];
+          const elim = cleanControlText(row.medida_eliminacion);
+          if (elim) controls.push({ category: 'Eliminación', text: elim, hierarchy: 1, actionType: 'correctiva' });
+
+          const sust = cleanControlText(row.medida_sustitucion);
+          if (sust) controls.push({ category: 'Sustitución', text: sust, hierarchy: 2, actionType: 'correctiva' });
+
+          const ing = cleanControlText(row.medida_ingenieria);
+          if (ing) controls.push({ category: 'Ingeniería', text: ing, hierarchy: 3, actionType: 'correctiva' });
+
+          const adm = cleanControlText(row.medida_administrativa);
+          if (adm) controls.push({ category: 'Administrativo', text: adm, hierarchy: 4, actionType: 'preventiva' });
+
+          const epp = cleanControlText(row.medida_eppu);
+          if (epp) controls.push({ category: 'EPP', text: epp, hierarchy: 5, actionType: 'preventiva' });
+
           const isCritical = (row.nd >= 6 && row.nc >= 25) || (row.nr >= 500) ||
             (typeof row.aceptabilidad === 'string' && (row.aceptabilidad.includes('I') || row.aceptabilidad.toLowerCase().includes('no aceptable')));
-          if (isCritical) {
-            const rowId = row.id || `row-${i}`;
-            const referenceId = `ipevar-${rowId}`;
-            const referenceName = `Matriz IPEVAR (${row.peligro_clasificacion || 'Peligro'})`;
-            const dueDate = addDays(today, 15);
+          const isHigh = (row.nr >= 150) || (typeof row.interpretacion_nr === 'string' && row.interpretacion_nr === 'II');
 
-            const title = `[Peligro Crítico GTC-45] ${row.peligro_clasificacion || 'Peligro'} - ${row.proceso || 'Operativo'}`;
-            const description = `Peligro evaluado en Nivel I (No Aceptable / Situación Crítica). Proceso: ${row.proceso || ''}. Actividad/Tarea: ${row.actividad || ''} - ${row.tareas || ''}. Peligro: ${row.peligro_descripcion || ''}. Control Propuesto: ${row.medida_eliminacion && row.medida_eliminacion !== 'Ninguno' ? row.medida_eliminacion : row.medida_ingenieria && row.medida_ingenieria !== 'Ninguno' ? row.medida_ingenieria : row.medida_administrativa || 'Intervención inmediata'}.`;
+          // Sincronizar si tiene controles propuestos o si es riesgo crítico/alto
+          if (controls.length > 0 || isCritical || isHigh) {
+            // Seleccionar el control de MEJOR COSTO/BENEFICIO (Anexo E GTC-45)
+            // Según la jerarquía de control y retorno preventivo (Ingeniería protege en fuente/medio colectivamente)
+            let bestControl = controls.find((c) => c.category === 'Ingeniería')
+              || controls.find((c) => c.category === 'Sustitución')
+              || controls.find((c) => c.category === 'Eliminación')
+              || controls.find((c) => c.category === 'Administrativo')
+              || controls.find((c) => c.category === 'EPP');
 
-            let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
+            if (!bestControl) {
+              bestControl = {
+                category: 'Intervención Crítica',
+                text: 'Diseñar e implementar controles de mitigación inmediata en la fuente o medio',
+                actionType: 'correctiva',
+              };
+            }
+
+            const otherControls = controls.filter((c) => c !== bestControl);
+
+            // Anexo E: Justificación de reducción y costo/beneficio
+            let anexoE = '';
+            if (row.factores_reduccion && typeof row.factores_reduccion === 'string' && !row.factores_reduccion.toLowerCase().includes('no aplica')) {
+              anexoE = row.factores_reduccion.trim();
+            } else {
+              anexoE = `Control prioritario por relación costo-beneficio según Anexo E (GTC-45): Se prioriza la medida de ${bestControl.category} ('${bestControl.text.replace(/^[*•-]\s*/, '')}') al atacar directamente el origen del peligro (${row.peligro_clasificacion || 'evaluado'}) con protección colectiva y continua para ${row.cargo || 'el personal expuesto'}. Esta intervención mitiga la severidad potencial (${row.peor_consecuencia || 'daño a la salud laboral'}) con el mayor retorno de inversión frente al costo directo e indirecto de incapacidades o contingencias legales.`;
+            }
+
+            const dueDate = isCritical ? addDays(today, 15) : isHigh ? addDays(today, 30) : addDays(today, 60);
+            const priority = (isCritical || isHigh) ? 'alta' : 'media';
+            const actionType = bestControl.actionType || 'correctiva';
+
+            const cleanText = bestControl.text.replace(/^[*•-]\s*/, '').trim();
+            const title = `[Control Propuesto · ${bestControl.category}] ${cleanText.length > 70 ? cleanText.substring(0, 67) + '…' : cleanText}`;
+
+            const description = `Control propuesto con mejor relación costo-beneficio según Factores de Reducción (Anexo E GTC-45).
+• Proceso: ${row.proceso || 'Operativo'} | Zona/Lugar: ${row.zona || 'Área general'}
+• Peligro: ${row.peligro_clasificacion || 'Peligro'} - ${row.peligro_descripcion || 'No especificado'}
+• Nivel de Riesgo: ${row.interpretacion_nr ? `Nivel ${row.interpretacion_nr}` : 'Evaluado'} (NR: ${row.nr || 'N/A'}) - ${row.aceptabilidad || ''}
+• Cargo Expuesto: ${row.cargo || 'Personal'} (Expuestos: ${row.nro_expuestos || 1})
+• Control Óptimo (Costo/Beneficio): [${bestControl.category}] ${bestControl.text}
+${otherControls.length > 0 ? `• Controles Complementarios: ${otherControls.map((c) => `[${c.category}] ${c.text}`).join(' | ')}\n` : ''}• Factores de Reducción (Anexo E): ${anexoE}`;
+
+            const referenceId = `ipevar-control-${rowId}`;
+            const referenceName = `Matriz IPEVAR (${row.peligro_clasificacion || 'GTC-45'})`;
+
+            // Buscar si ya existía tarea con ID nuevo o ID antiguo (ipevar-${rowId})
+            let task = await KanbanTask.findOne({
+              user: userId,
+              companyId,
+              referenceId: { $in: [referenceId, `ipevar-${rowId}`] },
+            });
+
             if (!task) {
               await KanbanTask.create({
                 user: userId,
@@ -564,16 +648,36 @@ router.get('/data', requireJwtAuth, async (req, res) => {
                 dueDate,
                 status: 'todo',
                 type: 'ipevar_finding',
-                priority: 'alta',
-                actionType: 'correctiva',
+                priority,
+                actionType,
+                assignedTo: row.cargo || 'Coordinador SST',
                 sourceModule: 'matriz_ipevar',
                 referenceId,
                 referenceName,
               });
             } else if (task.status !== 'done' && task.status !== 'dismissed') {
-              if (task.description !== description || task.title !== title) {
-                task.description = description;
+              let changed = false;
+              if (task.referenceId !== referenceId) {
+                task.referenceId = referenceId;
+                changed = true;
+              }
+              if (task.title !== title) {
                 task.title = title;
+                changed = true;
+              }
+              if (task.description !== description) {
+                task.description = description;
+                changed = true;
+              }
+              if (task.priority !== priority) {
+                task.priority = priority;
+                changed = true;
+              }
+              if (task.actionType !== actionType) {
+                task.actionType = actionType;
+                changed = true;
+              }
+              if (changed) {
                 await task.save();
               }
             }

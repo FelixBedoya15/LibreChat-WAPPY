@@ -647,7 +647,7 @@ export default function AmbassadorContactModal({
                       </div>
                       <div
                         className="text-xs text-slate-300 space-y-2 leading-relaxed"
-                        dangerouslySetHtml={{ __html: bodyHtml || '<p>Cuerpo del mensaje...</p>' }}
+                        dangerouslySetInnerHTML={{ __html: bodyHtml || '<p>Cuerpo del mensaje...</p>' }}
                       />
 
                       {buttonText && buttonUrl && (

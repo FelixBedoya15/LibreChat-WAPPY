@@ -757,7 +757,7 @@ router.get('/dashboard', async (req, res) => {
                 } else {
                     planInterval = 'vencido';
                 }
-            } else if (rawPlan === 'vital' || rawPlan === 'vitalicio' || userRole === 'USER_IPEVAR') {
+            } else if (rawPlan === 'vital' || rawPlan === 'vitalicio' || userRole === 'USER_IPEVAR' || userRole === 'IPEVAR') {
                 planType = 'vital';
                 planInterval = null;
             }
@@ -770,11 +770,13 @@ router.get('/dashboard', async (req, res) => {
                 } else {
                     paymentStatus = 'paid';
                 }
+            } else if (planType === 'vital' || userRole === 'USER_IPEVAR' || userRole === 'IPEVAR') {
+                paymentStatus = 'paid';
             } else if (isExpired) {
                 paymentStatus = 'expired';
             }
 
-            if (isPro) activeProCount++;
+            if (isPro || planType === 'vital' || userRole === 'USER_IPEVAR' || userRole === 'IPEVAR') activeProCount++;
             if (daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 30) expiringSoonCount++;
             if (!resolvedPhone || resolvedPhone.trim() === '') missingPhoneCount++;
             if (daysInactive > 30) inactiveCount++;
@@ -797,6 +799,15 @@ router.get('/dashboard', async (req, res) => {
                     trafficLight = 'green';
                 } else {
                     trafficLight = 'yellow';
+                }
+            } else if (planType === 'vital' || userRole === 'USER_IPEVAR' || userRole === 'IPEVAR') {
+                // Wappy Vital es membresía vitalicia activa
+                if (daysInactive > 90 || u.accountStatus === 'inactive' || u.accountStatus === 'pending') {
+                    trafficLight = 'red';
+                } else if (daysInactive > 30) {
+                    trafficLight = 'yellow';
+                } else {
+                    trafficLight = 'green';
                 }
             } else if (isExpired) {
                 trafficLight = 'red';
@@ -823,7 +834,7 @@ router.get('/dashboard', async (req, res) => {
                 planExpiresAt: expiresAt,
                 daysToExpiry,
                 trafficLight,
-                crmStage: rec.crmStage || (isPro ? 'ganado' : isExpired ? 'frio' : 'nuevo'),
+                crmStage: rec.crmStage || (isPro || planType === 'vital' || userRole === 'USER_IPEVAR' || userRole === 'IPEVAR' ? 'ganado' : isExpired ? 'frio' : 'nuevo'),
                 crmNotes: rec.crmNotes || [],
                 lastContactedAt: rec.lastContactedAt || null,
                 nextFollowUpDate: rec.nextFollowUpDate || null,

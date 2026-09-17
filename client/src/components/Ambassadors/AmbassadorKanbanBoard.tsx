@@ -210,7 +210,7 @@ export default function AmbassadorKanbanBoard({
       <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-6 pt-1 items-start min-h-[650px] scrollbar-thin">
         {CRM_STAGES.map((stage) => {
           const stageUsers = users.filter((u) => {
-            const uStage = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') ? 'ganado' : 'nuevo');
+            const uStage = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') || u.subscriptionType === 'vital' || u.role === 'USER_IPEVAR' || u.role === 'IPEVAR' ? 'ganado' : 'nuevo');
             return uStage === stage.key;
           });
 
