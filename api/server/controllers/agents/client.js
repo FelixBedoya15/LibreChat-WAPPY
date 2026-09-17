@@ -1503,9 +1503,10 @@ class AgentClient extends BaseClient {
               }
               continue; // Try next key, same model
             } else if (isRetryable) {
-              // Last key also failed or model unavailable → check if Google requested a retryDelay
+              // Si aún quedan modelos de respaldo disponibles, rotar inmediatamente sin dormir 30 segundos
+              const hasMoreFallbackModels = mi < agentModelFallbacks.length - 1;
               const retryDelayMs = extractRetryDelayMs(err);
-              if (isQuotaEvent && retryDelayMs && retryDelayMs <= 32000) {
+              if (!hasMoreFallbackModels && isQuotaEvent && retryDelayMs && retryDelayMs <= 32000) {
                 const waitSec = Math.round(retryDelayMs / 1000);
                 logger.warn(`[AgentClient] All ${keys.length} API keys hit rate limit for model "${currentModel}". Google requested retry in ${waitSec}s. Backing off ${waitSec}s before final retry...`);
                 await sleep(retryDelayMs);
