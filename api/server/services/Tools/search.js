@@ -45,15 +45,16 @@ function createOnSearchResults(res) {
       'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se',
       'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io',
       'meudanfe.com.br', 'softonic.com', 'droidcam.com', 'capterra.com',
-      'g2.com', 'trustpilot.com', 'pinterest.com'
+      'g2.com', 'trustpilot.com', 'pinterest.com', 'anu.edu.au', '.edu.au'
     ];
     if (Array.isArray(rawData.organic)) {
       rawData.organic = rawData.organic
         .filter((s) => {
           if (!s || !s.link) return false;
+          if (s.link.toLowerCase().includes('.pdf')) return false;
           try {
             const host = new URL(s.link).hostname.toLowerCase();
-            return !blockedDomains.some((d) => host.includes(d));
+            return !blockedDomains.some((d) => host.includes(d) || host.endsWith(d));
           } catch {
             return false;
           }

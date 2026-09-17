@@ -136,7 +136,7 @@ searchCjs = searchCjs.replace(
 );
 
 // Bloquear dominios de publicidad, spam, prestamos financieros y bolsas de empleo extranjeras
-const blockedDomainsStr = "const blockedDomains = ['corporatefinanceinstitute.com', 'gao.gov', 'doordash.com', 'clipchamp.com', 'intervalworld.com', 'aol.com', 'microsoft.com', 'doubleclick.net', 'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se', 'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io', 'meudanfe.com.br', 'softonic.com', 'droidcam.com', 'capterra.com', 'g2.com', 'trustpilot.com', 'pinterest.com'];";
+const blockedDomainsStr = "const blockedDomains = ['corporatefinanceinstitute.com', 'gao.gov', 'doordash.com', 'clipchamp.com', 'intervalworld.com', 'aol.com', 'microsoft.com', 'doubleclick.net', 'googleadservices.com', 'vineyardvines.com', 'zhihu.com', 'arbetsformedlingen.se', 'ledigajobb.se', 'healthgrades.com', 'vitadox.com', 'orthopedic.io', 'meudanfe.com.br', 'softonic.com', 'droidcam.com', 'capterra.com', 'g2.com', 'trustpilot.com', 'pinterest.com', 'anu.edu.au', '.edu.au'];";
 if (searchCjs.includes('blockedDomains = [')) {
   searchCjs = searchCjs.replace(
     /const blockedDomains\s*=\s*\[[^\]]+\];/g,
@@ -146,6 +146,14 @@ if (searchCjs.includes('blockedDomains = [')) {
   searchCjs = searchCjs.replace(
     "const isNewsResult = (result) => {",
     blockedDomainsStr + "\n            const isNewsResult = (result) => {"
+  );
+}
+
+// Filtrar enlaces a archivos PDF para evitar timeouts de scraping y sobrecarga de tokens
+if (!searchCjs.includes("r.url.toLowerCase().includes('.pdf')")) {
+  searchCjs = searchCjs.replace(
+    "if (!r.url || !r.title) return false;",
+    "if (!r.url || !r.title) return false;\n                if (r.url.toLowerCase().includes('.pdf')) return false;"
   );
 }
 
