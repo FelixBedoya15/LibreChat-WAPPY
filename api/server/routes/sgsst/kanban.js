@@ -479,42 +479,56 @@ router.get('/data', requireJwtAuth, async (req, res) => {
       }
     }
 
-    // 7. Sync Actos y Condiciones Inseguras
+    // 7. Sync Actos y Condiciones Inseguras (Only genuine reports with real content)
     if (ReporteActosData) {
+      // Purge any legacy/phantom auto-generated tasks with empty detail or placeholder title
+      await KanbanTask.deleteMany({
+        user: userId,
+        companyId,
+        $or: [
+          { title: '[Acto Inseguro] Peligro en terreno' },
+          { title: '[Condición Insegura] Peligro en terreno' },
+          { description: { $regex: /Detalle:\s*\.?\s*$/i } },
+        ]
+      });
+
       const actosDoc = await ReporteActosData.findOne({ user: userId, companyId }).lean();
       if (actosDoc && Array.isArray(actosDoc.inboxPublico)) {
         for (const rep of actosDoc.inboxPublico) {
-          if (rep.estado !== 'cerrado') {
-            const isCondicion = rep.tipo === 'condicion';
-            const referenceId = `acto-${rep.id}`;
-            const referenceName = isCondicion ? 'Condición Insegura' : 'Acto Inseguro';
-            const dueDate = addDays(today, 7);
+          const desc = (rep.descripcion || '').trim();
+          // STRICT FILTER: Do not sync empty, test, or placeholder reports
+          if (!desc || desc.length < 5) continue;
+          if (rep.estado === 'cerrado' || rep.status === 'processed' || rep.status === 'dismissed' || rep.descartado) continue;
 
-            const title = `[${isCondicion ? 'Condición Insegura' : 'Acto Inseguro'}] ${(rep.descripcion || 'Peligro en terreno').slice(0, 60)}`;
-            const description = `Reporte de seguridad en terreno. Tipo: ${isCondicion ? 'Condición Insegura' : 'Acto Inseguro'}. Ubicación: ${rep.ubicacion || 'No especificada'}. Fecha reporte: ${rep.fecha || 'Reciente'}. Detalle: ${rep.descripcion || ''}.`;
+          const isCondicion = rep.tipo === 'condicion';
+          const referenceId = `acto-${rep.id}`;
+          const referenceName = isCondicion ? 'Condición Insegura' : 'Acto Inseguro';
+          const dueDate = addDays(today, 7);
 
-            let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
-            if (!task) {
-              await KanbanTask.create({
-                user: userId,
-                companyId,
-                title,
-                description,
-                dueDate,
-                status: 'todo',
-                type: 'unsafe_act_finding',
-                priority: 'alta',
-                actionType: 'correctiva',
-                sourceModule: 'reporte_actos',
-                referenceId,
-                referenceName,
-              });
-            } else if (task.status !== 'done') {
-              if (task.description !== description || task.title !== title) {
-                task.description = description;
-                task.title = title;
-                await task.save();
-              }
+          const title = `[${isCondicion ? 'Condición Insegura' : 'Acto Inseguro'}] ${desc.slice(0, 60)}`;
+          const description = `Reporte de seguridad en terreno. Tipo: ${isCondicion ? 'Condición Insegura' : 'Acto Inseguro'}. Ubicación: ${rep.ubicacion || 'En frentes operativos'}. Fecha reporte: ${rep.fecha || 'Reciente'}. Detalle: ${desc}.`;
+
+          let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
+          if (!task) {
+            await KanbanTask.create({
+              user: userId,
+              companyId,
+              title,
+              description,
+              dueDate,
+              status: 'todo',
+              type: 'unsafe_act_finding',
+              priority: 'alta',
+              actionType: 'correctiva',
+              sourceModule: 'reporte_actos',
+              referenceId,
+              referenceName,
+            });
+          } else if (task.status !== 'done' && task.status !== 'dismissed') {
+            if (task.description !== description || task.title !== title) {
+              task.description = description;
+              task.title = title;
+              await task.save();
             }
           }
         }
@@ -556,7 +570,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
                 referenceId,
                 referenceName,
               });
-            } else if (task.status !== 'done') {
+            } else if (task.status !== 'done' && task.status !== 'dismissed') {
               if (task.description !== description || task.title !== title) {
                 task.description = description;
                 task.title = title;
@@ -568,8 +582,8 @@ router.get('/data', requireJwtAuth, async (req, res) => {
       }
     }
 
-    // 9. Fetch and return all tasks for user and company
-    const tasks = await KanbanTask.find({ user: userId, companyId }).sort({ dueDate: 1 });
+    // 9. Fetch and return all active tasks for user and company (exclude dismissed)
+    const tasks = await KanbanTask.find({ user: userId, companyId, status: { $ne: 'dismissed' } }).sort({ dueDate: 1 });
     res.json(tasks);
   } catch (error) {
     logger.error('[SGSST Kanban] Load error:', error);
@@ -961,9 +975,26 @@ router.delete('/delete/:id', requireJwtAuth, async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
 
-    const result = await KanbanTask.deleteOne({ _id: id, user: userId });
-    if (result.deletedCount === 0) {
+    const task = await KanbanTask.findOne({ _id: id, user: userId });
+    if (!task) {
       return res.status(404).json({ error: 'Tarea no encontrada o sin permisos' });
+    }
+
+    // If it was linked to an unsafe act, also clean it from inboxPublico
+    if (task.referenceId && task.referenceId.startsWith('acto-') && ReporteActosData) {
+      const repId = task.referenceId.replace('acto-', '');
+      await ReporteActosData.updateOne(
+        { user: userId },
+        { $pull: { inboxPublico: { id: repId } } }
+      );
+    }
+
+    // If it has a sync referenceId, mark as dismissed so auto-sync never recreates it
+    if (task.referenceId) {
+      task.status = 'dismissed';
+      await task.save();
+    } else {
+      await KanbanTask.deleteOne({ _id: id, user: userId });
     }
 
     res.json({ success: true });

@@ -1387,7 +1387,21 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-3 mt-4">
+              <div className="flex items-center gap-3 mt-4">
+                {editingTask && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      handleDeleteTask(editingTask._id);
+                    }}
+                    className="py-2.5 px-4 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                    title="Eliminar esta actividad del tablero"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Eliminar</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}

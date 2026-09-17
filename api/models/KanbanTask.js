@@ -19,7 +19,7 @@ const kanbanTaskSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['todo', 'due_soon', 'overdue', 'done'],
+      enum: ['todo', 'due_soon', 'overdue', 'done', 'dismissed'],
       default: 'todo',
       index: true,
     },
