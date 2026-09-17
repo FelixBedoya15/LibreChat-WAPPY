@@ -32,6 +32,7 @@ import {
     Info,
     MapPin,
     Upload,
+    RefreshCw,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { NotificationSeverity } from '~/common';
@@ -619,6 +620,140 @@ const PerfilesCargo = () => {
             })
             .catch(err => console.error('[PerfilesCargo] Error loading official matrix:', err));
     }, [token]);
+
+    // ─── Auto-sincronizar cargos de la Matriz IPEVAR que falten en Perfiles ──────
+    const hasAutoSyncedRef = useRef(false);
+    useEffect(() => {
+        if (!token || officialMatrixRows.length === 0 || perfiles.length === 0 || hasAutoSyncedRef.current) return;
+
+        const existingNames = new Set(
+            perfiles.map(p => (p.nombreCargo || '').toLowerCase().trim()).filter(Boolean)
+        );
+
+        const uniqueMissingRowsMap = new Map<string, any>();
+        officialMatrixRows.forEach(r => {
+            const c = (r.cargo || '').toLowerCase().trim();
+            if (c && c !== 'cargo / rol...' && c !== 'cargo / rol…' && !existingNames.has(c)) {
+                if (!uniqueMissingRowsMap.has(c)) {
+                    uniqueMissingRowsMap.set(c, r);
+                }
+            }
+        });
+
+        const missingRows = Array.from(uniqueMissingRowsMap.values());
+        if (missingRows.length > 0) {
+            hasAutoSyncedRef.current = true;
+            Promise.all(
+                missingRows.map(r =>
+                    fetch('/api/sgsst/perfiles-cargo/ensure', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({
+                            nombreCargo: r.cargo,
+                            proceso: r.proceso,
+                            actividad: r.actividad,
+                            tareas: r.tareas,
+                            nro_expuestos: r.nro_expuestos,
+                            medida_eppu: r.medida_eppu,
+                            medida_ingenieria: r.medida_ingenieria,
+                            medida_administrativa: r.medida_administrativa,
+                        }),
+                    }).then(res => res.json())
+                )
+            )
+                .then(results => {
+                    const createdPerfiles = results.filter(res => res && res.created && res.perfil).map(res => res.perfil);
+                    if (createdPerfiles.length > 0) {
+                        setPerfiles(prev => [...prev, ...createdPerfiles]);
+                        showToast({
+                            message: `Se sincronizaron automáticamente ${createdPerfiles.length} nuevos perfiles de cargo desde la Matriz IPEVAR.`,
+                            severity: NotificationSeverity.SUCCESS,
+                        });
+                    }
+                })
+                .catch(err => console.error('[PerfilesCargo] Error auto-syncing missing cargos:', err));
+        }
+    }, [officialMatrixRows, perfiles, token]);
+
+    const handleSyncAllFromMatrix = async () => {
+        if (!token) return;
+        try {
+            const res = await fetch('/api/sgsst/gtc45-workspace/official', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json();
+            const rows = data?.matrixRows || [];
+            if (rows.length === 0) {
+                showToast({
+                    message: 'No hay filas en la Matriz IPEVAR para sincronizar.',
+                    severity: NotificationSeverity.INFO,
+                });
+                return;
+            }
+
+            const existingNames = new Set(
+                perfiles.map(p => (p.nombreCargo || '').toLowerCase().trim()).filter(Boolean)
+            );
+
+            const uniqueMissingRowsMap = new Map<string, any>();
+            rows.forEach((r: any) => {
+                const c = (r.cargo || '').toLowerCase().trim();
+                if (c && c !== 'cargo / rol...' && c !== 'cargo / rol…' && !existingNames.has(c)) {
+                    if (!uniqueMissingRowsMap.has(c)) {
+                        uniqueMissingRowsMap.set(c, r);
+                    }
+                }
+            });
+
+            const missing = Array.from(uniqueMissingRowsMap.values());
+            if (missing.length === 0) {
+                showToast({
+                    message: 'Todos los cargos de la Matriz IPEVAR ya están presentes en Perfiles de Cargo.',
+                    severity: NotificationSeverity.INFO,
+                });
+                return;
+            }
+
+            const results = await Promise.all(
+                missing.map(r =>
+                    fetch('/api/sgsst/perfiles-cargo/ensure', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({
+                            nombreCargo: r.cargo,
+                            proceso: r.proceso,
+                            actividad: r.actividad,
+                            tareas: r.tareas,
+                            nro_expuestos: r.nro_expuestos,
+                            medida_eppu: r.medida_eppu,
+                            medida_ingenieria: r.medida_ingenieria,
+                            medida_administrativa: r.medida_administrativa,
+                        }),
+                    }).then(res => res.json())
+                )
+            );
+
+            const createdPerfiles = results.filter(res => res && res.created && res.perfil).map(res => res.perfil);
+            if (createdPerfiles.length > 0) {
+                setPerfiles(prev => [...prev, ...createdPerfiles]);
+                showToast({
+                    message: `¡Se sincronizaron exitosamente ${createdPerfiles.length} nuevos perfiles de cargo desde la Matriz IPEVAR!`,
+                    severity: NotificationSeverity.SUCCESS,
+                });
+            } else {
+                showToast({
+                    message: 'Todos los cargos de la matriz ya estaban sincronizados.',
+                    severity: NotificationSeverity.INFO,
+                });
+            }
+        } catch (e: any) {
+            console.error('[PerfilesCargo] Sync error:', e);
+            showToast({
+                message: 'Error al sincronizar con la Matriz IPEVAR.',
+                severity: NotificationSeverity.ERROR,
+            });
+        }
+    };
 
     const matchingIpevarRows = useMemo(() => {
         if (!formData?.nombreCargo || officialMatrixRows.length === 0) return [];
@@ -1424,12 +1559,24 @@ const PerfilesCargo = () => {
                         </div>
                         <span className="text-xs font-black text-text-primary dark:text-text-primary uppercase tracking-widest bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">Listado de Perfiles</span>
                     </div>
-                    <button
-                        onClick={handleAddPerfil}
-                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500/10 to-cyan-500/10 text-teal-700 dark:text-teal-300 rounded-2xl text-xs font-black border border-teal-500/20 dark:border-teal-400/20 hover:from-teal-500/20 hover:to-cyan-500/20 hover:border-teal-500/40 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95 transform duration-300"
-                    >
-                        <Plus className="h-4 w-4" /> Nuevo Cargo
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={handleSyncAllFromMatrix}
+                            className="flex items-center gap-1.5 px-3.5 py-2 bg-surface-primary text-text-primary rounded-2xl text-xs font-semibold border border-border-medium hover:bg-surface-secondary hover:border-teal-500/40 hover:text-teal-600 transition-all shadow-sm cursor-pointer hover:scale-105 active:scale-95 transform duration-200"
+                            title="Sincronizar cargos faltantes creados en la Matriz IPEVAR"
+                        >
+                            <RefreshCw className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                            <span>Sincronizar Matriz</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleAddPerfil}
+                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500/10 to-cyan-500/10 text-teal-700 dark:text-teal-300 rounded-2xl text-xs font-black border border-teal-500/20 dark:border-teal-400/20 hover:from-teal-500/20 hover:to-cyan-500/20 hover:border-teal-500/40 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95 transform duration-300"
+                        >
+                            <Plus className="h-4 w-4" /> Nuevo Cargo
+                        </button>
+                    </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {perfiles.map(p => {

@@ -3,6 +3,7 @@ const { generateCheckAccess, skipAgentCheck } = require('@librechat/api');
 const { PermissionTypes, Permissions, PermissionBits } = require('librechat-data-provider');
 const {
   setHeaders,
+  handleAbort,
   moderateText,
   // validateModel,
   validateConvoAccess,
@@ -38,6 +39,13 @@ router.use(setHeaders);
 const controller = async (req, res, next) => {
   await AgentController(req, res, next, initializeClient, addTitle);
 };
+
+/**
+ * @route POST /abort
+ * @desc Abort an active agent message
+ * @access Public
+ */
+router.post('/abort', handleAbort());
 
 /**
  * @route POST / (regular endpoint)

@@ -93,7 +93,28 @@ function logToolError(graph, error, toolId) {
   });
 }
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms, signal) =>
+  new Promise((resolve) => {
+    if (signal?.aborted) {
+      return resolve();
+    }
+    let timer = null;
+    const onAbort = () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      resolve();
+    };
+    timer = setTimeout(() => {
+      if (signal) {
+        signal.removeEventListener?.('abort', onAbort);
+      }
+      resolve();
+    }, ms);
+    if (signal) {
+      signal.addEventListener?.('abort', onAbort, { once: true });
+    }
+  });
 
 /**
  * Extrae el tiempo de espera recomendado (en milisegundos) a partir de respuestas de error de Google u otros proveedores:

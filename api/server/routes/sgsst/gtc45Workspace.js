@@ -10,6 +10,7 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const SgsstWorker = require('~/models/SgsstWorker');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, cleanRawRows } = require('./sgsstGemini');
+const { ensurePerfilExists } = require('./perfilesCargo');
 
 function toSentenceCase(str) {
   if (!str) return '';
@@ -575,8 +576,25 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos 
     updatedFields.controles_medio = row.controles_medio || 'Ninguno';
     updatedFields.controles_individuo = row.controles_individuo || 'Ninguno';
 
+    // Si la IA asignó o creó un cargo, asegurar que exista y se cree de verdad en Perfiles de Cargo (PerfilCargoData)
+    let newPerfilCreated = false;
+    if (updatedFields.cargo && typeof ensurePerfilExists === 'function') {
+      try {
+        const perfilRes = await ensurePerfilExists(userId, companyId, updatedFields.cargo, {
+          ...row,
+          ...updatedFields,
+        });
+        if (perfilRes.created) {
+          newPerfilCreated = true;
+          logger.info(`[GTC45/ai-update-row] Nuevo perfil de cargo "${updatedFields.cargo}" creado y sincronizado en PerfilCargoData.`);
+        }
+      } catch (perfilErr) {
+        logger.warn('[GTC45/ai-update-row] Error asegurando perfil de cargo:', perfilErr.message);
+      }
+    }
+
     logger.info(`[GTC45/ai-update-row] Row updated for user ${userId}, NR=${updatedFields.nr}`);
-    return res.json({ updatedFields });
+    return res.json({ updatedFields, newPerfilCreated });
 
   } catch (error) {
     logger.error('[GTC45/ai-update-row] Error:', error.message);
@@ -1179,6 +1197,19 @@ INSTRUCCIONES ESTRICTAS:
         { $set: { matrixRows: updatedRows } }
       );
       logger.info(`[GTC45Workspace /auto-assign-cargos] Persisted ${updatedRows.length} rows to session ${conversationId}`);
+    }
+
+    // Asegurar que todos los cargos asignados queden creados y persistidos en Perfiles de Cargo (PerfilCargoData)
+    if (typeof ensurePerfilExists === 'function') {
+      try {
+        for (const r of updatedRows) {
+          if (r.cargo && r.cargo.trim()) {
+            await ensurePerfilExists(userId, companyId, r.cargo, r);
+          }
+        }
+      } catch (e) {
+        logger.warn('[GTC45Workspace /auto-assign-cargos] Error asegurando perfiles:', e.message);
+      }
     }
 
     res.json({

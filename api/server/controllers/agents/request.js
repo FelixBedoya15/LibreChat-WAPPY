@@ -9,35 +9,7 @@ const {
 const { disposeClient, clientRegistry, requestDataMap } = require('~/server/cleanup');
 const { saveMessage } = require('~/models');
 
-const isHeavyRequest = (text, tools) => {
-  const lowercaseText = (text || '').toLowerCase();
-  
-  if (text?.includes('/background') || text?.includes('/goal') || text?.includes('/segundoplano')) {
-    return true;
-  }
-  
-  const heavyTools = ['somos_sst', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'n8n', 'dalle3', 'flux_api', 'stable_diffusion'];
-  if (Array.isArray(tools)) {
-    for (const tool of tools) {
-      if (heavyTools.includes(tool)) {
-        return true;
-      }
-    }
-  }
-
-  const heavyKeywords = [
-    'auditoria', 'auditoría', 'matriz', 'reporte completo', 'informe completo', 
-    'generar informe', 'generar reporte', 'gtc45', 'gtc-45', 'pesv', 'ats', 
-    'owas', 'diagnostico'
-  ];
-  for (const keyword of heavyKeywords) {
-    if (lowercaseText.includes(keyword)) {
-      return true;
-    }
-  }
-
-  return false;
-};
+const MAX_AGENT_EXECUTION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes safety cap for interactive sessions
 
 function createCloseHandler(abortController) {
   return function (manual) {
@@ -49,11 +21,6 @@ function createCloseHandler(abortController) {
     } else if (abortController.signal.aborted) {
       return;
     } else if (abortController.requestCompleted) {
-      return;
-    }
-
-    if (process.env.ABORT_ON_CLOSE === 'false' || abortController.isHeavy) {
-      logger.info('[AgentController] Request closed, but it is a heavy/background task or ABORT_ON_CLOSE is false. Continuing in background.');
       return;
     }
 
@@ -86,6 +53,7 @@ const AgentController = async (req, res, next, initializeClient, addTitle) => {
   let client = null;
   let cleanupHandlers = [];
   let heartbeatInterval = null;
+  let safetyTimeout = null;
 
   const newConvo = !conversationId;
   const userId = req.user.id;
@@ -118,6 +86,10 @@ const AgentController = async (req, res, next, initializeClient, addTitle) => {
     if (heartbeatInterval) {
       clearInterval(heartbeatInterval);
       heartbeatInterval = null;
+    }
+    if (safetyTimeout) {
+      clearTimeout(safetyTimeout);
+      safetyTimeout = null;
     }
     if (Array.isArray(cleanupHandlers)) {
       for (const handler of cleanupHandlers) {
@@ -228,6 +200,21 @@ const AgentController = async (req, res, next, initializeClient, addTitle) => {
       }
     });
 
+    safetyTimeout = setTimeout(() => {
+      logger.warn(
+        `[AgentController] Interactive agent session exceeded safety timeout (${MAX_AGENT_EXECUTION_TIMEOUT_MS / 60000}m) for user ${userId}. Aborting zombie execution.`,
+      );
+      if (abortController && !abortController.signal.aborted) {
+        abortController.abort();
+      }
+    }, MAX_AGENT_EXECUTION_TIMEOUT_MS);
+    cleanupHandlers.push(() => {
+      if (safetyTimeout) {
+        clearTimeout(safetyTimeout);
+        safetyTimeout = null;
+      }
+    });
+
     const messageOptions = {
       user: userId,
       onStart,
@@ -247,17 +234,12 @@ const AgentController = async (req, res, next, initializeClient, addTitle) => {
       },
     };
 
-    const isHeavy = req.body.background === true || isHeavyRequest(text, client?.options?.agent?.tools);
-    if (isHeavy) {
-      logger.info(`[AgentController] Heavy request detected for user ${userId}. Marking abortController as isHeavy to run in background on close.`);
-      abortController.isHeavy = true;
-    }
-
     if (!res.finished && !res.writableEnded) {
       logger.info('[AgentController] Initializing keep-alive heartbeat interval');
       heartbeatInterval = setInterval(() => {
-        if (res.finished || res.writableEnded) {
+        if (res.finished || res.writableEnded || abortController.signal.aborted) {
           clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
           return;
         }
         logger.debug('[AgentController] Sending keep-alive SSE ping');

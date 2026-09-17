@@ -638,10 +638,12 @@ const AICargoCell = ({
   value,
   onChange,
   cargosList,
+  onCreateNew,
 }: {
   value: string;
   onChange: (v: string) => void;
   cargosList: string[];
+  onCreateNew?: (newCargo: string) => void;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState(value || '');
@@ -723,7 +725,11 @@ const AICargoCell = ({
       if (displayedCargos.length === 1 && isActivelySearching) {
         handleSelect(displayedCargos[0]);
       } else if (query.trim()) {
-        handleSelect(toSentenceCase(query.trim()));
+        const newName = toSentenceCase(query.trim());
+        handleSelect(newName);
+        if (!exactMatch && onCreateNew) {
+          onCreateNew(newName);
+        }
       }
     }
   };
@@ -841,7 +847,13 @@ const AICargoCell = ({
           {query.trim() && !exactMatch && (
             <button
               type="button"
-              onClick={() => handleSelect(toSentenceCase(query.trim()))}
+              onClick={() => {
+                const newName = toSentenceCase(query.trim());
+                handleSelect(newName);
+                if (onCreateNew) {
+                  onCreateNew(newName);
+                }
+              }}
               className="mt-1 flex w-full items-center gap-2 rounded-lg border-t border-border-light px-2.5 py-2 text-left text-xs font-semibold text-teal-600 dark:text-teal-400 hover:bg-teal-500/10 transition-colors cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5 shrink-0" />
@@ -2019,6 +2031,39 @@ export default function MatrizIPEVARTable({
     saveMatrixData(newRows);
   };
 
+  const handleCreateNewCargo = async (index: number, newCargo: string) => {
+    const cleanCargo = toSentenceCase(newCargo);
+    if (!cleanCargo) return;
+    setAvailableCargos((prev) => [...new Set([...prev, cleanCargo])]);
+    if (!token) return;
+    try {
+      const row = matrixRows[index] || {};
+      const res = await fetch('/api/sgsst/perfiles-cargo/ensure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          nombreCargo: cleanCargo,
+          proceso: row.proceso,
+          actividad: row.actividad,
+          tareas: row.tareas,
+          nro_expuestos: row.nro_expuestos,
+          medida_eppu: row.medida_eppu,
+          medida_ingenieria: row.medida_ingenieria,
+          medida_administrativa: row.medida_administrativa,
+        }),
+      });
+      const data = await res.json();
+      if (data.created) {
+        showToast({
+          message: `¡Perfil "${cleanCargo}" creado y sincronizado en Perfiles de Cargo!`,
+          status: 'success',
+        });
+      }
+    } catch (err) {
+      console.error('[MatrizIPEVARTable] Error al crear perfil de cargo:', err);
+    }
+  };
+
   // ── AI: Actualizar fila ───────────────────────────────────────────────────
   const handleAiUpdateRow = async (index: number) => {
     setAiRowLoading(index);
@@ -2061,7 +2106,7 @@ export default function MatrizIPEVARTable({
 
         // Cargo: si estaba vacío o sin definir, asignar el deducido por la IA
         const originalCargoClean = (original.cargo || '').trim();
-        if (!originalCargoClean || originalCargoClean.toLowerCase() === 'cargo / rol...') {
+        if (!originalCargoClean || originalCargoClean.toLowerCase() === 'cargo / rol...' || originalCargoClean.toLowerCase() === 'cargo / rol…') {
           if (data.updatedFields.cargo) {
             safeUpdate.cargo = data.updatedFields.cargo;
           }
@@ -2071,12 +2116,16 @@ export default function MatrizIPEVARTable({
 
         // Zona: si estaba vacía o sin definir, asignar la deducida por la IA
         const originalZonaClean = (original.zona || '').trim();
-        if (!originalZonaClean || originalZonaClean.toLowerCase() === 'zona / lugar…') {
+        if (!originalZonaClean || originalZonaClean.toLowerCase() === 'zona / lugar…' || originalZonaClean.toLowerCase() === 'zona / lugar...') {
           if (data.updatedFields.zona) {
             safeUpdate.zona = data.updatedFields.zona;
           }
         } else {
           safeUpdate.zona = original.zona;
+        }
+
+        if (safeUpdate.cargo) {
+          setAvailableCargos((prev) => [...new Set([...prev, safeUpdate.cargo])]);
         }
 
         newRows[index] = { ...original, ...safeUpdate };
@@ -2085,7 +2134,9 @@ export default function MatrizIPEVARTable({
         saveMatrixData(newRows);
 
         showToast({
-          message: `¡Fila #${index + 1} actualizada con IA! Cargo: "${newRows[index].cargo || 'No asignado'}" · Zona: "${newRows[index].zona || 'No asignada'}".`,
+          message: data.newPerfilCreated
+            ? `¡Fila #${index + 1} actualizada! Se creó el nuevo perfil "${newRows[index].cargo}" en Perfiles de Cargo.`
+            : `¡Fila #${index + 1} actualizada con IA! Cargo: "${newRows[index].cargo || 'No asignado'}" · Zona: "${newRows[index].zona || 'No asignada'}".`,
           status: 'success',
         });
       } else if (data.error) {
@@ -3366,6 +3417,7 @@ export default function MatrizIPEVARTable({
                         value={row.cargo || ''}
                         onChange={(v) => handleCellChange(idx, 'cargo', v)}
                         cargosList={cargosUnicos}
+                        onCreateNew={(newCargo) => handleCreateNewCargo(idx, newCargo)}
                       />
                       <FillHandle
                         displayIdx={displayIdx}

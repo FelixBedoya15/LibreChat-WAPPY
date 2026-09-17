@@ -34,11 +34,214 @@ const PerfilCargoData =
   mongoose.models.PerfilCargoData ||
   mongoose.model('PerfilCargoData', PerfilCargoDataSchema);
 
+function toSentenceCase(str) {
+  if (!str || typeof str !== 'string') return '';
+  const trimmed = str.trim();
+  if (!trimmed) return '';
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
+/**
+ * Asegura que un perfil de cargo exista en PerfilCargoData.
+ * Si no existe, lo crea automáticamente y lo añade a perfilesList.
+ */
+async function ensurePerfilExists(userId, companyId, cargoName, contextInfo = {}) {
+  const cleanName = (cargoName || '').trim();
+  if (
+    !cleanName ||
+    cleanName.toLowerCase() === 'cargo / rol...' ||
+    cleanName.toLowerCase() === 'cargo / rol…' ||
+    cleanName.toLowerCase() === 'cargo / rol'
+  ) {
+    return { created: false, perfil: null, perfilesList: [] };
+  }
+
+  const formattedName = toSentenceCase(cleanName);
+  let doc = await PerfilCargoData.findOne({
+    user: userId,
+    ...(companyId ? { companyId } : {}),
+  });
+
+  if (!doc) {
+    doc = new PerfilCargoData({
+      user: userId,
+      companyId: companyId || undefined,
+      perfilesList: [],
+    });
+  }
+
+  const currentList = Array.isArray(doc.perfilesList) ? [...doc.perfilesList] : [];
+
+  // Buscar si ya existe por nombre insensible a mayúsculas
+  const existing = currentList.find(
+    (p) => p && p.nombreCargo && p.nombreCargo.trim().toLowerCase() === formattedName.toLowerCase()
+  );
+
+  if (existing) {
+    return { created: false, perfil: existing, perfilesList: currentList };
+  }
+
+  // Deducir nivel del cargo, exigencias y área
+  const nameLower = formattedName.toLowerCase();
+  let nivelCargo = 'Operativo';
+  let exigenciaMental = 'Media';
+  let exigenciaFisica = 'Media';
+
+  if (/(director|gerente|socio|presidente|vicepresidente|apoderado|representante)/i.test(nameLower)) {
+    nivelCargo = 'Estratégico / Directivo';
+    exigenciaMental = 'Alta';
+    exigenciaFisica = 'Baja';
+  } else if (/(coordinador|jefe|supervisor|l[ií]der|inspector|maestro|residente)/i.test(nameLower)) {
+    nivelCargo = 'Táctico / Mando Medio';
+    exigenciaMental = 'Alta';
+    exigenciaFisica = 'Media';
+  } else if (
+    /(ingeniero|profesional|especialista|analista|top[oó]grafo|auditor|asesor|m[eé]dico|psic[oó]logo)/i.test(
+      nameLower
+    )
+  ) {
+    nivelCargo = 'Profesional / Técnico';
+    exigenciaMental = 'Alta';
+    exigenciaFisica = 'Media';
+  } else if (
+    /(auxiliar|asistente|secretari|recepcion|aseo|servicios generales|mensajer)/i.test(nameLower)
+  ) {
+    nivelCargo = 'Auxiliar / Asistencial';
+    exigenciaMental = 'Media';
+    exigenciaFisica = 'Media';
+  } else if (
+    /(operador|oficial|soldador|electricista|pintor|conductor|fierrero|ayudante|mec[aá]nico|plomero)/i.test(
+      nameLower
+    )
+  ) {
+    nivelCargo = 'Operativo';
+    exigenciaMental = 'Media';
+    exigenciaFisica = 'Alta';
+  }
+
+  const area = contextInfo.proceso
+    ? toSentenceCase(contextInfo.proceso)
+    : nivelCargo === 'Estratégico / Directivo'
+      ? 'Dirección y Gerencia'
+      : 'Operaciones';
+
+  const epps = [];
+  if (
+    contextInfo.medida_eppu &&
+    contextInfo.medida_eppu !== 'Ninguno' &&
+    contextInfo.medida_eppu !== 'No aplica'
+  ) {
+    epps.push(contextInfo.medida_eppu);
+  }
+  if (
+    contextInfo.controles_individuo &&
+    contextInfo.controles_individuo !== 'Ninguno' &&
+    !epps.includes(contextInfo.controles_individuo)
+  ) {
+    epps.push(contextInfo.controles_individuo);
+  }
+
+  const cFuente = [];
+  if (
+    contextInfo.medida_ingenieria &&
+    contextInfo.medida_ingenieria !== 'Ninguno' &&
+    contextInfo.medida_ingenieria !== 'No aplica'
+  ) {
+    cFuente.push(contextInfo.medida_ingenieria);
+  }
+
+  const cMedio = [];
+  if (
+    contextInfo.medida_administrativa &&
+    contextInfo.medida_administrativa !== 'Ninguno' &&
+    contextInfo.medida_administrativa !== 'No aplica'
+  ) {
+    cMedio.push(contextInfo.medida_administrativa);
+  }
+
+  const newId = `perfil-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  const newPerfil = {
+    id: newId,
+    nombreCargo: formattedName,
+    area: area,
+    nivelCargo: nivelCargo,
+    sectorOrganizacion: 'Sector privado',
+    tipoContrato: 'Contrato laboral a término indefinido',
+    jornada: 'Tiempo completo (8 horas/día)',
+    jefeInmediato:
+      nivelCargo === 'Estratégico / Directivo'
+        ? 'Junta Directiva / Socios'
+        : nivelCargo === 'Táctico / Mando Medio'
+          ? 'Gerente General'
+          : 'Jefe Inmediato de Área',
+    escalasSalarial: '',
+    numVacantes: String(contextInfo.nro_expuestos || '1'),
+    contextoAdicional: contextInfo.actividad
+      ? `Perfil creado automáticamente desde la Matriz IPEVAR para la actividad: ${contextInfo.actividad}.`
+      : 'Perfil creado automáticamente desde la Matriz IPEVAR.',
+    eppSeleccionados: epps,
+    entrenamientosSeleccionados: [
+      'Inducción y Reinducción en SST',
+      'Identificación de Peligros y Valoración de Riesgos (GTC 45)',
+    ],
+    controlesFuenteSeleccionados: cFuente,
+    controlesMedioSeleccionados: cMedio,
+    images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
+    video: null,
+    exigenciaFisica: exigenciaFisica,
+    exigenciaMental: exigenciaMental,
+    operaMaquinaria: /(conductor|operador|maquinaria|volqueta|gr[uú]a|excavadora)/i.test(nameLower)
+      ? 'Sí'
+      : 'No',
+    createdAt: Date.now(),
+  };
+
+  currentList.push(newPerfil);
+  doc.perfilesList = currentList;
+  doc.updatedAt = Date.now();
+  await doc.save();
+
+  logger.info(
+    `[SGSST PerfilesCargo] Perfil creado y sincronizado con éxito: "${formattedName}" para usuario ${userId}`
+  );
+  return { created: true, perfil: newPerfil, perfilesList: currentList };
+}
+
 // ─── GET /data ─────────────────────────────────────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
     const companyId = await getActiveCompanyId(req.user.id);
-    const data = await PerfilCargoData.findOne({ user: req.user.id, companyId: companyId });
+    let data = await PerfilCargoData.findOne({ user: req.user.id, companyId: companyId });
+
+    // Sincronizar automáticamente con cargos presentes en la matriz IPEVAR oficial
+    const GTC45Session = mongoose.models.GTC45WorkspaceSession;
+    if (GTC45Session) {
+      try {
+        const officialConvoId = `official-${companyId || req.user.id}`;
+        const session =
+          (await GTC45Session.findOne({
+            user: req.user.id,
+            ...(companyId ? { companyId } : {}),
+            isOfficial: true,
+          })) || (await GTC45Session.findOne({ conversationId: officialConvoId }));
+        if (session && Array.isArray(session.matrixRows)) {
+          let hasNew = false;
+          for (const r of session.matrixRows) {
+            if (r && r.cargo && r.cargo.trim()) {
+              const resEnsure = await ensurePerfilExists(req.user.id, companyId, r.cargo, r);
+              if (resEnsure.created) hasNew = true;
+            }
+          }
+          if (hasNew) {
+            data = await PerfilCargoData.findOne({ user: req.user.id, companyId: companyId });
+          }
+        }
+      } catch (syncErr) {
+        logger.debug('[SGSST PerfilesCargo] Matrix sync in GET /data:', syncErr.message);
+      }
+    }
+
     if (data) {
       return res.json({ perfilesList: data.perfilesList || [] });
     }
@@ -46,6 +249,27 @@ router.get('/data', requireJwtAuth, async (req, res) => {
   } catch (error) {
     logger.error('[SGSST PerfilesCargo] Load error:', error);
     res.status(500).json({ error: 'Error al cargar datos' });
+  }
+});
+
+// ─── POST /ensure ───────────────────────────────────────────────────────────
+router.post('/ensure', requireJwtAuth, express.json(), async (req, res) => {
+  try {
+    const { nombreCargo, ...contextInfo } = req.body;
+    if (!nombreCargo || !nombreCargo.trim()) {
+      return res.status(400).json({ error: 'Se requiere nombreCargo.' });
+    }
+    const companyId = await getActiveCompanyId(req.user.id);
+    const result = await ensurePerfilExists(req.user.id, companyId, nombreCargo, contextInfo);
+    res.json({
+      success: true,
+      created: result.created,
+      perfil: result.perfil,
+      perfilesList: result.perfilesList,
+    });
+  } catch (error) {
+    logger.error('[SGSST PerfilesCargo] Ensure error:', error);
+    res.status(500).json({ error: 'Error al asegurar perfil de cargo' });
   }
 });
 
@@ -377,4 +601,8 @@ ${companyContext}
   }
 });
 
+router.ensurePerfilExists = ensurePerfilExists;
+router.PerfilCargoData = PerfilCargoData;
 module.exports = router;
+module.exports.ensurePerfilExists = ensurePerfilExists;
+module.exports.PerfilCargoData = PerfilCargoData;
