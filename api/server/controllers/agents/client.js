@@ -355,20 +355,32 @@ class AgentClient extends BaseClient {
       ? this.options.req.user.parentUser + ''
       : this.options.req.user.id + '';
 
-    // SST Tools Check: Only consider an agent as an SST agent if it has an SST tool explicitly assigned.
-    // We strictly do NOT rely on keyword matching (SST_KEYWORDS) so that agents without SST tools
-    // (e.g. general assistants, creative writers, custom agents) never get Somos SST or company context injected.
+    const nameLower = (this.options.agent?.name ?? '').toLowerCase();
+    const instructionsLower = (this.options.agent?.instructions ?? '').toLowerCase();
+    const SST_KEYWORDS = [
+      'sst', 'sg-sst', 'sgsst', 'salud', 'seguridad', 'laboral', 'abogado', 'juridico',
+      'jurídico', 'legal', 'derecho', 'contrato', 'ipevar', 'gtc-45', 'gtc45', 'gtc 45',
+      'pesv', 'seguridad vial', 'vial', 'transito', 'tránsito', 'arl', 'riesgo',
+      'accidente', 'atel', 'enfermedad', 'medico', 'médico', 'psicolog', 'psicólog',
+      'ergon', 'quimic', 'químic', 'ambiental', 'emergencia', 'copasst', 'cocolab',
+      'auditor', 'inspeccion', 'inspección', 'capacitacion', 'capacitación', 'brigada',
+      'matriz', 'clima laboral', 'normatividad', 'decreto 1072', 'resolucion 0312', 'resolución 0312'
+    ];
     const hasSSTTool = (this.options.agent?.tools || []).some((t) => {
       const toolName = typeof t === 'string' ? t : (t?.name || '');
       return ['somos_sst', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'editor_rit'].includes(toolName);
     });
+    const isSSTagent = hasSSTTool || SST_KEYWORDS.some((kw) =>
+      nameLower.includes(kw) || instructionsLower.includes(kw)
+    );
 
-    // Inyección de Empresa Activa y Somos SST:
-    // REGLA: Solo se inyecta si:
-    // 1) La memoria del usuario está activa (isMemoryEnabled === true).
-    //    Si la memoria está desactivada, los chats de los agentes quedan en blanco sin conocimiento de empresas activas ni de Somos SST.
-    // 2) El agente tiene explícitamente activa la herramienta somos_sst o herramientas técnicas SST (hasSSTTool === true).
-    if (isMemoryEnabled && hasSSTTool) {
+    // Inyección de Empresa Activa y Memorias:
+    // 1) Si la memoria está ACTIVA (isMemoryEnabled === true):
+    //    Todos los agentes especialistas en SST (isSSTagent) reciben el contexto corporativo de la empresa activa
+    //    y la REGLA DE ORO para que NUNCA le pregunten al usuario el tamaño, ARL, nivel de riesgo ni actividad económica.
+    // 2) Si la memoria está DESACTIVADA (isMemoryEnabled === false):
+    //    NO se inyecta ninguna empresa, ni Somos SST, y el chat queda en blanco.
+    if (isMemoryEnabled && isSSTagent) {
       try {
         let { withoutKeys: companyContext } = await getFormattedMemories({
           userId: targetUserId,
@@ -411,12 +423,19 @@ class AgentClient extends BaseClient {
         }
 
         if (companyContext) {
-          systemContent = `## CONTEXTO DE LA EMPRESA ACTIVA DEL USUARIO (DATOS REALES Y VIGENTES - NO VOLVER A PREGUNTAR):\n${companyContext}\n\nREGLA DE ORO: Ya conoces estos datos corporativos (Razón Social, NIT, ARL, Nivel de Riesgo, Trabajadores, Actividad Económica, CIIU, Sedes, etc.). Úsalos directamente en todas tus respuestas, documentos y análisis sin pedirle al usuario que los proporcione nuevamente.\n\n---\n\n` + systemContent;
+          systemContent = `## CONTEXTO DE LA EMPRESA ACTIVA DEL USUARIO (DATOS REALES Y VIGENTES - NO VOLVER A PREGUNTAR):
+${companyContext}
+
+### ⚡ REGLA DE ORO DE CONOCIMIENTO CORPORATIVO:
+- TIENES ACCESO PLENO E INMEDIATO a toda la información de la empresa activa descrita arriba.
+- Conoces de antemano la Razón Social, NIT, Representante Legal, Número de Trabajadores, ARL, Nivel de Riesgo, Actividad Económica, CIIU, Dirección y Sedes.
+- ESTÁ ESTRICTAMENTE PROHIBIDO preguntarle al usuario datos que ya están en esta ficha corporativa (ej: NO preguntes "¿cuál es el tamaño de la empresa?", "¿qué clase de riesgo ARL tienen asignada?", "¿cuál es la actividad económica?", "¿cuántos trabajadores son?"). Estos datos YA FUERON PROVISTOS y son oficiales. Úsalos de inmediato y con total naturalidad en todas tus respuestas, análisis y diagnósticos.\n\n---\n\n` + systemContent;
           logger.debug(`[buildMessages] Injected empresa_sgsst into SST agent "${this.options.agent?.name}" system prompt`);
         }
 
-        // DIRECTIVA MANDATORIA GLOBAL: Encabezado estructurado oficial WAPPY (2 bloques) para cualquier aplicativo/formato HTML
-        const WAPPY_HTML_APP_DIRECTIVE = `## 🏛️ DIRECTIVA MANDATORIA PARA APLICATIVOS, FORMULARIOS Y CÓDIGO HTML (WAPPY OFICIAL):
+        // DIRECTIVA MANDATORIA GLOBAL: Encabezado estructurado oficial WAPPY para aplicativos HTML (solo si cuenta con herramientas técnicas SST)
+        if (hasSSTTool) {
+          const WAPPY_HTML_APP_DIRECTIVE = `## 🏛️ DIRECTIVA MANDATORIA PARA APLICATIVOS, FORMULARIOS Y CÓDIGO HTML (WAPPY OFICIAL):
 SIEMPRE que crees, diseñes o modifiques un aplicativo interactivo, calculadora, matriz, formato, checklist, formulario o dashboard en HTML (Single-File para Canvas), es ESTRICTAMENTE OBLIGATORIO comenzar el <body> con el Encabezado Estructurado Oficial de WAPPY de 2 bloques exactos:
 
 ### 🌟 BLOQUE 1: Banner Superior Gradiente (\`gradient-banner\`)
@@ -470,9 +489,23 @@ SIEMPRE que crees, diseñes o modifiques un aplicativo interactivo, calculadora,
 
 NUNCA omitas estos bloques ni generes un aplicativo en HTML sin este encabezado corporativo estructurado de WAPPY.`;
 
-        systemContent = WAPPY_HTML_APP_DIRECTIVE + '\n\n---\n\n' + systemContent;
+          systemContent = WAPPY_HTML_APP_DIRECTIVE + '\n\n---\n\n' + systemContent;
+        }
       } catch (memErr) {
         logger.warn('[buildMessages] Could not inject empresa_sgsst into SST agent:', memErr.message);
+      }
+    } else if (isMemoryEnabled && !isSSTagent) {
+      // General agents: inject global user memories if available
+      try {
+        const { withoutKeys: userMemories } = await getFormattedMemories({
+          userId: targetUserId,
+          agentId: 'global',
+        });
+        if (userMemories) {
+          systemContent = `## MEMORIAS DEL USUARIO:\n${userMemories}\n\n---\n\n` + systemContent;
+        }
+      } catch (memErr) {
+        logger.debug('[buildMessages] Could not inject global memories into agent:', memErr.message);
       }
     }
 

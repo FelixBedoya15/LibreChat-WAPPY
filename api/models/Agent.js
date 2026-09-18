@@ -183,30 +183,8 @@ const loadAgent = async ({ req, spec, agent_id, endpoint, model_parameters }) =>
       toolSet.delete(Tools.code_interpreter);
     }
 
-    // External tool overrides: synchronize session selection with agent tools
-    // Preserves built-in tools and MCP tools/actions, while honoring user toggles for external tools (e.g. somos_sst, matriz_ipevar)
+    // External tool overrides: combine session selection with saved agent tools from DB
     if (Array.isArray(ephemeralAgent.tools)) {
-      const builtinTools = new Set([
-        Tools.web_search,
-        Tools.file_search,
-        Tools.execute_code,
-        Tools.code_interpreter,
-        Tools.memory,
-      ]);
-      const sessionTools = new Set(ephemeralAgent.tools);
-
-      // Remove non-builtin, non-MCP tools that are not present in ephemeralAgent.tools
-      for (const t of [...toolSet]) {
-        const isBuiltin = builtinTools.has(t);
-        const isMcp = typeof t === 'string' && (t.startsWith(Constants.mcp_server) || t.includes(Constants.actionDelimiter));
-        if (!isBuiltin && !isMcp) {
-          if (!sessionTools.has(t)) {
-            toolSet.delete(t);
-          }
-        }
-      }
-
-      // Add all tools selected in the session
       for (const t of ephemeralAgent.tools) {
         toolSet.add(t);
       }
