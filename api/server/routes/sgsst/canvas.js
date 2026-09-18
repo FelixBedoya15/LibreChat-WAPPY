@@ -622,10 +622,22 @@ router.post('/:conversationId/versions/:version/restore', requireJwtAuth, async 
 /**
  * POST /api/sgsst/canvas/app-builder/generate
  * Unified generation endpoint for all custom App Builder canvas modules & IA Soul.
+/**
+ * POST /api/sgsst/canvas/app-builder/generate y /ai-chat
+ * Generador de contenido asistido por IA para Canvas y Copilot de Aplicativos HTML.
  */
-router.post('/app-builder/generate', requireJwtAuth, async (req, res) => {
+async function handleAiGeneration(req, res) {
   try {
-    const { taskType, systemPrompt, userInput, history, excelCols } = req.body;
+    const {
+      taskType = 'chat',
+      systemPrompt,
+      userInput,
+      history,
+      excelCols,
+      model,
+      context,
+      appData,
+    } = req.body;
     const { generateWithKeyRotation } = require('./sgsstGemini');
     const { buildCompanyContextString } = require('./reportHeader');
 
@@ -644,25 +656,33 @@ router.post('/app-builder/generate', requireJwtAuth, async (req, res) => {
 
     let promptText = '';
 
-    if (taskType === 'chat') {
+    if (taskType === 'chat' || taskType === 'copilot') {
       const prevMsgs = (history || [])
-        .map((m) => `${m.sender === 'user' ? 'Usuario' : 'Agente'}: ${m.text}`)
+        .map((m) => `${m.sender === 'user' || m.role === 'user' ? 'Usuario' : 'Asistente IA'}: ${m.text || m.content || ''}`)
         .join('\n');
-      promptText = `Eres un agente de Inteligencia Artificial especializado creado a la medida en el ecosistema WAPPY.
+
+      const dataPayload = context || (appData ? (typeof appData === 'string' ? appData : JSON.stringify(appData, null, 2)) : '');
+
+      promptText = `Eres el Asistente de Inteligencia Artificial especializado (WAPPY AI Copilot) integrado en este aplicativo de Seguridad y Salud en el Trabajo (SG-SST).
       
-## PERSONALIDAD / INSTRUCCIONES DEL SISTEMA
-${systemPrompt || 'Eres un asesor empático de seguridad y salud en el trabajo.'}
+## TU ROL E INSTRUCCIONES:
+${systemPrompt || 'Eres un consultor experto en SG-SST que ayuda al usuario a interpretar indicadores, analizar causas raíz de accidentes, proponer planes de acción conformes a la Resolución 0312 de 2019 / Decreto 1072 de 2015 y resolver dudas sobre los datos diligenciados.'}
 
-## CONTEXTO DE LA EMPRESA
-${companyContext || 'No hay información de la empresa registrada.'}
+## CONTEXTO DE LA EMPRESA ACTIVA:
+${companyContext || 'No hay información de empresa registrada.'}
 
-## HISTORIAL DE LA CONVERSACIÓN
+${dataPayload ? `## DATOS ACTUALES DEL APLICATIVO (TABLAS, MÉTRICAS, REGISTROS EN PANTALLA):\n${dataPayload}\n` : ''}
+
+## HISTORIAL DE LA CONVERSACIÓN:
 ${prevMsgs || 'Inicio de conversación.'}
 
-## NUEVO MENSAJE DEL USUARIO
+## MENSAJE / CONSULTA DEL USUARIO:
 Usuario: ${userInput}
 
-Responde de forma concisa, profesional y de acuerdo a tu personalidad. Usa formato markdown para dar estructura si es necesario.`;
+## REGLAS DE RESPUESTA:
+1. Responde de forma directa, concisa, profesional y con valor técnico.
+2. Si el usuario pregunta sobre métricas o registros específicos, básate rigurosamente en los DATOS ACTUALES DEL APLICATIVO suministrados arriba.
+3. Puedes utilizar formato Markdown (negritas, listas, viñetas) para que la respuesta sea fácil de leer en la interfaz.`;
     } else if (taskType === 'word') {
       promptText = `Genera un DOCUMENTO técnico completo de Seguridad y Salud en el Trabajo (SG-SST) basado en las siguientes especificaciones:
       
@@ -738,16 +758,40 @@ Genera el código HTML interactivo autocontenido. Puedes usar Tailwind CSS (clas
 Genera ÚNICAMENTE el código HTML del componente, sin bloques de código de markdown de tres comillas.`;
     }
 
-    const preferredModel = 'gemini-3.5-flash';
+    const preferredModel = (typeof model === 'string' && model.trim()) ? model.trim() : 'gemini-3.7-flash';
     const result = await generateWithKeyRotation(preferredModel, req.user.id, promptText);
     const response = await result.response;
     const outputText = response.text();
 
-    res.json({ result: outputText.trim() });
+    res.json({
+      success: true,
+      result: outputText.trim(),
+      model: preferredModel,
+    });
   } catch (error) {
     logger.error('[AppBuilder Generate API] Error:', error);
     res.status(500).json({ error: error.message || 'Error al procesar la solicitud con IA' });
   }
+}
+
+router.post('/app-builder/generate', requireJwtAuth, handleAiGeneration);
+router.post('/ai-chat', requireJwtAuth, handleAiGeneration);
+
+/**
+ * GET /api/sgsst/canvas/models
+ * Retorna los modelos de texto oficiales configurados en WAPPY para selección en los aplicativos HTML.
+ */
+router.get('/models', requireJwtAuth, (req, res) => {
+  res.json({
+    models: [
+      { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash', badge: 'Recomendado' },
+      { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', badge: 'Potente' },
+      { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', badge: 'Rápido' },
+      { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', badge: 'Equilibrado' },
+      { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite', badge: 'Ultra Rápido' },
+    ],
+    default: 'gemini-3.7-flash',
+  });
 });
 
 /**

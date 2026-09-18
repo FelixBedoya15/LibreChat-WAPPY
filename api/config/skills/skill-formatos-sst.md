@@ -26,6 +26,18 @@ triggers:
   - base de datos
   - conectar sheets
   - guardar en sheets
+  - conectar a la ia
+  - con ia
+  - asistente ia
+  - chat ia
+  - copilot
+  - ia integrada
+  - analizar con ia
+  - ia sst
+  - responsive
+  - movil
+  - celular
+  - adaptable
 ---
 
 # Generador de Aplicativos y Formatos HTML Interactivos SG-SST (WAPPY Oficial)
@@ -36,9 +48,10 @@ Tu misión principal es programar y estructurar **Formularios, Calculadoras, Mat
 
 ---
 
-## 💎 1. LINEAMIENTOS ESTÉTICOS Y TECNOLÓGICOS (Premium UI)
+## 💎 1. LINEAMIENTOS ESTÉTICOS Y TECNOLÓGICOS (Premium & Mobile-First UI)
 
-Todos los archivos HTML generados deben ser visualmente impresionantes, modernos, receptivos y completamente autónomos (sin requerir servidores externos para su funcionamiento básico):
+Todos los archivos HTML generados deben ser visualmente impresionantes, modernos, 100% receptivos (responsive para celulares, tablets y escritorios) y completamente autónomos:
+- **Meta Viewport Obligatorio**: `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">`.
 - **Framework de Estilos**: Tailwind CSS cargado por CDN (`https://cdn.tailwindcss.com`). Habilitar `darkMode: 'class'`.
 - **Iconos**: Cargar Lucide Icons (`https://unpkg.com/lucide@latest`) e invocar `lucide.createIcons()` en el ciclo de carga.
 - **Tipografía**: Fuente del sistema limpia (`Inter`, `Outfit` o `-apple-system, system-ui, sans-serif`).
@@ -48,6 +61,14 @@ Todos los archivos HTML generados deben ser visualmente impresionantes, modernos
   - **Verificar (V)**: Azul Cobalto / Índigo (`from-blue-600 to-indigo-600`).
   - **Actuar (A)**: Naranja / Ámbar (`from-amber-600 to-orange-500`).
 - **Modo Claro / Oscuro**: Botón toggle funcional para alternar entre modo claro (`slate-50`, tarjetas `white`) y modo oscuro (`#080c14`, tarjetas `slate-900/40`).
+- **📱 REGLAS ESTRICTAS DE DISEÑO 100% RESPONSIVO PARA CUALQUIER PANTALLA**:
+  1. **Contenedores Fluidos**: `w-full max-w-[1400px] mx-auto px-4 sm:px-6`. NUNCA uses anchos fijos en píxeles como `width: 1200px` en contenedores de pantalla.
+  2. **Encabezados y Barras Adaptables**: Utiliza siempre `flex flex-col md:flex-row items-start md:items-center justify-between gap-4` para que en pantallas de celular (< 768px) los elementos se apilen verticalmente y en monitores se desplieguen horizontalmente sin desbordar la pantalla.
+  3. **Tablas con Scroll Horizontal Seguro**: Cualquier tabla o matriz de datos **DEBE ESTAR OBLIGATORIAMENTE ENVUELTA** en:
+     `<div class="overflow-x-auto w-full rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm" style="-webkit-overflow-scrolling: touch;">`
+     Esto garantiza que en teléfonos móviles la tabla se desplace suavemente con el dedo sin romper el ancho de la página ni cortar columnas.
+  4. **Grillas de Indicadores y Métricas**: Usa siempre clases responsivas como `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`. En teléfonos se muestra 1 columna, en tablets 2 y en escritorios 4.
+  5. **Zonas Táctiles Accesibles**: Botones, inputs y controles con tamaño mínimo de 44px de altura (`p-3.5` o `p-4`, `text-sm font-bold`, `rounded-xl` o `rounded-2xl`, con animación `active:scale-95`).
 
 ---
 
@@ -406,5 +427,341 @@ window.addEventListener('load', () => {
     }
 });
 ```
+
+---
+
+## 🤖 6. MÓDULO DE INTELIGENCIA ARTIFICIAL Y CHAT INTEGRADO (WAPPY AI COPILOT)
+
+Cuando el usuario pida que el aplicativo esté **"conectado a la IA"**, tenga un **"asistente inteligente"**, un **"chat integrado"** o **"pueda interactuar con los datos usando IA"**:
+
+### 🎯 PROTOCOLO DEL AGENTE:
+1. Incluye el **Botón Flotante Lanzador** y el **Panel / Drawer de Chat** en el HTML del aplicativo.
+2. Integra el **Selector de Modelos Oficiales de WAPPY** en el encabezado del chat (`gemini-3.7-flash`, `gemini-3.8-flash`, `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.5-flash-lite`).
+3. Conecta el chat al endpoint `/api/sgsst/canvas/app-builder/generate` (o `/api/sgsst/canvas/ai-chat`) con `credentials: 'include'`.
+4. Implementa la función `getAppCurrentContext()` para que el asistente conozca en todo momento las filas de datos, filtros aplicados, totales e indicadores calculados en pantalla.
+5. Diseña el widget **100% responsivo**: en celulares se despliega como modal/bottom-sheet de pantalla completa adaptable (`w-full h-[85vh] fixed bottom-0`), y en escritorio como un panel flotante elegante (`sm:w-96 sm:h-[580px] sm:bottom-6 sm:right-6`).
+
+---
+
+### 🖥️ WIDGET VISUAL HTML: BOTÓN FLOTANTE Y PANEL DE CHAT COPILOT
+
+Inserta este bloque antes de cerrar la etiqueta `</body>`:
+
+```html
+<!-- ========================================== -->
+<!-- 🤖 WAPPY AI COPILOT - CHAT INTEGRADO      -->
+<!-- ========================================== -->
+
+<!-- Botón Flotante Lanzador del Chat -->
+<div id="wappy-ai-floating-trigger" class="fixed bottom-6 right-6 z-50">
+    <button type="button" onclick="toggleWappyAiChat()" class="relative flex items-center gap-2.5 px-5 py-3.5 bg-gradient-to-r from-teal-600 via-emerald-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white font-black rounded-full shadow-2xl hover:shadow-teal-500/25 transition-all duration-300 active:scale-95 group border border-white/20">
+        <span class="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500"></span>
+        </span>
+        <i data-lucide="bot" class="w-5 h-5 transition-transform group-hover:rotate-12"></i>
+        <span class="text-xs tracking-wider uppercase">Asistente IA</span>
+    </button>
+</div>
+
+<!-- Panel / Drawer de Chat Flotante Responsivo -->
+<div id="wappy-ai-chat-drawer" class="fixed inset-x-0 bottom-0 sm:bottom-6 sm:right-6 sm:left-auto w-full sm:w-[410px] h-[88vh] sm:h-[600px] z-50 hidden flex flex-col bg-white dark:bg-slate-900 rounded-t-[2.5rem] sm:rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden transition-all duration-300">
+    
+    <!-- Encabezado del Chat & Selector de Modelo -->
+    <div class="bg-gradient-to-r from-teal-700 via-teal-800 to-slate-900 p-4 text-white flex flex-col gap-2.5 border-b border-teal-600/30">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <div class="h-9 w-9 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-inner">
+                    <i data-lucide="sparkles" class="w-5 h-5 text-emerald-300"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black tracking-tight leading-none uppercase">WAPPY AI Copilot</h3>
+                    <p class="text-[10px] text-teal-200/80 font-medium mt-0.5">Analítica y Asesoría SG-SST en Vivo</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1">
+                <button type="button" onclick="clearWappyAiChat()" class="p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors" title="Limpiar conversación">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+                <button type="button" onclick="toggleWappyAiChat()" class="p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors" title="Cerrar chat">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Selector de Modelos Oficiales de Texto WAPPY -->
+        <div class="flex items-center gap-2 pt-1 border-t border-white/10">
+            <label for="wappy-ai-model-select" class="text-[10px] text-teal-200 font-bold uppercase tracking-wider flex items-center gap-1">
+                <i data-lucide="cpu" class="w-3 h-3"></i> Modelo:
+            </label>
+            <select id="wappy-ai-model-select" class="flex-1 bg-teal-950/60 text-white text-[11px] font-semibold rounded-lg px-2.5 py-1 border border-teal-500/30 focus:outline-none focus:border-emerald-400">
+                <option value="gemini-3.7-flash" selected>Gemini 3.7 Flash (Recomendado)</option>
+                <option value="gemini-3.8-flash">Gemini 3.8 Flash (Potente)</option>
+                <option value="gemini-3.6-flash">Gemini 3.6 Flash (Rápido)</option>
+                <option value="gemini-3.5-flash">Gemini 3.5 Flash (Equilibrado)</option>
+                <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite (Ultra Rápido)</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Hilo de Mensajes con Scroll -->
+    <div id="wappy-ai-chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3.5 text-xs bg-slate-50/50 dark:bg-slate-950/40">
+        <!-- Mensaje Inicial de Bienvenida -->
+        <div class="flex items-start gap-2.5">
+            <div class="h-7 w-7 rounded-lg bg-teal-600/10 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0 border border-teal-500/20">
+                <i data-lucide="bot" class="w-4 h-4"></i>
+            </div>
+            <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl rounded-tl-sm border border-slate-200 dark:border-slate-800 shadow-sm text-slate-800 dark:text-slate-200 leading-relaxed max-w-[88%]">
+                <p class="font-bold text-teal-600 dark:text-teal-400 mb-1">¡Hola! Soy tu asistente de IA para este aplicativo.</p>
+                <p>Tengo acceso a la información registrada en tiempo real. Puedes preguntarme sobre métricas, causas de incidentes, o pedirme planes de acción según la Resolución 0312.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chips de Acciones Rápidas (Preguntas Sugeridas) -->
+    <div class="px-3 py-2 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto text-[11px] whitespace-nowrap scrollbar-none">
+        <button type="button" onclick="sendQuickPrompt('Analiza los indicadores actuales y resume las tendencias críticas')" class="px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60 font-semibold transition-colors">
+            📊 Analizar Tendencias
+        </button>
+        <button type="button" onclick="sendQuickPrompt('Identifica las áreas o procesos con mayor severidad de accidentalidad')" class="px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 font-semibold transition-colors">
+            ⚠️ Áreas Críticas
+        </button>
+        <button type="button" onclick="sendQuickPrompt('Sugiere un plan de acción correctivo inmediato con base en los registros')" class="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 font-semibold transition-colors">
+            📋 Plan de Acción
+        </button>
+    </div>
+
+    <!-- Barra de Entrada y Envío -->
+    <div class="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2">
+        <input type="text" id="wappy-ai-chat-input" onkeydown="if(event.key === 'Enter') sendWappyAiMessage()" placeholder="Pregunta sobre este aplicativo o sus datos..." class="flex-1 bg-slate-100 dark:bg-slate-800/60 text-slate-900 dark:text-white px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-500 text-xs">
+        <button type="button" id="wappy-ai-send-btn" onclick="sendWappyAiMessage()" class="h-9 w-9 bg-teal-600 hover:bg-teal-500 text-white rounded-xl flex items-center justify-center transition-all shadow-md active:scale-95 shrink-0">
+            <i data-lucide="send" class="w-4 h-4"></i>
+        </button>
+    </div>
+</div>
+```
+
+---
+
+### 💾 JAVASCRIPT CLIENTE: CONEXIÓN, CONTEXTO Y CHAT COPILOT
+
+Inserta este módulo de script para orquestar la comunicación con el backend:
+
+```javascript
+// =========================================================================
+// 🤖 WAPPY AI COPILOT JAVASCRIPT CONTROLLER
+// =========================================================================
+
+const WAPPY_AI_CONFIG = {
+    apiUrl: '/api/sgsst/canvas/app-builder/generate', // Endpoint backend autenticado
+    history: [],
+    isGenerating: false
+};
+
+// 1. Abrir / Cerrar Drawer de Chat
+function toggleWappyAiChat() {
+    const drawer = document.getElementById('wappy-ai-chat-drawer');
+    if (!drawer) return;
+    const isHidden = drawer.classList.contains('hidden');
+    if (isHidden) {
+        drawer.classList.remove('hidden');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        document.getElementById('wappy-ai-chat-input')?.focus();
+    } else {
+        drawer.classList.add('hidden');
+    }
+}
+
+// 2. Limpiar Historial del Chat
+function clearWappyAiChat() {
+    WAPPY_AI_CONFIG.history = [];
+    const container = document.getElementById('wappy-ai-chat-messages');
+    if (container) {
+        container.innerHTML = `
+            <div class="flex items-start gap-2.5">
+                <div class="h-7 w-7 rounded-lg bg-teal-600/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0 border border-teal-500/20">
+                    <i data-lucide="bot" class="w-4 h-4"></i>
+                </div>
+                <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl rounded-tl-sm border border-slate-200 dark:border-slate-800 shadow-sm text-slate-800 dark:text-slate-200 leading-relaxed max-w-[88%] text-xs">
+                    Conversación reiniciada. ¿En qué puedo ayudarte con este aplicativo?
+                </div>
+            </div>
+        `;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+}
+
+// 3. Enviar prompt desde los chips sugeridos
+function sendQuickPrompt(promptText) {
+    const input = document.getElementById('wappy-ai-chat-input');
+    if (input) input.value = promptText;
+    sendWappyAiMessage();
+}
+
+// 4. Extracción de Contexto en Vivo de los Datos del Aplicativo
+function getAppCurrentContext() {
+    try {
+        const context = {
+            tituloAplicativo: document.getElementById('app-document-title')?.innerText || document.title,
+            empresa: {
+                nombre: document.getElementById('company-name')?.innerText || '',
+                nit: document.getElementById('company-nit')?.innerText || '',
+                arl: document.getElementById('company-arl')?.innerText || '',
+                trabajadores: document.getElementById('company-workers')?.innerText || '',
+                riesgo: document.getElementById('company-risk')?.innerText || '',
+                codigo: document.getElementById('change-code')?.innerText || ''
+            },
+            googleSheetsId: typeof WAPPY_SHEETS_CONFIG !== 'undefined' ? WAPPY_SHEETS_CONFIG.spreadsheetId : null,
+            indicadoresVisibles: {},
+            registrosFilas: []
+        };
+
+        // Capturar indicadores y tarjetas numéricas visibles
+        document.querySelectorAll('[data-metric], .metric-card, .kpi-card').forEach(el => {
+            const label = el.querySelector('.metric-label, .kpi-label, span')?.innerText?.trim();
+            const value = el.querySelector('.metric-value, .kpi-value, h3, h4')?.innerText?.trim();
+            if (label && value) context.indicadoresVisibles[label] = value;
+        });
+
+        // Capturar registros de la tabla principal
+        const table = document.querySelector('table');
+        if (table) {
+            const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.innerText.trim()).filter(Boolean);
+            const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr => {
+                return Array.from(tr.querySelectorAll('td')).map(td => td.innerText.trim());
+            }).filter(r => r.length > 0);
+            context.registrosFilas = { headers, sampleRows: rows.slice(0, 50) };
+        } else if (typeof WAPPY_SHEETS_CONFIG !== 'undefined') {
+            const localRecords = localStorage.getItem(WAPPY_SHEETS_CONFIG.localStorageKey);
+            if (localRecords) context.registrosFilas = JSON.parse(localRecords).slice(0, 50);
+        }
+
+        return JSON.stringify(context, null, 2);
+    } catch (e) {
+        console.warn("[WappyAiCopilot] Error extrayendo contexto:", e);
+        return "Contexto básico del aplicativo activo.";
+    }
+}
+
+// 5. Envío y Procesamiento del Mensaje a la IA
+async function sendWappyAiMessage() {
+    const input = document.getElementById('wappy-ai-chat-input');
+    const sendBtn = document.getElementById('wappy-ai-send-btn');
+    const messagesContainer = document.getElementById('wappy-ai-chat-messages');
+    const modelSelect = document.getElementById('wappy-ai-model-select');
+
+    const text = input?.value?.trim();
+    if (!text || WAPPY_AI_CONFIG.isGenerating) return;
+
+    const selectedModel = modelSelect?.value || 'gemini-3.7-flash';
+
+    // Añadir mensaje del usuario a la interfaz
+    appendMessageToChat('user', text);
+    input.value = '';
+    WAPPY_AI_CONFIG.isGenerating = true;
+    if (sendBtn) sendBtn.disabled = true;
+
+    // Indicador de carga
+    const loadingId = 'ai-loading-' + Date.now();
+    appendLoadingToChat(loadingId, selectedModel);
+
+    try {
+        const appDataContext = getAppCurrentContext();
+
+        const response = await fetch(WAPPY_AI_CONFIG.apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                taskType: 'chat',
+                model: selectedModel,
+                userInput: text,
+                history: WAPPY_AI_CONFIG.history.slice(-6), // Enviar últimos 6 turnos
+                context: appDataContext,
+                systemPrompt: `Eres el Asistente WAPPY AI Copilot especializado en este aplicativo de SG-SST. Responde analizando rigurosamente los datos actuales y la normatividad colombiana.`
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const aiText = data.result || data.text || 'Sin respuesta del modelo.';
+
+        // Remover indicador de carga y agregar respuesta
+        removeLoadingFromChat(loadingId);
+        appendMessageToChat('agent', aiText, data.model || selectedModel);
+
+        // Guardar en historial
+        WAPPY_AI_CONFIG.history.push({ sender: 'user', text: text });
+        WAPPY_AI_CONFIG.history.push({ sender: 'agent', text: aiText });
+
+    } catch (err) {
+        console.error("[WappyAiCopilot] Error al consultar IA:", err);
+        removeLoadingFromChat(loadingId);
+        appendMessageToChat('agent', `⚠️ No se pudo procesar la consulta con IA (${err.message}). Por favor verifica tu sesión.`);
+    } finally {
+        WAPPY_AI_CONFIG.isGenerating = false;
+        if (sendBtn) sendBtn.disabled = false;
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+}
+
+// Funciones Auxiliares de Renderizado en el Chat
+function appendMessageToChat(sender, content, modelUsed) {
+    const container = document.getElementById('wappy-ai-chat-messages');
+    if (!container) return;
+
+    const isUser = sender === 'user';
+    const messageEl = document.createElement('div');
+    messageEl.className = `flex items-start gap-2.5 ${isUser ? 'flex-row-reverse' : ''}`;
+
+    const formattedContent = content
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>');
+
+    messageEl.innerHTML = `
+        <div class="h-7 w-7 rounded-lg ${isUser ? 'bg-teal-600 text-white' : 'bg-teal-600/10 text-teal-600 dark:text-teal-400'} flex items-center justify-center shrink-0 border border-teal-500/20">
+            <i data-lucide="${isUser ? 'user' : 'bot'}" class="w-4 h-4"></i>
+        </div>
+        <div class="${isUser ? 'bg-teal-600 text-white rounded-tr-sm' : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded-tl-sm border border-slate-200 dark:border-slate-800 shadow-sm'} p-3.5 rounded-2xl leading-relaxed max-w-[88%] text-xs">
+            ${!isUser && modelUsed ? `<span class="text-[9px] font-black uppercase text-teal-600 dark:text-teal-400 block mb-1 tracking-wider opacity-80">${modelUsed}</span>` : ''}
+            <div>${formattedContent}</div>
+        </div>
+    `;
+
+    container.appendChild(messageEl);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    container.scrollTop = container.scrollHeight;
+}
+
+function appendLoadingToChat(id, modelName) {
+    const container = document.getElementById('wappy-ai-chat-messages');
+    if (!container) return;
+    const loadingEl = document.createElement('div');
+    loadingEl.id = id;
+    loadingEl.className = 'flex items-start gap-2.5';
+    loadingEl.innerHTML = `
+        <div class="h-7 w-7 rounded-lg bg-teal-600/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0 border border-teal-500/20">
+            <i data-lucide="bot" class="w-4 h-4"></i>
+        </div>
+        <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl rounded-tl-sm border border-slate-200 dark:border-slate-800 shadow-sm text-xs flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-teal-500 animate-ping"></span>
+            <span class="text-slate-500 text-[11px] font-medium">Analizando datos con ${modelName}...</span>
+        </div>
+    `;
+    container.appendChild(loadingEl);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    container.scrollTop = container.scrollHeight;
+}
+
+function removeLoadingFromChat(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+}
+```
+
 
 

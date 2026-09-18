@@ -343,43 +343,32 @@ class AgentClient extends BaseClient {
       .join('\n')
       .trim();
 
-    // ✅ FIX: Set up memory as an on-demand tool (recall_memory) instead of unconditionally
-    // injecting all user memories into the system prompt on every message.
-    // This prevents the agent from using historical memories about other clients/companies
-    // when the user asks an unrelated question (e.g. "what are these documents about?").
+    // ✅ Memory check: Verify if the user has memory enabled in their preferences
+    const isMemoryEnabled = this.options.req.user?.personalization?.memories !== false;
     const agentId = this.options.agent?.id ?? 'global';
-    await this.useMemory();
 
-    // ✅ FIX #2 — SST AGENTS: Inject empresa_sgsst directly into system prompt.
-    // SST agents need company context for EVERY technical question (risk level, workers,
-    // ARL, etc.). Relying on recall_memory (on-demand) is unreliable because the LLM
-    // often doesn't infer it needs personalized context for normative SST queries.
-    // Solution: Always inject empresa_sgsst (agentId='global') at the top of the system prompt
-    // for any SST/legal/operational agent.
+    if (isMemoryEnabled) {
+      await this.useMemory();
+    }
+
     const targetUserId = (this.options.req.user?.isSubUser && this.options.req.user?.parentUser)
       ? this.options.req.user.parentUser + ''
       : this.options.req.user.id + '';
 
-    const nameLower = (this.options.agent?.name ?? '').toLowerCase();
-    const instructionsLower = (this.options.agent?.instructions ?? '').toLowerCase();
-    const SST_KEYWORDS = [
-      'sst', 'sg-sst', 'sgsst', 'salud', 'seguridad', 'laboral', 'abogado', 'juridico',
-      'jurídico', 'legal', 'derecho', 'contrato', 'ipevar', 'gtc-45', 'gtc45', 'gtc 45',
-      'pesv', 'seguridad vial', 'vial', 'transito', 'tránsito', 'arl', 'riesgo',
-      'accidente', 'atel', 'enfermedad', 'medico', 'médico', 'psicolog', 'psicólog',
-      'ergon', 'quimic', 'químic', 'ambiental', 'emergencia', 'copasst', 'cocolab',
-      'auditor', 'inspeccion', 'inspección', 'capacitacion', 'capacitación', 'brigada',
-      'matriz', 'clima laboral', 'normatividad', 'decreto 1072', 'resolucion 0312', 'resolución 0312'
-    ];
+    // SST Tools Check: Only consider an agent as an SST agent if it has an SST tool explicitly assigned.
+    // We strictly do NOT rely on keyword matching (SST_KEYWORDS) so that agents without SST tools
+    // (e.g. general assistants, creative writers, custom agents) never get Somos SST or company context injected.
     const hasSSTTool = (this.options.agent?.tools || []).some((t) => {
       const toolName = typeof t === 'string' ? t : (t?.name || '');
       return ['somos_sst', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'editor_rit'].includes(toolName);
     });
-    const isSSTagent = hasSSTTool || SST_KEYWORDS.some((kw) =>
-      nameLower.includes(kw) || instructionsLower.includes(kw)
-    );
 
-    if (isSSTagent) {
+    // Inyección de Empresa Activa y Somos SST:
+    // REGLA: Solo se inyecta si:
+    // 1) La memoria del usuario está activa (isMemoryEnabled === true).
+    //    Si la memoria está desactivada, los chats de los agentes quedan en blanco sin conocimiento de empresas activas ni de Somos SST.
+    // 2) El agente tiene explícitamente activa la herramienta somos_sst o herramientas técnicas SST (hasSSTTool === true).
+    if (isMemoryEnabled && hasSSTTool) {
       try {
         let { withoutKeys: companyContext } = await getFormattedMemories({
           userId: targetUserId,
@@ -446,6 +435,13 @@ SIEMPRE que crees, diseñes o modifiques un aplicativo interactivo, calculadora,
   - Código de Registro: \`<span id="change-code">...</span>\` (ej: IND-SST-01, FOR-SST-01)
   - Vigencia: \`<span id="last-updated-text">...</span>\` (Fecha actual YYYY-MM-DD).
 
+### 📱 RESPONSIVIDAD MÓVIL Y MULTIPANTALLA OBLIGATORIA (100% RESPONSIVE):
+- TODOS los aplicativos deben verse impecables y ser 100% operativos en pantallas de celular (360px+), tablets y monitores de escritorio.
+- Incluye obligatoriamente en el <head>: \`<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">\`.
+- Tablas de datos: TODA tabla DEBE estar contenida dentro de un wrapper con scroll horizontal suave (\`<div class="overflow-x-auto w-full custom-scrollbar" style="-webkit-overflow-scrolling: touch;">\`) para que nunca desborde ni deforme la pantalla en móviles.
+- Grids y Formularios: Diseña con enfoque mobile-first usando Tailwind (\`grid-cols-1 sm:grid-cols-2 lg:grid-cols-4\`, \`flex flex-col sm:flex-row\`).
+- Botones y Controles Táctiles: Tamaño táctil accesible para dedos (\`min-h-[44px]\` o \`py-2.5 px-4\`).
+
 ### 💾 PERSISTENCIA JAVASCRIPT OBLIGATORIA (IndexedDB & LocalStorage):
 - Incluye el módulo de script con IndexedDB (\`WappySSTDb\`, store \`mediaStore\`, key \`wappy_sst_global_logo\`) y las funciones \`loadGlobalLogoFromDB()\` y \`saveGlobalLogoToDB(logoBase64)\` para cargar automáticamente el logo de la empresa guardado en el navegador del usuario y compartirlo entre todos los aplicativos de la plataforma.
 - Sincroniza los metadatos editables del encabezado en \`localStorage\` bajo \`wappy_sst_doc_header\`.
@@ -459,7 +455,20 @@ SIEMPRE que crees, diseñes o modifiques un aplicativo interactivo, calculadora,
   5. El aplicativo HTML usará las rutas \`/api/google-drive/sheets/read\` para leer y \`/api/google-drive/sheets/append\` para insertar registros, con respaldo automático en \`localStorage\` si está sin conexión.
   6. Si el usuario te pide registrar o consultar datos desde el chat, usa \`google_sheets\` directamente para escribir en la hoja y refresca el Canvas.
 
-NUNCA omitas estos dos bloques ni generes un aplicativo en HTML sin este encabezado corporativo estructurado de WAPPY.`;
+### 🤖 ASISTENTE DE IA Y CHAT INTEGRADO (WAPPY AI COPILOT):
+- Si el usuario solicita que el aplicativo esté conectado a la IA, tenga asistente virtual, copilot, chat inteligente o interactúe con la información del aplicativo:
+  1. Inyecta el botón flotante lanzador (\`#wappy-ai-toggle-btn\` en la esquina inferior derecha con badge y botón circular gradiente) y el drawer lateral/inferior responsive (\`#wappy-ai-chat-container\`, clase \`w-full sm:w-[420px] fixed bottom-0 right-0 sm:bottom-6 sm:right-6\`).
+  2. Incluye el selector de modelos (\`#wappy-ai-model-select\`) con los modelos oficiales de WAPPY:
+     - \`gemini-3.7-flash\` (Predeterminado - Razonamiento Rápido)
+     - \`gemini-3.8-flash\` (Última Generación)
+     - \`gemini-3.6-flash\` (Equilibrado SST)
+     - \`gemini-3.5-flash\` (Alta Velocidad)
+     - \`gemini-3.5-flash-lite\` (Ultra Ligero)
+  3. Contexto Dinámico (\`getAppCurrentContext()\`): El aplicativo debe recolectar en tiempo real los datos en pantalla (Razón Social, NIT, indicadores visibles de \`.metric-card\` o \`[data-metric]\`, filas de la tabla de datos o Google Sheets, filtros activos) y enviarlos en el payload como \`context\`.
+  4. Petición al Backend: Realiza llamadas fetch autenticadas a \`/api/sgsst/canvas/app-builder/generate\` (o \`/api/sgsst/canvas/ai-chat\`) con \`credentials: 'include'\`, pasando \`{ model, userInput, context, history }\`.
+  5. Capacidades del Chat: El usuario puede consultar cálculos, pedir diagnósticos SST, recomendaciones normativas (Dec. 1072, Res. 0312, PESV), resumir hallazgos o simular escenarios sobre los datos cargados en el aplicativo.
+
+NUNCA omitas estos bloques ni generes un aplicativo en HTML sin este encabezado corporativo estructurado de WAPPY.`;
 
         systemContent = WAPPY_HTML_APP_DIRECTIVE + '\n\n---\n\n' + systemContent;
       } catch (memErr) {
@@ -467,18 +476,26 @@ NUNCA omitas estos dos bloques ni generes un aplicativo en HTML sin este encabez
       }
     }
 
-    // Register the recall_memory tool so the agent can retrieve memories on-demand
-    const recallTool = createRecallMemoryTool({
-      userId: targetUserId,
-      agentId,
-      getFormattedMemories,
-    });
     if (!this.options.agent.tools) {
       this.options.agent.tools = [];
     }
-    // Only add if not already registered
-    if (!this.options.agent.tools.some((t) => t && (t.name === 'recall_memory' || t === 'recall_memory'))) {
-      this.options.agent.tools.push(recallTool);
+
+    // Register the recall_memory tool only if memory is enabled for the user
+    if (isMemoryEnabled) {
+      const recallTool = createRecallMemoryTool({
+        userId: targetUserId,
+        agentId,
+        getFormattedMemories,
+      });
+      // Only add if not already registered
+      if (!this.options.agent.tools.some((t) => t && (t.name === 'recall_memory' || t === 'recall_memory'))) {
+        this.options.agent.tools.push(recallTool);
+      }
+    } else {
+      // If memory is disabled, ensure recall_memory is not present in tools
+      this.options.agent.tools = this.options.agent.tools.filter(
+        (t) => (typeof t === 'string' ? t : t?.name) !== 'recall_memory'
+      );
     }
 
     if (systemContent) {

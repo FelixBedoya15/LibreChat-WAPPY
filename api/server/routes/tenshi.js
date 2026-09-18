@@ -239,56 +239,60 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         const courseStr = latestCourses.map(c => `- CURSO: ${c.title}`).join('\n');
         const manualContent = getPlatformManual();
 
-        let fullCompanyAndMemoryBlock = '';
-        if (companyInfo) {
-            const companyType = companyInfo.companyType || 'Persona Jurídica';
-            const nitLabel = companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT';
-            let sedesStr = '';
-            if (companyInfo.sedes && Array.isArray(companyInfo.sedes) && companyInfo.sedes.length > 0) {
-                sedesStr = '\n  * Sedes Adicionales:\n' + companyInfo.sedes.map(s => `    - Sede: ${s.nombre || 'N/A'} (Ciudad: ${s.city || 'N/A'}, Depto: ${s.departamento || 'N/A'}, Dirección: ${s.address || 'N/A'}, Actividades: ${s.generalActivities || 'N/A'})`).join('\n');
-            }
-            fullCompanyAndMemoryBlock += `### 🏢 INFORMACIÓN DE LA EMPRESA ACTIVA DEL USUARIO (DATOS OFICIALES SG-SST):\n` +
-                `- Razón Social / Nombre: ${companyInfo.companyName || 'N/A'}\n` +
-                `- Tipo de Empresa: ${companyType}\n` +
-                `- ${nitLabel}: ${companyInfo.nit || 'N/A'}\n` +
-                `- Representante Legal: ${companyInfo.legalRepresentative || 'N/A'}` + (companyInfo.legalRepresentativeId ? ` (Cédula: ${companyInfo.legalRepresentativeId})` : '') + `\n` +
-                `- Número de Trabajadores: ${companyInfo.workerCount ?? 'N/A'}\n` +
-                `- ARL: ${companyInfo.arl || 'N/A'} (Nivel de Riesgo ARL: ${companyInfo.riskLevel || 'N/A'})\n` +
-                `- Actividad Económica: ${companyInfo.economicActivity || 'N/A'}\n` +
-                `- Código CIIU: ${companyInfo.ciiu || 'N/A'}\n` +
-                `- Sector: ${companyInfo.sector || 'N/A'}\n` +
-                `- Ubicación Sede Principal: ${companyInfo.address || 'N/A'} (Ciudad: ${companyInfo.city || 'N/A'}, Departamento: ${companyInfo.departamento || 'N/A'})\n` +
-                `- Responsable SG-SST: ${companyInfo.responsibleSST || 'N/A'}` + (companyInfo.licenseNumber ? ` (Licencia SST: ${companyInfo.licenseNumber}, Vigencia: ${companyInfo.licenseExpiry || 'N/A'})` : '') + `\n` +
-                `- Nivel de Formación SST: ${companyInfo.formationLevel || 'N/A'}\n` +
-                `- Estado Curso 50/20H: ${companyInfo.courseStatus || 'N/A'}\n` +
-                `- Descripción General de Actividades: ${companyInfo.generalActivities || 'N/A'}` +
-                (sedesStr ? `${sedesStr}\n\n` : '\n\n');
-        } else {
-            fullCompanyAndMemoryBlock += `### 🏢 INFORMACIÓN DE LA EMPRESA ACTIVA:\nNo se ha registrado una empresa en el Gestor SG-SST aún.\n\n`;
-        }
+        const isMemoryEnabled = req.user?.personalization?.memories !== false;
 
-        // Deduplicate user memories by key (most recent first)
-        const uniqueMemMap = new Map();
-        if (Array.isArray(rawMemories)) {
-            const sorted = [...rawMemories].sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
-            for (const m of sorted) {
-                if (m.key && !uniqueMemMap.has(m.key)) {
-                    uniqueMemMap.set(m.key, m.value);
+        let fullCompanyAndMemoryBlock = '';
+        if (isMemoryEnabled) {
+            if (companyInfo) {
+                const companyType = companyInfo.companyType || 'Persona Jurídica';
+                const nitLabel = companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT';
+                let sedesStr = '';
+                if (companyInfo.sedes && Array.isArray(companyInfo.sedes) && companyInfo.sedes.length > 0) {
+                    sedesStr = '\n  * Sedes Adicionales:\n' + companyInfo.sedes.map(s => `    - Sede: ${s.nombre || 'N/A'} (Ciudad: ${s.city || 'N/A'}, Depto: ${s.departamento || 'N/A'}, Dirección: ${s.address || 'N/A'}, Actividades: ${s.generalActivities || 'N/A'})`).join('\n');
+                }
+                fullCompanyAndMemoryBlock += `### 🏢 INFORMACIÓN DE LA EMPRESA ACTIVA DEL USUARIO (DATOS OFICIALES SG-SST):\n` +
+                    `- Razón Social / Nombre: ${companyInfo.companyName || 'N/A'}\n` +
+                    `- Tipo de Empresa: ${companyType}\n` +
+                    `- ${nitLabel}: ${companyInfo.nit || 'N/A'}\n` +
+                    `- Representante Legal: ${companyInfo.legalRepresentative || 'N/A'}` + (companyInfo.legalRepresentativeId ? ` (Cédula: ${companyInfo.legalRepresentativeId})` : '') + `\n` +
+                    `- Número de Trabajadores: ${companyInfo.workerCount ?? 'N/A'}\n` +
+                    `- ARL: ${companyInfo.arl || 'N/A'} (Nivel de Riesgo ARL: ${companyInfo.riskLevel || 'N/A'})\n` +
+                    `- Actividad Económica: ${companyInfo.economicActivity || 'N/A'}\n` +
+                    `- Código CIIU: ${companyInfo.ciiu || 'N/A'}\n` +
+                    `- Sector: ${companyInfo.sector || 'N/A'}\n` +
+                    `- Ubicación Sede Principal: ${companyInfo.address || 'N/A'} (Ciudad: ${companyInfo.city || 'N/A'}, Departamento: ${companyInfo.departamento || 'N/A'})\n` +
+                    `- Responsable SG-SST: ${companyInfo.responsibleSST || 'N/A'}` + (companyInfo.licenseNumber ? ` (Licencia SST: ${companyInfo.licenseNumber}, Vigencia: ${companyInfo.licenseExpiry || 'N/A'})` : '') + `\n` +
+                    `- Nivel de Formación SST: ${companyInfo.formationLevel || 'N/A'}\n` +
+                    `- Estado Curso 50/20H: ${companyInfo.courseStatus || 'N/A'}\n` +
+                    `- Descripción General de Actividades: ${companyInfo.generalActivities || 'N/A'}` +
+                    (sedesStr ? `${sedesStr}\n\n` : '\n\n');
+            } else {
+                fullCompanyAndMemoryBlock += `### 🏢 INFORMACIÓN DE LA EMPRESA ACTIVA:\nNo se ha registrado una empresa en el Gestor SG-SST aún.\n\n`;
+            }
+
+            // Deduplicate user memories by key (most recent first)
+            const uniqueMemMap = new Map();
+            if (Array.isArray(rawMemories)) {
+                const sorted = [...rawMemories].sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
+                for (const m of sorted) {
+                    if (m.key && !uniqueMemMap.has(m.key)) {
+                        uniqueMemMap.set(m.key, m.value);
+                    }
                 }
             }
-        }
 
-        if (uniqueMemMap.size > 0) {
-            fullCompanyAndMemoryBlock += `### 🧠 MEMORIAS REGISTRADAS DEL USUARIO (BASE DE CONOCIMIENTO PERMANENTE / MEMORIA WAPPY):\n`;
-            for (const [k, v] of uniqueMemMap.entries()) {
-                fullCompanyAndMemoryBlock += `📌 [${k}]:\n${v}\n\n`;
+            if (uniqueMemMap.size > 0) {
+                fullCompanyAndMemoryBlock += `### 🧠 MEMORIAS REGISTRADAS DEL USUARIO (BASE DE CONOCIMIENTO PERMANENTE / MEMORIA WAPPY):\n`;
+                for (const [k, v] of uniqueMemMap.entries()) {
+                    fullCompanyAndMemoryBlock += `📌 [${k}]:\n${v}\n\n`;
+                }
             }
-        }
 
-        fullCompanyAndMemoryBlock += `### ⚡ REGLA DE ORO DE CONOCIMIENTO CORPORATIVO Y MEMORIA:
+            fullCompanyAndMemoryBlock += `### ⚡ REGLA DE ORO DE CONOCIMIENTO CORPORATIVO Y MEMORIA:
 - TIENES ACCESO PLENO E INMEDIATO a toda la información de la empresa activa y a la memoria del usuario descritas arriba.
 - Conoces de antemano la Razón Social, NIT, Representante Legal, Trabajadores, ARL, Sedes, Macroprocesos y datos de la memoria.
 - NUNCA digas "no tengo acceso a la empresa", "no sé qué empresa está activa" ni le pidas al usuario que repita datos que ya están en esta ficha o memoria. Úsalos con total familiaridad y exactitud en todas tus respuestas.`;
+        }
 
         const skillInstructions = getActiveSkillInstructions(userQuery, config.skills || []);
 

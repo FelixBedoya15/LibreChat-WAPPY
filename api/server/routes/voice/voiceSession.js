@@ -537,9 +537,13 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             if (this.config.mode === 'tenshi_voice') {
                 try {
                     let targetUserId = this.userId;
+                    let isMemoryEnabled = true;
                     try {
                         const User = mongoose.models.User || require('~/models/User');
-                        const userDoc = await User.findById(this.userId).select('isSubUser parentUser assignedCompany').lean();
+                        const userDoc = await User.findById(this.userId).select('isSubUser parentUser assignedCompany personalization').lean();
+                        if (userDoc?.personalization?.memories === false) {
+                            isMemoryEnabled = false;
+                        }
                         if (userDoc?.isSubUser && userDoc?.parentUser) {
                             targetUserId = userDoc.parentUser.toString();
                         }
@@ -547,41 +551,45 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         targetUserId = this.userId;
                     }
 
-                    const [companyInfo, rawMemories] = await Promise.all([
-                        CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean().catch(() => null)
-                            .then(async (c) => c || await CompanyInfo.findOne({ user: targetUserId }).lean().catch(() => null)),
-                        getAllUserMemories(targetUserId).catch(() => [])
-                    ]);
-
                     let companyAndMemoryPrompt = '';
-                    if (companyInfo) {
-                        const companyType = companyInfo.companyType || 'Persona Jurídica';
-                        const nitLabel = companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT';
-                        let sedesStr = '';
-                        if (companyInfo.sedes && Array.isArray(companyInfo.sedes) && companyInfo.sedes.length > 0) {
-                            sedesStr = ' Sedes adicionales: ' + companyInfo.sedes.map(s => `${s.nombre || 'Sede'} (${s.city || 'N/A'})`).join(', ');
-                        }
-                        companyAndMemoryPrompt += `\n\n[EMPRESA ACTIVA DEL USUARIO]:
+                    let rawMemories = [];
+                    if (isMemoryEnabled) {
+                        const [companyInfo, fetchedMemories] = await Promise.all([
+                            CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean().catch(() => null)
+                                .then(async (c) => c || await CompanyInfo.findOne({ user: targetUserId }).lean().catch(() => null)),
+                            getAllUserMemories(targetUserId).catch(() => [])
+                        ]);
+                        rawMemories = fetchedMemories;
+
+                        if (companyInfo) {
+                            const companyType = companyInfo.companyType || 'Persona Jurídica';
+                            const nitLabel = companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT';
+                            let sedesStr = '';
+                            if (companyInfo.sedes && Array.isArray(companyInfo.sedes) && companyInfo.sedes.length > 0) {
+                                sedesStr = ' Sedes adicionales: ' + companyInfo.sedes.map(s => `${s.nombre || 'Sede'} (${s.city || 'N/A'})`).join(', ');
+                            }
+                            companyAndMemoryPrompt += `\n\n[EMPRESA ACTIVA DEL USUARIO]:
 - Empresa: ${companyInfo.companyName || 'N/A'} (${companyType}, ${nitLabel}: ${companyInfo.nit || 'N/A'}).
 - Representante: ${companyInfo.legalRepresentative || 'N/A'}. Trabajadores: ${companyInfo.workerCount ?? 'N/A'}.
 - ARL: ${companyInfo.arl || 'N/A'} (Riesgo: ${companyInfo.riskLevel || 'N/A'}). Actividad: ${companyInfo.economicActivity || 'N/A'}. CIIU: ${companyInfo.ciiu || 'N/A'}.
 - Ubicación: ${companyInfo.address || 'N/A'}, ${companyInfo.city || 'N/A'}, ${companyInfo.departamento || 'N/A'}.
 - Responsable SST: ${companyInfo.responsibleSST || 'N/A'}.${sedesStr}`;
-                    }
-
-                    if (Array.isArray(rawMemories) && rawMemories.length > 0) {
-                        const uniqueMap = new Map();
-                        const sortedRaw = [...rawMemories].sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
-                        for (const m of sortedRaw) {
-                            if (m.key && !uniqueMap.has(m.key)) uniqueMap.set(m.key, m.value);
                         }
-                        companyAndMemoryPrompt += `\n\n[MEMORIA PERMANENTE DEL USUARIO]:\n`;
-                        for (const [k, val] of uniqueMap.entries()) {
-                            companyAndMemoryPrompt += `- [${k}]: ${val}\n`;
-                        }
-                    }
 
-                    companyAndMemoryPrompt += `\n\n[REGLA DE CONOCIMIENTO CORPORATIVO]: Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.`;
+                        if (Array.isArray(rawMemories) && rawMemories.length > 0) {
+                            const uniqueMap = new Map();
+                            const sortedRaw = [...rawMemories].sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
+                            for (const m of sortedRaw) {
+                                if (m.key && !uniqueMap.has(m.key)) uniqueMap.set(m.key, m.value);
+                            }
+                            companyAndMemoryPrompt += `\n\n[MEMORIA PERMANENTE DEL USUARIO]:\n`;
+                            for (const [k, val] of uniqueMap.entries()) {
+                                companyAndMemoryPrompt += `- [${k}]: ${val}\n`;
+                            }
+                        }
+
+                        companyAndMemoryPrompt += `\n\n[REGLA DE CONOCIMIENTO CORPORATIVO]: Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.`;
+                    }
 
                     this.liveConfig.systemInstruction = (this.liveConfig.systemInstruction || '') + companyAndMemoryPrompt;
                     logger.info(`[VoiceSession] Injected active company & ${rawMemories?.length || 0} memories into Tenshi Voice instructions`);
