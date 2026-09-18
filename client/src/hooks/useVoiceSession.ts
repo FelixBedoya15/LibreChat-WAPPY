@@ -632,14 +632,14 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     /**
      * Mute/Unmute
      */
-    const setMuted = useCallback((muted: boolean) => {
+    const setMuted = useCallback((muted: boolean, releaseHardware = false) => {
         isHardwareMutedRef.current = muted;
-        if (muted) {
+        if (releaseHardware && muted) {
             console.log('[VoiceSession] Hardware Mute: Releasing microphone to system.');
             stopAudioCapture();
-        } else {
-            console.log('[VoiceSession] Hardware Unmute: Acquiring microphone.');
-            if (isConnected) {
+        } else if (!muted) {
+            console.log('[VoiceSession] Hardware Unmute: Resuming audio streaming.');
+            if (isConnected && !streamRef.current) {
                 startAudioCapture();
             }
         }

@@ -791,10 +791,24 @@ export default function TenshiChat() {
     sendTextMessage,
     sendWappyActionResult,
     setIsPlayingAudio: setVoiceIsPlayingAudio,
+    setMuted: setVoiceMuted,
     status: voiceStatus,
   } = useVoiceSession(sessionOptions);
   disconnectVoiceRef.current = disconnectVoice;
   setIsPlayingAudioRef.current = setVoiceIsPlayingAudio;
+
+  // Silenciar el micrófono de Tenshi Live mientras un agente esté generando o respondiendo en el chat
+  // Esto evita enviar cientos de paquetes de audio innecesarios (teclado, ruido) a Google Gemini Live
+  // y elimina la lentitud por colisión de recursos y cuota.
+  useEffect(() => {
+    if (isVoiceActive) {
+      if (isWaitingConsultation || isChatSubmitting) {
+        setVoiceMuted(true);
+      } else {
+        setVoiceMuted(false);
+      }
+    }
+  }, [isWaitingConsultation, isChatSubmitting, isVoiceActive, setVoiceMuted]);
 
   const stopVoiceMode = useCallback(() => {
     setIsVoiceActive(false);
@@ -1951,8 +1965,10 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
                         className={cn(
                           'w-1 rounded-full transition-all duration-75',
                           isTenshiSpeaking
-                            ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]'
-                            : isVoiceActive
+                            ? 'bg-emerald-500 shadow-sm'
+                            : isWaitingConsultation || isChatSubmitting
+                            ? 'bg-amber-400/80 animate-pulse'
+                            : voiceAmplitude > 0.05
                             ? 'bg-emerald-400'
                             : isTyping
                             ? 'bg-amber-400 animate-pulse'
@@ -1968,6 +1984,10 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
                 <p className="mt-1 text-center text-xs font-medium text-emerald-600 dark:text-emerald-400 tracking-tight">
                   {isTenshiSpeaking ? (
                     'Tenshi hablando...'
+                  ) : isWaitingConsultation || isChatSubmitting ? (
+                    <span className="text-amber-600 dark:text-amber-400 animate-pulse">
+                      Esperando al especialista en pantalla...
+                    </span>
                   ) : isVoiceActive ? (
                     voiceStatusText || 'Tenshi te escucha... Habla con naturalidad'
                   ) : isTyping ? (
