@@ -253,16 +253,32 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 }
                 return info;
             })(),
-            getAllUserMemories(targetUserId).catch(() => []),
             (async () => {
                 try {
-                    const { Conversation } = require('~/db/models');
+                    const { Conversation, Message } = require('~/db/models');
                     const userFilter = [String(req.user.id), targetUserId].filter(Boolean);
-                    return await Conversation.find({ user: { $in: userFilter } })
+                    const convos = await Conversation.find({ user: { $in: userFilter } })
                         .sort({ updatedAt: -1 })
-                        .limit(5)
+                        .limit(3)
                         .select('conversationId title updatedAt agent_id')
                         .lean();
+
+                    if (!convos || convos.length === 0) return [];
+
+                    return await Promise.all(
+                        convos.map(async (c) => {
+                            const msgs = await Message.find({ conversationId: c.conversationId })
+                                .sort({ createdAt: -1 })
+                                .limit(2)
+                                .select('text sender isCreatedByUser')
+                                .lean()
+                                .catch(() => []);
+                            return {
+                                title: c.title || 'Consulta técnica',
+                                messages: msgs.reverse(),
+                            };
+                        })
+                    );
                 } catch (e) {
                     return [];
                 }
@@ -330,39 +346,20 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
 
         let recentConvosBlock = '';
         if (recentConvos && recentConvos.length > 0) {
-            try {
-                const { Message } = require('~/db/models');
-                const convoIds = recentConvos.map(c => c.conversationId).filter(Boolean);
-                const rawConvoMsgs = await Message.find({ conversationId: { $in: convoIds } })
-                    .sort({ createdAt: 1 })
-                    .lean()
-                    .catch(() => []);
-
-                const msgsByConvo = {};
-                for (const m of rawConvoMsgs) {
-                    if (!msgsByConvo[m.conversationId]) msgsByConvo[m.conversationId] = [];
-                    msgsByConvo[m.conversationId].push(m);
-                }
-
-                recentConvosBlock = `### 💬 ACTIVIDAD RECIENTE Y CONSULTAS CON ESPECIALISTAS EN WAPPY:\n`;
-                for (const c of recentConvos) {
-                    const title = c.title || 'Consulta técnica';
-                    const cMsgs = msgsByConvo[c.conversationId] || [];
-                    const lastMsgs = cMsgs.slice(-2);
-                    recentConvosBlock += `\n- Conversación: "${title}":\n`;
-                    for (const m of lastMsgs) {
-                        const sender = m.isCreatedByUser ? 'Usuario' : (m.sender || 'Especialista');
-                        const text = (m.text || '').replace(/\s+/g, ' ').trim();
-                        const snippet = text.length > 300 ? text.substring(0, 300) + '...' : text;
-                        if (snippet) {
-                            recentConvosBlock += `  * ${sender}: "${snippet}"\n`;
-                        }
+            recentConvosBlock = `### 💬 ACTIVIDAD RECIENTE Y CONSULTAS CON ESPECIALISTAS EN WAPPY:\n`;
+            for (const c of recentConvos) {
+                if (!c.messages || c.messages.length === 0) continue;
+                recentConvosBlock += `\n- Consulta: "${c.title}":\n`;
+                for (const m of c.messages) {
+                    const sender = m.isCreatedByUser ? 'Usuario' : (m.sender || 'Especialista');
+                    const text = (m.text || '').replace(/\s+/g, ' ').trim();
+                    const snippet = text.length > 180 ? text.substring(0, 180) + '...' : text;
+                    if (snippet) {
+                        recentConvosBlock += `  * ${sender}: "${snippet}"\n`;
                     }
                 }
-                recentConvosBlock += `\n*REGLA DE CONTINUIDAD Y MEMORIA*: Tienes pleno conocimiento de estas consultas previas con los especialistas. Si el usuario te pregunta por lo que se habló o se consultó previamente (ej: batería de riesgo psicosocial, matriz de compatibilidad, etc.), respóndele con este contexto exacto.\n\n`;
-            } catch (err) {
-                logger.warn('[Tenshi] Error formatting recentConvosBlock:', err.message);
             }
+            recentConvosBlock += `\n*REGLA DE CONTINUIDAD Y MEMORIA*: Tienes pleno conocimiento de estas consultas previas con los especialistas. Si el usuario te pregunta por lo que se habló o se consultó previamente (ej: batería de riesgo psicosocial, matriz de compatibilidad, etc.), respóndele con este contexto exacto.\n\n`;
         }
 
         const skillInstructions = getActiveSkillInstructions(userQuery, config.skills || []);

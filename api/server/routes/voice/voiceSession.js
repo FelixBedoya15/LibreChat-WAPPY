@@ -564,7 +564,8 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                                 const TenshiMessage = require('~/models/TenshiMessage');
                                 return await TenshiMessage.find({ user: { $in: userIds } })
                                     .sort({ createdAt: -1 })
-                                    .limit(20)
+                                    .limit(10)
+                                    .select('role content')
                                     .lean();
                             } catch (e) {
                                 return [];
@@ -572,12 +573,30 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         })(),
                         (async () => {
                             try {
-                                const { Conversation } = require('~/db/models');
-                                return await Conversation.find({ user: { $in: userIds.map(String) } })
+                                const { Conversation, Message } = require('~/db/models');
+                                const convos = await Conversation.find({ user: { $in: userIds.map(String) } })
                                     .sort({ updatedAt: -1 })
-                                    .limit(5)
+                                    .limit(3)
                                     .select('conversationId title updatedAt agent_id')
                                     .lean();
+
+                                if (!convos || convos.length === 0) return [];
+
+                                // Consultar únicamente los últimos 2 mensajes por cada conversación para máxima velocidad y ligereza
+                                return await Promise.all(
+                                    convos.map(async (c) => {
+                                        const msgs = await Message.find({ conversationId: c.conversationId })
+                                            .sort({ createdAt: -1 })
+                                            .limit(2)
+                                            .select('text sender isCreatedByUser')
+                                            .lean()
+                                            .catch(() => []);
+                                        return {
+                                            title: c.title || 'Consulta técnica',
+                                            messages: msgs.reverse(),
+                                        };
+                                    })
+                                );
                             } catch (e) {
                                 return [];
                             }
@@ -612,53 +631,34 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         }
                     }
 
-                    // Inyectar Historial reciente de Tenshi (TenshiMessage)
+                    // Inyectar Historial reciente de Tenshi (TenshiMessage) - compacto
                     if (recentTenshiMessages && recentTenshiMessages.length > 0) {
                         companyAndMemoryPrompt += `\n\n[HISTORIAL RECIENTE DE CONVERSACIONES DIRECTAS CON TENSHI (MEMORIA EPISÓDICA)]:`;
                         const chronological = [...recentTenshiMessages].reverse();
                         for (const m of chronological) {
                             const role = m.role === 'user' ? 'Usuario' : 'Tenshi';
                             const cleanContent = (m.content || '').replace(/\s+/g, ' ').trim();
-                            const snippet = cleanContent.length > 250 ? cleanContent.substring(0, 250) + '...' : cleanContent;
+                            const snippet = cleanContent.length > 180 ? cleanContent.substring(0, 180) + '...' : cleanContent;
                             if (snippet && !snippet.startsWith('[RESULTADO_GUI]')) {
                                 companyAndMemoryPrompt += `\n- ${role}: "${snippet}"`;
                             }
                         }
                     }
 
-                    // Inyectar últimas conversaciones con especialistas en LibreChat
+                    // Inyectar síntesis de las últimas 2-3 conversaciones con especialistas (solo últimos 2 mensajes clave)
                     if (recentConvos && recentConvos.length > 0) {
-                        try {
-                            const { Message } = require('~/db/models');
-                            const convoIds = recentConvos.map(c => c.conversationId).filter(Boolean);
-                            const rawConvoMsgs = await Message.find({ conversationId: { $in: convoIds } })
-                                .sort({ createdAt: 1 })
-                                .lean()
-                                .catch(() => []);
-
-                            const msgsByConvo = {};
-                            for (const m of rawConvoMsgs) {
-                                if (!msgsByConvo[m.conversationId]) msgsByConvo[m.conversationId] = [];
-                                msgsByConvo[m.conversationId].push(m);
-                            }
-
-                            companyAndMemoryPrompt += '\n\n[ÚLTIMAS CONSULTAS Y ACTIVIDAD DEL USUARIO EN CHATS CON ESPECIALISTAS (WAPPY)]:';
-                            for (const c of recentConvos) {
-                                const title = c.title || 'Consulta técnica';
-                                const cMsgs = msgsByConvo[c.conversationId] || [];
-                                const lastMsgs = cMsgs.slice(-2);
-                                companyAndMemoryPrompt += `\n- Conversación: "${title}":`;
-                                for (const m of lastMsgs) {
-                                    const sender = m.isCreatedByUser ? 'Usuario' : (m.sender || 'Especialista');
-                                    const text = (m.text || '').replace(/\s+/g, ' ').trim();
-                                    const snippet = text.length > 300 ? text.substring(0, 300) + '...' : text;
-                                    if (snippet) {
-                                        companyAndMemoryPrompt += `\n  * ${sender}: "${snippet}"`;
-                                    }
+                        companyAndMemoryPrompt += '\n\n[ÚLTIMAS CONSULTAS DEL USUARIO EN CHATS CON ESPECIALISTAS (WAPPY)]:';
+                        for (const c of recentConvos) {
+                            if (!c.messages || c.messages.length === 0) continue;
+                            companyAndMemoryPrompt += `\n- Consulta: "${c.title}":`;
+                            for (const m of c.messages) {
+                                const sender = m.isCreatedByUser ? 'Usuario' : (m.sender || 'Especialista');
+                                const text = (m.text || '').replace(/\s+/g, ' ').trim();
+                                const snippet = text.length > 180 ? text.substring(0, 180) + '...' : text;
+                                if (snippet) {
+                                    companyAndMemoryPrompt += `\n  * ${sender}: "${snippet}"`;
                                 }
                             }
-                        } catch (err) {
-                            logger.warn('[VoiceSession] Error fetching recent convo messages for prompt:', err.message);
                         }
                     }
 
