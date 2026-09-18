@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw, Mic, Volume2, MessageSquare, Bot, Activity } from 'lucide-react';
+import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw, Mic, Volume2, MessageSquare, Bot, Activity, Maximize2, Minimize2 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useListAgentsQuery } from '~/data-provider';
 import { useRecoilValue } from 'recoil';
@@ -282,7 +282,8 @@ export default function TenshiChat() {
     }
   }, [agentsData]);
   const [isOpen, setIsOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'jarvis' | 'chat'>('jarvis');
+  const [viewMode, setViewMode] = useState<'live' | 'chat'>('live');
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [messages, setMessages] = useState<
     { _id?: string; role: string; content: string; htmlReport?: string }[]
   >([
@@ -1260,8 +1261,17 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
       return;
     }
     setIsOpen(true);
-    setViewMode('jarvis');
+    setViewMode('live');
+    startVoiceMode();
   };
+
+  const handleClose = useCallback(() => {
+    setIsOpen(false);
+    setIsFullscreen(false);
+    if (isVoiceActive) {
+      stopVoiceMode();
+    }
+  }, [isVoiceActive, stopVoiceMode]);
 
   const { data: config } = useQuery(
     ['tenshiConfig', token],
@@ -1394,11 +1404,12 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
   useEffect(() => {
     const handleOpen = () => {
       setIsOpen(true);
-      setViewMode('jarvis');
+      setViewMode('live');
+      startVoiceMode();
     };
     window.addEventListener('open-tenshi-chat', handleOpen);
     return () => window.removeEventListener('open-tenshi-chat', handleOpen);
-  }, []);
+  }, [startVoiceMode]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -1735,7 +1746,9 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
     <div
       ref={containerRef}
       style={
-        position
+        isFullscreen
+          ? {}
+          : position
           ? {
               position: 'fixed',
               left: `${position.x}px`,
@@ -1745,9 +1758,14 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
             }
           : {}
       }
-      className={`tenshi-widget-container fixed z-[9999] ${position ? '' : floatPosition} flex flex-col items-end`}
+      className={cn(
+        'tenshi-widget-container z-[9999]',
+        isFullscreen
+          ? 'fixed inset-2 sm:inset-4 md:inset-8 flex flex-col items-center justify-center pointer-events-auto'
+          : `fixed ${position ? '' : floatPosition} flex flex-col items-end`
+      )}
     >
-      {/* Dynamic Keyframes for Tenshi Jarvis Avatar */}
+      {/* Dynamic Keyframes for Tenshi Live Avatar */}
       <style>{`
         @keyframes tenshiFloat {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
@@ -1759,667 +1777,510 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
           50% { transform: scale(0.98) translateY(1px); }
           75% { transform: scale(1.05) translateY(-4px); }
         }
-        @keyframes tenshiSpinSlow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes tenshiSpinReverse {
-          from { transform: rotate(360deg); }
-          to { transform: rotate(0deg); }
-        }
         .animate-tenshi-float {
           animation: tenshiFloat 4s ease-in-out infinite;
         }
         .animate-tenshi-speaking {
           animation: tenshiSpeakingBob 0.65s ease-in-out infinite;
         }
-        .animate-tenshi-spin {
-          animation: tenshiSpinSlow 16s linear infinite;
-        }
-        .animate-tenshi-spin-reverse {
-          animation: tenshiSpinReverse 10s linear infinite;
-        }
       `}</style>
 
       {isOpen && (
-        viewMode === 'jarvis' ? (
-          /* ─── MODO JARVIS: AVATAR INTERACTIVO CON MOVIMIENTO Y BOTONERA ─── */
-          <div className="mb-4 flex h-[520px] w-[350px] sm:w-[390px] flex-col overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-b from-gray-950 via-slate-900 to-gray-950 text-white shadow-[0_12px_45px_rgba(0,0,0,0.8)] backdrop-blur-xl animate-in zoom-in-95 duration-200 select-none">
-            {/* Cabecera HUD Estilo Jarvis */}
-            <div
-              onMouseDown={handleMouseDown}
-              onTouchStart={handleTouchStart}
-              className="flex shrink-0 cursor-move items-center justify-between border-b border-emerald-500/20 bg-black/40 px-4 py-3"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-950/60 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
-                  {isTenshiSpeaking ? (
-                    <>
-                      <Volume2 className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
-                      <span>HABLANDO</span>
-                    </>
-                  ) : isVoiceActive && voiceStatus === 'listening' ? (
-                    <>
-                      <Mic className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
-                      <span className="text-cyan-300">ESCUCHANDO</span>
-                    </>
-                  ) : isTyping ? (
-                    <>
-                      <Sparkles className="h-3.5 w-3.5 text-amber-400 animate-spin" />
-                      <span className="text-amber-300">PENSANDO</span>
-                    </>
-                  ) : isVoiceActive ? (
-                    <>
-                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                      <span>EN VIVO</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                      <span>TENSHI // JARVIS</span>
-                    </>
-                  )}
-                </div>
-                <span className="text-[10px] uppercase tracking-wider text-emerald-400/60 font-mono">
-                  v2.5 AI
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={handleClearHistory}
-                  title="Reiniciar conversación"
-                  className="rounded-full p-1.5 text-emerald-300/80 transition-colors hover:bg-white/10 hover:text-white"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  title="Cerrar asistente"
-                  className="rounded-full p-1.5 text-emerald-300/80 transition-colors hover:bg-white/10 hover:text-white"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Escenario Central: Avatar Animado Holográfico */}
-            <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-2 overflow-hidden">
-              {/* Resplandor radial de fondo */}
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.14)_0%,transparent_70%)] pointer-events-none" />
-
-              {/* Órbitas holográficas concéntricas */}
-              <div className="absolute h-48 w-48 rounded-full border border-dashed border-emerald-500/25 animate-tenshi-spin pointer-events-none" />
-              <div className="absolute h-40 w-40 rounded-full border border-emerald-400/15 animate-tenshi-spin-reverse pointer-events-none" />
-
-              {/* Anillo de aura reactiva a la amplitud de audio */}
-              <div
-                className="absolute h-36 w-36 rounded-full border transition-all duration-100 pointer-events-none"
-                style={{
-                  transform: `scale(${1 + Math.min((isTenshiSpeaking ? outputAmplitude : (isVoiceActive ? voiceAmplitude : 0)) * 0.45, 0.28)})`,
-                  borderColor: isTenshiSpeaking
-                    ? 'rgba(52, 211, 153, 0.75)'
-                    : isVoiceActive
-                    ? 'rgba(56, 189, 248, 0.75)'
-                    : 'rgba(16, 185, 129, 0.25)',
-                  boxShadow: isTenshiSpeaking
-                    ? '0 0 35px rgba(52, 211, 153, 0.5)'
-                    : isVoiceActive
-                    ? '0 0 25px rgba(56, 189, 248, 0.4)'
-                    : 'none',
-                }}
-              />
-
-              {/* Avatar Core con movimiento al hablar / idle */}
-              <div
-                className={cn(
-                  "relative h-28 w-28 sm:h-32 sm:w-32 rounded-full p-1 border-2 transition-all duration-300",
-                  isTenshiSpeaking
-                    ? "animate-tenshi-speaking border-emerald-400 shadow-[0_0_35px_rgba(52,211,153,0.7)]"
-                    : isTyping
-                    ? "border-amber-400 shadow-[0_0_25px_rgba(251,191,36,0.6)] animate-pulse"
-                    : isVoiceActive
-                    ? "border-cyan-400 shadow-[0_0_25px_rgba(56,189,248,0.5)]"
-                    : "animate-tenshi-float border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
-                )}
-                style={{
-                  transform: isTenshiSpeaking
-                    ? `scale(${1 + Math.min(outputAmplitude * 0.25, 0.15)})`
-                    : undefined,
-                }}
-              >
+        <div
+          className={cn(
+            'flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl transition-all duration-200 dark:border-gray-700 dark:bg-gray-800',
+            isFullscreen
+              ? 'h-full w-full max-w-5xl animate-in zoom-in-95'
+              : 'mb-4 h-[520px] max-h-[85vh] w-[calc(100vw-32px)] sm:w-[400px] animate-in slide-in-from-bottom-5'
+          )}
+        >
+          {/* Header compartido con el estilo original de WAPPY (Imagen 3) */}
+          <div
+            onMouseDown={isFullscreen ? undefined : handleMouseDown}
+            onTouchStart={isFullscreen ? undefined : handleTouchStart}
+            className={cn(
+              'flex shrink-0 select-none items-center justify-between bg-gradient-to-r from-green-600 to-emerald-500 p-4 text-white',
+              !isFullscreen && 'cursor-move'
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-emerald-200 bg-white p-0.5 shadow-inner">
                 <img
                   src="/assets/tenshi.png"
-                  alt="Tenshi Avatar"
-                  className="h-full w-full rounded-full object-cover shadow-inner pointer-events-none"
+                  alt="Tenshi"
+                  className="h-full w-full rounded-full object-cover"
                   onError={(e) => {
                     e.currentTarget.src = '/assets/logo.svg';
                   }}
                 />
-                {isTenshiSpeaking && (
-                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-3 w-8 rounded-full bg-emerald-400/80 blur-[3px] animate-pulse pointer-events-none" />
-                )}
               </div>
-
-              {/* Ecualizador dinámico de 7 barras */}
-              <div className="mt-3 flex items-center justify-center gap-1.5 h-6">
-                {[35, 75, 100, 60, 95, 50, 80].map((baseH, idx) => {
-                  const amp = isTenshiSpeaking
-                    ? outputAmplitude
-                    : isVoiceActive
-                    ? voiceAmplitude
-                    : 0;
-                  const h = amp > 0.04
-                    ? Math.max(4, Math.round((baseH / 100) * 24 * Math.min(amp * 3.5, 1.3)))
-                    : isTenshiSpeaking
-                    ? Math.max(4, (baseH % 14) + 4)
-                    : 4;
-                  return (
-                    <span
-                      key={idx}
-                      className={cn(
-                        "w-1 rounded-full transition-all duration-75",
-                        isTenshiSpeaking
-                          ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]"
-                          : isVoiceActive
-                          ? "bg-cyan-400 shadow-[0_0_8px_rgba(56,189,248,0.9)]"
-                          : isTyping
-                          ? "bg-amber-400 animate-pulse"
-                          : "bg-emerald-600/40"
-                      )}
-                      style={{ height: `${h}px` }}
-                    />
-                  );
-                })}
+              <div>
+                <h3 className="text-lg font-bold leading-none">{config?.name || 'Tenshi'}</h3>
+                <p className="mt-1 text-xs text-green-100">{config?.description || 'Asistente virtual de WAPPY'}</p>
               </div>
-
-              {/* Subtítulo / Estado de voz */}
-              <p className="mt-1.5 text-center text-xs font-medium tracking-wide">
-                {isTenshiSpeaking ? (
-                  <span className="text-emerald-300">Tenshi hablando...</span>
-                ) : isVoiceActive ? (
-                  <span className="text-cyan-300">
-                    {voiceStatusText || 'Tenshi te escucha... Habla libremente'}
-                  </span>
-                ) : isTyping ? (
-                  <span className="text-amber-300">Pensando y consultando...</span>
-                ) : (
-                  <span className="text-gray-400">Listo para ayudarte</span>
-                )}
-              </p>
             </div>
-
-            {/* Caja de Subtítulos / Transcripción Holográfica */}
-            <div className="mx-3 mb-2 max-h-20 overflow-y-auto rounded-2xl border border-emerald-500/25 bg-black/50 p-2.5 text-center text-xs backdrop-blur-md shadow-inner">
-              {isTyping ? (
-                <div className="flex items-center justify-center gap-1.5 text-amber-300 animate-pulse py-0.5">
-                  <Sparkles className="h-3.5 w-3.5 animate-spin" />
-                  <span className="font-medium">Tenshi está analizando tu solicitud...</span>
-                </div>
-              ) : (() => {
-                  const lastAssistant = [...messages].reverse().find(
-                    (m) => m.role === 'assistant' && !m.content?.startsWith('[RESULTADO_GUI]') && !(m as any).isIntermediate
-                  );
-                  const content = lastAssistant?.content || '¡Hola! Soy Tenshi, tu copiloto en WAPPY IA. ¿Qué deseas hacer hoy?';
-                  return (
-                    <p className="line-clamp-2 text-emerald-100/90 leading-relaxed font-light">
-                      "{content}"
-                    </p>
-                  );
-                })()
-              }
-            </div>
-
-            {/* Chips de Sugerencia Rápida */}
-            <div className="mx-3 mb-2 flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            <div className="flex items-center gap-1">
+              {/* Botón Pantalla Completa */}
               <button
                 type="button"
-                onClick={() => handleSend("¿Qué empresa está activa en el sistema y cuáles son sus datos principales?")}
-                disabled={isTyping}
-                className="shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-200 transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
+                onClick={() => setIsFullscreen((prev) => !prev)}
+                title={isFullscreen ? 'Restaurar tamaño normal' : 'Pantalla completa'}
+                className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
               >
-                🏢 Empresa Activa
+                {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </button>
+              {/* Botón Reiniciar conversación */}
               <button
                 type="button"
-                onClick={() => handleSend("Léeme la información visible de la pantalla actual")}
-                disabled={isTyping}
-                className="shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-200 transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
+                onClick={handleClearHistory}
+                title="Reiniciar conversación"
+                className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
               >
-                🖥️ Leer Pantalla
+                <RotateCcw className="h-4 w-4" />
               </button>
+              {/* Botón Cerrar */}
               <button
                 type="button"
-                onClick={() => handleSend("Abre la Matriz IPEVAR")}
-                disabled={isTyping}
-                className="shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-200 transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
+                onClick={handleClose}
+                title="Cerrar asistente"
+                className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
               >
-                🚦 Matriz IPEVAR
+                <X className="h-5 w-5" />
               </button>
-            </div>
-
-            {/* Botonera de Control y Campo Rápido */}
-            <div className="shrink-0 border-t border-emerald-500/20 bg-black/60 p-3 backdrop-blur-md flex flex-col gap-2">
-              {/* Campo de texto en modo Jarvis */}
-              <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-gray-950/80 px-3 py-1.5 focus-within:border-emerald-400 focus-within:ring-1 focus-within:ring-emerald-400/30 transition-all">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder={isVoiceActive ? "Tenshi te escucha... o escribe aquí" : "Escribe tu consulta a Tenshi..."}
-                  className="flex-1 bg-transparent text-xs text-white placeholder-emerald-200/40 outline-none"
-                  disabled={isTyping}
-                />
-                <button
-                  type="button"
-                  onClick={() => handleSend()}
-                  disabled={isTyping || !input.trim()}
-                  className="shrink-0 rounded-lg bg-emerald-500 p-1.5 text-white transition-all hover:bg-emerald-400 active:scale-95 disabled:opacity-30"
-                  title="Enviar consulta"
-                >
-                  <Send className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              {/* Botonera Principal: Modo Voz & Ver Chat */}
-              <div className="flex items-center gap-2 pt-0.5">
-                {/* Botón Modo Voz */}
-                <button
-                  type="button"
-                  onClick={toggleVoiceMode}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl font-medium text-xs transition-all duration-300 shadow-md active:scale-95",
-                    isVoiceActive
-                      ? "bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] border border-emerald-300"
-                      : "bg-gray-800/90 hover:bg-gray-700/90 text-gray-300 border border-gray-700 hover:text-white"
-                  )}
-                  title={isVoiceActive ? "Desactivar Modo Voz de Tenshi" : "Activar Modo Voz en vivo con Tenshi"}
-                >
-                  <div className="relative flex items-center justify-center">
-                    <Mic className={cn("h-4 w-4", isVoiceActive && "text-white animate-pulse")} />
-                    {isVoiceActive && (
-                      <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-200"></span>
-                      </span>
-                    )}
-                  </div>
-                  <span>{isVoiceActive ? "Modo Voz Activo" : "Modo Voz"}</span>
-                </button>
-
-                {/* Botón Ver Chat */}
-                <button
-                  type="button"
-                  onClick={() => setViewMode('chat')}
-                  className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl font-medium text-xs bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-500/40 hover:border-emerald-400 transition-all shadow-sm active:scale-95"
-                  title="Abrir historial completo de mensajes y reportes"
-                >
-                  <MessageSquare className="h-4 w-4 text-emerald-400" />
-                  <span>Ver Chat</span>
-                  {messages.length > 1 && (
-                    <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
-                      {messages.filter(m => !m.content?.startsWith('[RESULTADO_GUI]') && !(m as any).isIntermediate).length}
-                    </span>
-                  )}
-                </button>
-              </div>
             </div>
           </div>
-        ) : (
-          /* ─── MODO CHAT: HISTORIAL COMPLETO CON BOTÓN PARA VOLVER A JARVIS ─── */
-          <div className="mb-4 flex h-[500px] w-[350px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl animate-in slide-in-from-bottom-5 dark:border-gray-700 dark:bg-gray-800 sm:w-[400px]">
-            {/* Header con botón para regresar a Modo Jarvis */}
-            <div
-              onMouseDown={handleMouseDown}
-              onTouchStart={handleTouchStart}
-              className="flex shrink-0 cursor-move select-none items-center justify-between bg-gradient-to-r from-green-600 to-emerald-500 p-4 text-white"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-emerald-200 bg-white p-0.5 shadow-inner">
+
+          {/* Vistas: Modo Live o Modo Chat */}
+          {viewMode === 'live' ? (
+            /* ─── MODO LIVE (Avatar interactivo con movimiento mientras habla y voz en vivo) ─── */
+            <div className="flex flex-1 flex-col justify-between overflow-hidden bg-gray-50 p-4 dark:bg-gray-900">
+              {/* Escenario Central del Avatar */}
+              <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden py-2 select-none">
+                {/* Resplandor suave con los colores de WAPPY */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.12)_0%,transparent_70%)] pointer-events-none" />
+
+                {/* Anillo concéntrico reactivo a la voz */}
+                <div
+                  className={cn(
+                    'absolute rounded-full border transition-all duration-100 pointer-events-none',
+                    isFullscreen ? 'h-52 w-52 sm:h-60 sm:w-60' : 'h-40 w-40 sm:h-44 sm:w-44'
+                  )}
+                  style={{
+                    transform: `scale(${1 + Math.min((isTenshiSpeaking ? outputAmplitude : (isVoiceActive ? voiceAmplitude : 0)) * 0.45, 0.28)})`,
+                    borderColor: isTenshiSpeaking
+                      ? 'rgba(16, 185, 129, 0.65)'
+                      : isVoiceActive
+                      ? 'rgba(16, 185, 129, 0.4)'
+                      : 'rgba(16, 185, 129, 0.15)',
+                    boxShadow: isTenshiSpeaking
+                      ? '0 0 25px rgba(16, 185, 129, 0.35)'
+                      : isVoiceActive
+                      ? '0 0 15px rgba(16, 185, 129, 0.2)'
+                      : 'none',
+                  }}
+                />
+
+                {/* Avatar de Tenshi con movimiento al hablar */}
+                <div
+                  className={cn(
+                    'relative rounded-full p-1 border-2 transition-all duration-300 bg-white dark:bg-gray-800',
+                    isFullscreen ? 'h-40 w-40 sm:h-48 sm:w-48' : 'h-32 w-32 sm:h-36 sm:w-36',
+                    isTenshiSpeaking
+                      ? 'animate-tenshi-speaking border-emerald-500 shadow-[0_0_25px_rgba(16,185,129,0.5)]'
+                      : isTyping
+                      ? 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] animate-pulse'
+                      : 'animate-tenshi-float border-emerald-500/40 shadow-lg'
+                  )}
+                  style={{
+                    transform: isTenshiSpeaking
+                      ? `scale(${1 + Math.min(outputAmplitude * 0.25, 0.15)})`
+                      : undefined,
+                  }}
+                >
                   <img
                     src="/assets/tenshi.png"
                     alt="Tenshi"
-                    className="h-full w-full rounded-full object-cover"
+                    className="h-full w-full rounded-full object-cover shadow-inner pointer-events-none"
                     onError={(e) => {
                       e.currentTarget.src = '/assets/logo.svg';
                     }}
                   />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold leading-none">{config.name}</h3>
-                  <p className="mt-1 text-xs text-green-100">{config.description}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('jarvis')}
-                  className="flex items-center gap-1 rounded-full bg-white/20 hover:bg-white/30 px-2.5 py-1 text-xs font-semibold text-white transition-all shadow-sm active:scale-95"
-                  title="Cambiar a Modo Avatar Jarvis"
-                >
-                  <Bot className="h-3.5 w-3.5 text-yellow-300 animate-pulse" />
-                  <span>Modo Jarvis</span>
-                </button>
-                <button
-                  onClick={handleClearHistory}
-                  title="Reiniciar conversación"
-                  className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-          <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4 dark:bg-gray-900">
-            {(() => {
-              const visibleMessages = messages.filter(
-              (msg) => !msg.content?.startsWith('[RESULTADO_GUI]') && !(msg as any).isIntermediate
-            );
-            return visibleMessages.map((msg, i) => (
-              <div
-                key={i}
-                className={`group flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
-              >
-                <div
-                  className={`max-w-[85%] rounded-2xl p-3 text-sm ${
-                    msg.role === 'user'
-                      ? 'rounded-tr-none bg-blue-600 text-white shadow-md'
-                      : 'rounded-tl-none border border-gray-100 bg-white text-gray-800 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100'
-                  }`}
-                >
-                  {editingMessageId === msg._id ? (
-                    <div className="flex flex-col gap-2 min-w-[200px]">
-                      <textarea
-                        value={editingText}
-                        onChange={(e) => setEditingText(e.target.value)}
-                        className="w-full rounded-lg border border-blue-300 p-2 text-xs text-gray-800 outline-none focus:ring-1 focus:ring-blue-500"
-                        rows={3}
-                      />
-                      <div className="flex justify-end gap-1.5">
-                        <button
-                          onClick={() => setEditingMessageId(null)}
-                          className="rounded bg-gray-200 px-2.5 py-1 text-[10px] font-bold text-gray-600 hover:bg-gray-300 transition-colors"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          onClick={() => handleUpdateMessage(msg._id!, editingText)}
-                          className="rounded bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-blue-700 transition-colors"
-                        >
-                          Guardar
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="markdown-content max-w-full overflow-hidden">
-                        <style>{`
-                          .markdown-content table {
-                              display: block;
-                              width: 100%;
-                              overflow-x: auto;
-                              white-space: nowrap;
-                              border-collapse: collapse;
-                              margin-top: 0.5rem;
-                              margin-bottom: 0.5rem;
-                          }
-                          .markdown-content th, .markdown-content td {
-                              padding: 6px 10px;
-                              border: 1px solid rgba(156, 163, 175, 0.3);
-                              font-size: 0.75rem;
-                          }
-                        `}</style>
-                        <Markdown content={msg.content} isLatestMessage={i === visibleMessages.length - 1} />
-                      </div>
-                      {(() => {
-                        const reportHtml = getHtmlFromMsg(msg);
-                        if (!reportHtml) return null;
-                        return (
-                          <button
-                            onClick={() => openHtmlReport(reportHtml)}
-                            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-gradient-to-r from-emerald-600 to-teal-600 px-3.5 py-2.5 text-xs font-bold text-white shadow-lg transition-all hover:from-emerald-500 hover:to-teal-500 hover:shadow-xl active:scale-95"
-                          >
-                            <FileText className="h-4 w-4 animate-pulse" />
-                            {/* eslint-disable-next-line i18next/no-literal-string */}
-                            <span>📄 Abrir / Descargar Informe HTML (PDF)</span>
-                          </button>
-                        );
-                      })()}
-                    </>
+                  {isTenshiSpeaking && (
+                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-2.5 w-8 rounded-full bg-emerald-400/80 blur-[2px] animate-pulse pointer-events-none" />
                   )}
                 </div>
 
-                {/* Message action controls (Edit, Delete, Regenerate) */}
-                {msg._id && editingMessageId !== msg._id && (
-                  <div className={`mt-1 flex items-center gap-2 text-[10px] transition-all opacity-40 hover:opacity-100 sm:opacity-0 group-hover:opacity-100 ${
-                    msg.role === 'user' ? 'justify-end pr-1 text-blue-500/70 dark:text-blue-400/70' : 'justify-start pl-1 text-gray-400 dark:text-gray-500'
-                  }`}>
-                    {msg.role === 'user' && (
-                      <button
-                        onClick={() => {
-                          setEditingMessageId(msg._id!);
-                          setEditingText(msg.content);
-                        }}
-                        className="flex items-center gap-0.5 hover:text-blue-600 dark:hover:text-blue-300 transition-colors"
-                      >
-                        <Edit2 className="h-2.5 w-2.5" />
-                        <span>Editar</span>
-                      </button>
-                    )}
-                    {msg.role === 'assistant' && i === visibleMessages.length - 1 && (
-                      <button
-                        onClick={() => handleRegenerate(msg._id!)}
-                        className="flex items-center gap-0.5 hover:text-green-600 dark:hover:text-green-400 transition-colors"
-                      >
-                        <RefreshCw className="h-2.5 w-2.5" />
-                        <span>Regenerar</span>
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDeleteMessage(msg._id!)}
-                      className="flex items-center gap-0.5 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="h-2.5 w-2.5" />
-                      <span>Eliminar</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            ));
-          })()}
-
-            {/* Live automation steps collapsible log */}
-            {guiSteps.length > 0 && (
-              <div className="rounded-2xl border border-gray-100 bg-white/80 p-3.5 backdrop-blur-sm shadow-sm dark:border-gray-700/50 dark:bg-gray-800/80">
-                <details className="group" open>
-                  <summary className="flex cursor-pointer items-center justify-between font-bold text-xs text-gray-700 select-none dark:text-gray-300">
-                    <span className="flex items-center gap-1.5">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                      </span>
-                      Acciones automáticas en pantalla ({guiSteps.filter(s => s.status === 'success').length}/{guiSteps.length})
-                    </span>
-                    <span className="transition-transform duration-200 group-open:rotate-180 text-gray-400 text-[10px]">▼</span>
-                  </summary>
-                  <div className="mt-3.5 space-y-2 border-t border-gray-100/50 pt-2.5 dark:border-gray-700/50">
-                    {guiSteps.map((step, idx) => (
-                      <div key={idx} className="flex items-center justify-between text-[11px]">
-                        <span className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                          <span className="font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-mono text-[9px] dark:bg-gray-700 dark:text-gray-300">
-                            {step.action}
-                          </span>
-                          {step.details}
-                        </span>
-                        <span>
-                          {step.status === 'pending' && (
-                            <span className="text-amber-500 font-medium animate-pulse">Ejecutando...</span>
-                          )}
-                          {step.status === 'success' && (
-                            <span className="text-emerald-500 font-bold">✓ Listo</span>
-                          )}
-                          {step.status === 'failed' && (
-                            <span className="text-rose-500 font-bold">✗ Error</span>
-                          )}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </details>
-              </div>
-            )}
-
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl rounded-tl-none border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                  <div className="flex flex-col gap-2">
-                    {tenshiStatus && (
-                      <span className="text-[10px] text-gray-500 font-semibold animate-pulse dark:text-gray-400">
-                        ⚙️ {tenshiStatus}
-                      </span>
-                    )}
-                    <div className="flex gap-1.5">
-                      <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.3s]"></span>
-                      <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.15s]"></span>
-                      <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400"></span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input Area & Voice Mode Switch */}
-          <div className="shrink-0 border-t border-gray-100 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
-            {/* Live Voice HUD Pill when voice is active */}
-            {isVoiceActive && (
-              <div className="mb-2.5 flex items-center justify-between rounded-xl border border-emerald-200/80 bg-emerald-50/90 px-3 py-2 text-xs text-emerald-800 shadow-sm transition-all dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300">
-                <div className="flex items-center gap-2">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-                  </span>
-                  <span className="font-medium tracking-tight">
-                    {voiceStatusText || 'Tenshi te escucha... Habla con naturalidad'}
-                  </span>
-                </div>
-
-                {/* Animated sound wave bars */}
-                <div className="flex h-3.5 items-center gap-1">
-                  {[35, 75, 100, 60, 85].map((h, i) => {
-                    const scaledHeight = Math.max(
-                      3,
-                      Math.round(h * (voiceAmplitude > 0.05 ? Math.min(voiceAmplitude * 2, 1) : 0.15))
-                    );
+                {/* Ecualizador dinámico de 7 barras estilo WAPPY */}
+                <div className="mt-3 flex items-center justify-center gap-1.5 h-5">
+                  {[35, 75, 100, 60, 95, 50, 80].map((baseH, idx) => {
+                    const amp = isTenshiSpeaking
+                      ? outputAmplitude
+                      : isVoiceActive
+                      ? voiceAmplitude
+                      : 0;
+                    const h = amp > 0.04
+                      ? Math.max(4, Math.round((baseH / 100) * 20 * Math.min(amp * 3.5, 1.3)))
+                      : isTenshiSpeaking
+                      ? Math.max(4, (baseH % 12) + 4)
+                      : 4;
                     return (
                       <span
-                        key={i}
-                        className="w-1 rounded-full bg-emerald-500 transition-all duration-100"
-                        style={{ height: `${scaledHeight}px` }}
+                        key={idx}
+                        className={cn(
+                          'w-1 rounded-full transition-all duration-75',
+                          isTenshiSpeaking
+                            ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]'
+                            : isVoiceActive
+                            ? 'bg-emerald-400'
+                            : isTyping
+                            ? 'bg-amber-400 animate-pulse'
+                            : 'bg-emerald-300 dark:bg-emerald-700'
+                        )}
+                        style={{ height: `${h}px` }}
                       />
                     );
                   })}
                 </div>
+
+                {/* Estado de voz */}
+                <p className="mt-1 text-center text-xs font-medium text-emerald-600 dark:text-emerald-400 tracking-tight">
+                  {isTenshiSpeaking ? (
+                    'Tenshi hablando...'
+                  ) : isVoiceActive ? (
+                    voiceStatusText || 'Tenshi te escucha... Habla con naturalidad'
+                  ) : isTyping ? (
+                    'Tenshi procesando...'
+                  ) : (
+                    'Tenshi listo'
+                  )}
+                </p>
               </div>
-            )}
 
-            {/* Input Box */}
-            <div className="group flex items-center gap-2 rounded-2xl border border-gray-200 bg-transparent px-4 py-3 shadow-inner transition-all focus-within:ring-2 focus-within:ring-green-500/30 dark:border-gray-700">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder={isVoiceActive ? 'Habla por el micrófono o escribe aquí...' : 'Escribe tu consulta...'}
-                className="flex-1 border-none bg-transparent text-sm placeholder-gray-400 outline-none focus:outline-none focus:ring-0 dark:text-gray-100"
-                disabled={isTyping}
-              />
-              <button
-                onClick={handleSend}
-                disabled={isTyping || !input.trim()}
-                className="shrink-0 rounded-full bg-green-500 p-1.5 text-white shadow-sm transition-all hover:bg-green-600 active:scale-95 disabled:bg-gray-300"
-              >
-                <Send className="ml-0.5 h-4 w-4" />
-              </button>
-            </div>
+              {/* Caja de subtítulo / transcripción con el estilo original de WAPPY */}
+              <div className="mx-1 my-2 max-h-28 overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 text-center text-xs text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                {isTyping ? (
+                  <div className="flex items-center justify-center gap-1.5 text-emerald-600 dark:text-emerald-400 animate-pulse">
+                    <Sparkles className="h-3.5 w-3.5 animate-spin" />
+                    <span className="font-medium">Tenshi está analizando...</span>
+                  </div>
+                ) : (() => {
+                    const lastMsg = [...messages].reverse().find(
+                      (m) => !m.content?.startsWith('[RESULTADO_GUI]') && !(m as any).isIntermediate
+                    );
+                    const content = lastMsg?.content || '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy?';
+                    return (
+                      <p className="line-clamp-3 leading-relaxed font-normal">
+                        "{content}"
+                      </p>
+                    );
+                  })()
+                }
+              </div>
 
-            {/* Subtle Voice Mode Toggle & Auto-Pause indicator */}
-            <div className="mt-2.5 flex items-center justify-between px-1">
-              <div className="flex items-center gap-2">
+              {/* Pie con el Interruptor Modo Live para regresar a Modo Chat */}
+              <div className="mt-2 flex items-center justify-between border-t border-gray-200 bg-white px-3 py-2.5 rounded-xl dark:border-gray-700 dark:bg-gray-800/90 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      stopVoiceMode();
+                      setViewMode('chat');
+                    }}
+                    className="group relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-emerald-500 transition-colors duration-200 ease-in-out focus:outline-none"
+                    title="Desactivar Modo Live y cambiar a Modo Chat"
+                  >
+                    <span className="pointer-events-none inline-block h-5 w-5 transform translate-x-5 rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out" />
+                  </button>
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium select-none">
+                    <Mic className="h-3.5 w-3.5 text-emerald-500 animate-pulse" />
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      Modo Live Activo
+                    </span>
+                  </div>
+                </div>
+
+                {/* Botón Ver Chat */}
                 <button
                   type="button"
-                  onClick={toggleVoiceMode}
-                  className={cn(
-                    'group relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500/50',
-                    isVoiceActive ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-gray-700'
-                  )}
-                  aria-pressed={isVoiceActive}
-                  title={isVoiceActive ? 'Desactivar Modo Voz de Tenshi' : 'Activar Modo Voz de Tenshi (Habla con Tenshi en vivo)'}
+                  onClick={() => {
+                    stopVoiceMode();
+                    setViewMode('chat');
+                  }}
+                  className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-400 transition-colors"
+                  title="Ver historial completo en Modo Chat"
                 >
-                  <span
-                    className={cn(
-                      'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out',
-                      isVoiceActive ? 'translate-x-5' : 'translate-x-0'
-                    )}
-                  />
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  <span>Ver Chat</span>
                 </button>
-                <div className="flex items-center gap-1.5 text-[11px] font-medium select-none">
-                  <Mic className={cn('h-3.5 w-3.5 transition-colors', isVoiceActive ? 'text-emerald-500 animate-pulse' : 'text-gray-400')} />
-                  <span className={cn('transition-colors', isVoiceActive ? 'font-semibold text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400')}>
-                    {isVoiceActive ? 'Modo Voz Activo' : 'Modo Voz'}
-                  </span>
-                </div>
+              </div>
+            </div>
+          ) : (
+            /* ─── MODO CHAT: HISTORIAL COMPLETO CON INTERRUPTOR MODO LIVE ─── */
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4 dark:bg-gray-900">
+                {(() => {
+                  const visibleMessages = messages.filter(
+                    (msg) => !msg.content?.startsWith('[RESULTADO_GUI]') && !(msg as any).isIntermediate
+                  );
+                  return visibleMessages.map((msg, i) => (
+                    <div
+                      key={i}
+                      className={`group flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
+                    >
+                      <div
+                        className={`max-w-[85%] rounded-2xl p-3 text-sm ${
+                          msg.role === 'user'
+                            ? 'rounded-tr-none bg-blue-600 text-white shadow-md'
+                            : 'rounded-tl-none border border-gray-100 bg-white text-gray-800 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100'
+                        }`}
+                      >
+                        {editingMessageId === msg._id ? (
+                          <div className="flex flex-col gap-2 min-w-[200px]">
+                            <textarea
+                              value={editingText}
+                              onChange={(e) => setEditingText(e.target.value)}
+                              className="w-full rounded-lg border border-blue-300 p-2 text-xs text-gray-800 outline-none focus:ring-1 focus:ring-blue-500"
+                              rows={3}
+                            />
+                            <div className="flex justify-end gap-1.5">
+                              <button
+                                onClick={() => setEditingMessageId(null)}
+                                className="rounded bg-gray-200 px-2 py-1 text-[10px] text-gray-700 hover:bg-gray-300"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                onClick={() => handleSaveEdit(msg._id!)}
+                                className="rounded bg-blue-600 px-2 py-1 text-[10px] text-white hover:bg-blue-700"
+                              >
+                                Guardar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {msg.content && <Markdown content={msg.content} />}
+                            {msg.htmlReport && (
+                              <button
+                                onClick={() => openHtmlReport(msg.htmlReport!)}
+                                className="mt-2 flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
+                              >
+                                <FileText className="h-3.5 w-3.5" />
+                                <span>Ver Informe Oficial</span>
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      {/* Message action controls (Edit, Delete, Regenerate) */}
+                      {msg._id && editingMessageId !== msg._id && (
+                        <div
+                          className={`mt-1 flex items-center gap-2 text-[10px] transition-all opacity-40 hover:opacity-100 sm:opacity-0 group-hover:opacity-100 ${
+                            msg.role === 'user' ? 'justify-end pr-1 text-blue-500/70 dark:text-blue-400/70' : 'justify-start pl-1 text-gray-400 dark:text-gray-500'
+                          }`}
+                        >
+                          {msg.role === 'user' && (
+                            <button
+                              onClick={() => {
+                                setEditingMessageId(msg._id!);
+                                setEditingText(msg.content);
+                              }}
+                              className="flex items-center gap-0.5 hover:text-blue-600 dark:hover:text-blue-300 transition-colors"
+                            >
+                              <Edit2 className="h-2.5 w-2.5" />
+                              <span>Editar</span>
+                            </button>
+                          )}
+                          {msg.role === 'assistant' && i === visibleMessages.length - 1 && (
+                            <button
+                              onClick={() => handleRegenerate(msg._id!)}
+                              className="flex items-center gap-0.5 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                            >
+                              <RefreshCw className="h-2.5 w-2.5" />
+                              <span>Regenerar</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteMessage(msg._id!)}
+                            className="flex items-center gap-0.5 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="h-2.5 w-2.5" />
+                            <span>Eliminar</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ));
+                })()}
+
+                {/* Live automation steps collapsible log */}
+                {guiSteps.length > 0 && (
+                  <div className="rounded-2xl border border-gray-100 bg-white/80 p-3.5 backdrop-blur-sm shadow-sm dark:border-gray-700/50 dark:bg-gray-800/80">
+                    <details className="group" open>
+                      <summary className="flex cursor-pointer items-center justify-between font-bold text-xs text-gray-700 select-none dark:text-gray-300">
+                        <span className="flex items-center gap-1.5">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                          </span>
+                          Acciones automáticas en pantalla ({guiSteps.filter((s) => s.status === 'success').length}/{guiSteps.length})
+                        </span>
+                        <span className="transition-transform duration-200 group-open:rotate-180 text-gray-400 text-[10px]">▼</span>
+                      </summary>
+                      <div className="mt-3.5 space-y-2 border-t border-gray-100/50 pt-2.5 dark:border-gray-700/50">
+                        {guiSteps.map((step, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-[11px]">
+                            <span className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                              <span className="font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-mono text-[9px] dark:bg-gray-700 dark:text-gray-300">
+                                {step.action}
+                              </span>
+                              <span className="truncate max-w-[180px]">{step.details}</span>
+                            </span>
+                            <span
+                              className={cn(
+                                'text-[10px] font-medium',
+                                step.status === 'success' && 'text-emerald-600 dark:text-emerald-400',
+                                step.status === 'pending' && 'text-amber-500 animate-pulse',
+                                step.status === 'failed' && 'text-red-500'
+                              )}
+                            >
+                              {step.status === 'success' ? '✓ Listo' : step.status === 'pending' ? 'Ejecutando...' : '✗ Falló'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+                )}
+
+                {/* Status Indicator */}
+                {tenshiStatus && (
+                  <div className="flex items-center justify-center gap-2 py-2 text-xs text-green-600 dark:text-green-400 animate-pulse">
+                    <Sparkles className="h-4 w-4" />
+                    <span>{tenshiStatus}</span>
+                  </div>
+                )}
+
+                {/* Typing indicator */}
+                {isTyping && !tenshiStatus && (
+                  <div className="flex items-center gap-1 text-gray-400 pl-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500 animate-bounce"></div>
+                    <div className="h-2 w-2 rounded-full bg-green-500 animate-bounce [animation-delay:0.2s]"></div>
+                    <div className="h-2 w-2 rounded-full bg-green-500 animate-bounce [animation-delay:0.4s]"></div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
               </div>
 
-              {/* Botón para volver a Modo Jarvis desde el footer de chat */}
-              <button
-                type="button"
-                onClick={() => setViewMode('jarvis')}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40 transition-colors"
-                title="Regresar al avatar interactivo"
-              >
-                <Bot className="h-3.5 w-3.5" />
-                <span>Modo Jarvis</span>
-              </button>
+              {/* Input Area & Modo Live Switch */}
+              <div className="shrink-0 border-t border-gray-100 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+                {/* Live Voice HUD Pill when voice is active */}
+                {isVoiceActive && (
+                  <div className="mb-2.5 flex items-center justify-between rounded-xl border border-emerald-200/80 bg-emerald-50/90 px-3 py-2 text-xs text-emerald-800 shadow-sm transition-all dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+                      </span>
+                      <span className="font-medium tracking-tight">
+                        {voiceStatusText || 'Tenshi te escucha... Habla con naturalidad'}
+                      </span>
+                    </div>
 
-              {/* Inactivity countdown indicator: auto-pausa a 1 minuto */}
-              {isVoiceActive ? (
-                isWaitingConsultation || isChatSubmitting ? (
-                  <div
-                    className="flex items-center gap-1.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 animate-pulse"
-                    title="Tenshi está esperando la respuesta del especialista para continuar la conversación hablada"
-                  >
-                    <span className="flex h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
-                    <span>Esperando al especialista...</span>
+                    {/* Animated sound wave bars */}
+                    <div className="flex h-3.5 items-center gap-1">
+                      {[35, 75, 100, 60, 85].map((h, i) => {
+                        const scaledHeight = Math.max(
+                          3,
+                          Math.round(h * (voiceAmplitude > 0.05 ? Math.min(voiceAmplitude * 2, 1) : 0.15))
+                        );
+                        return (
+                          <span
+                            key={i}
+                            className="w-1 rounded-full bg-emerald-500 transition-all duration-100"
+                            style={{ height: `${scaledHeight}px` }}
+                          />
+                        );
+                      })}
+                    </div>
                   </div>
-                ) : (
-                  <div
-                    className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium"
-                    title="Se desactiva automáticamente tras 1 minuto sin usar"
+                )}
+
+                {/* Input Box */}
+                <div className="group flex items-center gap-2 rounded-2xl border border-gray-200 bg-transparent px-4 py-3 shadow-inner transition-all focus-within:ring-2 focus-within:ring-green-500/30 dark:border-gray-700">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                    placeholder={isVoiceActive ? 'Habla por el micrófono o escribe aquí...' : 'Escribe tu consulta...'}
+                    className="flex-1 border-none bg-transparent text-sm placeholder-gray-400 outline-none focus:outline-none focus:ring-0 dark:text-gray-100"
+                    disabled={isTyping}
+                  />
+                  <button
+                    onClick={() => handleSend()}
+                    disabled={isTyping || !input.trim()}
+                    className="shrink-0 rounded-full bg-green-500 p-1.5 text-white shadow-sm transition-all hover:bg-green-600 active:scale-95 disabled:bg-gray-300"
                   >
-                    <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
-                    <span>Auto-pausa: {Math.max(0, 60 - inactivitySeconds)}s</span>
+                    <Send className="ml-0.5 h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Modo Live Switch en el footer del Chat (Imagen 5) */}
+                <div className="mt-2.5 flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setViewMode('live');
+                        startVoiceMode();
+                      }}
+                      className={cn(
+                        'group relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500/50',
+                        'bg-gray-200 dark:bg-gray-700'
+                      )}
+                      title="Activar Modo Live (Avatar con voz en vivo)"
+                    >
+                      <span className="pointer-events-none inline-block h-5 w-5 transform translate-x-0 rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out" />
+                    </button>
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium select-none">
+                      <Mic className="h-3.5 w-3.5 text-gray-400" />
+                      <span className="text-gray-500 dark:text-gray-400">
+                        Modo Live
+                      </span>
+                    </div>
                   </div>
-                )
-              ) : (
-                <span className="text-[10px] font-medium tracking-tight text-gray-400">
-                  Tenshi por WAPPY IA
-                </span>
-              )}
+
+                  {/* Inactivity countdown indicator: auto-pausa a 1 minuto */}
+                  {isVoiceActive ? (
+                    isWaitingConsultation || isChatSubmitting ? (
+                      <div
+                        className="flex items-center gap-1.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 animate-pulse"
+                        title="Tenshi está esperando la respuesta del especialista para continuar la conversación hablada"
+                      >
+                        <span className="flex h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
+                        <span>Esperando al especialista...</span>
+                      </div>
+                    ) : (
+                      <div
+                        className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium"
+                        title="Se desactiva automáticamente tras 1 minuto sin usar"
+                      >
+                        <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+                        <span>Auto-pausa: {Math.max(0, 60 - inactivitySeconds)}s</span>
+                      </div>
+                    )
+                  ) : (
+                    <span className="text-[10px] font-medium tracking-tight text-gray-400">
+                      Tenshi por WAPPY IA
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
-        )
       )}
 
       {!isOpen && (
