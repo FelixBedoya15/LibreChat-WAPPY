@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw, Mic, Volume2 } from 'lucide-react';
+import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw, Mic, Volume2, MessageSquare, Bot, Activity } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useListAgentsQuery } from '~/data-provider';
 import { useRecoilValue } from 'recoil';
@@ -282,6 +282,7 @@ export default function TenshiChat() {
     }
   }, [agentsData]);
   const [isOpen, setIsOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'jarvis' | 'chat'>('jarvis');
   const [messages, setMessages] = useState<
     { _id?: string; role: string; content: string; htmlReport?: string }[]
   >([
@@ -302,6 +303,8 @@ export default function TenshiChat() {
   // ─── Tenshi Voice Mode State & Audio Infrastructure ───────────────────────────
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [voiceAmplitude, setVoiceAmplitude] = useState(0);
+  const [outputAmplitude, setOutputAmplitude] = useState(0);
+  const [isTenshiSpeaking, setIsTenshiSpeaking] = useState(false);
   const [inactivitySeconds, setInactivitySeconds] = useState(0);
   const [voiceStatusText, setVoiceStatusText] = useState('');
   const lastActivityRef = useRef<number>(Date.now());
@@ -346,6 +349,8 @@ export default function TenshiChat() {
     activeSourcesRef.current = [];
     nextStartTimeRef.current = 0;
     setIsPlayingAudioRef.current?.(false);
+    setIsTenshiSpeaking(false);
+    setOutputAmplitude(0);
   }, []);
 
   const playChime = useCallback(() => {
@@ -412,6 +417,8 @@ export default function TenshiChat() {
         if (activeSourcesRef.current.length === 0) {
           setIsPlayingAudioRef.current?.(false);
           setVoiceStatusText('Tenshi te escucha...');
+          setIsTenshiSpeaking(false);
+          setOutputAmplitude(0);
         }
       };
 
@@ -419,6 +426,7 @@ export default function TenshiChat() {
       nextStartTimeRef.current += audioBuffer.duration;
       setIsPlayingAudioRef.current?.(true);
       setVoiceStatusText('Tenshi hablando...');
+      setIsTenshiSpeaking(true);
       lastActivityRef.current = Date.now();
     } catch (err) {
       console.error('[Tenshi Voice] Error processing audio playback:', err);
@@ -782,6 +790,7 @@ export default function TenshiChat() {
     sendTextMessage,
     sendWappyActionResult,
     setIsPlayingAudio: setVoiceIsPlayingAudio,
+    status: voiceStatus,
   } = useVoiceSession(sessionOptions);
   disconnectVoiceRef.current = disconnectVoice;
   setIsPlayingAudioRef.current = setVoiceIsPlayingAudio;
@@ -792,6 +801,8 @@ export default function TenshiChat() {
     playPowerDownChime();
     clearAudioQueue();
     disconnectVoice();
+    setIsTenshiSpeaking(false);
+    setOutputAmplitude(0);
     setVoiceStatusText('');
   }, [disconnectVoice, clearAudioQueue, playPowerDownChime]);
 
@@ -837,19 +848,37 @@ export default function TenshiChat() {
     }
   }, [isVoiceActive, startVoiceMode, stopVoiceMode]);
 
-  // Visual amplitude polling for live waveform
+  // Visual amplitude polling for live waveform & Jarvis avatar reactivity
   useEffect(() => {
     let animFrame: number;
     const updateAmplitude = () => {
+      // 1. Calculate Tenshi output audio amplitude when speaking
+      if (activeSourcesRef.current.length > 0 && outputAnalyserRef.current) {
+        try {
+          const dataArray = new Uint8Array(outputAnalyserRef.current.frequencyBinCount);
+          outputAnalyserRef.current.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i];
+          }
+          const avg = sum / (dataArray.length * 255);
+          setOutputAmplitude(avg);
+        } catch (e) {
+          setOutputAmplitude(0);
+        }
+      } else {
+        setOutputAmplitude(0);
+      }
+
+      // 2. Poll user mic input volume if voice mode is active
       if (isVoiceActive) {
         const vol = getInputVolume();
         setVoiceAmplitude(vol);
-        animFrame = requestAnimationFrame(updateAmplitude);
       }
-    };
-    if (isVoiceActive) {
       animFrame = requestAnimationFrame(updateAmplitude);
-    }
+    };
+
+    animFrame = requestAnimationFrame(updateAmplitude);
     return () => {
       if (animFrame) cancelAnimationFrame(animFrame);
     };
@@ -1231,6 +1260,7 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
       return;
     }
     setIsOpen(true);
+    setViewMode('jarvis');
   };
 
   const { data: config } = useQuery(
@@ -1362,7 +1392,10 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
   };
 
   useEffect(() => {
-    const handleOpen = () => setIsOpen(true);
+    const handleOpen = () => {
+      setIsOpen(true);
+      setViewMode('jarvis');
+    };
     window.addEventListener('open-tenshi-chat', handleOpen);
     return () => window.removeEventListener('open-tenshi-chat', handleOpen);
   }, []);
@@ -1552,11 +1585,12 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
     }
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || isTyping) return;
+  const handleSend = async (customText?: string) => {
+    const textToSend = (typeof customText === 'string' ? customText : input).trim();
+    if (!textToSend || isTyping) return;
 
     setGuiSteps([]); // Limpiar logs de automatización anteriores
-    const userMsg = { role: 'user', content: input };
+    const userMsg = { role: 'user', content: textToSend };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
 
@@ -1713,47 +1747,377 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
       }
       className={`tenshi-widget-container fixed z-[9999] ${position ? '' : floatPosition} flex flex-col items-end`}
     >
+      {/* Dynamic Keyframes for Tenshi Jarvis Avatar */}
+      <style>{`
+        @keyframes tenshiFloat {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-7px) rotate(0.6deg); }
+        }
+        @keyframes tenshiSpeakingBob {
+          0%, 100% { transform: scale(1) translateY(0px); }
+          25% { transform: scale(1.04) translateY(-3px); }
+          50% { transform: scale(0.98) translateY(1px); }
+          75% { transform: scale(1.05) translateY(-4px); }
+        }
+        @keyframes tenshiSpinSlow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes tenshiSpinReverse {
+          from { transform: rotate(360deg); }
+          to { transform: rotate(0deg); }
+        }
+        .animate-tenshi-float {
+          animation: tenshiFloat 4s ease-in-out infinite;
+        }
+        .animate-tenshi-speaking {
+          animation: tenshiSpeakingBob 0.65s ease-in-out infinite;
+        }
+        .animate-tenshi-spin {
+          animation: tenshiSpinSlow 16s linear infinite;
+        }
+        .animate-tenshi-spin-reverse {
+          animation: tenshiSpinReverse 10s linear infinite;
+        }
+      `}</style>
+
       {isOpen && (
-        <div className="mb-4 flex h-[500px] w-[350px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl animate-in slide-in-from-bottom-5 dark:border-gray-700 dark:bg-gray-800 sm:w-[400px]">
-          {/* Header */}
-          <div
-            onMouseDown={handleMouseDown}
-            onTouchStart={handleTouchStart}
-            className="flex shrink-0 cursor-move select-none items-center justify-between bg-gradient-to-r from-green-600 to-emerald-500 p-4 text-white"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-emerald-200 bg-white p-0.5 shadow-inner">
+        viewMode === 'jarvis' ? (
+          /* ─── MODO JARVIS: AVATAR INTERACTIVO CON MOVIMIENTO Y BOTONERA ─── */
+          <div className="mb-4 flex h-[520px] w-[350px] sm:w-[390px] flex-col overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-b from-gray-950 via-slate-900 to-gray-950 text-white shadow-[0_12px_45px_rgba(0,0,0,0.8)] backdrop-blur-xl animate-in zoom-in-95 duration-200 select-none">
+            {/* Cabecera HUD Estilo Jarvis */}
+            <div
+              onMouseDown={handleMouseDown}
+              onTouchStart={handleTouchStart}
+              className="flex shrink-0 cursor-move items-center justify-between border-b border-emerald-500/20 bg-black/40 px-4 py-3"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-950/60 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
+                  {isTenshiSpeaking ? (
+                    <>
+                      <Volume2 className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
+                      <span>HABLANDO</span>
+                    </>
+                  ) : isVoiceActive && voiceStatus === 'listening' ? (
+                    <>
+                      <Mic className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
+                      <span className="text-cyan-300">ESCUCHANDO</span>
+                    </>
+                  ) : isTyping ? (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5 text-amber-400 animate-spin" />
+                      <span className="text-amber-300">PENSANDO</span>
+                    </>
+                  ) : isVoiceActive ? (
+                    <>
+                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                      <span>EN VIVO</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                      <span>TENSHI // JARVIS</span>
+                    </>
+                  )}
+                </div>
+                <span className="text-[10px] uppercase tracking-wider text-emerald-400/60 font-mono">
+                  v2.5 AI
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleClearHistory}
+                  title="Reiniciar conversación"
+                  className="rounded-full p-1.5 text-emerald-300/80 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  title="Cerrar asistente"
+                  className="rounded-full p-1.5 text-emerald-300/80 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Escenario Central: Avatar Animado Holográfico */}
+            <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-2 overflow-hidden">
+              {/* Resplandor radial de fondo */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.14)_0%,transparent_70%)] pointer-events-none" />
+
+              {/* Órbitas holográficas concéntricas */}
+              <div className="absolute h-48 w-48 rounded-full border border-dashed border-emerald-500/25 animate-tenshi-spin pointer-events-none" />
+              <div className="absolute h-40 w-40 rounded-full border border-emerald-400/15 animate-tenshi-spin-reverse pointer-events-none" />
+
+              {/* Anillo de aura reactiva a la amplitud de audio */}
+              <div
+                className="absolute h-36 w-36 rounded-full border transition-all duration-100 pointer-events-none"
+                style={{
+                  transform: `scale(${1 + Math.min((isTenshiSpeaking ? outputAmplitude : (isVoiceActive ? voiceAmplitude : 0)) * 0.45, 0.28)})`,
+                  borderColor: isTenshiSpeaking
+                    ? 'rgba(52, 211, 153, 0.75)'
+                    : isVoiceActive
+                    ? 'rgba(56, 189, 248, 0.75)'
+                    : 'rgba(16, 185, 129, 0.25)',
+                  boxShadow: isTenshiSpeaking
+                    ? '0 0 35px rgba(52, 211, 153, 0.5)'
+                    : isVoiceActive
+                    ? '0 0 25px rgba(56, 189, 248, 0.4)'
+                    : 'none',
+                }}
+              />
+
+              {/* Avatar Core con movimiento al hablar / idle */}
+              <div
+                className={cn(
+                  "relative h-28 w-28 sm:h-32 sm:w-32 rounded-full p-1 border-2 transition-all duration-300",
+                  isTenshiSpeaking
+                    ? "animate-tenshi-speaking border-emerald-400 shadow-[0_0_35px_rgba(52,211,153,0.7)]"
+                    : isTyping
+                    ? "border-amber-400 shadow-[0_0_25px_rgba(251,191,36,0.6)] animate-pulse"
+                    : isVoiceActive
+                    ? "border-cyan-400 shadow-[0_0_25px_rgba(56,189,248,0.5)]"
+                    : "animate-tenshi-float border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                )}
+                style={{
+                  transform: isTenshiSpeaking
+                    ? `scale(${1 + Math.min(outputAmplitude * 0.25, 0.15)})`
+                    : undefined,
+                }}
+              >
                 <img
                   src="/assets/tenshi.png"
-                  alt="Tenshi"
-                  className="h-full w-full rounded-full object-cover"
+                  alt="Tenshi Avatar"
+                  className="h-full w-full rounded-full object-cover shadow-inner pointer-events-none"
                   onError={(e) => {
                     e.currentTarget.src = '/assets/logo.svg';
                   }}
                 />
-                {!isOpen && <Sparkles className="absolute h-5 w-5 text-green-600" />}
+                {isTenshiSpeaking && (
+                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-3 w-8 rounded-full bg-emerald-400/80 blur-[3px] animate-pulse pointer-events-none" />
+                )}
               </div>
-              <div>
-                <h3 className="text-lg font-bold leading-none">{config.name}</h3>
-                <p className="mt-1 text-xs text-green-100">{config.description}</p>
+
+              {/* Ecualizador dinámico de 7 barras */}
+              <div className="mt-3 flex items-center justify-center gap-1.5 h-6">
+                {[35, 75, 100, 60, 95, 50, 80].map((baseH, idx) => {
+                  const amp = isTenshiSpeaking
+                    ? outputAmplitude
+                    : isVoiceActive
+                    ? voiceAmplitude
+                    : 0;
+                  const h = amp > 0.04
+                    ? Math.max(4, Math.round((baseH / 100) * 24 * Math.min(amp * 3.5, 1.3)))
+                    : isTenshiSpeaking
+                    ? Math.max(4, (baseH % 14) + 4)
+                    : 4;
+                  return (
+                    <span
+                      key={idx}
+                      className={cn(
+                        "w-1 rounded-full transition-all duration-75",
+                        isTenshiSpeaking
+                          ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]"
+                          : isVoiceActive
+                          ? "bg-cyan-400 shadow-[0_0_8px_rgba(56,189,248,0.9)]"
+                          : isTyping
+                          ? "bg-amber-400 animate-pulse"
+                          : "bg-emerald-600/40"
+                      )}
+                      style={{ height: `${h}px` }}
+                    />
+                  );
+                })}
               </div>
+
+              {/* Subtítulo / Estado de voz */}
+              <p className="mt-1.5 text-center text-xs font-medium tracking-wide">
+                {isTenshiSpeaking ? (
+                  <span className="text-emerald-300">Tenshi hablando...</span>
+                ) : isVoiceActive ? (
+                  <span className="text-cyan-300">
+                    {voiceStatusText || 'Tenshi te escucha... Habla libremente'}
+                  </span>
+                ) : isTyping ? (
+                  <span className="text-amber-300">Pensando y consultando...</span>
+                ) : (
+                  <span className="text-gray-400">Listo para ayudarte</span>
+                )}
+              </p>
             </div>
-            <div className="flex items-center gap-1">
+
+            {/* Caja de Subtítulos / Transcripción Holográfica */}
+            <div className="mx-3 mb-2 max-h-20 overflow-y-auto rounded-2xl border border-emerald-500/25 bg-black/50 p-2.5 text-center text-xs backdrop-blur-md shadow-inner">
+              {isTyping ? (
+                <div className="flex items-center justify-center gap-1.5 text-amber-300 animate-pulse py-0.5">
+                  <Sparkles className="h-3.5 w-3.5 animate-spin" />
+                  <span className="font-medium">Tenshi está analizando tu solicitud...</span>
+                </div>
+              ) : (() => {
+                  const lastAssistant = [...messages].reverse().find(
+                    (m) => m.role === 'assistant' && !m.content?.startsWith('[RESULTADO_GUI]') && !(m as any).isIntermediate
+                  );
+                  const content = lastAssistant?.content || '¡Hola! Soy Tenshi, tu copiloto en WAPPY IA. ¿Qué deseas hacer hoy?';
+                  return (
+                    <p className="line-clamp-2 text-emerald-100/90 leading-relaxed font-light">
+                      "{content}"
+                    </p>
+                  );
+                })()
+              }
+            </div>
+
+            {/* Chips de Sugerencia Rápida */}
+            <div className="mx-3 mb-2 flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
               <button
-                onClick={handleClearHistory}
-                title="Reiniciar conversación"
-                className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
+                type="button"
+                onClick={() => handleSend("¿Qué empresa está activa en el sistema y cuáles son sus datos principales?")}
+                disabled={isTyping}
+                className="shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-200 transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
               >
-                <RotateCcw className="h-4 w-4" />
+                🏢 Empresa Activa
               </button>
               <button
-                onClick={() => setIsOpen(false)}
-                className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
+                type="button"
+                onClick={() => handleSend("Léeme la información visible de la pantalla actual")}
+                disabled={isTyping}
+                className="shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-200 transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
               >
-                <X className="h-5 w-5" />
+                🖥️ Leer Pantalla
               </button>
+              <button
+                type="button"
+                onClick={() => handleSend("Abre la Matriz IPEVAR")}
+                disabled={isTyping}
+                className="shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-200 transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
+              >
+                🚦 Matriz IPEVAR
+              </button>
+            </div>
+
+            {/* Botonera de Control y Campo Rápido */}
+            <div className="shrink-0 border-t border-emerald-500/20 bg-black/60 p-3 backdrop-blur-md flex flex-col gap-2">
+              {/* Campo de texto en modo Jarvis */}
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-gray-950/80 px-3 py-1.5 focus-within:border-emerald-400 focus-within:ring-1 focus-within:ring-emerald-400/30 transition-all">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  placeholder={isVoiceActive ? "Tenshi te escucha... o escribe aquí" : "Escribe tu consulta a Tenshi..."}
+                  className="flex-1 bg-transparent text-xs text-white placeholder-emerald-200/40 outline-none"
+                  disabled={isTyping}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleSend()}
+                  disabled={isTyping || !input.trim()}
+                  className="shrink-0 rounded-lg bg-emerald-500 p-1.5 text-white transition-all hover:bg-emerald-400 active:scale-95 disabled:opacity-30"
+                  title="Enviar consulta"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* Botonera Principal: Modo Voz & Ver Chat */}
+              <div className="flex items-center gap-2 pt-0.5">
+                {/* Botón Modo Voz */}
+                <button
+                  type="button"
+                  onClick={toggleVoiceMode}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl font-medium text-xs transition-all duration-300 shadow-md active:scale-95",
+                    isVoiceActive
+                      ? "bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] border border-emerald-300"
+                      : "bg-gray-800/90 hover:bg-gray-700/90 text-gray-300 border border-gray-700 hover:text-white"
+                  )}
+                  title={isVoiceActive ? "Desactivar Modo Voz de Tenshi" : "Activar Modo Voz en vivo con Tenshi"}
+                >
+                  <div className="relative flex items-center justify-center">
+                    <Mic className={cn("h-4 w-4", isVoiceActive && "text-white animate-pulse")} />
+                    {isVoiceActive && (
+                      <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-200"></span>
+                      </span>
+                    )}
+                  </div>
+                  <span>{isVoiceActive ? "Modo Voz Activo" : "Modo Voz"}</span>
+                </button>
+
+                {/* Botón Ver Chat */}
+                <button
+                  type="button"
+                  onClick={() => setViewMode('chat')}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl font-medium text-xs bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-500/40 hover:border-emerald-400 transition-all shadow-sm active:scale-95"
+                  title="Abrir historial completo de mensajes y reportes"
+                >
+                  <MessageSquare className="h-4 w-4 text-emerald-400" />
+                  <span>Ver Chat</span>
+                  {messages.length > 1 && (
+                    <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                      {messages.filter(m => !m.content?.startsWith('[RESULTADO_GUI]') && !(m as any).isIntermediate).length}
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
+        ) : (
+          /* ─── MODO CHAT: HISTORIAL COMPLETO CON BOTÓN PARA VOLVER A JARVIS ─── */
+          <div className="mb-4 flex h-[500px] w-[350px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl animate-in slide-in-from-bottom-5 dark:border-gray-700 dark:bg-gray-800 sm:w-[400px]">
+            {/* Header con botón para regresar a Modo Jarvis */}
+            <div
+              onMouseDown={handleMouseDown}
+              onTouchStart={handleTouchStart}
+              className="flex shrink-0 cursor-move select-none items-center justify-between bg-gradient-to-r from-green-600 to-emerald-500 p-4 text-white"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-emerald-200 bg-white p-0.5 shadow-inner">
+                  <img
+                    src="/assets/tenshi.png"
+                    alt="Tenshi"
+                    className="h-full w-full rounded-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = '/assets/logo.svg';
+                    }}
+                  />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold leading-none">{config.name}</h3>
+                  <p className="mt-1 text-xs text-green-100">{config.description}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('jarvis')}
+                  className="flex items-center gap-1 rounded-full bg-white/20 hover:bg-white/30 px-2.5 py-1 text-xs font-semibold text-white transition-all shadow-sm active:scale-95"
+                  title="Cambiar a Modo Avatar Jarvis"
+                >
+                  <Bot className="h-3.5 w-3.5 text-yellow-300 animate-pulse" />
+                  <span>Modo Jarvis</span>
+                </button>
+                <button
+                  onClick={handleClearHistory}
+                  title="Reiniciar conversación"
+                  className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
 
           <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4 dark:bg-gray-900">
             {(() => {
@@ -2017,6 +2381,17 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
                 </div>
               </div>
 
+              {/* Botón para volver a Modo Jarvis desde el footer de chat */}
+              <button
+                type="button"
+                onClick={() => setViewMode('jarvis')}
+                className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40 transition-colors"
+                title="Regresar al avatar interactivo"
+              >
+                <Bot className="h-3.5 w-3.5" />
+                <span>Modo Jarvis</span>
+              </button>
+
               {/* Inactivity countdown indicator: auto-pausa a 1 minuto */}
               {isVoiceActive ? (
                 isWaitingConsultation || isChatSubmitting ? (
@@ -2044,6 +2419,7 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
             </div>
           </div>
         </div>
+        )
       )}
 
       {!isOpen && (
