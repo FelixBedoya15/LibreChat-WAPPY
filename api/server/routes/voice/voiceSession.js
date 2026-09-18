@@ -2099,8 +2099,12 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
             }
             logger.info(`[VoiceSession] Injected ${injectedFrames} visual frames (phaseEvidences: ${Object.keys(this.phaseEvidences || {}).length}, manual: ${!!(this.manualEvidences && this.manualEvidences.length > 0)}) into report prompt.`);
 
-            // Call API with the multimodal array
-            const result = await generateWithKeyRotation(reportModelName, this.userId, promptParts);
+            // Call API with the multimodal array (capped to 8192 tokens for rapid ~4s generation)
+            const result = await generateWithKeyRotation(
+                { model: reportModelName, generationConfig: { maxOutputTokens: 8192 } },
+                this.userId,
+                promptParts
+            );
             const response = result.response;
             let reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
 
