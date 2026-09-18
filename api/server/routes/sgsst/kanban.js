@@ -561,6 +561,8 @@ router.get('/data', requireJwtAuth, async (req, res) => {
           return trimmed;
         };
 
+        const activeIpevarRefs = new Set();
+
         for (let i = 0; i < gtcDoc.matrixRows.length; i++) {
           const row = gtcDoc.matrixRows[i];
           const rowId = row.id || `row-${i}`;
@@ -632,6 +634,9 @@ ${otherControls.length > 0 ? `• Controles Complementarios: ${otherControls.map
             const referenceId = `ipevar-control-${rowId}`;
             const referenceName = `Matriz IPEVAR (${row.peligro_clasificacion || 'GTC-45'})`;
 
+            activeIpevarRefs.add(referenceId);
+            activeIpevarRefs.add(`ipevar-${rowId}`);
+
             // Buscar si ya existía tarea con ID nuevo o ID antiguo (ipevar-${rowId})
             let task = await KanbanTask.findOne({
               user: userId,
@@ -682,6 +687,18 @@ ${otherControls.length > 0 ? `• Controles Complementarios: ${otherControls.map
               }
             }
           }
+        }
+
+        // Si la matriz cambió (ej. se estableció otra matriz oficial o se eliminaron filas),
+        // limpiar tareas pendientes automáticas de IPEVAR que ya no pertenezcan a la matriz activa
+        if (activeIpevarRefs.size > 0) {
+          await KanbanTask.deleteMany({
+            user: userId,
+            companyId,
+            sourceModule: 'matriz_ipevar',
+            status: { $in: ['todo', 'due_soon'] },
+            referenceId: { $nin: Array.from(activeIpevarRefs) },
+          });
         }
       }
     }

@@ -1313,6 +1313,8 @@ router.post('/sync-controles-anexo-e', requireJwtAuth, async (req, res) => {
 
     // Sincronizar en base de datos de Kanban (KanbanTask)
     if (KanbanTask) {
+      const activeIpevarRefs = new Set();
+
       for (let i = 0; i < updatedRows.length; i++) {
         const row = updatedRows[i];
         const rowId = row.id || `row-${i}`;
@@ -1368,6 +1370,9 @@ ${otherControls.length > 0 ? `• Controles Complementarios: ${otherControls.map
           const referenceId = `ipevar-control-${rowId}`;
           const referenceName = `Matriz IPEVAR (${row.peligro_clasificacion || 'GTC-45'})`;
 
+          activeIpevarRefs.add(referenceId);
+          activeIpevarRefs.add(`ipevar-${rowId}`);
+
           let task = await KanbanTask.findOne({
             user: userId,
             companyId,
@@ -1401,6 +1406,17 @@ ${otherControls.length > 0 ? `• Controles Complementarios: ${otherControls.map
             syncedCount++;
           }
         }
+      }
+
+      // Limpiar tareas pendientes que ya no pertenezcan a las filas activas
+      if (activeIpevarRefs.size > 0) {
+        await KanbanTask.deleteMany({
+          user: userId,
+          companyId,
+          sourceModule: 'matriz_ipevar',
+          status: { $in: ['todo', 'due_soon'] },
+          referenceId: { $nin: Array.from(activeIpevarRefs) },
+        });
       }
     }
 
