@@ -1249,7 +1249,8 @@ const CanvasTextEditor: React.FC<CanvasTextEditorProps> = ({ initialContent, onU
   const { token } = useAuthContext();
   const liveEditorRef = useRef<LiveEditorHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+  // Plantillas SST lateral panel: cerrado por defecto para no invadir la pantalla del informe
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'templates' | 'inlays'>('templates');
   const [isBridgeOpen, setIsBridgeOpen] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);

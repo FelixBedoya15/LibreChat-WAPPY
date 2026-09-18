@@ -407,6 +407,14 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             if (options.agentId) {
                 wsUrl += `&agentId=${encodeURIComponent(options.agentId)}`;
             }
+            if (options.mode === 'tenshi_voice') {
+                try {
+                    const localTenshiKey = typeof window !== 'undefined' ? localStorage.getItem('librechat_user_key_tenshi_google') || '' : '';
+                    if (localTenshiKey) {
+                        wsUrl += `&tenshiKey=${encodeURIComponent(localTenshiKey)}`;
+                    }
+                } catch (e) {}
+            }
 
             console.log('[VoiceSession] Connecting to:', wsUrl);
             const ws = new WebSocket(wsUrl);

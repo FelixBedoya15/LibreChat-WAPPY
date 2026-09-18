@@ -8,7 +8,7 @@ router.put('/', requireJwtAuth, async (req, res) => {
   const role = req.user.role;
 
   // RBAC: Block non-google keys for Free (USER) plan, EXCEPT sub-users who can configure their own keys
-  if (role === 'USER' && name !== 'google' && !req.user.isSubUser) {
+  if (role === 'USER' && name !== 'google' && name !== 'tenshi_google' && !req.user.isSubUser) {
     return res.status(403).json({ error: 'Tu plan (Gratis) solo permite configurar claves API de Google/Gemini. Adquiere un plan superior para configurar otros proveedores.' });
   }
 

@@ -1503,8 +1503,16 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                 })
             });
 
-            const apiKey = await getUserKey({ userId: this.userId, name: EModelEndpoint.google });
-            logger.debug(`[VoiceSession] Retrieved API Key for refinement: ${apiKey ? 'Success' : 'Failed'}`);
+            const keyName = (this.config?.mode === 'tenshi_voice' || this.agentObj?.id === 'tenshi') ? 'tenshi_google' : EModelEndpoint.google;
+            let apiKey = null;
+            try {
+                apiKey = await getUserKey({ userId: this.userId, name: keyName });
+            } catch (e) {
+                try {
+                    apiKey = await getUserKey({ userId: this.userId, name: EModelEndpoint.google });
+                } catch (e2) {}
+            }
+            logger.debug(`[VoiceSession] Retrieved API Key for refinement (${keyName}): ${apiKey ? 'Success' : 'Failed'}`);
 
             if (!apiKey) {
                 // Handle case where API key is not found, e.g., by sending original text
@@ -3237,8 +3245,46 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             await existingSession.stop();
         }
 
-        // Get user's Google API key
-        const apiKey = await getUserKey({ userId, name: EModelEndpoint.google });
+        // Create session config
+        let config = {};
+        if (configOrVoice) {
+            if (typeof configOrVoice === 'string') {
+                config.voice = configOrVoice;
+                logger.info(`[VoiceSession] Initializing with voice: ${configOrVoice} `);
+            } else if (typeof configOrVoice === 'object') {
+                config = configOrVoice;
+                logger.info(`[VoiceSession] Initializing with custom config`);
+            }
+        }
+
+        const isTenshi = config && (config.mode === 'tenshi_voice' || config.agentId === 'tenshi');
+
+        let apiKey = null;
+        if (isTenshi) {
+            // 1. Prioridad: Claves exclusivas de Tenshi desde la base de datos
+            try {
+                apiKey = await getUserKey({ userId, name: 'tenshi_google' });
+                if (apiKey) {
+                    logger.info(`[VoiceSession] Usando claves API exclusivas de Tenshi (DB tenshi_google) para el usuario: ${userId}`);
+                }
+            } catch (tErr) {
+                logger.debug(`[VoiceSession] No se encontró clave exclusiva tenshi_google en DB: ${tErr.message}`);
+            }
+
+            // 2. Fallback: Clave exclusiva enviada por el cliente (localStorage)
+            if (!apiKey && config.tenshiKey) {
+                apiKey = config.tenshiKey;
+                logger.info(`[VoiceSession] Usando claves API exclusivas de Tenshi (cliente localStorage) para el usuario: ${userId}`);
+            }
+        }
+
+        // 3. Fallback general: Clave de Google del chat
+        if (!apiKey) {
+            apiKey = await getUserKey({ userId, name: EModelEndpoint.google });
+            if (isTenshi) {
+                logger.warn(`[VoiceSession] Tenshi Voice usando claves generales de Google (EModelEndpoint.google) por no tener claves exclusivas.`);
+            }
+        }
 
         if (!apiKey) {
             throw new Error('Google API Key not configured');
@@ -3262,18 +3308,6 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
 
         if (apiKeys.length === 0) {
             throw new Error('No valid Google API Keys found after parsing');
-        }
-
-        // Create session
-        let config = {};
-        if (configOrVoice) {
-            if (typeof configOrVoice === 'string') {
-                config.voice = configOrVoice;
-                logger.info(`[VoiceSession] Initializing with voice: ${configOrVoice} `);
-            } else if (typeof configOrVoice === 'object') {
-                config = configOrVoice;
-                logger.info(`[VoiceSession] Initializing with custom config`);
-            }
         }
 
         // MODO TENSHI VOICE: Orquestadora oficial de WAPPY IA con control de plataforma

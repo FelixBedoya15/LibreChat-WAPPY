@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw, Mic, Volume2, MessageSquare, Bot, Activity, Maximize2, Minimize2 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
+import { useChatContext } from '~/Providers';
 import { useListAgentsQuery } from '~/data-provider';
 import { useRecoilValue } from 'recoil';
 import store from '~/store';
@@ -333,7 +334,24 @@ export default function TenshiChat() {
   const latestChatMessage = useRecoilValue(store.latestMessageFamily(0));
   const latestChatMessageRef = useRef(latestChatMessage);
   latestChatMessageRef.current = latestChatMessage;
-  const prevIsChatSubmittingRef = useRef<boolean>(false);
+  const { conversation } = useChatContext();
+  const currentConvoId = conversation?.conversationId;
+  const activeConsultationConvoIdRef = useRef<string | null>(null);
+  const lastContentChangeRef = useRef<{ text: string; time: number }>({ text: '', time: Date.now() });
+
+  useEffect(() => {
+    if (currentConvoId && activeConsultationConvoIdRef.current && currentConvoId !== activeConsultationConvoIdRef.current) {
+      if (pendingAgentConsultationRef.current?.active) {
+        console.log('[Tenshi] Cambio de conversación detectado. Cancelando espera previa.');
+        pendingAgentConsultationRef.current.active = false;
+        setIsWaitingConsultation(false);
+        if (consultationTimerRef.current) {
+          clearTimeout(consultationTimerRef.current);
+          consultationTimerRef.current = null;
+        }
+      }
+    }
+  }, [currentConvoId]);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const outputAnalyserRef = useRef<AnalyserNode | null>(null);
@@ -672,6 +690,8 @@ export default function TenshiChat() {
               timestamp: Date.now(),
               initialMessageId,
             };
+            activeConsultationConvoIdRef.current = null;
+            lastContentChangeRef.current = { text: '', time: Date.now() };
             setIsWaitingConsultation(true);
             setVoiceStatusText(`Esperando a ${agentName}...`);
 
@@ -950,14 +970,20 @@ export default function TenshiChat() {
           Boolean(isWaitingConsultation);
 
         if (isWaiting) {
-          // Timeout de seguridad de 10 minutos por si el agente o la red fallan completamente
+          // Timeout de seguridad de 45 segundos por si el agente falla silenciosamente o la red se congela
           if (
             pendingAgentConsultationRef.current &&
-            Date.now() - pendingAgentConsultationRef.current.timestamp > 10 * 60 * 1000
+            Date.now() - pendingAgentConsultationRef.current.timestamp > 45 * 1000
           ) {
-            console.warn('[Tenshi Voice] Timeout de seguridad (10 min) esperando respuesta del especialista.');
+            console.warn('[Tenshi Voice] Timeout de seguridad (45s) esperando respuesta del especialista.');
+            const timedOutAgent = pendingAgentConsultationRef.current.agentName;
             pendingAgentConsultationRef.current.active = false;
             setIsWaitingConsultation(false);
+            if (isVoiceActive) {
+              lastActivityRef.current = Date.now();
+              setVoiceStatusText('Tenshi te escucha...');
+              sendTextMessage(`[SISTEMA INTERNO WAPPY]: La respuesta del especialista ${timedOutAgent} está tardando más de lo habitual en la pantalla. INSTRUCCIÓN: Con voz tranquila y fresca, dile al usuario en una sola frase breve que la respuesta sigue procesándose en pantalla pero que tú estás lista para cualquier otra consulta.`);
+            }
           } else {
             // Mantener actividad fresca y el contador en cero mientras el especialista genera su dictamen
             lastActivityRef.current = Date.now();
@@ -994,7 +1020,7 @@ export default function TenshiChat() {
         inactivityIntervalRef.current = null;
       }
     };
-  }, [isVoiceActive, isWaitingConsultation, stopVoiceMode]);
+  }, [isVoiceActive, isWaitingConsultation, stopVoiceMode, sendTextMessage]);
 
   // 🧠 Escuchar y procesar la respuesta del especialista para que Tenshi aprenda y hable al usuario
   useEffect(() => {
@@ -1023,6 +1049,15 @@ export default function TenshiChat() {
       rawMsgText.length < 25 ||
       /^(pensando respuesta|\.\.\.|\s*)*$/i.test(rawMsgText) ||
       rawMsgText.includes('Pensando respuesta...');
+
+    // Registrar cambios en el texto para detectar estabilización visual
+    if (rawMsgText && rawMsgText !== lastContentChangeRef.current.text) {
+      lastContentChangeRef.current = { text: rawMsgText, time: Date.now() };
+    }
+
+    if (!activeConsultationConvoIdRef.current && currentConvoId) {
+      activeConsultationConvoIdRef.current = currentConvoId;
+    }
 
     // Marcar que el especialista ya empezó a trabajar si está enviando o si ya hay mensaje con contenido
     if (isChatSubmitting || (isAssistantMsg && !isPlaceholder)) {
@@ -1057,8 +1092,22 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
       return;
     }
 
-    // CASO 2: El especialista sigue generando (streaming, pensando, ejecutando búsquedas web o aún no inicia)
-    if (isChatSubmitting || isPlaceholder || !consultation.hadStarted) {
+    // Detección de finalización:
+    // A) Finalización normal: el chat terminó de generar (!isChatSubmitting)
+    // B) Finalización por estabilización en pantalla: si el texto tiene contenido sustancial (>80 caracteres)
+    //    y no ha cambiado en 3.5 segundos, asumimos que ya terminó de escribir en pantalla,
+    //    incluso si el socket SSE o el estado Recoil siguen reportando submit.
+    const isCompletedNormally = isAssistantMsg && !isChatSubmitting && !isPlaceholder && !currentMsg?.error;
+    const isCompletedByScreenStability =
+      isAssistantMsg &&
+      !isPlaceholder &&
+      !currentMsg?.error &&
+      rawMsgText.length > 80 &&
+      consultation.hadStarted &&
+      Date.now() - lastContentChangeRef.current.time >= 3500;
+
+    // CASO 2: El especialista sigue generando activamente
+    if (!isCompletedNormally && !isCompletedByScreenStability) {
       if (consultationTimerRef.current) {
         clearTimeout(consultationTimerRef.current);
         consultationTimerRef.current = null;
@@ -1073,12 +1122,7 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
     }
 
     // CASO 3: El especialista completó exitosamente su respuesta.
-    // Usar estabilización de 1500ms para asegurar que el streaming finalizó por completo y no es solo una pausa entre tool calls.
-    if (isAssistantMsg && !isChatSubmitting && !isPlaceholder && !currentMsg?.error) {
-      if (consultationTimerRef.current) {
-        clearTimeout(consultationTimerRef.current);
-      }
-
+    if (!consultationTimerRef.current) {
       setVoiceStatusText(`${consultation.agentName} finalizando respuesta...`);
 
       consultationTimerRef.current = setTimeout(() => {
@@ -1093,6 +1137,7 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
 
         consultation.active = false;
         setIsWaitingConsultation(false);
+        consultationTimerRef.current = null;
 
         console.log(
           `[Tenshi] ✅ Respuesta técnica capturada exitosamente de ${consultation.agentName}:`,
@@ -1115,7 +1160,7 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
             content: `💡 **Tenshi:** He revisado la respuesta que te dio **${consultation.agentName}** sobre *"${consultation.question}"*. En el chat central puedes consultar todo el sustento técnico y normativo detallado. Si deseas que articulemos esto con algún hito o matriz de WAPPY, solo indícamelo.`,
           },
         ]);
-      }, 1500);
+      }, 1000);
     }
   }, [latestChatMessage, isChatSubmitting, isVoiceActive, sendTextMessage]);
 
@@ -1516,6 +1561,7 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
         {
           messages: cappedMessages,
           browserState: domState,
+          tenshiKey: typeof window !== 'undefined' ? localStorage.getItem('librechat_user_key_tenshi_google') || undefined : undefined,
         },
         { headers: token ? { Authorization: `Bearer ${token}` } : {} },
       );

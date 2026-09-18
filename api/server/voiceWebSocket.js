@@ -98,6 +98,7 @@ function setupVoiceWebSocket(server) {
             if (endpoint) config.endpoint = endpoint;
             if (mode) config.mode = mode;
             if (agentId) config.agentId = agentId;
+            if (params.tenshiKey) config.tenshiKey = params.tenshiKey;
 
             const result = await createSession(ws, user.id, conversationId, config);
 

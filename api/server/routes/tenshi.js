@@ -375,6 +375,13 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             } catch (err) {}
 
             if (!apiKeys || apiKeys.length === 0) {
+                const clientTenshiKey = req.body?.tenshiKey || req.headers?.['x-tenshi-key'];
+                if (clientTenshiKey) {
+                    apiKeys = clientTenshiKey.split(',').map(k => k.trim()).filter(Boolean);
+                }
+            }
+
+            if (!apiKeys || apiKeys.length === 0) {
                 apiKeys = await resolveApiKeys(req.user.id || req.user);
             }
 
