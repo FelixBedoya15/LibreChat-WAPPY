@@ -637,9 +637,14 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                 this.liveConfig.model = currentLiveModel; // Asignar el modelo de turno a la configuración
 
                 // Bucle Interno: Recorre las API keys consecutivamente para el modelo actual
-                for (let i = 0; i < this.apiKeys.length; i++) {
-                    const key = this.apiKeys[i];
-                    logger.info(`[VoiceSession] Intentando conexión con Modelo "${currentLiveModel}" y API Key ${i + 1}/${this.apiKeys.length}`);
+                // Si hay múltiples claves API, usar el orden inverso para VoiceSession (Tenshi Live)
+                // para que use preferentemente la última clave (ej. Key 3) mientras que los
+                // agentes del chat (AgentClient) usan la primera clave (Key 1).
+                // Esto previene al 100% la colisión de cuotas y desconexión de streams por concurrencia.
+                const voiceKeys = this.apiKeys.length > 1 ? [...this.apiKeys].reverse() : this.apiKeys;
+                for (let i = 0; i < voiceKeys.length; i++) {
+                    const key = voiceKeys[i];
+                    logger.info(`[VoiceSession] Intentando conexión con Modelo "${currentLiveModel}" y API Key ${i + 1}/${voiceKeys.length}`);
                     
                     try {
                         // Create Gemini Live client

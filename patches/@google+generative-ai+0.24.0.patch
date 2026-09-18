@@ -1,8 +1,62 @@
 diff --git a/node_modules/@google/generative-ai/dist/index.js b/node_modules/@google/generative-ai/dist/index.js
-index 61b2c39..9218ffa 100644
+index 61b2c39..41d9c33 100644
 --- a/node_modules/@google/generative-ai/dist/index.js
 +++ b/node_modules/@google/generative-ai/dist/index.js
-@@ -859,13 +859,81 @@ function aggregateResponses(responses) {
+@@ -685,9 +685,12 @@ function processStream(response) {
+     const inputStream = response.body.pipeThrough(new TextDecoderStream("utf8", { fatal: true }));
+     const responseStream = getResponseStream(inputStream);
+     const [stream1, stream2] = responseStream.tee();
++    const respPromise = getResponsePromise(stream2);
++    // Prevent unhandled rejection when callers only consume stream1
++    respPromise.catch(() => {});
+     return {
+         stream: generateResponseSequence(stream1),
+-        response: getResponsePromise(stream2),
++        response: respPromise,
+     };
+ }
+ async function getResponsePromise(stream) {
+@@ -729,6 +732,23 @@ function getResponseStream(inputStream) {
+                     .read()
+                     .then(({ value, done }) => {
+                     if (done) {
++                        currentText = currentText.replace(/^(?::[^\n]*\r?\n|\r?\n)+/, "");
++                        if (currentText.trim()) {
++                            const trimmed = currentText.trim();
++                            if (trimmed.startsWith("data: ")) {
++                                try {
++                                    const parsedResponse = JSON.parse(trimmed.substring(6).trim());
++                                    controller.enqueue(parsedResponse);
++                                    currentText = "";
++                                }
++                                catch (e) {
++                                    // keep currentText for error
++                                }
++                            }
++                            else if (trimmed === "data: [DONE]" || trimmed.startsWith(":")) {
++                                currentText = "";
++                            }
++                        }
+                         if (currentText.trim()) {
+                             controller.error(new GoogleGenerativeAIError("Failed to parse stream"));
+                             return;
+@@ -737,6 +757,7 @@ function getResponseStream(inputStream) {
+                         return;
+                     }
+                     currentText += value;
++                    currentText = currentText.replace(/^(?::[^\n]*\r?\n|\r?\n)+/, "");
+                     let match = currentText.match(responseLineRE);
+                     let parsedResponse;
+                     while (match) {
+@@ -749,6 +770,7 @@ function getResponseStream(inputStream) {
+                         }
+                         controller.enqueue(parsedResponse);
+                         currentText = currentText.substring(match[0].length);
++                        currentText = currentText.replace(/^(?::[^\n]*\r?\n|\r?\n)+/, "");
+                         match = currentText.match(responseLineRE);
+                     }
+                     return pump();
+@@ -859,13 +881,81 @@ function aggregateResponses(responses) {
   * limitations under the License.
   */
  async function generateContentStream(apiKey, model, params, requestOptions) {
@@ -18,11 +72,11 @@ index 61b2c39..9218ffa 100644
 +                for (const key of Object.keys(obj)) {
 +                    const val = obj[key];
 +                    if (key === 'inlineData' || key === 'inline_data') {
-+                        if (val && typeof val === 'object' && val.data && typeof val.data === 'string' && val.data.length > 2000000) {
++                        if (val && typeof val === 'object' && val.data && typeof val.data === 'string' && val.data.length > 35000000) {
 +                            continue;
 +                        }
 +                    }
-+                    if (key === 'data' && typeof val === 'string' && val.length > 2000000) {
++                    if (key === 'data' && typeof val === 'string' && val.length > 35000000) {
 +                        continue;
 +                    }
 +                    if (typeof val === 'string' && val.length > 1000000) {
@@ -58,11 +112,11 @@ index 61b2c39..9218ffa 100644
 +                for (const key of Object.keys(obj)) {
 +                    const val = obj[key];
 +                    if (key === 'inlineData' || key === 'inline_data') {
-+                        if (val && typeof val === 'object' && val.data && typeof val.data === 'string' && val.data.length > 2000000) {
++                        if (val && typeof val === 'object' && val.data && typeof val.data === 'string' && val.data.length > 35000000) {
 +                            continue;
 +                        }
 +                    }
-+                    if (key === 'data' && typeof val === 'string' && val.length > 2000000) {
++                    if (key === 'data' && typeof val === 'string' && val.length > 35000000) {
 +                        continue;
 +                    }
 +                    if (typeof val === 'string' && val.length > 1000000) {

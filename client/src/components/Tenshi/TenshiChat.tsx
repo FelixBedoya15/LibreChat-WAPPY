@@ -849,33 +849,55 @@ export default function TenshiChat() {
     }
   }, [isVoiceActive, startVoiceMode, stopVoiceMode]);
 
-  // Visual amplitude polling for live waveform & Jarvis avatar reactivity
+  // Visual amplitude polling for live waveform & Jarvis avatar reactivity (Throttled to avoid saturating React render queue)
   useEffect(() => {
     let animFrame: number;
-    const updateAmplitude = () => {
-      // 1. Calculate Tenshi output audio amplitude when speaking
-      if (activeSourcesRef.current.length > 0 && outputAnalyserRef.current) {
-        try {
-          const dataArray = new Uint8Array(outputAnalyserRef.current.frequencyBinCount);
-          outputAnalyserRef.current.getByteFrequencyData(dataArray);
-          let sum = 0;
-          for (let i = 0; i < dataArray.length; i++) {
-            sum += dataArray[i];
+    let prevOut = 0;
+    let prevVoice = 0;
+    let lastPoll = 0;
+
+    const updateAmplitude = (time: number) => {
+      if (time - lastPoll >= 40) {
+        lastPoll = time;
+
+        // 1. Calculate Tenshi output audio amplitude when speaking
+        if (activeSourcesRef.current.length > 0 && outputAnalyserRef.current) {
+          try {
+            const dataArray = new Uint8Array(outputAnalyserRef.current.frequencyBinCount);
+            outputAnalyserRef.current.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+              sum += dataArray[i];
+            }
+            const avg = sum / (dataArray.length * 255);
+            if (Math.abs(avg - prevOut) > 0.03) {
+              prevOut = avg;
+              setOutputAmplitude(avg);
+            }
+          } catch (e) {
+            if (prevOut !== 0) {
+              prevOut = 0;
+              setOutputAmplitude(0);
+            }
           }
-          const avg = sum / (dataArray.length * 255);
-          setOutputAmplitude(avg);
-        } catch (e) {
+        } else if (prevOut !== 0) {
+          prevOut = 0;
           setOutputAmplitude(0);
         }
-      } else {
-        setOutputAmplitude(0);
+
+        // 2. Poll user mic input volume if voice mode is active
+        if (isVoiceActive) {
+          const vol = getInputVolume();
+          if (Math.abs(vol - prevVoice) > 0.03) {
+            prevVoice = vol;
+            setVoiceAmplitude(vol);
+          }
+        } else if (prevVoice !== 0) {
+          prevVoice = 0;
+          setVoiceAmplitude(0);
+        }
       }
 
-      // 2. Poll user mic input volume if voice mode is active
-      if (isVoiceActive) {
-        const vol = getInputVolume();
-        setVoiceAmplitude(vol);
-      }
       animFrame = requestAnimationFrame(updateAmplitude);
     };
 

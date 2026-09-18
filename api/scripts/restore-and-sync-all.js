@@ -639,6 +639,20 @@ Formato (texto plano, 3 viñetas):
     console.error('⚠️ Error ejecutando el parche de Reranker TEI:', err.message);
   }
 
+  // Ejecutar parche de Google Generative AI (Stream Parser & Unhandled Rejection Fix)
+  try {
+    const { execSync } = require('child_process');
+    const localGooglePatch = path.resolve(__dirname, 'patch-google-genai.js');
+    const rootGooglePatch = path.resolve(__dirname, '../../scripts/patch-google-genai.js');
+    const googlePatchScript = fs.existsSync(localGooglePatch) ? localGooglePatch : (fs.existsSync(rootGooglePatch) ? rootGooglePatch : null);
+    if (googlePatchScript) {
+      console.log('⚡ Aplicando optimización y corrección de streaming para @google/generative-ai...');
+      execSync(`node "${googlePatchScript}"`, { stdio: 'inherit' });
+    }
+  } catch (err) {
+    console.error('⚠️ Error ejecutando el parche de @google/generative-ai:', err.message);
+  }
+
   console.log('🎉 PROCESO COMPLETADO CON ÉXITO.');
 }
 
