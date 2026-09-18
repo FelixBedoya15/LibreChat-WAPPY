@@ -26,12 +26,16 @@ Todos los archivos HTML generados deben ser visualmente impresionantes, modernos
 
 Cada formato HTML que construyas **debe** incluir obligatoriamente los siguientes componentes interactivos funcionando de forma 100% autónoma en el cliente (JavaScript puro):
 
-### A. Encabezado Corporativo Inteligente (Editable)
-El encabezado debe incluir campos completamente editables en caliente (usando `contenteditable="true"` u inputs limpios) para que la empresa configure el formato a su medida:
-1. **Logotipo Corporativo Dinámico**: Un contenedor de imagen interactivo que, al hacer clic, abra un selector de archivos, lea la imagen local (`.png`, `.jpg`), la transforme a **Base64** usando `FileReader` y reemplace el logo por defecto en el DOM.
-2. **Campos Generales**: Nombre de la Empresa, NIT, ARL, Nivel de Riesgo (Clase I a V), Cantidad de Trabajadores Expuestos.
-3. **Metadatos Técnicos**: Código de Registro (Ej: `RG-SST-001`), Fecha de Vigencia y Versión del Formato.
-4. **Historial de Control de Cambios Documental**: Una pequeña tabla o bloque colapsable (exigida por el Decreto 1072) que registre las versiones, fechas de actualización y justificación del cambio del formato.
+### A. Encabezado Corporativo Oficial WAPPY (OBLIGATORIO - 2 BLOQUES)
+El encabezado debe estructurarse estrictamente en dos bloques visuales obligatorios:
+1. **Bloque 1 - Banner Gradiente (`gradient-banner`):** Contenedor `bg-gradient-to-r from-teal-600 to-cyan-600 rounded-[2rem] p-6 md:p-8 text-white` con:
+   - Contenedor de Logotipo dinámico interactivo (`#logo-preview-img` y `#logo-placeholder-icon`) con selector de archivo (`#logo-upload-input`) para cargar imágenes en Base64.
+   - Título editable (`#app-document-title`), subtítulo institucional ("SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO"), descripción de validez normativa ("Documento Corporativo Oficial - Conforme a la Normatividad Vigente") y badge de versión ("PROCESO: SG-SST | V.02").
+2. **Bloque 2 - Ficha de Metadatos de la Empresa Activa (`glass-card` con acento lateral `border-l-4 border-l-blue-500`):**
+   - Razón Social (`#company-name`), Badge de NIT + NIT editable (`#company-nit`), ARL (`#company-arl`), Trabajadores (`#company-workers`), Clase de Riesgo (`#company-risk`), Código de Registro (`#change-code`) y Vigencia (`#last-updated-text`). Si el contexto del agente incluye datos reales de la empresa (`## CONTEXTO DE LA EMPRESA ACTIVA DEL USUARIO`), deben usarse como valores iniciales; de lo contrario usar `WAPPY SA` y `NIT: 901437310`.
+3. **Persistencia Compartida del Logotipo en IndexedDB (`WappySSTDb`):**
+   - El script JS debe incluir `openDB()`, `saveGlobalLogoToDB(logoBase64)` y `loadGlobalLogoFromDB()` almacenando el logo bajo la clave `'wappy_sst_global_logo'` en el store `'mediaStore'`. En `window.onload` / `DOMContentLoaded`, el logo debe cargarse automáticamente de IndexedDB para que se comparta entre todos los aplicativos sin necesidad de resubirlo.
+   - Los metadatos editables deben sincronizarse en `localStorage` bajo `wappy_sst_doc_header`.
 
 ### B. Tablero Kanban de Acciones de Mejora
 El formato debe incluir una sección funcional para el control de tareas y planes de acción derivados del registro:

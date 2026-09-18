@@ -948,14 +948,17 @@ class AgentClient extends BaseClient {
       if (!memKeys.length) memKeys = [null];
 
       // Model fallback list from GOOGLE_MODELS env (same exclusions as main agent)
-      const primaryMemModel = this.options.req.config?.memory?.agent?.model
+      let primaryMemModel = this.options.req.config?.memory?.agent?.model
         ?? this.options.req.config?.memory?.agent?.model_parameters?.model
         ?? '';
+      if (primaryMemModel.includes('live') || primaryMemModel.includes('native-audio') || primaryMemModel.includes('transcribe')) {
+        primaryMemModel = 'gemini-3.5-flash-lite';
+      }
       const envMemModels = (process.env.GOOGLE_MODELS || '')
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean)
-        .filter((m) => !m.includes('native-audio') && !m.includes('-live-'));
+        .filter((m) => !m.includes('native-audio') && !m.includes('-live-') && !m.includes('-transcribe') && !m.includes('live-preview'));
       const memModelFallbacks = [
         primaryMemModel,
         ...envMemModels.filter((m) => m !== primaryMemModel),
@@ -1379,6 +1382,9 @@ class AgentClient extends BaseClient {
       // Exclude audio/live-only models: they return 404 for streamGenerateContent
       const isPublicChat = this.options.req?.body?.isPublicChat === true;
       let primaryAgentModel = this.options.agent?.model_parameters?.model || this.options.agent?.model || '';
+      if (primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe')) {
+        primaryAgentModel = 'gemini-3.7-flash';
+      }
       let defaultModels = 'gemini-3.7-flash,gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite';
 
       if (isPublicChat) {
@@ -1390,7 +1396,7 @@ class AgentClient extends BaseClient {
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean)
-        .filter((m) => !m.includes('native-audio') && !m.includes('-live-') && !m.includes('-transcribe'));
+        .filter((m) => !m.includes('native-audio') && !m.includes('-live-') && !m.includes('-transcribe') && !m.includes('live-preview'));
       
       const agentModelFallbacks = isPublicChat
         ? ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.5-flash']
@@ -1399,6 +1405,7 @@ class AgentClient extends BaseClient {
       let attemptErrors = [];
       let success = false;
       let lastErr = null;
+      let continuationPayload = null;
       const initialContentPartsLength = this.contentParts.length;
 
       for (let mi = 0; mi < agentModelFallbacks.length && !success; mi++) {
@@ -1460,12 +1467,15 @@ class AgentClient extends BaseClient {
               }
             }
             /**
-             * Re-build the messages array from the raw payload on every retry
+             * Re-build the messages array from the active payload on every retry
              * to prevent LangGraph's in-place mutations from bleeding partial
              * generations into the next API key's context history.
+             * If buffer preservation is active, activePayload includes the accumulated
+             * text and the continuation directive so the next key resumes seamlessly.
              */
+            const activePayload = continuationPayload || payload;
             const { messages: pristineMessages } = formatAgentMessages(
-              payload,
+              activePayload,
               this.indexTokenCountMap,
               toolSet,
             );
@@ -1524,17 +1534,48 @@ class AgentClient extends BaseClient {
 
             attemptErrors.push(`[Key ${i + 1}]: ` + (err?.message || 'Error'));
 
-            // Clean up partial output from failed run
-            this.contentParts.splice(initialContentPartsLength);
+            // Check if there was substantial partial generation during this or previous attempts
+            const partialParts = this.contentParts.slice(initialContentPartsLength);
+            const accumulatedText = partialParts
+              .filter((p) => p && (p.type === ContentTypes.TEXT || p.text))
+              .map((p) => p[ContentTypes.TEXT] || p.text || '')
+              .join('');
 
-            try {
-              const { sendEvent } = require('@librechat/api');
-              sendEvent(this.options.res, {
-                event: 'clear_step_maps',
-                data: { messageId: this.responseMessageId },
-              });
-            } catch (e) {
-              logger.error('Failed to send clear_step_maps event', e);
+            const hasSubstantialProgress = accumulatedText.trim().length >= 100;
+
+            if (hasSubstantialProgress && isRetryable) {
+              logger.warn(
+                `[AgentClient Buffer Preservation] Preservando buffer de generación parcial (${accumulatedText.length} caracteres). NO se emite clear_step_maps. La siguiente clave continuará exactamente desde el último carácter emitido.`,
+              );
+              // Prepare continuation payload with the entire accumulated text for context
+              continuationPayload = [
+                ...payload,
+                {
+                  role: 'assistant',
+                  content: accumulatedText,
+                },
+                {
+                  role: 'user',
+                  content:
+                    'IMPORTANTE: Tu respuesta o generación previa se interrumpió abruptamente debido a una pérdida momentánea de conexión. ' +
+                    'CONTINÚA EXACTAMENTE a partir del último carácter emitido sin repetir nada de lo que ya se generó antes. ' +
+                    'NO incluyas introducciones, saludos ni disculpas; continúa directamente el código o texto a partir de ese punto exacto para completarlo.',
+                },
+              ];
+            } else {
+              // Clean up partial output from failed run if no substantial progress was made
+              this.contentParts.splice(initialContentPartsLength);
+              continuationPayload = null;
+
+              try {
+                const { sendEvent } = require('@librechat/api');
+                sendEvent(this.options.res, {
+                  event: 'clear_step_maps',
+                  data: { messageId: this.responseMessageId },
+                });
+              } catch (e) {
+                logger.error('Failed to send clear_step_maps event', e);
+              }
             }
 
             if (isDailyQuotaExceeded && i < keys.length - 1) {
@@ -1587,8 +1628,9 @@ class AgentClient extends BaseClient {
                       secondaryAg.model_parameters.apiKey = keys[0];
                     }
                   }
+                  const backoffPayload = continuationPayload || payload;
                   const { messages: pristineMessages } = formatAgentMessages(
-                    payload,
+                    backoffPayload,
                     this.indexTokenCountMap,
                     toolSet,
                   );

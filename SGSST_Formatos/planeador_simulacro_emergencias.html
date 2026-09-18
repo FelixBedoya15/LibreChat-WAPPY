@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planeador Interactivo: Simulacro Nacional de Emergencias - SG-SST & UNGRD</title>
+    
+    <!-- Error boundary safe guard -->
+    <script>
+        window.addEventListener('error', function(e) {
+            console.error("CAPTURED ERROR:", e.message, e.filename, e.lineno);
+            const errDiv = document.createElement('div');
+            errDiv.style.position = 'fixed';
+            errDiv.style.top = '0';
+            errDiv.style.left = '0';
+            errDiv.style.width = '100%';
+            errDiv.style.backgroundColor = '#fef2f2';
+            errDiv.style.color = '#991b1b';
+            errDiv.style.padding = '12px 20px';
+            errDiv.style.zIndex = '99999';
+            errDiv.style.fontWeight = 'bold';
+            errDiv.style.borderBottom = '3px solid #ef4444';
+            errDiv.style.fontSize = '12px';
+            errDiv.innerHTML = '⚠️ Alerta de Renderizado JS: ' + e.message + ' (' + (e.filename || 'local') + ':' + e.lineno + ')';
+            document.body.appendChild(errDiv);
+        });
+    </script>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            cyan: '#06b6d4',
+                            blue: '#2563eb'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+        body {
+            font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .font-mono-code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .gradient-banner {
+            background: linear-gradient(135deg, #047857 0%, #0d9488 40%, #0284c7 100%);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            transition: all 0.25s ease;
+        }
+
+        .dark .glass-card {
+            background: rgba(15, 23, 42, 0.78);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .tab-active {
+            border-bottom: 3px solid #10b981 !important;
+            color: #059669 !important;
+            font-weight: 800 !important;
+            background: rgba(16, 185, 129, 0.08);
+        }
+
+        .dark .tab-active {
+            color: #34d399 !important;
+            background: rgba(16, 185, 129, 0.15);
+        }
+
+        ::-webkit-scrollbar {
+            width: 7px;
+            height: 7px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #0d9488;
+            border-radius: 4px;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            .tab-content { display: block !important; margin-bottom: 30px !important; }
+            .print-page-break { page-break-before: always; }
+            body { background: white !important; color: black !important; padding: 0 !important; }
+            .glass-card { border: 1px solid #cbd5e1 !important; box-shadow: none !important; background: white !important; }
+            .gradient-banner { background: #064e3b !important; color: white !important; -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-[#070b14] text-slate-800 dark:text-slate-100 min-h-screen pb-24">
+
+    <!-- TOP CONTROL BAR (Print, Dark Mode, Copiloto) -->
+    <div class="max-w-[1400px] mx-auto px-4 md:px-6 pt-4 flex items-center justify-between no-print">
+        <div class="flex items-center gap-2">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
+                <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                SG-SST & UNGRD CONFORME
+            </span>
+            <span class="text-xs text-slate-500 dark:text-slate-400 hidden sm:inline">Dec. 1072/2015 & Res. 0312/2019</span>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button onclick="window.print()" class="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 shadow-sm transition-all active:scale-95">
+                <i data-lucide="printer" class="w-3.5 h-3.5 text-emerald-600"></i>
+                <span>Imprimir Plan / PDF</span>
+            </button>
+            <button onclick="downloadStandaloneHTML()" class="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 shadow-sm transition-all active:scale-95">
+                <i data-lucide="download" class="w-3.5 h-3.5 text-cyan-600"></i>
+                <span class="hidden sm:inline">Guardar HTML</span>
+            </button>
+            <button onclick="toggleDarkMode()" class="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm transition-all" title="Alternar Modo Oscuro">
+                <i data-lucide="sun-moon" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- HEADER PANEL OFICIAL -->
+    <header class="max-w-[1400px] mx-auto px-4 md:px-6 pt-3">
+        <div class="gradient-banner rounded-[2rem] p-6 md:p-8 text-white relative overflow-hidden shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="absolute -right-10 -bottom-10 w-72 h-72 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
+            <div class="absolute -left-10 -top-10 w-60 h-60 rounded-full bg-emerald-400/20 blur-2xl pointer-events-none"></div>
+
+            <div class="flex items-center gap-5 z-10 w-full md:w-auto">
+                <div onclick="document.getElementById('logo-upload-input').click()" class="h-20 w-20 md:h-24 md:w-24 rounded-3xl bg-white/15 backdrop-blur-md border border-white/30 flex flex-col items-center justify-center cursor-pointer hover:bg-white/25 active:scale-95 transition-all shadow-inner relative overflow-hidden group shrink-0" title="Clic para subir logotipo institucional">
+                    <img id="logo-preview-img" src="" class="h-full w-full object-cover rounded-3xl absolute inset-0 z-10 hidden">
+                    <div id="logo-placeholder-icon" class="flex flex-col items-center justify-center text-white/85">
+                        <i data-lucide="shield-alert" class="w-8 h-8 mb-1 group-hover:scale-110 transition-transform"></i>
+                        <span class="text-[9px] font-black tracking-widest uppercase">INVAMA</span>
+                    </div>
+                </div>
+                <input type="file" id="logo-upload-input" class="hidden" accept="image/*" onchange="handleLogoUpload(this)">
+                
+                <div class="flex-1">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/20 backdrop-blur-md text-[10px] font-extrabold uppercase tracking-widest text-emerald-200 border border-white/15 mb-2">
+                        <i data-lucide="flame" class="w-3 h-3 text-amber-300"></i>
+                        SIMULACRO NACIONAL DE RESPUESTA A EMERGENCIAS
+                    </div>
+                    <h1 contenteditable="true" id="app-title" onblur="saveData()" class="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight leading-tight uppercase focus:outline-none border-b border-transparent focus:border-white/40">
+                        Planeador Interactivo: Simulacro Nacional de Emergencias
+                    </h1>
+                    <h2 contenteditable="true" id="app-subtitle" onblur="saveData()" class="text-xs md:text-sm font-semibold tracking-wider text-emerald-100 uppercase mt-1 focus:outline-none border-b border-transparent focus:border-white/40">
+                        Gestión integral de alistamiento, libreto operativo, tiempos de evacuación y reporte UNGRD
+                    </h2>
+                </div>
+            </div>
+            
+            <div class="flex flex-col md:items-end gap-2.5 z-10 text-left md:text-right w-full md:w-auto shrink-0">
+                <span class="px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/25 text-xs font-black tracking-wider uppercase whitespace-nowrap shadow-sm">
+                    EJERCICIO NACIONAL | COLOMBIA 2026
+                </span>
+                <span class="text-[11px] font-medium text-emerald-100/90">
+                    Sede Principal Manizales (Alcázares)
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="max-w-[1400px] mx-auto px-4 md:px-6 py-6 flex flex-col gap-6">
+
+        <!-- EMPRESA INFO & PROGRESS BAR CARD -->
+        <div class="glass-card p-6 rounded-[2rem] shadow-sm border-l-4 border-l-emerald-500 flex flex-col gap-5">
+            <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                <!-- Info Empresa -->
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1">
+                    <div class="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                        <i data-lucide="building" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-lg font-black text-slate-900 dark:text-white" contenteditable="true" id="company-name" onblur="saveData()">INSTITUTO DE VALORIZACIÓN DE MANIZALES - INVAMA</span>
+                            <span class="px-2.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold text-xs">NIT: 800.002.916-2</span>
+                            <span class="px-2.5 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 font-bold text-xs">Clase de Riesgo: IV / V</span>
+                        </div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                            <span><i data-lucide="map-pin" class="w-3.5 h-3.5 inline text-slate-400"></i> Sede: <b class="text-slate-700 dark:text-slate-300">Sede Principal Alcázares - Manizales, Caldas</b></span>
+                            <span><i data-lucide="activity" class="w-3.5 h-3.5 inline text-slate-400"></i> ARL: <b class="text-slate-700 dark:text-slate-300">Positiva Compañía de Seguros</b></span>
+                            <span><i data-lucide="users" class="w-3.5 h-3.5 inline text-slate-400"></i> Población Total: <b class="text-slate-700 dark:text-slate-300" id="badge-total-people">85 personas</b></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Código & Versión -->
+                <div class="text-left lg:text-right shrink-0 border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-200 dark:border-slate-800 w-full lg:w-auto">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Código Registro SG-SST</span>
+                    <span class="text-base font-extrabold text-slate-800 dark:text-slate-100 font-mono-code" contenteditable="true" id="doc-code" onblur="saveData()">SIM-EMERG-2026-01</span>
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">Vigencia: <span class="font-semibold text-emerald-600 dark:text-emerald-400">2026 - 2027</span></span>
+                </div>
+            </div>
+
+            <!-- Global Readiness Level -->
+            <div class="pt-4 border-t border-slate-200 dark:border-slate-800/80 flex flex-col gap-2">
+                <div class="flex items-center justify-between text-xs">
+                    <span class="font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i>
+                        Nivel de Alistamiento Global del Simulacro
+                    </span>
+                    <span class="font-black text-sm text-emerald-600 dark:text-emerald-400" id="global-progress-label">0% Completado</span>
+                </div>
+                <div class="w-full h-3 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden shadow-inner">
+                    <div id="global-progress-bar" class="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <div class="flex justify-between items-center text-[11px] text-slate-500 dark:text-slate-400">
+                    <span>Fases: Ficha Técnica (20%) + Checklist Antes/Durante/Pos (40%) + Brigadas (20%) + Calculadora & Reporte (20%)</span>
+                    <span id="readiness-badge" class="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 font-bold text-[10px] uppercase text-slate-600 dark:text-slate-300">Pendiente Iniciar</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN NAVIGATION TABS -->
+        <div class="glass-card rounded-[2rem] shadow-sm overflow-hidden flex flex-col">
+            <div class="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto no-print bg-slate-100/50 dark:bg-slate-900/50 p-2 gap-1.5">
+                <button onclick="switchTab('tab-ficha')" id="btn-tab-ficha" class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-2 tab-active cursor-pointer">
+                    <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+                    <span>1. Ficha Técnica</span>
+                </button>
+                <button onclick="switchTab('tab-checklist')" id="btn-tab-checklist" class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="list-checks" class="w-4 h-4"></i>
+                    <span>2. Checklist (Antes/Durante/Pos)</span>
+                </button>
+                <button onclick="switchTab('tab-brigadas')" id="btn-tab-brigadas" class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="users-2" class="w-4 h-4"></i>
+                    <span>3. Brigada y Roles (SCI)</span>
+                </button>
+                <button onclick="switchTab('tab-calculadora')" id="btn-tab-calculadora" class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="timer" class="w-4 h-4"></i>
+                    <span>4. Calculadora Evacuación</span>
+                </button>
+                <button onclick="switchTab('tab-informe')" id="btn-tab-informe" class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 transition whitespace-nowrap flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="file-check" class="w-4 h-4"></i>
+                    <span>5. Informe UNGRD & ACPM</span>
+                </button>
+            </div>
+
+            <!-- TAB 1: FICHA TÉCNICA -->
+            <div id="tab-ficha" class="tab-content p-6 md:p-8 flex flex-col gap-6">
+                <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+                    <div>
+                        <h3 class="text-lg font-black text-slate-900 dark:text-white uppercase flex items-center gap-2">
+                            <i data-lucide="settings-2" class="w-5 h-5 text-emerald-500"></i>
+                            Configuración de Parámetros del Simulacro
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Parámetros operativos conforme a la Guía Metodológica UNGRD para Simulacros</p>
+                    </div>
+                    <span class="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs">Módulo 1</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase">Razón Social</label>
+                        <input type="text" id="param-razon" oninput="saveData()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:border-emerald-500 focus:outline-none" value="INSTITUTO DE VALORIZACIÓN DE MANIZALES - INVAMA">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase">NIT</label>
+                        <input type="text" id="param-nit" oninput="saveData()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:border-emerald-500 focus:outline-none" value="800.002.916-2">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase">Sede / Ubicación Física</label>
+                        <input type="text" id="param-sede" oninput="saveData()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:border-emerald-500 focus:outline-none" value="Sede Principal Alcázares - Manizales, Caldas">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase">Fecha Programada</label>
+                        <input type="date" id="param-fecha" oninput="saveData()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:border-emerald-500 focus:outline-none" value="2026-10-22">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase">Hora H de Activación</label>
+                        <input type="time" id="param-hora" oninput="saveData()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:border-emerald-500 focus:outline-none" value="09:00">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase">Tipo de Ejercicio</label>
+                        <select id="param-tipo-ejercicio" onchange="saveData()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:border-emerald-500 focus:outline-none cursor-pointer">
+                            <option value="con_aviso" selected>Simulacro Con Previo Aviso</option>
+                            <option value="sin_aviso">Simulacro Sin Previo Aviso</option>
+                            <option value="simulacion_mesa">Simulación en Mesa (Comité)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase">Alcance del Simulacro</label>
+                        <select id="param-alcance" onchange="saveData()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:border-emerald-500 focus:outline-none cursor-pointer">
+                            <option value="total" selected>Evacuación Total de la Sede</option>
+                            <option value="parcial">Evacuación Parcial por Bloques</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Hipótesis de Emergencia -->
+                <div class="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 flex flex-col gap-3">
+                    <div class="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-extrabold text-xs uppercase tracking-wider">
+                        <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                        Hipótesis de Emergencia Principal (Zona Sísmica Falla Romeral & Eje Cafetero)
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Evento Simulado</label>
+                            <select id="param-hipotesis" onchange="saveData()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:border-emerald-500 focus:outline-none cursor-pointer">
+                                <option value="sismo_mayor" selected>Sismo Fuerte Magnitud 6.8 (Falla Romeral) con posible colapso parcial</option>
+                                <option value="incendio_estructural">Incendio Estructural en Archivo / Cuarto de Servidores</option>
+                                <option value="actividad_volcanica">Alerta Erupción Volcánica / Caída masiva de ceniza (Nevado del Ruiz)</option>
+                                <option value="vendaval_deslizamiento">Vendaval con desprendimiento de cubiertas y colapso de talud</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Punto de Encuentro Oficial</label>
+                            <input type="text" id="param-punto-encuentro" oninput="saveData()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:border-emerald-500 focus:outline-none" value="Zona verde exterior - Parque Los Alcázares (Punto A) / Parqueadero Frontal (Punto B)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Población Estimada a Evacuar -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 flex flex-col">
+                        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Trabajadores Fijos</span>
+                        <input type="number" id="pob-trabajadores" oninput="updatePoblacionTotal(); saveData();" class="text-xl font-black bg-transparent text-emerald-600 dark:text-emerald-400 mt-1 focus:outline-none border-b border-transparent focus:border-emerald-500" value="55">
+                    </div>
+                    <div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 flex flex-col">
+                        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Contratistas</span>
+                        <input type="number" id="pob-contratistas" oninput="updatePoblacionTotal(); saveData();" class="text-xl font-black bg-transparent text-cyan-600 dark:text-cyan-400 mt-1 focus:outline-none border-b border-transparent focus:border-cyan-500" value="20">
+                    </div>
+                    <div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 flex flex-col">
+                        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Visitantes / Usuarios</span>
+                        <input type="number" id="pob-visitantes" oninput="updatePoblacionTotal(); saveData();" class="text-xl font-black bg-transparent text-blue-600 dark:text-blue-400 mt-1 focus:outline-none border-b border-transparent focus:border-blue-500" value="10">
+                    </div>
+                    <div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 flex flex-col">
+                        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Personas Movilidad Reducida</span>
+                        <input type="number" id="pob-discapacidad" oninput="saveData()" class="text-xl font-black bg-transparent text-purple-600 dark:text-purple-400 mt-1 focus:outline-none border-b border-transparent focus:border-purple-500" value="2">
+                    </div>
+                </div>
+
+                <!-- Directorio Externo de Ayuda Manizales -->
+                <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex flex-col gap-3">
+                    <span class="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                        <i data-lucide="phone-call" class="w-4 h-4 text-emerald-500"></i>
+                        Directorio de Organismos de Socorro Coordinados (Manizales - Caldas)
+                    </span>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                        <div class="p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                            <span class="font-bold text-slate-800 dark:text-white block">Bomberos Manizales</span>
+                            <span class="text-emerald-600 dark:text-emerald-400 font-mono-code font-bold">119 / (606) 880-1111</span>
+                        </div>
+                        <div class="p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                            <span class="font-bold text-slate-800 dark:text-white block">Cruz Roja Caldas</span>
+                            <span class="text-rose-600 dark:text-rose-400 font-mono-code font-bold">132 / (606) 886-6300</span>
+                        </div>
+                        <div class="p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                            <span class="font-bold text-slate-800 dark:text-white block">Defensa Civil Caldas</span>
+                            <span class="text-amber-600 dark:text-amber-400 font-mono-code font-bold">144 / (606) 887-2000</span>
+                        </div>
+                        <div class="p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                            <span class="font-bold text-slate-800 dark:text-white block">UGR Manizales</span>
+                            <span class="text-cyan-600 dark:text-cyan-400 font-mono-code font-bold">Línea 111 / 887-9700</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: CHECKLIST POR FASES -->
+            <div id="tab-checklist" class="tab-content p-6 md:p-8 flex flex-col gap-6 hidden">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 gap-2">
+                    <div>
+                        <h3 class="text-lg font-black text-slate-900 dark:text-white uppercase flex items-center gap-2">
+                            <i data-lucide="check-square" class="w-5 h-5 text-emerald-500"></i>
+                            Checklist Operativo Integral del Simulacro
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Control sistemático en las 3 fases del simulacro conforme al Decreto 1072/2015</p>
+                    </div>
+                    <span class="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs">Módulo 2</span>
+                </div>
+
+                <!-- FASE 1: ANTES (Planeación y Alistamiento) -->
+                <div class="rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/30 dark:bg-emerald-950/10 p-5 flex flex-col gap-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                            <i data-lucide="calendar-clock" class="w-4 h-4"></i>
+                            Fase 1: ANTES del Simulacro (Alistamiento Previo)
+                        </span>
+                        <span class="text-xs font-extrabold text-emerald-700 dark:text-emerald-400" id="prog-fase-antes">0%</span>
+                    </div>
+
+                    <div class="flex flex-col gap-2.5" id="checklist-antes-container">
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-emerald-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Comité de Emergencias (COE) convocado:</b> Libreto, horarios, roles y escenarios socializados formalmente con la dirección y brigadistas de INVAMA.
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-emerald-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Inspección y despeje de rutas de evacuación:</b> Pasillos, escaleras y puertas de salida de emergencia libres de cajas, muebles o trabas mecánicas.
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-emerald-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Sistema de alarma verificado y operativo:</b> Pruebas técnicas de pulsadores y sirenas audibles en la totalidad de las oficinas y talleres de la sede.
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-emerald-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Recursos médicos y botiquines dotados:</b> Botiquines Tipo A conforme a Res. 0705/2007 con insumos vigentes, camillas rígidas y cuellos inmovilizadores listos.
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-emerald-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Coordinación institucional previa:</b> Notificación y registro ante la UGR Manizales, Cuerpo de Bomberos y ARL Positiva.
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-emerald-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Censo previo de personas vulnerables:</b> Asignación de acompañantes designados para personas con discapacidad o mujeres gestantes.
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- FASE 2: DURANTE (Evacuación y Respuesta) -->
+                <div class="rounded-2xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/30 dark:bg-blue-950/10 p-5 flex flex-col gap-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-black uppercase tracking-wider text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                            <i data-lucide="play-circle" class="w-4 h-4"></i>
+                            Fase 2: DURANTE el Simulacro (Ejecución Operativa)
+                        </span>
+                        <span class="text-xs font-extrabold text-blue-700 dark:text-blue-400" id="prog-fase-durante">0%</span>
+                    </div>
+
+                    <div class="flex flex-col gap-2.5" id="checklist-durante-container">
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-blue-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Detección y Activación de la Alarma:</b> Activación sonora oportuna en menos de 20 segundos tras la señal del evento simulado.
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-blue-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Protocolo de Autoprotección y Repliegue:</b> Los trabajadores se agachan, cubren y sujetan bajo escritorios o estructuras resistentes durante la fase sísmica.
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-blue-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Evacuación Ordenada y Guiada:</b> Desplazamiento por la derecha, a paso firme, sin correr, sin gritar y sin devolverse por pertenencias personales.
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-blue-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Actuación de Brigadistas de Evacuación:</b> Dotados de chalecos y paletas, realizan barrido visual de baños, bodegas y áreas críticas antes de salir.
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-blue-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Corte Preventivo de Suministros:</b> Desconexión simulada o real de interruptores de energía eléctrica y llaves de gas de las instalaciones.
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- FASE 3: DESPUÉS (Consolidación, Evaluación y Cierre) -->
+                <div class="rounded-2xl border border-purple-200 dark:border-purple-900/50 bg-purple-50/30 dark:bg-purple-950/10 p-5 flex flex-col gap-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-black uppercase tracking-wider text-purple-800 dark:text-purple-300 flex items-center gap-2">
+                            <i data-lucide="check-check" class="w-4 h-4"></i>
+                            Fase 3: DESPUÉS del Simulacro (Censo y Normalización)
+                        </span>
+                        <span class="text-xs font-extrabold text-purple-700 dark:text-purple-400" id="prog-fase-despues">0%</span>
+                    </div>
+
+                    <div class="flex flex-col gap-2.5" id="checklist-despues-container">
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-purple-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Censo y Conteo en Punto de Encuentro:</b> Verificación de listas de asistencia de funcionarios, contratistas y visitantes por líderes de piso.
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-purple-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Atención de Pacientes / Víctimas Simuladas:</b> Triage y primeros auxilios oportunos en el Punto de Atención y Clasificación (PAC).
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-purple-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Evaluación de Daños Estructurales Previa al Reingreso:</b> Brigadistas de inspección verifican ausencia de fugas o grietas críticas antes de autorizar entrada.
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-purple-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Orden Formal de Retorno Seguro:</b> Emitida exclusivamente por el Comandante de Incidente / Coordinador de Emergencias.
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-purple-400 transition-all">
+                            <input type="checkbox" class="chk-item mt-1 h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500" onchange="updateChecklistProgress()">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">
+                                <b>Reunión de Evaluación Inmediata (Debriefing):</b> Registro de hallazgos, tiempos reales y oportunidades de mejora con los evaluadores.
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: BRIGADA Y ROLES (SCI) -->
+            <div id="tab-brigadas" class="tab-content p-6 md:p-8 flex flex-col gap-6 hidden">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 gap-2">
+                    <div>
+                        <h3 class="text-lg font-black text-slate-900 dark:text-white uppercase flex items-center gap-2">
+                            <i data-lucide="shield" class="w-5 h-5 text-emerald-500"></i>
+                            Estructura de la Brigada de Emergencia (Sistema SCI)
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Asignación de roles operativos, canales de radio VHF y dotación para el personal de INVAMA</p>
+                    </div>
+                    <button onclick="addBrigadistaRow()" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i>
+                        <span>Agregar Rol / Brigadista</span>
+                    </button>
+                </div>
+
+                <!-- CARDS DE ROLES CLAVE -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="brigadistas-grid">
+                    
+                    <!-- ROL 1: Comandante de Incidente -->
+                    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between gap-4 border-t-4 border-t-emerald-500">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="px-2.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-extrabold text-[10px] uppercase">COORDINADOR GENERAL</span>
+                                <span class="text-xs font-mono-code font-bold text-slate-400">Canal 1 VHF</span>
+                            </div>
+                            <h4 class="text-sm font-black text-slate-800 dark:text-white uppercase mt-2">Comandante del Incidente (CI)</h4>
+                            <input type="text" class="w-full text-xs font-bold text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 bg-transparent py-1 mt-1 focus:outline-none focus:border-emerald-500" value="Ing. Mauricio Osorio (Líder SG-SST)">
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                                Máxima autoridad del ejercicio. Declara la alerta, activa la brigada, coordina con Bomberos y autoriza el reingreso.
+                            </p>
+                        </div>
+                        <div class="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap gap-1.5">
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Chaleco Rojo/Blanco</span>
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Radio VHF</span>
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Megáfono</span>
+                        </div>
+                    </div>
+
+                    <!-- ROL 2: Brigada de Evacuación -->
+                    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between gap-4 border-t-4 border-t-blue-500">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="px-2.5 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 font-extrabold text-[10px] uppercase">LÍDER DE EVACUACIÓN</span>
+                                <span class="text-xs font-mono-code font-bold text-slate-400">Canal 2 VHF</span>
+                            </div>
+                            <h4 class="text-sm font-black text-slate-800 dark:text-white uppercase mt-2">Jefe de Evacuación y Conteo</h4>
+                            <input type="text" class="w-full text-xs font-bold text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 bg-transparent py-1 mt-1 focus:outline-none focus:border-blue-500" value="Carlos Alberto Gómez (Operaciones)">
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                                Guía la salida por rutas autorizadas, evita cuellos de botella en escaleras y realiza el censo en el Parque Alcázares.
+                            </p>
+                        </div>
+                        <div class="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap gap-1.5">
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Chaleco Naranja</span>
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Paleta Pare/Siga</span>
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Silbato</span>
+                        </div>
+                    </div>
+
+                    <!-- ROL 3: Brigada de Primeros Auxilios -->
+                    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between gap-4 border-t-4 border-t-rose-500">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="px-2.5 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 font-extrabold text-[10px] uppercase">ATENCIÓN EN SALUD</span>
+                                <span class="text-xs font-mono-code font-bold text-slate-400">Canal 3 VHF</span>
+                            </div>
+                            <h4 class="text-sm font-black text-slate-800 dark:text-white uppercase mt-2">Jefe de Primeros Auxilios</h4>
+                            <input type="text" class="w-full text-xs font-bold text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 bg-transparent py-1 mt-1 focus:outline-none focus:border-rose-500" value="Dra. Carolina Méndez (Enfermería / SST)">
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                                Instala el punto de triage en el parque, atiende pacientes simulados y coordina traslado de ambulancias con Cruz Roja.
+                            </p>
+                        </div>
+                        <div class="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap gap-1.5">
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Chaleco Blanco/Verde</span>
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Botiquín Tipo A</span>
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Camilla Rígida</span>
+                        </div>
+                    </div>
+
+                    <!-- ROL 4: Control de Incendios y Suministros -->
+                    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between gap-4 border-t-4 border-t-amber-500">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="px-2.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 font-extrabold text-[10px] uppercase">CONTROL DE RIESGOS</span>
+                                <span class="text-xs font-mono-code font-bold text-slate-400">Canal 2 VHF</span>
+                            </div>
+                            <h4 class="text-sm font-black text-slate-800 dark:text-white uppercase mt-2">Brigadista Contra Incendios</h4>
+                            <input type="text" class="w-full text-xs font-bold text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 bg-transparent py-1 mt-1 focus:outline-none focus:border-amber-500" value="Jorge Enrique Ruiz (Mantenimiento)">
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                                Encargado del corte de breakers eléctricos, cierre de registros de agua/gas y control de amagos de conatos con extintores.
+                            </p>
+                        </div>
+                        <div class="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap gap-1.5">
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Chaleco Rojo</span>
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Extintor Solkaflam/ABC</span>
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Linterna LED</span>
+                        </div>
+                    </div>
+
+                    <!-- ROL 5: Comunicaciones y Enlace Externo -->
+                    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between gap-4 border-t-4 border-t-cyan-500">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="px-2.5 py-0.5 rounded-md bg-cyan-100 dark:bg-cyan-950 text-cyan-800 dark:text-cyan-300 font-extrabold text-[10px] uppercase">ENLACE INSTITUCIONAL</span>
+                                <span class="text-xs font-mono-code font-bold text-slate-400">Canal 1 VHF / Cel</span>
+                            </div>
+                            <h4 class="text-sm font-black text-slate-800 dark:text-white uppercase mt-2">Oficial de Comunicaciones y Enlace</h4>
+                            <input type="text" class="w-full text-xs font-bold text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 bg-transparent py-1 mt-1 focus:outline-none focus:border-cyan-500" value="Marcela Henao (Comunicaciones INVAMA)">
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                                Establece comunicación radial o telefónica con la sala de crisis UNGRD y atiende solicitudes de evaluadores externos.
+                            </p>
+                        </div>
+                        <div class="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap gap-1.5">
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Brazalete Azul</span>
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Planilla UNGRD</span>
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Celular Corporativo</span>
+                        </div>
+                    </div>
+
+                    <!-- ROL 6: Oficial de Seguridad SG-SST -->
+                    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between gap-4 border-t-4 border-t-purple-500">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="px-2.5 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 font-extrabold text-[10px] uppercase">SEGURIDAD OPERATIVA</span>
+                                <span class="text-xs font-mono-code font-bold text-slate-400">Canal 1 VHF</span>
+                            </div>
+                            <h4 class="text-sm font-black text-slate-800 dark:text-white uppercase mt-2">Oficial de Seguridad del Simulacro</h4>
+                            <input type="text" class="w-full text-xs font-bold text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 bg-transparent py-1 mt-1 focus:outline-none focus:border-purple-500" value="Ing. Fabián Ramírez (SST)">
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                                Tiene autoridad de abortar o corregir maniobras que pongan en riesgo real a los ocupantes durante la evacuación.
+                            </p>
+                        </div>
+                        <div class="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap gap-1.5">
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Casco Blanco</span>
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Chaleco Alta Visibilidad</span>
+                            <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">Checklist Seguridad</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: CALCULADORA DE EVACUACIÓN -->
+            <div id="tab-calculadora" class="tab-content p-6 md:p-8 flex flex-col gap-6 hidden">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 gap-2">
+                    <div>
+                        <h3 class="text-lg font-black text-slate-900 dark:text-white uppercase flex items-center gap-2">
+                            <i data-lucide="calculator" class="w-5 h-5 text-emerald-500"></i>
+                            Calculadora Técnica de Tiempos de Evacuación
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Cálculo matemático normativo: Fórmula de Nelson/Meseth y comparación con tiempo real cronometrado</p>
+                    </div>
+                    <span class="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs">Módulo 4</span>
+                </div>
+
+                <!-- FORMULA BOX & EXPLANATION -->
+                <div class="p-5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border border-emerald-500/20 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div class="flex items-center gap-4">
+                        <div class="h-14 w-14 rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black text-xl shrink-0">
+                            Te
+                        </div>
+                        <div>
+                            <span class="text-xs font-black uppercase text-emerald-800 dark:text-emerald-300 tracking-wider">Fórmula Técnica de Salida</span>
+                            <div class="text-lg font-extrabold text-slate-900 dark:text-white font-mono-code mt-0.5">
+                                T<sub>salida</sub> = (N / (A · K)) + (D / V)
+                            </div>
+                            <span class="text-[11px] text-slate-500 dark:text-slate-400 block mt-1">
+                                Tiempo Total Teórico: T<sub>total</sub> = T<sub>detección</sub> + T<sub>alarma</sub> + T<sub>preparación</sub> + T<sub>salida</sub>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="text-left md:text-right shrink-0">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 block">Velocidad estándar</span>
+                        <span class="text-xs font-extrabold text-slate-700 dark:text-slate-200">1.0 m/s (Paso firme)</span>
+                        <span class="text-[10px] uppercase font-bold text-slate-400 block mt-1">Capacidad de salida K</span>
+                        <span class="text-xs font-extrabold text-slate-700 dark:text-slate-200">1.3 personas / metro · seg</span>
+                    </div>
+                </div>
+
+                <!-- CONTROLES DE LA CALCULADORA -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    
+                    <!-- PARÁMETROS TEÓRICOS -->
+                    <div class="flex flex-col gap-4">
+                        <h4 class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <i data-lucide="sliders" class="w-4 h-4 text-emerald-500"></i>
+                            1. Parámetros Físicos y Poblacionales
+                        </h4>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                                    N: Personas a evacuar
+                                </label>
+                                <input type="number" id="calc-n" oninput="calcularTiempos()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 text-sm font-bold text-slate-800 dark:text-white focus:border-emerald-500 focus:outline-none" value="85">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                                    A: Ancho útil de salidas (metros)
+                                </label>
+                                <input type="number" step="0.1" id="calc-a" oninput="calcularTiempos()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 text-sm font-bold text-slate-800 dark:text-white focus:border-emerald-500 focus:outline-none" value="2.4">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                                    D: Distancia máx. al punto (m)
+                                </label>
+                                <input type="number" id="calc-d" oninput="calcularTiempos()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 text-sm font-bold text-slate-800 dark:text-white focus:border-emerald-500 focus:outline-none" value="65">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                                    K: Coeficiente de Flujo
+                                </label>
+                                <select id="calc-k" onchange="calcularTiempos()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 text-sm font-bold text-slate-800 dark:text-white focus:border-emerald-500 focus:outline-none">
+                                    <option value="1.3" selected>1.3 pers/m·s (Salida en plano)</option>
+                                    <option value="1.0">1.0 pers/m·s (Escaleras/Gradas)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-3 pt-2">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">T. Detección (s)</label>
+                                <input type="number" id="calc-td" oninput="calcularTiempos()" class="w-full rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 text-xs font-bold text-center text-slate-800 dark:text-white" value="15">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">T. Alarma (s)</label>
+                                <input type="number" id="calc-ta" oninput="calcularTiempos()" class="w-full rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 text-xs font-bold text-center text-slate-800 dark:text-white" value="10">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">T. Reacción (s)</label>
+                                <input type="number" id="calc-tr" oninput="calcularTiempos()" class="w-full rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 text-xs font-bold text-center text-slate-800 dark:text-white" value="25">
+                            </div>
+                        </div>
+
+                        <!-- RESULTADO TEÓRICO RESALTADO -->
+                        <div class="p-4 rounded-2xl bg-emerald-100/70 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 flex items-center justify-between">
+                            <div>
+                                <span class="text-[10px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300">TIEMPO TEÓRICO ESPERADO</span>
+                                <div class="text-2xl font-black text-emerald-700 dark:text-emerald-400 font-mono-code" id="resultado-teorico-display">
+                                    01:52 (112 seg)
+                                </div>
+                            </div>
+                            <span class="text-xs text-emerald-800 dark:text-emerald-300 font-semibold text-right">
+                                Tiempo meta<br>máximo aceptable
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- CRONÓMETRO Y COMPARADOR REAL -->
+                    <div class="flex flex-col gap-4">
+                        <h4 class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <i data-lucide="stopwatch" class="w-4 h-4 text-cyan-500"></i>
+                            2. Cronómetro en Vivo & Medición Real
+                        </h4>
+
+                        <!-- STOPWATCH DISPLAY -->
+                        <div class="p-6 rounded-2xl bg-slate-900 text-white flex flex-col items-center justify-center gap-4 shadow-xl relative overflow-hidden">
+                            <div class="absolute -right-6 -bottom-6 w-28 h-28 rounded-full bg-cyan-500/20 blur-xl"></div>
+                            
+                            <span class="text-[11px] font-extrabold uppercase tracking-widest text-cyan-400">CRONÓMETRO DE EVACUACIÓN</span>
+                            
+                            <div class="text-4xl md:text-5xl font-black font-mono-code text-cyan-300 tracking-wider" id="cronometro-display">
+                                00:00.00
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <button onclick="iniciarCronometro()" id="btn-crono-start" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all">
+                                    <i data-lucide="play" class="w-3.5 h-3.5"></i> Iniciar
+                                </button>
+                                <button onclick="pausarCronometro()" id="btn-crono-pause" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all">
+                                    <i data-lucide="pause" class="w-3.5 h-3.5"></i> Pausar
+                                </button>
+                                <button onclick="resetearCronometro()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all">
+                                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reset
+                                </button>
+                                <button onclick="copiarTiempoCronometro()" class="px-3 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all" title="Asignar al tiempo real medido">
+                                    <i data-lucide="arrow-down" class="w-3.5 h-3.5"></i> Fijar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- INPUT MANUAL TIEMPO REAL -->
+                        <div class="flex items-center gap-3">
+                            <div class="flex-1">
+                                <label class="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                                    Tiempo Real Medido (segundos)
+                                </label>
+                                <input type="number" id="calc-real-segundos" oninput="calcularTiempos()" class="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 text-sm font-bold text-slate-800 dark:text-white focus:border-cyan-500 focus:outline-none" value="125">
+                            </div>
+                            <div class="pt-5">
+                                <span class="text-sm font-mono-code font-bold text-slate-600 dark:text-slate-300" id="tiempo-real-formateado">02:05 min</span>
+                            </div>
+                        </div>
+
+                        <!-- DIAGNÓSTICO SEMAFORIZADO -->
+                        <div id="diagnostico-card" class="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 flex items-start gap-4">
+                            <div id="diagnostico-icon" class="h-10 w-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+                                <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-black uppercase text-amber-800 dark:text-amber-300 tracking-wider" id="diagnostico-titulo">
+                                        DESEMPEÑO: ACEPTABLE CON OBSERVACIÓN
+                                    </span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-200 text-amber-900" id="diagnostico-badge">+11.6% Desfase</span>
+                                </div>
+                                <p class="text-xs text-slate-650 dark:text-slate-350 mt-1 leading-relaxed" id="diagnostico-desc">
+                                    El tiempo real registrado (125 seg) superó ligeramente el tiempo teórico (112 seg). La evacuación fue segura pero se deben descongestionar las escaleras principales.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: INFORME UNGRD & ACPM -->
+            <div id="tab-informe" class="tab-content p-6 md:p-8 flex flex-col gap-6 hidden">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 gap-2">
+                    <div>
+                        <h3 class="text-lg font-black text-slate-900 dark:text-white uppercase flex items-center gap-2">
+                            <i data-lucide="award" class="w-5 h-5 text-emerald-500"></i>
+                            Informe de Evaluación UNGRD & Plan de Mejora ACPM
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Formato estándar de reporte institucional para la Unidad Nacional para la Gestión del Riesgo y ARL</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="window.print()" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
+                            <i data-lucide="printer" class="w-4 h-4"></i>
+                            <span>Imprimir Reporte</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CONSOLIDADO NUMÉRICO UNGRD -->
+                <div class="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-4">
+                    <span class="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                        1. Balance Consolidado del Ejercicio
+                    </span>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                        <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block">Total Evacuados</span>
+                            <span class="text-2xl font-black text-slate-900 dark:text-white mt-1 block" id="report-total-evac">85</span>
+                            <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">100% Cobertura</span>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block">Tiempo Real</span>
+                            <span class="text-2xl font-black text-cyan-600 dark:text-cyan-400 font-mono-code mt-1 block" id="report-tiempo-real">02:05 min</span>
+                            <span class="text-[10px] text-slate-500">Meta: 01:52 min</span>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block">Heridos Simulados</span>
+                            <span class="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1 block">2</span>
+                            <span class="text-[10px] text-emerald-600 font-bold">Atendidos en PAC</span>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block">Calificación Global</span>
+                            <span class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">94 / 100</span>
+                            <span class="text-[10px] text-emerald-600 font-bold">Satisfactorio</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MATRIZ ACPM (Acciones Correctivas, Preventivas y de Mejora) -->
+                <div class="flex flex-col gap-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                            <i data-lucide="target" class="w-4 h-4 text-emerald-500"></i>
+                            2. Matriz de Acciones Correctivas, Preventivas y de Mejora (ACPM)
+                        </span>
+                        <button onclick="addAcpmRow()" class="px-3 py-1.5 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center gap-1 transition-all">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Agregar Hallazgo
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+                        <table class="w-full text-left text-xs text-slate-600 dark:text-slate-300" id="acpm-table">
+                            <thead class="bg-slate-100 dark:bg-slate-800/80 text-[10px] uppercase font-black text-slate-700 dark:text-slate-200 tracking-wider">
+                                <tr>
+                                    <th class="p-3">Tipo</th>
+                                    <th class="p-3">Hallazgo Detectado</th>
+                                    <th class="p-3">Causa Raíz</th>
+                                    <th class="p-3">Acción a Implementar</th>
+                                    <th class="p-3">Responsable</th>
+                                    <th class="p-3">Fecha Límite</th>
+                                    <th class="p-3">Estado</th>
+                                    <th class="p-3 text-center no-print">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900" id="acpm-tbody">
+                                <tr>
+                                    <td class="p-3 font-bold text-amber-600">Mejora</td>
+                                    <td class="p-3">Demora de 15 segundos en desalojo de escalera oriental</td>
+                                    <td class="p-3">Flujo mixto de personal administrativo y contratistas en punto angosto</td>
+                                    <td class="p-3 font-semibold text-slate-800 dark:text-white">Redireccionar personal de catastro hacia salida secundaria sur</td>
+                                    <td class="p-3">Carlos Gómez (Evacuación)</td>
+                                    <td class="p-3">2026-11-15</td>
+                                    <td class="p-3"><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[10px]">En Proceso</span></td>
+                                    <td class="p-3 text-center no-print"><button onclick="this.closest('tr').remove()" class="text-rose-500 hover:text-rose-700">✕</button></td>
+                                </tr>
+                                <tr>
+                                    <td class="p-3 font-bold text-rose-600">Correctiva</td>
+                                    <td class="p-3">Sirena del piso 2 con volumen bajo durante la activación</td>
+                                    <td class="p-3">Falla en parlante auxiliar de la central de alarmas</td>
+                                    <td class="p-3 font-semibold text-slate-800 dark:text-white">Mantenimiento y reemplazo del altavoz del bloque administrativo</td>
+                                    <td class="p-3">Mantenimiento / INVAMA</td>
+                                    <td class="p-3">2026-11-05</td>
+                                    <td class="p-3"><span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-bold text-[10px]">Pendiente</span></td>
+                                    <td class="p-3 text-center no-print"><button onclick="this.closest('tr').remove()" class="text-rose-500 hover:text-rose-700">✕</button></td>
+                                </tr>
+                                <tr>
+                                    <td class="p-3 font-bold text-emerald-600">Preventiva</td>
+                                    <td class="p-3">1 visitante sin identificación no sabía hacia dónde caminar</td>
+                                    <td class="p-3">Falta de inducción rápida al momento de registro en recepción</td>
+                                    <td class="p-3 font-semibold text-slate-800 dark:text-white">Entregar folleto con ruta y punto de encuentro al ingresar</td>
+                                    <td class="p-3">Recepción / Vigilancia</td>
+                                    <td class="p-3">2026-11-01</td>
+                                    <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">Cerrada</span></td>
+                                    <td class="p-3 text-center no-print"><button onclick="this.closest('tr').remove()" class="text-rose-500 hover:text-rose-700">✕</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- FIRMAS OFICIALES SG-SST -->
+                <div class="pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-4">
+                    <span class="text-xs font-black uppercase tracking-wider text-slate-500 block">Validación y Aprobación Formal</span>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="p-5 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center text-center">
+                            <div class="h-16 w-full flex items-center justify-center text-slate-400 font-mono-code text-xs italic">
+                                [ Firma Digital Representante Legal ]
+                            </div>
+                            <div class="w-48 h-0.5 bg-slate-300 dark:bg-slate-700 my-2"></div>
+                            <span class="font-extrabold text-xs text-slate-800 dark:text-white uppercase">REPRESENTANTE LEGAL</span>
+                            <span class="text-[11px] text-slate-500">INSTITUTO DE VALORIZACIÓN DE MANIZALES - INVAMA</span>
+                        </div>
+                        <div class="p-5 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center text-center">
+                            <div class="h-16 w-full flex items-center justify-center text-slate-400 font-mono-code text-xs italic">
+                                [ Firma Coordinador de Emergencias / Líder SG-SST ]
+                            </div>
+                            <div class="w-48 h-0.5 bg-slate-300 dark:bg-slate-700 my-2"></div>
+                            <span class="font-extrabold text-xs text-slate-800 dark:text-white uppercase">COORDINADOR DE EMERGENCIAS / SST</span>
+                            <span class="text-[11px] text-slate-500">Licencia en Seguridad y Salud en el Trabajo Vigente</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER PERMANENTE OBLIGATORIO -->
+    <footer class="max-w-[1400px] mx-auto px-4 md:px-6 py-6 text-center text-xs text-slate-400 border-t border-slate-200 dark:border-slate-800 mt-10">
+        <p class="font-bold">By WappyClub - WAPPY LTDA | Cumplimiento SG-SST Colombia</p>
+        <p class="text-[10px] text-slate-500 mt-0.5">Decreto 1072 de 2015 • Resolución 0312 de 2019 • Guía Nacional UNGRD</p>
+    </footer>
+
+    <!-- WAPPY IA COPILOTO DRAWER (SLIDE-IN LATERAL) -->
+    <div id="ai-drawer" class="fixed right-0 top-0 h-full w-[380px] max-w-[90vw] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 z-50 p-6 transform transition-transform duration-300 flex flex-col gap-4 shadow-2xl translate-x-full no-print">
+        <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-4">
+            <h3 class="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                <i data-lucide="sparkles" class="w-4 h-4"></i> Wappy IA Copiloto
+            </h3>
+            <button onclick="toggleAIDrawer()" class="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 font-bold">✕</button>
+        </div>
+
+        <!-- Privacy Collapsible Settings -->
+        <details class="rounded-xl border border-slate-200 dark:border-slate-800 p-3 bg-slate-50 dark:bg-slate-950/40 text-xs">
+            <summary class="font-bold text-slate-600 dark:text-slate-300 cursor-pointer flex items-center justify-between">
+                <span>Configuración de API Key (Gemini)</span>
+                <i data-lucide="key" class="w-3.5 h-3.5 text-slate-400"></i>
+            </summary>
+            <div class="mt-3 flex flex-col gap-2">
+                <input type="password" id="gemini-api-key" placeholder="Pega tu Gemini API Key aquí..." class="w-full rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 text-xs font-mono-code focus:outline-none focus:border-emerald-500" onchange="localStorage.setItem('wappy_gemini_key', this.value)">
+                <select id="gemini-model-select" class="w-full rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold focus:outline-none">
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recomendado)</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                </select>
+                <span class="text-[10px] text-slate-400">Tu clave se guarda únicamente en tu navegador local.</span>
+            </div>
+        </details>
+
+        <!-- Chat messages container -->
+        <div id="ai-chat-box" class="flex-1 overflow-y-auto flex flex-col gap-3 p-2 rounded-xl bg-slate-50 dark:bg-slate-950/30 text-xs">
+            <div class="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-slate-700 dark:text-slate-200">
+                ¡Hola! Soy tu <b>Coordinador de Emergencias IA</b>. Puedo ayudarte a:
+                <ul class="list-disc pl-4 mt-1.5 space-y-1 text-[11px] text-slate-650 dark:text-slate-300">
+                    <li>Optimizar tiempos de evacuación para INVAMA.</li>
+                    <li>Redactar justificaciones técnicas para el informe UNGRD.</li>
+                    <li>Proponer planes de mejora para la matriz ACPM.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Quick prompts -->
+        <div class="flex flex-col gap-1.5">
+            <span class="text-[10px] font-bold uppercase text-slate-400">Consultas Rápidas:</span>
+            <button onclick="sendQuickPrompt('¿Cómo justifico ante la UNGRD un desfase de 13 segundos en la evacuación?')" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-left text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-600 transition-all truncate">
+                💡 Justificar desfase de tiempo ante UNGRD
+            </button>
+            <button onclick="sendQuickPrompt('Genera 3 acciones correctivas para mejorar el despeje de escaleras en sismo')" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-left text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-600 transition-all truncate">
+                📋 Proponer 3 acciones ACPM para escaleras
+            </button>
+        </div>
+
+        <!-- Input box -->
+        <div class="flex gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+            <input type="text" id="ai-chat-input" placeholder="Pregunta algo al copiloto..." class="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-emerald-500" onkeydown="if(event.key==='Enter') executeAIChat()">
+            <button onclick="executeAIChat()" class="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all active:scale-95">
+                <i data-lucide="send" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- BOTÓN FLOTANTE COPILOTO IA -->
+    <button onclick="toggleAIDrawer()" class="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition-all z-40 no-print" title="Abrir Copiloto IA de Emergencias">
+        <i data-lucide="sparkles" class="w-6 h-6"></i>
+    </button>
+
+    <!-- SCRIPT DE FUNCIONALIDAD COMPLETA -->
+    <script>
+        // Inicializar Lucide Icons
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+            loadData();
+            calcularTiempos();
+            updateChecklistProgress();
+            
+            // Cargar key almacenada
+            const savedKey = localStorage.getItem('wappy_gemini_key');
+            if (savedKey) {
+                const keyInput = document.getElementById('gemini-api-key');
+                if (keyInput) keyInput.value = savedKey;
+            }
+        });
+
+        // Alternar pestañas (Tabs)
+        function switchTab(tabId) {
+            const tabs = ['tab-ficha', 'tab-checklist', 'tab-brigadas', 'tab-calculadora', 'tab-informe'];
+            tabs.forEach(t => {
+                const el = document.getElementById(t);
+                const btn = document.getElementById('btn-' + t);
+                if (t === tabId) {
+                    el.classList.remove('hidden');
+                    btn.classList.add('tab-active');
+                } else {
+                    el.classList.add('hidden');
+                    btn.classList.remove('tab-active');
+                }
+            });
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // Alternar Modo Oscuro
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('wappy_dark_mode', document.documentElement.classList.contains('dark') ? '1' : '0');
+        }
+        if (localStorage.getItem('wappy_dark_mode') === '1') {
+            document.documentElement.classList.add('dark');
+        }
+
+        // Actualizar población total
+        function updatePoblacionTotal() {
+            const fijos = parseInt(document.getElementById('pob-trabajadores')?.value || 0);
+            const contratistas = parseInt(document.getElementById('pob-contratistas')?.value || 0);
+            const visitantes = parseInt(document.getElementById('pob-visitantes')?.value || 0);
+            const total = fijos + contratistas + visitantes;
+            
+            const badge = document.getElementById('badge-total-people');
+            if (badge) badge.innerText = total + ' personas';
+
+            const calcN = document.getElementById('calc-n');
+            if (calcN) calcN.value = total;
+
+            const repTotal = document.getElementById('report-total-evac');
+            if (repTotal) repTotal.innerText = total;
+
+            calcularTiempos();
+        }
+
+        // CÁLCULO DE TIEMPOS DE EVACUACIÓN (Fórmula Nelson/Meseth)
+        function calcularTiempos() {
+            const N = parseFloat(document.getElementById('calc-n')?.value || 85);
+            const A = parseFloat(document.getElementById('calc-a')?.value || 2.4);
+            const D = parseFloat(document.getElementById('calc-d')?.value || 65);
+            const K = parseFloat(document.getElementById('calc-k')?.value || 1.3);
+            const V = 1.0;
+
+            const td = parseFloat(document.getElementById('calc-td')?.value || 15);
+            const ta = parseFloat(document.getElementById('calc-ta')?.value || 10);
+            const tr = parseFloat(document.getElementById('calc-tr')?.value || 25);
+
+            const tSalida = (N / (A * K)) + (D / V);
+            const tTotalTeorico = Math.round(td + ta + tr + tSalida);
+
+            const minTeorico = Math.floor(tTotalTeorico / 60);
+            const secTeorico = tTotalTeorico % 60;
+            const strTeorico = String(minTeorico).padStart(2, '0') + ':' + String(secTeorico).padStart(2, '0');
+
+            const dispTeorico = document.getElementById('resultado-teorico-display');
+            if (dispTeorico) dispTeorico.innerText = strTeorico + ' (' + tTotalTeorico + ' seg)';
+
+            const tReal = parseFloat(document.getElementById('calc-real-segundos')?.value || 125);
+            const minReal = Math.floor(tReal / 60);
+            const secReal = Math.round(tReal % 60);
+            const strReal = String(minReal).padStart(2, '0') + ':' + String(secReal).padStart(2, '0');
+
+            const dispRealForm = document.getElementById('tiempo-real-formateado');
+            if (dispRealForm) dispRealForm.innerText = strReal + ' min';
+
+            const repReal = document.getElementById('report-tiempo-real');
+            if (repReal) repReal.innerText = strReal + ' min';
+
+            const card = document.getElementById('diagnostico-card');
+            const icon = document.getElementById('diagnostico-icon');
+            const titulo = document.getElementById('diagnostico-titulo');
+            const badge = document.getElementById('diagnostico-badge');
+            const desc = document.getElementById('diagnostico-desc');
+
+            const desfaseSeg = tReal - tTotalTeorico;
+            const desfasePct = Math.round(((tReal - tTotalTeorico) / tTotalTeorico) * 100);
+
+            if (tReal <= tTotalTeorico * 1.15) {
+                card.className = "p-5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 flex items-start gap-4";
+                icon.className = "h-10 w-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0";
+                titulo.className = "text-xs font-black uppercase text-emerald-800 dark:text-emerald-300 tracking-wider";
+                titulo.innerText = "DESEMPEÑO: EXCELENTE / ÓPTIMO";
+                badge.className = "px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-200 text-emerald-900";
+                badge.innerText = (desfasePct >= 0 ? '+' : '') + desfasePct + "% Eficiente";
+                desc.innerText = "Evacuación completada en " + strReal + " min, dentro del rango técnico esperado (" + strTeorico + " min). La fluidez en las salidas y el repliegue fueron impecables.";
+            } else if (tReal <= tTotalTeorico * 1.35) {
+                card.className = "p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 flex items-start gap-4";
+                icon.className = "h-10 w-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0";
+                titulo.className = "text-xs font-black uppercase text-amber-800 dark:text-amber-300 tracking-wider";
+                titulo.innerText = "DESEMPEÑO: ACEPTABLE CON OBSERVACIONES";
+                badge.className = "px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-200 text-amber-900";
+                badge.innerText = "+" + desfasePct + "% Desfase";
+                desc.innerText = "El tiempo real registrado (" + strReal + " min) superó ligeramente el tiempo teórico (" + strTeorico + " min). Se presentaron cuellos de botella moderados en escaleras o puertas.";
+            } else {
+                card.className = "p-5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 flex items-start gap-4";
+                icon.className = "h-10 w-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0";
+                titulo.className = "text-xs font-black uppercase text-rose-800 dark:text-rose-300 tracking-wider";
+                titulo.innerText = "DESEMPEÑO: CRÍTICO / RETRASO SEVERO";
+                badge.className = "px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-200 text-rose-900";
+                badge.innerText = "+" + desfasePct + "% Alerta";
+                desc.innerText = "El tiempo real excedió severamente el límite técnico permitido. Riesgo grave en evento real por bloqueo de salidas, falta de alarma o indecisión en repliegue.";
+            }
+
+            updateChecklistProgress();
+        }
+
+        // CONTROL DEL CRONÓMETRO DIGITAL
+        let cronoInterval = null;
+        let cronoStartTime = 0;
+        let cronoElapsedTime = 0;
+        let cronoRunning = false;
+
+        function updateCronoDisplay(ms) {
+            const totalSec = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSec / 60);
+            const seconds = totalSec % 60;
+            const centiseconds = Math.floor((ms % 1000) / 10);
+            const str = String(minutes).padStart(2, '0') + ':' + 
+                        String(seconds).padStart(2, '0') + '.' + 
+                        String(centiseconds).padStart(2, '0');
+            const disp = document.getElementById('cronometro-display');
+            if (disp) disp.innerText = str;
+        }
+
+        function iniciarCronometro() {
+            if (cronoRunning) return;
+            cronoRunning = true;
+            cronoStartTime = Date.now() - cronoElapsedTime;
+            cronoInterval = setInterval(() => {
+                cronoElapsedTime = Date.now() - cronoStartTime;
+                updateCronoDisplay(cronoElapsedTime);
+            }, 50);
+        }
+
+        function pausarCronometro() {
+            if (!cronoRunning) return;
+            cronoRunning = false;
+            clearInterval(cronoInterval);
+        }
+
+        function resetearCronometro() {
+            pausarCronometro();
+            cronoElapsedTime = 0;
+            updateCronoDisplay(0);
+        }
+
+        function copiarTiempoCronometro() {
+            const totalSec = Math.round(cronoElapsedTime / 1000);
+            if (totalSec > 0) {
+                const inputReal = document.getElementById('calc-real-segundos');
+                if (inputReal) {
+                    inputReal.value = totalSec;
+                    calcularTiempos();
+                    saveData();
+                }
+            }
+        }
+
+        // ACTUALIZACIÓN DE CHECKLIST Y PROGRESO GLOBAL
+        function updateChecklistProgress() {
+            const chkAntes = document.querySelectorAll('#checklist-antes-container input[type="checkbox"]');
+            const chkDurante = document.querySelectorAll('#checklist-durante-container input[type="checkbox"]');
+            const chkDespues = document.querySelectorAll('#checklist-despues-container input[type="checkbox"]');
+
+            const countAntes = Array.from(chkAntes).filter(c => c.checked).length;
+            const countDurante = Array.from(chkDurante).filter(c => c.checked).length;
+            const countDespues = Array.from(chkDespues).filter(c => c.checked).length;
+
+            const pctAntes = Math.round((countAntes / (chkAntes.length || 1)) * 100);
+            const pctDurante = Math.round((countDurante / (chkDurante.length || 1)) * 100);
+            const pctDespues = Math.round((countDespues / (chkDespues.length || 1)) * 100);
+
+            const elAntes = document.getElementById('prog-fase-antes');
+            if (elAntes) elAntes.innerText = pctAntes + '%';
+            const elDurante = document.getElementById('prog-fase-durante');
+            if (elDurante) elDurante.innerText = pctDurante + '%';
+            const elDespues = document.getElementById('prog-fase-despues');
+            if (elDespues) elDespues.innerText = pctDespues + '%';
+
+            const checklistAvg = (pctAntes + pctDurante + pctDespues) / 3;
+            const fichaScore = (document.getElementById('param-razon')?.value ? 20 : 0);
+            const brigadaScore = 20;
+            const calcScore = 20;
+            const globalPct = Math.round((checklistAvg * 0.4) + fichaScore + (brigadaScore * 0.2) + (calcScore * 0.2));
+
+            const finalPct = Math.min(100, Math.max(0, globalPct));
+            const bar = document.getElementById('global-progress-bar');
+            const label = document.getElementById('global-progress-label');
+            const badge = document.getElementById('readiness-badge');
+
+            if (bar) bar.style.width = finalPct + '%';
+            if (label) label.innerText = finalPct + '% Completado';
+
+            if (badge) {
+                if (finalPct < 40) {
+                    badge.className = "px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-bold text-[10px] uppercase";
+                    badge.innerText = "Alistamiento Inicial";
+                } else if (finalPct < 85) {
+                    badge.className = "px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[10px] uppercase";
+                    badge.innerText = "En Progreso Avanzado";
+                } else {
+                    badge.className = "px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px] uppercase";
+                    badge.innerText = "100% Listo para Ejecución";
+                }
+            }
+
+            saveData();
+        }
+
+        // AGREGAR FILA A LA MATRIZ ACPM
+        function addAcpmRow() {
+            const tbody = document.getElementById('acpm-tbody');
+            if (!tbody) return;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="p-3 font-bold text-blue-600">Mejora</td>
+                <td class="p-3" contenteditable="true">Nuevo hallazgo detectado durante la evacuación...</td>
+                <td class="p-3" contenteditable="true">Causa preliminar analizada...</td>
+                <td class="p-3 font-semibold text-slate-800 dark:text-white" contenteditable="true">Acción correctiva / correctivo inmediato...</td>
+                <td class="p-3" contenteditable="true">Responsable asignado</td>
+                <td class="p-3" contenteditable="true">2026-11-20</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[10px]">En Proceso</span></td>
+                <td class="p-3 text-center no-print"><button onclick="this.closest('tr').remove(); saveData();" class="text-rose-500 hover:text-rose-700">✕</button></td>
+            `;
+            tbody.appendChild(tr);
+            saveData();
+        }
+
+        // AGREGAR BRIGADISTA
+        function addBrigadistaRow() {
+            const grid = document.getElementById('brigadistas-grid');
+            if (!grid) return;
+            const card = document.createElement('div');
+            card.className = "p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between gap-4 border-t-4 border-t-emerald-500";
+            card.innerHTML = `
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span class="px-2.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-extrabold text-[10px] uppercase" contenteditable="true">NUEVO ROL</span>
+                        <span class="text-xs font-mono-code font-bold text-slate-400" contenteditable="true">Canal VHF</span>
+                    </div>
+                    <h4 class="text-sm font-black text-slate-800 dark:text-white uppercase mt-2" contenteditable="true">Brigadista de Apoyo</h4>
+                    <input type="text" class="w-full text-xs font-bold text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 bg-transparent py-1 mt-1 focus:outline-none focus:border-emerald-500" placeholder="Nombre del brigadista">
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2" contenteditable="true">
+                        Funciones asignadas durante el simulacro de evacuación...
+                    </p>
+                </div>
+                <div class="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase">INVAMA SG-SST</span>
+                    <button onclick="this.closest('div.p-5').remove(); saveData();" class="text-rose-500 text-xs font-bold hover:underline">Eliminar</button>
+                </div>
+            `;
+            grid.appendChild(card);
+            saveData();
+        }
+
+        // MANEJO DE LOGO INSTITUCIONAL
+        function handleLogoUpload(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById('logo-preview-img');
+                    const placeholder = document.getElementById('logo-placeholder-icon');
+                    if (img && placeholder) {
+                        img.src = e.target.result;
+                        img.classList.remove('hidden');
+                        placeholder.classList.add('hidden');
+                        localStorage.setItem('wappy_simulacro_logo', e.target.result);
+                    }
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // GUARDAR DATOS EN LOCALSTORAGE
+        function saveData() {
+            try {
+                const data = {
+                    title: document.getElementById('app-title')?.innerText,
+                    subtitle: document.getElementById('app-subtitle')?.innerText,
+                    companyName: document.getElementById('company-name')?.innerText,
+                    docCode: document.getElementById('doc-code')?.innerText,
+                    paramRazon: document.getElementById('param-razon')?.value,
+                    paramNit: document.getElementById('param-nit')?.value,
+                    paramSede: document.getElementById('param-sede')?.value,
+                    paramFecha: document.getElementById('param-fecha')?.value,
+                    paramHora: document.getElementById('param-hora')?.value,
+                    calcRealSegundos: document.getElementById('calc-real-segundos')?.value,
+                    checklist: Array.from(document.querySelectorAll('.chk-item')).map(c => c.checked)
+                };
+                localStorage.setItem('wappy_simulacro_data', JSON.stringify(data));
+            } catch (e) {
+                console.warn('Storage saving failed:', e);
+            }
+        }
+
+        // CARGAR DATOS DESDE LOCALSTORAGE
+        function loadData() {
+            try {
+                const logo = localStorage.getItem('wappy_simulacro_logo');
+                if (logo) {
+                    const img = document.getElementById('logo-preview-img');
+                    const placeholder = document.getElementById('logo-placeholder-icon');
+                    if (img && placeholder) {
+                        img.src = logo;
+                        img.classList.remove('hidden');
+                        placeholder.classList.add('hidden');
+                    }
+                }
+
+                const raw = localStorage.getItem('wappy_simulacro_data');
+                if (!raw) return;
+                const data = JSON.parse(raw);
+
+                if (data.title) document.getElementById('app-title').innerText = data.title;
+                if (data.subtitle) document.getElementById('app-subtitle').innerText = data.subtitle;
+                if (data.companyName) document.getElementById('company-name').innerText = data.companyName;
+                if (data.docCode) document.getElementById('doc-code').innerText = data.docCode;
+                if (data.paramRazon) document.getElementById('param-razon').value = data.paramRazon;
+                if (data.paramNit) document.getElementById('param-nit').value = data.paramNit;
+                if (data.paramSede) document.getElementById('param-sede').value = data.paramSede;
+                if (data.paramFecha) document.getElementById('param-fecha').value = data.paramFecha;
+                if (data.paramHora) document.getElementById('param-hora').value = data.paramHora;
+                if (data.calcRealSegundos) document.getElementById('calc-real-segundos').value = data.calcRealSegundos;
+
+                if (data.checklist && Array.isArray(data.checklist)) {
+                    const chks = document.querySelectorAll('.chk-item');
+                    data.checklist.forEach((checked, i) => {
+                        if (chks[i]) chks[i].checked = checked;
+                    });
+                }
+            } catch (e) {
+                console.warn('Storage loading failed:', e);
+            }
+        }
+
+        // DESCARGAR ARCHIVO HTML COMPLETO AUTÓNOMO
+        function downloadStandaloneHTML() {
+            const htmlContent = document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Simulacro_Nacional_INVAMA_2026.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // COPILOTO IA DRAWER
+        function toggleAIDrawer() {
+            const drawer = document.getElementById('ai-drawer');
+            if (drawer) {
+                drawer.classList.toggle('translate-x-full');
+            }
+        }
+
+        function sendQuickPrompt(promptText) {
+            const input = document.getElementById('ai-chat-input');
+            if (input) {
+                input.value = promptText;
+                executeAIChat();
+            }
+        }
+
+        async function executeAIChat() {
+            const input = document.getElementById('ai-chat-input');
+            const chatBox = document.getElementById('ai-chat-box');
+            const text = input ? input.value.trim() : '';
+            if (!text) return;
+
+            const userMsg = document.createElement('div');
+            userMsg.className = "p-3 rounded-2xl bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-100 self-end max-w-[85%] font-medium";
+            userMsg.innerText = text;
+            chatBox.appendChild(userMsg);
+            input.value = '';
+
+            const aiMsg = document.createElement('div');
+            aiMsg.className = "p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-slate-700 dark:text-slate-200 self-start max-w-[90%]";
+            aiMsg.innerHTML = '<span class="inline-flex items-center gap-2"><i data-lucide="loader-2" class="w-4 h-4 animate-spin text-emerald-500"></i> Consultando a Wappy Copiloto...</span>';
+            chatBox.appendChild(aiMsg);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            if (window.lucide) lucide.createIcons();
+
+            const apiKey = document.getElementById('gemini-api-key')?.value || localStorage.getItem('wappy_gemini_key');
+            const model = document.getElementById('gemini-model-select')?.value || 'gemini-2.5-flash';
+
+            if (!apiKey) {
+                aiMsg.innerHTML = "<b>⚠️ API Key requerida:</b> Abre la pestaña de 'Configuración de API Key' arriba e ingresa tu clave gratuita de Google Gemini para obtener respuestas en tiempo real.";
+                return;
+            }
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: `Eres el Coordinador de Emergencias y Especialista en SG-SST de WAPPY IA.
+Empresa: INSTITUTO DE VALORIZACIÓN DE MANIZALES - INVAMA (NIT: 800.002.916-2, Sede Alcázares Manizales).
+Normativa: Decreto 1072 de 2015, Resolución 0312 de 2019 y Guía UNGRD para Simulacro Nacional.
+Responde de forma técnica, concisa y práctica a la siguiente consulta del usuario:
+"${text}"`
+                            }]
+                        }]
+                    })
+                });
+
+                const json = await response.json();
+                if (json.candidates && json.candidates[0]?.content?.parts[0]?.text) {
+                    const reply = json.candidates[0].content.parts[0].text;
+                    aiMsg.innerHTML = reply.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                } else if (json.error) {
+                    aiMsg.innerHTML = `<b>Error en Gemini API:</b> ${json.error.message || 'Consulta no procesada'}`;
+                } else {
+                    aiMsg.innerHTML = "No se recibió una respuesta válida de la IA.";
+                }
+            } catch (err) {
+                aiMsg.innerHTML = `<b>Error de conexión:</b> ${err.message}`;
+            }
+
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+</body>
+</html>
