@@ -553,46 +553,122 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
 
                     let companyAndMemoryPrompt = '';
                     let rawMemories = [];
-                    if (isMemoryEnabled) {
-                        const [companyInfo, fetchedMemories] = await Promise.all([
-                            CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean().catch(() => null)
-                                .then(async (c) => c || await CompanyInfo.findOne({ user: targetUserId }).lean().catch(() => null)),
-                            getAllUserMemories(targetUserId).catch(() => [])
-                        ]);
-                        rawMemories = fetchedMemories;
+                    const userIds = [this.userId, targetUserId].filter(Boolean);
 
-                        if (companyInfo) {
-                            const companyType = companyInfo.companyType || 'Persona Jurídica';
-                            const nitLabel = companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT';
-                            let sedesStr = '';
-                            if (companyInfo.sedes && Array.isArray(companyInfo.sedes) && companyInfo.sedes.length > 0) {
-                                sedesStr = ' Sedes adicionales: ' + companyInfo.sedes.map(s => `${s.nombre || 'Sede'} (${s.city || 'N/A'})`).join(', ');
+                    const [companyInfo, fetchedMemories, recentTenshiMessages, recentConvos] = await Promise.all([
+                        CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean().catch(() => null)
+                            .then(async (c) => c || await CompanyInfo.findOne({ user: targetUserId }).lean().catch(() => null)),
+                        isMemoryEnabled ? getAllUserMemories(targetUserId).catch(() => []) : Promise.resolve([]),
+                        (async () => {
+                            try {
+                                const TenshiMessage = require('~/models/TenshiMessage');
+                                return await TenshiMessage.find({ user: { $in: userIds } })
+                                    .sort({ createdAt: -1 })
+                                    .limit(20)
+                                    .lean();
+                            } catch (e) {
+                                return [];
                             }
-                            companyAndMemoryPrompt += `\n\n[EMPRESA ACTIVA DEL USUARIO]:
+                        })(),
+                        (async () => {
+                            try {
+                                const { Conversation } = require('~/db/models');
+                                return await Conversation.find({ user: { $in: userIds.map(String) } })
+                                    .sort({ updatedAt: -1 })
+                                    .limit(5)
+                                    .select('conversationId title updatedAt agent_id')
+                                    .lean();
+                            } catch (e) {
+                                return [];
+                            }
+                        })()
+                    ]);
+                    rawMemories = fetchedMemories;
+
+                    if (companyInfo) {
+                        const companyType = companyInfo.companyType || 'Persona Jurídica';
+                        const nitLabel = companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT';
+                        let sedesStr = '';
+                        if (companyInfo.sedes && Array.isArray(companyInfo.sedes) && companyInfo.sedes.length > 0) {
+                            sedesStr = ' Sedes adicionales: ' + companyInfo.sedes.map(s => `${s.nombre || 'Sede'} (${s.city || 'N/A'})`).join(', ');
+                        }
+                        companyAndMemoryPrompt += `\n\n[EMPRESA ACTIVA DEL USUARIO]:
 - Empresa: ${companyInfo.companyName || 'N/A'} (${companyType}, ${nitLabel}: ${companyInfo.nit || 'N/A'}).
 - Representante: ${companyInfo.legalRepresentative || 'N/A'}. Trabajadores: ${companyInfo.workerCount ?? 'N/A'}.
 - ARL: ${companyInfo.arl || 'N/A'} (Riesgo: ${companyInfo.riskLevel || 'N/A'}). Actividad: ${companyInfo.economicActivity || 'N/A'}. CIIU: ${companyInfo.ciiu || 'N/A'}.
 - Ubicación: ${companyInfo.address || 'N/A'}, ${companyInfo.city || 'N/A'}, ${companyInfo.departamento || 'N/A'}.
 - Responsable SST: ${companyInfo.responsibleSST || 'N/A'}.${sedesStr}`;
-                        }
-
-                        if (Array.isArray(rawMemories) && rawMemories.length > 0) {
-                            const uniqueMap = new Map();
-                            const sortedRaw = [...rawMemories].sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
-                            for (const m of sortedRaw) {
-                                if (m.key && !uniqueMap.has(m.key)) uniqueMap.set(m.key, m.value);
-                            }
-                            companyAndMemoryPrompt += `\n\n[MEMORIA PERMANENTE DEL USUARIO]:\n`;
-                            for (const [k, val] of uniqueMap.entries()) {
-                                companyAndMemoryPrompt += `- [${k}]: ${val}\n`;
-                            }
-                        }
-
-                        companyAndMemoryPrompt += `\n\n[REGLA DE CONOCIMIENTO CORPORATIVO]: Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.`;
                     }
 
+                    if (Array.isArray(rawMemories) && rawMemories.length > 0) {
+                        const uniqueMap = new Map();
+                        const sortedRaw = [...rawMemories].sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
+                        for (const m of sortedRaw) {
+                            if (m.key && !uniqueMap.has(m.key)) uniqueMap.set(m.key, m.value);
+                        }
+                        companyAndMemoryPrompt += `\n\n[MEMORIA PERMANENTE DEL USUARIO]:\n`;
+                        for (const [k, val] of uniqueMap.entries()) {
+                            companyAndMemoryPrompt += `- [${k}]: ${val}\n`;
+                        }
+                    }
+
+                    // Inyectar Historial reciente de Tenshi (TenshiMessage)
+                    if (recentTenshiMessages && recentTenshiMessages.length > 0) {
+                        companyAndMemoryPrompt += `\n\n[HISTORIAL RECIENTE DE CONVERSACIONES DIRECTAS CON TENSHI (MEMORIA EPISÓDICA)]:`;
+                        const chronological = [...recentTenshiMessages].reverse();
+                        for (const m of chronological) {
+                            const role = m.role === 'user' ? 'Usuario' : 'Tenshi';
+                            const cleanContent = (m.content || '').replace(/\s+/g, ' ').trim();
+                            const snippet = cleanContent.length > 250 ? cleanContent.substring(0, 250) + '...' : cleanContent;
+                            if (snippet && !snippet.startsWith('[RESULTADO_GUI]')) {
+                                companyAndMemoryPrompt += `\n- ${role}: "${snippet}"`;
+                            }
+                        }
+                    }
+
+                    // Inyectar últimas conversaciones con especialistas en LibreChat
+                    if (recentConvos && recentConvos.length > 0) {
+                        try {
+                            const { Message } = require('~/db/models');
+                            const convoIds = recentConvos.map(c => c.conversationId).filter(Boolean);
+                            const rawConvoMsgs = await Message.find({ conversationId: { $in: convoIds } })
+                                .sort({ createdAt: 1 })
+                                .lean()
+                                .catch(() => []);
+
+                            const msgsByConvo = {};
+                            for (const m of rawConvoMsgs) {
+                                if (!msgsByConvo[m.conversationId]) msgsByConvo[m.conversationId] = [];
+                                msgsByConvo[m.conversationId].push(m);
+                            }
+
+                            companyAndMemoryPrompt += '\n\n[ÚLTIMAS CONSULTAS Y ACTIVIDAD DEL USUARIO EN CHATS CON ESPECIALISTAS (WAPPY)]:';
+                            for (const c of recentConvos) {
+                                const title = c.title || 'Consulta técnica';
+                                const cMsgs = msgsByConvo[c.conversationId] || [];
+                                const lastMsgs = cMsgs.slice(-2);
+                                companyAndMemoryPrompt += `\n- Conversación: "${title}":`;
+                                for (const m of lastMsgs) {
+                                    const sender = m.isCreatedByUser ? 'Usuario' : (m.sender || 'Especialista');
+                                    const text = (m.text || '').replace(/\s+/g, ' ').trim();
+                                    const snippet = text.length > 300 ? text.substring(0, 300) + '...' : text;
+                                    if (snippet) {
+                                        companyAndMemoryPrompt += `\n  * ${sender}: "${snippet}"`;
+                                    }
+                                }
+                            }
+                        } catch (err) {
+                            logger.warn('[VoiceSession] Error fetching recent convo messages for prompt:', err.message);
+                        }
+                    }
+
+                    companyAndMemoryPrompt += `\n\n[REGLAS DE CONOCIMIENTO CORPORATIVO Y CONTINUIDAD]:
+1. Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.
+2. Tienes memoria total de las conversaciones previas con el usuario en este widget y de las consultas que el usuario ha realizado con los distintos especialistas en los chats de WAPPY (por ejemplo: consultas a fisioterapeutas, psicólogos laborales, inspectores, auditores, etc.).
+3. Si el usuario te pregunta por conversaciones pasadas, te dice "¿qué hablamos antes?", o te pide recordar una consulta específica (como "¿recuérdame la última consulta que te hicimos sobre los resultados de la batería de riesgo psicosocial en la empresa?"), responde con base en este historial anterior con total naturalidad, calidez y precisión técnica. NUNCA digas que no recuerdas o que tu memoria fue reiniciada al prenderte o apagar el modo voz.`;
+
                     this.liveConfig.systemInstruction = (this.liveConfig.systemInstruction || '') + companyAndMemoryPrompt;
-                    logger.info(`[VoiceSession] Injected active company & ${rawMemories?.length || 0} memories into Tenshi Voice instructions`);
+                    logger.info(`[VoiceSession] Injected active company, ${rawMemories?.length || 0} memories, ${recentTenshiMessages?.length || 0} Tenshi turns & ${recentConvos?.length || 0} specialist convos into Tenshi Voice instructions`);
                 } catch (memErr) {
                     logger.warn(`[VoiceSession] Could not inject company/memories into Tenshi Voice:`, memErr.message);
                 }
@@ -2099,12 +2175,8 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
             }
             logger.info(`[VoiceSession] Injected ${injectedFrames} visual frames (phaseEvidences: ${Object.keys(this.phaseEvidences || {}).length}, manual: ${!!(this.manualEvidences && this.manualEvidences.length > 0)}) into report prompt.`);
 
-            // Call API with the multimodal array (capped to 8192 tokens for rapid ~4s generation)
-            const result = await generateWithKeyRotation(
-                { model: reportModelName, generationConfig: { maxOutputTokens: 8192 } },
-                this.userId,
-                promptParts
-            );
+            // Call API with the multimodal array
+            const result = await generateWithKeyRotation(reportModelName, this.userId, promptParts);
             const response = result.response;
             let reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
 

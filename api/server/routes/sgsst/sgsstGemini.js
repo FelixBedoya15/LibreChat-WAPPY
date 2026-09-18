@@ -25,12 +25,12 @@ const { getUserKey } = require('~/server/services/UserService');
 const { User } = require('~/db/models');
 const { logger } = require('~/config');
 
-// Non-live Gemini models for fallback rotation (prioritizing high-quota models without 429 errors)
+// Non-live Gemini models for 503 fallback rotation (matching .env GOOGLE_MODELS minus live ones)
 const SGSST_FALLBACK_MODELS = [
-  'gemini-3.6-flash',
-  'gemini-3.5-flash',
   'gemini-3.7-flash',
   'gemini-3.8-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash',
   'gemini-3.5-flash-lite',
 ];
 
