@@ -168,22 +168,45 @@ const loadAgent = async ({ req, spec, agent_id, endpoint, model_parameters }) =>
     // Built-in tool toggles
     if (ephemeralAgent.web_search === true) {
       toolSet.add(Tools.web_search);
-    } else if (ephemeralAgent.web_search === false && agent_id === EPHEMERAL_AGENT_ID) {
+    } else if (ephemeralAgent.web_search === false && (ephemeralAgent._defaultsApplied || agent_id === EPHEMERAL_AGENT_ID)) {
       toolSet.delete(Tools.web_search);
     }
     if (ephemeralAgent.file_search === true) {
       toolSet.add(Tools.file_search);
-    } else if (ephemeralAgent.file_search === false && agent_id === EPHEMERAL_AGENT_ID) {
+    } else if (ephemeralAgent.file_search === false && (ephemeralAgent._defaultsApplied || agent_id === EPHEMERAL_AGENT_ID)) {
       toolSet.delete(Tools.file_search);
     }
     if (ephemeralAgent.execute_code === true) {
       toolSet.add(Tools.execute_code);
-    } else if (ephemeralAgent.execute_code === false && agent_id === EPHEMERAL_AGENT_ID) {
+    } else if (ephemeralAgent.execute_code === false && (ephemeralAgent._defaultsApplied || agent_id === EPHEMERAL_AGENT_ID)) {
       toolSet.delete(Tools.execute_code);
+      toolSet.delete(Tools.code_interpreter);
     }
 
-    // External tool overrides: combine session selection with saved agent tools from DB
+    // External tool overrides: synchronize session selection with agent tools
+    // Preserves built-in tools and MCP tools/actions, while honoring user toggles for external tools (e.g. somos_sst, matriz_ipevar)
     if (Array.isArray(ephemeralAgent.tools)) {
+      const builtinTools = new Set([
+        Tools.web_search,
+        Tools.file_search,
+        Tools.execute_code,
+        Tools.code_interpreter,
+        Tools.memory,
+      ]);
+      const sessionTools = new Set(ephemeralAgent.tools);
+
+      // Remove non-builtin, non-MCP tools that are not present in ephemeralAgent.tools
+      for (const t of [...toolSet]) {
+        const isBuiltin = builtinTools.has(t);
+        const isMcp = typeof t === 'string' && (t.startsWith(Constants.mcp_server) || t.includes(Constants.actionDelimiter));
+        if (!isBuiltin && !isMcp) {
+          if (!sessionTools.has(t)) {
+            toolSet.delete(t);
+          }
+        }
+      }
+
+      // Add all tools selected in the session
       for (const t of ephemeralAgent.tools) {
         toolSet.add(t);
       }

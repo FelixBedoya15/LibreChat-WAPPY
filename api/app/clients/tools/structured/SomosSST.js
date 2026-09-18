@@ -825,6 +825,12 @@ class SomosSST extends Tool {
 
       // ── ACTION: RESUMEN EMPRESA (DASHBOARD METRICO GLOBAL) ───────────────────
       if (accion === 'resumen_empresa') {
+        if (this.req?.user?.personalization?.memories === false) {
+          return JSON.stringify({
+            exito: false,
+            mensaje: 'La memoria del usuario está desactivada. No hay métricas ni información corporativa disponibles.',
+          });
+        }
         const resumen = {
           total_trabajadores: 0,
           hito_1_huella_biocentrica_global: {
@@ -1249,6 +1255,12 @@ class SomosSST extends Tool {
 
       // ── ACTION: CONSULTAR INFORMACION DE LA EMPRESA (COMPANY INFO) ─────────
       if (accion === 'consultar_informacion_empresa') {
+        if (this.req?.user?.personalization?.memories === false) {
+          return JSON.stringify({
+            exito: false,
+            mensaje: 'La memoria del usuario está desactivada. No hay información de empresa disponible para este chat.',
+          });
+        }
         const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
         const targetUserId = (this.req?.user?.isSubUser && this.req?.user?.parentUser)
           ? this.req.user.parentUser

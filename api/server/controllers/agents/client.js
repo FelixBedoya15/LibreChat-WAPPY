@@ -492,10 +492,19 @@ NUNCA omitas estos bloques ni generes un aplicativo en HTML sin este encabezado 
         this.options.agent.tools.push(recallTool);
       }
     } else {
-      // If memory is disabled, ensure recall_memory is not present in tools
-      this.options.agent.tools = this.options.agent.tools.filter(
-        (t) => (typeof t === 'string' ? t : t?.name) !== 'recall_memory'
-      );
+      // If memory is disabled, ensure recall_memory and somos_sst are not present in tools
+      this.options.agent.tools = this.options.agent.tools.filter((t) => {
+        const name = typeof t === 'string' ? t : t?.name;
+        return name !== 'recall_memory' && name !== 'somos_sst';
+      });
+
+      const NO_MEMORY_DIRECTIVE = `[MODO SIN MEMORIA / CHAT EN BLANCO]
+La memoria del usuario y la información corporativa de empresas están DESACTIVADAS para esta conversación.
+NO tienes ninguna empresa activa ni registrada.
+NO conoces ninguna Razón Social, NIT, ARL, Representante Legal ni datos de trabajadores.
+NO conoces ni menciones la plataforma Somos SST.
+Si el usuario te pregunta qué empresa tiene activa o registrada, debes responderle con total claridad que NO hay ninguna empresa activa cargada porque la memoria está desactivada, y que estás listo para ayudarle desde cero en blanco.`;
+      systemContent = `${NO_MEMORY_DIRECTIVE}\n\n---\n\n${systemContent}`;
     }
 
     if (systemContent) {
