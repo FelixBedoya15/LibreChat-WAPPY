@@ -42,7 +42,7 @@ class GoogleSheetsTool extends Tool {
       spreadsheetId: z.string().optional().describe('El ID de la hoja de cálculo de Google (requerido para leer, escribir, añadir o formatear).'),
       title: z.string().optional().describe('El título de la nueva hoja de cálculo que deseas crear.'),
       range: z.string().optional().describe('El rango de celdas en formato A1 (ej: "Sheet1!A1:D10" o "A1:D10"). Si no se pasa, utiliza automáticamente la primera pestaña disponible.'),
-      values: z.array(z.array(z.any())).optional().describe('Matriz bidimensional de datos (array de arrays) a escribir o añadir (ej: [["Nombre", "Edad"], ["Juan", "30"]]).'),
+      values: z.array(z.array(z.coerce.string())).optional().describe('Matriz bidimensional de datos (array de arrays) a escribir o añadir (ej: [["Nombre", "Edad"], ["Juan", "30"]]).'),
       sheetId: z.number().optional().describe('El ID numérico de la pestaña (opcional, por defecto la primera pestaña) para formatear.'),
       headerColorHex: z.string().optional().default('#0f766e').describe('Color hexadecimal para el fondo de la cabecera (ej: "#0f766e" para Teal, "#0284c7" para Sky Blue).'),
     });
