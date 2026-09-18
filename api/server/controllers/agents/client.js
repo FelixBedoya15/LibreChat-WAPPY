@@ -1387,7 +1387,10 @@ NUNCA omitas estos dos bloques ni generes un aplicativo en HTML sin este encabez
         config.signal = null;
       };
 
-      memoryPromise = this.runMemory(initialMessages);
+      memoryPromise = this.runMemory(initialMessages).catch((err) => {
+        logger.warn('[AgentClient] memoryPromise error safely caught:', err?.message || err);
+        return [];
+      });
 
       // Dual-axis rotation: outer = model fallbacks (503), inner = API keys (429/403)
       let initialKeys = [this.options.agent?.model_parameters?.apiKey];

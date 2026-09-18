@@ -1116,7 +1116,7 @@ process.on('uncaughtException', (err) => {
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  logger.error(`[UnhandledRejection] reason: ${reason?.stack || reason?.message || reason}`);
 });
 
 /** Export app for easier testing purposes */
