@@ -1492,6 +1492,17 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     // Solo registrar como transcripción del usuario si no es un prompt interno del sistema
                     if (!data.text.startsWith('[SISTEMA INTERNO WAPPY]')) {
                         this.userTranscriptionText += (this.userTranscriptionText ? '\n' : '') + data.text;
+                    } else {
+                        // Es una orden del sistema para que Tenshi hable (resumen/handoff del especialista)
+                        // Marcar preventivamente isAiSpeaking para descartar audio de micrófono en tránsito y evitar colisiones/eco
+                        this.isAiSpeaking = true;
+                        if (this.aiSpeakingTimeout) clearTimeout(this.aiSpeakingTimeout);
+                        this.aiSpeakingTimeout = setTimeout(() => {
+                            if (this.isAiSpeaking) {
+                                logger.info('[VoiceSession] Safety reset isAiSpeaking after system message dispatch');
+                                this.isAiSpeaking = false;
+                            }
+                        }, 5000);
                     }
                     
                     if (this.geminiClient) {

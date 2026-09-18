@@ -359,8 +359,13 @@ export default function TenshiChat() {
   const nextStartTimeRef = useRef<number>(0);
   const setIsPlayingAudioRef = useRef<((isPlaying: boolean) => void) | null>(null);
   const refetchHistoryRef = useRef<(() => void) | null>(null);
+  const playbackEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const clearAudioQueue = useCallback(() => {
+    if (playbackEndTimeoutRef.current) {
+      clearTimeout(playbackEndTimeoutRef.current);
+      playbackEndTimeoutRef.current = null;
+    }
     activeSourcesRef.current.forEach((source) => {
       try {
         source.stop();
@@ -416,9 +421,20 @@ export default function TenshiChat() {
       const audioBuffer = ctx.createBuffer(1, numSamples, 24000);
       audioBuffer.getChannelData(0).set(float32Data);
 
+      // Cancelar cualquier apagado pendiente del audio: la IA sigue transmitiendo voz continua
+      if (playbackEndTimeoutRef.current) {
+        clearTimeout(playbackEndTimeoutRef.current);
+        playbackEndTimeoutRef.current = null;
+      }
+      setIsPlayingAudioRef.current?.(true);
+      setIsTenshiSpeaking(true);
+      setVoiceStatusText('Tenshi hablando...');
+      lastActivityRef.current = Date.now();
+
       const currentTime = ctx.currentTime;
+      // Búfer suave de 15ms para absorber micro-retrasos de CPU sin generar pausas audibles
       if (nextStartTimeRef.current < currentTime) {
-        nextStartTimeRef.current = currentTime + 0.05;
+        nextStartTimeRef.current = currentTime + 0.015;
       }
       const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
@@ -435,19 +451,23 @@ export default function TenshiChat() {
       source.onended = () => {
         activeSourcesRef.current = activeSourcesRef.current.filter((s) => s !== source);
         if (activeSourcesRef.current.length === 0) {
-          setIsPlayingAudioRef.current?.(false);
-          setVoiceStatusText('Tenshi te escucha...');
-          setIsTenshiSpeaking(false);
-          setOutputAmplitude(0);
+          // Hangover de 350ms antes de desmutear el micrófono:
+          // 1. Evita que micro-pausas entre paquetes desmuteen el micro y corten la voz
+          // 2. Absorbe la reverberación acústica del altavoz para que Gemini Live no detecte falso barge-in
+          if (playbackEndTimeoutRef.current) clearTimeout(playbackEndTimeoutRef.current);
+          playbackEndTimeoutRef.current = setTimeout(() => {
+            if (activeSourcesRef.current.length === 0) {
+              setIsPlayingAudioRef.current?.(false);
+              setVoiceStatusText('Tenshi te escucha...');
+              setIsTenshiSpeaking(false);
+              setOutputAmplitude(0);
+            }
+          }, 350);
         }
       };
 
       source.start(nextStartTimeRef.current);
       nextStartTimeRef.current += audioBuffer.duration;
-      setIsPlayingAudioRef.current?.(true);
-      setVoiceStatusText('Tenshi hablando...');
-      setIsTenshiSpeaking(true);
-      lastActivityRef.current = Date.now();
     } catch (err) {
       console.error('[Tenshi Voice] Error processing audio playback:', err);
     }
@@ -819,18 +839,16 @@ export default function TenshiChat() {
   disconnectVoiceRef.current = disconnectVoice;
   setIsPlayingAudioRef.current = setVoiceIsPlayingAudio;
 
-  // Silenciar el micrófono de Tenshi Live mientras un agente esté generando o respondiendo en el chat
-  // Esto evita enviar cientos de paquetes de audio innecesarios (teclado, ruido) a Google Gemini Live
-  // y elimina la lentitud por colisión de recursos y cuota.
+  // Silenciar el micrófono de Tenshi Live ÚNICAMENTE mientras espera la conclusión de una consulta delegada
   useEffect(() => {
     if (isVoiceActive) {
-      if (isWaitingConsultation || isChatSubmitting) {
+      if (isWaitingConsultation) {
         setVoiceMuted(true);
       } else {
         setVoiceMuted(false);
       }
     }
-  }, [isWaitingConsultation, isChatSubmitting, isVoiceActive, setVoiceMuted]);
+  }, [isWaitingConsultation, isVoiceActive, setVoiceMuted]);
 
   const stopVoiceMode = useCallback(() => {
     setIsVoiceActive(false);
@@ -1095,28 +1113,26 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
     }
 
     // Detección de finalización:
-    // A) Finalización normal: el chat terminó de generar (!isChatSubmitting)
-    // B) Finalización por estabilización en pantalla: si el texto tiene contenido sustancial (>80 caracteres)
-    //    y no ha cambiado en 3.5 segundos, asumimos que ya terminó de escribir en pantalla,
-    //    incluso si el socket SSE o el estado Recoil siguen reportando submit.
+    // A) Finalización normal: el chat terminó de generar completamente (!isChatSubmitting), hay respuesta válida y no hay error
     const isCompletedNormally = isAssistantMsg && !isChatSubmitting && !isPlaceholder && !currentMsg?.error;
-    const isCompletedByScreenStability =
+    // B) Timeout de seguridad por socket SSE colgado: SOLO si lleva más de 15 segundos sin NINGÚN cambio de texto en pantalla
+    const isCompletedByStall =
       isAssistantMsg &&
       !isPlaceholder &&
       !currentMsg?.error &&
       rawMsgText.length > 80 &&
       consultation.hadStarted &&
-      Date.now() - lastContentChangeRef.current.time >= 3500;
+      Date.now() - lastContentChangeRef.current.time >= 15000;
 
-    // CASO 2: El especialista sigue generando activamente
-    if (!isCompletedNormally && !isCompletedByScreenStability) {
+    // CASO 2: El especialista sigue generando activamente en pantalla
+    if (!isCompletedNormally && !isCompletedByStall) {
       if (consultationTimerRef.current) {
         clearTimeout(consultationTimerRef.current);
         consultationTimerRef.current = null;
       }
 
       if (isAssistantMsg && !isPlaceholder) {
-        setVoiceStatusText(`${consultation.agentName} respondiendo...`);
+        setVoiceStatusText(`${consultation.agentName} respondiendo en pantalla...`);
       } else {
         setVoiceStatusText(`Esperando a ${consultation.agentName}...`);
       }
@@ -1125,7 +1141,7 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
 
     // CASO 3: El especialista completó exitosamente su respuesta.
     if (!consultationTimerRef.current) {
-      setVoiceStatusText(`${consultation.agentName} finalizando respuesta...`);
+      setVoiceStatusText(`${consultation.agentName} finalizó respuesta...`);
 
       consultationTimerRef.current = setTimeout(() => {
         if (!pendingAgentConsultationRef.current || !pendingAgentConsultationRef.current.active) {
@@ -1146,9 +1162,11 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
           finalMsg.substring(0, 120),
         );
 
-        // 1. Si el Modo Voz está activo, instruir a Tenshi Live para que hable al usuario con su conocimiento
+        // 1. Si el Modo Voz está activo, silenciar micro y asegurar cola limpia antes de instruir a Tenshi Live
         if (isVoiceActive) {
           lastActivityRef.current = Date.now();
+          clearAudioQueue();
+          setIsPlayingAudioRef.current?.(true);
           setVoiceStatusText(`Tenshi respondiendo sobre ${consultation.agentName}...`);
           const promptForTenshi = `[SISTEMA INTERNO WAPPY]: El usuario te pidió consultar a ${consultation.agentName} sobre: "${consultation.question}". El ${consultation.agentName} acaba de responder lo siguiente en el chat:\n\n"""\n${finalMsg.substring(0, 1200)}\n"""\n\nINSTRUCCIÓN PARA TENSHI: En voz alta al usuario, habla con tu estilo fresco, profesional y cercano. Confírmale en 2 o 3 oraciones concisas el punto técnico principal que dictaminó el ${consultation.agentName}, y añade tu recomendación como Tenshi para avanzar en la plataforma o en el SG-SST.`;
           sendTextMessage(promptForTenshi);
