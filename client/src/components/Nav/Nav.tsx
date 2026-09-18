@@ -25,7 +25,6 @@ import { Search } from 'lucide-react';
 
 const PlansButton = lazy(() => import('./PlansButton'));
 const AccountSettings = lazy(() => import('./AccountSettings'));
-const LiveAnalysisButton = lazy(() => import('./LiveAnalysisButton'));
 const SGSSTButton = lazy(() => import('./SGSSTButton'));
 const AulaEstudioButton = lazy(() => import('./AulaEstudioButton'));
 const RutaAprendizajeButton = lazy(() => import('./RutaAprendizajeButton'));
@@ -95,9 +94,6 @@ const Nav = memo(
     }) && hasPermission(PermissionTypes.BOOKMARKS);
 
     const hasAccessToAgents = hasPermission(PermissionTypes.AGENTS);
-    const hasAccessToLiveAnalysis = isSubUser
-      ? subPerms.includes('ai:live_analysis')
-      : hasPermission(PermissionTypes.LIVE_ANALYSIS);
     const { hasAmbassadorAccess } = useAmbassadorAccess();
     
     // SG-SST button: visible for regular users or subusers with sgsst/audit/events permissions
@@ -207,11 +203,6 @@ const Nav = memo(
             </Suspense>
           )}
 
-          {hasAccessToLiveAnalysis && (
-            <Suspense fallback={null}>
-              <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
-            </Suspense>
-          )}
           {hasAccessToSGSST && (
             <Suspense fallback={null}>
               <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
@@ -219,7 +210,7 @@ const Nav = memo(
           )}
         </>
       ),
-      [hasAccessToBookmarks, tags, isSmallScreen, toggleNavVisible, hasAccessToSGSST, hasAccessToLiveAnalysis, hasAccessToAgents, isCollapsedState, hasAccessToPlans],
+      [hasAccessToBookmarks, tags, isSmallScreen, toggleNavVisible, hasAccessToSGSST, hasAccessToAgents, isCollapsedState, hasAccessToPlans],
     );
 
     const [isSearchLoading, setIsSearchLoading] = useState(
@@ -313,12 +304,6 @@ const Nav = memo(
                             <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
-                        {/* Camera icon (Analisis en Vivo) */}
-                        {hasAccessToLiveAnalysis && (
-                          <Suspense fallback={null}>
-                            <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                          </Suspense>
-                        )}
                         {/* Aula Estudio / Academia WAPPY */}
                         {hasAccessToLMS && (
                           <Suspense fallback={null}>
@@ -384,13 +369,6 @@ const Nav = memo(
                                 {hasAccessToKanban && (
                                   <Suspense fallback={null}>
                                     <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
-                                )}
-
-                                {/* 3. Análisis en Vivo */}
-                                {hasAccessToLiveAnalysis && (
-                                  <Suspense fallback={null}>
-                                    <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
 

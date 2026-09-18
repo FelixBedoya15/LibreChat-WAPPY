@@ -277,12 +277,6 @@ function Speech() {
                 selectedVoice={voiceChatGeneral}
                 onVoiceChange={(v) => updateSetting('voiceChatGeneral', v)}
               />
-              <div className="h-px bg-gray-200 dark:bg-gray-700" />
-              <GeminiVoiceSelector
-                label="Voz Análisis en Vivo"
-                selectedVoice={voiceLiveAnalysis}
-                onVoiceChange={(v) => updateSetting('voiceLiveAnalysis', v)}
-              />
             </div>
           </div>
         </div>

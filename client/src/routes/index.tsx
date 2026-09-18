@@ -33,7 +33,6 @@ import LoginLayout from './Layouts/Login';
 import dashboardRoutes from './Dashboard';
 import ShareRoute from './ShareRoute';
 import ChatRoute from './ChatRoute';
-import LivePage from '~/components/Liva/LivePage';
 import TrainingDashboard from '~/components/Training/TrainingDashboard';
 import CourseViewer from '~/components/Training/CourseViewer';
 import TrainingAdminDashboard from '~/components/Training/TrainingAdminDashboard';
@@ -358,7 +357,7 @@ export const router = createBrowserRouter(
             },
             {
               path: 'live',
-              element: <LivePage />,
+              element: <Navigate to="/c/new" replace />,
             },
             {
               path: 'search',
