@@ -21,6 +21,11 @@ triggers:
   - single-file
   - canvas
   - herramienta interactiva
+  - google sheets
+  - sheets
+  - base de datos
+  - conectar sheets
+  - guardar en sheets
 ---
 
 # Generador de Aplicativos y Formatos HTML Interactivos SG-SST (WAPPY Oficial)
@@ -277,4 +282,128 @@ Dependiendo de si se trata de un formulario de campo, matriz o calculadora:
 2. **Botón de Auto-Exportación (`exportUpdatedHTML`)**: Incluir siempre el botón de exportar HTML actualizado para que el usuario pueda descargar el archivo con sus cálculos o datos diligenciados.
 3. **Tablero Kanban / Plan de Acción**: Para formatos que requieran seguimiento (No conformidades, ATS, Auditorías), implementar las 3 columnas: *Por Hacer*, *En Proceso*, *Completado*.
 4. **Firmas Digitales**: Incluir lienzo `<canvas>` con soporte táctil y campos obligatorios de Nombre, Cédula, Cargo y Número de Licencia SST.
+
+---
+
+## 📊 5. MÓDULO DE BASE DE DATOS EN TIEMPO REAL CON GOOGLE SHEETS (DRIVE DEL USUARIO)
+
+Cuando el usuario pida un aplicativo con **memoria, persistencia o conectado a Google Sheets / Drive**:
+
+### 🎯 PROTOCOLO DEL AGENTE ANTES DE CREAR EL HTML:
+1. Ejecuta la herramienta `google_sheets` con `action: "create_spreadsheet"` para crear la hoja en el Drive del usuario (ej: `title: "WAPPY - Indicadores de Accidentalidad - " + empresa`).
+2. Agrega las cabeceras de columnas en la fila 1 mediante `action: "append_spreadsheet_values"`.
+3. Inyecta el ID retornado (`spreadsheetId`) y el enlace directo en el HTML del aplicativo dentro de `WAPPY_SHEETS_CONFIG.spreadsheetId` y en el botón "Abrir en Drive".
+
+### 🖥️ WIDGET VISUAL DE SINCRONIZACIÓN (Colocar en el Header o Toolbar del HTML):
+```html
+<!-- Barra de Estado y Sincronización con Google Sheets (WAPPY Real-Time Cloud) -->
+<div id="wappy-sheets-sync-bar" class="max-w-[1400px] mx-auto px-4 md:px-6 mt-4 flex items-center justify-between gap-4 p-3 bg-slate-900/60 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-700/50 shadow-sm text-xs">
+    <div class="flex items-center gap-3">
+        <span id="sheets-status-indicator" class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold text-[11px]">
+            <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+            Google Sheets Conectado
+        </span>
+        <span id="sheets-status-details" class="text-slate-400 hidden sm:inline text-[11px]">Sincronizado con Google Drive</span>
+    </div>
+    <div class="flex items-center gap-2">
+        <button type="button" onclick="syncFromGoogleSheets()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-sm active:scale-95 text-[11px]">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            Sincronizar
+        </button>
+        <a id="sheets-open-drive-link" href="{{SPREADSHEET_URL}}" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl flex items-center gap-1.5 transition-all border border-slate-700 active:scale-95 text-[11px]">
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            Abrir en Drive
+        </a>
+    </div>
+</div>
+```
+
+### 💾 JAVASCRIPT DE SINCRONIZACIÓN CLIENTE (Incluir en el `<script>` del HTML):
+```javascript
+// --- CONFIGURACIÓN Y SINCRONIZACIÓN EN TIEMPO REAL CON GOOGLE SHEETS ---
+const WAPPY_SHEETS_CONFIG = {
+    spreadsheetId: "{{SPREADSHEET_ID}}", // ID inyectado por el agente
+    apiUrl: "/api/google-drive/sheets",
+    localStorageKey: "wappy_app_local_records"
+};
+
+// 1. Sincronizar y leer registros desde Google Sheets privada
+async function syncFromGoogleSheets() {
+    const indicator = document.getElementById('sheets-status-indicator');
+    const details = document.getElementById('sheets-status-details');
+    try {
+        if (indicator) indicator.innerHTML = '<span class="h-2 w-2 rounded-full bg-blue-400 animate-pulse"></span> Sincronizando...';
+
+        const res = await fetch(`${WAPPY_SHEETS_CONFIG.apiUrl}/read?spreadsheetId=${encodeURIComponent(WAPPY_SHEETS_CONFIG.spreadsheetId)}`, {
+            credentials: 'include'
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (data.success && Array.isArray(data.rows)) {
+            // Renderizar los registros en la tabla / formulario del aplicativo
+            if (typeof renderAppRecords === 'function') {
+                renderAppRecords(data.rows, data.headers);
+            }
+            // Respaldar copia local en LocalStorage
+            localStorage.setItem(WAPPY_SHEETS_CONFIG.localStorageKey, JSON.stringify(data.rows));
+
+            if (indicator) {
+                indicator.className = "flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold text-[11px]";
+                indicator.innerHTML = '<span class="h-2 w-2 rounded-full bg-emerald-400"></span> Conectado a Sheets';
+            }
+            if (details) details.innerText = `${data.count} registros sincronizados con Drive`;
+        }
+    } catch (err) {
+        console.warn("[WappySheets] Operando en modo local:", err.message);
+        if (indicator) {
+            indicator.className = "flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold text-[11px]";
+            indicator.innerHTML = '<span class="h-2 w-2 rounded-full bg-amber-400"></span> Modo Local (Offline)';
+        }
+        if (details) details.innerText = "Almacenamiento local del navegador activo";
+        // Cargar desde LocalStorage si falla la red
+        const localData = localStorage.getItem(WAPPY_SHEETS_CONFIG.localStorageKey);
+        if (localData && typeof renderAppRecords === 'function') {
+            try { renderAppRecords(JSON.parse(localData)); } catch(e) {}
+        }
+    }
+}
+
+// 2. Guardar nuevo registro tanto en Google Sheets como en LocalStorage
+async function saveRecordToGoogleSheets(rowValues) {
+    try {
+        const res = await fetch(`${WAPPY_SHEETS_CONFIG.apiUrl}/append`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                spreadsheetId: WAPPY_SHEETS_CONFIG.spreadsheetId,
+                values: [rowValues]
+            })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            await syncFromGoogleSheets(); // Refrescar vista automáticamente
+            return true;
+        }
+    } catch (err) {
+        console.warn("[WappySheets] Guardando localmente por falta de red:", err.message);
+        const current = JSON.parse(localStorage.getItem(WAPPY_SHEETS_CONFIG.localStorageKey) || '[]');
+        current.push(rowValues);
+        localStorage.setItem(WAPPY_SHEETS_CONFIG.localStorageKey, JSON.stringify(current));
+        if (typeof renderAppRecords === 'function') renderAppRecords(current);
+        return false;
+    }
+}
+
+// Auto-sincronizar al cargar la página
+window.addEventListener('load', () => {
+    if (WAPPY_SHEETS_CONFIG.spreadsheetId && WAPPY_SHEETS_CONFIG.spreadsheetId !== "{{SPREADSHEET_ID}}") {
+        syncFromGoogleSheets();
+    }
+});
+```
+
 

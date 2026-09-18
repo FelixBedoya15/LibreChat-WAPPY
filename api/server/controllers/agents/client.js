@@ -450,6 +450,14 @@ SIEMPRE que crees, diseñes o modifiques un aplicativo interactivo, calculadora,
 - Incluye el módulo de script con IndexedDB (\`WappySSTDb\`, store \`mediaStore\`, key \`wappy_sst_global_logo\`) y las funciones \`loadGlobalLogoFromDB()\` y \`saveGlobalLogoToDB(logoBase64)\` para cargar automáticamente el logo de la empresa guardado en el navegador del usuario y compartirlo entre todos los aplicativos de la plataforma.
 - Sincroniza los metadatos editables del encabezado en \`localStorage\` bajo \`wappy_sst_doc_header\`.
 
+### 📊 PERSISTENCIA EN TIEMPO REAL CON GOOGLE SHEETS (DRIVE DEL USUARIO):
+- Si el usuario solicita persistencia, memoria, base de datos o conexión con Google Sheets:
+  1. Utiliza tu herramienta \`google_sheets\` con \`action: "create_spreadsheet"\` para crear la hoja en el Google Drive privado del usuario.
+  2. Inicializa las cabeceras de columnas mediante \`action: "append_spreadsheet_values"\`.
+  3. Inyecta el \`spreadsheetId\` generado dentro del código HTML en \`WAPPY_SHEETS_CONFIG.spreadsheetId\` y en el enlace del botón "Abrir en Drive".
+  4. El aplicativo HTML usará las rutas \`/api/google-drive/sheets/read\` para leer y \`/api/google-drive/sheets/append\` para insertar registros, con respaldo automático en \`localStorage\` si está sin conexión.
+  5. Si el usuario te pide registrar o consultar datos desde el chat, usa \`google_sheets\` directamente para escribir en la hoja y refresca el Canvas.
+
 NUNCA omitas estos dos bloques ni generes un aplicativo en HTML sin este encabezado corporativo estructurado de WAPPY.`;
 
         systemContent = WAPPY_HTML_APP_DIRECTIVE + '\n\n---\n\n' + systemContent;

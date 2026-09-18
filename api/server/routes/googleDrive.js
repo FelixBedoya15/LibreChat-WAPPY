@@ -37,6 +37,53 @@ const getOAuth2Client = (redirectUri) => {
 };
 
 /**
+ * Obtiene el cliente OAuth2 autenticado y con auto-refresco de tokens para un usuario y su empresa activa.
+ */
+const getUserOAuth2Client = async (userId) => {
+  const company = await getActiveCompany(userId);
+  const companyId = company ? String(company._id) : null;
+
+  const accessToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', false);
+  const refreshToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
+  const expiryStr = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', false);
+  const expiry = Number(expiryStr);
+
+  if (!refreshToken && !accessToken) {
+    return null;
+  }
+
+  const oauth2Client = getOAuth2Client();
+  oauth2Client.setCredentials({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    expiry_date: expiry,
+  });
+
+  // Verificar si el token de acceso expiró o está a menos de 1 minuto de expirar
+  const isExpired = expiry ? (expiry - Date.now() < 60000) : true;
+  if (isExpired && refreshToken) {
+    logger.info(`[GoogleDriveRoute] Token expirado para usuario: ${userId}. Refrescando...`);
+    try {
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      oauth2Client.setCredentials(credentials);
+
+      if (credentials.access_token) {
+        await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', credentials.access_token);
+      }
+      if (credentials.expiry_date) {
+        await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', String(credentials.expiry_date));
+      }
+      logger.info(`[GoogleDriveRoute] Token de Google refrescado exitosamente para usuario: ${userId}`);
+    } catch (refreshErr) {
+      logger.error('[GoogleDriveRoute] Error refrescando token de Google:', refreshErr.message);
+      return null;
+    }
+  }
+
+  return oauth2Client;
+};
+
+/**
  * Initiates the Google Drive OAuth flow.
  * Generates an authorization URL and redirects the user to Google.
  */
@@ -426,6 +473,236 @@ router.post('/import-file', requireJwtAuth, configMiddleware, async (req, res) =
         }
       }
     }
+  }
+});
+
+// =========================================================================
+// RUTAS DE BASE DE DATOS EN TIEMPO REAL CON GOOGLE SHEETS PARA CANVAS Y APPS
+// =========================================================================
+
+/**
+ * Verifica si el usuario actual o su empresa activa tienen Google Workspace conectado.
+ */
+router.get('/sheets/status', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company ? String(company._id) : null;
+
+    const email = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EMAIL', false);
+    const refreshToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
+
+    res.json({
+      connected: !!refreshToken,
+      email: email || null,
+      company: company?.companyName || null,
+    });
+  } catch (err) {
+    logger.error('[GoogleSheetsRoute] Error checking status:', err);
+    res.status(500).json({ error: 'Error verificando estado de conexión con Google Sheets' });
+  }
+});
+
+/**
+ * Lee datos y filas de una hoja de cálculo privada del usuario en Google Drive.
+ */
+router.get('/sheets/read', requireJwtAuth, async (req, res) => {
+  try {
+    const { spreadsheetId, range } = req.query;
+    if (!spreadsheetId) {
+      return res.status(400).json({ error: 'El parámetro spreadsheetId es obligatorio' });
+    }
+
+    const auth = await getUserOAuth2Client(req.user.id);
+    if (!auth) {
+      return res.status(401).json({
+        error: 'No se encontró una cuenta de Google Workspace conectada. Conecta tu cuenta en Configuración.',
+      });
+    }
+
+    const sheets = google.sheets({ version: 'v4', auth });
+    let readRange = range || 'Sheet1!A1:Z500';
+    let response;
+
+    try {
+      response = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: readRange,
+      });
+    } catch (readErr) {
+      // Si Sheet1 falla, consultar los metadatos para leer el nombre de la primera pestaña
+      const meta = await sheets.spreadsheets.get({ spreadsheetId });
+      const firstSheetName = meta.data.sheets?.[0]?.properties?.title || 'Hoja 1';
+      readRange = `${firstSheetName}!A1:Z500`;
+      response = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: readRange,
+      });
+    }
+
+    const values = response.data.values || [];
+    const headers = values[0] || [];
+    const rows = values.slice(1);
+
+    res.json({
+      success: true,
+      range: response.data.range,
+      headers,
+      rows,
+      values,
+      count: rows.length,
+    });
+  } catch (err) {
+    logger.error('[GoogleSheetsRoute] Read failed:', err);
+    res.status(500).json({ error: `Fallo al leer datos de Google Sheets: ${err.message}` });
+  }
+});
+
+/**
+ * Inserta una o varias filas de datos al final de una hoja de Google Sheets.
+ */
+router.post('/sheets/append', requireJwtAuth, async (req, res) => {
+  try {
+    const { spreadsheetId, values, range } = req.body;
+    if (!spreadsheetId) {
+      return res.status(400).json({ error: 'El parámetro spreadsheetId es obligatorio' });
+    }
+    if (!values || !Array.isArray(values) || values.length === 0) {
+      return res.status(400).json({ error: 'Se requiere un array de valores (filas)' });
+    }
+
+    const auth = await getUserOAuth2Client(req.user.id);
+    if (!auth) {
+      return res.status(401).json({
+        error: 'No se encontró una cuenta de Google Workspace conectada. Conecta tu cuenta en Configuración.',
+      });
+    }
+
+    const sheets = google.sheets({ version: 'v4', auth });
+    let appendRange = range;
+    if (!appendRange) {
+      try {
+        const meta = await sheets.spreadsheets.get({ spreadsheetId });
+        const firstSheetName = meta.data.sheets?.[0]?.properties?.title || 'Sheet1';
+        appendRange = `${firstSheetName}!A1`;
+      } catch (e) {
+        appendRange = 'Sheet1!A1';
+      }
+    }
+
+    // Limpiar etiquetas HTML de los valores
+    const cleanedValues = values.map((row) =>
+      Array.isArray(row)
+        ? row.map((cell) => (typeof cell === 'string' ? cell.replace(/<[^>]+>/g, '').trim() : cell))
+        : [row],
+    );
+
+    const response = await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: appendRange,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      resource: {
+        values: cleanedValues,
+      },
+    });
+
+    res.json({
+      success: true,
+      updatedRange: response.data.updates?.updatedRange,
+      updatedRows: response.data.updates?.updatedRows || cleanedValues.length,
+      updatedCells: response.data.updates?.updatedCells,
+    });
+  } catch (err) {
+    logger.error('[GoogleSheetsRoute] Append failed:', err);
+    res.status(500).json({ error: `Fallo al escribir en Google Sheets: ${err.message}` });
+  }
+});
+
+/**
+ * Crea una nueva hoja de cálculo en el Google Drive del usuario con cabeceras predefinidas y estilo corporativo.
+ */
+router.post('/sheets/create', requireJwtAuth, async (req, res) => {
+  try {
+    const { title, headers } = req.body;
+    if (!title) {
+      return res.status(400).json({ error: 'El campo title es obligatorio' });
+    }
+
+    const auth = await getUserOAuth2Client(req.user.id);
+    if (!auth) {
+      return res.status(401).json({
+        error: 'No se encontró una cuenta de Google Workspace conectada. Conecta tu cuenta en Configuración.',
+      });
+    }
+
+    const sheets = google.sheets({ version: 'v4', auth });
+    const createRes = await sheets.spreadsheets.create({
+      resource: {
+        properties: { title },
+      },
+      fields: 'spreadsheetId,spreadsheetUrl',
+    });
+
+    const spreadsheetId = createRes.data.spreadsheetId;
+    const spreadsheetUrl = createRes.data.spreadsheetUrl;
+
+    // Si se enviaron cabeceras, insertarlas en la primera fila y aplicar formato corporativo WAPPY
+    if (Array.isArray(headers) && headers.length > 0) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: 'Sheet1!A1',
+        valueInputOption: 'USER_ENTERED',
+        resource: {
+          values: [headers],
+        },
+      });
+
+      try {
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          resource: {
+            requests: [
+              {
+                repeatCell: {
+                  range: {
+                    sheetId: 0,
+                    startRowIndex: 0,
+                    endRowIndex: 1,
+                    startColumnIndex: 0,
+                    endColumnIndex: headers.length,
+                  },
+                  cell: {
+                    userEnteredFormat: {
+                      backgroundColor: { red: 0.06, green: 0.46, blue: 0.43 }, // #0f766e Teal WAPPY
+                      textFormat: {
+                        foregroundColor: { red: 1, green: 1, blue: 1 },
+                        bold: true,
+                        fontSize: 10,
+                      },
+                      horizontalAlignment: 'CENTER',
+                      verticalAlignment: 'MIDDLE',
+                    },
+                  },
+                  fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)',
+                },
+              },
+            ],
+          },
+        });
+      } catch (fmtErr) {
+        logger.warn('[GoogleSheetsRoute] Could not format header row:', fmtErr.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      spreadsheetId,
+      spreadsheetUrl,
+    });
+  } catch (err) {
+    logger.error('[GoogleSheetsRoute] Create failed:', err);
+    res.status(500).json({ error: `Fallo al crear hoja en Google Drive: ${err.message}` });
   }
 });
 
