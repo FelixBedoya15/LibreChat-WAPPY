@@ -521,24 +521,35 @@ router.get('/sheets/read', requireJwtAuth, async (req, res) => {
     }
 
     const sheets = google.sheets({ version: 'v4', auth });
-    let readRange = range || 'Sheet1!A1:Z500';
-    let response;
+    let readRange = range;
 
     try {
-      response = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: readRange,
-      });
-    } catch (readErr) {
-      // Si Sheet1 falla, consultar los metadatos para leer el nombre de la primera pestaña
-      const meta = await sheets.spreadsheets.get({ spreadsheetId });
-      const firstSheetName = meta.data.sheets?.[0]?.properties?.title || 'Hoja 1';
-      readRange = `${firstSheetName}!A1:Z500`;
-      response = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: readRange,
-      });
+      const meta = await sheets.spreadsheets.get({ spreadsheetId, fields: 'sheets.properties(sheetId,title)' });
+      const sheetsList = meta.data.sheets || [];
+      const firstSheetName = sheetsList[0]?.properties?.title || 'Hoja 1';
+      const titles = sheetsList.map((s) => s.properties?.title).filter(Boolean);
+
+      if (!readRange) {
+        readRange = `'${firstSheetName}'!A1:Z500`;
+      } else {
+        const match = readRange.match(/^('?[^'!]+'?)!(.*)$/);
+        if (match) {
+          const specifiedSheet = match[1].replace(/^'|'$/g, '');
+          if (titles.length > 0 && !titles.includes(specifiedSheet)) {
+            readRange = `'${firstSheetName}'!${match[2]}`;
+          }
+        } else {
+          readRange = `'${firstSheetName}'!${readRange}`;
+        }
+      }
+    } catch (metaErr) {
+      if (!readRange) readRange = 'A1:Z500';
     }
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: readRange,
+    });
 
     const values = response.data.values || [];
     const headers = values[0] || [];
@@ -580,14 +591,27 @@ router.post('/sheets/append', requireJwtAuth, async (req, res) => {
 
     const sheets = google.sheets({ version: 'v4', auth });
     let appendRange = range;
-    if (!appendRange) {
-      try {
-        const meta = await sheets.spreadsheets.get({ spreadsheetId });
-        const firstSheetName = meta.data.sheets?.[0]?.properties?.title || 'Sheet1';
-        appendRange = `${firstSheetName}!A1`;
-      } catch (e) {
-        appendRange = 'Sheet1!A1';
+    try {
+      const meta = await sheets.spreadsheets.get({ spreadsheetId, fields: 'sheets.properties(sheetId,title)' });
+      const sheetsList = meta.data.sheets || [];
+      const firstSheetName = sheetsList[0]?.properties?.title || 'Hoja 1';
+      const titles = sheetsList.map((s) => s.properties?.title).filter(Boolean);
+
+      if (!appendRange) {
+        appendRange = `'${firstSheetName}'!A1`;
+      } else {
+        const match = appendRange.match(/^('?[^'!]+'?)!(.*)$/);
+        if (match) {
+          const specifiedSheet = match[1].replace(/^'|'$/g, '');
+          if (titles.length > 0 && !titles.includes(specifiedSheet)) {
+            appendRange = `'${firstSheetName}'!${match[2]}`;
+          }
+        } else {
+          appendRange = `'${firstSheetName}'!${appendRange}`;
+        }
       }
+    } catch (metaErr) {
+      if (!appendRange) appendRange = 'A1';
     }
 
     // Limpiar etiquetas HTML de los valores
@@ -641,17 +665,20 @@ router.post('/sheets/create', requireJwtAuth, async (req, res) => {
       resource: {
         properties: { title },
       },
-      fields: 'spreadsheetId,spreadsheetUrl',
+      fields: 'spreadsheetId,spreadsheetUrl,sheets.properties',
     });
 
     const spreadsheetId = createRes.data.spreadsheetId;
     const spreadsheetUrl = createRes.data.spreadsheetUrl;
+    const firstSheet = createRes.data.sheets?.[0]?.properties;
+    const firstSheetTitle = firstSheet?.title || 'Hoja 1';
+    const firstSheetId = firstSheet?.sheetId ?? 0;
 
     // Si se enviaron cabeceras, insertarlas en la primera fila y aplicar formato corporativo WAPPY
     if (Array.isArray(headers) && headers.length > 0) {
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: 'Sheet1!A1',
+        range: `'${firstSheetTitle}'!A1`,
         valueInputOption: 'USER_ENTERED',
         resource: {
           values: [headers],
@@ -666,7 +693,7 @@ router.post('/sheets/create', requireJwtAuth, async (req, res) => {
               {
                 repeatCell: {
                   range: {
-                    sheetId: 0,
+                    sheetId: firstSheetId,
                     startRowIndex: 0,
                     endRowIndex: 1,
                     startColumnIndex: 0,
@@ -685,6 +712,17 @@ router.post('/sheets/create', requireJwtAuth, async (req, res) => {
                     },
                   },
                   fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)',
+                },
+              },
+              {
+                updateSheetProperties: {
+                  properties: {
+                    sheetId: firstSheetId,
+                    gridProperties: {
+                      hideGridlines: false,
+                    },
+                  },
+                  fields: 'gridProperties.hideGridlines',
                 },
               },
             ],

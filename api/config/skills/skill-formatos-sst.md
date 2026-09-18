@@ -291,8 +291,9 @@ Cuando el usuario pida un aplicativo con **memoria, persistencia o conectado a G
 
 ### 🎯 PROTOCOLO DEL AGENTE ANTES DE CREAR EL HTML:
 1. Ejecuta la herramienta `google_sheets` con `action: "create_spreadsheet"` para crear la hoja en el Drive del usuario (ej: `title: "WAPPY - Indicadores de Accidentalidad - " + empresa`).
-2. Agrega las cabeceras de columnas en la fila 1 mediante `action: "append_spreadsheet_values"`.
-3. Inyecta el ID retornado (`spreadsheetId`) y el enlace directo en el HTML del aplicativo dentro de `WAPPY_SHEETS_CONFIG.spreadsheetId` y en el botón "Abrir en Drive".
+2. Agrega las cabeceras de columnas en la fila 1 mediante `action: "append_spreadsheet_values"` con `values: [["Cabecera1", "Cabecera2", ...]]`.
+3. Opcionalmente ejecuta `action: "format_spreadsheet"` con el `spreadsheetId` para aplicar diseño corporativo (#0f766e), bordes y auto-ajuste de columnas. *(Nota: No es necesario especificar rango "Sheet1!A1", la herramienta detecta automáticamente la pestaña activa tanto en español como en inglés)*.
+4. Inyecta el ID retornado (`spreadsheetId`) y el enlace directo en el HTML del aplicativo dentro de `WAPPY_SHEETS_CONFIG.spreadsheetId` y en el botón "Abrir en Drive".
 
 ### 🖥️ WIDGET VISUAL DE SINCRONIZACIÓN (Colocar en el Header o Toolbar del HTML):
 ```html

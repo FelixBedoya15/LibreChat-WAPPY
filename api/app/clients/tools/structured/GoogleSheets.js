@@ -41,11 +41,48 @@ class GoogleSheetsTool extends Tool {
       ]).describe('La acción a ejecutar en Google Sheets.'),
       spreadsheetId: z.string().optional().describe('El ID de la hoja de cálculo de Google (requerido para leer, escribir, añadir o formatear).'),
       title: z.string().optional().describe('El título de la nueva hoja de cálculo que deseas crear.'),
-      range: z.string().optional().describe('El rango de celdas en formato A1 (ej: "Sheet1!A1:D10"). Si no se pasa para leer, leerá el rango completo de la primera pestaña.'),
-      values: z.array(z.array(z.string())).optional().describe('Matriz bidimensional de datos (array de arrays) a escribir o añadir (ej: [["Nombre", "Edad"], ["Juan", "30"]]).'),
-      sheetId: z.number().optional().default(0).describe('El ID numérico de la pestaña (comúnmente 0 para la primera pestaña) para formatear.'),
+      range: z.string().optional().describe('El rango de celdas en formato A1 (ej: "Sheet1!A1:D10" o "A1:D10"). Si no se pasa, utiliza automáticamente la primera pestaña disponible.'),
+      values: z.array(z.array(z.any())).optional().describe('Matriz bidimensional de datos (array de arrays) a escribir o añadir (ej: [["Nombre", "Edad"], ["Juan", "30"]]).'),
+      sheetId: z.number().optional().describe('El ID numérico de la pestaña (opcional, por defecto la primera pestaña) para formatear.'),
       headerColorHex: z.string().optional().default('#0f766e').describe('Color hexadecimal para el fondo de la cabecera (ej: "#0f766e" para Teal, "#0284c7" para Sky Blue).'),
     });
+  }
+
+  async getSheetMetadata(sheets, spreadsheetId) {
+    try {
+      const meta = await sheets.spreadsheets.get({
+        spreadsheetId,
+        fields: 'sheets.properties(sheetId,title,index)',
+      });
+      return meta.data.sheets || [];
+    } catch (err) {
+      logger.warn(`[GoogleSheetsTool] Could not fetch sheets metadata for ${spreadsheetId}:`, err.message);
+      return [];
+    }
+  }
+
+  async resolveRange(sheets, spreadsheetId, range, defaultCells = 'A1:Z500') {
+    const sheetsList = await this.getSheetMetadata(sheets, spreadsheetId);
+    const existingTitles = sheetsList.map((s) => s.properties?.title).filter(Boolean);
+    const firstTitle = sheetsList[0]?.properties?.title || 'Hoja 1';
+
+    if (!range) {
+      return `'${firstTitle}'!${defaultCells}`;
+    }
+
+    const match = range.match(/^('?[^'!]+'?)!(.*)$/);
+    if (match) {
+      const specifiedSheet = match[1].replace(/^'|'$/g, '');
+      const cells = match[2];
+      // If specified sheet does not exist in the spreadsheet (e.g. Sheet1 vs Hoja 1)
+      if (existingTitles.length > 0 && !existingTitles.includes(specifiedSheet)) {
+        logger.warn(`[GoogleSheetsTool] Sheet "${specifiedSheet}" not found in [${existingTitles.join(', ')}]. Falling back to "${firstTitle}".`);
+        return `'${firstTitle}'!${cells}`;
+      }
+      return range;
+    }
+
+    return `'${firstTitle}'!${range}`;
   }
 
   async getAuthClient() {
@@ -121,97 +158,99 @@ class GoogleSheetsTool extends Tool {
         };
         const response = await sheets.spreadsheets.create({
           resource,
-          fields: 'spreadsheetId,spreadsheetUrl',
+          fields: 'spreadsheetId,spreadsheetUrl,sheets.properties',
         });
-        return `Hoja de cálculo creada exitosamente:\n- Título: "${title}"\n- ID: ${response.data.spreadsheetId}\n- Enlace: ${response.data.spreadsheetUrl}`;
+        const firstSheet = response.data.sheets?.[0]?.properties;
+        const sheetTitle = firstSheet?.title || 'Hoja 1';
+        const targetSheetId = firstSheet?.sheetId ?? 0;
+        return `Hoja de cálculo creada exitosamente:\n- Título: "${title}"\n- ID: ${response.data.spreadsheetId}\n- Enlace: ${response.data.spreadsheetUrl}\n- Pestaña inicial: "${sheetTitle}" (ID: ${targetSheetId})`;
       }
 
       case 'read_spreadsheet': {
         if (!spreadsheetId) throw new Error('Se requiere el campo "spreadsheetId" para leer datos.');
-        const readRange = range || 'Sheet1!A1:Z500';
+        const resolvedRange = await this.resolveRange(sheets, spreadsheetId, range, 'A1:Z500');
         
         try {
           const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: readRange,
+            range: resolvedRange,
           });
           const rows = response.data.values;
           if (!rows || rows.length === 0) {
-            return `No se encontraron datos en el rango "${readRange}" de la hoja con ID: ${spreadsheetId}.`;
+            return `No se encontraron datos en el rango "${resolvedRange}" de la hoja con ID: ${spreadsheetId}.`;
           }
-          return `Datos leídos del rango "${readRange}" (${rows.length} filas encontradas):\n` + JSON.stringify(rows, null, 2);
+          return `Datos leídos del rango "${resolvedRange}" (${rows.length} filas encontradas):\n` + JSON.stringify(rows, null, 2);
         } catch (err) {
-          // If Sheet1 doesn't exist, try getting the spreadsheet metadata to read the first sheet name
-          const meta = await sheets.spreadsheets.get({ spreadsheetId });
-          const firstSheetName = meta.data.sheets?.[0]?.properties?.title || 'Hoja 1';
-          const retryRange = range || `${firstSheetName}!A1:Z500`;
-          const response = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: retryRange,
-          });
-          const rows = response.data.values;
-          if (!rows || rows.length === 0) {
-            return `No se encontraron datos en el rango "${retryRange}".`;
-          }
-          return `Datos leídos del rango "${retryRange}" (${rows.length} filas):\n` + JSON.stringify(rows, null, 2);
+          logger.error(`[GoogleSheetsTool] Error reading range "${resolvedRange}":`, err.message);
+          throw new Error(`Error al leer de Google Sheets (rango: ${resolvedRange}): ${err.message}`);
         }
       }
 
       case 'update_spreadsheet_values': {
         if (!spreadsheetId) throw new Error('Se requiere "spreadsheetId".');
-        if (!range) throw new Error('Se requiere "range" (ej: "Sheet1!A1") para escribir datos.');
         if (!values || !Array.isArray(values)) throw new Error('Se requiere "values" como un array de arrays.');
+        const resolvedRange = await this.resolveRange(sheets, spreadsheetId, range, 'A1');
 
         const cleanedValues = values.map(row => 
           Array.isArray(row) 
             ? row.map(cell => (typeof cell === 'string' ? stripHtmlTags(cell) : cell))
-            : row
+            : [row]
         );
 
         const response = await sheets.spreadsheets.values.update({
           spreadsheetId,
-          range,
+          range: resolvedRange,
           valueInputOption: 'USER_ENTERED',
           resource: {
             values: cleanedValues,
           },
         });
-        return `Valores actualizados con éxito en el rango "${range}". Celdas afectadas: ${response.data.updatedCells}.`;
+        return `Valores actualizados con éxito en el rango "${resolvedRange}". Celdas afectadas: ${response.data.updatedCells}.`;
       }
 
       case 'append_spreadsheet_values': {
         if (!spreadsheetId) throw new Error('Se requiere "spreadsheetId".');
         if (!values || !Array.isArray(values)) throw new Error('Se requiere "values" como un array de arrays.');
-        const appendRange = range || 'Sheet1!A1';
+        const resolvedRange = await this.resolveRange(sheets, spreadsheetId, range, 'A1');
 
         const cleanedValues = values.map(row => 
           Array.isArray(row) 
             ? row.map(cell => (typeof cell === 'string' ? stripHtmlTags(cell) : cell))
-            : row
+            : [row]
         );
 
         const response = await sheets.spreadsheets.values.append({
           spreadsheetId,
-          range: appendRange,
+          range: resolvedRange,
           valueInputOption: 'USER_ENTERED',
           insertDataOption: 'INSERT_ROWS',
           resource: {
             values: cleanedValues,
           },
         });
-        return `Filas añadidas exitosamente al final de la hoja. Rango actualizado: ${response.data.updates.updatedRange}.`;
+        return `Filas añadidas exitosamente al final de la hoja. Rango actualizado: ${response.data.updates?.updatedRange || resolvedRange}.`;
       }
 
       case 'format_spreadsheet': {
         if (!spreadsheetId) throw new Error('Se requiere "spreadsheetId" para aplicar formato.');
         
         // Parse hex color to rgb percentage (Google Sheets format)
-        const cleanHex = headerColorHex.replace('#', '');
-        const r = parseInt(cleanHex.substring(0, 2), 16) / 255;
-        const g = parseInt(cleanHex.substring(2, 4), 16) / 255;
-        const b = parseInt(cleanHex.substring(4, 6), 16) / 255;
+        const cleanHex = (headerColorHex || '#0f766e').replace('#', '');
+        const r = parseInt(cleanHex.substring(0, 2) || '0f', 16) / 255;
+        const g = parseInt(cleanHex.substring(2, 4) || '76', 16) / 255;
+        const b = parseInt(cleanHex.substring(4, 6) || '6e', 16) / 255;
 
-        const targetSheetId = sheetId || 0;
+        // Resolve sheetId safely
+        let targetSheetId = sheetId;
+        const sheetsList = await this.getSheetMetadata(sheets, spreadsheetId);
+        if (sheetsList.length > 0) {
+          const sheetExists = sheetsList.some((s) => s.properties?.sheetId === targetSheetId);
+          if (!sheetExists || targetSheetId === undefined) {
+            targetSheetId = sheetsList[0].properties?.sheetId ?? 0;
+          }
+        } else {
+          targetSheetId = targetSheetId ?? 0;
+        }
 
         const requests = [
           // 1. Header Row Formatting (Row 1)
@@ -237,11 +276,11 @@ class GoogleSheetsTool extends Tool {
                     fontSize: 11,
                     fontFamily: 'Arial',
                   },
-                  alignment: 'CENTER',
+                  horizontalAlignment: 'CENTER',
                   verticalAlignment: 'MIDDLE',
                 },
               },
-              fields: 'userEnteredFormat(backgroundColor,textFormat,alignment,verticalAlignment)',
+              fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)',
             },
           },
           // 2. Body Rows Formatting (Rows 2-100)
@@ -307,16 +346,16 @@ class GoogleSheetsTool extends Tool {
               },
             },
           },
-          // 4. Force Show Grid Lines
+          // 4. Force Show Grid Lines (hideGridlines: false)
           {
             updateSheetProperties: {
               properties: {
                 sheetId: targetSheetId,
                 gridProperties: {
-                  showGridLines: true,
+                  hideGridlines: false,
                 },
               },
-              fields: 'gridProperties.showGridLines',
+              fields: 'gridProperties.hideGridlines',
             },
           },
           // 5. Auto-Resize Column Widths (Cols A-Z)
@@ -332,14 +371,19 @@ class GoogleSheetsTool extends Tool {
           },
         ];
 
-        await sheets.spreadsheets.batchUpdate({
-          spreadsheetId,
-          resource: {
-            requests,
-          },
-        });
+        try {
+          await sheets.spreadsheets.batchUpdate({
+            spreadsheetId,
+            resource: {
+              requests,
+            },
+          });
 
-        return `Formato de reporte premium aplicado con éxito en la pestaña con ID: ${targetSheetId}. Columnas auto-ajustadas, cabecera coloreada, bordes estructurados y cuadrícula habilitada.`;
+          return `Formato de reporte premium aplicado con éxito en la pestaña con ID: ${targetSheetId}. Columnas auto-ajustadas, cabecera coloreada, bordes estructurados y cuadrícula habilitada.`;
+        } catch (fmtErr) {
+          logger.error(`[GoogleSheetsTool] Error formatting sheet ${spreadsheetId}:`, fmtErr);
+          return `Formato aplicado parcialmente (${fmtErr.message}).`;
+        }
       }
 
       default:
