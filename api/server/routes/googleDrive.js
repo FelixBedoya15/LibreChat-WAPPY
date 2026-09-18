@@ -661,18 +661,52 @@ router.post('/sheets/create', requireJwtAuth, async (req, res) => {
     }
 
     const sheets = google.sheets({ version: 'v4', auth });
-    const createRes = await sheets.spreadsheets.create({
-      resource: {
-        properties: { title },
-      },
-      fields: 'spreadsheetId,spreadsheetUrl,sheets.properties',
-    });
+    let spreadsheetId;
+    let spreadsheetUrl;
+    let firstSheetTitle = 'Hoja 1';
+    let firstSheetId = 0;
 
-    const spreadsheetId = createRes.data.spreadsheetId;
-    const spreadsheetUrl = createRes.data.spreadsheetUrl;
-    const firstSheet = createRes.data.sheets?.[0]?.properties;
-    const firstSheetTitle = firstSheet?.title || 'Hoja 1';
-    const firstSheetId = firstSheet?.sheetId ?? 0;
+    // Verificar si ya existe una hoja idéntica creada en los últimos 10 minutos
+    try {
+      const drive = google.drive({ version: 'v3', auth });
+      const escapedTitle = title.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const existingRes = await drive.files.list({
+        q: `name = '${escapedTitle}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`,
+        fields: 'files(id, name, webViewLink, createdTime)',
+        orderBy: 'createdTime desc',
+        pageSize: 1,
+      });
+      const existingFile = existingRes.data.files?.[0];
+      if (existingFile && existingFile.createdTime) {
+        const fileAgeMs = Date.now() - new Date(existingFile.createdTime).getTime();
+        if (fileAgeMs < 10 * 60 * 1000) {
+          spreadsheetId = existingFile.id;
+          spreadsheetUrl = existingFile.webViewLink;
+          const meta = await sheets.spreadsheets.get({
+            spreadsheetId,
+            fields: 'sheets.properties(sheetId,title)',
+          });
+          const firstSheet = meta.data.sheets?.[0]?.properties;
+          firstSheetTitle = firstSheet?.title || 'Hoja 1';
+          firstSheetId = firstSheet?.sheetId ?? 0;
+        }
+      }
+    } catch (e) {
+      logger.warn('[GoogleSheetsRoute] Could not check existing sheets in Drive:', e.message);
+    }
+
+    if (!spreadsheetId) {
+      const createRes = await sheets.spreadsheets.create({
+        resource: {
+          properties: { title },
+        },
+        fields: 'spreadsheetId,spreadsheetUrl,sheets.properties',
+      });
+      spreadsheetId = createRes.data.spreadsheetId;
+      spreadsheetUrl = createRes.data.spreadsheetUrl;
+      const firstSheet = createRes.data.sheets?.[0]?.properties;
+      firstSheetTitle = firstSheet?.title || 'Hoja 1';
+    }
 
     // Si se enviaron cabeceras, insertarlas en la primera fila y aplicar formato corporativo WAPPY
     if (Array.isArray(headers) && headers.length > 0) {

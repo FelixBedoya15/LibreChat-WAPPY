@@ -151,6 +151,38 @@ class GoogleSheetsTool extends Tool {
     switch (action) {
       case 'create_spreadsheet': {
         if (!title) throw new Error('Se requiere el campo "title" para crear una hoja de cálculo.');
+
+        // Idempotency: Si una hoja idéntica fue creada en los últimos 10 minutos (común durante reintentos por rotación de claves),
+        // reutilizarla para evitar crear archivos duplicados vacíos en Google Drive.
+        try {
+          const drive = google.drive({ version: 'v3', auth });
+          const escapedTitle = title.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          const existingRes = await drive.files.list({
+            q: `name = '${escapedTitle}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`,
+            fields: 'files(id, name, webViewLink, createdTime)',
+            orderBy: 'createdTime desc',
+            pageSize: 1,
+          });
+
+          const existingFile = existingRes.data.files?.[0];
+          if (existingFile && existingFile.createdTime) {
+            const fileAgeMs = Date.now() - new Date(existingFile.createdTime).getTime();
+            if (fileAgeMs < 10 * 60 * 1000) {
+              logger.info(`[GoogleSheetsTool] Reutilizando hoja creada recientemente para evitar duplicados: "${existingFile.name}" (ID: ${existingFile.id})`);
+              const meta = await sheets.spreadsheets.get({
+                spreadsheetId: existingFile.id,
+                fields: 'sheets.properties(sheetId,title)',
+              });
+              const firstSheet = meta.data.sheets?.[0]?.properties;
+              const sheetTitle = firstSheet?.title || 'Hoja 1';
+              const targetSheetId = firstSheet?.sheetId ?? 0;
+              return `Hoja de cálculo existente reutilizada exitosamente:\n- Título: "${existingFile.name}"\n- ID: ${existingFile.id}\n- Enlace: ${existingFile.webViewLink}\n- Pestaña inicial: "${sheetTitle}" (ID: ${targetSheetId})`;
+            }
+          }
+        } catch (searchErr) {
+          logger.warn(`[GoogleSheetsTool] Could not search existing files in Drive:`, searchErr.message);
+        }
+
         const resource = {
           properties: {
             title,
