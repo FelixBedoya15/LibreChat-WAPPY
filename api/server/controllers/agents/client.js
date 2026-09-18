@@ -425,6 +425,34 @@ class AgentClient extends BaseClient {
           systemContent = `## CONTEXTO DE LA EMPRESA ACTIVA DEL USUARIO (DATOS REALES Y VIGENTES - NO VOLVER A PREGUNTAR):\n${companyContext}\n\nREGLA DE ORO: Ya conoces estos datos corporativos (Razón Social, NIT, ARL, Nivel de Riesgo, Trabajadores, Actividad Económica, CIIU, Sedes, etc.). Úsalos directamente en todas tus respuestas, documentos y análisis sin pedirle al usuario que los proporcione nuevamente.\n\n---\n\n` + systemContent;
           logger.debug(`[buildMessages] Injected empresa_sgsst into SST agent "${this.options.agent?.name}" system prompt`);
         }
+
+        // DIRECTIVA MANDATORIA GLOBAL: Encabezado estructurado oficial WAPPY (2 bloques) para cualquier aplicativo/formato HTML
+        const WAPPY_HTML_APP_DIRECTIVE = `## 🏛️ DIRECTIVA MANDATORIA PARA APLICATIVOS, FORMULARIOS Y CÓDIGO HTML (WAPPY OFICIAL):
+SIEMPRE que crees, diseñes o modifiques un aplicativo interactivo, calculadora, matriz, formato, checklist, formulario o dashboard en HTML (Single-File para Canvas), es ESTRICTAMENTE OBLIGATORIO comenzar el <body> con el Encabezado Estructurado Oficial de WAPPY de 2 bloques exactos:
+
+### 🌟 BLOQUE 1: Banner Superior Gradiente (\`gradient-banner\`)
+- Contenedor con degradado (\`bg-gradient-to-r from-teal-600 to-cyan-600\` o \`from-blue-700 via-indigo-700 to-slate-900\`), bordes redondeados (\`rounded-[2rem]\`), padding \`p-6 md:p-8\`, texto blanco, sombra y patrón SVG decorativo sutil en opacidad 10%.
+- Logotipo dinámico: Contenedor con \`#logo-preview-img\` y selector \`#logo-upload-input\` que soporte carga y vista previa interactiva.
+- Títulos: \`#app-document-title\` (Título en mayúsculas del aplicativo), \`#app-document-subtitle\` ("SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO"), descripción normativa y badge de versión (\`#app-document-badge\`: "PROCESO: SG-SST | V.02").
+
+### 🏢 BLOQUE 2: Ficha de Metadatos Corporativos de la Empresa Activa
+- Tarjeta destacada (\`glass-card bg-white dark:bg-slate-900/40 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-md border-l-4 border-l-blue-500\`).
+- Despliega e inicializa con los datos reales de la empresa activa inyectados arriba:
+  - Razón Social: \`<span id="company-name">...</span>\`
+  - NIT: \`<span id="company-nit">...</span>\`
+  - ARL: \`<span id="company-arl">...</span>\`
+  - Trabajadores: \`<span id="company-workers">...</span>\`
+  - Nivel de Riesgo: \`<span id="company-risk">...</span>\`
+  - Código de Registro: \`<span id="change-code">...</span>\` (ej: IND-SST-01, FOR-SST-01)
+  - Vigencia: \`<span id="last-updated-text">...</span>\` (Fecha actual YYYY-MM-DD).
+
+### 💾 PERSISTENCIA JAVASCRIPT OBLIGATORIA (IndexedDB & LocalStorage):
+- Incluye el módulo de script con IndexedDB (\`WappySSTDb\`, store \`mediaStore\`, key \`wappy_sst_global_logo\`) y las funciones \`loadGlobalLogoFromDB()\` y \`saveGlobalLogoToDB(logoBase64)\` para cargar automáticamente el logo de la empresa guardado en el navegador del usuario y compartirlo entre todos los aplicativos de la plataforma.
+- Sincroniza los metadatos editables del encabezado en \`localStorage\` bajo \`wappy_sst_doc_header\`.
+
+NUNCA omitas estos dos bloques ni generes un aplicativo en HTML sin este encabezado corporativo estructurado de WAPPY.`;
+
+        systemContent = WAPPY_HTML_APP_DIRECTIVE + '\n\n---\n\n' + systemContent;
       } catch (memErr) {
         logger.warn('[buildMessages] Could not inject empresa_sgsst into SST agent:', memErr.message);
       }
@@ -1529,8 +1557,27 @@ class AgentClient extends BaseClient {
               err?.message?.includes('ENOTFOUND') ||
               err?.message?.includes('socket hang up') ||
               err?.message?.includes('undici');
+            const isFunctionCallSequenceError = err?.message?.includes('function call turn comes immediately after a user turn') ||
+              err?.message?.includes('function response turn');
 
-            const isRetryable = isDailyQuotaExceeded || isQuotaEvent || isGenericQuota || isInvalidKey || isServiceUnavailable || isNetworkError;
+            const isRetryable = isDailyQuotaExceeded || isQuotaEvent || isGenericQuota || isInvalidKey || isServiceUnavailable || isNetworkError || isFunctionCallSequenceError;
+
+            if (isFunctionCallSequenceError) {
+              logger.warn('[AgentClient] Detected function call sequence violation from Google Gemini. Sanitizing payload to remove orphaned tool calls before retry...');
+              const sanitizeItem = (msg) => {
+                if (!msg) return msg;
+                const copy = { ...msg };
+                if (Array.isArray(copy.content)) {
+                  copy.content = copy.content.filter((p) => p && p.type !== 'tool_call' && !p.tool_call);
+                }
+                delete copy.tool_calls;
+                return copy;
+              };
+              payload = payload.map(sanitizeItem);
+              if (continuationPayload) {
+                continuationPayload = continuationPayload.map(sanitizeItem);
+              }
+            }
 
             attemptErrors.push(`[Key ${i + 1}]: ` + (err?.message || 'Error'));
 

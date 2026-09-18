@@ -206,7 +206,7 @@ describe('formatAgentMessages', () => {
     ]);
   });
 
-  it.skip('should not produce two consecutive assistant messages and format content correctly', () => {
+  it('should not produce two consecutive assistant messages and format content correctly', () => {
     const payload = [
       { role: 'user', content: 'Hello' },
       {

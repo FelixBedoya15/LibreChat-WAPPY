@@ -141,7 +141,28 @@ const formatFromLangChain = (message) => {
 const formatAgentMessages = (payload) => {
   const messages = [];
 
+  // Pre-process payload to combine consecutive assistant messages
+  const combinedPayload = [];
   for (const message of payload) {
+    const prev = combinedPayload[combinedPayload.length - 1];
+    if (prev && prev.role === 'assistant' && message.role === 'assistant') {
+      const prevContent = Array.isArray(prev.content)
+        ? prev.content
+        : [{ type: ContentTypes.TEXT, [ContentTypes.TEXT]: typeof prev.content === 'string' ? prev.content : '' }];
+      const currContent = Array.isArray(message.content)
+        ? message.content
+        : [{ type: ContentTypes.TEXT, [ContentTypes.TEXT]: typeof message.content === 'string' ? message.content : '' }];
+      prev.content = [...prevContent, ...currContent];
+    } else {
+      combinedPayload.push(
+        typeof message.content === 'string'
+          ? { ...message, content: [{ type: ContentTypes.TEXT, [ContentTypes.TEXT]: message.content }] }
+          : { ...message },
+      );
+    }
+  }
+
+  for (const message of combinedPayload) {
     if (typeof message.content === 'string') {
       message.content = [{ type: ContentTypes.TEXT, [ContentTypes.TEXT]: message.content }];
     }
@@ -241,7 +262,64 @@ const formatAgentMessages = (payload) => {
     }
   }
 
-  return messages;
+  // Post-process messages: merge consecutive AIMessages and satisfy tool_call pairs
+  const sanitized = [];
+  for (let i = 0; i < messages.length; i++) {
+    const current = messages[i];
+    const prev = sanitized[sanitized.length - 1];
+
+    if (prev && prev instanceof AIMessage && current instanceof AIMessage) {
+      // Merge consecutive AIMessages
+      if (Array.isArray(prev.content) && Array.isArray(current.content)) {
+        prev.content = [...prev.content, ...current.content];
+      } else {
+        const prevText = typeof prev.content === 'string' ? prev.content : JSON.stringify(prev.content || '');
+        const currText = typeof current.content === 'string' ? current.content : JSON.stringify(current.content || '');
+        prev.content = [prevText, currText].filter(Boolean).join('\n');
+      }
+      if (Array.isArray(current.tool_calls) && current.tool_calls.length > 0) {
+        prev.tool_calls = [...(prev.tool_calls || []), ...current.tool_calls];
+      }
+      if (current.additional_kwargs) {
+        prev.additional_kwargs = Object.assign({}, prev.additional_kwargs || {}, current.additional_kwargs);
+      }
+    } else {
+      sanitized.push(current);
+    }
+  }
+
+  // Ensure every AIMessage tool_call has a matching ToolMessage before any subsequent HumanMessage
+  const finalMessages = [];
+  for (let i = 0; i < sanitized.length; i++) {
+    const msg = sanitized[i];
+    finalMessages.push(msg);
+
+    if (msg instanceof AIMessage && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
+      // Check which tool calls have subsequent ToolMessages
+      const coveredToolCallIds = new Set();
+      for (let j = i + 1; j < sanitized.length; j++) {
+        if (sanitized[j] instanceof ToolMessage) {
+          coveredToolCallIds.add(sanitized[j].tool_call_id);
+        } else {
+          break;
+        }
+      }
+      // For any unfulfilled tool calls, supply a fallback ToolMessage
+      for (const tc of msg.tool_calls) {
+        if (!coveredToolCallIds.has(tc.id)) {
+          finalMessages.push(
+            new ToolMessage({
+              tool_call_id: tc.id,
+              name: tc.name,
+              content: '[Operación finalizada o interrumpida]',
+            }),
+          );
+        }
+      }
+    }
+  }
+
+  return finalMessages;
 };
 
 module.exports = {

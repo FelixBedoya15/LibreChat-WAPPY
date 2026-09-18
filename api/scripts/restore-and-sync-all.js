@@ -97,14 +97,15 @@ const GLOBAL_SKILLS = [
   'skill-vision-ocr-gemini',
   'skill-google-sheets-sync',
   'skill-google-docs-slides',
-  'skill-automatizaciones-agentes'
+  'skill-automatizaciones-agentes',
+  'skill-formatos-sst'
 ];
 
 // Asignación de Skills específicas adicionales a los agentes maestros
 const AGENT_SKILLS_MAP = {
   'Abogado Laboral': ['skill-acoso-sexual-violencia', 'skill-procesos-disciplinarios', 'skill-reglamento-interno-trabajo'],
   'Psicólogo SST': ['skill-acoso-sexual-violencia'],
-  'Consultor SG-SST': ['skill-investigacion-accidentes', 'skill-investigacion-enfermedad', 'skill-analisis-causa-raiz', 'skill-formatos-sst', 'skill-gtc45-ipevar'],
+  'Consultor SG-SST': ['skill-investigacion-accidentes', 'skill-investigacion-enfermedad', 'skill-analisis-causa-raiz', 'skill-gtc45-ipevar'],
   'Fisioterapeuta Laboral': ['skill-metodologia-rosa', 'skill-ergonomia-owas', 'skill-live-biomecanica'],
   'Coordinador de Tareas Críticas': ['skill-ats-analisis', 'skill-permiso-alturas-tsa']
 };
