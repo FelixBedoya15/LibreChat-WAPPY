@@ -138,7 +138,7 @@ const formatFromLangChain = (message) => {
  * @param {Array<Partial<TMessage>>} payload - The array of messages to format.
  * @returns {Array<(HumanMessage|AIMessage|SystemMessage|ToolMessage)>} - The array of formatted LangChain messages, including ToolMessages for tool calls.
  */
-const formatAgentMessages = (payload) => {
+const formatAgentMessages = (payload, indexTokenCountMap, tools) => {
   const messages = [];
 
   // Pre-process payload to combine consecutive assistant messages
@@ -319,7 +319,11 @@ const formatAgentMessages = (payload) => {
     }
   }
 
-  return finalMessages;
+  const result = {
+    messages: finalMessages,
+    indexTokenCountMap: indexTokenCountMap || {},
+  };
+  return Object.assign(finalMessages, result);
 };
 
 module.exports = {

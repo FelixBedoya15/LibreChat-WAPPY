@@ -19,10 +19,10 @@ const {
   Providers,
   TitleMethod,
   formatMessage,
-  formatAgentMessages,
   getTokenCountForMessage,
   createMetadataAggregator,
 } = require('@librechat/agents');
+const { formatAgentMessages } = require('~/app/clients/prompts/formatMessages');
 const {
   Constants,
   Permissions,
@@ -452,11 +452,12 @@ SIEMPRE que crees, diseñes o modifiques un aplicativo interactivo, calculadora,
 
 ### 📊 PERSISTENCIA EN TIEMPO REAL CON GOOGLE SHEETS (DRIVE DEL USUARIO):
 - Si el usuario solicita persistencia, memoria, base de datos o conexión con Google Sheets:
-  1. Utiliza tu herramienta \`google_sheets\` con \`action: "create_spreadsheet"\` para crear la hoja en el Google Drive privado del usuario.
-  2. Inicializa las cabeceras de columnas mediante \`action: "append_spreadsheet_values"\`.
-  3. Inyecta el \`spreadsheetId\` generado dentro del código HTML en \`WAPPY_SHEETS_CONFIG.spreadsheetId\` y en el enlace del botón "Abrir en Drive".
-  4. El aplicativo HTML usará las rutas \`/api/google-drive/sheets/read\` para leer y \`/api/google-drive/sheets/append\` para insertar registros, con respaldo automático en \`localStorage\` si está sin conexión.
-  5. Si el usuario te pide registrar o consultar datos desde el chat, usa \`google_sheets\` directamente para escribir en la hoja y refresca el Canvas.
+  1. REGLA ESTRICTA DE IDEMPOTENCIA: Si en el historial de esta conversación ya existe o se creó previamente una hoja de cálculo (o el usuario pide continuar, completar, terminar o corregir el diseño), NUNCA llames a \`create_spreadsheet\` de nuevo. Reutiliza obligatoriamente el \`spreadsheetId\` existente ya conocido.
+  2. Solo si es la primera vez que se solicita en la conversación y no existe ninguna hoja previa, utiliza tu herramienta \`google_sheets\` con \`action: "create_spreadsheet"\` para crearla.
+  3. Inicializa las cabeceras de columnas mediante \`action: "append_spreadsheet_values"\`.
+  4. Inyecta el \`spreadsheetId\` generado dentro del código HTML en \`WAPPY_SHEETS_CONFIG.spreadsheetId\` y en el enlace del botón "Abrir en Drive".
+  5. El aplicativo HTML usará las rutas \`/api/google-drive/sheets/read\` para leer y \`/api/google-drive/sheets/append\` para insertar registros, con respaldo automático en \`localStorage\` si está sin conexión.
+  6. Si el usuario te pide registrar o consultar datos desde el chat, usa \`google_sheets\` directamente para escribir en la hoja y refresca el Canvas.
 
 NUNCA omitas estos dos bloques ni generes un aplicativo en HTML sin este encabezado corporativo estructurado de WAPPY.`;
 
@@ -1641,6 +1642,12 @@ NUNCA omitas estos dos bloques ni generes un aplicativo en HTML sin este encabez
               continue; // Try next key, same model
             } else if (isDailyQuotaExceeded) {
               logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on all ${keys.length} keys. Rotating immediately to next model...`);
+              rotateToNextModel = true;
+              break;
+            } else if (isServiceUnavailable && (err?.status === 503 || err?.message?.includes('503') || err?.message?.includes('high demand'))) {
+              // 503 is an infrastructure-level overload at Google for this specific model.
+              // Retrying other keys against the same overloaded model cluster just hangs the user for minutes.
+              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing high demand (503 Service Unavailable). Rotating immediately to next fallback model...`);
               rotateToNextModel = true;
               break;
             } else if (isRetryable && i < keys.length - 1) {

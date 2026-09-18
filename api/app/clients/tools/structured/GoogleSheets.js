@@ -152,32 +152,63 @@ class GoogleSheetsTool extends Tool {
       case 'create_spreadsheet': {
         if (!title) throw new Error('Se requiere el campo "title" para crear una hoja de cálculo.');
 
-        // Idempotency: Si una hoja idéntica fue creada en los últimos 10 minutos (común durante reintentos por rotación de claves),
+        // Idempotency: Si una hoja idéntica o afín fue creada en los últimos 30 minutos (común durante reintentos por rotación de claves o continuación de chat),
         // reutilizarla para evitar crear archivos duplicados vacíos en Google Drive.
         try {
           const drive = google.drive({ version: 'v3', auth });
-          const escapedTitle = title.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
           const existingRes = await drive.files.list({
-            q: `name = '${escapedTitle}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`,
+            q: `mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false and createdTime >= '${thirtyMinutesAgo}'`,
             fields: 'files(id, name, webViewLink, createdTime)',
             orderBy: 'createdTime desc',
-            pageSize: 1,
+            pageSize: 20,
           });
 
-          const existingFile = existingRes.data.files?.[0];
-          if (existingFile && existingFile.createdTime) {
-            const fileAgeMs = Date.now() - new Date(existingFile.createdTime).getTime();
-            if (fileAgeMs < 10 * 60 * 1000) {
-              logger.info(`[GoogleSheetsTool] Reutilizando hoja creada recientemente para evitar duplicados: "${existingFile.name}" (ID: ${existingFile.id})`);
-              const meta = await sheets.spreadsheets.get({
-                spreadsheetId: existingFile.id,
-                fields: 'sheets.properties(sheetId,title)',
+          const recentFiles = existingRes.data.files || [];
+          
+          // 1. Coincidencia exacta de título
+          let matchedFile = recentFiles.find(
+            (f) => f.name && f.name.trim().toLowerCase() === title.trim().toLowerCase()
+          );
+
+          // 2. Coincidencia difusa de palabras clave (ej: "Indicadores de Accidentalidad")
+          if (!matchedFile) {
+            const stopWords = new Set([
+              'wappy', 'ltda', 'sas', 's.a.s', 'sa', 's.a', 'registro', 'mensual', 'anual',
+              'formato', 'plantilla', 'indicador', 'indicadores', 'de', 'la', 'el', 'los', 'las',
+              'un', 'una', 'para', 'en', 'y', '-', '–'
+            ]);
+            const getKeywords = (str) =>
+              str
+                .toLowerCase()
+                .replace(/[^a-záéíóúüñ0-9]+/gi, ' ')
+                .trim()
+                .split(/\s+/)
+                .filter((w) => w.length >= 4 && !stopWords.has(w));
+
+            const targetKeywords = getKeywords(title);
+            if (targetKeywords.length > 0) {
+              matchedFile = recentFiles.find((f) => {
+                if (!f.name) return false;
+                const fileKeywords = getKeywords(f.name);
+                const shared = targetKeywords.filter((k) => fileKeywords.includes(k));
+                return shared.length >= Math.min(2, Math.ceil(targetKeywords.length * 0.6));
               });
-              const firstSheet = meta.data.sheets?.[0]?.properties;
-              const sheetTitle = firstSheet?.title || 'Hoja 1';
-              const targetSheetId = firstSheet?.sheetId ?? 0;
-              return `Hoja de cálculo existente reutilizada exitosamente:\n- Título: "${existingFile.name}"\n- ID: ${existingFile.id}\n- Enlace: ${existingFile.webViewLink}\n- Pestaña inicial: "${sheetTitle}" (ID: ${targetSheetId})`;
             }
+          }
+
+          if (matchedFile && matchedFile.id) {
+            logger.info(
+              `[GoogleSheetsTool] Reutilizando hoja creada recientemente para evitar duplicados: "${matchedFile.name}" (ID: ${matchedFile.id})`
+            );
+            const meta = await sheets.spreadsheets.get({
+              spreadsheetId: matchedFile.id,
+              fields: 'sheets.properties(sheetId,title)',
+            });
+            const firstSheet = meta.data.sheets?.[0]?.properties;
+            const sheetTitle = firstSheet?.title || 'Hoja 1';
+            const targetSheetId = firstSheet?.sheetId ?? 0;
+            return `Hoja de cálculo existente reutilizada exitosamente:\n- Título: "${matchedFile.name}"\n- ID: ${matchedFile.id}\n- Enlace: ${matchedFile.webViewLink}\n- Pestaña inicial: "${sheetTitle}" (ID: ${targetSheetId})`;
           }
         } catch (searchErr) {
           logger.warn(`[GoogleSheetsTool] Could not search existing files in Drive:`, searchErr.message);

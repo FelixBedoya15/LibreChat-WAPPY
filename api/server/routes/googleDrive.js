@@ -666,30 +666,62 @@ router.post('/sheets/create', requireJwtAuth, async (req, res) => {
     let firstSheetTitle = 'Hoja 1';
     let firstSheetId = 0;
 
-    // Verificar si ya existe una hoja idéntica creada en los últimos 10 minutos
+    // Verificar si ya existe una hoja idéntica o afín creada en los últimos 30 minutos
     try {
       const drive = google.drive({ version: 'v3', auth });
-      const escapedTitle = title.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
       const existingRes = await drive.files.list({
-        q: `name = '${escapedTitle}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`,
+        q: `mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false and createdTime >= '${thirtyMinutesAgo}'`,
         fields: 'files(id, name, webViewLink, createdTime)',
         orderBy: 'createdTime desc',
-        pageSize: 1,
+        pageSize: 20,
       });
-      const existingFile = existingRes.data.files?.[0];
-      if (existingFile && existingFile.createdTime) {
-        const fileAgeMs = Date.now() - new Date(existingFile.createdTime).getTime();
-        if (fileAgeMs < 10 * 60 * 1000) {
-          spreadsheetId = existingFile.id;
-          spreadsheetUrl = existingFile.webViewLink;
-          const meta = await sheets.spreadsheets.get({
-            spreadsheetId,
-            fields: 'sheets.properties(sheetId,title)',
+      const recentFiles = existingRes.data.files || [];
+
+      // 1. Coincidencia exacta
+      let matchedFile = recentFiles.find(
+        (f) => f.name && f.name.trim().toLowerCase() === title.trim().toLowerCase()
+      );
+
+      // 2. Coincidencia difusa de palabras clave (ej: "Indicadores de Accidentalidad")
+      if (!matchedFile) {
+        const stopWords = new Set([
+          'wappy', 'ltda', 'sas', 's.a.s', 'sa', 's.a', 'registro', 'mensual', 'anual',
+          'formato', 'plantilla', 'indicador', 'indicadores', 'de', 'la', 'el', 'los', 'las',
+          'un', 'una', 'para', 'en', 'y', '-', '–'
+        ]);
+        const getKeywords = (str) =>
+          str
+            .toLowerCase()
+            .replace(/[^a-záéíóúüñ0-9]+/gi, ' ')
+            .trim()
+            .split(/\s+/)
+            .filter((w) => w.length >= 4 && !stopWords.has(w));
+
+        const targetKeywords = getKeywords(title);
+        if (targetKeywords.length > 0) {
+          matchedFile = recentFiles.find((f) => {
+            if (!f.name) return false;
+            const fileKeywords = getKeywords(f.name);
+            const shared = targetKeywords.filter((k) => fileKeywords.includes(k));
+            return shared.length >= Math.min(2, Math.ceil(targetKeywords.length * 0.6));
           });
-          const firstSheet = meta.data.sheets?.[0]?.properties;
-          firstSheetTitle = firstSheet?.title || 'Hoja 1';
-          firstSheetId = firstSheet?.sheetId ?? 0;
         }
+      }
+
+      if (matchedFile && matchedFile.id) {
+        spreadsheetId = matchedFile.id;
+        spreadsheetUrl = matchedFile.webViewLink;
+        const meta = await sheets.spreadsheets.get({
+          spreadsheetId,
+          fields: 'sheets.properties(sheetId,title)',
+        });
+        const firstSheet = meta.data.sheets?.[0]?.properties;
+        firstSheetTitle = firstSheet?.title || 'Hoja 1';
+        firstSheetId = firstSheet?.sheetId ?? 0;
+        logger.info(
+          `[GoogleSheetsRoute] Reutilizando hoja afín reciente para evitar duplicados: "${matchedFile.name}" (ID: ${spreadsheetId})`
+        );
       }
     } catch (e) {
       logger.warn('[GoogleSheetsRoute] Could not check existing sheets in Drive:', e.message);
