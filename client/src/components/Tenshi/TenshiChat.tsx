@@ -358,6 +358,7 @@ export default function TenshiChat() {
   const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
   const nextStartTimeRef = useRef<number>(0);
   const setIsPlayingAudioRef = useRef<((isPlaying: boolean) => void) | null>(null);
+  const refetchHistoryRef = useRef<(() => void) | null>(null);
 
   const clearAudioQueue = useCallback(() => {
     activeSourcesRef.current.forEach((source) => {
@@ -773,6 +774,7 @@ export default function TenshiChat() {
         if (newStatus === 'ready' || newStatus === 'connected' || newStatus === 'listening' || newStatus === 'turn_complete') {
           if (newStatus === 'turn_complete') {
             setMessages((prev) => prev.map((m) => ({ ...m, isLiveVoice: false })));
+            refetchHistoryRef.current?.();
           }
           setVoiceStatusText('Tenshi te escucha...');
         } else if (newStatus === 'speaking') {
@@ -1152,14 +1154,26 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
           sendTextMessage(promptForTenshi);
         }
 
-        // 2. Registrar en la conversación interna de Tenshi
+        // 2. Registrar en la conversación interna de Tenshi y persistir en BD para continuidad de memoria
+        const summaryText = `💡 **Tenshi:** He revisado la respuesta que te dio **${consultation.agentName}** sobre *"${consultation.question}"*. En el chat central puedes consultar todo el sustento técnico y normativo detallado. Si deseas que articulemos esto con algún hito o matriz de WAPPY, solo indícamelo.`;
         setMessages((prev) => [
           ...prev,
           {
             role: 'assistant',
-            content: `💡 **Tenshi:** He revisado la respuesta que te dio **${consultation.agentName}** sobre *"${consultation.question}"*. En el chat central puedes consultar todo el sustento técnico y normativo detallado. Si deseas que articulemos esto con algún hito o matriz de WAPPY, solo indícamelo.`,
+            content: summaryText,
           },
         ]);
+
+        if (token) {
+          axios
+            .post(
+              '/api/tenshi/message',
+              { role: 'assistant', content: summaryText },
+              { headers: { Authorization: `Bearer ${token}` } }
+            )
+            .then(() => refetchHistoryRef.current?.())
+            .catch((err) => console.error('[Tenshi] Error saving consultation summary:', err));
+        }
       }, 1000);
     }
   }, [latestChatMessage, isChatSubmitting, isVoiceActive, sendTextMessage]);
@@ -1381,6 +1395,16 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
       staleTime: 10 * 1000,
     },
   );
+
+  useEffect(() => {
+    refetchHistoryRef.current = refetchHistory;
+  }, [refetchHistory]);
+
+  useEffect(() => {
+    if (isOpen) {
+      refetchHistory();
+    }
+  }, [isOpen, refetchHistory]);
 
   useEffect(() => {
     if (historyData) {
@@ -2073,6 +2097,7 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
                     onClick={() => {
                       stopVoiceMode();
                       setViewMode('chat');
+                      refetchHistory();
                     }}
                     className="group relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-emerald-500 transition-colors duration-200 ease-in-out focus:outline-none"
                     title="Desactivar Modo Live y cambiar a Modo Chat"
@@ -2093,6 +2118,7 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
                   onClick={() => {
                     stopVoiceMode();
                     setViewMode('chat');
+                    refetchHistory();
                   }}
                   className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-400 transition-colors"
                   title="Ver historial completo en Modo Chat"

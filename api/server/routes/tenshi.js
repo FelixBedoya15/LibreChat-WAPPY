@@ -127,10 +127,31 @@ router.post('/config', requireJwtAuth, async (req, res) => {
 
 router.get('/history', requireJwtAuth, async (req, res) => {
     try {
-        const history = await TenshiMessage.find({ user: req.user.id }).sort({ createdAt: 1 }).lean();
+        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+        const userIds = [req.user.id, targetUserId].filter(Boolean);
+        const history = await TenshiMessage.find({ user: { $in: userIds } }).sort({ createdAt: 1 }).lean();
         res.json(history.map(m => ({ _id: m._id, role: m.role, content: m.content, htmlReport: m.htmlReport })));
     } catch (error) {
         console.error('Error fetching Tenshi history:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.post('/message', requireJwtAuth, async (req, res) => {
+    try {
+        const { role = 'assistant', content, htmlReport } = req.body;
+        if (!content || !content.trim()) {
+            return res.status(400).json({ error: 'Content is required' });
+        }
+        const newMsg = await TenshiMessage.create({
+            user: req.user.id,
+            role,
+            content: content.trim(),
+            htmlReport,
+        });
+        res.json(newMsg);
+    } catch (error) {
+        console.error('Error creating Tenshi message:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -215,7 +236,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
 
         // Fetch dynamic knowledge concurrently via Promise.all for maximum response speed
-        const [latestBlogs, latestCourses, ticketContext, companyInfo, rawMemories] = await Promise.all([
+        const [latestBlogs, latestCourses, ticketContext, companyInfo, rawMemories, recentConvos] = await Promise.all([
             BlogPost.find({ isPublished: true }).sort({ createdAt: -1 }).limit(3).lean().catch(() => []),
             Course.find({ isPublished: true }).sort({ createdAt: -1 }).limit(2).lean().catch(() => []),
             getRelevantTickets(req, userQuery).catch(() => ''),
@@ -232,7 +253,20 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 }
                 return info;
             })(),
-            getAllUserMemories(targetUserId).catch(() => [])
+            getAllUserMemories(targetUserId).catch(() => []),
+            (async () => {
+                try {
+                    const { Conversation } = require('~/db/models');
+                    const userFilter = [String(req.user.id), targetUserId].filter(Boolean);
+                    return await Conversation.find({ user: { $in: userFilter } })
+                        .sort({ updatedAt: -1 })
+                        .limit(5)
+                        .select('conversationId title updatedAt agent_id')
+                        .lean();
+                } catch (e) {
+                    return [];
+                }
+            })()
         ]);
 
         const blogStr = latestBlogs.map(b => `- BLOG: ${b.title}`).join('\n');
@@ -294,6 +328,43 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
 - NUNCA digas "no tengo acceso a la empresa", "no sé qué empresa está activa" ni le pidas al usuario que repita datos que ya están en esta ficha o memoria. Úsalos con total familiaridad y exactitud en todas tus respuestas.`;
         }
 
+        let recentConvosBlock = '';
+        if (recentConvos && recentConvos.length > 0) {
+            try {
+                const { Message } = require('~/db/models');
+                const convoIds = recentConvos.map(c => c.conversationId).filter(Boolean);
+                const rawConvoMsgs = await Message.find({ conversationId: { $in: convoIds } })
+                    .sort({ createdAt: 1 })
+                    .lean()
+                    .catch(() => []);
+
+                const msgsByConvo = {};
+                for (const m of rawConvoMsgs) {
+                    if (!msgsByConvo[m.conversationId]) msgsByConvo[m.conversationId] = [];
+                    msgsByConvo[m.conversationId].push(m);
+                }
+
+                recentConvosBlock = `### 💬 ACTIVIDAD RECIENTE Y CONSULTAS CON ESPECIALISTAS EN WAPPY:\n`;
+                for (const c of recentConvos) {
+                    const title = c.title || 'Consulta técnica';
+                    const cMsgs = msgsByConvo[c.conversationId] || [];
+                    const lastMsgs = cMsgs.slice(-2);
+                    recentConvosBlock += `\n- Conversación: "${title}":\n`;
+                    for (const m of lastMsgs) {
+                        const sender = m.isCreatedByUser ? 'Usuario' : (m.sender || 'Especialista');
+                        const text = (m.text || '').replace(/\s+/g, ' ').trim();
+                        const snippet = text.length > 300 ? text.substring(0, 300) + '...' : text;
+                        if (snippet) {
+                            recentConvosBlock += `  * ${sender}: "${snippet}"\n`;
+                        }
+                    }
+                }
+                recentConvosBlock += `\n*REGLA DE CONTINUIDAD Y MEMORIA*: Tienes pleno conocimiento de estas consultas previas con los especialistas. Si el usuario te pregunta por lo que se habló o se consultó previamente (ej: batería de riesgo psicosocial, matriz de compatibilidad, etc.), respóndele con este contexto exacto.\n\n`;
+            } catch (err) {
+                logger.warn('[Tenshi] Error formatting recentConvosBlock:', err.message);
+            }
+        }
+
         const skillInstructions = getActiveSkillInstructions(userQuery, config.skills || []);
 
         let systemMessage = `${config.systemPrompt}
@@ -307,6 +378,7 @@ ${blogStr ? `ÚLTIMAS PUBLICACIONES DEL BLOG:\n${blogStr}\n` : ''}
 ${courseStr ? `CURSOS DE FORMACIÓN DISPONIBLES:\n${courseStr}\n` : ''}
 ${ticketContext ? `CONOCIMIENTO DINÁMICO (Contexto extraído por RAG):\n${ticketContext}\n` : ''}
 ${fullCompanyAndMemoryBlock}
+${recentConvosBlock}
 
 ### 🎯 ROL Y PERSONALIDAD DE TENSHI
 Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administras la plataforma central Somos SST (ubicada en /sgsst). Tu personalidad es alegre, carismática, empática, muy espontánea y respetuosa, utilizando modismos paisas colombianos naturales ("parce", "listo", "qué más pues", "bacano", "de una", "hágale").
