@@ -40,14 +40,18 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
   const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
+  // Main Dashboard State
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
+  const [moodData, setMoodData] = useState<MoodRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterDays, setFilterDays] = useState<number>(30);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [recordToDelete, setRecordToDelete] = useState<MoodRecord | null>(null);
+  const [showClearAllModal, setShowClearAllModal] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+
   // AI Report & LiveEditor state
   const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.7-flash');
-  useEffect(() => {
-    if (user?.personalization?.geminiModels?.sstManagement) {
-      setSelectedModel(user.personalization.geminiModels.sstManagement);
-    }
-  }, [user]);
-
   const [generatedReport, setGeneratedReport] = useState<string | null>(null);
   const editorContentRef = useRef<string>('');
   const liveEditorRef = useRef<LiveEditorHandle>(null);
@@ -63,212 +67,13 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
-  const handleVoiceInput = () => {
-    if (isListening) {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch (e) { }
-      }
-      setIsListening(false);
-      return;
-    }
-
-    // @ts-ignore
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      showToast({ message: 'Su navegador no soporta reconocimiento de voz. Intente con Chrome.', status: 'error' });
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognitionRef.current = recognition;
-      recognition.lang = 'es-CO';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-
-      recognition.onresult = (event: any) => {
-        let newFinal = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            newFinal += event.results[i][0].transcript;
-          }
-        }
-        if (newFinal) {
-          setAnalystNotes(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + newFinal);
-        }
-      };
-
-      recognition.onerror = (event: any) => {
-        console.error('Speech error:', event.error);
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognition.start();
-    } catch (e) {
-      setIsListening(false);
-      showToast({ message: 'Error al iniciar reconocimiento', status: 'error' });
-    }
-  };
-
-  const handleGenerate = useCallback(async () => {
-    if (!isPro && (!conversationId || conversationId === 'new')) {
-      try {
-        const resCount = await fetch('/api/sgsst/diagnostico/report-history?tags=sgsst-animo', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (resCount.ok) {
-          const data = await resCount.json();
-          if (data.conversations?.length >= 1) {
-            setShowUpgradeModal(true);
-            return;
-          }
-        }
-      } catch (e) {}
-    }
-
-    setIsGenerating(true);
-    try {
-      const response = await fetch('/api/sgsst/animo/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          filterDays,
-          analystNotes,
-          modelName: selectedModel,
-        }),
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Error al generar el Informe Psicosocial');
-      }
-
-      const data = await response.json();
-      setGeneratedReport(data.report);
-      editorContentRef.current = data.report;
-      if (liveEditorRef.current) liveEditorRef.current.setHTML(data.report);
-      setConversationId(null);
-      setReportMessageId(null);
-      showToast({ message: 'Informe psicosocial generado exitosamente', status: 'success', severity: 'success' });
-    } catch (error: any) {
-      console.error('Generation error:', error);
-      showToast({ message: error.message || 'Error al generar', status: 'error' });
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [filterDays, analystNotes, selectedModel, token, isPro, conversationId, showToast]);
-
-  const handleSave = useCallback(async () => {
-    const contentToSave = editorContentRef.current || generatedReport;
-    if (!contentToSave) return;
-    if (!token) return;
-
-    const isNew = !conversationId || conversationId === 'new';
-    if (!isPro && isNew) {
-      try {
-        const resCount = await fetch('/api/sgsst/diagnostico/report-history?tags=sgsst-animo', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (resCount.ok) {
-          const data = await resCount.json();
-          if (data.conversations?.length >= 1) {
-            setShowUpgradeModal(true);
-            return;
-          }
-        }
-      } catch (e) {}
-    }
-
-    setIsSaving(true);
-    try {
-      if (conversationId && conversationId !== 'new' && reportMessageId) {
-        const res = await fetch('/api/sgsst/diagnostico/save-report', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ conversationId, messageId: reportMessageId, content: contentToSave }),
-        });
-        if (res.ok) {
-          setRefreshTrigger(prev => prev + 1);
-          showToast({ message: 'Informe psicosocial actualizado exitosamente', status: 'success', severity: 'success' });
-        }
-        return;
-      }
-
-      const res = await fetch('/api/sgsst/diagnostico/save-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          content: contentToSave,
-          title: `Termómetro Psicosocial – ${new Date().toLocaleDateString('es-CO')}`,
-          tags: ['sgsst-animo', 'sgsst-termometro-psicosocial'],
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setConversationId(data.conversationId);
-        setReportMessageId(data.messageId);
-        setRefreshTrigger(prev => prev + 1);
-        showToast({ message: 'Guardado exitosamente en historial', status: 'success', severity: 'success' });
-      }
-    } catch (error: any) {
-      showToast({ message: `Error: ${error.message}`, status: 'error' });
-    } finally {
-      setIsSaving(false);
-    }
-  }, [editorContentRef.current, generatedReport, conversationId, reportMessageId, token, isPro, showToast]);
-
-  const handleSelectReport = useCallback(async (selectedConvoId: string) => {
-    if (!selectedConvoId) return;
-    try {
-      const res = await fetch(`/api/messages/${selectedConvoId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Failed to load');
-      const messages = await res.json();
-      const lastMsg = messages[messages.length - 1];
-      if (lastMsg?.text) {
-        setGeneratedReport(lastMsg.text);
-        editorContentRef.current = lastMsg.text;
-        liveEditorRef.current?.setHTML(lastMsg.text);
-        setConversationId(selectedConvoId);
-        setReportMessageId(lastMsg.messageId);
-        showToast({ message: 'Informe cargado correctamente', status: 'success', severity: 'success' });
-      }
-    } catch (e) {
-      showToast({ message: 'Error al cargar el informe', status: 'error' });
-    }
-    setIsHistoryOpen(false);
-  }, [token, showToast]);
-
-  useAutoLoadReport({
-    token,
-    tags: ['sgsst-animo', 'sgsst-termometro-psicosocial'],
-    generatedReport,
-    handleSelectReport,
-  });
-  
-  const [companyInfo, setCompanyInfo] = useState<any>(null);
-  const [moodData, setMoodData] = useState<MoodRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filterDays, setFilterDays] = useState<number>(30);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [recordToDelete, setRecordToDelete] = useState<MoodRecord | null>(null);
-  const [showClearAllModal, setShowClearAllModal] = useState(false);
-  const [isDeletingAll, setIsDeletingAll] = useState(false);
-
   const showFullView = isMaximized === undefined || isMaximized === true;
+
+  useEffect(() => {
+    if (user?.personalization?.geminiModels?.sstManagement) {
+      setSelectedModel(user.personalization.geminiModels.sstManagement);
+    }
+  }, [user]);
 
   const handleDeleteRecord = async (id: string) => {
     try {
@@ -570,6 +375,202 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
     `);
     printWindow.document.close();
   };
+
+  const handleVoiceInput = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch (e) { }
+      }
+      setIsListening(false);
+      return;
+    }
+
+    // @ts-ignore
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      showToast({ message: 'Su navegador no soporta reconocimiento de voz. Intente con Chrome.', status: 'error' });
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.lang = 'es-CO';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        let newFinal = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            newFinal += event.results[i][0].transcript;
+          }
+        }
+        if (newFinal) {
+          setAnalystNotes(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + newFinal);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech error:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch (e) {
+      setIsListening(false);
+      showToast({ message: 'Error al iniciar reconocimiento', status: 'error' });
+    }
+  };
+
+  const handleGenerate = useCallback(async () => {
+    if (!isPro && (!conversationId || conversationId === 'new')) {
+      try {
+        const resCount = await fetch('/api/sgsst/diagnostico/report-history?tags=sgsst-animo', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (resCount.ok) {
+          const data = await resCount.json();
+          if (data.conversations?.length >= 1) {
+            setShowUpgradeModal(true);
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+
+    setIsGenerating(true);
+    try {
+      const response = await fetch('/api/sgsst/animo/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          filterDays,
+          analystNotes,
+          modelName: selectedModel,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Error al generar el Informe Psicosocial');
+      }
+
+      const data = await response.json();
+      setGeneratedReport(data.report);
+      editorContentRef.current = data.report;
+      if (liveEditorRef.current) liveEditorRef.current.setHTML(data.report);
+      setConversationId(null);
+      setReportMessageId(null);
+      showToast({ message: 'Informe psicosocial generado exitosamente', status: 'success', severity: 'success' });
+    } catch (error: any) {
+      console.error('Generation error:', error);
+      showToast({ message: error.message || 'Error al generar', status: 'error' });
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [filterDays, analystNotes, selectedModel, token, isPro, conversationId, showToast]);
+
+  const handleSave = useCallback(async () => {
+    const contentToSave = editorContentRef.current || generatedReport;
+    if (!contentToSave) return;
+    if (!token) return;
+
+    const isNew = !conversationId || conversationId === 'new';
+    if (!isPro && isNew) {
+      try {
+        const resCount = await fetch('/api/sgsst/diagnostico/report-history?tags=sgsst-animo', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (resCount.ok) {
+          const data = await resCount.json();
+          if (data.conversations?.length >= 1) {
+            setShowUpgradeModal(true);
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+
+    setIsSaving(true);
+    try {
+      if (conversationId && conversationId !== 'new' && reportMessageId) {
+        const res = await fetch('/api/sgsst/diagnostico/save-report', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ conversationId, messageId: reportMessageId, content: contentToSave }),
+        });
+        if (res.ok) {
+          setRefreshTrigger(prev => prev + 1);
+          showToast({ message: 'Informe psicosocial actualizado exitosamente', status: 'success', severity: 'success' });
+        }
+        return;
+      }
+
+      const res = await fetch('/api/sgsst/diagnostico/save-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          content: contentToSave,
+          title: `Termómetro Psicosocial – ${new Date().toLocaleDateString('es-CO')}`,
+          tags: ['sgsst-animo', 'sgsst-termometro-psicosocial'],
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setConversationId(data.conversationId);
+        setReportMessageId(data.messageId);
+        setRefreshTrigger(prev => prev + 1);
+        showToast({ message: 'Guardado exitosamente en historial', status: 'success', severity: 'success' });
+      }
+    } catch (error: any) {
+      showToast({ message: `Error: ${error.message}`, status: 'error' });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [editorContentRef.current, generatedReport, conversationId, reportMessageId, token, isPro, showToast]);
+
+  const handleSelectReport = useCallback(async (selectedConvoId: string) => {
+    if (!selectedConvoId) return;
+    try {
+      const res = await fetch(`/api/messages/${selectedConvoId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to load');
+      const messages = await res.json();
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg?.text) {
+        setGeneratedReport(lastMsg.text);
+        editorContentRef.current = lastMsg.text;
+        liveEditorRef.current?.setHTML(lastMsg.text);
+        setConversationId(selectedConvoId);
+        setReportMessageId(lastMsg.messageId);
+        showToast({ message: 'Informe cargado correctamente', status: 'success', severity: 'success' });
+      }
+    } catch (e) {
+      showToast({ message: 'Error al cargar el informe', status: 'error' });
+    }
+    setIsHistoryOpen(false);
+  }, [token, showToast]);
+
+  useAutoLoadReport({
+    token,
+    tags: ['sgsst-animo', 'sgsst-termometro-psicosocial'],
+    generatedReport,
+    handleSelectReport,
+  });
 
   if (loading) {
     return (
