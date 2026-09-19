@@ -24,7 +24,10 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
     try {
         if (!documento || !tipo_modulo) return;
         const companyId = await getActiveCompanyId(userId);
-        const worker = await SgsstWorker.findOne({ user: userId, companyId, documento: String(documento).trim() });
+        let worker = await SgsstWorker.findOne({ user: userId, companyId, documento: String(documento).trim() });
+        if (!worker) {
+            worker = await SgsstWorker.findOne({ user: userId, documento: String(documento).trim() });
+        }
         if (!worker) return;
 
         const pts = Number(puntos) || 0;

@@ -7,6 +7,9 @@ import PublicAtelTestimonio from '~/components/SGSST/PublicAtelTestimonio';
 import PublicPerfilUpdate from '~/components/SGSST/PublicPerfilUpdate';
 import PublicMoodTracker from '~/components/SGSST/PublicMoodTracker';
 import PublicEstudioPuesto from '~/components/SGSST/PublicEstudioPuesto';
+import PublicColaboradorHub from '~/components/SGSST/PublicColaboradorHub';
+import PublicComites from '~/components/SGSST/PublicComites';
+import PublicConvivencia from '~/components/SGSST/PublicConvivencia';
 import MoodAnalyticsDashboard from '~/components/SGSST/MoodAnalyticsDashboard';
 import PrivacyPolicyPage from '~/components/Auth/PrivacyPolicyPage';
 import TermsOfServicePage from '~/components/Auth/TermsOfServicePage';
@@ -156,6 +159,21 @@ export const router = createBrowserRouter(
     {
       path: 'sgsst-public/ruta-aprendizaje/:companyId/course/:courseId',
       element: <PublicRutaCourseViewer />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'sgsst-public/colaborador/:companyId/:cedula?',
+      element: <PublicColaboradorHub />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'sgsst-public/comites/:companyId',
+      element: <PublicComites />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'sgsst-public/convivencia/:companyId',
+      element: <PublicConvivencia />,
       errorElement: <RouteErrorBoundary />,
     },
     {

@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
-import { Shield, AlertTriangle, Camera, UserCircle, Key, Send, CheckCircle, RefreshCcw, X, HardHat, ClipboardList, FileText, Video, Film, Loader2 } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Shield, AlertTriangle, Camera, UserCircle, Key, Send, CheckCircle, RefreshCcw, X, HardHat, ClipboardList, FileText, Video, Film, Loader2, Award, ArrowRight } from 'lucide-react';
 import axios from 'axios';
+import PublicWorkerHeader from './PublicWorkerHeader';
 
 export default function PublicParticipacionIPEVAR() {
-    const { companyId } = useParams();
+    const { companyId } = useParams<{ companyId: string }>();
+    const navigate = useNavigate();
     const [company, setCompany] = useState<any>(null);
     const [loadingCompany, setLoadingCompany] = useState(true);
     const [step, setStep] = useState(1);
@@ -204,24 +206,14 @@ export default function PublicParticipacionIPEVAR() {
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans text-gray-800 flex flex-col">
-            {/* Header */}
-            <header className="bg-white shadow-sm sticky top-0 z-10 border-b border-gray-200 p-4 shrink-0">
-                <div className="flex items-center gap-3">
-                    {company.logo ? (
-                        <div className="w-10 h-10 rounded-xl overflow-hidden border border-gray-200 shrink-0 bg-white">
-                            <img src={company.logo} alt="Logo" className="w-full h-full object-contain" />
-                        </div>
-                    ) : (
-                        <div className="w-10 h-10 rounded-xl bg-[#0f766e]/10 flex items-center justify-center shrink-0">
-                            <Shield className="w-5 h-5 text-[#0f766e]" />
-                        </div>
-                    )}
-                    <div>
-                        <h1 className="font-bold text-sm text-gray-900 leading-tight truncate">{company.companyName}</h1>
-                        <p className="text-xs text-gray-500">Participación Activa IPEVAR</p>
-                    </div>
-                </div>
-            </header>
+            {/* Header Universal */}
+            <PublicWorkerHeader
+                companyId={companyId || ''}
+                companyName={company.companyName}
+                companyLogo={company.logo}
+                currentModule="ipevar"
+                workerCedula={cedula}
+            />
 
             {/* Main Content */}
             <main className="flex-1 p-5 overflow-y-auto w-full max-w-md mx-auto flex flex-col">
@@ -654,31 +646,50 @@ export default function PublicParticipacionIPEVAR() {
                             <p className="text-sm text-gray-600 mb-8 max-w-[250px] mx-auto leading-relaxed">
                                 {submitResult?.message} Tu contribución es clave para mantener un ambiente de trabajo seguro.
                             </p>
-                            <button 
-                                onClick={() => {
-                                    setStep(1);
-                                    setProceso('');
-                                    setZona('');
-                                    setActividad('');
-                                    setTarea('');
-                                    setRutinaria('Sí');
-                                    setPeligroClasificacion('Condiciones de Seguridad');
-                                    setPeligros('');
-                                    setEfectosPosibles('');
-                                    setSeveridadPercibida('Media');
-                                    setImages({ foto1: null, foto2: null, foto3: null }); 
-                                    setControlesExistentes('');
-                                    setSuficientes(true);
-                                    setSugeridoEliminacion('');
-                                    setSugeridoIngenieria('');
-                                    setSugeridoAdministrativo('');
-                                    setSugeridoEPP('');
-                                    setSubmitResult(null);
-                                }} 
-                                className="px-6 py-3 rounded-xl font-bold bg-gray-100 text-gray-800 hover:bg-gray-200"
-                            >
-                                Registrar Nueva Tarea
-                            </button>
+                            <div className="w-full max-w-sm rounded-2xl border border-teal-200 bg-teal-50/70 p-4 text-left text-xs text-teal-900 mb-6 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-200">
+                                <div className="flex items-start gap-2.5">
+                                    <Award className="mt-0.5 h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
+                                    <div>
+                                        <strong className="block text-xs font-bold text-teal-800 dark:text-teal-300">Puntos de Gamificación SST</strong>
+                                        <span>Tu reporte sumará <strong>+150 puntos</strong> a tu Pasaporte SST una vez validado e integrado a la Matriz Oficial por el coordinador.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex w-full max-w-sm flex-col gap-2.5">
+                                <button
+                                    onClick={() => navigate(`/sgsst-public/colaborador/${companyId}/${cedula}`)}
+                                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 py-3 font-bold text-white shadow-md transition-all active:scale-95 hover:from-teal-700 hover:to-emerald-700 text-xs"
+                                >
+                                    <Award className="h-4 w-4" /> Ver Mi Pasaporte SST y Mis Puntos
+                                </button>
+
+                                <button 
+                                    onClick={() => {
+                                        setStep(1);
+                                        setProceso('');
+                                        setZona('');
+                                        setActividad('');
+                                        setTarea('');
+                                        setRutinaria('Sí');
+                                        setPeligroClasificacion('Condiciones de Seguridad');
+                                        setPeligros('');
+                                        setEfectosPosibles('');
+                                        setSeveridadPercibida('Media');
+                                        setImages({ foto1: null, foto2: null, foto3: null }); 
+                                        setControlesExistentes('');
+                                        setSuficientes(true);
+                                        setSugeridoEliminacion('');
+                                        setSugeridoIngenieria('');
+                                        setSugeridoAdministrativo('');
+                                        setSugeridoEPP('');
+                                        setSubmitResult(null);
+                                    }} 
+                                    className="w-full rounded-xl bg-gray-100 py-2.5 font-bold text-gray-700 transition-colors hover:bg-gray-200 text-xs"
+                                >
+                                    Registrar Nueva Tarea
+                                </button>
+                            </div>
                         </div>
                     )}
 

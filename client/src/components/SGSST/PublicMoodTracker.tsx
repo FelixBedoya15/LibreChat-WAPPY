@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
+import PublicWorkerHeader from './PublicWorkerHeader';
 
 interface Message {
   sender: 'user' | 'agent';
@@ -79,6 +80,31 @@ export default function PublicMoodTracker() {
   const [startingChat, setStartingChat] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Gamification Claim State
+  const [claimCedula, setClaimCedula] = useState('');
+  const [claimingPoints, setClaimingPoints] = useState(false);
+  const [pointsClaimed, setPointsClaimed] = useState(false);
+  const [claimMessage, setClaimMessage] = useState('');
+
+  const handleClaimMoodPoints = async () => {
+    if (!claimCedula.trim()) return;
+    setClaimingPoints(true);
+    try {
+      const res = await axios.post(`/api/public-sgsst/mood/claim-points/${companyId}`, {
+        cedula: claimCedula.trim(),
+        telemetryId,
+      });
+      if (res.data?.success) {
+        setPointsClaimed(true);
+        setClaimMessage(res.data.message || '¡+10 Puntos acreditados con éxito!');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'No fue posible acreditar los puntos. Verifica tu cédula.');
+    } finally {
+      setClaimingPoints(false);
+    }
+  };
 
   useEffect(() => {
     const fetchCompany = async () => {
@@ -522,38 +548,15 @@ export default function PublicMoodTracker() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-emerald-50/20 to-slate-100 font-sans text-slate-800 flex flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-md p-3.5 shadow-xs">
-        <div className="max-w-md mx-auto w-full flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {company.logo ? (
-              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xs">
-                <img src={company.logo} alt={company.companyName} className="h-full w-full object-contain" />
-              </div>
-            ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 shadow-xs">
-                <Shield className="h-5 w-5" />
-              </div>
-            )}
-            <div>
-              <h1 className="text-sm font-bold text-slate-900 leading-tight truncate max-w-[180px] sm:max-w-xs">{company.companyName}</h1>
-              <p className="text-[11px] text-emerald-600 font-semibold tracking-wide uppercase">Termómetro Psicosocial</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {isDemoMode && (
-              <div className="bg-amber-50 border border-amber-300 text-amber-800 rounded-full px-2.5 py-1 flex items-center gap-1.5 shrink-0 shadow-xs">
-                <Sparkles className="w-3 h-3 text-amber-600" />
-                <span className="text-[10px] font-bold tracking-wide uppercase hidden sm:inline">Modo Demo</span>
-              </div>
-            )}
-            <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full px-3 py-1 flex items-center gap-1.5 shrink-0 shadow-xs">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-              <span className="text-[10px] font-bold tracking-wide uppercase">100% Anónimo</span>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Header Unificado WAPPY */}
+      <PublicWorkerHeader
+        companyName={company.companyName}
+        companyLogo={company.logo}
+        companyId={company._id || companyId}
+        currentApp="termometro"
+        title="Termómetro Psicosocial"
+        subtitle="100% Anónimo y Voluntario • Bienestar Emocional"
+      />
 
       {/* Main Container */}
       <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-5 max-w-md mx-auto w-full z-10 my-auto">
@@ -882,6 +885,53 @@ export default function PublicMoodTracker() {
                       Tu reporte y tus comentarios han sido registrados con éxito de forma 100% confidencial. Esto nos sirve para proponer mejoras en la carga y el ambiente laboral de la organización. ¡Cuídate y recuerda que tu salud mental es lo primero!
                     </p>
                   )}
+                </div>
+
+                {/* Gamificación Voluntaria: Reclamar +10 Puntos para Pasaporte SST */}
+                <div className="w-full bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200/80 rounded-2xl p-4 text-left space-y-3 shadow-xs">
+                  <div className="flex items-center gap-2.5">
+                    <span className="p-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shrink-0">🎯</span>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-800">Suma +10 Puntos a tu Pasaporte SST</h4>
+                      <p className="text-[11px] text-slate-500">Opcional: tu respuesta de ánimo sigue siendo 100% anónima</p>
+                    </div>
+                  </div>
+
+                  {pointsClaimed ? (
+                    <div className="p-3 rounded-xl bg-emerald-100/80 border border-emerald-300 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>{claimMessage || '¡+10 Puntos acreditados a tu Pasaporte SST!'}</span>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Ingresa tu cédula para sumar puntos..."
+                        value={claimCedula}
+                        onChange={(e) => setClaimCedula(e.target.value)}
+                        className="flex-1 bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 font-medium shadow-2xs"
+                      />
+                      <button
+                        onClick={handleClaimMoodPoints}
+                        disabled={claimingPoints || !claimCedula.trim()}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 flex items-center gap-1.5"
+                      >
+                        {claimingPoints ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                        <span>Reclamar +10 Pts</span>
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="pt-1 flex items-center justify-between border-t border-emerald-200/60 text-[11px]">
+                    <span className="text-slate-500">¿Quieres revisar tu puntaje y nivel?</span>
+                    <a
+                      href={`/sgsst-public/colaborador/${companyId}/${claimCedula.trim() || ''}`}
+                      className="font-bold text-emerald-700 hover:text-emerald-800 hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>Ver Mi Pasaporte SST</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
                 </div>
 
                 <div className="pt-1 flex flex-col items-center gap-2.5">

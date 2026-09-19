@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   RefreshCw,
 } from 'lucide-react';
+import PublicWorkerHeader from './PublicWorkerHeader';
 
 interface CompanyData {
   id: string;
@@ -201,24 +202,15 @@ export default function PublicEstudioPuesto() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-teal-50/50 via-slate-50 to-slate-100 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 p-4 py-8 flex flex-col items-center justify-center text-slate-800 dark:text-zinc-100 font-sans">
       <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-zinc-800 overflow-hidden">
-        {/* Cabecera Corporativa de la Empresa */}
-        <div className="bg-gradient-to-r from-teal-700 via-teal-600 to-cyan-700 p-6 text-white text-center relative">
-          <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center overflow-hidden shadow-lg">
-            {company?.logo ? (
-              <img src={company.logo} alt="Logo" className="w-full h-full object-contain p-1" />
-            ) : (
-              <Building2 className="w-7 h-7 text-white" />
-            )}
-          </div>
-          <h1 className="text-sm font-black uppercase tracking-wider">{company?.name || 'EMPRESA'}</h1>
-          <p className="text-[11px] text-teal-100 font-medium mt-1">
-            Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST)
-          </p>
-          <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 text-[10px] font-bold tracking-wide">
-            <Activity className="w-3.5 h-3.5" />
-            <span>Auto-evaluación Ergonómica de Puesto (EPT)</span>
-          </div>
-        </div>
+        {/* Cabecera Unificada WAPPY */}
+        <PublicWorkerHeader
+          companyName={company?.name || 'EMPRESA'}
+          companyLogo={company?.logo || undefined}
+          companyId={company?.id || companyId}
+          currentApp="estudio_puesto"
+          title="Auto-evaluación Ergonómica (EPT)"
+          subtitle="Verificación biomecánica y hábitos ergonómicos de puesto"
+        />
 
         {/* Pantalla de Éxito al culminar */}
         {submitted ? (
@@ -235,7 +227,17 @@ export default function PublicEstudioPuesto() {
             </p>
 
             <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-left text-xs space-y-2">
-              <p className="font-bold text-teal-800 dark:text-teal-300">💡 Recomendaciones Inmediatas:</p>
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-teal-600 text-white rounded-lg text-xs font-bold">🎯</span>
+                <div>
+                  <h4 className="font-bold text-teal-900 dark:text-teal-200">¡+40 Puntos Acreditados a tu Pasaporte SST!</h4>
+                  <p className="text-[11px] text-teal-700 dark:text-teal-400">Gracias por cuidar tu postura e integridad física.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 text-left text-xs space-y-2">
+              <p className="font-bold text-slate-800 dark:text-zinc-200">💡 Recomendaciones Inmediatas:</p>
               <ul className="list-disc pl-4 space-y-1 text-slate-600 dark:text-zinc-400 text-[11px]">
                 <li>Realiza pausas activas cada 2 horas (estiramiento de cuello y hombros).</li>
                 <li>Mantén la mirada al frente alineada con el tercio superior de tu pantalla.</li>
@@ -243,16 +245,25 @@ export default function PublicEstudioPuesto() {
               </ul>
             </div>
 
-            <button
-              onClick={() => {
-                setSubmitted(false);
-                setStep(1);
-                setPhotoBase64(null);
-              }}
-              className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-all shadow-md active:scale-95"
-            >
-              Realizar otra evaluación
-            </button>
+            <div className="flex flex-col gap-2 pt-2">
+              <a
+                href={`/sgsst-public/colaborador/${company?.id || companyId}/${workerId.trim() || ''}`}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:opacity-95 text-white text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+              >
+                <span>Ver Mi Pasaporte SST</span>
+                <ArrowRight className="w-4 h-4" />
+              </a>
+              <button
+                onClick={() => {
+                  setSubmitted(false);
+                  setStep(1);
+                  setPhotoBase64(null);
+                }}
+                className="w-full py-2.5 rounded-2xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold transition-all"
+              >
+                Realizar otra evaluación
+              </button>
+            </div>
           </div>
         ) : (
           <div className="p-6 space-y-5 text-xs">
@@ -289,6 +300,10 @@ export default function PublicEstudioPuesto() {
                   <p className="text-[11px] text-slate-500">
                     Ingresa tus datos para vincular el estudio a tu expediente laboral.
                   </p>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800 mt-2">
+                    <span>🎯</span>
+                    <span>Suma +40 Puntos a tu Pasaporte SST al enviar este auto-reporte</span>
+                  </div>
                 </div>
 
                 <div>

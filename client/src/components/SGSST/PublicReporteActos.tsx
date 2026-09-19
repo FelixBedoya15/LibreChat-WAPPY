@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Shield,
   AlertTriangle,
@@ -13,8 +13,11 @@ import {
   Video,
   Film,
   Loader2,
+  Award,
+  ArrowRight,
 } from 'lucide-react';
 import axios from 'axios';
+import PublicWorkerHeader from './PublicWorkerHeader';
 
 const resizeImage = (
   file: File,
@@ -76,7 +79,8 @@ const resizeImage = (
 };
 
 export default function PublicReporteActos() {
-  const { companyId } = useParams();
+  const { companyId } = useParams<{ companyId: string }>();
+  const navigate = useNavigate();
   const [company, setCompany] = useState<any>(null);
   const [loadingCompany, setLoadingCompany] = useState(true);
   const [step, setStep] = useState(1);
@@ -253,26 +257,14 @@ export default function PublicReporteActos() {
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 font-sans text-gray-800">
-      {/* Header */}
-      <header className="sticky top-0 z-10 shrink-0 border-b border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          {company.logo ? (
-            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white">
-              <img src={company.logo} alt="Logo" className="h-full w-full object-contain" />
-            </div>
-          ) : (
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#10b981]/10">
-              <Shield className="h-5 w-5 text-[#10b981]" />
-            </div>
-          )}
-          <div>
-            <h1 className="truncate text-sm font-bold leading-tight text-gray-900">
-              {company.companyName}
-            </h1>
-            <p className="text-xs text-gray-500">Canal Confidencial SG-SST</p>
-          </div>
-        </div>
-      </header>
+      {/* Header Universal */}
+      <PublicWorkerHeader
+        companyId={companyId || ''}
+        companyName={company.companyName}
+        companyLogo={company.logo}
+        currentModule="reportar"
+        workerCedula={cedula}
+      />
 
       {/* Main Content */}
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto p-5">
@@ -608,23 +600,42 @@ export default function PublicReporteActos() {
                 {submitResult?.message} Ya se remitió al buzón del Administrador SG-SST. Gracias por
                 tu compromiso con la seguridad corporativa.
               </p>
-              <button
-                onClick={() => {
-                  setStep(1);
-                  setDescripcion('');
-                  setUbicacion('');
-                  setFoto1('');
-                  setFoto2('');
-                  setFoto3('');
-                  setFoto1Desc('');
-                  setFoto2Desc('');
-                  setFoto3Desc('');
-                  setSubmitResult(null);
-                }}
-                className="rounded-xl bg-gray-100 px-6 py-3 font-bold text-gray-800 hover:bg-gray-200"
-              >
-                Iniciar un nuevo reporte
-              </button>
+              <div className="mb-6 w-full max-w-sm rounded-2xl border border-teal-200 bg-teal-50/70 p-4 text-left text-xs text-teal-900 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-200">
+                <div className="flex items-start gap-2.5">
+                  <Award className="mt-0.5 h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
+                  <div>
+                    <strong className="block text-xs font-bold text-teal-800 dark:text-teal-300">Puntos de Gamificación SST</strong>
+                    <span>Tu reporte preventivo sumará <strong>+50 puntos</strong> a tu Pasaporte SST una vez validado por el coordinador.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex w-full max-w-sm flex-col gap-2.5">
+                <button
+                  onClick={() => navigate(`/sgsst-public/colaborador/${companyId}/${cedula}`)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 py-3 font-bold text-white shadow-md transition-all active:scale-95 hover:from-teal-700 hover:to-emerald-700"
+                >
+                  <Award className="h-4 w-4" /> Ver Mi Pasaporte SST y Mis Puntos
+                </button>
+
+                <button
+                  onClick={() => {
+                    setStep(1);
+                    setDescripcion('');
+                    setUbicacion('');
+                    setFoto1('');
+                    setFoto2('');
+                    setFoto3('');
+                    setFoto1Desc('');
+                    setFoto2Desc('');
+                    setFoto3Desc('');
+                    setSubmitResult(null);
+                  }}
+                  className="w-full rounded-xl bg-gray-100 py-2.5 font-bold text-gray-700 transition-colors hover:bg-gray-200"
+                >
+                  Iniciar un nuevo reporte
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -13,6 +13,7 @@ import {
   Mic,
 } from 'lucide-react';
 import axios from 'axios';
+import PublicWorkerHeader from './PublicWorkerHeader';
 
 export default function PublicAtelTestimonio() {
   const { companyId } = useParams();
@@ -207,26 +208,15 @@ export default function PublicAtelTestimonio() {
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 font-sans text-gray-800">
-      {/* Header */}
-      <header className="sticky top-0 z-10 shrink-0 border-b border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          {company.logo ? (
-            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white">
-              <img src={company.logo} alt="Logo" className="h-full w-full object-contain" />
-            </div>
-          ) : (
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-500/10">
-              <Shield className="h-5 w-5 text-teal-600" />
-            </div>
-          )}
-          <div>
-            <h1 className="truncate text-sm font-bold leading-tight text-gray-900">
-              {company.companyName}
-            </h1>
-            <p className="text-xs text-gray-500">Buzón de Testimonios ATEL</p>
-          </div>
-        </div>
-      </header>
+      {/* Header Unificado WAPPY */}
+      <PublicWorkerHeader
+        companyName={company.companyName}
+        companyLogo={company.logo}
+        companyId={company._id || companyId}
+        currentApp="reportar"
+        title="Buzón de Testimonios ATEL"
+        subtitle="Declaración confidencial en investigación de incidentes y accidentes"
+      />
 
       {/* Main Content */}
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto p-5">
@@ -458,20 +448,39 @@ export default function PublicAtelTestimonio() {
           {/* Step 4: Success Message */}
           {step === 4 && (
             <div className="flex h-full flex-col items-center justify-center p-4 text-center duration-500 animate-in zoom-in-95">
-              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
-                <CheckCircle className="h-10 w-10 text-green-500" />
+              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 shadow-inner">
+                <CheckCircle className="h-10 w-10 text-emerald-600" />
               </div>
               <h2 className="mb-2 text-2xl font-black text-gray-900">¡Radicación Exitosa!</h2>
-              <p className="mb-8 text-sm leading-relaxed text-gray-600">
-                {submitResult?.message} Tu versión ha sido enviada de forma segura al responsable de
-                la investigación.
+              <p className="mb-5 text-sm leading-relaxed text-gray-600">
+                {submitResult?.message || 'Tu versión ha sido enviada de forma segura al responsable de la investigación.'}
               </p>
-              <button
-                onClick={() => window.location.reload()}
-                className="w-full rounded-xl bg-gray-900 py-4 font-bold text-white"
-              >
-                Cerrar
-              </button>
+
+              <div className="mb-6 w-full p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-left space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold">🎯</span>
+                  <div>
+                    <h4 className="text-xs font-bold text-emerald-900">¡+30 Puntos Acreditados a tu Pasaporte SST!</h4>
+                    <p className="text-[11px] text-emerald-700">Tu colaboración en la investigación previene la repetición de incidentes laborales.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-full flex flex-col gap-2.5">
+                <a
+                  href={`/sgsst-public/colaborador/${company?._id || companyId}/${cedula.trim() || ''}`}
+                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold text-xs shadow-md shadow-teal-500/20 flex items-center justify-center gap-2 transition-all active:scale-95"
+                >
+                  <span>Ver Mi Pasaporte SST</span>
+                  <span>→</span>
+                </a>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full rounded-xl border border-gray-200 py-3 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all"
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -84,6 +84,12 @@ const MODULO_LABELS: Record<string, { label: string; color: string }> = {
   atel: { label: 'ATEL', color: 'text-red-500' },
   capacitacion: { label: 'Capacitación', color: 'text-blue-500' },
   ats: { label: 'ATS', color: 'text-purple-500' },
+  perfil_socio: { label: 'Perfil Sociodemográfico', color: 'text-emerald-500' },
+  comites: { label: 'Comités SST', color: 'text-indigo-500' },
+  termometro_animo: { label: 'Termómetro Psicosocial', color: 'text-cyan-500' },
+  estudio_puesto: { label: 'Auto-evaluación EPT', color: 'text-violet-500' },
+  disciplinario: { label: 'Proceso Disciplinario', color: 'text-rose-600' },
+  convivencia: { label: 'Comité Convivencia', color: 'text-pink-500' },
 };
 
 const PercepcionHistorial = ({ historial }: { historial: any[] }) => {

@@ -496,6 +496,23 @@ router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
       );
     }
 
+    // Gamificación: +30 Puntos por testimonio aportado en investigación ATEL
+    if (company.user && cedula) {
+      try {
+        const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+        await feedWorkerEvent(
+          company.user,
+          String(cedula).trim(),
+          'atel_testimonio',
+          `Testimonio aportado en investigación de incidente/accidente ATEL`,
+          30,
+          String(targetId || newInboxItem.id || 'ATEL-TEST')
+        );
+      } catch (feedErr) {
+        logger.error('[Public SGSST] Error feeding worker event for ATEL testimony:', feedErr);
+      }
+    }
+
     res.json({
       success: true,
       message: 'Su testimonio ha sido radicado exitosamente en el sistema de investigación.',
@@ -1191,6 +1208,44 @@ router.post('/mood/finish/:telemetryId', async (req, res) => {
   }
 });
 
+// POST /api/public-sgsst/mood/claim-points/:companyId
+// Permite al colaborador registrar voluntariamente su cédula tras completar el check-in diario para ganar +10 puntos
+router.post('/mood/claim-points/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const { cedula } = req.body;
+
+    if (!cedula || !String(cedula).trim()) {
+      return res.status(400).json({ error: 'La cédula es requerida para acreditar puntos.' });
+    }
+
+    const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
+    const company = await CompanyInfo.findById(companyId).lean();
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada.' });
+    }
+
+    try {
+      const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+      await feedWorkerEvent(
+        company.user,
+        String(cedula).trim(),
+        'termometro_animo',
+        'Check-in diario voluntario en Termómetro de Ánimo y Bienestar Psicosocial',
+        10,
+        `MOOD-${Date.now()}`
+      );
+    } catch (feedErr) {
+      logger.error('[Public SGSST] Error claiming mood points:', feedErr);
+    }
+
+    return res.json({ success: true, message: '¡10 puntos acreditados con éxito a tu Pasaporte SST!', puntos: 10 });
+  } catch (error) {
+    logger.error('[Public SGSST] Mood claim points error:', error);
+    return res.status(500).json({ error: 'Error al acreditar puntos.' });
+  }
+});
+
 // POST /api/public-sgsst/mood/chat/:companyId
 // Genera un token JWT temporal y anónimo para hablar con el Terapeuta / Psicólogo
 router.post('/mood/chat/:companyId', async (req, res) => {
@@ -1484,6 +1539,23 @@ router.post('/estudio-puesto/:companyId', async (req, res) => {
       }
     }
 
+    // Gamificación: +40 Puntos por auto-evaluación ergonómica
+    if (company.user && cleanDoc) {
+      try {
+        const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+        await feedWorkerEvent(
+          company.user,
+          cleanDoc,
+          'estudio_puesto',
+          `Auto-evaluación ergonómica de puesto de trabajo realizada (${actionLevel || 'EPT'})`,
+          40,
+          String(newStudy._id)
+        );
+      } catch (feedErr) {
+        logger.error('[Public SGSST] Error feeding worker event for estudio-puesto:', feedErr);
+      }
+    }
+
     return res.json({
       success: true,
       message: 'Auto-evaluación ergonómica registrada exitosamente.',
@@ -1492,6 +1564,298 @@ router.post('/estudio-puesto/:companyId', async (req, res) => {
   } catch (error) {
     logger.error('[Public SGSST] POST /estudio-puesto error:', error);
     return res.status(500).json({ error: 'Error al registrar la auto-evaluación ergonómica.' });
+  }
+});
+
+// ─── Mongoose Schemas para Comités y Convivencia Pública ─────────────────────
+const ComiteAsistenciaSchema = new mongoose.Schema({
+  companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'CompanyInfo', required: true },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  tipoComite: { type: String, enum: ['copasst', 'cocolab', 'brigada', 'pesv'], required: true },
+  accion: { type: String, enum: ['asistencia_reunion', 'inspeccion_seguridad', 'voto_eleccion', 'simulacro_brigada'], default: 'asistencia_reunion' },
+  trabajadorNombre: { type: String, required: true },
+  trabajadorCedula: { type: String, required: true },
+  trabajadorCargo: { type: String, default: '' },
+  rolEnComite: { type: String, default: 'Miembro' },
+  fecha: { type: Date, default: Date.now },
+  temasTratados: { type: String, default: '' },
+  compromisos: { type: String, default: '' },
+  firma: { type: String, default: null },
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  puntosOtorgados: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now },
+}, { strict: false });
+
+const ComiteAsistencia = mongoose.models.ComiteAsistencia || mongoose.model('ComiteAsistencia', ComiteAsistenciaSchema);
+
+const QuejaConvivenciaSchema = new mongoose.Schema({
+  companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'CompanyInfo', required: true },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  radicado: { type: String, required: true, unique: true },
+  tipoAcoso: { type: String, enum: ['laboral_ley_1010', 'sexual_ley_2365'], required: true },
+  esAnonimo: { type: Boolean, default: false },
+  denuncianteNombre: { type: String, default: '' },
+  denuncianteCedula: { type: String, default: '' },
+  denuncianteCargo: { type: String, default: '' },
+  denuncianteContacto: { type: String, default: '' },
+  personaReportada: { type: String, required: true },
+  cargoPersonaReportada: { type: String, default: '' },
+  descripcionHechos: { type: String, required: true },
+  fechaHechos: { type: String, default: '' },
+  lugarHechos: { type: String, default: '' },
+  testigos: { type: String, default: '' },
+  evidencias: { type: Array, default: [] },
+  peticionOProteccion: { type: String, default: '' },
+  status: { type: String, enum: ['radicado', 'en_tramite', 'medidas_cautelares', 'resuelto', 'archivado'], default: 'radicado' },
+  notasComite: { type: String, default: '' },
+  createdAt: { type: Date, default: Date.now },
+}, { strict: false });
+
+const QuejaConvivencia = mongoose.models.QuejaConvivencia || mongoose.model('QuejaConvivencia', QuejaConvivenciaSchema);
+
+// ─── GET /api/public-sgsst/colaborador-info/:companyId/:cedula ───────────────
+// Consulta el carnet digital y saldo de puntos de gamificación del colaborador
+router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
+  try {
+    const { companyId, cedula } = req.params;
+    const cleanCedula = String(cedula || '').trim();
+    if (!cleanCedula) {
+      return res.status(400).json({ error: 'Cédula requerida' });
+    }
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+
+    const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+    let worker = await SgsstWorker.findOne({
+      user: company.user,
+      $or: [
+        { companyId: company._id },
+        { companyId: company._id.toString() },
+        { companyId: { $exists: false } },
+        { companyId: null },
+      ],
+      documento: cleanCedula,
+    }).lean();
+
+    // Fallback: Si no está aún en SgsstWorker, buscar en PerfilSociodemograficoData
+    if (!worker) {
+      const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+      if (PerfilSociodemograficoData) {
+        const perfil = await PerfilSociodemograficoData.findOne({
+          user: company.user,
+          $or: [
+            { companyId: company._id },
+            { companyId: company._id.toString() },
+            { companyId: { $exists: false } },
+            { companyId: null },
+          ],
+        }).lean();
+
+        if (perfil && Array.isArray(perfil.trabajadores)) {
+          const found = perfil.trabajadores.find(
+            t => String(t.identificacion || '').trim() === cleanCedula
+          );
+          if (found) {
+            worker = {
+              nombre: found.nombre || 'Colaborador',
+              documento: cleanCedula,
+              cargo: found.cargo || 'Personal Operativo',
+              fitScore: found.fitScore || 90,
+              fitAlerts: found.fitAlerts || [],
+              percepcionRiesgoScore: 0,
+              percepcionRiesgoHistorial: [],
+              riesgosBioIndividual: [],
+            };
+          }
+        }
+      }
+    }
+
+    if (!worker) {
+      return res.status(404).json({ error: 'Trabajador no encontrado en la base de datos de la empresa.' });
+    }
+
+    const score = Number(worker.percepcionRiesgoScore) || 0;
+    const factorReduccion = Math.min(score / 500, 0.40);
+    const nivel = score >= 500 ? 'Líder Biocéntrico 360°'
+      : score >= 300 ? 'Guardián de la Vida'
+      : score >= 100 ? 'Colaborador Comprometido'
+      : 'Alerta Conductual';
+
+    res.json({
+      success: true,
+      company: {
+        id: company._id,
+        companyName: company.companyName || 'Somos SST',
+        logoUrl: company.logoUrl || null,
+      },
+      worker: {
+        nombre: worker.nombre,
+        documento: worker.documento,
+        cargo: worker.cargo || 'No especificado',
+        fitScore: worker.fitScore ?? 90,
+        fitAlerts: worker.fitAlerts || [],
+        percepcionRiesgoScore: score,
+        nivel,
+        factorReduccion,
+        porcentajeReduccion: Math.round(factorReduccion * 100),
+        historial: (worker.percepcionRiesgoHistorial || []).slice(-15).reverse(),
+        riesgosCount: (worker.riesgosBioIndividual || []).length,
+      },
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] GET /colaborador-info error:', error);
+    res.status(500).json({ error: 'Error al consultar información del colaborador' });
+  }
+});
+
+// ─── POST /api/public-sgsst/comites/:companyId ───────────────────────────────
+// Firma de asistencia o votación para COPASST, COCOLAB, Brigada y PESV
+router.post('/comites/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const {
+      tipoComite,
+      accion,
+      trabajadorNombre,
+      trabajadorCedula,
+      trabajadorCargo,
+      rolEnComite,
+      temasTratados,
+      compromisos,
+      firma,
+    } = req.body;
+
+    if (!trabajadorNombre || !trabajadorCedula || !tipoComite) {
+      return res.status(400).json({ error: 'Nombre, cédula y tipo de comité requeridos' });
+    }
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const newRegistro = new ComiteAsistencia({
+      companyId: company._id,
+      user: company.user,
+      tipoComite,
+      accion: accion || 'asistencia_reunion',
+      trabajadorNombre: String(trabajadorNombre).trim(),
+      trabajadorCedula: String(trabajadorCedula).trim(),
+      trabajadorCargo: String(trabajadorCargo || '').trim(),
+      rolEnComite: rolEnComite || 'Miembro',
+      temasTratados: temasTratados || '',
+      compromisos: compromisos || '',
+      firma: firma || null,
+      status: 'pending',
+    });
+
+    await newRegistro.save();
+
+    // Notificar al coordinador en segundo plano
+    setImmediate(async () => {
+      try {
+        await Notification.create({
+          user: new mongoose.Types.ObjectId(company.user),
+          type: 'sgsst_comite_asistencia',
+          title: `Registro de Asistencia a Comité (${tipoComite.toUpperCase()})`,
+          body: `${trabajadorNombre} (CC: ${trabajadorCedula}) ha registrado asistencia al ${tipoComite.toUpperCase()}.`,
+          metadata: { module: 'comites', recordId: newRegistro._id },
+        });
+      } catch (err) {
+        logger.warn('[Public Comites] Notification error:', err.message);
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Registro de comité recibido exitosamente y en espera de validación del coordinador.',
+      recordId: newRegistro._id,
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] POST /comites error:', error);
+    res.status(500).json({ error: 'Error al registrar comité' });
+  }
+});
+
+// ─── POST /api/public-sgsst/convivencia/:companyId ───────────────────────────
+// Canal formal y confidencial de quejas bajo Ley 1010 y Ley 2365 de 2024
+router.post('/convivencia/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const {
+      tipoAcoso,
+      esAnonimo,
+      denuncianteNombre,
+      denuncianteCedula,
+      denuncianteCargo,
+      denuncianteContacto,
+      personaReportada,
+      cargoPersonaReportada,
+      descripcionHechos,
+      fechaHechos,
+      lugarHechos,
+      testigos,
+      evidencias,
+      peticionOProteccion,
+    } = req.body;
+
+    if (!personaReportada || !descripcionHechos || !tipoAcoso) {
+      return res.status(400).json({ error: 'Persona reportada, tipo de queja y descripción de los hechos son requeridos' });
+    }
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const radicadoNum = `RAD-${tipoAcoso === 'sexual_ley_2365' ? 'AS' : 'AL'}-${Date.now().toString().slice(-6)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    const newQueja = new QuejaConvivencia({
+      companyId: company._id,
+      user: company.user,
+      radicado: radicadoNum,
+      tipoAcoso,
+      esAnonimo: !!esAnonimo,
+      denuncianteNombre: esAnonimo ? 'Confidencial / Anónimo' : String(denuncianteNombre || '').trim(),
+      denuncianteCedula: esAnonimo ? '' : String(denuncianteCedula || '').trim(),
+      denuncianteCargo: esAnonimo ? '' : String(denuncianteCargo || '').trim(),
+      denuncianteContacto: esAnonimo ? '' : String(denuncianteContacto || '').trim(),
+      personaReportada: String(personaReportada).trim(),
+      cargoPersonaReportada: String(cargoPersonaReportada || '').trim(),
+      descripcionHechos: String(descripcionHechos).trim(),
+      fechaHechos: fechaHechos || '',
+      lugarHechos: lugarHechos || '',
+      testigos: testigos || '',
+      evidencias: Array.isArray(evidencias) ? evidencias : [],
+      peticionOProteccion: peticionOProteccion || '',
+      status: 'radicado',
+    });
+
+    await newQueja.save();
+
+    // Notificación confidencial de máxima prioridad a la gerencia / talento humano
+    setImmediate(async () => {
+      try {
+        await Notification.create({
+          user: new mongoose.Types.ObjectId(company.user),
+          type: 'sgsst_queja_convivencia',
+          title: `⚠️ RADICADO CONFIDENCIAL: ${radicadoNum} (${tipoAcoso === 'sexual_ley_2365' ? 'Ley 2365 Acoso Sexual' : 'Ley 1010 Acoso Laboral'})`,
+          body: `Se ha radicado una queja confidencial bajo radicado ${radicadoNum}. Requiere activación inmediata de protocolo de protección.`,
+          metadata: { module: 'convivencia', radicado: radicadoNum },
+        });
+      } catch (err) {
+        logger.warn('[Public Convivencia] Notification error:', err.message);
+      }
+    });
+
+    res.json({
+      success: true,
+      radicado: radicadoNum,
+      message: 'Queja radicada de forma confidencial. Conserva tu número de radicado para seguimiento.',
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] POST /convivencia error:', error);
+    res.status(500).json({ error: 'Error al radicar queja confidencial' });
   }
 });
 

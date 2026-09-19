@@ -7,6 +7,7 @@ import {
 import axios from 'axios';
 import SingleSelect from './SingleSelect';
 import type { LicenciaConduccionItem } from './exportPerfilSociodemografico';
+import PublicWorkerHeader from './PublicWorkerHeader';
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface WorkerData {
@@ -227,29 +228,22 @@ export default function PublicPerfilUpdate() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50 font-sans text-gray-800 flex flex-col">
-            {/* Header */}
-            <header className="bg-white/80 backdrop-blur border-b border-gray-100 sticky top-0 z-10 px-5 py-3 shrink-0">
-                <div className="flex items-center gap-3 max-w-md mx-auto">
-                    {company.logo ? (
-                        <img src={company.logo} alt="Logo" className="w-9 h-9 rounded-xl object-contain border border-gray-200 bg-white p-0.5" />
-                    ) : (
-                        <div className="w-9 h-9 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
-                            <Shield className="w-4 h-4 text-teal-600" />
-                        </div>
-                    )}
-                    <div className="min-w-0">
-                        <h1 className="font-bold text-sm text-gray-900 leading-tight truncate">{company.companyName}</h1>
-                        <p className="text-[11px] text-gray-400">Actualización de Perfil Sociodemográfico</p>
-                    </div>
-                </div>
-            </header>
+            {/* Header Unificado WAPPY */}
+            <PublicWorkerHeader
+                companyName={company.companyName}
+                companyLogo={company.logo}
+                companyId={company._id || companyId}
+                currentApp="perfil"
+                title="Actualización Sociodemográfica"
+                subtitle="Ficha médica, laboral y sociodemográfica anual"
+            />
 
             <main className="flex-1 p-5 pb-10 w-full max-w-md mx-auto flex flex-col">
 
                 {/* ─── STEP 1: Verify Identity ─────────────────── */}
                 {step === 1 && (
                     <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="flex items-center gap-3 mb-6 text-teal-600">
+                        <div className="flex items-center gap-3 mb-4 text-teal-600">
                             <div className="w-10 h-10 bg-teal-50 rounded-2xl flex items-center justify-center">
                                 <Key className="w-5 h-5" />
                             </div>
@@ -257,6 +251,11 @@ export default function PublicPerfilUpdate() {
                                 <h2 className="text-xl font-black text-gray-900">Verificar Identidad</h2>
                                 <p className="text-xs text-gray-400">Ingresa tu cédula para acceder a tu perfil</p>
                             </div>
+                        </div>
+
+                        <div className="mb-5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                            <span>🎯</span>
+                            <span>Ganas +30 Puntos SST al completar y ser aprobada tu actualización anual</span>
                         </div>
 
                         <div className="space-y-4">
@@ -661,21 +660,42 @@ export default function PublicPerfilUpdate() {
                 {/* ─── STEP 3: Success ─────────────────────────── */}
                 {step === 3 && (
                     <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-4 flex flex-col items-center text-center animate-in zoom-in-95 duration-500">
-                        <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mb-5">
+                        <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mb-5 shadow-inner">
                             <CheckCircle className="w-10 h-10 text-teal-600" />
                         </div>
-                        <h2 className="text-2xl font-black text-gray-900 mb-2">¡Datos Enviados!</h2>
+                        <h2 className="text-2xl font-black text-gray-900 mb-2">¡Ficha Enviada con Éxito!</h2>
                         <p className="text-sm text-gray-500 max-w-xs leading-relaxed">
-                            Tu solicitud de actualización fue recibida con éxito. El equipo SG-SST la revisará y aprobará próximamente.
+                            Tu actualización sociodemográfica ha sido recibida y enviada a revisión del equipo SG-SST.
                         </p>
-                        <div className="mt-6 w-full p-4 bg-teal-50 rounded-2xl border border-teal-100 text-left">
-                            <p className="text-xs font-bold text-teal-800 mb-1">¿Qué sigue?</p>
-                            <ul className="text-xs text-teal-700 space-y-1 list-disc list-inside">
-                                <li>El responsable SST revisará tu solicitud</li>
-                                <li>Los datos serán actualizados en el sistema</li>
-                                <li>Recibirás confirmación si hay cambios</li>
+
+                        <div className="mt-6 w-full p-4 bg-teal-50 rounded-2xl border border-teal-100 text-left space-y-2">
+                            <div className="flex items-center gap-2">
+                                <span className="p-1.5 bg-teal-600 text-white rounded-lg text-xs font-bold">🎯</span>
+                                <div>
+                                    <h4 className="text-xs font-bold text-teal-900">Gamificación SST (+30 Puntos)</h4>
+                                    <p className="text-[11px] text-teal-700">
+                                        Una vez el Coordinador SST apruebe tus datos, se te sumarán automáticamente <strong>+30 Puntos</strong> a tu Pasaporte SST.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 text-left">
+                            <p className="text-xs font-bold text-gray-800 mb-1">¿Qué sigue?</p>
+                            <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
+                                <li>El responsable SST cotejará tu información médica y sociodemográfica</li>
+                                <li>Tus datos oficiales se sincronizarán en la matriz del SG-SST</li>
+                                <li>Podrás consultar tu expediente actualizado en tu pasaporte digital</li>
                             </ul>
                         </div>
+
+                        <a
+                            href={`/sgsst-public/colaborador/${company?._id || companyId}/${cedula || workerData?.identificacion || ''}`}
+                            className="mt-6 w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold text-xs shadow-md shadow-teal-500/20 flex items-center justify-center gap-2 transition-all active:scale-95"
+                        >
+                            <span>Ver Mi Pasaporte SST</span>
+                            <span>→</span>
+                        </a>
                     </div>
                 )}
             </main>

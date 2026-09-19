@@ -1847,6 +1847,24 @@ router.post('/inbox/approve', requireJwtAuth, async (req, res) => {
     // Recalculate and sync with SgsstWorker on inbox approval
     doc.trabajadores = await recalculateAndSyncAllWorkers(req.user.id, companyId, doc.trabajadores);
 
+    // Otorgar +30 puntos de gamificación al trabajador tras aprobación del coordinador
+    const feedWorkerEvent = require('./feedWorkerHelper');
+    const targetCedula = workerIndex !== -1 ? (doc.trabajadores[workerIndex].identificacion || workerId) : workerId;
+    if (targetCedula) {
+      try {
+        await feedWorkerEvent(
+          req.user.id,
+          targetCedula,
+          'perfil_socio',
+          `Actualización anual de perfil sociodemográfico aprobada por coordinador (${inboxType === 'social' ? 'Datos Generales/Vivienda' : 'Condiciones de Salud'})`,
+          30,
+          updateId
+        );
+      } catch (feedErr) {
+        logger.warn('[PerfilSocio] Feed worker gamification error:', feedErr.message);
+      }
+    }
+
     await doc.save();
     res.json({ success: true, actualizacionesPendientes: doc.actualizacionesPendientes, actualizacionesPendientesSalud: doc.actualizacionesPendientesSalud });
   } catch (error) {
