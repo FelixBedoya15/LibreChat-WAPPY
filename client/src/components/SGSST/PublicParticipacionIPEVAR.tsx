@@ -14,8 +14,15 @@ export default function PublicParticipacionIPEVAR() {
     const [cedula, setCedula] = useState('');
     
     // Step 2 Data
+    const [proceso, setProceso] = useState('');
+    const [zona, setZona] = useState('');
+    const [actividad, setActividad] = useState('');
     const [tarea, setTarea] = useState('');
+    const [rutinaria, setRutinaria] = useState<'Sí' | 'No'>('Sí');
+    const [peligroClasificacion, setPeligroClasificacion] = useState('Condiciones de Seguridad');
     const [peligros, setPeligros] = useState('');
+    const [efectosPosibles, setEfectosPosibles] = useState('');
+    const [severidadPercibida, setSeveridadPercibida] = useState<'Baja' | 'Media' | 'Alta' | 'Crítica'>('Media');
     
     // Step 3 Data
     const [images, setImages] = useState<{ [key: string]: string | null }>({
@@ -27,6 +34,7 @@ export default function PublicParticipacionIPEVAR() {
     const [suficientes, setSuficientes] = useState(true);
     
     // Step 4 Data
+    const [sugeridoEliminacion, setSugeridoEliminacion] = useState('');
     const [sugeridoIngenieria, setSugeridoIngenieria] = useState('');
     const [sugeridoAdministrativo, setSugeridoAdministrativo] = useState('');
     const [sugeridoEPP, setSugeridoEPP] = useState('');
@@ -83,13 +91,9 @@ export default function PublicParticipacionIPEVAR() {
         reader.readAsDataURL(file);
     };
 
-
-
     const removeImage = (field: string) => {
         setImages(prev => ({ ...prev, [field]: null }));
     };
-
-
 
     const validateIdentity = async () => {
         if (!nombre.trim() || !cedula.trim()) {
@@ -121,7 +125,7 @@ export default function PublicParticipacionIPEVAR() {
 
     const validateTaskDetails = () => {
         if (!tarea.trim() || !peligros.trim()) {
-            alert("Por favor describa la tarea y los peligros.");
+            alert("Por favor describa la tarea y los peligros identificados.");
             return;
         }
         setStep(3);
@@ -148,11 +152,19 @@ export default function PublicParticipacionIPEVAR() {
                 cedula,
                 nombre,
                 data: {
-                    tarea,
-                    peligros,
+                    proceso: proceso.trim() || 'Operativo',
+                    zona: zona.trim() || 'Área de trabajo',
+                    actividad: actividad.trim() || tarea.trim(),
+                    tarea: tarea.trim(),
+                    rutinaria,
+                    peligroClasificacion,
+                    peligros: peligros.trim(),
+                    efectosPosibles: efectosPosibles.trim(),
+                    severidadPercibida,
                     ...images,
                     controlesExistentes,
                     suficientes,
+                    sugeridoEliminacion,
                     sugeridoIngenieria,
                     sugeridoAdministrativo,
                     sugeridoEPP
@@ -288,36 +300,179 @@ export default function PublicParticipacionIPEVAR() {
                         </div>
                     )}
 
-                    {/* Step 2: Contexto Tarea */}
+                    {/* Step 2: Contexto Tarea y Peligros GTC-45 */}
                     {step === 2 && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-500 flex flex-col h-full">
-                            <div className="mb-6 flex items-center gap-3 text-cyan-600">
+                            <div className="mb-4 flex items-center gap-3 text-cyan-600 shrink-0">
                                 <ClipboardList className="w-8 h-8" />
                                 <div>
-                                    <h2 className="text-xl font-black text-gray-900 leading-tight">Labor y Peligros</h2>
-                                    <p className="text-xs text-gray-500">¿Qué tarea realizas hoy?</p>
+                                    <h2 className="text-xl font-black text-gray-900 leading-tight">Labor y Peligros GTC-45</h2>
+                                    <p className="text-xs text-gray-500">Describe el puesto, tarea y riesgos observados</p>
                                 </div>
                             </div>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Labor o Tarea Realizada</label>
-                                    <input type="text" placeholder="Ej: Soldadura de tubería, limpieza en altura..." value={tarea} onChange={e=>setTarea(e.target.value)} className="w-full border-gray-300 rounded-xl text-sm bg-gray-50 py-3 focus:ring-cyan-600 focus:border-cyan-600 font-medium" />
+                            
+                            <div className="space-y-3.5 overflow-y-auto pr-1 flex-1 pb-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                            Proceso / Área
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            list="procesos-list"
+                                            placeholder="Ej: Operativo, Mantenimiento, Logística..." 
+                                            value={proceso} 
+                                            onChange={e => setProceso(e.target.value)} 
+                                            className="w-full border-gray-300 rounded-xl text-xs bg-gray-50 py-2.5 px-3 focus:ring-cyan-600 focus:border-cyan-600 font-medium" 
+                                        />
+                                        <datalist id="procesos-list">
+                                            <option value="Operaciones / Planta" />
+                                            <option value="Mantenimiento" />
+                                            <option value="Almacén y Bodega" />
+                                            <option value="Logística y Transporte" />
+                                            <option value="Administración" />
+                                            <option value="Servicios Generales" />
+                                        </datalist>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                            Zona / Lugar Físico
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Ej: Bodega 2, Taller central, Planta..." 
+                                            value={zona} 
+                                            onChange={e => setZona(e.target.value)} 
+                                            className="w-full border-gray-300 rounded-xl text-xs bg-gray-50 py-2.5 px-3 focus:ring-cyan-600 focus:border-cyan-600 font-medium" 
+                                        />
+                                    </div>
                                 </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                            Actividad General
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Ej: Mantenimiento electromecánico preventivo..." 
+                                            value={actividad} 
+                                            onChange={e => setActividad(e.target.value)} 
+                                            className="w-full border-gray-300 rounded-xl text-xs bg-gray-50 py-2.5 px-3 focus:ring-cyan-600 focus:border-cyan-600 font-medium" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                            ¿Es Rutinaria?
+                                        </label>
+                                        <div className="flex gap-1.5 bg-gray-100 p-1 rounded-xl">
+                                            <button
+                                                type="button"
+                                                onClick={() => setRutinaria('Sí')}
+                                                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${rutinaria === 'Sí' ? 'bg-white shadow text-[#0f766e]' : 'text-gray-500'}`}
+                                            >
+                                                Sí
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setRutinaria('No')}
+                                                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${rutinaria === 'No' ? 'bg-white shadow text-orange-600' : 'text-gray-500'}`}
+                                            >
+                                                No
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div>
-                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Peligros Identificados</label>
+                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                        Labor o Tarea Específica <span className="text-red-500">*</span>
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Ej: Cambio de rodamientos y lubricación de poleas en compresor..." 
+                                        value={tarea} 
+                                        onChange={e => setTarea(e.target.value)} 
+                                        className="w-full border-gray-300 rounded-xl text-xs bg-gray-50 py-2.5 px-3 focus:ring-cyan-600 focus:border-cyan-600 font-medium" 
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                            Clasificación Peligro (GTC 45)
+                                        </label>
+                                        <select
+                                            value={peligroClasificacion}
+                                            onChange={e => setPeligroClasificacion(e.target.value)}
+                                            className="w-full border-gray-300 rounded-xl text-xs bg-gray-50 py-2.5 px-3 focus:ring-cyan-600 focus:border-cyan-600 font-medium"
+                                        >
+                                            <option value="Condiciones de Seguridad">Condiciones de Seguridad (Mecánico, Eléctrico, Alturas, Locativo)</option>
+                                            <option value="Biomecánico">Biomecánico (Posturas, Cargas, Movimientos Repetitivos)</option>
+                                            <option value="Físico">Físico (Ruido, Iluminación, Temperaturas, Vibración)</option>
+                                            <option value="Químico">Químico (Gases, Vapores, Polvos, Solventes)</option>
+                                            <option value="Psicosocial">Psicosocial (Estrés, Turnos, Sobrecarga mental)</option>
+                                            <option value="Biológico">Biológico (Virus, Bacterias, Picaduras, Hongos)</option>
+                                            <option value="Fenómenos Naturales">Fenómenos Naturales (Sismos, Precipitaciones)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                            Severidad / Urgencia Percibida
+                                        </label>
+                                        <div className="grid grid-cols-4 gap-1">
+                                            {(['Baja', 'Media', 'Alta', 'Crítica'] as const).map(sev => (
+                                                <button
+                                                    key={sev}
+                                                    type="button"
+                                                    onClick={() => setSeveridadPercibida(sev)}
+                                                    className={`py-2 text-[10px] font-bold rounded-lg border transition-all ${
+                                                        severidadPercibida === sev
+                                                            ? sev === 'Crítica' ? 'bg-red-600 border-red-600 text-white shadow'
+                                                                : sev === 'Alta' ? 'bg-orange-500 border-orange-500 text-white shadow'
+                                                                : sev === 'Media' ? 'bg-amber-500 border-amber-500 text-white shadow'
+                                                                : 'bg-emerald-600 border-emerald-600 text-white shadow'
+                                                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                                                    }`}
+                                                >
+                                                    {sev}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                        Descripción del Peligro <span className="text-red-500">*</span>
+                                    </label>
                                     <textarea 
-                                        rows={4} 
-                                        className="w-full border-gray-300 rounded-xl bg-gray-50 text-sm py-3 focus:ring-cyan-600 focus:border-cyan-600 resize-none font-medium leading-relaxed" 
-                                        placeholder="Ej: Inhalación de humos metálicos, exposición a radiación, chispas proyectadas..."
+                                        rows={3} 
+                                        className="w-full border-gray-300 rounded-xl bg-gray-50 text-xs p-2.5 focus:ring-cyan-600 focus:border-cyan-600 resize-none font-medium leading-relaxed" 
+                                        placeholder="Ej: Inhalación de humos, atrapamiento en poleas sin guarda protectora, trabajo sobre escalera inestable..."
                                         value={peligros}
-                                        onChange={e=>setPeligros(e.target.value)}
+                                        onChange={e => setPeligros(e.target.value)}
                                     ></textarea>
                                 </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                        Efectos Posibles en la Salud o Daños
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Ej: Atrapamiento, heridas lacerantes, lumbalgia, quemaduras..." 
+                                        value={efectosPosibles} 
+                                        onChange={e => setEfectosPosibles(e.target.value)} 
+                                        className="w-full border-gray-300 rounded-xl text-xs bg-gray-50 py-2 px-3 focus:ring-cyan-600 focus:border-cyan-600 font-medium" 
+                                    />
+                                </div>
+
                                 <div>
                                     <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Evidencia Fotográfica (Opcional)</label>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <div className="grid grid-cols-3 gap-2">
                                         {['foto1', 'foto2', 'foto3'].map((imgKey, idx) => (
-                                            <div key={imgKey} className="relative w-full h-24 rounded-xl overflow-hidden border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-cyan-50 hover:border-cyan-400 transition-colors flex items-center justify-center group">
+                                            <div key={imgKey} className="relative w-full h-20 rounded-xl overflow-hidden border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-cyan-50 hover:border-cyan-400 transition-colors flex items-center justify-center group">
                                                 {images[imgKey] ? (
                                                     <div className="relative w-full h-full">
                                                         <img src={images[imgKey] as string} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
@@ -331,7 +486,7 @@ export default function PublicParticipacionIPEVAR() {
                                                 ) : (
                                                     <>
                                                         <span className="text-[10px] font-bold text-gray-400 group-hover:text-cyan-600 flex flex-col items-center gap-1">
-                                                            <Camera className="w-5 h-5" />
+                                                            <Camera className="w-4 h-4" />
                                                             Foto {idx + 1}
                                                         </span>
                                                         <input 
@@ -349,9 +504,9 @@ export default function PublicParticipacionIPEVAR() {
                                 </div>
 
                             </div>
-                            <div className="mt-auto pt-6 flex gap-3">
-                                <button onClick={() => setStep(1)} className="px-5 py-3.5 rounded-xl font-bold bg-gray-100 text-gray-700 hover:bg-gray-200">Atrás</button>
-                                <button onClick={validateTaskDetails} className="flex-1 bg-[#0f766e] hover:bg-[#115e59] text-white py-3.5 rounded-xl font-bold shadow-md active:scale-[0.98] transition-all">Siguiente</button>
+                            <div className="mt-auto pt-4 flex gap-3 shrink-0">
+                                <button onClick={() => setStep(1)} className="px-5 py-3 rounded-xl font-bold bg-gray-100 text-gray-700 hover:bg-gray-200">Atrás</button>
+                                <button onClick={validateTaskDetails} className="flex-1 bg-[#0f766e] hover:bg-[#115e59] text-white py-3 rounded-xl font-bold shadow-md active:scale-[0.98] transition-all">Siguiente</button>
                             </div>
                         </div>
                     )}
@@ -416,43 +571,53 @@ export default function PublicParticipacionIPEVAR() {
                     {/* Step 4: Sugerencias (Opcional, si suficientes = false) */}
                     {step === 4 && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-500 flex flex-col h-full">
-                            <div className="mb-6 flex items-center gap-3 text-indigo-500">
+                            <div className="mb-4 flex items-center gap-3 text-indigo-500 shrink-0">
                                 <HardHat className="w-8 h-8" />
                                 <div>
                                     <h2 className="text-xl font-black text-gray-900 leading-tight">Sugerir Mejoras</h2>
-                                    <p className="text-xs text-gray-500">Ayúdanos a protegerte</p>
+                                    <p className="text-xs text-gray-500">Jerarquía de Controles GTC-45</p>
                                 </div>
                             </div>
                             
-                            <div className="space-y-4 overflow-y-auto pr-2 pb-2 flex-1">
-                                <p className="text-xs font-semibold text-gray-600 mb-2">Comenta qué sugieres implementar en cada categoría (puedes dejar en blanco las que no apliquen):</p>
+                            <div className="space-y-3 overflow-y-auto pr-2 pb-2 flex-1">
+                                <p className="text-xs font-semibold text-gray-600">Comenta qué sugieres implementar en cada categoría según tu experiencia:</p>
                                 
                                 <div>
-                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">1. Controles de Ingeniería (Máquinas, equipos)</label>
+                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">1. Eliminación / Sustitución (Fuente)</label>
                                     <textarea 
                                         rows={2} 
-                                        className="w-full border-gray-300 rounded-xl bg-gray-50 text-sm p-2.5 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-medium" 
-                                        placeholder="Ej: Guardas, sensores, ventilación..."
+                                        className="w-full border-gray-300 rounded-xl bg-gray-50 text-xs p-2.5 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-medium" 
+                                        placeholder="Ej: Eliminar el uso del químico inflamable, sustituir herramienta manual por automática..."
+                                        value={sugeridoEliminacion}
+                                        onChange={e=>setSugeridoEliminacion(e.target.value)}
+                                    ></textarea>
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">2. Controles de Ingeniería (Máquinas, instalaciones)</label>
+                                    <textarea 
+                                        rows={2} 
+                                        className="w-full border-gray-300 rounded-xl bg-gray-50 text-xs p-2.5 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-medium" 
+                                        placeholder="Ej: Guardas protectoras, sistema de extracción, sensores de parada de emergencia..."
                                         value={sugeridoIngenieria}
                                         onChange={e=>setSugeridoIngenieria(e.target.value)}
                                     ></textarea>
                                 </div>
                                 <div>
-                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">2. Administrativos (Señalización, Rotación)</label>
+                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">3. Administrativos (Señalización, Rotación, Capacitación)</label>
                                     <textarea 
                                         rows={2} 
-                                        className="w-full border-gray-300 rounded-xl bg-gray-50 text-sm p-2.5 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-medium" 
-                                        placeholder="Ej: Capacitación, señalización, rotación..."
+                                        className="w-full border-gray-300 rounded-xl bg-gray-50 text-xs p-2.5 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-medium" 
+                                        placeholder="Ej: Capacitación técnica, señalización de peligro, rotación horaria..."
                                         value={sugeridoAdministrativo}
                                         onChange={e=>setSugeridoAdministrativo(e.target.value)}
                                     ></textarea>
                                 </div>
                                 <div>
-                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">3. Elementos de Protección Personal (EPP)</label>
+                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">4. Elementos de Protección Personal (EPP)</label>
                                     <textarea 
                                         rows={2} 
-                                        className="w-full border-gray-300 rounded-xl bg-gray-50 text-sm p-2.5 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-medium" 
-                                        placeholder="Ej: Casco, guantes, protección auditiva..."
+                                        className="w-full border-gray-300 rounded-xl bg-gray-50 text-xs p-2.5 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-medium" 
+                                        placeholder="Ej: Casco dieléctrico, guantes de nitrilo, protección auditiva de copa..."
                                         value={sugeridoEPP}
                                         onChange={e=>setSugeridoEPP(e.target.value)}
                                     ></textarea>
@@ -467,11 +632,11 @@ export default function PublicParticipacionIPEVAR() {
                             )}
 
                             <div className="mt-auto pt-4 flex gap-3 shrink-0">
-                                <button onClick={() => setStep(3)} className="px-5 py-3.5 rounded-xl font-bold bg-gray-100 text-gray-700 hover:bg-gray-200" disabled={isSubmitting}>Atrás</button>
+                                <button onClick={() => setStep(3)} className="px-5 py-3 rounded-xl font-bold bg-gray-100 text-gray-700 hover:bg-gray-200" disabled={isSubmitting}>Atrás</button>
                                 <button 
                                     onClick={handleSubmit} 
                                     disabled={isSubmitting}
-                                    className="flex-1 bg-gradient-to-r from-indigo-600 to-blue-600 flex items-center justify-center gap-2 hover:opacity-90 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-500/30 active:scale-[0.98] transition-all disabled:opacity-50"
+                                    className="flex-1 bg-gradient-to-r from-indigo-600 to-blue-600 flex items-center justify-center gap-2 hover:opacity-90 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-500/30 active:scale-[0.98] transition-all disabled:opacity-50"
                                 >
                                     {isSubmitting ? 'Procesando...' : <><Send className="w-5 h-5" /> Enviar Participación</>}
                                 </button>
@@ -492,9 +657,22 @@ export default function PublicParticipacionIPEVAR() {
                             <button 
                                 onClick={() => {
                                     setStep(1);
-                                    setTarea(''); setPeligros(''); setImages({ foto1: null, foto2: null, foto3: null }); 
-                                    setControlesExistentes(''); setSuficientes(true);
-                                    setSugeridoIngenieria(''); setSugeridoAdministrativo(''); setSugeridoEPP('');
+                                    setProceso('');
+                                    setZona('');
+                                    setActividad('');
+                                    setTarea('');
+                                    setRutinaria('Sí');
+                                    setPeligroClasificacion('Condiciones de Seguridad');
+                                    setPeligros('');
+                                    setEfectosPosibles('');
+                                    setSeveridadPercibida('Media');
+                                    setImages({ foto1: null, foto2: null, foto3: null }); 
+                                    setControlesExistentes('');
+                                    setSuficientes(true);
+                                    setSugeridoEliminacion('');
+                                    setSugeridoIngenieria('');
+                                    setSugeridoAdministrativo('');
+                                    setSugeridoEPP('');
                                     setSubmitResult(null);
                                 }} 
                                 className="px-6 py-3 rounded-xl font-bold bg-gray-100 text-gray-800 hover:bg-gray-200"

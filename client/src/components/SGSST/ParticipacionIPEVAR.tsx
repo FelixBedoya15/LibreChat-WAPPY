@@ -22,7 +22,8 @@ import {
     Film,
     Download,
     QrCode,
-    Info
+    Info,
+    RefreshCcw
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -119,12 +120,24 @@ const WorkerAutocomplete = ({
 interface ParticipacionData {
     id: string;
     title: string;
+    status?: 'pending' | 'applied_to_matrix';
+    matrixAction?: 'create_new' | 'update_existing';
+    matrixRowId?: string;
+    appliedAt?: string | Date;
     formData: {
         fecha: string;
+        proceso: string;
+        zona: string;
+        actividad: string;
         tarea: string;
+        rutinaria: 'Sí' | 'No';
+        peligroClasificacion: string;
         peligros: string;
+        efectosPosibles: string;
+        severidadPercibida: 'Baja' | 'Media' | 'Alta' | 'Crítica';
         controlesExistentes: string;
         suficientes: boolean;
+        sugeridoEliminacion: string;
         sugeridoIngenieria: string;
         sugeridoAdministrativo: string;
         sugeridoEPP: string;
@@ -140,12 +153,21 @@ interface ParticipacionData {
 const createInitialParticipacion = (): ParticipacionData => ({
     id: crypto.randomUUID(),
     title: `Nueva Participación`,
+    status: 'pending',
     formData: {
         fecha: new Date().toISOString().split('T')[0],
+        proceso: '',
+        zona: '',
+        actividad: '',
         tarea: '',
+        rutinaria: 'Sí',
+        peligroClasificacion: 'Condiciones de Seguridad',
         peligros: '',
+        efectosPosibles: '',
+        severidadPercibida: 'Media',
         controlesExistentes: '',
         suficientes: true,
+        sugeridoEliminacion: '',
         sugeridoIngenieria: '',
         sugeridoAdministrativo: '',
         sugeridoEPP: '',
@@ -226,6 +248,36 @@ const ParticipacionIPEVAR = () => {
     const [inboxPublico, setInboxPublico] = useState<any[]>([]);
     const [isInboxOpen, setIsInboxOpen] = useState(false);
     const [showQrModal, setShowQrModal] = useState(false);
+
+    // Apply to Matrix Modal State
+    const [showApplyModal, setShowApplyModal] = useState(false);
+    const [itemToApply, setItemToApply] = useState<any>(null);
+    const [officialMatrixRows, setOfficialMatrixRows] = useState<any[]>([]);
+    const [officialMatrixTitle, setOfficialMatrixTitle] = useState('Matriz IPEVAR SG-SST');
+    const [isLoadingOfficialRows, setIsLoadingOfficialRows] = useState(false);
+    const [applyAction, setApplyAction] = useState<'create_new' | 'update_existing'>('create_new');
+    const [applyTargetRowId, setApplyTargetRowId] = useState('');
+    const [applyFormData, setApplyFormData] = useState<any>({
+        proceso: '',
+        zona: '',
+        actividad: '',
+        tarea: '',
+        rutinaria: 'Sí',
+        peligroClasificacion: 'Condiciones de Seguridad',
+        peligros: '',
+        efectosPosibles: '',
+        severidadPercibida: 'Media',
+        controlesExistentes: '',
+        suficientes: true,
+        sugeridoEliminacion: '',
+        sugeridoIngenieria: '',
+        sugeridoAdministrativo: '',
+        sugeridoEPP: '',
+        trabajadorNombre: '',
+        trabajadorCedula: '',
+        cargo: ''
+    });
+    const [isApplyingToMatrix, setIsApplyingToMatrix] = useState(false);
 
     React.useEffect(() => {
         fetch('/api/sgsst/company-info', {
@@ -402,16 +454,161 @@ const ParticipacionIPEVAR = () => {
         }
     };
 
+    const fetchOfficialMatrixRows = async () => {
+        if (!token) return;
+        setIsLoadingOfficialRows(true);
+        try {
+            const res = await fetch('/api/sgsst/participacion-ipevar/official-matrix-rows', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setOfficialMatrixRows(data.rows || []);
+                if (data.officialTitle) setOfficialMatrixTitle(data.officialTitle);
+                if (data.rows && data.rows.length > 0 && !applyTargetRowId) {
+                    setApplyTargetRowId(data.rows[0].id);
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching official matrix rows:', err);
+        } finally {
+            setIsLoadingOfficialRows(false);
+        }
+    };
+
+    const handleOpenApplyModal = (target: any, isInbox = false) => {
+        const isFromInbox = isInbox || !!target.trabajador;
+        const workerNombre = isFromInbox ? target.trabajador?.nombre : target.trabajadoresList?.[0]?.nombre;
+        const workerCedula = isFromInbox ? target.trabajador?.cedula : target.trabajadoresList?.[0]?.cedula;
+        const workerCargo = isFromInbox ? target.trabajador?.cargo : target.trabajadoresList?.[0]?.cargo;
+
+        const fData = isFromInbox ? (target.data || {}) : (target.formData || {});
+
+        setApplyFormData({
+            proceso: fData.proceso || 'Operativo',
+            zona: fData.zona || 'Área de trabajo',
+            actividad: fData.actividad || fData.tarea || '',
+            tarea: fData.tarea || '',
+            rutinaria: fData.rutinaria || 'Sí',
+            peligroClasificacion: fData.peligroClasificacion || 'Condiciones de Seguridad',
+            peligros: fData.peligros || fData.descripcion || '',
+            efectosPosibles: fData.efectosPosibles || '',
+            severidadPercibida: fData.severidadPercibida || 'Media',
+            controlesExistentes: fData.controlesExistentes || '',
+            suficientes: fData.suficientes ?? true,
+            sugeridoEliminacion: fData.sugeridoEliminacion || '',
+            sugeridoIngenieria: fData.sugeridoIngenieria || '',
+            sugeridoAdministrativo: fData.sugeridoAdministrativo || '',
+            sugeridoEPP: fData.sugeridoEPP || '',
+            trabajadorNombre: workerNombre || '',
+            trabajadorCedula: workerCedula || '',
+            cargo: workerCargo || ''
+        });
+
+        setItemToApply({ ...target, isInbox: isFromInbox });
+        setApplyAction('create_new');
+        setShowApplyModal(true);
+        fetchOfficialMatrixRows();
+    };
+
+    const handleConfirmApplyToMatrix = async () => {
+        if (!token || !itemToApply) return;
+        setIsApplyingToMatrix(true);
+        try {
+            const res = await fetch('/api/sgsst/participacion-ipevar/apply-to-matrix', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    reportId: itemToApply.id,
+                    action: applyAction,
+                    targetRowId: applyAction === 'update_existing' ? applyTargetRowId : undefined,
+                    matrixData: applyFormData
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                showToast({
+                    message: data.message || 'Peligro integrado exitosamente a la Matriz IPEVAR Oficial',
+                    status: 'success',
+                    severity: 'success'
+                });
+
+                // Update active participacion status if applies
+                setActiveParticipacion(prev => ({
+                    ...prev,
+                    status: 'applied_to_matrix',
+                    matrixAction: applyAction,
+                    matrixRowId: data.targetRowId,
+                    appliedAt: new Date()
+                }));
+
+                // Update participacionesList
+                setParticipacionesList(prev => prev.map(p => {
+                    if (p.id === itemToApply.id) {
+                        return {
+                            ...p,
+                            status: 'applied_to_matrix',
+                            matrixAction: applyAction,
+                            matrixRowId: data.targetRowId,
+                            appliedAt: new Date()
+                        };
+                    }
+                    return p;
+                }));
+
+                // Update inboxPublico
+                setInboxPublico(prev => prev.map(item => {
+                    if (item.id === itemToApply.id) {
+                        return {
+                            ...item,
+                            status: 'applied_to_matrix',
+                            matrixAction: applyAction,
+                            matrixRowId: data.targetRowId,
+                            appliedAt: new Date()
+                        };
+                    }
+                    return item;
+                }));
+
+                // Notify live listeners (Official Matrix & Kanban)
+                window.dispatchEvent(new CustomEvent('ipevar-official-updated'));
+                window.dispatchEvent(new CustomEvent('kanban-tasks-updated'));
+
+                setShowApplyModal(false);
+            } else {
+                const errData = await res.json();
+                showToast({ message: errData.error || 'Error al aplicar a la matriz', status: 'error' });
+            }
+        } catch (error: any) {
+            showToast({ message: 'Error de conexión al aplicar a la matriz', status: 'error' });
+        } finally {
+            setIsApplyingToMatrix(false);
+        }
+    };
+
     const handleLoadInboxItem = (item: any) => {
         const newPart = createInitialParticipacion();
         newPart.id = crypto.randomUUID();
         newPart.title = `Reporte: ${item.trabajador.nombre}`;
+        newPart.status = item.status === 'applied_to_matrix' ? 'applied_to_matrix' : 'pending';
         newPart.formData = {
             ...newPart.formData,
+            proceso: item.data?.proceso || '',
+            zona: item.data?.zona || '',
+            actividad: item.data?.actividad || item.data?.tarea || '',
             tarea: item.data?.tarea || '',
+            rutinaria: item.data?.rutinaria || 'Sí',
+            peligroClasificacion: item.data?.peligroClasificacion || 'Condiciones de Seguridad',
             peligros: item.data?.peligros || '',
+            efectosPosibles: item.data?.efectosPosibles || '',
+            severidadPercibida: item.data?.severidadPercibida || 'Media',
             controlesExistentes: item.data?.controlesExistentes || '',
             suficientes: item.data?.suficientes ?? true,
+            sugeridoEliminacion: item.data?.sugeridoEliminacion || '',
             sugeridoIngenieria: item.data?.sugeridoIngenieria || '',
             sugeridoAdministrativo: item.data?.sugeridoAdministrativo || '',
             sugeridoEPP: item.data?.sugeridoEPP || '',
@@ -442,15 +639,23 @@ const ParticipacionIPEVAR = () => {
         newPart.title = 'Participación Simulada';
         newPart.formData = {
             ...newPart.formData,
-            tarea: 'Mantenimiento de luminarias en bodega principal',
-            peligros: 'Trabajo en alturas, riesgo eléctrico, caída de objetos',
-            controlesExistentes: 'Uso de arnés, línea de vida, desenergización de línea',
+            proceso: 'Mantenimiento e Instalaciones',
+            zona: 'Bodega Principal - Altillo Este',
+            actividad: 'Mantenimiento electromecánico de redes y luminarias',
+            tarea: 'Sustitución de balastros y cableado en altura (> 4m)',
+            rutinaria: 'No',
+            peligroClasificacion: 'Condiciones de Seguridad',
+            peligros: 'Trabajo en alturas sobre plataforma, riesgo eléctrico por líneas energizadas cercanas, proyección de partículas.',
+            efectosPosibles: 'Traumatismo craneoencefálico, fracturas múltiples, quemaduras por arco eléctrico.',
+            severidadPercibida: 'Alta',
+            controlesExistentes: 'Uso de arnés de cuerpo entero y eslinga en Y, línea de vida vertical con freno.',
             suficientes: false,
-            sugeridoIngenieria: 'Instalar sistema de poleas para ascender equipos',
-            sugeridoAdministrativo: 'Permiso de trabajo en alturas, señalización del área',
-            sugeridoEPP: 'Casco con barbuquejo, guantes dieléctricos, botas de seguridad',
+            sugeridoEliminacion: 'Reemplazar balastros antiguos por paneles LED autovoltaje de larga vida útil para evitar intervenciones continuas.',
+            sugeridoIngenieria: 'Diseñar e instalar riel de anclaje de línea de vida horizontal rígida permanente.',
+            sugeridoAdministrativo: 'Permiso formal de trabajo en alturas (Res. 4272/21), delimitación perimetral a 5 metros y vigía SST permanente.',
+            sugeridoEPP: 'Casco dieléctrico con barbuquejo de 3 puntos, guantes dieléctricos Clase 0 con sobreguante de vaqueta, gafas de seguridad con filtro UV.',
         };
-        newPart.trabajadoresList = [{ nombre: 'Juan Pérez', cedula: '12345678' }];
+        newPart.trabajadoresList = [{ nombre: 'Juan Pérez', cedula: '12345678', cargo: 'Técnico Electromecánico' }];
         newPart.responsablesList = [{ nombre: 'Ana Gómez', cedula: '98765432', rol: 'Supervisor SST' }];
         newPart.images = {
             foto1: 'https://images.unsplash.com/photo-1541888946425-d81bb19480c5?auto=format&fit=crop&q=80&w=500',
@@ -831,25 +1036,42 @@ const ParticipacionIPEVAR = () => {
                         <AlertTriangle className="h-4 w-4 text-teal-600" />
                         <span className="text-xs font-black text-text-secondary uppercase tracking-widest">Listado de Participaciones</span>
                     </div>
-                    <button
-                        onClick={handleAddParticipacion}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 rounded-xl text-xs font-bold border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition-colors shadow-sm"
-                    >
-                        <Plus className="h-3.5 w-3.5" /> Nueva Participación
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {activeParticipacion.status === 'applied_to_matrix' ? (
+                            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-xl text-xs font-bold border border-emerald-300 dark:border-emerald-800 shadow-sm">
+                                <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> Integrado en Matriz IPEVAR
+                            </span>
+                        ) : (
+                            <button
+                                onClick={() => handleOpenApplyModal(activeParticipacion)}
+                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95"
+                            >
+                                <Sparkles className="h-3.5 w-3.5" /> Aprobar e Integrar a Matriz IPEVAR
+                            </button>
+                        )}
+                        <button
+                            onClick={handleAddParticipacion}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 rounded-xl text-xs font-bold border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition-colors shadow-sm"
+                        >
+                            <Plus className="h-3.5 w-3.5" /> Nueva Participación
+                        </button>
+                    </div>
                 </div>
                 <div className="flex flex-wrap gap-2.5">
                     {participacionesList.map(p => (
                         <div key={p.id} className="group flex items-center gap-1">
                             <button
                                 onClick={() => handleSelectParticipacion(p.id)}
-                                className={`px-4 py-2 rounded-xl text-xs font-black transition-all border shadow-sm truncate max-w-[200px] ${
+                                className={`px-4 py-2 rounded-xl text-xs font-black transition-all border shadow-sm truncate max-w-[220px] flex items-center gap-1.5 ${
                                     activeId === p.id 
                                         ? "bg-teal-600 text-white border-teal-600 ring-2 ring-teal-100 dark:ring-teal-900/40" 
                                         : "bg-surface-primary text-text-primary border-border-medium hover:border-teal-400"
                                 }`}
                             >
-                                {p.title || 'Participación'}
+                                {p.status === 'applied_to_matrix' && (
+                                    <CheckCircle className={`h-3 w-3 ${activeId === p.id ? 'text-white' : 'text-emerald-500'}`} />
+                                )}
+                                <span className="truncate">{p.title || 'Participación'}</span>
                             </button>
                             <button
                                 onClick={() => handleDeleteParticipacion(p.id)}
@@ -890,13 +1112,15 @@ const ParticipacionIPEVAR = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {inboxPublico.map((item, idx) => {
                                 const isProcessed = item.status === 'processed';
+                                const isApplied = item.status === 'applied_to_matrix';
                                 return (
-                                <div key={idx} className={`rounded-xl shadow border p-4 relative flex flex-col transition-colors ${isProcessed ? 'bg-gray-100 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700 opacity-70' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-blue-300'}`}>
+                                <div key={idx} className={`rounded-xl shadow border p-4 relative flex flex-col transition-colors ${isApplied ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800' : isProcessed ? 'bg-gray-100 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700 opacity-80' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-blue-300'}`}>
                                     <div className="flex justify-between items-start mb-2">
                                         <div>
-                                            <h4 className="font-bold text-gray-900 dark:text-gray-100 text-sm truncate pr-6 flex items-center gap-2" title={item.trabajador.nombre}>
+                                            <h4 className="font-bold text-gray-900 dark:text-gray-100 text-sm truncate pr-2 flex items-center gap-2" title={item.trabajador.nombre}>
                                                 {item.trabajador.nombre}
-                                                {isProcessed && <CheckCircle className="w-3 h-3 text-green-500" />}
+                                                {isApplied && <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">En Matriz</span>}
+                                                {isProcessed && !isApplied && <CheckCircle className="w-3 h-3 text-green-500" />}
                                             </h4>
                                             <p className="text-xs text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis w-[180px]">Cargo: {item.trabajador.cargo}</p>
                                         </div>
@@ -907,15 +1131,24 @@ const ParticipacionIPEVAR = () => {
                                     <p className={`text-xs line-clamp-3 my-2 flex-grow italic ${isProcessed ? 'text-gray-500 dark:text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}>"{item.data?.tarea || item.data?.descripcion}"</p>
                                     <div className="text-[10px] text-gray-400 mb-3 flex justify-between">
                                         <span>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}</span>
-                                        <span>📍 {item.data?.ubicacion || 'Sin ub.'}</span>
+                                        <span>📍 {item.data?.zona || item.data?.ubicacion || 'Sin ub.'}</span>
                                     </div>
-                                    <button 
-                                        onClick={() => handleLoadInboxItem(item)}
-                                        className={`w-full py-2 rounded font-semibold text-xs transition-colors flex items-center justify-center gap-2 ${isProcessed ? 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300' : 'bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-800/50'}`}
-                                    >
-                                        {isProcessed ? <CheckCircle className="w-4 h-4" /> : <Plus className="w-4 h-4" />} 
-                                        {isProcessed ? 'Cargar de nuevo' : 'Investigar este reporte'}
-                                    </button>
+                                    <div className="flex flex-col gap-1.5 mt-auto">
+                                        <button 
+                                            onClick={() => handleLoadInboxItem(item)}
+                                            className={`w-full py-1.5 rounded-lg font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 ${isProcessed ? 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300' : 'bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-800/50'}`}
+                                        >
+                                            {isProcessed ? <CheckCircle className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />} 
+                                            {isProcessed ? 'Cargar en formulario' : 'Cargar en formulario'}
+                                        </button>
+                                        <button
+                                            onClick={() => handleOpenApplyModal(item, true)}
+                                            className="w-full py-1.5 rounded-lg font-bold text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 flex items-center justify-center gap-1.5 transition-colors border border-emerald-200 dark:border-emerald-800"
+                                        >
+                                            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                                            {isApplied ? 'Re-integrar a Matriz' : 'Aprobar e Integrar a Matriz'}
+                                        </button>
+                                    </div>
                                 </div>
                             )})}
                         </div>

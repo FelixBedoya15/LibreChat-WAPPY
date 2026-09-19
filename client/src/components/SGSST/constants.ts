@@ -7,6 +7,11 @@ export const PHASE_CATEGORIES = {
             normativity: 'Hito 1: Gobernanza y Cimiento Legal' 
         },
         { 
+            id: 'participacion_ipevar', title: 'Participación IPEVAR Comunitaria', icon: 'Users',
+            bioRationale: 'Empodera la voz del colaborador sobre los peligros que percibe en su cotidianidad vital para alimentar y actualizar la Matriz IPEVAR.', 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal' 
+        },
+        { 
             id: 'matriz_ipevar_oficial', title: 'Matriz IPEVAR (GTC 45)', icon: 'AlertTriangle',
             bioRationale: 'Columna vertebral preventiva del SG-SST. Identifica peligros, evalúa y valora riesgos bajo GTC 45:2012 para proteger la integridad de los colaboradores.', 
             normativity: 'Hito 1: Gobernanza y Cimiento Legal (GTC 45:2012 / Dec. 1072 / Res. 0312)' 
@@ -82,11 +87,6 @@ export const PHASE_CATEGORIES = {
         { 
             id: 'animo', title: 'Termómetro Psicosocial', icon: 'Heart',
             bioRationale: 'Monitorea en tiempo real y de forma 100% anónima el estado anímico diario de los trabajadores mediante código QR.', 
-            normativity: 'Hito 3: Evaluación Dinámica de Riesgos' 
-        },
-        { 
-            id: 'participacion_ipevar', title: 'Participación IPEVAR Comunitaria', icon: 'Users',
-            bioRationale: 'Empodera la voz del colaborador sobre los peligros que percibe en su cotidianidad vital, sumando puntos de percepción.', 
             normativity: 'Hito 3: Evaluación Dinámica de Riesgos' 
         }
     ],

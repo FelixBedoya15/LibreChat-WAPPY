@@ -253,6 +253,8 @@ export default function SGSSTDashboard() {
         const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
             // Hito 1: Gobernanza y Legal
             diagnostico: 'hito1',
+            participacion_ipevar: 'hito1',
+            matriz_ipevar_oficial: 'hito1',
             responsable: 'hito1',
             politica: 'hito1',
             objetivos: 'hito1',
@@ -271,7 +273,6 @@ export default function SGSSTDashboard() {
             // Hito 3: Evaluación Dinámica de Riesgos
             peligros: 'hito3',
             animo: 'hito3',
-            participacion_ipevar: 'hito3',
 
             // Hito 4: Dinámica Operativa y Terreno
             permiso_alturas: 'hito4',

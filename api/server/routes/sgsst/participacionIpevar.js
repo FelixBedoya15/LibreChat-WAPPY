@@ -5,6 +5,7 @@ const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const CompanyInfo = require('../../../models/CompanyInfo');
+const GTC45WorkspaceSession = require('../../../models/GTC45WorkspaceSession');
 const { buildStandardHeader, buildSignatureSection, buildCompanyContextString } = require('./reportHeader');
 const { logger } = require('~/config');
 const feedWorkerEvent = require('./feedWorkerHelper');
@@ -45,6 +46,239 @@ router.get('/data', requireJwtAuth, async (req, res) => {
     } catch (error) {
         logger.error('[SGSST ParticipacionIPEVAR] Load error:', error);
         res.status(500).json({ error: 'Error al cargar datos' });
+    }
+});
+
+// ─── GET /official-matrix-rows — Obtener peligros de la matriz oficial activa ──────
+router.get('/official-matrix-rows', requireJwtAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const companyId = await getActiveCompanyId(userId);
+        const officialConvoId = `official-${companyId || userId}`;
+
+        let session = await GTC45WorkspaceSession.findOne({
+            user: userId,
+            ...(companyId ? { companyId } : {}),
+            isOfficial: true,
+        });
+
+        if (!session) {
+            session = await GTC45WorkspaceSession.findOne({ conversationId: officialConvoId });
+        }
+
+        if (!session || !Array.isArray(session.matrixRows)) {
+            return res.json({ hasOfficial: false, rows: [] });
+        }
+
+        const rows = session.matrixRows.map((r, idx) => ({
+            id: r.id || `row-${idx}`,
+            cargo: r.cargo || '',
+            proceso: r.proceso || '',
+            zona: r.zona || '',
+            actividad: r.actividad || '',
+            tarea: r.tareas || r.tarea || '',
+            peligro_clasificacion: r.peligro_clasificacion || '',
+            peligro_descripcion: r.peligro_descripcion || '',
+            interpretacion_nr: r.interpretacion_nr || '',
+            nr: r.nr || 0,
+            aceptabilidad: r.aceptabilidad || ''
+        }));
+
+        res.json({
+            hasOfficial: true,
+            officialTitle: session.officialTitle || 'Matriz IPEVAR SG-SST',
+            rows
+        });
+    } catch (error) {
+        logger.error('[SGSST ParticipacionIPEVAR] Get official rows error:', error);
+        res.status(500).json({ error: 'Error al consultar filas de la matriz oficial' });
+    }
+});
+
+// ─── POST /apply-to-matrix — Aprobar reporte e integrar en la Matriz IPEVAR ────────
+router.post('/apply-to-matrix', requireJwtAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const companyId = await getActiveCompanyId(userId);
+        const { reportId, action, targetRowId, matrixData } = req.body;
+
+        if (!matrixData) {
+            return res.status(400).json({ error: 'Datos del peligro requeridos' });
+        }
+
+        const officialConvoId = `official-${companyId || userId}`;
+
+        let session = await GTC45WorkspaceSession.findOne({
+            user: userId,
+            ...(companyId ? { companyId } : {}),
+            isOfficial: true,
+        });
+
+        if (!session) {
+            session = await GTC45WorkspaceSession.findOne({ conversationId: officialConvoId });
+        }
+
+        if (!session) {
+            session = new GTC45WorkspaceSession({
+                conversationId: officialConvoId,
+                user: userId,
+                companyId,
+                matrixRows: [],
+                chartConclusions: {},
+                isOfficial: true,
+                officialTitle: 'Matriz IPEVAR SG-SST',
+                promotedAt: new Date(),
+            });
+        }
+
+        let resultingRowId = targetRowId;
+
+        if (action === 'update_existing' && targetRowId) {
+            const rowIndex = session.matrixRows.findIndex(r => r.id === targetRowId);
+            if (rowIndex === -1) {
+                return res.status(404).json({ error: 'Peligro no encontrado en la matriz oficial' });
+            }
+            const row = session.matrixRows[rowIndex];
+
+            if (matrixData.peligros) {
+                const workerAporte = `[Aporte de Colaborador ${matrixData.trabajadorNombre || ''}]: ${matrixData.peligros}`;
+                if (!row.peligro_descripcion?.includes(matrixData.peligros)) {
+                    row.peligro_descripcion = row.peligro_descripcion ? `${row.peligro_descripcion}\n${workerAporte}` : workerAporte;
+                }
+            }
+            if (matrixData.sugeridoEliminacion && !row.medida_eliminacion?.includes(matrixData.sugeridoEliminacion)) {
+                row.medida_eliminacion = row.medida_eliminacion ? `${row.medida_eliminacion} | ${matrixData.sugeridoEliminacion}` : matrixData.sugeridoEliminacion;
+            }
+            if (matrixData.sugeridoIngenieria && !row.medida_ingenieria?.includes(matrixData.sugeridoIngenieria)) {
+                row.medida_ingenieria = row.medida_ingenieria ? `${row.medida_ingenieria} | ${matrixData.sugeridoIngenieria}` : matrixData.sugeridoIngenieria;
+            }
+            if (matrixData.sugeridoAdministrativo && !row.medida_administrativa?.includes(matrixData.sugeridoAdministrativo)) {
+                row.medida_administrativa = row.medida_administrativa ? `${row.medida_administrativa} | ${matrixData.sugeridoAdministrativo}` : matrixData.sugeridoAdministrativo;
+            }
+            if (matrixData.sugeridoEPP && !row.medida_eppu?.includes(matrixData.sugeridoEPP)) {
+                row.medida_eppu = row.medida_eppu ? `${row.medida_eppu} | ${matrixData.sugeridoEPP}` : matrixData.sugeridoEPP;
+            }
+            if (matrixData.efectosPosibles && !row.efectos_posibles?.includes(matrixData.efectosPosibles)) {
+                row.efectos_posibles = row.efectos_posibles ? `${row.efectos_posibles} | ${matrixData.efectosPosibles}` : matrixData.efectosPosibles;
+            }
+
+            session.matrixRows[rowIndex] = row;
+        } else {
+            // Default: create_new
+            const sev = matrixData.severidadPercibida || 'Media';
+            let nd = 6, ne = 2, nc = 25;
+            if (sev === 'Crítica') {
+                nd = 10; ne = 4; nc = 60;
+            } else if (sev === 'Alta') {
+                nd = 6; ne = 3; nc = 25;
+            } else if (sev === 'Baja') {
+                nd = 2; ne = 2; nc = 10;
+            }
+            const np = nd * ne;
+            const interpretacion_np = np >= 24 ? 'Muy Alto (MA)' : np >= 10 ? 'Alto (A)' : np >= 6 ? 'Medio (M)' : 'Bajo (B)';
+            const nr = np * nc;
+            const interpretacion_nr = nr >= 600 ? 'I' : nr >= 150 ? 'II' : nr >= 40 ? 'III' : 'IV';
+            const aceptabilidad = nr >= 600 ? 'No Aceptable' : nr >= 150 ? 'No Aceptable o Aceptable con Control Específico' : nr >= 40 ? 'Mejorable' : 'Aceptable';
+
+            const newId = `row-part-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+            resultingRowId = newId;
+
+            const newRow = {
+                id: newId,
+                cargo: matrixData.cargo || 'Personal Operativo',
+                proceso: matrixData.proceso || 'Operativo',
+                zona: matrixData.zona || 'Área de trabajo',
+                actividad: matrixData.actividad || matrixData.tarea || 'Labor general',
+                tareas: matrixData.tarea || 'Tarea identificada',
+                rutinaria: matrixData.rutinaria || 'Sí',
+                peligro_clasificacion: matrixData.peligroClasificacion || 'Condiciones de Seguridad',
+                peligro_descripcion: matrixData.peligros || 'Peligro identificado en participación comunitaria',
+                efectos_posibles: matrixData.efectosPosibles || 'Lesiones osteomusculares / Golpes / Traumatismos',
+                controles_fuente: matrixData.controlesExistentes || 'Ninguno reportado',
+                controles_medio: 'Ninguno reportado',
+                controles_individuo: matrixData.controlesExistentes || 'Uso básico de EPP',
+                nd,
+                ne,
+                np,
+                interpretacion_np,
+                nc,
+                nr,
+                interpretacion_nr,
+                aceptabilidad,
+                medida_eliminacion: matrixData.sugeridoEliminacion || '',
+                medida_sustitucion: '',
+                medida_ingenieria: matrixData.sugeridoIngenieria || '',
+                medida_administrativa: matrixData.sugeridoAdministrativo || '',
+                medida_eppu: matrixData.sugeridoEPP || '',
+                factores_reduccion: `Aporte participativo de ${matrixData.trabajadorNombre || 'colaborador'}: control con impacto directo en fuente/medio para prevenir ${matrixData.efectosPosibles || 'accidentes o enfermedades'}.`,
+                nro_expuestos: 1,
+                peor_consecuencia: matrixData.efectosPosibles || 'Accidente de trabajo con incapacidad',
+                requisito_legal: 'Sí'
+            };
+
+            session.matrixRows.push(newRow);
+        }
+
+        session.markModified('matrixRows');
+        await session.save();
+
+        // Actualizar el estado del reporte en ParticipacionIpevarData
+        const partDoc = await ParticipacionIpevarData.findOne({ user: userId, companyId });
+        if (partDoc) {
+            if (Array.isArray(partDoc.participacionesList)) {
+                partDoc.participacionesList = partDoc.participacionesList.map(p => {
+                    if (String(p.id) === String(reportId)) {
+                        p.status = 'applied_to_matrix';
+                        p.matrixAction = action;
+                        p.matrixRowId = resultingRowId;
+                        p.appliedAt = new Date();
+                    }
+                    return p;
+                });
+                partDoc.markModified('participacionesList');
+            }
+            if (Array.isArray(partDoc.inboxPublico)) {
+                partDoc.inboxPublico = partDoc.inboxPublico.map(item => {
+                    if (String(item.id) === String(reportId)) {
+                        item.status = 'applied_to_matrix';
+                        item.matrixAction = action;
+                        item.matrixRowId = resultingRowId;
+                        item.appliedAt = new Date();
+                    }
+                    return item;
+                });
+                partDoc.markModified('inboxPublico');
+            }
+            await partDoc.save();
+        }
+
+        // Premiar al colaborador (+150 pts de gamificación en Hoja de Vida Bio-Individual)
+        if (matrixData.trabajadorCedula) {
+            try {
+                await feedWorkerEvent(
+                    userId,
+                    matrixData.trabajadorCedula,
+                    'participacion_ipevar',
+                    `Aprobación e Integración en Matriz IPEVAR Oficial: ${matrixData.peligros ? matrixData.peligros.substring(0, 60) : 'Peligro'}`,
+                    150,
+                    'approved'
+                );
+            } catch (feedErr) {
+                logger.warn('[SGSST ParticipacionIPEVAR] Worker event feed error:', feedErr.message);
+            }
+        }
+
+        res.json({
+            success: true,
+            message: action === 'update_existing' 
+                ? 'Peligro actualizado exitosamente en la Matriz IPEVAR Oficial.' 
+                : 'Nuevo peligro integrado exitosamente a la Matriz IPEVAR Oficial.',
+            targetRowId: resultingRowId,
+            action
+        });
+    } catch (error) {
+        logger.error('[SGSST ParticipacionIPEVAR] Apply to matrix error:', error);
+        res.status(500).json({ error: 'Error al integrar peligro a la matriz oficial' });
     }
 });
 

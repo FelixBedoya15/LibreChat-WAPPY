@@ -204,6 +204,14 @@ const SGSST_REPORT_MODULES = [
     art9Ids: [],
   },
   {
+    tags: ['sgsst-animo', 'sgsst-termometro-psicosocial'],
+    moduleTitle: 'Hito 3: Termómetro Psicosocial / Riesgo Psicosocial',
+    codes: [],
+    auditIds: [],
+    art3Ids: [],
+    art9Ids: [],
+  },
+  {
     tags: ['sgsst-permiso-alturas', 'sgsst-heights'],
     moduleTitle: 'Hito 4: Trabajo en Alturas (Res. 4272)',
     codes: [],

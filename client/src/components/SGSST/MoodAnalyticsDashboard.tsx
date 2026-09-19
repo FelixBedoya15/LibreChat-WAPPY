@@ -1,12 +1,20 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { 
   Building2, QrCode, Printer, Heart, Smile, Meh, Frown, 
   TrendingUp, Sparkles, Users, BarChart2, Calendar, 
-  ArrowLeft, Download, Eye, AlertCircle, Loader2, Trash2
+  ArrowLeft, Download, Eye, AlertCircle, Loader2, Trash2,
+  AlertTriangle, Save, History, Mic, HeartHandshake
 } from 'lucide-react';
 import axios from 'axios';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
+import ReportHistory from '~/components/Liva/ReportHistory';
+import CollapsibleReportBox from './CollapsibleReportBox';
+import ExportDropdown from './ExportDropdown';
+import { UpgradeWall } from './UpgradeWall';
+import ModelSelector from './ModelSelector';
+import { useAutoLoadReport } from './useAutoLoadReport';
 
 const stressorsList = [
   { id: 'sobrecarga', label: 'Sobrecarga de trabajo' },
@@ -27,8 +35,229 @@ interface MoodRecord {
 }
 
 export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: boolean }) {
-  const { token } = useAuthContext();
+  const { user, token } = useAuthContext();
   const { showToast } = useToastContext();
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // AI Report & LiveEditor state
+  const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.7-flash');
+  useEffect(() => {
+    if (user?.personalization?.geminiModels?.sstManagement) {
+      setSelectedModel(user.personalization.geminiModels.sstManagement);
+    }
+  }, [user]);
+
+  const [generatedReport, setGeneratedReport] = useState<string | null>(null);
+  const editorContentRef = useRef<string>('');
+  const liveEditorRef = useRef<LiveEditorHandle>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [reportMessageId, setReportMessageId] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Analyst voice & notes
+  const [analystNotes, setAnalystNotes] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const handleVoiceInput = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch (e) { }
+      }
+      setIsListening(false);
+      return;
+    }
+
+    // @ts-ignore
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      showToast({ message: 'Su navegador no soporta reconocimiento de voz. Intente con Chrome.', status: 'error' });
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.lang = 'es-CO';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        let newFinal = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            newFinal += event.results[i][0].transcript;
+          }
+        }
+        if (newFinal) {
+          setAnalystNotes(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + newFinal);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech error:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch (e) {
+      setIsListening(false);
+      showToast({ message: 'Error al iniciar reconocimiento', status: 'error' });
+    }
+  };
+
+  const handleGenerate = useCallback(async () => {
+    if (!isPro && (!conversationId || conversationId === 'new')) {
+      try {
+        const resCount = await fetch('/api/sgsst/diagnostico/report-history?tags=sgsst-animo', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (resCount.ok) {
+          const data = await resCount.json();
+          if (data.conversations?.length >= 1) {
+            setShowUpgradeModal(true);
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+
+    setIsGenerating(true);
+    try {
+      const response = await fetch('/api/sgsst/animo/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          filterDays,
+          analystNotes,
+          modelName: selectedModel,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Error al generar el Informe Psicosocial');
+      }
+
+      const data = await response.json();
+      setGeneratedReport(data.report);
+      editorContentRef.current = data.report;
+      if (liveEditorRef.current) liveEditorRef.current.setHTML(data.report);
+      setConversationId(null);
+      setReportMessageId(null);
+      showToast({ message: 'Informe psicosocial generado exitosamente', status: 'success', severity: 'success' });
+    } catch (error: any) {
+      console.error('Generation error:', error);
+      showToast({ message: error.message || 'Error al generar', status: 'error' });
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [filterDays, analystNotes, selectedModel, token, isPro, conversationId, showToast]);
+
+  const handleSave = useCallback(async () => {
+    const contentToSave = editorContentRef.current || generatedReport;
+    if (!contentToSave) return;
+    if (!token) return;
+
+    const isNew = !conversationId || conversationId === 'new';
+    if (!isPro && isNew) {
+      try {
+        const resCount = await fetch('/api/sgsst/diagnostico/report-history?tags=sgsst-animo', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (resCount.ok) {
+          const data = await resCount.json();
+          if (data.conversations?.length >= 1) {
+            setShowUpgradeModal(true);
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+
+    setIsSaving(true);
+    try {
+      if (conversationId && conversationId !== 'new' && reportMessageId) {
+        const res = await fetch('/api/sgsst/diagnostico/save-report', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ conversationId, messageId: reportMessageId, content: contentToSave }),
+        });
+        if (res.ok) {
+          setRefreshTrigger(prev => prev + 1);
+          showToast({ message: 'Informe psicosocial actualizado exitosamente', status: 'success', severity: 'success' });
+        }
+        return;
+      }
+
+      const res = await fetch('/api/sgsst/diagnostico/save-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          content: contentToSave,
+          title: `Termómetro Psicosocial – ${new Date().toLocaleDateString('es-CO')}`,
+          tags: ['sgsst-animo', 'sgsst-termometro-psicosocial'],
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setConversationId(data.conversationId);
+        setReportMessageId(data.messageId);
+        setRefreshTrigger(prev => prev + 1);
+        showToast({ message: 'Guardado exitosamente en historial', status: 'success', severity: 'success' });
+      }
+    } catch (error: any) {
+      showToast({ message: `Error: ${error.message}`, status: 'error' });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [editorContentRef.current, generatedReport, conversationId, reportMessageId, token, isPro, showToast]);
+
+  const handleSelectReport = useCallback(async (selectedConvoId: string) => {
+    if (!selectedConvoId) return;
+    try {
+      const res = await fetch(`/api/messages/${selectedConvoId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to load');
+      const messages = await res.json();
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg?.text) {
+        setGeneratedReport(lastMsg.text);
+        editorContentRef.current = lastMsg.text;
+        liveEditorRef.current?.setHTML(lastMsg.text);
+        setConversationId(selectedConvoId);
+        setReportMessageId(lastMsg.messageId);
+        showToast({ message: 'Informe cargado correctamente', status: 'success', severity: 'success' });
+      }
+    } catch (e) {
+      showToast({ message: 'Error al cargar el informe', status: 'error' });
+    }
+    setIsHistoryOpen(false);
+  }, [token, showToast]);
+
+  useAutoLoadReport({
+    token,
+    tags: ['sgsst-animo', 'sgsst-termometro-psicosocial'],
+    generatedReport,
+    handleSelectReport,
+  });
   
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [moodData, setMoodData] = useState<MoodRecord[]>([]);
@@ -870,6 +1099,135 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
               No hay registros en los últimos {filterDays} días.
             </div>
           )}
+        </div>
+      )}
+
+      {/* Sección: Análisis con IA */}
+      <div className="space-y-4 pt-4 border-t border-border-medium">
+        {/* Additional info with dictation */}
+        <div className="space-y-4 pt-2">
+          <div className="flex items-center justify-between">
+            <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-teal-600" /> Notas adicionales del Analista (Opcional)
+            </h4>
+            <button
+              type="button"
+              onClick={handleVoiceInput}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow border flex items-center gap-2 ${
+                isListening
+                  ? 'bg-red-50 text-red-600 border-red-200 animate-pulse'
+                  : 'bg-surface-secondary hover:bg-surface-hover text-text-primary border-border-light'
+              }`}
+            >
+              <span className="relative flex h-3 w-3">
+                {isListening && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>}
+                <span className={`relative inline-flex rounded-full h-3 w-3 ${isListening ? 'bg-red-500' : 'bg-teal-600'}`}></span>
+              </span>
+              {isListening ? 'Escuchando...' : 'Activar Micrófono'}
+            </button>
+          </div>
+          <textarea
+            value={analystNotes}
+            onChange={(e) => {
+              if (!isListening) {
+                setAnalystNotes(e.target.value);
+              }
+            }}
+            readOnly={isListening}
+            className={`w-full rounded-xl border-2 ${
+              isListening
+                ? 'border-solid border-red-300 bg-red-50/10 focus:border-red-400'
+                : 'border-dashed border-teal-200 bg-teal-50/10 focus:bg-teal-50/20 focus:border-teal-400'
+            } p-4 text-sm text-text-primary min-h-[110px] resize-y transition-colors focus:outline-none`}
+            placeholder="Notas u observaciones del especialista SST para contextualizar el diagnóstico psicosocial..."
+          />
+        </div>
+
+        {/* Generate button & Model selector */}
+        <div className="flex items-center justify-center pt-3 gap-3">
+          <ModelSelector
+            selectedModel={selectedModel}
+            onSelectModel={setSelectedModel}
+            disabled={isGenerating}
+          />
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            className="group flex items-center px-4 py-2.5 bg-teal-600 hover:bg-teal-700 border border-teal-600 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+          >
+            {isGenerating ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Sparkles className="h-5 w-5" />
+            )}
+            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+              Generar Análisis IA
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Generated Report Editor Box */}
+      <CollapsibleReportBox
+        onSave={handleSave}
+        isSaving={isSaving}
+        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+        isHistoryOpen={isHistoryOpen}
+        title="Termómetro Psicosocial"
+        icon={<HeartHandshake className="h-5 w-5 text-teal-600" />}
+        actions={
+          <ExportDropdown
+            content={editorContentRef.current || generatedReport || ''}
+            fileName="Informe_Termometro_Psicosocial"
+            reportType="general"
+          />
+        }
+      >
+        <div className="w-full min-w-0">
+          <LiveEditor
+            ref={liveEditorRef}
+            paperMode={true}
+            initialContent={generatedReport || ''}
+            onUpdate={(html) => {
+              editorContentRef.current = html;
+            }}
+            reportSourceData={{ filterDays, stats, analystNotes }}
+          />
+        </div>
+      </CollapsibleReportBox>
+
+      {/* Report History Modal */}
+      {isHistoryOpen && (
+        <ReportHistory
+          onSelectReport={handleSelectReport}
+          isOpen={isHistoryOpen}
+          toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)}
+          refreshTrigger={refreshTrigger}
+          tags={['sgsst-animo', 'sgsst-termometro-psicosocial']}
+        />
+      )}
+
+      {/* Upgrade Modal (Freemium Teaser) */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
+            <button
+              onClick={() => setShowUpgradeModal(false)}
+              className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm"
+            >
+              Cerrar ✕
+            </button>
+            <div className="bg-surface-primary rounded-3xl shadow-2xl overflow-hidden">
+              <UpgradeWall
+                title="Límite Gratuito Alcanzado"
+                description="Has alcanzado el límite para este módulo. Adquiere Premium para generar registros ilimitados."
+                plan="USER_IPEVAR"
+                isCompact={true}
+                hideFeatures={true}
+              />
+            </div>
+          </div>
         </div>
       )}
 

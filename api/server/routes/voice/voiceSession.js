@@ -3032,7 +3032,7 @@ ${workerSubHeaderHtml}
                 targetRuta = '/sgsst?hito=hito2&module=condiciones_salud';
             } else if (/participaci[oó]n ipevar|reportar peligro/i.test(userLower)) {
                 targetModulo = 'participacion_ipevar';
-                targetRuta = '/sgsst?hito=hito3&module=participacion_ipevar';
+                targetRuta = '/sgsst?hito=hito1&module=participacion_ipevar';
             } else if (/peligro|gtc.*45|ipevar/i.test(userLower)) {
                 targetModulo = 'peligros';
                 targetRuta = '/sgsst?hito=hito3&module=peligros';

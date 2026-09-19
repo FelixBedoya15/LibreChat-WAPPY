@@ -514,6 +514,8 @@ export default function TenshiChat() {
               // Hito 1: Gobernanza y Cimiento Legal
               diagnostico: { route: '/sgsst?hito=hito1&module=diagnostico', sgsstModule: 'diagnostico' },
               '0312': { route: '/sgsst?hito=hito1&module=diagnostico', sgsstModule: 'diagnostico' },
+              participacion_ipevar: { route: '/sgsst?hito=hito1&module=participacion_ipevar', sgsstModule: 'participacion_ipevar' },
+              matriz_ipevar_oficial: { route: '/sgsst?hito=hito1&module=matriz_ipevar_oficial', sgsstModule: 'matriz_ipevar_oficial' },
               responsable: { route: '/sgsst?hito=hito1&module=responsable', sgsstModule: 'responsable' },
               politica: { route: '/sgsst?hito=hito1&module=politica', sgsstModule: 'politica' },
               objetivos: { route: '/sgsst?hito=hito1&module=objetivos', sgsstModule: 'objetivos' },
@@ -545,7 +547,6 @@ export default function TenshiChat() {
               animo: { route: '/sgsst?hito=hito3&module=animo', sgsstModule: 'animo' },
               psicosocial: { route: '/sgsst?hito=hito3&module=animo', sgsstModule: 'animo' },
               clima: { route: '/sgsst?hito=hito3&module=animo', sgsstModule: 'animo' },
-              participacion_ipevar: { route: '/sgsst?hito=hito3&module=participacion_ipevar', sgsstModule: 'participacion_ipevar' },
               hito3: { route: '/sgsst?hito=hito3', sgsstModule: 'peligros' },
 
               // Hito 4: Dinámica Operativa y Terreno
