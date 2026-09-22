@@ -5,12 +5,25 @@
 **/.DS_Store
 **/.vscode
 **/node_modules
+**/coverage
+**/dist
+client/dist
+client/coverage
 
-# Specific patterns to ignore
-# data-node
-# meili_data*
-# Dockerfile*
-# docs
+# Heavy local artifacts and test data
+venv/
+uploads/
+Proyectos/
+Colmena/
+SGSST_Formatos/
+scratch/
+*.xlsx
+*.xls
+*.pdf
+*.tgz
+*.log
+typecheck_output.txt
+junit.xml
 
 # Ignore all hidden files
 .*
