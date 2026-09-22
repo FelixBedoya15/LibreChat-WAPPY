@@ -107,8 +107,8 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
     },
     {
       id: 'animo',
-      name: 'Termómetro de Ánimo Diario',
-      desc: 'Check-in anónimo de bienestar y fatiga',
+      name: 'Termómetro Psicosocial',
+      desc: 'Check-in confidencial de bienestar, estrés y fatiga (cada 7 días)',
       icon: Heart,
       path: `/sgsst-public/animo/${companyId}`,
       color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800',

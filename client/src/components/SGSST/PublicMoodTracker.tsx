@@ -124,12 +124,18 @@ export default function PublicMoodTracker() {
         const res = await axios.get(`/api/public-sgsst/company/${companyId}`);
         setCompany(res.data);
 
-        // Verificar si ya se reportó hoy desde este dispositivo (omitir si es modo demo)
+        // Verificar si ya se reportó en este ciclo de 7 días desde este dispositivo (omitir si es modo demo)
         if (!isDemoUrl && !isDemoMode) {
           const targetId = res.data?._id || companyId;
-          const lastReportDate = localStorage.getItem(`wappy_mood_last_date_${targetId}`);
-          if (lastReportDate === getTodayDateStr()) {
+          const lastReportTs = localStorage.getItem(`wappy_mood_last_ts_${targetId}`);
+          const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+          if (lastReportTs && Date.now() - Number(lastReportTs) < SEVEN_DAYS_MS) {
             setAlreadyReportedToday(true);
+          } else {
+            const lastReportDate = localStorage.getItem(`wappy_mood_last_date_${targetId}`);
+            if (lastReportDate === getTodayDateStr()) {
+              setAlreadyReportedToday(true);
+            }
           }
         }
       } catch (error) {
@@ -192,9 +198,10 @@ export default function PublicMoodTracker() {
 
       if (res.data.success) {
         setTelemetryId(res.data.telemetryId);
-        // Guardar fecha en almacenamiento local solo si no es una demostración o admin
+        // Guardar marca de tiempo solo si no es una demostración o admin
         if (!bypassLock) {
           try {
+            localStorage.setItem(`wappy_mood_last_ts_${targetCompanyId}`, String(Date.now()));
             localStorage.setItem(`wappy_mood_last_date_${targetCompanyId}`, getTodayDateStr());
           } catch (e) {
             console.warn('Could not save to localStorage', e);
@@ -210,10 +217,11 @@ export default function PublicMoodTracker() {
       }
     } catch (error: any) {
       console.error('Error registering mood:', error);
-      if (error.response?.data?.alreadyReportedToday || error.response?.status === 429) {
+      if (error.response?.data?.alreadyReportedToday || error.response?.data?.alreadyReportedPeriod || error.response?.status === 429) {
         if (!bypassLock) {
           const targetCompanyId = company?._id || companyId;
           try {
+            localStorage.setItem(`wappy_mood_last_ts_${targetCompanyId}`, String(Date.now()));
             localStorage.setItem(`wappy_mood_last_date_${targetCompanyId}`, getTodayDateStr());
           } catch (e) {}
           setAlreadyReportedToday(true);
@@ -221,7 +229,7 @@ export default function PublicMoodTracker() {
           setStep(mood === 'happy' ? 4 : 2);
         }
       } else {
-        alert(error.response?.data?.error || 'Hubo un error al registrar tu estado de ánimo. Por favor, intenta de nuevo.');
+        alert(error.response?.data?.error || 'Hubo un error al registrar tu reporte. Por favor, intenta de nuevo.');
       }
     } finally {
       setSubmittingMood(false);
@@ -574,24 +582,24 @@ export default function PublicMoodTracker() {
       {/* Main Container */}
       <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-5 max-w-md mx-auto w-full z-10 my-auto">
         
-        {/* SCREEN: ALREADY REPORTED TODAY */}
+        {/* SCREEN: ALREADY REPORTED IN CURRENT CYCLE */}
         {alreadyReportedToday ? (
           <div className="w-full bg-surface-primary dark:bg-slate-900 rounded-3xl border border-border-medium p-6 sm:p-7 text-center space-y-5 shadow-xl animate-fadeIn">
             <div className="inline-flex p-4 rounded-3xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-teal-600 shadow-xs">
               <CheckCircle className="w-10 h-10" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-xl font-black text-text-primary tracking-tight">¡Ya registraste tu reporte hoy!</h2>
-              <p className="text-xs text-text-secondary">Tu estado de ánimo fue recibido correctamente</p>
+              <h2 className="text-xl font-black text-text-primary tracking-tight">¡Ya registraste tu reporte en este ciclo!</h2>
+              <p className="text-xs text-text-secondary">Tu reporte de bienestar fue recibido correctamente</p>
             </div>
             
             <div className="bg-surface-secondary/50 dark:bg-slate-800/40 border border-border-medium rounded-2xl p-5 text-xs text-text-secondary leading-relaxed text-left space-y-3">
               <p>
-                Para garantizar la objetividad y transparencia de las estadísticas de bienestar laboral de la empresa, solo se permite registrar un reporte al día desde este equipo.
+                Para garantizar la objetividad estadística y evitar la fatiga por encuestas repetitivas, este termómetro psicosocial se realiza de forma periódica (cada 7 días).
               </p>
               <div className="p-3 bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 rounded-xl text-teal-800 dark:text-teal-300 text-xs font-semibold flex items-center gap-2">
                 <span>✨</span>
-                <span>¡Gracias por participar y cuidar tu bienestar emocional! Podrás registrarte mañana de nuevo.</span>
+                <span>¡Gracias por participar y cuidar tu bienestar emocional! Podrás registrarte de nuevo en tu próximo ciclo semanal.</span>
               </div>
             </div>
 
@@ -1004,7 +1012,7 @@ export default function PublicMoodTracker() {
                     <span>
                       {isDemoMode
                         ? 'Demostración completada con éxito.'
-                        : 'Reporte diario completado. Podrás registrarte de nuevo mañana.'}
+                        : 'Reporte periódico completado con éxito (ciclo de 7 días).'}
                     </span>
                   </div>
                   {isDemoMode && (

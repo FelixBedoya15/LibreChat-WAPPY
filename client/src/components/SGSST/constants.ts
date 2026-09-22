@@ -86,7 +86,7 @@ export const PHASE_CATEGORIES = {
         },
         { 
             id: 'animo', title: 'Termómetro Psicosocial', icon: 'Heart',
-            bioRationale: 'Monitorea en tiempo real y de forma 100% anónima el estado anímico diario de los trabajadores mediante código QR.', 
+            bioRationale: 'Monitorea en tiempo real y de forma 100% anónima el bienestar psicosocial, estrés y fatiga con pulsos periódicos (7, 30 y 90 días) mediante código QR.', 
             normativity: 'Hito 3: Evaluación Dinámica de Riesgos' 
         }
     ],

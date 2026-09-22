@@ -947,7 +947,7 @@ router.post('/mood/:companyId', async (req, res) => {
 
     const MoodTelemetry = require('~/models/MoodTelemetry');
 
-    // Validación de 1 reporte por día por dispositivo / equipo (excepto modo demostración o administradores)
+    // Validación de 1 reporte por ciclo periódico (7 días) por dispositivo / equipo (excepto modo demostración o administradores)
     const isBypassAllowed = Boolean(
       isDemo ||
       isAdmin ||
@@ -958,22 +958,21 @@ router.post('/mood/:companyId', async (req, res) => {
 
     if (!isBypassAllowed && deviceId && typeof deviceId === 'string' && deviceId.trim()) {
       const cleanDeviceId = deviceId.trim();
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const endOfDay = new Date();
-      endOfDay.setHours(23, 59, 59, 999);
+      const cycleDays = 7; // Periodicidad de pulso recomendada en SST (7 días)
+      const cycleAgo = new Date(Date.now() - cycleDays * 24 * 60 * 60 * 1000);
 
       const existingRecord = await MoodTelemetry.findOne({
         companyId: company._id,
         deviceId: cleanDeviceId,
-        createdAt: { $gte: startOfDay, $lte: endOfDay },
+        createdAt: { $gte: cycleAgo },
       });
 
       if (existingRecord) {
         return res.status(429).json({
-          error: 'Ya has registrado tu estado de ánimo el día de hoy desde este equipo.',
+          error: 'Ya has registrado tu reporte en este ciclo periódico de 7 días desde este equipo.',
           alreadyReportedToday: true,
+          alreadyReportedPeriod: true,
+          cycleDays: 7,
         });
       }
     }
@@ -1266,7 +1265,7 @@ router.post('/mood/claim-points/:companyId', async (req, res) => {
         company.user,
         String(cedula).trim(),
         'termometro_animo',
-        'Check-in diario voluntario en Termómetro de Ánimo y Bienestar Psicosocial',
+        'Check-in voluntario en Termómetro Psicosocial y Bienestar Emocional (Pulso 7 días)',
         10,
         `MOOD-${Date.now()}`
       );

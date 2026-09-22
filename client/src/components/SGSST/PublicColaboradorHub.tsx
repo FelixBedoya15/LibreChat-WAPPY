@@ -155,8 +155,8 @@ export default function PublicColaboradorHub() {
       color: 'from-amber-500 to-orange-600',
     },
     {
-      title: 'Termómetro de Ánimo Diario',
-      desc: 'Check-in anónimo de bienestar emocional',
+      title: 'Termómetro Psicosocial',
+      desc: 'Check-in de bienestar y clima laboral (cada 7 días)',
       points: '+10 pts',
       icon: Heart,
       path: `/sgsst-public/animo/${companyId}`,
