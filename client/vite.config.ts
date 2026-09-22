@@ -98,7 +98,7 @@ export default defineConfig(({ command }) => ({
     }),
     sourcemapExclude({ excludeNodeModules: true }),
     compression({
-      threshold: 10240,
+      threshold: 51200,
     }),
   ],
   publicDir: command === 'serve' ? './public' : false,
