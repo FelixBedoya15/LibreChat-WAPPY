@@ -1623,30 +1623,9 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
       return res.status(400).json({ error: 'Cédula requerida' });
     }
 
-    const company = await resolveActiveCompany(companyId);
+    const { company, perfil, worker: perfilWorker } = await resolveCompanyAndWorker(companyId, { cedula: cleanCedula });
     if (!company) {
       return res.status(404).json({ error: 'Empresa no encontrada' });
-    }
-
-    // 1. Consultar siempre la fuente de la verdad en PerfilSociodemograficoData (Huella Biocéntrica - Hito 2)
-    const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData || require('~/models/PerfilSociodemograficoData');
-    let perfilWorker = null;
-    if (PerfilSociodemograficoData) {
-      const perfil = await PerfilSociodemograficoData.findOne({
-        user: company.user,
-        $or: [
-          { companyId: company._id },
-          { companyId: company._id.toString() },
-          { companyId: { $exists: false } },
-          { companyId: null },
-        ],
-      }).lean();
-
-      if (perfil && Array.isArray(perfil.trabajadores)) {
-        perfilWorker = perfil.trabajadores.find(
-          t => String(t.identificacion || '').trim() === cleanCedula
-        );
-      }
     }
 
     // 2. Consultar perfil maestro y puntos de gamificación en SgsstWorker
@@ -1669,9 +1648,10 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
     // Determinar valores efectivos unificados (prioridad a PerfilSociodemograficoData que es donde el usuario edita)
     const effectiveNombre = perfilWorker?.nombre || worker?.nombre || 'Colaborador';
     const effectiveCargo = perfilWorker?.cargo || worker?.cargo || 'Personal Operativo';
-    const effectiveFitScore = (perfilWorker?.biocentricScore !== undefined && perfilWorker?.biocentricScore !== null)
+    const rawFit = (perfilWorker?.biocentricScore !== undefined && perfilWorker?.biocentricScore !== null)
       ? Number(perfilWorker.biocentricScore)
-      : (worker?.fitScore !== undefined && worker?.fitScore !== null ? Number(worker.fitScore) : 100);
+      : (worker?.fitScore !== undefined && worker?.fitScore !== null ? Number(worker.fitScore) : 95);
+    const effectiveFitScore = (!isNaN(rawFit) && rawFit > 0) ? rawFit : 95;
     const effectiveAlerts = (perfilWorker?.biocentricAlerts && perfilWorker.biocentricAlerts.length > 0)
       ? perfilWorker.biocentricAlerts
       : (worker?.fitAlerts || []);

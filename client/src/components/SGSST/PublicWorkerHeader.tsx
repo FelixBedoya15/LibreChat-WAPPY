@@ -14,6 +14,7 @@ import {
   UserCheck,
   Sparkles,
   MessageSquare,
+  LayoutGrid,
 } from 'lucide-react';
 
 interface PublicWorkerHeaderProps {
@@ -73,6 +74,7 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
     rawMod === 'perfil' ? 'perfil_update' :
     rawMod === 'actos' ? 'reportar' :
     rawMod === 'testimonio' ? 'atel' :
+    rawMod === 'ruta' ? 'lms' :
     rawMod;
 
   const modulesList = [
@@ -199,27 +201,34 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
 
         {/* Action Pills */}
         <div className="flex items-center gap-2">
-          {/* Botón Pasaporte SST */}
+          {/* Botón Pasaporte SST (expandible) */}
           {activeModule !== 'colaborador' && (
             <button
               type="button"
               onClick={() => navigate(`/sgsst-public/colaborador/${companyId}${resolvedCedula ? `/${encodeURIComponent(resolvedCedula)}` : ''}`)}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-all active:scale-95"
+              title="Mi Pasaporte SST (Puntos & Perfil)"
+              className="group flex items-center justify-center h-8 sm:h-9 min-w-[34px] px-2.5 rounded-xl text-xs font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-all duration-300 active:scale-95 shadow-2xs cursor-pointer"
             >
-              <Award className="w-3.5 h-3.5" />
-              <span>Mis Puntos</span>
+              <Award className="w-3.5 h-3.5 shrink-0" />
+              <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap">
+                Mis Puntos
+              </span>
             </button>
           )}
 
-          {/* Menú Selector de Aplicativos */}
+          {/* Menú Selector de Aplicativos (expandible) */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-sm active:scale-95 transition-all"
+              title="Ecosistema de Aplicativos SST"
+              className="group flex items-center justify-center h-8 sm:h-9 min-w-[34px] px-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-sm active:scale-95 transition-all duration-300 cursor-pointer"
             >
-              <span>Aplicativos</span>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
+              <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
+              <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap">
+                Aplicativos
+              </span>
+              <ChevronDown className={`w-3.5 h-3.5 shrink-0 ml-1 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Dropdown Menu */}

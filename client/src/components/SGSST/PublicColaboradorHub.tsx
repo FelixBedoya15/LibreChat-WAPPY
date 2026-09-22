@@ -302,18 +302,6 @@ export default function PublicColaboradorHub() {
                     </p>
                   </div>
                 </div>
-
-                {/* Botón para cambiar de cédula */}
-                <button
-                  onClick={() => {
-                    setData(null);
-                    localStorage.removeItem('wappy_worker_cedula');
-                    localStorage.removeItem('wappy_worker_session');
-                  }}
-                  className="self-start sm:self-center px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-text-primary bg-surface-secondary/60 hover:bg-surface-hover rounded-xl border border-border-medium transition-colors"
-                >
-                  Consultar otro documento
-                </button>
               </div>
 
               {/* Estadísticas Clave: Puntos + Reducción de Riesgo + FIT */}
@@ -415,9 +403,14 @@ export default function PublicColaboradorHub() {
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-1 text-[11px] font-bold text-teal-600 dark:text-teal-400 pt-1 group-hover:translate-x-1 transition-transform">
-                        <span>Ingresar</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                      <div className="pt-2 flex items-center justify-between border-t border-border-light/60 dark:border-slate-800/60 mt-auto">
+                        <span className="text-[10px] font-semibold text-text-tertiary uppercase tracking-wider">Módulo</span>
+                        <div className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-lg bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800 text-[11px] font-bold transition-all duration-300 group-hover:bg-teal-600 group-hover:text-white group-hover:border-teal-600 shadow-2xs">
+                          <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:mr-1 transition-all duration-300 whitespace-nowrap">
+                            Ingresar
+                          </span>
+                          <ArrowRight className="w-3.5 h-3.5 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                        </div>
                       </div>
                     </div>
                   );

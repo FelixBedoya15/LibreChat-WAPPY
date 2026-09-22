@@ -5,6 +5,8 @@ import { useToastContext } from '@librechat/client';
 import { BookOpen, CheckCircle, Clock, Play, GraduationCap, LogOut, Award, ShieldAlert, ArrowRight, UserCheck } from 'lucide-react';
 import RutaCertificate from './RutaCertificate';
 import { useWorkerSession } from '../../hooks/useWorkerSession';
+import PublicWorkerHeader from '../SGSST/PublicWorkerHeader';
+import WorkerSessionBadge from '../SGSST/WorkerSessionBadge';
 
 interface WorkerSession {
     companyId: string;
@@ -183,222 +185,250 @@ export default function PublicRutaAprendizaje() {
         setCoursesProgress({});
     };
 
-    // If not authenticated, render the worker login page
+    // If not authenticated, render the worker login page within the unified Somos SST theme
     if (!session) {
         return (
-            <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4">
-                {/* Visual Glows */}
-                <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-text-primary flex flex-col font-sans transition-colors">
+                <PublicWorkerHeader
+                    companyId={companyId || ''}
+                    companyName={companyDetails?.companyName || 'Somos SST'}
+                    companyLogo={companyDetails?.logoUrl || companyDetails?.logo || null}
+                    currentModule="lms"
+                />
 
-                <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative">
-                    <div className="text-center space-y-3 mb-8">
-                        <div className="inline-flex p-3 bg-emerald-500/10 text-emerald-400 rounded-full mb-1 border border-emerald-500/20">
+                <main className="flex-1 max-w-lg w-full mx-auto px-4 py-10 flex flex-col justify-center">
+                    <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-3xl p-6 sm:p-8 shadow-xl text-center space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center text-white shadow-lg">
                             <GraduationCap className="w-8 h-8" />
                         </div>
-                        <h1 className="text-2xl font-black text-white tracking-tight">Ruta de Aprendizaje</h1>
-                        <p className="text-sm text-slate-400">
-                            Portal oficial de capacitación de <span className="text-emerald-400 font-bold">{companyDetails?.companyName || 'Cargando...'}</span>
-                        </p>
-                    </div>
 
-                    <form onSubmit={handleLogin} className="space-y-5">
-                        <div className="space-y-1">
-                            <label className="block text-xs font-black uppercase tracking-wider text-slate-400">Tu Nombre Completo</label>
-                            <input
-                                type="text"
-                                required
-                                value={nombre}
-                                onChange={(e) => setNombre(e.target.value)}
-                                className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 text-white rounded-xl px-4 py-3 outline-none transition-all text-sm"
-                                placeholder="Ej: Juan Pérez Gómez"
-                            />
+                        <div>
+                            <h2 className="text-xl sm:text-2xl font-black text-text-primary">Rutas de Capacitación</h2>
+                            <p className="text-xs sm:text-sm text-text-secondary mt-1">
+                                Portal oficial de capacitación de <span className="text-teal-600 dark:text-teal-400 font-bold">{companyDetails?.companyName || 'Somos SST'}</span>
+                            </p>
                         </div>
 
-                        <div className="space-y-1">
-                            <label className="block text-xs font-black uppercase tracking-wider text-slate-400">Cédula de Ciudadanía</label>
-                            <input
-                                type="text"
-                                required
-                                value={cedula}
-                                onChange={(e) => setCedula(e.target.value)}
-                                className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 text-white rounded-xl px-4 py-3 outline-none transition-all text-sm font-mono"
-                                placeholder="Ej: 1012345678"
-                            />
+                        <form onSubmit={handleLogin} className="space-y-4 text-left">
+                            <div className="space-y-1">
+                                <label className="block text-xs font-black uppercase tracking-wider text-text-secondary">
+                                    Tu Nombre Completo
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={nombre}
+                                    onChange={(e) => setNombre(e.target.value)}
+                                    className="w-full bg-surface-secondary/40 border border-border-medium focus:border-teal-500 text-text-primary rounded-2xl px-4 py-3 outline-none transition-all text-sm font-semibold"
+                                    placeholder="Ej: Carlos Alberto Ramírez"
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="block text-xs font-black uppercase tracking-wider text-text-secondary">
+                                    Cédula de Ciudadanía
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={cedula}
+                                    onChange={(e) => setCedula(e.target.value)}
+                                    className="w-full bg-surface-secondary/40 border border-border-medium focus:border-teal-500 text-text-primary rounded-2xl px-4 py-3 outline-none transition-all text-sm font-mono font-bold"
+                                    placeholder="Ej: 79845123"
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={isLoggingIn || !companyDetails}
+                                className="w-full py-3.5 rounded-2xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                            >
+                                {isLoggingIn ? (
+                                    <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <>
+                                        <span>Ingresar al Portal</span>
+                                        <ArrowRight className="w-4 h-4" />
+                                    </>
+                                )}
+                            </button>
+                        </form>
+
+                        <div className="pt-4 border-t border-border-medium/60 text-center">
+                            <p className="text-[10px] text-text-tertiary leading-normal flex items-start gap-2 text-left">
+                                <ShieldAlert className="w-4 h-4 text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5" />
+                                <span>
+                                    Portal oficial para colaboradores. Tus accesos y certificados quedan registrados con validez legal ante el Ministerio del Trabajo.
+                                </span>
+                            </p>
                         </div>
-
-                        <button
-                            type="submit"
-                            disabled={isLoggingIn || !companyDetails}
-                            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl py-3.5 font-bold text-sm tracking-wide transition-all shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2"
-                        >
-                            {isLoggingIn ? (
-                                <div className="h-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                                <>
-                                    Ingresar al Portal <ArrowRight className="w-4 h-4" />
-                                </>
-                            )}
-                        </button>
-                    </form>
-
-                    <div className="mt-8 pt-6 border-t border-slate-800 text-center">
-                        <p className="text-[10px] text-slate-500 leading-normal flex items-start gap-2 text-left">
-                            <ShieldAlert className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
-                            <span>
-                                Este es un portal seguro para trabajadores. Tus datos de ingreso serán validados contra la nómina activa de la empresa.
-                            </span>
-                        </p>
                     </div>
-                </div>
+                </main>
             </div>
         );
     }
 
-    // Render course dashboard for authenticated worker
+    // Render course dashboard for authenticated worker with Somos SST unified look
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col">
-            
-            {/* Header Navbar */}
-            <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
-                <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg">
-                            <GraduationCap className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h2 className="font-extrabold text-white text-base sm:text-lg">Rutas de Capacitación</h2>
-                            <p className="text-xs text-emerald-400 font-medium">Trabajador: {session.nombre}</p>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => navigate(`/sgsst-public/colaborador/${companyId}/${session.cedula}`)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-lg text-xs font-bold transition-all shadow-xs"
-                            title="Ver Mi Pasaporte SST y todos los módulos"
-                        >
-                            <Award className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>Mi Pasaporte SST</span>
-                        </button>
-                        <button
-                            onClick={handleLogout}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-red-900/30 hover:text-red-400 rounded-lg text-xs font-bold transition-all text-slate-300"
-                            title="Cerrar Sesión"
-                        >
-                            <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Cerrar Sesión</span>
-                        </button>
-                    </div>
-                </div>
-            </header>
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-text-primary flex flex-col font-sans transition-colors">
+            {/* Header Universal */}
+            <PublicWorkerHeader
+                companyId={companyId || ''}
+                companyName={session.companyName || companyDetails?.companyName || 'Somos SST'}
+                companyLogo={companyDetails?.logoUrl || companyDetails?.logo || null}
+                currentModule="lms"
+                workerCedula={session.cedula}
+            />
 
             {/* Main Content Area */}
-            <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8 space-y-6">
-                
-                {/* Greeting Card */}
-                <div className="bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-emerald-400 text-xs font-black uppercase tracking-wider">
-                            <UserCheck className="w-4 h-4" /> Sesión Activa
+            <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-6 space-y-6">
+                {/* Worker Session Badge */}
+                <WorkerSessionBadge
+                    nombre={session.nombre}
+                    cedula={session.cedula}
+                    cargo={session.cargo}
+                    companyName={session.companyName}
+                    onClear={handleLogout}
+                />
+
+                {/* Greeting Banner */}
+                <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-3xl p-6 sm:p-8 shadow-xs relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-teal-500/10 via-emerald-500/5 to-transparent rounded-bl-full pointer-events-none" />
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+                        <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 text-teal-600 dark:text-teal-400 text-xs font-black uppercase tracking-wider">
+                                <GraduationCap className="w-4 h-4" /> Academia Virtual de Capacitación
+                            </div>
+                            <h1 className="text-xl sm:text-2xl font-black text-text-primary">
+                                Hola, {session.nombre.split(' ')[0]}
+                            </h1>
+                            <p className="text-xs sm:text-sm text-text-secondary max-w-xl">
+                                Completa las lecciones de tus rutas asignadas y obtén tus certificados de asistencia válidos ante el Ministerio del Trabajo.
+                            </p>
                         </div>
-                        <h1 className="text-xl sm:text-2xl font-black text-white">Hola, {session.nombre.split(' ')[0]}</h1>
-                        <p className="text-sm text-slate-400">
-                            Completa las lecciones de tus rutas y obtén tus certificados de asistencia válidos ante el Ministerio del Trabajo.
-                        </p>
-                    </div>
-                    <div className="bg-slate-800/80 px-4 py-3 rounded-xl border border-slate-700 text-left shrink-0">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Organización</p>
-                        <p className="text-sm font-extrabold text-white">{session.companyName}</p>
-                        <p className="text-xs text-slate-400">{session.cargo}</p>
+                        <div className="bg-surface-secondary/70 dark:bg-slate-800/70 px-4 py-3 rounded-2xl border border-border-medium text-left shrink-0">
+                            <p className="text-[10px] text-text-tertiary font-bold uppercase tracking-wider">Organización</p>
+                            <p className="text-sm font-extrabold text-text-primary">{session.companyName}</p>
+                            <p className="text-xs text-text-secondary mt-0.5">{session.cargo}</p>
+                        </div>
                     </div>
                 </div>
 
                 {/* Courses Listing */}
                 <div className="space-y-4">
-                    <h3 className="font-extrabold text-lg text-white">Mis Programas Asignados</h3>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-black text-text-primary uppercase tracking-wide flex items-center gap-2">
+                            <BookOpen className="w-4 h-4 text-teal-500" /> Mis Programas Asignados
+                        </h3>
+                        <span className="text-xs text-text-secondary font-medium">
+                            {courses.length} {courses.length === 1 ? 'ruta disponible' : 'rutas disponibles'}
+                        </span>
+                    </div>
 
                     {loadingCourses ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {[1, 2, 3].map(i => (
-                                <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl h-44 animate-pulse" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="bg-surface-secondary/50 border border-border-medium rounded-3xl h-56 animate-pulse" />
                             ))}
                         </div>
                     ) : courses.length === 0 ? (
-                        <div className="p-12 bg-slate-900/40 border border-slate-800 rounded-2xl text-center max-w-md mx-auto">
-                            <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                            <h4 className="font-bold text-lg text-white">Sin asignaciones</h4>
-                            <p className="text-sm text-slate-400 mt-1">No tienes rutas de capacitación publicadas en este momento.</p>
+                        <div className="p-10 bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-3xl text-center max-w-md mx-auto shadow-xs space-y-3 animate-in fade-in duration-200">
+                            <div className="w-14 h-14 mx-auto rounded-2xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 flex items-center justify-center border border-teal-200 dark:border-teal-800">
+                                <BookOpen className="w-7 h-7" />
+                            </div>
+                            <h4 className="font-bold text-base text-text-primary">Sin asignaciones por ahora</h4>
+                            <p className="text-xs text-text-secondary">
+                                No tienes rutas de capacitación publicadas en este momento. Consulta con el responsable de SST de tu empresa.
+                            </p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {courses.map(course => {
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {courses.map((course) => {
                                 const progress = coursesProgress[course._id] || { completedCount: 0, isCompleted: false };
                                 const totalLessons = course.lessons?.length || 0;
                                 const pct = totalLessons > 0 ? Math.round((progress.completedCount / totalLessons) * 100) : 0;
                                 const isCompleted = progress.isCompleted;
 
                                 return (
-                                    <div 
-                                        key={course._id} 
-                                        className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg flex flex-col justify-between hover:border-slate-700 transition-all"
+                                    <div
+                                        key={course._id}
+                                        className="group bg-surface-primary dark:bg-slate-900 border border-border-medium hover:border-teal-400 dark:hover:border-teal-600 rounded-3xl overflow-hidden shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
                                     >
                                         <div>
                                             {/* Thumbnail */}
-                                            <div className="h-32 bg-slate-950 relative overflow-hidden">
+                                            <div className="h-36 bg-surface-secondary dark:bg-slate-950 relative overflow-hidden">
                                                 {course.thumbnail ? (
-                                                    <img 
-                                                        src={course.thumbnail} 
-                                                        alt={course.title} 
-                                                        className="w-full h-full object-cover"
+                                                    <img
+                                                        src={course.thumbnail}
+                                                        alt={course.title}
+                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                                     />
                                                 ) : (
-                                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-950">
-                                                        <BookOpen className="w-8 h-8 text-slate-600" />
+                                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-teal-50 to-emerald-100 dark:from-slate-900 dark:to-teal-950/40">
+                                                        <GraduationCap className="w-10 h-10 text-teal-600/40 dark:text-teal-400/40" />
                                                     </div>
                                                 )}
-                                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent" />
-                                            </div>
-
-                                            {/* Title & tags */}
-                                            <div className="p-4 space-y-2">
-                                                <h4 className="font-bold text-white text-base leading-snug line-clamp-2">{course.title}</h4>
-                                                <div className="flex flex-wrap gap-1">
-                                                    <span className="text-[9px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded font-black uppercase tracking-wider">
-                                                        {totalLessons} lecciones
+                                                <div className="absolute top-2.5 right-2.5">
+                                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-surface-primary/90 dark:bg-slate-900/90 text-text-primary backdrop-blur-xs shadow-xs border border-border-medium/60">
+                                                        {totalLessons} {totalLessons === 1 ? 'lección' : 'lecciones'}
                                                     </span>
                                                 </div>
+                                            </div>
+
+                                            {/* Title & description */}
+                                            <div className="p-5 space-y-2">
+                                                <h4 className="font-bold text-sm text-text-primary line-clamp-2 leading-snug group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                                                    {course.title}
+                                                </h4>
+                                                {course.description && (
+                                                    <p className="text-[11px] text-text-secondary line-clamp-2">
+                                                        {course.description}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
 
                                         {/* Progress bar and buttons */}
-                                        <div className="p-4 pt-0 space-y-4">
+                                        <div className="p-5 pt-0 space-y-3">
                                             {/* Progress bar */}
                                             <div className="space-y-1">
-                                                <div className="flex items-center justify-between text-xs">
-                                                    <span className="text-slate-400">Progreso</span>
-                                                    <span className={`font-extrabold ${isCompleted ? 'text-emerald-400' : 'text-slate-300'}`}>{pct}%</span>
+                                                <div className="flex items-center justify-between text-[11px] font-semibold">
+                                                    <span className="text-text-secondary">Progreso</span>
+                                                    <span className={isCompleted ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-text-primary font-bold'}>
+                                                        {pct}%
+                                                    </span>
                                                 </div>
-                                                <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                                                    <div className={`h-full transition-all duration-300 ${isCompleted ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${pct}%` }} />
+                                                <div className="w-full bg-surface-secondary dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full transition-all duration-500 ${isCompleted ? 'bg-emerald-500' : 'bg-gradient-to-r from-teal-500 to-emerald-500'}`}
+                                                        style={{ width: `${pct}%` }}
+                                                    />
                                                 </div>
                                             </div>
 
-                                            {/* Action button */}
-                                            <div className="flex gap-2">
+                                            {/* Action buttons: expanding Somos SST style */}
+                                            <div className="flex items-center gap-2 pt-1">
                                                 <button
                                                     onClick={() => navigate(`/sgsst-public/ruta-aprendizaje/${companyId}/course/${course._id}`)}
-                                                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg py-2 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                                                    title={isCompleted ? 'Repasar Lecciones' : pct > 0 ? 'Continuar Lección' : 'Empezar Capacitación'}
+                                                    className="flex-1 group/btn flex items-center justify-center h-9 px-3 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold text-xs shadow-sm active:scale-95 transition-all duration-300 cursor-pointer"
                                                 >
-                                                    <Play className="w-3.5 h-3.5 fill-white" /> {isCompleted ? 'Repasar' : pct > 0 ? 'Continuar' : 'Empezar'}
+                                                    <Play className="w-3.5 h-3.5 fill-white shrink-0" />
+                                                    <span className="ml-1.5 transition-all duration-300 whitespace-nowrap">
+                                                        {isCompleted ? 'Repasar' : pct > 0 ? 'Continuar' : 'Empezar'}
+                                                    </span>
                                                 </button>
-                                                
+
                                                 {isCompleted && (
                                                     <button
                                                         onClick={() => setSelectedCertificateCourse(course)}
-                                                        className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg px-3 py-2 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
                                                         title="Descargar Certificado de Asistencia"
+                                                        className="group/cert flex items-center justify-center h-9 px-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-bold text-xs shadow-2xs active:scale-95 transition-all duration-300 cursor-pointer"
                                                     >
-                                                        <Award className="w-4 h-4" /> Certificado
+                                                        <Award className="w-4 h-4 shrink-0" />
+                                                        <span className="max-w-0 overflow-hidden opacity-0 group-hover/cert:max-w-xs group-hover/cert:opacity-100 group-hover/cert:ml-1.5 transition-all duration-300 whitespace-nowrap">
+                                                            Certificado
+                                                        </span>
                                                     </button>
                                                 )}
                                             </div>
@@ -412,8 +442,8 @@ export default function PublicRutaAprendizaje() {
             </main>
 
             {/* Footer */}
-            <footer className="bg-slate-900 border-t border-slate-800 py-6 text-center text-xs text-slate-500 mt-12">
-                <p>&copy; {new Date().getFullYear()} Somos SGSST. Plataforma de capacitación legal activa.</p>
+            <footer className="py-6 text-center text-xs text-text-tertiary mt-12 border-t border-border-medium/60">
+                <p>&copy; {new Date().getFullYear()} Somos SST. Plataforma de capacitación legal activa.</p>
             </footer>
 
             {/* Certificate Print View Modal */}
@@ -424,13 +454,13 @@ export default function PublicRutaAprendizaje() {
                         nombre: session.nombre,
                         cedula: session.cedula,
                         cargo: session.cargo,
-                        signature: coursesProgress[selectedCertificateCourse._id]?.workerSignature || null
+                        signature: coursesProgress[selectedCertificateCourse._id]?.workerSignature || null,
                     }}
                     company={{
                         companyName: session.companyName,
                         nit: companyDetails?.nit || '',
                         logo: companyDetails?.logo || null,
-                        legalRepresentative: companyDetails?.legalRepresentative
+                        legalRepresentative: companyDetails?.legalRepresentative,
                     }}
                     onClose={() => setSelectedCertificateCourse(null)}
                 />
@@ -438,3 +468,4 @@ export default function PublicRutaAprendizaje() {
         </div>
     );
 }
+
