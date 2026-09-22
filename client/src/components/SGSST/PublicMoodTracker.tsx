@@ -910,31 +910,31 @@ export default function PublicMoodTracker() {
                 </div>
 
                 {/* Gamificación Voluntaria: Reclamar +10 Puntos para Pasaporte SST */}
-                <div className="w-full bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200/80 rounded-2xl p-4 text-left space-y-3 shadow-xs">
+                <div className="w-full bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-50 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/80 rounded-2xl p-4 text-left space-y-3 shadow-xs">
                   <div className="flex items-center gap-2.5">
                     <span className="p-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shrink-0">🎯</span>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-800">Suma +10 Puntos a tu Pasaporte SST</h4>
-                      <p className="text-[11px] text-slate-500">Opcional: tu respuesta de ánimo sigue siendo 100% anónima</p>
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">Suma +10 Puntos a tu Pasaporte SST</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">Opcional: tu respuesta de ánimo sigue siendo 100% anónima</p>
                     </div>
                   </div>
 
                   {pointsClaimed ? (
-                    <div className="p-3 rounded-xl bg-emerald-100/80 border border-emerald-300 text-emerald-800 text-xs font-semibold flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div className="p-3 rounded-xl bg-emerald-100/80 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                       <span>{claimMessage || '¡+10 Puntos acreditados a tu Pasaporte SST!'}</span>
                     </div>
                   ) : (sessionWorker || session) && !editingCedula ? (
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-emerald-200 shadow-2xs">
+                      <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-xl border border-emerald-200 dark:border-emerald-800 shadow-2xs">
                         <div className="min-w-0 pr-2">
-                          <p className="text-xs font-black text-slate-800 truncate">{sessionWorker?.nombre || session?.nombre || 'Colaborador'}</p>
-                          <p className="text-[11px] text-slate-500 font-mono">C.C. {claimCedula}</p>
+                          <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{sessionWorker?.nombre || session?.nombre || 'Colaborador'}</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">C.C. {claimCedula}</p>
                         </div>
                         <button
                           onClick={handleClaimMoodPoints}
                           disabled={claimingPoints || !claimCedula.trim()}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 flex items-center gap-1.5"
+                          className="px-4 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 flex items-center gap-1.5"
                         >
                           {claimingPoints ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
                           <span>¡Acreditar +10 Pts!</span>
@@ -944,7 +944,7 @@ export default function PublicMoodTracker() {
                         <button
                           type="button"
                           onClick={() => setEditingCedula(true)}
-                          className="text-[10px] text-emerald-700 hover:underline font-semibold"
+                          className="text-[10px] text-teal-600 dark:text-teal-400 hover:underline font-semibold"
                         >
                           ¿No eres tú? Cambiar cédula
                         </button>
@@ -958,12 +958,12 @@ export default function PublicMoodTracker() {
                           placeholder="Ingresa tu cédula para sumar puntos..."
                           value={claimCedula}
                           onChange={(e) => setClaimCedula(e.target.value)}
-                          className="flex-1 bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 font-medium shadow-2xs"
+                          className="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-teal-500 font-medium shadow-2xs"
                         />
                         <button
                           onClick={handleClaimMoodPoints}
                           disabled={claimingPoints || !claimCedula.trim()}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 flex items-center gap-1.5"
+                          className="px-4 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 flex items-center gap-1.5"
                         >
                           {claimingPoints ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
                           <span>Reclamar +10 Pts</span>
@@ -977,7 +977,7 @@ export default function PublicMoodTracker() {
                               setEditingCedula(false);
                               setClaimCedula(sessionWorker?.cedula || session?.cedula || '');
                             }}
-                            className="text-[10px] text-slate-500 hover:underline"
+                            className="text-[10px] text-slate-500 dark:text-slate-400 hover:underline font-semibold"
                           >
                             Cancelar
                           </button>
@@ -986,11 +986,11 @@ export default function PublicMoodTracker() {
                     </div>
                   )}
 
-                  <div className="pt-1 flex items-center justify-between border-t border-emerald-200/60 text-[11px]">
-                    <span className="text-slate-500">¿Quieres revisar tu puntaje y nivel?</span>
+                  <div className="pt-1 flex items-center justify-between border-t border-emerald-200/60 dark:border-emerald-800/60 text-[11px]">
+                    <span className="text-slate-500 dark:text-slate-400">¿Quieres revisar tu puntaje y nivel?</span>
                     <a
                       href={`/sgsst-public/colaborador/${companyId}/${claimCedula.trim() || ''}`}
-                      className="font-bold text-emerald-700 hover:text-emerald-800 hover:underline inline-flex items-center gap-1"
+                      className="font-bold text-teal-600 dark:text-teal-400 hover:underline inline-flex items-center gap-1"
                     >
                       <span>Ver Mi Pasaporte SST</span>
                       <ChevronRight className="w-3.5 h-3.5" />

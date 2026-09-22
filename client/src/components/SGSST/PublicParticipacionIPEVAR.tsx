@@ -272,8 +272,8 @@ export default function PublicParticipacionIPEVAR() {
                                     <UserCircle className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-black text-text-primary">Participación IPEVAR</h2>
-                                    <p className="text-xs text-text-secondary">Identificación de Peligros y Valoración de Riesgos</p>
+                                    <h2 className="text-xl font-black text-text-primary">Reportar Peligro (IPEVAR)</h2>
+                                    <p className="text-xs text-text-secondary">Identificación de Peligros y Valoración de Riesgos • GTC-45</p>
                                 </div>
                             </div>
                             <div className="space-y-4">

@@ -89,7 +89,7 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
     },
     {
       id: 'ipevar',
-      name: 'Participación IPEVAR',
+      name: 'Reportar Peligro (IPEVAR)',
       desc: 'Reporta peligros que alimentan la Matriz Oficial',
       icon: Users,
       path: `/sgsst-public/ipevar/${companyId}`,
@@ -182,12 +182,17 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
             <img 
               src={companyLogo} 
               alt={companyName} 
-              className="w-8 h-8 rounded-xl object-contain bg-white p-0.5 border border-border-medium shadow-xs" 
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/assets/logo.png';
+              }}
+              className="w-8 h-8 rounded-xl object-contain bg-white dark:bg-slate-800 p-0.5 border border-border-medium shadow-xs" 
             />
           ) : (
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-600 to-emerald-500 flex items-center justify-center text-white shadow-xs">
-              <Shield className="w-4 h-4" />
-            </div>
+            <img 
+              src="/assets/logo.png" 
+              alt="WAPPY" 
+              className="w-8 h-8 rounded-xl object-contain bg-white dark:bg-slate-800 p-0.5 border border-border-medium shadow-xs" 
+            />
           )}
           <div className="flex flex-col">
             <span className="text-xs font-black text-text-primary group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors leading-tight line-clamp-1">

@@ -292,6 +292,24 @@ router.post('/reporte-acto/:companyId', async (req, res) => {
       logger.warn('[Public SGSST] Could not create notification:', notifErr.message);
     }
 
+    // ─── Gamificación Pasaporte SST: +50 Puntos por reporte de acto o condición ───
+    if (!esTercero && company.user && (workerFound?.identificacion || cedula)) {
+      try {
+        const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+        await feedWorkerEvent(
+          company.user,
+          String(workerFound?.identificacion || cedula).trim(),
+          'actos',
+          'Reporte de acto o condición insegura con evidencia',
+          50,
+          newInboxItem.id,
+          { esObservado: false }
+        );
+      } catch (feedErr) {
+        logger.error('[Public SGSST] Error feeding worker event for reporte-acto:', feedErr);
+      }
+    }
+
     res.json({ success: true, message: 'Reporte radicado de forma exitosa y segura.' });
   } catch (error) {
     logger.error('[Public SGSST] Report submission error:', error);
@@ -398,6 +416,23 @@ router.post('/participacion-ipevar/:companyId', async (req, res) => {
       });
     } catch (notifErr) {
       logger.warn('[Public SGSST] Could not create notification:', notifErr.message);
+    }
+
+    // ─── Gamificación Pasaporte SST: +150 Puntos por reporte IPEVAR ───
+    if (company.user && (workerFound?.identificacion || cedula)) {
+      try {
+        const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+        await feedWorkerEvent(
+          company.user,
+          String(workerFound?.identificacion || cedula).trim(),
+          'participacion_ipevar',
+          'Identificación y reporte de peligro IPEVAR (GTC-45)',
+          150,
+          newInboxItem.id
+        );
+      } catch (feedErr) {
+        logger.error('[Public SGSST] Error feeding worker event for IPEVAR:', feedErr);
+      }
     }
 
     res.json({
