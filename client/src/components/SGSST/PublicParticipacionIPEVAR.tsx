@@ -205,7 +205,7 @@ export default function PublicParticipacionIPEVAR() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 font-sans text-gray-800 flex flex-col">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-text-primary flex flex-col transition-colors">
             {/* Header Universal */}
             <PublicWorkerHeader
                 companyId={companyId || ''}
@@ -216,16 +216,16 @@ export default function PublicParticipacionIPEVAR() {
             />
 
             {/* Main Content */}
-            <main className="flex-1 p-5 overflow-y-auto w-full max-w-md mx-auto flex flex-col">
+            <main className="flex-1 p-4 sm:p-6 overflow-y-auto w-full max-w-lg mx-auto flex flex-col">
                 {/* Step Indicator */}
                 {step < 5 && (
-                    <div className="flex items-center justify-between mb-8 px-2 relative">
-                        <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-200 -z-10 -translate-y-1/2 rounded-full"></div>
-                        <div className="absolute top-1/2 left-0 h-0.5 bg-[#0f766e] -z-10 -translate-y-1/2 rounded-full transition-all duration-300" style={{ width: `${(step - 1) * 33.33}%` }}></div>
+                    <div className="flex items-center justify-between mb-6 px-3 relative">
+                        <div className="absolute top-1/2 left-0 w-full h-0.5 bg-border-medium/60 -z-10 -translate-y-1/2 rounded-full"></div>
+                        <div className="absolute top-1/2 left-0 h-0.5 bg-teal-500 -z-10 -translate-y-1/2 rounded-full transition-all duration-300" style={{ width: `${(step - 1) * 33.33}%` }}></div>
                         
                         {[1, 2, 3, 4].map((s) => (
-                            <div key={s} className="flex flex-col items-center gap-2 bg-gray-50 px-1">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors duration-300 ${step === s ? 'bg-[#0f766e] text-white shadow-lg shadow-[#0f766e]/30 border-2 border-[#0f766e]' : step > s ? 'bg-[#0f766e]/20 text-[#0f766e] border border-[#0f766e]/30' : 'bg-white text-gray-400 border border-gray-200'}`}>
+                            <div key={s} className="flex flex-col items-center gap-2 bg-slate-50 dark:bg-slate-950 px-1">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-colors duration-300 ${step === s ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md shadow-teal-500/20 border-2 border-teal-500' : step > s ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-600 border border-teal-300 dark:border-teal-700' : 'bg-surface-secondary text-text-tertiary border border-border-medium'}`}>
                                     {step > s ? <CheckCircle className="w-4 h-4" /> : s}
                                 </div>
                             </div>
@@ -234,39 +234,50 @@ export default function PublicParticipacionIPEVAR() {
                 )}
 
                 {/* Wizard Container */}
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex-1 relative overflow-hidden flex flex-col">
+                <div className="bg-surface-primary dark:bg-slate-900 rounded-3xl p-6 sm:p-7 shadow-xl border border-border-medium flex-1 relative overflow-hidden flex flex-col">
                     
                     {/* Step 1: Identificación */}
                     {step === 1 && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-500 flex flex-col h-full">
-                            <div className="mb-6 flex items-center gap-3 text-[#0f766e]">
-                                <UserCircle className="w-8 h-8" />
+                            <div className="flex items-center gap-2 flex-wrap mb-4">
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 text-xs font-black border border-teal-200 dark:border-teal-800 shadow-xs">
+                                    <Award className="w-3.5 h-3.5" /> +150 pts Pasaporte SST
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold border border-border-medium">
+                                    GTC-45 (2ª Act.) • Dec. 1072/15 Art. 2.2.4.6.15
+                                </span>
+                            </div>
+
+                            <div className="mb-5 flex items-center gap-3 text-teal-600 dark:text-teal-400">
+                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 flex items-center justify-center text-white shadow-md">
+                                    <UserCircle className="w-6 h-6" />
+                                </div>
                                 <div>
-                                    <h2 className="text-xl font-black text-gray-900">Participación SST</h2>
-                                    <p className="text-xs text-gray-500">Identifícate para iniciar</p>
+                                    <h2 className="text-xl font-black text-text-primary">Participación IPEVAR</h2>
+                                    <p className="text-xs text-text-secondary">Identificación de Peligros y Valoración de Riesgos</p>
                                 </div>
                             </div>
-                            <div className="space-y-5">
+                            <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">
+                                    <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1.5">
                                        Nombre Completo
                                     </label>
                                     <input 
                                         type="text" 
-                                        className="w-full border-gray-300 rounded-xl focus:ring-[#0f766e] focus:border-[#0f766e] py-3 bg-gray-50 transition-all font-medium" 
+                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium" 
                                         placeholder="Tu nombre completo"
                                         value={nombre}
                                         onChange={(e) => setNombre(e.target.value)}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1.5 flex items-center gap-2">
-                                       <Key className="w-4 h-4 text-[#0f766e]" /> Cédula de Ciudadanía
+                                    <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-2">
+                                       <Key className="w-4 h-4 text-teal-600" /> Cédula de Ciudadanía
                                     </label>
                                     <input 
                                         type="number" 
-                                        className="w-full border-gray-300 rounded-xl focus:ring-[#0f766e] focus:border-[#0f766e] py-3 bg-gray-50 transition-all font-medium" 
-                                        placeholder="Número de documento"
+                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium" 
+                                        placeholder="Número de documento sin puntos"
                                         value={cedula}
                                         onChange={(e) => setCedula(e.target.value)}
                                     />
@@ -274,19 +285,19 @@ export default function PublicParticipacionIPEVAR() {
                             </div>
                             
                             {submitResult && !submitResult.success && step === 1 && (
-                                <div className="mt-4 p-3 bg-red-50 border-l-4 border-red-500 text-sm text-red-700 rounded-r border-y border-r border-red-100">
+                                <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-950/40 border-l-4 border-rose-500 text-xs text-rose-700 dark:text-rose-300 rounded-r border-y border-r border-rose-200 dark:border-rose-800">
                                     <strong className="block mb-1">Autorización Denegada</strong>
                                     {submitResult.message}
                                 </div>
                             )}
 
-                            <div className="mt-auto pt-8">
+                            <div className="mt-auto pt-6">
                                 <button 
                                     onClick={validateIdentity}
                                     disabled={isValidatingWorker}
-                                    className="w-full bg-[#0f172a] hover:bg-black text-white py-3.5 rounded-xl font-bold tracking-wide shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+                                    className="w-full py-3.5 rounded-2xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-md active:scale-95 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
                                 >
-                                    {isValidatingWorker ? 'Validando...' : 'Comenzar'}
+                                    {isValidatingWorker ? 'Validando...' : 'Comenzar Participación'}
                                 </button>
                             </div>
                         </div>
@@ -497,8 +508,8 @@ export default function PublicParticipacionIPEVAR() {
 
                             </div>
                             <div className="mt-auto pt-4 flex gap-3 shrink-0">
-                                <button onClick={() => setStep(1)} className="px-5 py-3 rounded-xl font-bold bg-gray-100 text-gray-700 hover:bg-gray-200">Atrás</button>
-                                <button onClick={validateTaskDetails} className="flex-1 bg-[#0f766e] hover:bg-[#115e59] text-white py-3 rounded-xl font-bold shadow-md active:scale-[0.98] transition-all">Siguiente</button>
+                                <button onClick={() => setStep(1)} className="px-5 py-3 rounded-2xl font-bold border border-border-medium bg-surface-secondary/60 hover:bg-surface-hover text-text-secondary transition-all text-xs">Atrás</button>
+                                <button onClick={validateTaskDetails} className="flex-1 py-3 rounded-2xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-md active:scale-95 transition-all text-xs">Siguiente</button>
                             </div>
                         </div>
                     )}
@@ -506,40 +517,42 @@ export default function PublicParticipacionIPEVAR() {
                     {/* Step 3: Controles Actuales */}
                     {step === 3 && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-500 flex flex-col h-full">
-                            <div className="mb-6 flex items-center gap-3 text-amber-500">
-                                <Shield className="w-8 h-8" />
+                            <div className="mb-5 flex items-center gap-3 text-amber-500">
+                                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
+                                    <Shield className="w-6 h-6" />
+                                </div>
                                 <div>
-                                    <h2 className="text-xl font-black text-gray-900 leading-tight">Controles Actuales</h2>
-                                    <p className="text-xs text-gray-500">¿Cómo te proteges hoy?</p>
+                                    <h2 className="text-xl font-black text-text-primary leading-tight">Controles Actuales</h2>
+                                    <p className="text-xs text-text-secondary">¿Cómo te proteges hoy en esta labor?</p>
                                 </div>
                             </div>
                             
-                            <div className="space-y-5">
+                            <div className="space-y-4">
                                 <div>
-                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Controles Existentes en la tarea</label>
+                                    <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1.5">Controles Existentes en la tarea</label>
                                     <textarea 
                                         rows={4} 
-                                        className="w-full border-gray-300 rounded-xl bg-gray-50 text-sm py-3 focus:ring-amber-500 focus:border-amber-500 resize-none font-medium leading-relaxed" 
+                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-xs transition-all placeholder:text-text-tertiary font-medium resize-none leading-relaxed" 
                                         placeholder="Ej: Uso guantes de carnaza, careta de soldadura y hay un extractor prendido."
                                         value={controlesExistentes}
                                         onChange={e=>setControlesExistentes(e.target.value)}
                                     ></textarea>
                                 </div>
 
-                                <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl">
-                                    <label className="block text-sm font-bold text-amber-900 mb-3">
+                                <div className="p-4 bg-surface-secondary/50 dark:bg-slate-800/40 border border-border-medium rounded-2xl">
+                                    <label className="block text-xs font-bold text-text-primary mb-2.5">
                                         ¿Crees que los controles actuales son suficientes para evitar un accidente o enfermedad?
                                     </label>
-                                    <div className="flex gap-3">
+                                    <div className="flex gap-2.5">
                                         <button 
                                             onClick={() => setSuficientes(true)}
-                                            className={`flex-1 py-3 font-bold rounded-lg border transition-all ${suficientes ? 'bg-amber-500 border-amber-500 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                            className={`flex-1 py-3 font-bold text-xs rounded-xl border transition-all ${suficientes ? 'bg-gradient-to-r from-teal-600 to-emerald-600 border-teal-600 text-white shadow-md' : 'bg-surface-primary border-border-medium text-text-secondary hover:bg-surface-hover'}`}
                                         >
                                             Sí, son seguros
                                         </button>
                                         <button 
                                             onClick={() => setSuficientes(false)}
-                                            className={`flex-1 py-3 font-bold rounded-lg border transition-all ${!suficientes ? 'bg-red-500 border-red-500 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                            className={`flex-1 py-3 font-bold text-xs rounded-xl border transition-all ${!suficientes ? 'bg-gradient-to-r from-rose-500 to-red-600 border-rose-500 text-white shadow-md' : 'bg-surface-primary border-border-medium text-text-secondary hover:bg-surface-hover'}`}
                                         >
                                             No, faltan controles
                                         </button>
@@ -548,11 +561,11 @@ export default function PublicParticipacionIPEVAR() {
                             </div>
 
                             <div className="mt-auto pt-6 flex gap-3">
-                                <button onClick={() => setStep(2)} className="px-5 py-3.5 rounded-xl font-bold bg-gray-100 text-gray-700 hover:bg-gray-200" disabled={isSubmitting}>Atrás</button>
+                                <button onClick={() => setStep(2)} className="px-5 py-3 rounded-2xl font-bold border border-border-medium bg-surface-secondary/60 hover:bg-surface-hover text-text-secondary transition-all text-xs" disabled={isSubmitting}>Atrás</button>
                                 <button 
                                     onClick={validateControls} 
                                     disabled={isSubmitting}
-                                    className={`flex-1 text-white py-3.5 rounded-xl font-bold shadow-md active:scale-[0.98] transition-all ${suficientes ? 'bg-[#0f766e] hover:bg-[#115e59]' : 'bg-orange-500 hover:bg-orange-600'}`}
+                                    className="flex-1 py-3 rounded-2xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-md active:scale-95 transition-all text-xs"
                                 >
                                     {isSubmitting ? 'Enviando...' : suficientes ? 'Enviar Reporte' : 'Sugerir Controles'}
                                 </button>
@@ -564,52 +577,54 @@ export default function PublicParticipacionIPEVAR() {
                     {step === 4 && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-500 flex flex-col h-full">
                             <div className="mb-4 flex items-center gap-3 text-indigo-500 shrink-0">
-                                <HardHat className="w-8 h-8" />
+                                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 shrink-0">
+                                    <HardHat className="w-6 h-6" />
+                                </div>
                                 <div>
-                                    <h2 className="text-xl font-black text-gray-900 leading-tight">Sugerir Mejoras</h2>
-                                    <p className="text-xs text-gray-500">Jerarquía de Controles GTC-45</p>
+                                    <h2 className="text-xl font-black text-text-primary leading-tight">Sugerir Mejoras</h2>
+                                    <p className="text-xs text-text-secondary">Jerarquía de Controles GTC-45 (Colombia)</p>
                                 </div>
                             </div>
                             
                             <div className="space-y-3 overflow-y-auto pr-2 pb-2 flex-1">
-                                <p className="text-xs font-semibold text-gray-600">Comenta qué sugieres implementar en cada categoría según tu experiencia:</p>
+                                <p className="text-xs font-semibold text-text-secondary">Comenta qué sugieres implementar en cada nivel según tu experiencia:</p>
                                 
                                 <div>
-                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">1. Eliminación / Sustitución (Fuente)</label>
+                                    <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1">1. Eliminación / Sustitución (Fuente)</label>
                                     <textarea 
                                         rows={2} 
-                                        className="w-full border-gray-300 rounded-xl bg-gray-50 text-xs p-2.5 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-medium" 
-                                        placeholder="Ej: Eliminar el uso del químico inflamable, sustituir herramienta manual por automática..."
+                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-3 py-2 text-xs transition-all placeholder:text-text-tertiary font-medium resize-none" 
+                                        placeholder="Ej: Eliminar el químico inflamable, automatizar labor..."
                                         value={sugeridoEliminacion}
                                         onChange={e=>setSugeridoEliminacion(e.target.value)}
                                     ></textarea>
                                 </div>
                                 <div>
-                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">2. Controles de Ingeniería (Máquinas, instalaciones)</label>
+                                    <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1">2. Controles de Ingeniería (Máquinas, instalaciones)</label>
                                     <textarea 
                                         rows={2} 
-                                        className="w-full border-gray-300 rounded-xl bg-gray-50 text-xs p-2.5 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-medium" 
-                                        placeholder="Ej: Guardas protectoras, sistema de extracción, sensores de parada de emergencia..."
+                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-3 py-2 text-xs transition-all placeholder:text-text-tertiary font-medium resize-none" 
+                                        placeholder="Ej: Guardas protectoras, sistema de extracción, sensores..."
                                         value={sugeridoIngenieria}
                                         onChange={e=>setSugeridoIngenieria(e.target.value)}
                                     ></textarea>
                                 </div>
                                 <div>
-                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">3. Administrativos (Señalización, Rotación, Capacitación)</label>
+                                    <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1">3. Administrativos (Señalización, Rotación, Capacitación)</label>
                                     <textarea 
                                         rows={2} 
-                                        className="w-full border-gray-300 rounded-xl bg-gray-50 text-xs p-2.5 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-medium" 
-                                        placeholder="Ej: Capacitación técnica, señalización de peligro, rotación horaria..."
+                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-3 py-2 text-xs transition-all placeholder:text-text-tertiary font-medium resize-none" 
+                                        placeholder="Ej: Capacitación técnica, rotación horaria..."
                                         value={sugeridoAdministrativo}
                                         onChange={e=>setSugeridoAdministrativo(e.target.value)}
                                     ></textarea>
                                 </div>
                                 <div>
-                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">4. Elementos de Protección Personal (EPP)</label>
+                                    <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1">4. Elementos de Protección Personal (EPP)</label>
                                     <textarea 
                                         rows={2} 
-                                        className="w-full border-gray-300 rounded-xl bg-gray-50 text-xs p-2.5 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-medium" 
-                                        placeholder="Ej: Casco dieléctrico, guantes de nitrilo, protección auditiva de copa..."
+                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-3 py-2 text-xs transition-all placeholder:text-text-tertiary font-medium resize-none" 
+                                        placeholder="Ej: Casco dieléctrico, guantes de nitrilo..."
                                         value={sugeridoEPP}
                                         onChange={e=>setSugeridoEPP(e.target.value)}
                                     ></textarea>
@@ -617,20 +632,20 @@ export default function PublicParticipacionIPEVAR() {
                             </div>
 
                             {submitResult && !submitResult.success && step === 4 && (
-                                <div className="mt-2 p-3 bg-red-50 border-l-4 border-red-500 text-sm text-red-700 rounded-r shrink-0">
+                                <div className="mt-2 p-3 bg-rose-50 dark:bg-rose-950/40 border-l-4 border-rose-500 text-xs text-rose-700 dark:text-rose-300 rounded-r border-y border-r border-rose-200 dark:border-rose-800 shrink-0">
                                     <strong className="block mb-1">Error</strong>
                                     {submitResult.message}
                                 </div>
                             )}
 
                             <div className="mt-auto pt-4 flex gap-3 shrink-0">
-                                <button onClick={() => setStep(3)} className="px-5 py-3 rounded-xl font-bold bg-gray-100 text-gray-700 hover:bg-gray-200" disabled={isSubmitting}>Atrás</button>
+                                <button onClick={() => setStep(3)} className="px-5 py-3 rounded-2xl font-bold border border-border-medium bg-surface-secondary/60 hover:bg-surface-hover text-text-secondary transition-all text-xs" disabled={isSubmitting}>Atrás</button>
                                 <button 
                                     onClick={handleSubmit} 
                                     disabled={isSubmitting}
-                                    className="flex-1 bg-gradient-to-r from-indigo-600 to-blue-600 flex items-center justify-center gap-2 hover:opacity-90 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-500/30 active:scale-[0.98] transition-all disabled:opacity-50"
+                                    className="flex-1 py-3 rounded-2xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-md active:scale-95 transition-all text-xs flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
-                                    {isSubmitting ? 'Procesando...' : <><Send className="w-5 h-5" /> Enviar Participación</>}
+                                    {isSubmitting ? 'Procesando...' : <><Send className="w-4 h-4" /> Enviar Participación</>}
                                 </button>
                             </div>
                         </div>
@@ -638,20 +653,20 @@ export default function PublicParticipacionIPEVAR() {
 
                     {/* Step 5: Success Message */}
                     {step === 5 && (
-                        <div className="animate-in zoom-in-95 duration-500 flex flex-col items-center justify-center h-full text-center py-8">
-                            <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mb-6">
-                                <CheckCircle className="w-10 h-10 text-teal-600" />
+                        <div className="animate-in zoom-in-95 duration-500 flex flex-col items-center justify-center h-full text-center py-6">
+                            <div className="w-16 h-16 bg-teal-100 dark:bg-teal-950/60 rounded-3xl flex items-center justify-center mb-5 text-teal-600 border border-teal-200 dark:border-teal-800">
+                                <CheckCircle className="w-8 h-8" />
                             </div>
-                            <h2 className="text-2xl font-black text-gray-900 mb-2">¡Gracias por participar!</h2>
-                            <p className="text-sm text-gray-600 mb-8 max-w-[250px] mx-auto leading-relaxed">
-                                {submitResult?.message} Tu contribución es clave para mantener un ambiente de trabajo seguro.
+                            <h2 className="text-xl font-black text-text-primary mb-2">¡Gracias por participar!</h2>
+                            <p className="text-xs text-text-secondary mb-6 max-w-sm mx-auto leading-relaxed">
+                                {submitResult?.message || 'Tu aporte ha sido registrado formalmente y alimenta la Matriz Oficial de Peligros de la organización.'}
                             </p>
                             <div className="w-full max-w-sm rounded-2xl border border-teal-200 bg-teal-50/70 p-4 text-left text-xs text-teal-900 mb-6 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-200">
                                 <div className="flex items-start gap-2.5">
                                     <Award className="mt-0.5 h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
                                     <div>
                                         <strong className="block text-xs font-bold text-teal-800 dark:text-teal-300">Puntos de Gamificación SST</strong>
-                                        <span>Tu reporte sumará <strong>+150 puntos</strong> a tu Pasaporte SST una vez validado e integrado a la Matriz Oficial por el coordinador.</span>
+                                        <span className="text-[11px]">Tu reporte sumará <strong>+150 puntos</strong> a tu Pasaporte SST una vez validado por el coordinador.</span>
                                     </div>
                                 </div>
                             </div>
@@ -659,7 +674,7 @@ export default function PublicParticipacionIPEVAR() {
                             <div className="flex w-full max-w-sm flex-col gap-2.5">
                                 <button
                                     onClick={() => navigate(`/sgsst-public/colaborador/${companyId}/${cedula}`)}
-                                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 py-3 font-bold text-white shadow-md transition-all active:scale-95 hover:from-teal-700 hover:to-emerald-700 text-xs"
+                                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 py-3.5 font-bold text-white shadow-md transition-all active:scale-95 hover:from-teal-700 hover:to-emerald-700 text-xs"
                                 >
                                     <Award className="h-4 w-4" /> Ver Mi Pasaporte SST y Mis Puntos
                                 </button>
@@ -685,7 +700,7 @@ export default function PublicParticipacionIPEVAR() {
                                         setSugeridoEPP('');
                                         setSubmitResult(null);
                                     }} 
-                                    className="w-full rounded-xl bg-gray-100 py-2.5 font-bold text-gray-700 transition-colors hover:bg-gray-200 text-xs"
+                                    className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 py-2.5 font-bold text-text-secondary transition-colors hover:bg-surface-hover text-xs"
                                 >
                                     Registrar Nueva Tarea
                                 </button>
@@ -696,11 +711,9 @@ export default function PublicParticipacionIPEVAR() {
                 </div>
             </main>
 
-            {/* Sticky Footer Security Notice */}
-            <footer className="shrink-0 p-4 text-center">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                    <Shield className="w-3 h-3 text-[#0f766e]" /> Módulo SG-SST • Wappy IPEVAR
-                </div>
+            {/* Footer Unificado WAPPY */}
+            <footer className="py-4 text-center text-[11px] text-text-tertiary border-t border-border-medium/40 mt-auto">
+                Plataforma Inteligente de Seguridad y Salud en el Trabajo &mdash; Somos SST / WAPPY
             </footer>
         </div>
     );

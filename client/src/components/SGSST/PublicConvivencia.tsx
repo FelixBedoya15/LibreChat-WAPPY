@@ -193,8 +193,13 @@ export default function PublicConvivencia() {
         {!submitResult && (
           <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
             <div>
-              <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400 font-bold text-xs uppercase tracking-wider">
-                <Lock className="w-4 h-4" /> Canal Seguro y Confidencial
+              <div className="flex items-center gap-2 flex-wrap mb-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 text-xs font-black border border-violet-200 dark:border-violet-800 shadow-xs">
+                  <Lock className="w-3.5 h-3.5" /> Canal 100% Confidencial y Protegido
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold border border-border-medium">
+                  Ley 1010 de 2006 • Ley 2365 de 2024 • Conv. 190 OIT
+                </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-black text-text-primary mt-1">
                 Convivencia Laboral & Prevención de Acoso
@@ -463,6 +468,11 @@ export default function PublicConvivencia() {
           </div>
         )}
       </main>
+
+      {/* Footer Unificado WAPPY */}
+      <footer className="py-4 text-center text-[11px] text-text-tertiary border-t border-border-medium/40 mt-auto">
+        Plataforma Inteligente de Seguridad y Salud en el Trabajo &mdash; Somos SST / WAPPY
+      </footer>
     </div>
   );
 }

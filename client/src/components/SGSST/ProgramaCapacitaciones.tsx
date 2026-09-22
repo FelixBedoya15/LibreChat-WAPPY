@@ -78,7 +78,7 @@ const NORMATIVA_MAP: Record<string, string> = {
   'alturas': 'Resolución 4272 de 2021',
   'vial': 'Resolución 40595 de 2022',
   'ergonomia': 'Resolución 0312 de 2019',
-  'psicosocial': 'Resolución 2646 de 2008',
+  'psicosocial': 'Resolución 2764 de 2022',
   'quimico': 'Decreto 1496 de 2018',
   'autocuidado': 'Resolución 0312 de 2019'
 };

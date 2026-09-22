@@ -13,6 +13,7 @@ import {
   ArrowRight,
   ShieldCheck,
   RefreshCw,
+  Award,
 } from 'lucide-react';
 import PublicWorkerHeader from './PublicWorkerHeader';
 
@@ -200,41 +201,42 @@ export default function PublicEstudioPuesto() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50/50 via-slate-50 to-slate-100 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 p-4 py-8 flex flex-col items-center justify-center text-slate-800 dark:text-zinc-100 font-sans">
-      <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-zinc-800 overflow-hidden">
-        {/* Cabecera Unificada WAPPY */}
-        <PublicWorkerHeader
-          companyName={company?.name || 'EMPRESA'}
-          companyLogo={company?.logo || undefined}
-          companyId={company?.id || companyId}
-          currentApp="estudio_puesto"
-          title="Auto-evaluación Ergonómica (EPT)"
-          subtitle="Verificación biomecánica y hábitos ergonómicos de puesto"
-        />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-text-primary flex flex-col transition-colors">
+      <PublicWorkerHeader
+        companyName={company?.name || 'Somos SST'}
+        companyLogo={company?.logo || undefined}
+        companyId={company?.id || companyId || ''}
+        currentModule="estudio_puesto"
+        currentApp="estudio_puesto"
+        title="Auto-evaluación Ergonómica (EPT)"
+        subtitle="Verificación biomecánica y hábitos ergonómicos de puesto"
+      />
 
-        {/* Pantalla de Éxito al culminar */}
-        {submitted ? (
-          <div className="p-8 text-center space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-teal-100 dark:bg-teal-950/60 text-teal-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
-            <h2 className="text-lg font-black text-slate-900 dark:text-white">
-              ¡Auto-evaluación Recibida!
-            </h2>
-            <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed max-w-sm mx-auto">
-              Muchas gracias, <strong>{workerName}</strong>. Tu informe ergonómico ha sido enviado y
-              sincronizado exitosamente con el área de SG-SST de <strong>{company?.name}</strong>.
-            </p>
+      <main className="flex-1 p-4 sm:p-6 w-full max-w-lg mx-auto flex flex-col justify-center">
+        <div className="w-full bg-surface-primary dark:bg-slate-900 rounded-3xl shadow-xl border border-border-medium overflow-hidden">
+          {/* Pantalla de Éxito al culminar */}
+          {submitted ? (
+            <div className="p-8 text-center space-y-4 animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 bg-teal-100 dark:bg-teal-950/60 text-teal-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+              <h2 className="text-lg font-black text-text-primary">
+                ¡Auto-evaluación Recibida!
+              </h2>
+              <p className="text-xs text-text-secondary leading-relaxed max-w-sm mx-auto">
+                Muchas gracias, <strong>{workerName}</strong>. Tu informe ergonómico ha sido enviado y
+                sincronizado exitosamente con el área de SG-SST de <strong>{company?.name}</strong>.
+              </p>
 
-            <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-left text-xs space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 bg-teal-600 text-white rounded-lg text-xs font-bold">🎯</span>
-                <div>
-                  <h4 className="font-bold text-teal-900 dark:text-teal-200">¡+40 Puntos Acreditados a tu Pasaporte SST!</h4>
-                  <p className="text-[11px] text-teal-700 dark:text-teal-400">Gracias por cuidar tu postura e integridad física.</p>
+              <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-left text-xs space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 bg-teal-600 text-white rounded-lg text-xs font-bold">🎯</span>
+                  <div>
+                    <h4 className="font-bold text-teal-900 dark:text-teal-200">¡+40 Puntos Acreditados a tu Pasaporte SST!</h4>
+                    <p className="text-[11px] text-teal-700 dark:text-teal-400">Gracias por cuidar tu postura e integridad física.</p>
+                  </div>
                 </div>
               </div>
-            </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 text-left text-xs space-y-2">
               <p className="font-bold text-slate-800 dark:text-zinc-200">💡 Recomendaciones Inmediatas:</p>
@@ -300,9 +302,13 @@ export default function PublicEstudioPuesto() {
                   <p className="text-[11px] text-slate-500">
                     Ingresa tus datos para vincular el estudio a tu expediente laboral.
                   </p>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800 mt-2">
-                    <span>🎯</span>
-                    <span>Suma +40 Puntos a tu Pasaporte SST al enviar este auto-reporte</span>
+                  <div className="flex items-center justify-center gap-2 flex-wrap mt-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 text-xs font-black border border-teal-200 dark:border-teal-800 shadow-xs">
+                      <Award className="w-3.5 h-3.5" /> +40 pts Pasaporte SST
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold border border-border-medium">
+                      Res. 2400 de 1979 • NTC 5655 / 5693 • Dec. 1072/15
+                    </span>
                   </div>
                 </div>
 
@@ -583,11 +589,13 @@ export default function PublicEstudioPuesto() {
             )}
           </div>
         )}
-      </div>
+        </div>
+      </main>
 
-      <div className="mt-6 text-center text-[10px] text-slate-400">
-        Gestión Inteligente de Seguridad y Salud en el Trabajo • WAPPY IA
-      </div>
+      {/* Footer Unificado WAPPY */}
+      <footer className="py-4 text-center text-[11px] text-text-tertiary border-t border-border-medium/40 mt-auto">
+        Plataforma Inteligente de Seguridad y Salud en el Trabajo &mdash; Somos SST / WAPPY
+      </footer>
     </div>
   );
 }

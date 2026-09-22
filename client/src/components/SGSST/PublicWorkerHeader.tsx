@@ -13,13 +13,17 @@ import {
   GraduationCap,
   UserCheck,
   Sparkles,
+  MessageSquare,
 } from 'lucide-react';
 
 interface PublicWorkerHeaderProps {
   companyId: string;
   companyName?: string;
   companyLogo?: string | null;
-  currentModule?: 'colaborador' | 'ipevar' | 'reportar' | 'animo' | 'estudio_puesto' | 'comites' | 'convivencia' | 'perfil_update' | 'lms';
+  currentModule?: 'colaborador' | 'ipevar' | 'reportar' | 'animo' | 'estudio_puesto' | 'comites' | 'convivencia' | 'perfil_update' | 'lms' | string;
+  currentApp?: string;
+  title?: string;
+  subtitle?: string;
   workerCedula?: string;
 }
 
@@ -27,11 +31,23 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
   companyId,
   companyName = 'Somos SST',
   companyLogo = null,
-  currentModule = 'colaborador',
+  currentModule,
+  currentApp,
+  title,
+  subtitle,
   workerCedula,
 }) => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Normalize module across aliases
+  const rawMod = (currentModule || currentApp || 'colaborador').toLowerCase();
+  const activeModule = 
+    rawMod === 'termometro' ? 'animo' :
+    rawMod === 'perfil' ? 'perfil_update' :
+    rawMod === 'actos' ? 'reportar' :
+    rawMod === 'testimonio' ? 'atel' :
+    rawMod;
 
   const modulesList = [
     {
@@ -115,6 +131,15 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
       color: 'text-fuchsia-600 dark:text-fuchsia-400 bg-fuchsia-50 dark:bg-fuchsia-950/40 border-fuchsia-200 dark:border-fuchsia-800',
       badge: 'Aprender',
     },
+    {
+      id: 'atel',
+      name: 'Buzón de Testimonios ATEL',
+      desc: 'Declaración confidencial en investigación de incidentes y accidentes',
+      icon: MessageSquare,
+      path: `/sgsst-public/atel-testimonio/${companyId}`,
+      color: 'text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800',
+      badge: '+30 pts',
+    },
   ];
 
   return (
@@ -149,11 +174,11 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
         {/* Action Pills */}
         <div className="flex items-center gap-2">
           {/* Botón Pasaporte SST */}
-          {currentModule !== 'colaborador' && (
+          {activeModule !== 'colaborador' && (
             <button
               type="button"
               onClick={() => navigate(`/sgsst-public/colaborador/${companyId}${workerCedula ? `/${workerCedula}` : ''}`)}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition-all active:scale-95"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-all active:scale-95"
             >
               <Award className="w-3.5 h-3.5" />
               <span>Mis Puntos</span>
@@ -195,7 +220,7 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
                   <div className="space-y-1 pt-1">
                     {modulesList.map(mod => {
                       const Icon = mod.icon;
-                      const isCurrent = mod.id === currentModule;
+                      const isCurrent = mod.id === activeModule;
                       return (
                         <div
                           key={mod.id}

@@ -21,6 +21,7 @@ import {
   Zap,
   Dna,
   Calendar,
+  MessageSquare,
 } from 'lucide-react';
 import PublicWorkerHeader from './PublicWorkerHeader';
 
@@ -28,8 +29,23 @@ export default function PublicColaboradorHub() {
   const { companyId, cedula: paramCedula } = useParams<{ companyId: string; cedula?: string }>();
   const navigate = useNavigate();
 
-  const [inputCedula, setInputCedula] = useState(paramCedula || localStorage.getItem('wappy_worker_cedula') || '');
-  const [activeCedula, setActiveCedula] = useState<string | null>(paramCedula || localStorage.getItem('wappy_worker_cedula') || null);
+  const getInitialCedula = () => {
+    if (paramCedula) return paramCedula;
+    const directCed = localStorage.getItem('wappy_worker_cedula');
+    if (directCed) return directCed;
+    try {
+      const rawSession = localStorage.getItem('wappy_worker_session');
+      if (rawSession) {
+        const parsed = JSON.parse(rawSession);
+        if (parsed?.cedula) return parsed.cedula;
+      }
+    } catch (e) {}
+    return '';
+  };
+
+  const initialCedula = getInitialCedula();
+  const [inputCedula, setInputCedula] = useState(initialCedula);
+  const [activeCedula, setActiveCedula] = useState<string | null>(initialCedula || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any>(null);
@@ -53,10 +69,13 @@ export default function PublicColaboradorHub() {
   };
 
   useEffect(() => {
-    if (activeCedula) {
-      fetchWorkerInfo(activeCedula);
+    const ced = paramCedula || getInitialCedula();
+    if (ced && companyId) {
+      setActiveCedula(ced);
+      setInputCedula(ced);
+      fetchWorkerInfo(ced);
     }
-  }, [companyId]);
+  }, [companyId, paramCedula]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,6 +189,14 @@ export default function PublicColaboradorHub() {
       icon: GraduationCap,
       path: `/sgsst-public/ruta-aprendizaje/${companyId}`,
       color: 'from-fuchsia-500 to-pink-600',
+    },
+    {
+      title: 'Buzón de Testimonios ATEL',
+      desc: 'Declaración confidencial en investigación de incidentes y accidentes',
+      points: '+30 pts',
+      icon: MessageSquare,
+      path: `/sgsst-public/atel-testimonio/${companyId}`,
+      color: 'from-slate-600 to-teal-700',
     },
   ];
 
@@ -343,7 +370,7 @@ export default function PublicColaboradorHub() {
                 <span className="text-xs text-text-secondary">Haz clic en un aplicativo</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                 {appsGrid.map((app, idx) => {
                   const Icon = app.icon;
                   return (

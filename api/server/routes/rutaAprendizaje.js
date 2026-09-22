@@ -616,33 +616,83 @@ router.post('/public/login', async (req, res) => {
             return res.status(404).json({ error: 'Empresa no encontrada por el NIT o Razón Social ingresado.' });
         }
 
-        // Validate worker exists in PerfilSociodemografico workers list
+        // Validate worker exists in PerfilSociodemografico workers list or SgsstWorker
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
-        if (!PerfilSociodemograficoData) {
-            return res.status(500).json({ error: 'Mapeador sociodemográfico no cargado.' });
+        const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+        let workerFound = null;
+
+        if (PerfilSociodemograficoData) {
+            const perfil = await PerfilSociodemograficoData.findOne({
+                user: new mongoose.Types.ObjectId(company.user),
+                companyId: company._id
+            }).lean();
+
+            if (perfil && Array.isArray(perfil.trabajadores) && perfil.trabajadores.length > 0) {
+                const match = perfil.trabajadores.find(t => formatStr(t.identificacion) === formatStr(cedula));
+                if (match) {
+                    workerFound = {
+                        nombre: match.nombre,
+                        cargo: match.cargo || 'Trabajador',
+                        identificacion: match.identificacion,
+                        firmaDigital: match.firmaDigital || null
+                    };
+                }
+            }
         }
 
-        const perfil = await PerfilSociodemograficoData.findOne({
-            user: new mongoose.Types.ObjectId(company.user),
-            companyId: company._id
-        }).lean();
+        // Fallback to SgsstWorker
+        if (!workerFound && SgsstWorker) {
+            const sgsstWorker = await SgsstWorker.findOne({
+                user: new mongoose.Types.ObjectId(company.user),
+                documento: String(cedula).trim()
+            }).lean();
 
-        if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
-            return res.status(404).json({ error: 'La empresa no cuenta con un listado de trabajadores activo.' });
+            if (sgsstWorker) {
+                workerFound = {
+                    nombre: sgsstWorker.nombre,
+                    cargo: sgsstWorker.cargo || 'Trabajador',
+                    identificacion: sgsstWorker.documento,
+                    firmaDigital: sgsstWorker.firmaDigital || null
+                };
+            }
         }
 
-        const workerFound = perfil.trabajadores.find(t => formatStr(t.identificacion) === formatStr(cedula));
+        // If worker was found in existing records, validate name matches (lenient match)
+        if (workerFound && workerFound.nombre) {
+            const workerNameParts = formatStr(workerFound.nombre).split(' ').filter(p => p.length > 2);
+            const nameMatches = workerNameParts.some(part => inputNameFormat.includes(part));
+            if (!nameMatches) {
+                return res.status(403).json({ error: 'El nombre ingresado no coincide con el registro oficial para la cédula dada.' });
+            }
+        }
+
+        // Auto-register in SgsstWorker if brand new worker
+        if (!workerFound && SgsstWorker) {
+            try {
+                const newWorker = await SgsstWorker.create({
+                    user: new mongoose.Types.ObjectId(company.user),
+                    companyId: company._id,
+                    perfilId: `worker-${Date.now()}`,
+                    nombre: nombre.trim(),
+                    documento: String(cedula).trim(),
+                    cargo: 'Colaborador',
+                    percepcionRiesgoScore: 0,
+                    fitScore: 90,
+                });
+                workerFound = {
+                    nombre: newWorker.nombre,
+                    cargo: newWorker.cargo,
+                    identificacion: newWorker.documento,
+                    firmaDigital: null
+                };
+            } catch (err) {
+                logger.warn('[Ruta Aprendizaje Public] Could not auto-create SgsstWorker:', err.message);
+                return res.status(403).json({ error: 'Identificación (cédula) no registrada en el listado de personal de la empresa.' });
+            }
+        }
 
         if (!workerFound) {
             return res.status(403).json({ error: 'Identificación (cédula) no registrada en el listado de personal de la empresa.' });
-        }
-
-        // Validate name matches (partial match)
-        const workerNameParts = formatStr(workerFound.nombre).split(' ').filter(p => p.length > 2);
-        const nameMatches = workerNameParts.some(part => inputNameFormat.includes(part));
-
-        if (!nameMatches && workerFound.nombre) {
-            return res.status(403).json({ error: 'El nombre no coincide con el registro oficial para la cédula dada.' });
         }
 
         return res.json({

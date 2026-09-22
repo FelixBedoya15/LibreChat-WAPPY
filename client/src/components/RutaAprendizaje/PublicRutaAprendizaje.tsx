@@ -139,6 +139,7 @@ export default function PublicRutaAprendizaje() {
                 };
 
                 localStorage.setItem('wappy_worker_session', JSON.stringify(newSession));
+                localStorage.setItem('wappy_worker_cedula', newSession.cedula);
                 setSession(newSession);
                 showToast({ message: `¡Bienvenido(a), ${newSession.nombre}!`, status: 'success' });
             }
@@ -153,6 +154,7 @@ export default function PublicRutaAprendizaje() {
 
     const handleLogout = () => {
         localStorage.removeItem('wappy_worker_session');
+        localStorage.removeItem('wappy_worker_cedula');
         setSession(null);
         setCourses([]);
         setCoursesProgress({});
@@ -247,13 +249,23 @@ export default function PublicRutaAprendizaje() {
                         </div>
                     </div>
 
-                    <button
-                        onClick={handleLogout}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-red-900/30 hover:text-red-400 rounded-lg text-xs font-bold transition-all text-slate-300"
-                        title="Cerrar Sesión"
-                    >
-                        <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Cerrar Sesión</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => navigate(`/sgsst-public/colaborador/${companyId}/${session.cedula}`)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-lg text-xs font-bold transition-all shadow-xs"
+                            title="Ver Mi Pasaporte SST y todos los módulos"
+                        >
+                            <Award className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Mi Pasaporte SST</span>
+                        </button>
+                        <button
+                            onClick={handleLogout}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-red-900/30 hover:text-red-400 rounded-lg text-xs font-bold transition-all text-slate-300"
+                            title="Cerrar Sesión"
+                        >
+                            <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Cerrar Sesión</span>
+                        </button>
+                    </div>
                 </div>
             </header>
 

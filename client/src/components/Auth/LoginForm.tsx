@@ -64,7 +64,14 @@ const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, 
           cargo: response.data.worker.cargo || 'Trabajador',
         };
         localStorage.setItem('wappy_worker_session', JSON.stringify(sessionData));
-        navigate(`/sgsst-public/ruta-aprendizaje/${response.data.companyId}`);
+        localStorage.setItem('wappy_worker_cedula', response.data.worker.cedula);
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectParam = urlParams.get('redirect');
+        if (redirectParam) {
+          navigate(redirectParam);
+        } else {
+          navigate(`/sgsst-public/colaborador/${response.data.companyId}/${response.data.worker.cedula}`);
+        }
       }
     } catch (err: any) {
       console.error(err);
@@ -159,6 +166,15 @@ const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, 
 
       {loginMode === 'worker' ? (
         <form className="mt-4" onSubmit={handleWorkerSubmit}>
+          <div className="mb-4 rounded-2xl bg-teal-50/80 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/60 p-3 text-center">
+            <p className="text-xs font-bold text-teal-900 dark:text-teal-200">
+              Portal Integral del Trabajador
+            </p>
+            <p className="text-[11px] text-teal-700 dark:text-teal-300/90 mt-0.5">
+              Accede a tu Pasaporte SST, Cursos LMS, Reportes, Ergonomía y todas tus herramientas en un solo lugar.
+            </p>
+          </div>
+
           {workerError && (
             <div className="mb-4 rounded-md border border-red-500 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
               {workerError}

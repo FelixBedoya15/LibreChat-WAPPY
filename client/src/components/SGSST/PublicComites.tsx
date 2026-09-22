@@ -144,6 +144,7 @@ export default function PublicComites() {
     copasst: {
       name: 'COPASST',
       fullName: 'Comité Paritario de Seguridad y Salud en el Trabajo',
+      norm: 'Res. 2013/1986 • Dec. 1072/15 Art. 2.2.4.6.8',
       icon: Users,
       color: 'from-teal-600 to-emerald-600',
       pts: '+25 pts',
@@ -152,6 +153,7 @@ export default function PublicComites() {
     cocolab: {
       name: 'COCOLAB',
       fullName: 'Comité de Convivencia Laboral',
+      norm: 'Res. 652/2012 • Ley 1010/2006 • Ley 2365/2024',
       icon: HeartHandshake,
       color: 'from-indigo-600 to-violet-600',
       pts: '+25 pts',
@@ -160,6 +162,7 @@ export default function PublicComites() {
     brigada: {
       name: 'Brigada de Emergencias',
       fullName: 'Brigada de Prevención y Atención de Emergencias',
+      norm: 'Res. 2400/1979 Art. 223 • Dec. 1072/15 Art. 2.2.4.6.25',
       icon: Flame,
       color: 'from-amber-600 to-rose-600',
       pts: '+35 pts',
@@ -168,6 +171,7 @@ export default function PublicComites() {
     pesv: {
       name: 'Comité PESV',
       fullName: 'Comité de Seguridad Vial (Plan Estratégico)',
+      norm: 'Res. 20223040040595 de 2022 (Paso 2) • Ley 2050/2020',
       icon: Car,
       color: 'from-cyan-600 to-blue-600',
       pts: '+40 pts',
@@ -275,6 +279,13 @@ export default function PublicComites() {
                     </button>
                   );
                 })}
+              </div>
+
+              <div className="flex items-center justify-between gap-2 p-2.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/60 text-xs">
+                <span className="text-text-secondary font-medium truncate">{activeMeta.fullName}</span>
+                <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 text-[10px] font-bold">
+                  {activeMeta.norm}
+                </span>
               </div>
             </div>
 
@@ -425,6 +436,11 @@ export default function PublicComites() {
           </div>
         )}
       </main>
+
+      {/* Footer Unificado WAPPY */}
+      <footer className="py-4 text-center text-[11px] text-text-tertiary border-t border-border-medium/40 mt-auto">
+        Plataforma Inteligente de Seguridad y Salud en el Trabajo &mdash; Somos SST / WAPPY
+      </footer>
     </div>
   );
 }

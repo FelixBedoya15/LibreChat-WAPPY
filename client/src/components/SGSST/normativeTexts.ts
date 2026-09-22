@@ -577,7 +577,7 @@ export const NORMATIVE_FRAGMENTS = {
     
     NORMATIVA VIGENTE:
        - Ley 1010/06: Medidas para prevenir, corregir y sancionar el acoso laboral.
-       - Resolución 2646/08: Exige políticas claras para prevención del acoso y mecanismos de intervención.`,
+       - Resolución 2764/22 y Ley 2365/24: Exige políticas y protocolos claros para prevención del acoso laboral y sexual en el trabajo.`,
 
    'POLITICA_SEGURIDAD_VIAL': `POLÍTICA DE SEGURIDAD VIAL (Ley 1503 y Res 20223040040595):
     

@@ -359,7 +359,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar existencia de la política y coherencia con el Comité de Convivencia.',
         category: 'planear',
         subcategory: 'Política de SST',
-        criteria: 'Ley 1010/06 (Art 9) | Res 2646/08 (Art 14)',
+        criteria: 'Ley 1010/06 (Art 9) | Res 2764/22 (Art 14) | Ley 2365/24',
         normativeText: NORMATIVE_FRAGMENTS.POLITICA_ACOSO_LABORAL
     },
     {

@@ -3,7 +3,7 @@ import { useParams, useLocation } from 'react-router-dom';
 import { 
   Shield, Smile, Meh, Frown, Send, CheckCircle, 
   MessageSquare, Loader2, Building2, ChevronRight, 
-  AlertCircle, Heart, Sparkles, RotateCcw 
+  AlertCircle, Heart, Sparkles, RotateCcw, Award 
 } from 'lucide-react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
@@ -547,12 +547,13 @@ export default function PublicMoodTracker() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-emerald-50/20 to-slate-100 font-sans text-slate-800 flex flex-col">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-text-primary flex flex-col transition-colors">
       {/* Header Unificado WAPPY */}
       <PublicWorkerHeader
         companyName={company.companyName}
         companyLogo={company.logo}
         companyId={company._id || companyId}
+        currentModule="animo"
         currentApp="termometro"
         title="Termómetro Psicosocial"
         subtitle="100% Anónimo y Voluntario • Bienestar Emocional"
@@ -563,31 +564,31 @@ export default function PublicMoodTracker() {
         
         {/* SCREEN: ALREADY REPORTED TODAY */}
         {alreadyReportedToday ? (
-          <div className="w-full bg-white rounded-3xl border border-slate-200/80 p-7 text-center space-y-5 shadow-sm shadow-slate-200/50 animate-fadeIn">
-            <div className="inline-flex p-4 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 shadow-xs">
-              <CheckCircle className="w-12 h-12" />
+          <div className="w-full bg-surface-primary dark:bg-slate-900 rounded-3xl border border-border-medium p-6 sm:p-7 text-center space-y-5 shadow-xl animate-fadeIn">
+            <div className="inline-flex p-4 rounded-3xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-teal-600 shadow-xs">
+              <CheckCircle className="w-10 h-10" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">¡Ya registraste tu reporte hoy!</h2>
-              <p className="text-xs text-slate-500">Tu estado de ánimo fue recibido correctamente</p>
+              <h2 className="text-xl font-black text-text-primary tracking-tight">¡Ya registraste tu reporte hoy!</h2>
+              <p className="text-xs text-text-secondary">Tu estado de ánimo fue recibido correctamente</p>
             </div>
             
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-xs text-slate-600 leading-relaxed text-left space-y-3">
+            <div className="bg-surface-secondary/50 dark:bg-slate-800/40 border border-border-medium rounded-2xl p-5 text-xs text-text-secondary leading-relaxed text-left space-y-3">
               <p>
                 Para garantizar la objetividad y transparencia de las estadísticas de bienestar laboral de la empresa, solo se permite registrar un reporte al día desde este equipo.
               </p>
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold flex items-center gap-2">
+              <div className="p-3 bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 rounded-xl text-teal-800 dark:text-teal-300 text-xs font-semibold flex items-center gap-2">
                 <span>✨</span>
-                <span>¡Gracias por participar y cuidar tu salud mental! Podrás volver a registrarte mañana.</span>
+                <span>¡Gracias por participar y cuidar tu bienestar emocional! Podrás registrarte mañana de nuevo.</span>
               </div>
             </div>
 
             {/* Desbloqueo directo para administradores o demostraciones */}
-            <div className="pt-3 border-t border-slate-200 space-y-2">
-              <p className="text-[11px] text-slate-500 font-medium">¿Eres administrador o estás realizando una demostración?</p>
+            <div className="pt-3 border-t border-border-medium/60 space-y-2">
+              <p className="text-[11px] text-text-tertiary font-medium">¿Eres administrador o estás realizando una prueba?</p>
               <button
                 onClick={handleUnlockDemo}
-                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white rounded-2xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
               >
                 <Sparkles className="w-4 h-4 text-emerald-200" />
                 <span>Habilitar Modo Demostración (Ilimitado)</span>
@@ -598,20 +599,29 @@ export default function PublicMoodTracker() {
           <>
             {/* STEP 1: WELCOME & MOOD SELECT */}
             {step === 1 && (
-              <div className="w-full bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-sm shadow-slate-200/50 space-y-6 animate-fadeIn">
+              <div className="w-full bg-surface-primary dark:bg-slate-900 rounded-3xl border border-border-medium p-6 sm:p-7 shadow-xl space-y-5 animate-fadeIn">
                 <div className="text-center space-y-2">
+                  <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 text-xs font-black border border-teal-200 dark:border-teal-800 shadow-xs">
+                      <Award className="w-3.5 h-3.5" /> +10 pts Pasaporte SST
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold border border-border-medium">
+                      Res. 2764 de 2022 • Ley 1616 de 2013
+                    </span>
+                  </div>
+
                   {isDemoMode && (
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-300 text-amber-800 rounded-full text-[10px] font-bold tracking-wide uppercase mb-1 shadow-xs">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 rounded-full text-[10px] font-bold tracking-wide uppercase mb-1 shadow-xs">
                       <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                       <span>Modo Demostración / Pruebas Activo</span>
                     </div>
                   )}
-                  <div className="inline-flex p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 mb-1 shadow-xs">
+                  <div className="inline-flex p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-600 mb-1 shadow-xs">
                     <Heart className="w-7 h-7" />
                   </div>
-                  <h2 className="text-xl font-black tracking-tight text-slate-900">¿Cómo te sientes hoy?</h2>
-                  <p className="text-xs text-slate-500 leading-relaxed px-2">
-                    Queremos saber cómo estás. Tu respuesta es estrictamente anónima y ayuda a mejorar el clima laboral de tu organización.
+                  <h2 className="text-xl font-black tracking-tight text-text-primary">¿Cómo te sientes hoy?</h2>
+                  <p className="text-xs text-text-secondary leading-relaxed px-2">
+                    Queremos saber cómo estás. Tu respuesta es estrictamente anónima y ayuda a evaluar el clima laboral conforme a la Batería de Riesgo Psicosocial vigente (Res. 2764 de 2022).
                   </p>
                 </div>
 
@@ -960,11 +970,9 @@ export default function PublicMoodTracker() {
 
       </main>
 
-      {/* Footer */}
-      <footer className="p-4 border-t border-slate-200 bg-white text-center text-[10px] text-slate-400 shrink-0">
-        En cumplimiento con la ética de Batería de Riesgo Psicosocial.
-        <br />
-        Desarrollado de forma segura por <span className="text-slate-600 font-semibold">WAPPY IA</span>
+      {/* Footer Unificado WAPPY */}
+      <footer className="py-4 text-center text-[11px] text-text-tertiary border-t border-border-medium/40 mt-auto">
+        Plataforma Inteligente de Seguridad y Salud en el Trabajo &mdash; Somos SST / WAPPY
       </footer>
     </div>
   );
