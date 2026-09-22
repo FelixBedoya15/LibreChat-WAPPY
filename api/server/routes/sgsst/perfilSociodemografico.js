@@ -2394,6 +2394,7 @@ async function recalculateAndSyncAllWorkers(userId, companyId, trabajadoresList)
         {
           $set: {
             nombre: w.nombre,
+            cargo: w.cargo || '',
             genero: w.genero || 'No especificado',
             fechaNacimiento: w.fechaNacimiento || null,
             condicionesSalud: conditionsStr,

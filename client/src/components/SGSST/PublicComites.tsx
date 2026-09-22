@@ -19,10 +19,13 @@ import {
   Car,
 } from 'lucide-react';
 import PublicWorkerHeader from './PublicWorkerHeader';
+import useWorkerSession from '~/hooks/useWorkerSession';
+import WorkerSessionBadge from './WorkerSessionBadge';
 
 export default function PublicComites() {
   const { companyId } = useParams<{ companyId: string }>();
   const navigate = useNavigate();
+  const { worker, isAuthenticated, saveSession, clearSession } = useWorkerSession(companyId);
 
   const [company, setCompany] = useState<any>(null);
   const [loadingCompany, setLoadingCompany] = useState(true);
@@ -31,8 +34,17 @@ export default function PublicComites() {
   const [tipoComite, setTipoComite] = useState<'copasst' | 'cocolab' | 'brigada' | 'pesv'>('copasst');
   const [accion, setAccion] = useState<'asistencia_reunion' | 'inspeccion_seguridad' | 'simulacro_brigada'>('asistencia_reunion');
   const [nombre, setNombre] = useState('');
-  const [cedula, setCedula] = useState(localStorage.getItem('wappy_worker_cedula') || '');
+  const [cedula, setCedula] = useState('');
   const [cargo, setCargo] = useState('');
+
+  // Auto-fill worker details when session is available
+  useEffect(() => {
+    if (isAuthenticated && worker) {
+      if (worker.nombre) setNombre(worker.nombre);
+      if (worker.cedula) setCedula(worker.cedula);
+      if (worker.cargo) setCargo(worker.cargo);
+    }
+  }, [isAuthenticated, worker]);
   const [rolEnComite, setRolEnComite] = useState('Miembro Principal');
   const [temasTratados, setTemasTratados] = useState('');
   const [compromisos, setCompromisos] = useState('');
@@ -132,6 +144,13 @@ export default function PublicComites() {
       const res = await axios.post(`/api/public-sgsst/comites/${companyId}`, payload);
       setSubmittedResult({ success: true, recordId: res.data.recordId });
       localStorage.setItem('wappy_worker_cedula', cedula.trim());
+      saveSession({
+        companyId,
+        companyName: company?.companyName,
+        nombre: nombre.trim(),
+        cedula: cedula.trim(),
+        cargo: cargo.trim(),
+      });
     } catch (err: any) {
       console.error('Error submitting comite record:', err);
       alert(err.response?.data?.error || 'Error al enviar el registro de asistencia.');
@@ -250,6 +269,21 @@ export default function PublicComites() {
                 Registra formalmente tu participación en los comités institucionales y brigadas de emergencia.
               </p>
             </div>
+
+            {nombre && cedula && (
+              <WorkerSessionBadge
+                nombre={nombre}
+                cedula={cedula}
+                cargo={cargo}
+                companyName={company?.companyName}
+                onClear={() => {
+                  clearSession();
+                  setNombre('');
+                  setCedula('');
+                  setCargo('');
+                }}
+              />
+            )}
 
             {/* Selector de Comité */}
             <div className="space-y-2">

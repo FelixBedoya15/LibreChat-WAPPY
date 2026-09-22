@@ -8,6 +8,8 @@ import axios from 'axios';
 import SingleSelect from './SingleSelect';
 import type { LicenciaConduccionItem } from './exportPerfilSociodemografico';
 import PublicWorkerHeader from './PublicWorkerHeader';
+import { useWorkerSession } from '../../hooks/useWorkerSession';
+import WorkerSessionBadge from './WorkerSessionBadge';
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface WorkerData {
@@ -60,6 +62,8 @@ const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
 export default function PublicPerfilUpdate() {
     const { companyId, workerId } = useParams<{ companyId: string; workerId: string }>();
 
+    const { session, worker: sessionWorker, isAuthenticated, saveSession, clearSession } = useWorkerSession(companyId);
+
     const [company, setCompany] = useState<any>(null);
     const [workerData, setWorkerData] = useState<WorkerData | null>(null);
     const [loadingCompany, setLoadingCompany] = useState(true);
@@ -105,15 +109,16 @@ export default function PublicPerfilUpdate() {
         return '';
     };
 
-    const handleVerify = async () => {
-        if (!cedula.trim()) { setVerifyError('Ingresa tu cédula.'); return; }
+    const handleVerify = async (overrideCedula?: string) => {
+        const targetCed = (overrideCedula || cedula || '').trim();
+        if (!targetCed) { setVerifyError('Ingresa tu cédula.'); return; }
         setVerifying(true);
         setVerifyError('');
         try {
             const verifyWorkerId = (workerId && workerId !== 'undefined') ? workerId : '';
             const verifyUrl = verifyWorkerId
-                ? `/api/public-sgsst/perfil-update/${companyId}/${verifyWorkerId}?cedula=${encodeURIComponent(cedula)}`
-                : `/api/public-sgsst/perfil-update/${companyId}?cedula=${encodeURIComponent(cedula)}`;
+                ? `/api/public-sgsst/perfil-update/${companyId}/${verifyWorkerId}?cedula=${encodeURIComponent(targetCed)}`
+                : `/api/public-sgsst/perfil-update/${companyId}?cedula=${encodeURIComponent(targetCed)}`;
             const res = await axios.get(verifyUrl, { timeout: 15000 });
             if (res.data.companyName) {
                 setCompany({
@@ -125,11 +130,14 @@ export default function PublicPerfilUpdate() {
             const w: WorkerData = res.data.worker;
             
             // If we have a specific workerId in URL, still cross-check for extra security
-            if (workerId && workerId !== 'undefined' && String(w.identificacion).trim() !== String(cedula).trim()) {
+            if (workerId && workerId !== 'undefined' && String(w.identificacion).trim() !== targetCed) {
                 setVerifyError('La cédula ingresada no coincide con este perfil. Por favor verifica e intenta de nuevo.');
                 return;
             }
             
+            saveSession(w.identificacion, w.nombre, w.cargo);
+            setCedula(w.identificacion);
+
             const initialImc = w.imc || calculateIMC(w.peso, w.talla);
 
             setWorkerData(w);
@@ -167,6 +175,15 @@ export default function PublicPerfilUpdate() {
             setVerifying(false);
         }
     };
+
+    // Auto-advance if worker session or query param detected
+    useEffect(() => {
+        const targetCed = sessionWorker?.cedula || session?.cedula;
+        if (targetCed && step === 1 && !workerData && !verifying) {
+            setCedula(targetCed);
+            handleVerify(targetCed);
+        }
+    }, [sessionWorker?.cedula, session?.cedula, step, workerData, verifying]);
 
     const handleSubmit = async () => {
         setSubmitting(true);
@@ -298,17 +315,19 @@ export default function PublicPerfilUpdate() {
                 {/* ─── STEP 2: Update Form ─────────────────────── */}
                 {step === 2 && workerData && (
                     <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        {/* Worker Header */}
-                        <div className="flex items-center gap-3 mb-5 p-4 bg-teal-50 rounded-2xl border border-teal-100">
-                            <div className="w-12 h-12 rounded-full bg-teal-600 flex items-center justify-center text-white font-black text-xl shrink-0">
-                                {workerData.nombre.charAt(0)}
-                            </div>
-                            <div className="min-w-0">
-                                <p className="font-black text-gray-900 truncate leading-tight">{workerData.nombre}</p>
-                                <p className="text-xs text-teal-700 font-semibold">{workerData.cargo}</p>
-                                <p className="text-[11px] text-gray-400">Cédula: {workerData.identificacion}</p>
-                            </div>
-                        </div>
+                        {/* Worker Session Badge */}
+                        <WorkerSessionBadge
+                            nombre={workerData.nombre}
+                            cedula={workerData.identificacion}
+                            cargo={workerData.cargo}
+                            onClear={() => {
+                                clearSession();
+                                setWorkerData(null);
+                                setCedula('');
+                                setStep(1);
+                            }}
+                            className="mb-5"
+                        />
 
                         <div className="space-y-3">
                             

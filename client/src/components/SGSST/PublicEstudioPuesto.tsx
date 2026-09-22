@@ -16,6 +16,8 @@ import {
   Award,
 } from 'lucide-react';
 import PublicWorkerHeader from './PublicWorkerHeader';
+import useWorkerSession from '~/hooks/useWorkerSession';
+import WorkerSessionBadge from './WorkerSessionBadge';
 
 interface CompanyData {
   id: string;
@@ -32,6 +34,7 @@ interface WorkerBasic {
 
 export default function PublicEstudioPuesto() {
   const { companyId } = useParams<{ companyId: string }>();
+  const { worker, isAuthenticated, saveSession, clearSession } = useWorkerSession(companyId);
 
   const [company, setCompany] = useState<CompanyData | null>(null);
   const [workers, setWorkers] = useState<WorkerBasic[]>([]);
@@ -44,6 +47,16 @@ export default function PublicEstudioPuesto() {
   const [workerId, setWorkerId] = useState('');
   const [cargo, setCargo] = useState('');
   const [actividad, setActividad] = useState('');
+
+  // Auto-advance if authenticated worker arrives
+  useEffect(() => {
+    if (isAuthenticated && worker) {
+      setWorkerName(worker.nombre);
+      setWorkerId(worker.cedula);
+      if (worker.cargo) setCargo(worker.cargo);
+      setStep((prev) => (prev === 1 ? 2 : prev));
+    }
+  }, [isAuthenticated, worker]);
 
   // Ergonomic Quick Checks
   const [pantallaOjos, setPantallaOjos] = useState<boolean | null>(null);
@@ -367,7 +380,16 @@ export default function PublicEstudioPuesto() {
                 <button
                   type="button"
                   disabled={!workerId || !workerName || !cargo}
-                  onClick={() => setStep(2)}
+                  onClick={() => {
+                    saveSession({
+                      companyId,
+                      companyName: company?.name,
+                      nombre: workerName.trim(),
+                      cedula: workerId.trim(),
+                      cargo: cargo.trim(),
+                    });
+                    setStep(2);
+                  }}
                   className="w-full mt-2 py-3 rounded-xl bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
                 >
                   <span>Siguiente: Chequeo Ergonómico</span>
@@ -379,6 +401,22 @@ export default function PublicEstudioPuesto() {
             {/* PASO 2: Chequeo Ergonómico y Foto del Puesto */}
             {step === 2 && (
               <div className="space-y-4 animate-in fade-in duration-150">
+                {workerName && workerId && (
+                  <WorkerSessionBadge
+                    nombre={workerName}
+                    cedula={workerId}
+                    cargo={cargo}
+                    companyName={company?.name}
+                    onClear={() => {
+                      clearSession();
+                      setWorkerName('');
+                      setWorkerId('');
+                      setCargo('');
+                      setStep(1);
+                    }}
+                    className="mb-2"
+                  />
+                )}
                 <div className="text-center mb-2">
                   <h3 className="font-bold text-slate-900 dark:text-white text-sm">
                     2. Chequeo de Tu Puesto de Trabajo

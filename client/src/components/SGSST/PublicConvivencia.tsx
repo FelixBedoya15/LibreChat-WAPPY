@@ -16,10 +16,13 @@ import {
   Info,
 } from 'lucide-react';
 import PublicWorkerHeader from './PublicWorkerHeader';
+import useWorkerSession from '~/hooks/useWorkerSession';
+import WorkerSessionBadge from './WorkerSessionBadge';
 
 export default function PublicConvivencia() {
   const { companyId } = useParams<{ companyId: string }>();
   const navigate = useNavigate();
+  const { worker, isAuthenticated, saveSession, clearSession } = useWorkerSession(companyId);
 
   const [company, setCompany] = useState<any>(null);
   const [loadingCompany, setLoadingCompany] = useState(true);
@@ -28,9 +31,18 @@ export default function PublicConvivencia() {
   const [tipoAcoso, setTipoAcoso] = useState<'laboral_ley_1010' | 'sexual_ley_2365'>('laboral_ley_1010');
   const [esAnonimo, setEsAnonimo] = useState(false);
   const [denuncianteNombre, setDenuncianteNombre] = useState('');
-  const [denuncianteCedula, setDenuncianteCedula] = useState(localStorage.getItem('wappy_worker_cedula') || '');
+  const [denuncianteCedula, setDenuncianteCedula] = useState('');
   const [denuncianteCargo, setDenuncianteCargo] = useState('');
   const [denuncianteContacto, setDenuncianteContacto] = useState('');
+
+  // Auto-fill from worker session
+  useEffect(() => {
+    if (isAuthenticated && worker && !esAnonimo) {
+      if (worker.nombre) setDenuncianteNombre(worker.nombre);
+      if (worker.cedula) setDenuncianteCedula(worker.cedula);
+      if (worker.cargo) setDenuncianteCargo(worker.cargo);
+    }
+  }, [isAuthenticated, worker, esAnonimo]);
   
   const [personaReportada, setPersonaReportada] = useState('');
   const [cargoPersonaReportada, setCargoPersonaReportada] = useState('');
@@ -276,6 +288,21 @@ export default function PublicConvivencia() {
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wide block">
                     2. Tus Datos de Identificación (Bajo Reserva)
                   </label>
+                  {denuncianteNombre && denuncianteCedula && (
+                    <WorkerSessionBadge
+                      nombre={denuncianteNombre}
+                      cedula={denuncianteCedula}
+                      cargo={denuncianteCargo}
+                      companyName={company?.companyName}
+                      onClear={() => {
+                        clearSession();
+                        setDenuncianteNombre('');
+                        setDenuncianteCedula('');
+                        setDenuncianteCargo('');
+                      }}
+                      className="mb-2"
+                    />
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <span className="text-[11px] font-semibold text-text-secondary">Nombre Completo:</span>

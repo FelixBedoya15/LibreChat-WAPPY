@@ -225,6 +225,16 @@ async function syncWorkerWithOraculoH1(worker, userId) {
                         updated = true;
                     }
 
+                    if (liveSocioWorker.cargo && worker.cargo !== liveSocioWorker.cargo) {
+                        worker.cargo = liveSocioWorker.cargo;
+                        updated = true;
+                    }
+
+                    if (liveSocioWorker.nombre && worker.nombre !== liveSocioWorker.nombre) {
+                        worker.nombre = liveSocioWorker.nombre;
+                        updated = true;
+                    }
+
                     // Compare fitAlerts or assign if different
                     if (JSON.stringify(worker.fitAlerts) !== JSON.stringify(liveSocioWorker.biocentricAlerts || [])) {
                         worker.fitAlerts = liveSocioWorker.biocentricAlerts || [];

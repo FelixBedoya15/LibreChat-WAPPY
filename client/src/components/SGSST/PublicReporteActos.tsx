@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import PublicWorkerHeader from './PublicWorkerHeader';
+import useWorkerSession from '~/hooks/useWorkerSession';
+import WorkerSessionBadge from './WorkerSessionBadge';
 
 const resizeImage = (
   file: File,
@@ -80,6 +82,7 @@ const resizeImage = (
 
 export default function PublicReporteActos() {
   const { companyId } = useParams<{ companyId: string }>();
+  const { worker, isAuthenticated, saveSession, clearSession } = useWorkerSession(companyId);
   const navigate = useNavigate();
   const [company, setCompany] = useState<any>(null);
   const [loadingCompany, setLoadingCompany] = useState(true);
@@ -88,6 +91,15 @@ export default function PublicReporteActos() {
   // Form State
   const [nombre, setNombre] = useState('');
   const [cedula, setCedula] = useState('');
+
+  // Auto-advance if authenticated worker arrives
+  useEffect(() => {
+    if (isAuthenticated && worker) {
+      setNombre(worker.nombre);
+      setCedula(worker.cedula);
+      setStep((prev) => (prev === 1 ? 2 : prev));
+    }
+  }, [isAuthenticated, worker]);
   const [esTercero, setEsTercero] = useState(false);
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const [hora, setHora] = useState('');
@@ -170,6 +182,14 @@ export default function PublicReporteActos() {
           _id: res.data.companyId || prev?._id,
           companyName: res.data.companyName,
         }));
+      }
+      if (!esTercero) {
+        saveSession({
+          companyId,
+          companyName: res.data?.companyName || company?.companyName,
+          nombre: nombre.trim(),
+          cedula: cedula.trim(),
+        });
       }
       setStep(2);
     } catch (error: any) {
@@ -387,6 +407,20 @@ export default function PublicReporteActos() {
           {/* Step 2: Detalles del Hallazgo */}
           {step === 2 && (
             <div className="flex h-full flex-col duration-500 animate-in fade-in slide-in-from-right-4">
+              {nombre && cedula && !esTercero && (
+                <WorkerSessionBadge
+                  nombre={nombre}
+                  cedula={cedula}
+                  cargo={worker?.cargo}
+                  onClear={() => {
+                    clearSession();
+                    setNombre('');
+                    setCedula('');
+                    setStep(1);
+                  }}
+                  className="mb-4"
+                />
+              )}
               <div className="mb-6 flex items-center gap-3 text-orange-500">
                 <AlertTriangle className="h-8 w-8" />
                 <div>

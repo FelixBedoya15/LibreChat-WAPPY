@@ -8,6 +8,7 @@ import {
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import PublicWorkerHeader from './PublicWorkerHeader';
+import { useWorkerSession } from '../../hooks/useWorkerSession';
 
 interface Message {
   sender: 'user' | 'agent';
@@ -81,11 +82,22 @@ export default function PublicMoodTracker() {
   const [chatError, setChatError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const { session, worker: sessionWorker, isAuthenticated } = useWorkerSession(companyId);
+  const [editingCedula, setEditingCedula] = useState(false);
+
   // Gamification Claim State
   const [claimCedula, setClaimCedula] = useState('');
   const [claimingPoints, setClaimingPoints] = useState(false);
   const [pointsClaimed, setPointsClaimed] = useState(false);
   const [claimMessage, setClaimMessage] = useState('');
+
+  // Auto-fill claimCedula when worker session is detected
+  useEffect(() => {
+    const defaultCed = sessionWorker?.cedula || session?.cedula;
+    if (defaultCed && !claimCedula) {
+      setClaimCedula(defaultCed);
+    }
+  }, [sessionWorker?.cedula, session?.cedula, claimCedula]);
 
   const handleClaimMoodPoints = async () => {
     if (!claimCedula.trim()) return;
@@ -912,23 +924,65 @@ export default function PublicMoodTracker() {
                       <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
                       <span>{claimMessage || '¡+10 Puntos acreditados a tu Pasaporte SST!'}</span>
                     </div>
+                  ) : (sessionWorker || session) && !editingCedula ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-emerald-200 shadow-2xs">
+                        <div className="min-w-0 pr-2">
+                          <p className="text-xs font-black text-slate-800 truncate">{sessionWorker?.nombre || session?.nombre || 'Colaborador'}</p>
+                          <p className="text-[11px] text-slate-500 font-mono">C.C. {claimCedula}</p>
+                        </div>
+                        <button
+                          onClick={handleClaimMoodPoints}
+                          disabled={claimingPoints || !claimCedula.trim()}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 flex items-center gap-1.5"
+                        >
+                          {claimingPoints ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                          <span>¡Acreditar +10 Pts!</span>
+                        </button>
+                      </div>
+                      <div className="text-right">
+                        <button
+                          type="button"
+                          onClick={() => setEditingCedula(true)}
+                          className="text-[10px] text-emerald-700 hover:underline font-semibold"
+                        >
+                          ¿No eres tú? Cambiar cédula
+                        </button>
+                      </div>
+                    </div>
                   ) : (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Ingresa tu cédula para sumar puntos..."
-                        value={claimCedula}
-                        onChange={(e) => setClaimCedula(e.target.value)}
-                        className="flex-1 bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 font-medium shadow-2xs"
-                      />
-                      <button
-                        onClick={handleClaimMoodPoints}
-                        disabled={claimingPoints || !claimCedula.trim()}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 flex items-center gap-1.5"
-                      >
-                        {claimingPoints ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                        <span>Reclamar +10 Pts</span>
-                      </button>
+                    <div className="space-y-1.5">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Ingresa tu cédula para sumar puntos..."
+                          value={claimCedula}
+                          onChange={(e) => setClaimCedula(e.target.value)}
+                          className="flex-1 bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 font-medium shadow-2xs"
+                        />
+                        <button
+                          onClick={handleClaimMoodPoints}
+                          disabled={claimingPoints || !claimCedula.trim()}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 flex items-center gap-1.5"
+                        >
+                          {claimingPoints ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                          <span>Reclamar +10 Pts</span>
+                        </button>
+                      </div>
+                      {editingCedula && (
+                        <div className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCedula(false);
+                              setClaimCedula(sessionWorker?.cedula || session?.cedula || '');
+                            }}
+                            className="text-[10px] text-slate-500 hover:underline"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
 

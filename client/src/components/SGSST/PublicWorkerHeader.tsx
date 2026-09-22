@@ -37,8 +37,31 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
   subtitle,
   workerCedula,
 }) => {
-  const navigate = useNavigate();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  // Compute resolvedCedula from prop, query parameter, or localStorage
+  const resolvedCedula = workerCedula || (() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get('cedula');
+      if (q && q.trim()) return q.trim();
+      const directCed = localStorage.getItem('wappy_worker_cedula');
+      if (directCed && directCed.trim()) return directCed.trim();
+      const rawSession = localStorage.getItem('wappy_worker_session');
+      if (rawSession) {
+        const parsed = JSON.parse(rawSession);
+        if (parsed?.cedula) return String(parsed.cedula).trim();
+      }
+    } catch (e) {}
+    return '';
+  })();
+
+  const navigateWithCedula = (basePath: string) => {
+    setIsMenuOpen(false);
+    if (resolvedCedula) {
+      const separator = basePath.includes('?') ? '&' : '?';
+      navigate(`${basePath}${separator}cedula=${encodeURIComponent(resolvedCedula)}`);
+    } else {
+      navigate(basePath);
+    }
+  };
 
   // Normalize module across aliases
   const rawMod = (currentModule || currentApp || 'colaborador').toLowerCase();
@@ -55,7 +78,7 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
       name: 'Mi Pasaporte SST (Puntos & Perfil)',
       desc: 'Consulta tu saldo de puntos, nivel y carnet 360',
       icon: Award,
-      path: `/sgsst-public/colaborador/${companyId}${workerCedula ? `/${workerCedula}` : ''}`,
+      path: `/sgsst-public/colaborador/${companyId}${resolvedCedula ? `/${encodeURIComponent(resolvedCedula)}` : ''}`,
       color: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800',
       badge: 'Hub',
     },
@@ -147,7 +170,7 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
       <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
         {/* Brand / Empresa */}
         <div 
-          onClick={() => navigate(`/sgsst-public/colaborador/${companyId}${workerCedula ? `/${workerCedula}` : ''}`)}
+          onClick={() => navigate(`/sgsst-public/colaborador/${companyId}${resolvedCedula ? `/${encodeURIComponent(resolvedCedula)}` : ''}`)}
           className="flex items-center gap-2.5 cursor-pointer group shrink-0"
         >
           {companyLogo ? (
@@ -177,7 +200,7 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
           {activeModule !== 'colaborador' && (
             <button
               type="button"
-              onClick={() => navigate(`/sgsst-public/colaborador/${companyId}${workerCedula ? `/${workerCedula}` : ''}`)}
+              onClick={() => navigate(`/sgsst-public/colaborador/${companyId}${resolvedCedula ? `/${encodeURIComponent(resolvedCedula)}` : ''}`)}
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-all active:scale-95"
             >
               <Award className="w-3.5 h-3.5" />
@@ -224,10 +247,7 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
                       return (
                         <div
                           key={mod.id}
-                          onClick={() => {
-                            setIsMenuOpen(false);
-                            navigate(mod.path);
-                          }}
+                          onClick={() => navigateWithCedula(mod.path)}
                           className={`p-2.5 rounded-xl border flex items-start gap-2.5 cursor-pointer transition-all ${
                             isCurrent
                               ? 'bg-teal-50/80 dark:bg-teal-950/40 border-teal-300 dark:border-teal-700'

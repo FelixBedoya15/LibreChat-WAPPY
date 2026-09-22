@@ -1628,6 +1628,28 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
       return res.status(404).json({ error: 'Empresa no encontrada' });
     }
 
+    // 1. Consultar siempre la fuente de la verdad en PerfilSociodemograficoData (Huella Biocéntrica - Hito 2)
+    const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData || require('~/models/PerfilSociodemograficoData');
+    let perfilWorker = null;
+    if (PerfilSociodemograficoData) {
+      const perfil = await PerfilSociodemograficoData.findOne({
+        user: company.user,
+        $or: [
+          { companyId: company._id },
+          { companyId: company._id.toString() },
+          { companyId: { $exists: false } },
+          { companyId: null },
+        ],
+      }).lean();
+
+      if (perfil && Array.isArray(perfil.trabajadores)) {
+        perfilWorker = perfil.trabajadores.find(
+          t => String(t.identificacion || '').trim() === cleanCedula
+        );
+      }
+    }
+
+    // 2. Consultar perfil maestro y puntos de gamificación en SgsstWorker
     const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
     let worker = await SgsstWorker.findOne({
       user: company.user,
@@ -1640,45 +1662,54 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
       documento: cleanCedula,
     }).lean();
 
-    // Fallback: Si no está aún en SgsstWorker, buscar en PerfilSociodemograficoData
-    if (!worker) {
-      const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
-      if (PerfilSociodemograficoData) {
-        const perfil = await PerfilSociodemograficoData.findOne({
-          user: company.user,
-          $or: [
-            { companyId: company._id },
-            { companyId: company._id.toString() },
-            { companyId: { $exists: false } },
-            { companyId: null },
-          ],
-        }).lean();
-
-        if (perfil && Array.isArray(perfil.trabajadores)) {
-          const found = perfil.trabajadores.find(
-            t => String(t.identificacion || '').trim() === cleanCedula
-          );
-          if (found) {
-            worker = {
-              nombre: found.nombre || 'Colaborador',
-              documento: cleanCedula,
-              cargo: found.cargo || 'Personal Operativo',
-              fitScore: found.fitScore || 90,
-              fitAlerts: found.fitAlerts || [],
-              percepcionRiesgoScore: 0,
-              percepcionRiesgoHistorial: [],
-              riesgosBioIndividual: [],
-            };
-          }
-        }
-      }
-    }
-
-    if (!worker) {
+    if (!worker && !perfilWorker) {
       return res.status(404).json({ error: 'Trabajador no encontrado en la base de datos de la empresa.' });
     }
 
-    const score = Number(worker.percepcionRiesgoScore) || 0;
+    // Determinar valores efectivos unificados (prioridad a PerfilSociodemograficoData que es donde el usuario edita)
+    const effectiveNombre = perfilWorker?.nombre || worker?.nombre || 'Colaborador';
+    const effectiveCargo = perfilWorker?.cargo || worker?.cargo || 'Personal Operativo';
+    const effectiveFitScore = (perfilWorker?.biocentricScore !== undefined && perfilWorker?.biocentricScore !== null)
+      ? Number(perfilWorker.biocentricScore)
+      : (worker?.fitScore !== undefined && worker?.fitScore !== null ? Number(worker.fitScore) : 100);
+    const effectiveAlerts = (perfilWorker?.biocentricAlerts && perfilWorker.biocentricAlerts.length > 0)
+      ? perfilWorker.biocentricAlerts
+      : (worker?.fitAlerts || []);
+
+    // Sincronizar en SgsstWorker para consistencia total en toda la base de datos
+    if (worker) {
+      if (worker.cargo !== effectiveCargo || worker.fitScore !== effectiveFitScore || worker.nombre !== effectiveNombre) {
+        SgsstWorker.updateOne(
+          { _id: worker._id },
+          {
+            $set: {
+              nombre: effectiveNombre,
+              cargo: effectiveCargo,
+              fitScore: effectiveFitScore,
+              fitAlerts: effectiveAlerts,
+              updatedAt: new Date(),
+            }
+          }
+        ).catch(e => logger.warn('[Public SGSST] Error actualizando SgsstWorker en colaborador-info:', e.message));
+      }
+    } else if (perfilWorker) {
+      // Si no existía en SgsstWorker, inicializarlo
+      SgsstWorker.create({
+        user: company.user,
+        companyId: company._id,
+        perfilId: cleanCedula,
+        nombre: effectiveNombre,
+        documento: cleanCedula,
+        cargo: effectiveCargo,
+        fitScore: effectiveFitScore,
+        fitAlerts: effectiveAlerts,
+        percepcionRiesgoScore: 0,
+        percepcionRiesgoHistorial: [],
+        riesgosBioIndividual: [],
+      }).catch(e => logger.warn('[Public SGSST] Error autocreando SgsstWorker:', e.message));
+    }
+
+    const score = Number(worker?.percepcionRiesgoScore) || 0;
     const factorReduccion = Math.min(score / 500, 0.40);
     const nivel = score >= 500 ? 'Líder Biocéntrico 360°'
       : score >= 300 ? 'Guardián de la Vida'
@@ -1693,17 +1724,17 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
         logoUrl: company.logoUrl || null,
       },
       worker: {
-        nombre: worker.nombre,
-        documento: worker.documento,
-        cargo: worker.cargo || 'No especificado',
-        fitScore: worker.fitScore ?? 90,
-        fitAlerts: worker.fitAlerts || [],
+        nombre: effectiveNombre,
+        documento: cleanCedula,
+        cargo: effectiveCargo,
+        fitScore: effectiveFitScore,
+        fitAlerts: effectiveAlerts,
         percepcionRiesgoScore: score,
         nivel,
         factorReduccion,
         porcentajeReduccion: Math.round(factorReduccion * 100),
-        historial: (worker.percepcionRiesgoHistorial || []).slice(-15).reverse(),
-        riesgosCount: (worker.riesgosBioIndividual || []).length,
+        historial: (worker?.percepcionRiesgoHistorial || []).slice(-15).reverse(),
+        riesgosCount: (worker?.riesgosBioIndividual || []).length,
       },
     });
   } catch (error) {

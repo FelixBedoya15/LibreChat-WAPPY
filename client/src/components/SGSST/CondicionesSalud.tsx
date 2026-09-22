@@ -554,10 +554,19 @@ const CondicionesSalud = () => {
         setIsSaving(true);
         try {
             syncWorkersSignaturesToStorage(trabajadores);
+            const trabajadoresConBio = trabajadores.map(w => {
+                const bio = calculateBiocentricFit(w);
+                return {
+                    ...w,
+                    biocentricScore: (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : bio.score,
+                    biocentricAlerts: w.biocentricAlerts || bio.alerts,
+                    biocentricIsLethal: w.biocentricIsLethal !== undefined ? w.biocentricIsLethal : bio.isLethal
+                };
+            });
             const res = await fetch('/api/sgsst/perfil-sociodemografico/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ trabajadores }),
+                body: JSON.stringify({ trabajadores: trabajadoresConBio }),
             });
             if (res.ok) {
                 const data = await res.json();
@@ -1191,9 +1200,10 @@ const CondicionesSalud = () => {
                     <>
                         {trabajadores.map((w, wIdx) => {
                             const fitData = calculateBiocentricFit(w);
-                            const scoreColor = fitData.score >= 80 ? 'text-green-500' : fitData.score >= 60 ? 'text-yellow-500' : 'text-red-500';
-                            const scoreBg = fitData.score >= 80 ? 'bg-green-50 dark:bg-green-900/20 shadow-green-500/20' : fitData.score >= 60 ? 'bg-yellow-50 dark:bg-yellow-900/20 shadow-yellow-500/20' : 'bg-red-50 dark:bg-red-900/20 shadow-red-500/20';
-                            const colors = SCORE_COLOR(fitData.score);
+                            const effectiveScore = (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : fitData.score;
+                            const scoreColor = effectiveScore >= 80 ? 'text-green-500' : effectiveScore >= 60 ? 'text-yellow-500' : 'text-red-500';
+                            const scoreBg = effectiveScore >= 80 ? 'bg-green-50 dark:bg-green-900/20 shadow-green-500/20' : effectiveScore >= 60 ? 'bg-yellow-50 dark:bg-yellow-900/20 shadow-yellow-500/20' : 'bg-red-50 dark:bg-red-900/20 shadow-red-500/20';
+                            const colors = SCORE_COLOR(effectiveScore);
                             const initials = (w.nombre?.trim() || 'U')[0].toUpperCase();
                             
                             return (
@@ -1225,7 +1235,7 @@ const CondicionesSalud = () => {
                                     
                                     <div className="flex items-center gap-2.5 shrink-0">
                                         <div className={`hidden md:block px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${colors.badge} shadow-sm mr-1`}>
-                                            {fitData.score}% FIT
+                                            {effectiveScore}% FIT
                                         </div>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setSelectedQrWorker(w); }}
@@ -1250,7 +1260,7 @@ const CondicionesSalud = () => {
                                                 <div className={`absolute top-0 right-0 w-64 h-64 rounded-full mix-blend-multiply filter blur-[80px] opacity-20 pointer-events-none ${scoreBg}`}></div>
                                                 
                                                 <div className={`p-6 rounded-[2rem] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] backdrop-blur-md transition-all duration-500 hover:shadow-lg relative overflow-hidden bg-white/40 dark:bg-[#1a1a1a]/40 group`}>
-                                                    <div className={`absolute top-0 left-0 w-1.5 h-full transition-all duration-700 ${fitData.score >= 80 ? 'bg-gradient-to-b from-green-400 to-emerald-600' : fitData.score >= 60 ? 'bg-gradient-to-b from-yellow-400 to-orange-500' : 'bg-gradient-to-b from-red-500 to-rose-700'}`}></div>
+                                                    <div className={`absolute top-0 left-0 w-1.5 h-full transition-all duration-700 ${effectiveScore >= 80 ? 'bg-gradient-to-b from-green-400 to-emerald-600' : effectiveScore >= 60 ? 'bg-gradient-to-b from-yellow-400 to-orange-500' : 'bg-gradient-to-b from-red-500 to-rose-700'}`}></div>
 
                                                     <div className="flex flex-col md:flex-row items-center justify-between gap-8 pl-4">
                                                         <div className="flex flex-col md:flex-row items-center gap-6 w-full md:w-auto">
@@ -1261,10 +1271,10 @@ const CondicionesSalud = () => {
                                                             >
                                                                 <svg className="w-28 h-28 transform -rotate-90 filter drop-shadow-md">
                                                                     <circle cx="56" cy="56" r="50" fill="none" stroke="currentColor" strokeWidth="6" className="text-border-light dark:text-white/5" />
-                                                                    <circle cx="56" cy="56" r="50" fill="none" stroke="currentColor" strokeWidth="6" strokeDasharray="314.159" strokeDashoffset={314.159 - (fitData.score / 100) * 314.159} className={`transition-all duration-1000 ease-out ${scoreColor}`} strokeLinecap="round" />
+                                                                    <circle cx="56" cy="56" r="50" fill="none" stroke="currentColor" strokeWidth="6" strokeDasharray="314.159" strokeDashoffset={314.159 - (effectiveScore / 100) * 314.159} className={`transition-all duration-1000 ease-out ${scoreColor}`} strokeLinecap="round" />
                                                                 </svg>
                                                                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                                                    <span className={`text-3xl font-black tracking-tighter ${scoreColor}`}>{fitData.score}%</span>
+                                                                    <span className={`text-3xl font-black tracking-tighter ${scoreColor}`}>{effectiveScore}%</span>
                                                                     <span className="text-[9px] uppercase font-bold tracking-widest text-text-secondary">FIT</span>
                                                                 </div>
                                                             </div>
@@ -1868,7 +1878,7 @@ const CondicionesSalud = () => {
                 onClose={() => setActiveAuditWorker(null)}
                 workerName={activeAuditWorker?.nombre || 'Trabajador'}
                 cargoName={activeAuditWorker?.cargo || 'Sin cargo'}
-                score={activeAuditWorker ? calculateBiocentricFit(activeAuditWorker).score : 100}
+                score={activeAuditWorker ? ((activeAuditWorker.biocentricScore !== undefined && activeAuditWorker.biocentricScore !== null) ? activeAuditWorker.biocentricScore : calculateBiocentricFit(activeAuditWorker).score) : 100}
                 auditItems={activeAuditWorker ? calculateBiocentricFit(activeAuditWorker).auditItems : []}
             />
         

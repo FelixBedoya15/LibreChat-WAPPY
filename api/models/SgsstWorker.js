@@ -92,6 +92,7 @@ const SgsstWorkerSchema = new mongoose.Schema({
   perfilId: { type: String, required: true },
   nombre: { type: String, required: true },
   documento: { type: String, required: true },
+  cargo: { type: String, default: '' },
   fechaNacimiento: { type: Date },
   genero: { type: String },
   fechaIngreso: { type: Date },

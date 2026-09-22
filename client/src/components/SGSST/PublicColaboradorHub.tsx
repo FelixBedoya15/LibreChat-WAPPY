@@ -59,6 +59,18 @@ export default function PublicColaboradorHub() {
       setData(res.data);
       setActiveCedula(ced.trim());
       localStorage.setItem('wappy_worker_cedula', ced.trim());
+      if (res.data?.worker) {
+        const fullSession = {
+          companyId,
+          companyName: res.data.company?.companyName || 'Somos SST',
+          nombre: res.data.worker.nombre,
+          cedula: res.data.worker.documento || ced.trim(),
+          cargo: res.data.worker.cargo,
+          fitScore: res.data.worker.fitScore,
+          nivel: res.data.worker.nivel,
+        };
+        localStorage.setItem('wappy_worker_session', JSON.stringify(fullSession));
+      }
     } catch (err: any) {
       console.error('Error fetching worker info:', err);
       setError(err.response?.data?.error || 'No se encontró registro con esa cédula en esta empresa.');
@@ -296,6 +308,7 @@ export default function PublicColaboradorHub() {
                   onClick={() => {
                     setData(null);
                     localStorage.removeItem('wappy_worker_cedula');
+                    localStorage.removeItem('wappy_worker_session');
                   }}
                   className="self-start sm:self-center px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-text-primary bg-surface-secondary/60 hover:bg-surface-hover rounded-xl border border-border-medium transition-colors"
                 >
@@ -376,7 +389,12 @@ export default function PublicColaboradorHub() {
                   return (
                     <div
                       key={idx}
-                      onClick={() => navigate(app.path)}
+                      onClick={() => {
+                        const targetCed = activeCedula || data?.worker?.documento;
+                        const separator = app.path.includes('?') ? '&' : '?';
+                        const url = targetCed ? `${app.path}${separator}cedula=${encodeURIComponent(targetCed)}` : app.path;
+                        navigate(url);
+                      }}
                       className="group bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-2xl p-4 hover:border-teal-400 hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col justify-between gap-3 active:scale-98"
                     >
                       <div className="flex items-start justify-between gap-2">

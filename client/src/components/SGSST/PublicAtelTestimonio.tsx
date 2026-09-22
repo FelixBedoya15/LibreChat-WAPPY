@@ -15,11 +15,16 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import PublicWorkerHeader from './PublicWorkerHeader';
+import { useWorkerSession } from '../../hooks/useWorkerSession';
+import WorkerSessionBadge from './WorkerSessionBadge';
 
 export default function PublicAtelTestimonio() {
   const { companyId } = useParams();
   const searchParams = new URLSearchParams(window.location.search);
   const investigacionId = searchParams.get('investigacionId') || undefined;
+
+  const { session, worker: sessionWorker, isAuthenticated, saveSession, clearSession } = useWorkerSession(companyId);
+
   const [company, setCompany] = useState<any>(null);
   const [loadingCompany, setLoadingCompany] = useState(true);
   const [step, setStep] = useState(1);
@@ -56,6 +61,21 @@ export default function PublicAtelTestimonio() {
     fetchCompany();
   }, [companyId]);
 
+  // Auto-populate & auto-advance when worker session is detected
+  useEffect(() => {
+    if ((sessionWorker || session) && step === 1) {
+      const wName = sessionWorker?.nombre || session?.nombre || '';
+      const wCed = sessionWorker?.cedula || session?.cedula || '';
+      const wCargo = sessionWorker?.cargo || session?.cargo || '';
+      if (wName && wCed) {
+        setNombre(wName);
+        setCedula(wCed);
+        if (wCargo) setCargo(wCargo);
+        setStep(2);
+      }
+    }
+  }, [sessionWorker, session, step]);
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -78,6 +98,7 @@ export default function PublicAtelTestimonio() {
       alert('Por favor seleccione su cargo antes de continuar.');
       return;
     }
+    saveSession(cedula.trim(), nombre.trim(), cargo.trim());
     setStep(2);
   };
 
@@ -329,6 +350,23 @@ export default function PublicAtelTestimonio() {
           {/* Step 2: Testimonio */}
           {step === 2 && (
             <div className="flex h-full flex-col duration-500 animate-in fade-in slide-in-from-right-4">
+              {/* Worker Session Badge */}
+              {cedula && nombre && (
+                <WorkerSessionBadge
+                  nombre={nombre}
+                  cedula={cedula}
+                  cargo={cargo}
+                  onClear={() => {
+                    clearSession();
+                    setNombre('');
+                    setCedula('');
+                    setCargo('');
+                    setStep(1);
+                  }}
+                  className="mb-4"
+                />
+              )}
+
               <div className="mb-6 flex items-center gap-3 text-teal-600 dark:text-teal-400">
                 <MessageSquare className="h-8 w-8" />
                 <div>

@@ -3,10 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Shield, AlertTriangle, Camera, UserCircle, Key, Send, CheckCircle, RefreshCcw, X, HardHat, ClipboardList, FileText, Video, Film, Loader2, Award, ArrowRight } from 'lucide-react';
 import axios from 'axios';
 import PublicWorkerHeader from './PublicWorkerHeader';
+import useWorkerSession from '~/hooks/useWorkerSession';
+import WorkerSessionBadge from './WorkerSessionBadge';
 
 export default function PublicParticipacionIPEVAR() {
     const { companyId } = useParams<{ companyId: string }>();
     const navigate = useNavigate();
+    const { worker, isAuthenticated, saveSession, clearSession } = useWorkerSession(companyId);
+
     const [company, setCompany] = useState<any>(null);
     const [loadingCompany, setLoadingCompany] = useState(true);
     const [step, setStep] = useState(1);
@@ -14,6 +18,15 @@ export default function PublicParticipacionIPEVAR() {
     // Form State
     const [nombre, setNombre] = useState('');
     const [cedula, setCedula] = useState('');
+
+    // Auto-advance if authenticated worker arrives
+    useEffect(() => {
+        if (isAuthenticated && worker) {
+            setNombre(worker.nombre);
+            setCedula(worker.cedula);
+            setStep((prev) => (prev === 1 ? 2 : prev));
+        }
+    }, [isAuthenticated, worker]);
     
     // Step 2 Data
     const [proceso, setProceso] = useState('');
@@ -116,6 +129,12 @@ export default function PublicParticipacionIPEVAR() {
                     companyName: res.data.companyName
                 }));
             }
+            saveSession({
+                companyId,
+                companyName: res.data?.companyName || company?.companyName,
+                nombre: nombre.trim(),
+                cedula: cedula.trim(),
+            });
             setStep(2);
         } catch (error: any) {
             const errorMsg = error.response?.data?.error || "Error al validar la identidad en la base de datos de la empresa.";
@@ -306,6 +325,20 @@ export default function PublicParticipacionIPEVAR() {
                     {/* Step 2: Contexto Tarea y Peligros GTC-45 */}
                     {step === 2 && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-500 flex flex-col h-full">
+                            {nombre && cedula && (
+                                <WorkerSessionBadge
+                                    nombre={nombre}
+                                    cedula={cedula}
+                                    cargo={worker?.cargo}
+                                    onClear={() => {
+                                        clearSession();
+                                        setNombre('');
+                                        setCedula('');
+                                        setStep(1);
+                                    }}
+                                    className="mb-3"
+                                />
+                            )}
                             <div className="mb-4 flex items-center gap-3 text-cyan-600 shrink-0">
                                 <ClipboardList className="w-8 h-8" />
                                 <div>

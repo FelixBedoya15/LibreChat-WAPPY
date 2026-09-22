@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { BookOpen, CheckCircle, Clock, Play, GraduationCap, LogOut, Award, ShieldAlert, ArrowRight, UserCheck } from 'lucide-react';
 import RutaCertificate from './RutaCertificate';
+import { useWorkerSession } from '../../hooks/useWorkerSession';
 
 interface WorkerSession {
     companyId: string;
@@ -18,6 +19,8 @@ export default function PublicRutaAprendizaje() {
     const { companyId } = useParams<{ companyId: string }>();
     const navigate = useNavigate();
     const { showToast } = useToastContext();
+
+    const { session: hookSession, worker: sessionWorker, isAuthenticated } = useWorkerSession(companyId);
 
     // Session State
     const [session, setSession] = useState<WorkerSession | null>(null);
@@ -66,6 +69,26 @@ export default function PublicRutaAprendizaje() {
             fetchCompany();
         }
     }, [companyId]);
+
+    // Auto-login if worker credentials detected via hook / query param
+    useEffect(() => {
+        if (!session && companyDetails && (sessionWorker || hookSession)) {
+            const resolvedCed = sessionWorker?.cedula || hookSession?.cedula;
+            const resolvedNombre = sessionWorker?.nombre || hookSession?.nombre;
+            const resolvedCargo = sessionWorker?.cargo || hookSession?.cargo || '';
+            if (resolvedCed && resolvedNombre) {
+                const autoSession: WorkerSession = {
+                    companyId: companyDetails._id || companyId || '',
+                    companyName: companyDetails.companyName || hookSession?.companyName || '',
+                    nombre: resolvedNombre,
+                    cedula: resolvedCed,
+                    cargo: resolvedCargo,
+                    firmaDigital: hookSession?.firmaDigital || null
+                };
+                setSession(autoSession);
+            }
+        }
+    }, [session, companyDetails, sessionWorker, hookSession, companyId]);
 
     // Fetch courses and their progress once logged in
     useEffect(() => {
