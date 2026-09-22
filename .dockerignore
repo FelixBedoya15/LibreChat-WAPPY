@@ -6,8 +6,6 @@
 **/.vscode
 **/node_modules
 **/coverage
-**/dist
-client/dist
 client/coverage
 
 # Heavy local artifacts and test data

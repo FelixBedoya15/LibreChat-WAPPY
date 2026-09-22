@@ -100,7 +100,8 @@
   "homepage": "https://librechat.ai/",
   "dependencies": {
     "patch-package": "^8.0.1",
-    "postinstall-postinstall": "^2.1.0"
+    "postinstall-postinstall": "^2.1.0",
+    "stripe": "^20.4.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.1",
@@ -164,8 +165,5 @@
       "admin/",
       "packages/"
     ]
-  },
-  "dependencies": {
-    "stripe": "^20.4.0"
   }
 }

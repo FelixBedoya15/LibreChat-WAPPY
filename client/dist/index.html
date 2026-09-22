@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en-US">
+
+<head>
+  <meta charset="utf-8" />
+  <base href="/" />
+  <meta name="theme-color" content="#171717" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="WAPPY IA - Tu asistente de inteligencia artificial avanzado" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>WAPPY IA</title>
+  <!-- Meta Pixel Code -->
+  <script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '1552188416261002');
+  fbq('track', 'PageView');
+  </script>
+  <!-- End Meta Pixel Code -->
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon-180x180.png" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content, viewport-fit=cover" />
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+  </style>
+  <script>
+    const theme = localStorage.getItem('color-theme');
+    const loadingContainerStyle = document.createElement('style');
+    let backgroundColor;
+
+    if (theme === 'dark') {
+      backgroundColor = '#0d0d0d';
+    } else if (theme === 'light') {
+      backgroundColor = '#ffffff';
+    } else if (theme === 'system') {
+      const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      backgroundColor = prefersDarkScheme ? '#0d0d0d' : '#ffffff';
+    } else {
+      backgroundColor = '#ffffff';
+    }
+
+    loadingContainerStyle.innerHTML = `
+        #loading-container {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          background-color: ${backgroundColor};
+        }
+      `;
+    document.head.appendChild(loadingContainerStyle);
+  </script>
+  <script>
+    try {
+      var searchParams = new URLSearchParams(window.location.search);
+      var ref = searchParams.get('ref') || searchParams.get('referral');
+      if (ref && ref.trim()) {
+        localStorage.setItem('wappy_ref', ref.trim());
+      }
+    } catch (e) {}
+  </script>
+  <script type="module" crossorigin src="./assets/react-interactions.Bz4m6CPO.js"></script>
+  <script type="module" crossorigin src="./assets/markdown_highlight.BXMLVVdG.js"></script>
+  <script type="module" crossorigin src="./assets/validation.CXYwsuSc.js"></script>
+  <script type="module" crossorigin src="./assets/math-katex.D41sMH58.js"></script>
+  <script type="module" crossorigin src="./assets/vendor.B_GxMKEl.js"></script>
+  <script type="module" crossorigin src="./assets/i18n.CYF3Eee9.js"></script>
+  <script type="module" crossorigin src="./assets/locales.Cf2BIkd9.js"></script>
+  <script type="module" crossorigin src="./assets/routing.ND_wM8Rh.js"></script>
+  <script type="module" crossorigin src="./assets/radix-ui.CU5hp0q8.js"></script>
+  <script type="module" crossorigin src="./assets/tanstack-vendor.BwX7FdTN.js"></script>
+  <script type="module" crossorigin src="./assets/avatars.Cl1qbG22.js"></script>
+  <script type="module" crossorigin src="./assets/advanced-inputs.-018p6dR.js"></script>
+  <script type="module" crossorigin src="./assets/animations.CckjBZc9.js"></script>
+  <script type="module" crossorigin src="./assets/virtualization.BE7uUePF.js"></script>
+  <script type="module" crossorigin src="./assets/headlessui.jRRnDNbe.js"></script>
+  <script type="module" crossorigin src="./assets/framer-motion.BachRX9n.js"></script>
+  <script type="module" crossorigin src="./assets/http-client.iz7voStE.js"></script>
+  <script type="module" crossorigin src="./assets/utilities.BjsdvwEO.js"></script>
+  <script type="module" crossorigin src="./assets/date-utils.X8D4nCrw.js"></script>
+  <script type="module" crossorigin src="./assets/forms.CWZ6lc3c.js"></script>
+  <script type="module" crossorigin src="./assets/security-ui.DOEyhSXX.js"></script>
+  <script type="module" crossorigin src="./assets/codemirror-state.1WAhZPVj.js"></script>
+  <script type="module" crossorigin src="./assets/codemirror-view.Cu2la2uh.js"></script>
+  <script type="module" crossorigin src="./assets/codemirror-language.XkxDWmhi.js"></script>
+  <script type="module" crossorigin src="./assets/codemirror-core.CNpn7dfm.js"></script>
+  <script type="module" crossorigin src="./assets/sandpack.C3lSNU-8.js"></script>
+  <script type="module" crossorigin src="./assets/markdown-processing.BkwJhmWw.js"></script>
+  <script type="module" crossorigin src="./assets/heic-converter.BhQCFQ0l.js"></script>
+  <script type="module" crossorigin src="./assets/index.DmJmCFhi.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/math-katex.sdXCKFqw.css">
+  <link rel="stylesheet" crossorigin href="./assets/index.DpfineoM.css">
+<link rel="manifest" href="./manifest.webmanifest" crossorigin="use-credentials"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body>
+  <noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=1552188416261002&ev=PageView&noscript=1"
+  /></noscript>
+  <div id="root">
+    <div id="loading-container"></div>
+  </div>
+</body>
+
+</html>
