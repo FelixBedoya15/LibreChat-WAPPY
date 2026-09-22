@@ -37,6 +37,9 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
   subtitle,
   workerCedula,
 }) => {
+  const navigate = useNavigate();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   // Compute resolvedCedula from prop, query parameter, or localStorage
   const resolvedCedula = workerCedula || (() => {
     try {
