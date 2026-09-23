@@ -7,10 +7,10 @@ import { EModelEndpoint } from 'librechat-data-provider';
 
 // Modern official Gemini Flash model lineup
 export const AI_MODELS = [
-  { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
-  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash' },
-  { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
-  { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite' },
+  { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash (Recomendado)' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Alta Disponibilidad)' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
 ];
 
 interface ModelSelectorProps {
@@ -44,9 +44,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
       if (filtered.length > 0) {
         const formatName = (id: string) => {
           if (id === 'gemini-3.7-flash') return 'Gemini 3.7 Flash';
-          if (id === 'gemini-3.6-flash') return 'Gemini 3.6 Flash';
-          if (id === 'gemini-3.5-flash') return 'Gemini 3.5 Flash';
-          if (id === 'gemini-3.5-flash-lite') return 'Gemini 3.5 Flash Lite';
+          if (id === 'gemini-2.5-flash') return 'Gemini 2.5 Flash';
+          if (id === 'gemini-2.0-flash') return 'Gemini 2.0 Flash';
+          if (id === 'gemini-1.5-flash') return 'Gemini 1.5 Flash';
+          if (id === 'gemini-1.5-pro') return 'Gemini 1.5 Pro';
           return id.split('-').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
         };
         const unique = Array.from(new Set(filtered));
