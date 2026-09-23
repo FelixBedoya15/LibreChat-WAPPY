@@ -163,15 +163,86 @@ router.get('/company/:companyId', requireJwtAuth, async (req, res) => {
 router.get('/workers/:companyId', requireJwtAuth, async (req, res) => {
   try {
     const { companyId } = req.params;
-    if (!companyId) return res.status(400).json({ error: 'companyId requerido' });
+    const isSub = !!req.user.isSubUser;
+    const targetUserId = isSub && req.user.parentUser ? req.user.parentUser : req.user.id;
 
-    const perfilDoc = await PerfilSociodemograficoData.findOne({ companyId }).lean();
-    const workers = (perfilDoc?.trabajadores || []).map((w) => ({
-      id: w.id || w._id,
-      nombre: w.nombre || '',
-      identificacion: w.identificacion || '',
-      cargo: w.cargo || '',
-    }));
+    const PerfilSociodemograficoData =
+      mongoose.models.PerfilSociodemograficoData ||
+      require('~/models/PerfilSociodemograficoData');
+
+    let perfilDoc = null;
+
+    // 1. Intentar buscar por user y companyId (canónico)
+    if (companyId && companyId !== 'null' && companyId !== 'undefined') {
+      try {
+        const queryConditions = [
+          { companyId: companyId },
+          { companyId: String(companyId) },
+        ];
+        if (mongoose.Types.ObjectId.isValid(companyId)) {
+          queryConditions.push({ companyId: new mongoose.Types.ObjectId(companyId) });
+        }
+        perfilDoc = await PerfilSociodemograficoData.findOne({
+          user: targetUserId,
+          $or: queryConditions,
+        }).lean();
+      } catch (_) {}
+
+      // 2. Si no encontró por user + companyId, buscar por companyId solo
+      if (!perfilDoc) {
+        try {
+          const queryConditions = [
+            { companyId: companyId },
+            { companyId: String(companyId) },
+          ];
+          if (mongoose.Types.ObjectId.isValid(companyId)) {
+            queryConditions.push({ companyId: new mongoose.Types.ObjectId(companyId) });
+          }
+          perfilDoc = await PerfilSociodemograficoData.findOne({
+            $or: queryConditions,
+          }).lean();
+        } catch (_) {}
+      }
+    }
+
+    // 3. Fallback: buscar por user (el usuario principal de la empresa)
+    if (!perfilDoc) {
+      try {
+        perfilDoc = await PerfilSociodemograficoData.findOne({ user: targetUserId }).lean();
+      } catch (_) {}
+    }
+
+    let workersList = perfilDoc?.trabajadores || [];
+
+    // 4. Si aún no hay trabajadores en PerfilSociodemograficoData, buscar en SgsstWorker
+    if (workersList.length === 0) {
+      try {
+        const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+        if (SgsstWorker) {
+          const sWorkers = await SgsstWorker.find({ user: targetUserId }).lean();
+          if (sWorkers && sWorkers.length > 0) {
+            workersList = sWorkers.map((w) => ({
+              id: w._id,
+              nombre: w.nombre,
+              identificacion: w.identificacion || w.cedula,
+              cargo: w.cargo,
+            }));
+          }
+        }
+      } catch (_) {}
+    }
+
+    const workers = (workersList || [])
+      .map((w) => ({
+        id: w.id || w._id,
+        nombre: w.nombre || '',
+        identificacion: w.identificacion || '',
+        cargo: w.cargo || '',
+      }))
+      .filter((w) => w.nombre);
+
+    // Ordenar alfabéticamente por nombre
+    workers.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
 
     return res.json({ success: true, workers });
   } catch (err) {

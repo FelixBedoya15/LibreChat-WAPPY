@@ -151,6 +151,7 @@ export default function EstudioPuestoTrabajo() {
   });
   const [filterAppointmentStatus, setFilterAppointmentStatus] = useState<string>('all');
   const [appointmentSearchTerm, setAppointmentSearchTerm] = useState('');
+  const [isManualWorkerEntry, setIsManualWorkerEntry] = useState(false);
 
   const [availableWorkers, setAvailableWorkers] = useState<WorkerSimple[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -233,15 +234,37 @@ export default function EstudioPuestoTrabajo() {
     }
   };
 
-  // Load registered workers for autocomplete
-  const loadWorkers = async (cid: string) => {
-    if (!cid) return;
+  // Load registered workers for autocomplete directly from Perfil Sociodemográfico
+  const loadWorkers = async (cid?: string) => {
     try {
-      const res = await fetch(`/api/sgsst/estudio-puesto/workers/${cid}`);
-      if (res.ok) {
-        const data = await res.json();
-        setAvailableWorkers(data.workers || []);
+      let list: WorkerSimple[] = [];
+      if (cid) {
+        const res = await fetch(`/api/sgsst/estudio-puesto/workers/${cid}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.workers) && data.workers.length > 0) {
+            list = data.workers;
+          }
+        }
       }
+      // Fallback directo a /api/sgsst/perfil-sociodemografico/data
+      if (list.length === 0) {
+        const fbRes = await fetch('/api/sgsst/perfil-sociodemografico/data');
+        if (fbRes.ok) {
+          const fbData = await fbRes.json();
+          if (Array.isArray(fbData.trabajadores)) {
+            list = fbData.trabajadores.map((w: any) => ({
+              id: w.id || w._id,
+              nombre: w.nombre || '',
+              identificacion: w.identificacion || '',
+              cargo: w.cargo || '',
+            }));
+          }
+        }
+      }
+      list = list.filter((w) => w.nombre && w.nombre.trim().length > 0);
+      list.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+      setAvailableWorkers(list);
     } catch (err) {
       console.warn('[EPT] Error loading workers for autocomplete:', err);
     }
@@ -249,6 +272,7 @@ export default function EstudioPuestoTrabajo() {
 
   useEffect(() => {
     loadCompanyInfo();
+    loadWorkers();
   }, []);
 
   useEffect(() => {
@@ -365,7 +389,7 @@ export default function EstudioPuestoTrabajo() {
     });
     const link = `${window.location.origin}/sgsst-public/estudio-puesto/${activeCompanyId}?cedula=${apt.workerId}`;
 
-    const text = `📅 *Cita Ergonómica 1 a 1 - Somos SST*\n\nHola *${apt.workerName}*, tienes asignado tu turno de evaluación postural y biomecánica con el *Fisioterapeuta Laboral IA* de WAPPY:\n\n🗓 *Fecha:* ${dateStr}\n⏰ *Hora:* ${timeStr}\n🎯 *Duración:* ${companyEptConfig.slotDurationMinutes || 30} minutos\n🏢 *Empresa:* ${companyInfo?.companyName || 'Somos SST'}\n🔗 *Enlace de Ingreso:* ${link}\n\n_Para garantizar una atención 1 a 1 de máxima calidad y evitar saturación de claves de IA, por favor conéctate puntualmente desde un dispositivo con cámara y micrófono._`;
+    const text = `📅 *Cita Ergonómica 1 a 1 - Modo Live con Fisioterapeuta Laboral IA*\n\nHola *${apt.workerName}*, tienes asignado tu turno de evaluación biomecánica y postural en tiempo real con el *Fisioterapeuta Laboral IA* de WAPPY:\n\n🗓 *Fecha:* ${dateStr}\n⏰ *Hora:* ${timeStr}\n🎯 *Duración:* ${apt.slotDurationMinutes || companyEptConfig.slotDurationMinutes || 30} minutos (3 Fases Biomecánicas RULA/REBA)\n🏢 *Empresa:* ${companyInfo?.companyName || 'Somos SST'}\n🔗 *Enlace de Ingreso:* ${link}\n\n_La auto-evaluación se realizará a través del Modo Live del chat con visión computacional y voz interactiva en 3 fases: postura en silla y apoyo lumbar, alcance a teclado/mouse, y región cervical/pantalla. Por favor conéctate puntualmente desde un computador o dispositivo con cámara y micrófono._`;
 
     navigator.clipboard.writeText(text);
     showToast({ message: 'Mensaje de WhatsApp copiado al portapapeles.', status: 'success' });
@@ -403,14 +427,25 @@ export default function EstudioPuestoTrabajo() {
   }, [appointments, appointmentSearchTerm, filterAppointmentStatus]);
 
   // Autocomplete selection for schedule modal
-  const handleSelectWorkerForSchedule = (doc: string) => {
-    const found = availableWorkers.find((w) => String(w.identificacion).trim() === doc.trim());
+  const handleSelectWorkerForSchedule = (val: string) => {
+    if (!val) {
+      setScheduleForm((prev) => ({
+        ...prev,
+        workerName: '',
+        workerId: '',
+        cargo: '',
+      }));
+      return;
+    }
+    const found = availableWorkers.find(
+      (w) => String(w.identificacion).trim() === val.trim() || w.nombre === val
+    );
     if (found) {
       setScheduleForm((prev) => ({
         ...prev,
         workerName: found.nombre,
         workerId: found.identificacion,
-        cargo: found.cargo || prev.cargo,
+        cargo: found.cargo || '',
       }));
     }
   };
@@ -1535,65 +1570,148 @@ export default function EstudioPuestoTrabajo() {
               </div>
 
               <div className="p-6 space-y-3.5 max-h-[75vh] overflow-y-auto text-xs">
-                {/* Autocomplete de trabajadores */}
-                {availableWorkers.length > 0 && (
-                  <div>
-                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                      Seleccionar Colaborador Registrado
-                    </label>
-                    <select
-                      onChange={(e) => handleSelectWorkerForSchedule(e.target.value)}
-                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                    >
-                      <option value="">Selecciona un colaborador...</option>
-                      {availableWorkers.map((w) => (
-                        <option key={w.identificacion} value={w.identificacion}>
-                          {w.nombre} (C.C. {w.identificacion}) - {w.cargo || 'Sin cargo'}
+                {/* ── Tarjeta Explicativa: Modo Live en Chat con 3 Fases Preestablecidas ── */}
+                <div className="p-3.5 rounded-2xl bg-teal-50/90 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/80 space-y-2">
+                  <div className="flex items-center gap-2 text-teal-900 dark:text-teal-200 font-bold text-xs">
+                    <Video className="w-4 h-4 text-teal-600 shrink-0" />
+                    <span>Evaluación en Modo Live (3 Fases Biomecánicas en Chat)</span>
+                  </div>
+                  <p className="text-[11px] text-teal-800 dark:text-teal-300 leading-relaxed">
+                    El colaborador realizará la auto-evaluación en tiempo real por voz y visión computacional (MediaPipe Pose) con el <strong>Fisioterapeuta Laboral IA</strong> ejecutando las 3 fases preestablecidas:
+                  </p>
+                  <div className="grid grid-cols-3 gap-1.5 text-[10px] text-teal-950 dark:text-teal-200 font-semibold pt-0.5">
+                    <div className="p-2 rounded-xl bg-white/80 dark:bg-zinc-900/60 border border-teal-200/60 dark:border-teal-800/40 text-center">
+                      <span className="block text-teal-600 font-black">Fase 1</span>
+                      Postura en Silla & Apoyo Lumbar
+                    </div>
+                    <div className="p-2 rounded-xl bg-white/80 dark:bg-zinc-900/60 border border-teal-200/60 dark:border-teal-800/40 text-center">
+                      <span className="block text-teal-600 font-black">Fase 2</span>
+                      Brazos & Alcance Teclado/Mouse
+                    </div>
+                    <div className="p-2 rounded-xl bg-white/80 dark:bg-zinc-900/60 border border-teal-200/60 dark:border-teal-800/40 text-center">
+                      <span className="block text-teal-600 font-black">Fase 3</span>
+                      Cuello & Altura de Pantalla
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Selector de Trabajador desde Perfil Sociodemográfico ── */}
+                {!isManualWorkerEntry ? (
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block font-bold text-slate-700 dark:text-zinc-300">
+                          Colaborador (Perfil Sociodemográfico) *
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setIsManualWorkerEntry(true)}
+                          className="text-[11px] text-teal-600 dark:text-teal-400 font-semibold hover:underline"
+                        >
+                          + Ingresar manualmente
+                        </button>
+                      </div>
+                      <select
+                        value={scheduleForm.workerId}
+                        onChange={(e) => handleSelectWorkerForSchedule(e.target.value)}
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                      >
+                        <option value="">
+                          {availableWorkers.length > 0
+                            ? `-- Selecciona el colaborador por su nombre (${availableWorkers.length} disponibles) --`
+                            : 'Cargando colaboradores del perfil sociodemográfico...'}
                         </option>
-                      ))}
-                    </select>
+                        {availableWorkers.map((w) => (
+                          <option key={w.identificacion} value={w.identificacion}>
+                            {w.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Auto-llenado de Cédula y Cargo */}
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                          Cédula / ID (Auto)
+                        </label>
+                        <input
+                          type="text"
+                          readOnly
+                          placeholder="Auto-completada"
+                          value={scheduleForm.workerId}
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-semibold focus:outline-none cursor-default"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                          Cargo / Puesto (Auto)
+                        </label>
+                        <input
+                          type="text"
+                          readOnly
+                          placeholder="Auto-completado"
+                          value={scheduleForm.cargo}
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-semibold focus:outline-none cursor-default"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Modo Manual Alternativo */
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-700 dark:text-zinc-300">
+                        Ingreso Manual de Colaborador
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsManualWorkerEntry(false)}
+                        className="text-[11px] text-teal-600 dark:text-teal-400 font-semibold hover:underline"
+                      >
+                        ← Volver a lista del Perfil Sociodemográfico
+                      </button>
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                        Nombre Completo *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Nombre completo del trabajador"
+                        value={scheduleForm.workerName}
+                        onChange={(e) => setScheduleForm({ ...scheduleForm, workerName: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                          Cédula / ID *
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Cédula"
+                          value={scheduleForm.workerId}
+                          onChange={(e) => setScheduleForm({ ...scheduleForm, workerId: e.target.value })}
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                          Cargo
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ej: Asistente Administrativo"
+                          value={scheduleForm.cargo}
+                          onChange={(e) => setScheduleForm({ ...scheduleForm, cargo: e.target.value })}
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                      Cédula / ID *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Cédula"
-                      value={scheduleForm.workerId}
-                      onChange={(e) => setScheduleForm({ ...scheduleForm, workerId: e.target.value })}
-                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                      Nombre Completo *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Nombre"
-                      value={scheduleForm.workerName}
-                      onChange={(e) => setScheduleForm({ ...scheduleForm, workerName: e.target.value })}
-                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                    Cargo
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ej: Asistente Administrativo"
-                    value={scheduleForm.cargo}
-                    onChange={(e) => setScheduleForm({ ...scheduleForm, cargo: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                  />
-                </div>
 
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
@@ -1627,10 +1745,10 @@ export default function EstudioPuestoTrabajo() {
                   <select
                     value={scheduleForm.slotDurationMinutes}
                     onChange={(e) => setScheduleForm({ ...scheduleForm, slotDurationMinutes: Number(e.target.value) })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none font-semibold text-slate-800 dark:text-zinc-200"
                   >
+                    <option value={30}>30 minutos (Recomendado: 3 Fases Biomecánicas RULA / REBA)</option>
                     <option value={15}>15 minutos (Chequeo express)</option>
-                    <option value={30}>30 minutos (Estándar RULA / REBA)</option>
                     <option value={45}>45 minutos (Evaluación profunda)</option>
                     <option value={60}>60 minutos (Integral biomecánica)</option>
                   </select>
