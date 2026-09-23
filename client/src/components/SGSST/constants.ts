@@ -110,7 +110,7 @@ export const PHASE_CATEGORIES = {
         },
         { 
             id: 'estudio_puesto', title: 'Estudio de Puesto de Trabajo (EPT)', icon: 'Activity',
-            bioRationale: 'Evaluación postural y biomecánica en vivo mediante visión artificial MediaPipe, RULA/REBA, Live Editor y código QR de auto-evaluación.', 
+            bioRationale: 'Evaluación postural y biomecánica en vivo.', 
             normativity: 'Hito 4: Dinámica Operativa y Terreno (Res. 2400 / ISO 11226)' 
         },
         { 

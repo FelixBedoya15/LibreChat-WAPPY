@@ -197,7 +197,7 @@ export default function EstudioPuestoTrabajo() {
   const { user, token } = useAuthContext();
   const { showToast } = useToastContext();
 
-  // Navigation tab: 'estudios' (Expedientes EPT) vs 'agenda' (Agenda & Citas 1 a 1)
+  // Navigation tab: 'estudios' (Expedientes EPT) vs 'agenda' (Agenda de Autoevaluaciones)
   const [activeTab, setActiveTab] = useState<'estudios' | 'agenda'>('estudios');
 
   // Selected AI Model (defaults to Gemini 3.7 Flash, synchronized with platform)
@@ -424,8 +424,8 @@ export default function EstudioPuestoTrabajo() {
       if (res.ok) {
         showToast({
           message: val
-            ? 'Cita previa obligatoria activada para colaboradores.'
-            : 'Acceso flexible activado para colaboradores.',
+            ? 'Programación previa obligatoria activada para colaboradores.'
+            : 'Acceso libre activado para colaboradores.',
           status: 'success',
         });
       }
@@ -456,16 +456,19 @@ export default function EstudioPuestoTrabajo() {
 
       const res = await fetch('/api/sgsst/estudio-puesto/schedule', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Error al programar cita');
+        throw new Error(errData.error || 'Error al programar autoevaluación');
       }
 
-      showToast({ message: '¡Cita ergonómica programada exitosamente!', status: 'success' });
+      showToast({ message: '¡Autoevaluación ergonómica programada exitosamente!', status: 'success' });
       setShowScheduleModal(false);
       loadAppointments(activeCompanyId);
       setScheduleForm((prev) => ({
@@ -476,7 +479,7 @@ export default function EstudioPuestoTrabajo() {
         appointmentNotes: '',
       }));
     } catch (err: any) {
-      showToast({ message: err.message || 'Error al agendar cita.', status: 'error' });
+      showToast({ message: err.message || 'Error al agendar autoevaluación.', status: 'error' });
     } finally {
       setIsSubmittingSchedule(false);
     }
@@ -484,19 +487,22 @@ export default function EstudioPuestoTrabajo() {
 
   // Cancel appointment
   const handleCancelAppointment = async (id: string) => {
-    if (!confirm('¿Seguro que deseas cancelar esta cita programada?')) return;
+    if (!confirm('¿Seguro que deseas cancelar esta autoevaluación programada?')) return;
     try {
       const res = await fetch(`/api/sgsst/estudio-puesto/appointment/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ status: 'cancelado' }),
       });
       if (res.ok) {
-        showToast({ message: 'Cita cancelada correctamente.', status: 'info' });
+        showToast({ message: 'Autoevaluación cancelada correctamente.', status: 'info' });
         loadAppointments(activeCompanyId);
       }
     } catch (e) {
-      showToast({ message: 'Error al cancelar cita.', status: 'error' });
+      showToast({ message: 'Error al cancelar autoevaluación.', status: 'error' });
     }
   };
 
@@ -516,7 +522,7 @@ export default function EstudioPuestoTrabajo() {
     });
     const link = `${window.location.origin}/sgsst-public/estudio-puesto/${activeCompanyId}?cedula=${apt.workerId}`;
 
-    const text = `📅 *Cita Ergonómica 1 a 1 - Modo Live con Fisioterapeuta Laboral IA*\n\nHola *${apt.workerName}*, tienes asignado tu turno de evaluación biomecánica y postural en tiempo real con el *Fisioterapeuta Laboral IA* de WAPPY:\n\n🗓 *Fecha:* ${dateStr}\n⏰ *Hora:* ${timeStr}\n🎯 *Duración:* ${apt.slotDurationMinutes || companyEptConfig.slotDurationMinutes || 30} minutos (3 Fases Biomecánicas RULA/REBA)\n🏢 *Empresa:* ${companyInfo?.companyName || 'Somos SST'}\n🔗 *Enlace de Ingreso:* ${link}\n\n_La auto-evaluación se realizará a través del Modo Live del chat con visión computacional y voz interactiva en 3 fases: postura en silla y apoyo lumbar, alcance a teclado/mouse, y región cervical/pantalla. Por favor conéctate puntualmente desde un computador o dispositivo con cámara y micrófono._`;
+    const text = `📅 *Autoevaluación Ergonómica - Modo Live con Fisioterapeuta Laboral IA*\n\nHola *${apt.workerName}*, tienes asignado tu turno de evaluación postural en tiempo real con el *Fisioterapeuta Laboral IA* de WAPPY:\n\n🗓 *Fecha:* ${dateStr}\n⏰ *Hora:* ${timeStr}\n🎯 *Duración:* ${apt.slotDurationMinutes || companyEptConfig.slotDurationMinutes || 30} minutos (3 Fases Posturales)\n🏢 *Empresa:* ${companyInfo?.companyName || 'Somos SST'}\n🔗 *Enlace de Ingreso:* ${link}\n\n_La autoevaluación se realizará a través del chat interactivo por voz y cámara en 3 fases: postura en silla y apoyo lumbar, alcance a teclado/mouse, y región cervical/pantalla. Por favor conéctate puntualmente desde un computador o dispositivo con cámara y micrófono._`;
 
     navigator.clipboard.writeText(text);
     showToast({ message: 'Mensaje de WhatsApp copiado al portapapeles.', status: 'success' });
@@ -684,9 +690,9 @@ export default function EstudioPuestoTrabajo() {
             <ToolbarButton
               id="tb-schedule"
               onClick={() => setShowScheduleModal(true)}
-              label="Programar Turno 1 a 1"
+              label="Programar Autoevaluación"
               icon={Calendar}
-              title="Programar Turno 1 a 1 para Colaborador (Modo Live)"
+              title="Programar Autoevaluación Ergonómica para Colaborador"
               variant="dummy"
             />
             <ToolbarButton
@@ -709,7 +715,7 @@ export default function EstudioPuestoTrabajo() {
         ]}
       />
 
-      {/* ─── TABS DE NAVEGACIÓN (EXPEDIENTES VS AGENDA 1 A 1) ───────────── */}
+      {/* ─── TABS DE NAVEGACIÓN (EXPEDIENTES VS AGENDA DE AUTOEVALUACIONES) ───────────── */}
       <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2">
         <div className="flex items-center gap-2">
           <button
@@ -738,7 +744,7 @@ export default function EstudioPuestoTrabajo() {
             )}
           >
             <Calendar className="w-4 h-4" />
-            <span>Agenda & Citas 1 a 1 ({appointments.length})</span>
+            <span>Agenda de Autoevaluaciones ({appointments.length})</span>
             {appointmentsStats.today > 0 && (
               <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-400 text-slate-900 font-extrabold animate-pulse">
                 {appointmentsStats.today} hoy
@@ -751,9 +757,9 @@ export default function EstudioPuestoTrabajo() {
           <ToolbarButton
             id="agenda-tab-programar"
             onClick={() => setShowScheduleModal(true)}
-            label="Programar Turno 1 a 1"
+            label="Programar Autoevaluación"
             icon={Plus}
-            title="Programar Turno 1 a 1 para Colaborador"
+            title="Programar Autoevaluación Ergonómica para Colaborador"
             variant="dummy"
           />
         )}
@@ -1099,7 +1105,7 @@ export default function EstudioPuestoTrabajo() {
       </div>
         </>
       ) : (
-        /* ─── VISTA DE AGENDA & CITAS 1 A 1 ─────────────────────────────── */
+        /* ─── VISTA DE AGENDA DE AUTOEVALUACIONES ─────────────────────────── */
         <div className="space-y-4">
           {/* Banner y Control de Concurrencia */}
           <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-teal-900/10 via-amber-900/10 to-teal-900/10 border border-teal-200 dark:border-teal-800/60 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1107,21 +1113,21 @@ export default function EstudioPuestoTrabajo() {
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-teal-600 dark:text-teal-400" />
                 <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                  Protección de API Keys & Agendamiento 1 a 1
+                  Agendamiento y Turnos Individuales 1 a 1
                 </h3>
               </div>
               <p className="text-xs text-slate-600 dark:text-zinc-300 max-w-2xl leading-relaxed">
-                Los turnos programados garantizan que los colaboradores realicen su auto-evaluación postural con el <strong>Fisioterapeuta Laboral IA</strong> de manera individual y sin colapsar cuotas de inteligencia artificial.
+                Los turnos programados garantizan que los colaboradores realicen su autoevaluación postural con el <strong>Fisioterapeuta Laboral IA</strong> de manera individual y organizada.
               </p>
             </div>
 
             <div className="flex items-center gap-3 shrink-0 bg-white dark:bg-zinc-900 p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-xs">
               <div className="text-right">
                 <span className="block text-xs font-bold text-slate-900 dark:text-white">
-                  Exigir Cita Previa Obligatoria
+                  Exigir Programación Previa Obligatoria
                 </span>
                 <span className="block text-[10px] text-slate-500 dark:text-zinc-400">
-                  {companyEptConfig.requireAppointment ? 'Activado (Solo turno del día)' : 'Desactivado (Acceso libre)'}
+                  {companyEptConfig.requireAppointment ? 'Activado (Solo turno asignado)' : 'Desactivado (Acceso libre)'}
                 </span>
               </div>
               <button
@@ -1146,10 +1152,10 @@ export default function EstudioPuestoTrabajo() {
 
           {/* Tarjetas KPIs de Agenda */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-            {/* Total Citas */}
+            {/* Total Autoevaluaciones */}
             <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
               <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400">
-                <span className="text-xs font-bold uppercase tracking-wider">Total Citas</span>
+                <span className="text-xs font-bold uppercase tracking-wider">Total Autoevaluaciones</span>
                 <Calendar className="w-4 h-4 text-teal-600 dark:text-teal-400" />
               </div>
               <div className="mt-2">
@@ -1170,7 +1176,7 @@ export default function EstudioPuestoTrabajo() {
               </div>
             </div>
 
-            {/* Citas de Hoy */}
+            {/* Autoevaluaciones de Hoy */}
             <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-teal-200 dark:border-teal-950/60 shadow-sm flex flex-col justify-between">
               <div className="flex items-center justify-between text-teal-600 dark:text-teal-400">
                 <span className="text-xs font-bold uppercase tracking-wider">Turnos para Hoy</span>
@@ -1197,7 +1203,7 @@ export default function EstudioPuestoTrabajo() {
             </div>
           </div>
 
-          {/* Directorio de Citas y Turnos */}
+          {/* Directorio de Autoevaluaciones y Turnos */}
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
             {/* Filtros de la Agenda */}
             <div className="p-4 md:p-5 border-b border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -1262,7 +1268,7 @@ export default function EstudioPuestoTrabajo() {
               </div>
             </div>
 
-            {/* Tabla de Citas */}
+            {/* Tabla de Autoevaluaciones */}
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
@@ -1280,8 +1286,8 @@ export default function EstudioPuestoTrabajo() {
                     <tr>
                       <td colSpan={6} className="py-12 text-center text-slate-400 dark:text-zinc-500">
                         <Calendar className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                        <p className="font-semibold text-xs">No hay citas registradas con este filtro</p>
-                        <p className="text-[11px] mt-0.5">Programa un nuevo turno 1 a 1 para tus colaboradores.</p>
+                        <p className="font-semibold text-xs">No hay autoevaluaciones registradas con este filtro</p>
+                        <p className="text-[11px] mt-0.5">Programa una autoevaluación para tus colaboradores.</p>
                       </td>
                     </tr>
                   ) : (
@@ -1666,7 +1672,7 @@ export default function EstudioPuestoTrabajo() {
           document.body
         )}
 
-      {/* ─── MODAL: PROGRAMAR CITA 1 A 1 ──────────────────────────────────── */}
+      {/* ─── MODAL: PROGRAMAR AUTOEVALUACIÓN ERGONÓMICA ───────────────────── */}
       {showScheduleModal &&
         ReactDOM.createPortal(
           <div
@@ -1684,10 +1690,10 @@ export default function EstudioPuestoTrabajo() {
                   </div>
                   <div>
                     <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
-                      Programar Cita Ergonómica 1 a 1
+                      Programar Autoevaluación Ergonómica
                     </h3>
                     <p className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
-                      Control de Concurrencia & Compromiso del Colaborador
+                      Turno Individual & Compromiso del Colaborador
                     </p>
                   </div>
                 </div>
@@ -1705,10 +1711,10 @@ export default function EstudioPuestoTrabajo() {
                 <div className="p-3.5 rounded-2xl bg-teal-50/90 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/80 space-y-2">
                   <div className="flex items-center gap-2 text-teal-900 dark:text-teal-200 font-bold text-xs">
                     <Video className="w-4 h-4 text-teal-600 shrink-0" />
-                    <span>Evaluación en Modo Live (3 Fases Biomecánicas en Chat)</span>
+                    <span>Autoevaluación en Vivo (3 Fases Posturales)</span>
                   </div>
                   <p className="text-[11px] text-teal-800 dark:text-teal-300 leading-relaxed">
-                    El colaborador realizará la auto-evaluación en tiempo real por voz y visión computacional (MediaPipe Pose) con el <strong>Fisioterapeuta Laboral IA</strong> ejecutando las 3 fases preestablecidas:
+                    El colaborador realizará la autoevaluación en tiempo real guiada por voz y cámara con el <strong>Fisioterapeuta Laboral IA</strong> en 3 fases:
                   </p>
                   <div className="grid grid-cols-3 gap-1.5 text-[10px] text-teal-950 dark:text-teal-200 font-semibold pt-0.5">
                     <div className="p-2 rounded-xl bg-white/80 dark:bg-zinc-900/60 border border-teal-200/60 dark:border-teal-800/40 text-center">
@@ -1826,7 +1832,7 @@ export default function EstudioPuestoTrabajo() {
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
                     <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                      Fecha de la Cita *
+                      Fecha de Autoevaluación *
                     </label>
                     <input
                       type="date"
@@ -1857,10 +1863,10 @@ export default function EstudioPuestoTrabajo() {
                     onChange={(e) => setScheduleForm({ ...scheduleForm, slotDurationMinutes: Number(e.target.value) })}
                     className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none font-semibold text-slate-800 dark:text-zinc-200"
                   >
-                    <option value={30}>30 minutos (Recomendado: 3 Fases Biomecánicas RULA / REBA)</option>
+                    <option value={30}>30 minutos (Recomendado: 3 Fases Posturales)</option>
                     <option value={15}>15 minutos (Chequeo express)</option>
                     <option value={45}>45 minutos (Evaluación profunda)</option>
-                    <option value={60}>60 minutos (Integral biomecánica)</option>
+                    <option value={60}>60 minutos (Evaluación integral)</option>
                   </select>
                 </div>
 
@@ -1880,7 +1886,7 @@ export default function EstudioPuestoTrabajo() {
                 <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-2">
                   <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <span>
-                    Al confirmar la cita se generará la invitación formal con enlace directo para WhatsApp. Solo 1 colaborador puede estar en vivo por turno.
+                    Al confirmar la autoevaluación se generará el mensaje con enlace directo para WhatsApp. Las evaluaciones se realizan de manera individual.
                   </span>
                 </div>
               </div>
@@ -1908,7 +1914,7 @@ export default function EstudioPuestoTrabajo() {
                   ) : (
                     <>
                       <Calendar className="w-4 h-4" />
-                      <span>Confirmar Cita 1 a 1</span>
+                      <span>Confirmar Autoevaluación</span>
                     </>
                   )}
                 </button>

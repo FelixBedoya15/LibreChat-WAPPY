@@ -716,7 +716,7 @@ export default function PublicEstudioPuesto() {
                         </p>
                       </div>
 
-                      {/* ── Notificación de Cita y Control de Concurrencia 1 a 1 ── */}
+                      {/* ── Notificación de Turno y Control de Concurrencia 1 a 1 ── */}
                       {isCheckingStatus ? (
                         <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 flex items-center justify-center gap-2 text-xs text-slate-500">
                           <RefreshCw className="w-4 h-4 animate-spin text-teal-600" />
@@ -724,18 +724,17 @@ export default function PublicEstudioPuesto() {
                         </div>
                       ) : appointmentStatus && (
                         <div>
-                          {/* CASO 1: Requiere cita previa obligatoria y no tiene cita */}
+                          {/* CASO 1: Requiere programación previa obligatoria y no tiene turno */}
                           {appointmentStatus.requireAppointment && appointmentStatus.status === 'no_appointment' && (
                             <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 space-y-2">
                               <div className="flex items-center gap-2 font-bold text-xs">
                                 <Lock className="w-4 h-4 text-amber-600 shrink-0" />
-                                <span>Cita Previa Obligatoria Requerida</span>
+                                <span>Programación Previa Requerida</span>
                               </div>
                               <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
-                                Para garantizar una evaluación biomecánica personalizada 1 a 1 y evitar la saturación de las claves de IA, tu empresa requiere programación previa. Comunícate con tu responsable de SST para asignar tu fecha y hora.
+                                Tu empresa requiere programación previa para realizar la autoevaluación. Comunícate con tu responsable de SST para asignar tu fecha y hora.
                               </p>
-                              <div className="pt-1 flex items-center justify-between text-[10px]">
-                                <span className="font-semibold text-amber-700 dark:text-amber-400">Regla 1 a 1 activa</span>
+                              <div className="pt-1 flex items-center justify-end text-[10px]">
                                 <button
                                   type="button"
                                   onClick={() => fetchAppointmentStatus(workerId)}
@@ -747,19 +746,19 @@ export default function PublicEstudioPuesto() {
                             </div>
                           )}
 
-                          {/* CASO 2: Cita programada para fecha futura */}
+                          {/* CASO 2: Turno programado para fecha futura */}
                           {appointmentStatus.status === 'future_appointment' && (
                             <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border-2 border-blue-300 dark:border-blue-800 text-blue-900 dark:text-blue-200 space-y-2">
                               <div className="flex items-center gap-2 font-bold text-xs">
                                 <Calendar className="w-4 h-4 text-blue-600 shrink-0" />
-                                <span>Cita Programada Próximamente</span>
+                                <span>Autoevaluación Programada Próximamente</span>
                               </div>
                               <p className="text-[11px] leading-relaxed text-blue-800 dark:text-blue-300">
                                 {appointmentStatus.message}
                               </p>
                               <div className="flex items-center gap-2 text-[10px] text-blue-700 dark:text-blue-400 font-semibold pt-1">
                                 <Clock className="w-3.5 h-3.5" />
-                                <span>La sala de evaluación se habilitará el día de tu turno.</span>
+                                <span>La sala de autoevaluación se habilitará el día de tu turno.</span>
                               </div>
                             </div>
                           )}
@@ -770,14 +769,14 @@ export default function PublicEstudioPuesto() {
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 font-bold text-xs">
                                   <Clock className="w-4 h-4 text-amber-500 shrink-0" />
-                                  <span>Fisioterapeuta en Consulta 1 a 1</span>
+                                  <span>Fisioterapeuta en Consulta Individual</span>
                                 </div>
                                 <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-200 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200 font-bold animate-pulse">
-                                  En consulta previa
+                                  En atención previa
                                 </span>
                               </div>
                               <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
-                                El Fisioterapeuta Laboral IA está finalizando la auto-evaluación con otro colaborador en este instante. Para proteger la calidad del modelo y no saturar las claves de IA, las consultas se atienden uno a uno.
+                                El Fisioterapeuta Laboral IA está finalizando la autoevaluación con otro colaborador. Las evaluaciones se atienden uno a uno para garantizar una atención personalizada.
                               </p>
                               <div className="flex items-center justify-between pt-1">
                                 <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">
@@ -795,7 +794,7 @@ export default function PublicEstudioPuesto() {
                             </div>
                           )}
 
-                          {/* CASO 4: Cita activa para hoy / Sala lista */}
+                          {/* CASO 4: Turno activo para hoy / Sala lista */}
                           {appointmentStatus.canStart && (
                             <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 flex items-center justify-between gap-3 text-xs">
                               <div className="flex items-center gap-2">
@@ -835,7 +834,7 @@ export default function PublicEstudioPuesto() {
                               Evaluación en Vivo con Fisioterapeuta Laboral IA
                             </h4>
                             <p className="text-[11px] text-slate-600 dark:text-zinc-300 mt-1 leading-relaxed">
-                              Activa tu cámara y micrófono para un análisis ergonómico guiado por voz. MediaPipe Pose medirá tus ángulos articulares en 3 fases (RULA y REBA).
+                              Activa tu cámara y micrófono para un análisis ergonómico guiado por voz.
                             </p>
                           </div>
                         </div>
@@ -874,10 +873,10 @@ export default function PublicEstudioPuesto() {
                               <Lock className="w-4 h-4" />
                               <span>
                                 {appointmentStatus.isBusy
-                                  ? 'Sala 1 a 1 Ocupada (Espera tu turno)'
+                                  ? 'Sala en Atención (Espera tu turno)'
                                   : appointmentStatus.status === 'future_appointment'
                                   ? 'Turno Programado para Otra Fecha'
-                                  : 'Cita Previa Obligatoria Requerida'}
+                                  : 'Programación Previa Requerida'}
                               </span>
                             </>
                           ) : (
