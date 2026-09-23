@@ -24,3 +24,11 @@ Todos los botones y botoneras en WAPPY deben seguir:
 4. **Micro-Botones de Filas en Tablas (Expansibles):** `group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95`.
    - Hover expansion: `<div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex"><span className="text-[10px] font-bold">{Texto}</span></div>`.
 
+---
+
+## Verificación Web Obligatoria de Modelos de IA
+> [!CRITICAL]
+> **PROHIBICIÓN ESTRICTA DE ASUMIR MODELOS DE IA:**
+> Antigravity / IA tiene terminantemente PROHIBIDO asumir modelos de IA de memoria. Antes de tocar o configurar selectores de modelos en el frontend (`ModelSelector.tsx`, etc.), se DEBE investigar en la web oficial en vivo los modelos vigentes activos.
+
+

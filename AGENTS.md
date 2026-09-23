@@ -59,3 +59,18 @@ docker exec -it LibreChat node scripts/restore-and-sync-all.js
 >    - **Reprogramar / Editar:** `bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100`.
 >    - **WhatsApp:** `bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100`.
 >    - **Eliminar / Cancelar:** `text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600`.
+
+---
+
+## 5. Verificación Web Obligatoria de Modelos de IA Actuales (Memoria Permanente)
+> [!CRITICAL]
+> **PROHIBICIÓN ESTRICTA DE ASUMIR MODELOS DE IA:**
+> Antigravity / cualquier agente de IA tiene **ESTRICTAMENTE PROHIBIDO** asumir, adivinar o confiar en cortes de conocimiento pasados para nombres, endpoints o versiones de modelos de IA (Google Gemini, OpenAI, Claude, etc.).
+>
+> 1. **INVESTIGACIÓN EN LA WEB OBLIGATORIA:**
+>    Antes de tocar, modificar, sugerir o configurar cualquier modelo de IA en el código (`api/`, `packages/`, `client/`, `.env` o controladores de agentes), la IA **DEBE SIEMPRE** ejecutar herramientas de búsqueda web (`search_web`) o consultar la documentación oficial en vivo (`ai.google.dev`, `platform.openai.com`, etc.) para verificar los modelos activos, vigentes y sus nombres oficiales exactos.
+> 2. **PROHIBIDO DEGRADAR O INVENTAR MODELOS:**
+>    Nunca sustituir modelos configurados en el proyecto por versiones obsoletas o no verificadas.
+> 3. **MANEJO DE ERRORES 503 / SOBRECARGA:**
+>    Si un modelo responde con 503 (alta demanda en los servidores del proveedor), no desmantelar ni reemplazar la lista con modelos obsoletos; verificar siempre en la web las opciones oficiales activas de respaldo vigentes en la plataforma.
+
