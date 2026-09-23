@@ -45,6 +45,21 @@ router.get('/official', requireJwtAuth, async (req, res) => {
       session = await GTC45WorkspaceSession.findOne({ conversationId: officialConvoId });
     }
 
+    // 3. Fallback a la última sesión del usuario o empresa que tenga filas de matriz
+    if (!session) {
+      session = await GTC45WorkspaceSession.findOne({
+        user: userId,
+        ...(companyId ? { companyId } : {}),
+        'matrixRows.0': { $exists: true },
+      }).sort({ updatedAt: -1 });
+    }
+    if (!session) {
+      session = await GTC45WorkspaceSession.findOne({
+        user: userId,
+        'matrixRows.0': { $exists: true },
+      }).sort({ updatedAt: -1 });
+    }
+
     if (!session) {
       return res.json({
         hasOfficial: false,

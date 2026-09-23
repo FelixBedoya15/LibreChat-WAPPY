@@ -78,7 +78,33 @@ async function ensurePerfilExists(userId, companyId, cargoName, contextInfo = {}
   );
 
   if (existing) {
-    return { created: false, perfil: existing, perfilesList: currentList };
+    let modified = false;
+    const eppSources = [contextInfo.medida_eppu, contextInfo.controles_individuo];
+    const currentEpps = new Set(existing.eppSeleccionados || []);
+    const prevCount = currentEpps.size;
+
+    eppSources.forEach((txt) => {
+      if (txt && typeof txt === 'string' && txt !== 'Ninguno' && txt !== 'No aplica' && txt !== 'N/A') {
+        const parts = txt.split(/[,;\n•\-\/]+/).map((s) => s.trim()).filter((s) => s.length > 2);
+        parts.forEach((p) => {
+          currentEpps.add(p.charAt(0).toUpperCase() + p.slice(1));
+        });
+      }
+    });
+
+    if (currentEpps.size > prevCount) {
+      existing.eppSeleccionados = Array.from(currentEpps);
+      modified = true;
+    }
+
+    if (modified) {
+      await PerfilCargoData.updateOne(
+        { _id: doc._id },
+        { $set: { perfilesList: currentList, updatedAt: Date.now() } }
+      );
+    }
+
+    return { created: false, updated: modified, perfil: existing, perfilesList: currentList };
   }
 
   // Deducir nivel del cargo, exigencias y área
@@ -219,18 +245,31 @@ router.get('/data', requireJwtAuth, async (req, res) => {
     if (GTC45Session) {
       try {
         const officialConvoId = `official-${companyId || req.user.id}`;
-        const session =
+        let session =
           (await GTC45Session.findOne({
             user: req.user.id,
             ...(companyId ? { companyId } : {}),
             isOfficial: true,
           })) || (await GTC45Session.findOne({ conversationId: officialConvoId }));
+        if (!session) {
+          session = await GTC45Session.findOne({
+            user: req.user.id,
+            ...(companyId ? { companyId } : {}),
+            'matrixRows.0': { $exists: true },
+          }).sort({ updatedAt: -1 });
+        }
+        if (!session) {
+          session = await GTC45Session.findOne({
+            user: req.user.id,
+            'matrixRows.0': { $exists: true },
+          }).sort({ updatedAt: -1 });
+        }
         if (session && Array.isArray(session.matrixRows)) {
           let hasNew = false;
           for (const r of session.matrixRows) {
             if (r && r.cargo && r.cargo.trim()) {
               const resEnsure = await ensurePerfilExists(req.user.id, companyId, r.cargo, r);
-              if (resEnsure.created) hasNew = true;
+              if (resEnsure.created || resEnsure.updated) hasNew = true;
             }
           }
           if (hasNew) {

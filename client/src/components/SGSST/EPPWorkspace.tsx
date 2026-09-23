@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
@@ -24,7 +24,11 @@ import {
   ChevronRight,
   X,
   ShieldAlert,
-  Loader2
+  Loader2,
+  Zap,
+  PackageCheck,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { SignaturePad } from './SignaturePad';
@@ -79,6 +83,67 @@ interface CargoProfile {
   eppSeleccionados?: string[];
 }
 
+function matchesCargoName(cargoA?: string, cargoB?: string): boolean {
+  if (!cargoA || !cargoB) return false;
+  const a = cargoA.toLowerCase().trim();
+  const b = cargoB.toLowerCase().trim();
+  if (a === b) return true;
+  if (a.includes(b) || b.includes(a)) return true;
+
+  const partsA = a.split(/[/,–—\-\(\)]+/).map(p => p.trim()).filter(p => p.length > 2);
+  const partsB = b.split(/[/,–—\-\(\)]+/).map(p => p.trim()).filter(p => p.length > 2);
+
+  for (const pa of partsA) {
+    for (const pb of partsB) {
+      if (pa === pb || pa.includes(pb) || pb.includes(pa)) return true;
+    }
+  }
+  return false;
+}
+
+function getMatchingIpevarRows(workerCargo?: string, rows: any[] = []): any[] {
+  if (!workerCargo || !Array.isArray(rows) || rows.length === 0) return [];
+  const cargoNorm = workerCargo.toLowerCase().trim();
+  const parts = cargoNorm.split(/[/,–—\-\(\)]+/).map(p => p.trim()).filter(p => p.length > 2);
+
+  return rows.filter(r => {
+    const rowCargo = (r.cargo || '').toLowerCase().trim();
+    if (rowCargo && (rowCargo === cargoNorm || rowCargo.includes(cargoNorm) || cargoNorm.includes(rowCargo))) {
+      return true;
+    }
+    for (const part of parts) {
+      if (rowCargo && (rowCargo.includes(part) || part.includes(rowCargo))) {
+        return true;
+      }
+    }
+    const act = (r.actividad || '').toLowerCase();
+    const tar = (r.tareas || '').toLowerCase();
+    for (const part of parts) {
+      if (act.includes(part) || tar.includes(part)) {
+        return true;
+      }
+    }
+    return false;
+  });
+}
+
+function extractEppsFromIpevarRows(rows: any[]): string[] {
+  const eppsSet = new Set<string>();
+  rows.forEach(r => {
+    const texts = [r.medida_eppu, r.controles_individuo];
+    texts.forEach(txt => {
+      if (txt && typeof txt === 'string' && txt !== 'Ninguno' && txt !== 'No aplica' && txt !== 'N/A') {
+        const parts = txt.split(/[,;\n•\-\/]+/).map(s => s.trim()).filter(s => s.length > 2);
+        parts.forEach(p => {
+          const capitalized = p.charAt(0).toUpperCase() + p.slice(1);
+          eppsSet.add(capitalized);
+        });
+      }
+    });
+  });
+  return Array.from(eppsSet);
+}
+
 export default function EPPWorkspace() {
   const { token, user } = useAuthContext();
   const { showToast } = useToastContext();
@@ -86,6 +151,7 @@ export default function EPPWorkspace() {
   // State
   const [workers, setWorkers] = useState<SocioWorker[]>([]);
   const [cargoProfiles, setCargoProfiles] = useState<CargoProfile[]>([]);
+  const [officialMatrixRows, setOfficialMatrixRows] = useState<any[]>([]);
   const [eppDocs, setEppDocs] = useState<WorkerEppDoc[]>([]);
   const [selectedWorker, setSelectedWorker] = useState<SocioWorker | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -94,9 +160,11 @@ export default function EPPWorkspace() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isSyncingIpevar, setIsSyncingIpevar] = useState(false);
 
   // Collapsible states
   const [isCargoExpanded, setIsCargoExpanded] = useState(true);
+  const [isIpevarHazardsExpanded, setIsIpevarHazardsExpanded] = useState(false);
   const [isAlturasExpanded, setIsAlturasExpanded] = useState(true);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
 
@@ -117,12 +185,33 @@ export default function EPPWorkspace() {
 
   // Calculations for selected worker
   const selectedDoc = eppDocs.find(doc => doc.workerId === selectedWorker?.id);
-  const activeCargoProfile = cargoProfiles.find(profile => 
-    profile?.nombreCargo && selectedWorker?.cargo &&
-    profile.nombreCargo.toLowerCase().trim() === selectedWorker.cargo.toLowerCase().trim() ||
-    profile?.id === selectedWorker?.id // fallback link
-  );
-  const recommendedEpps = activeCargoProfile?.eppSeleccionados || [];
+
+  const activeCargoProfile = useMemo(() => {
+    if (!selectedWorker?.cargo) return null;
+    return cargoProfiles.find(profile => 
+      matchesCargoName(profile?.nombreCargo, selectedWorker.cargo) ||
+      profile?.id === selectedWorker?.id
+    );
+  }, [cargoProfiles, selectedWorker]);
+
+  const matchingIpevarRows = useMemo(() => {
+    if (!selectedWorker?.cargo) return [];
+    return getMatchingIpevarRows(selectedWorker.cargo, officialMatrixRows);
+  }, [selectedWorker, officialMatrixRows]);
+
+  const ipevarEpps = useMemo(() => {
+    return extractEppsFromIpevarRows(matchingIpevarRows);
+  }, [matchingIpevarRows]);
+
+  const cargoProfileEpps = activeCargoProfile?.eppSeleccionados || [];
+
+  // Combine EPPs from Cargo Profile and Matriz IPEVAR (Hito 1)
+  const recommendedEpps = useMemo(() => {
+    const combined = new Set<string>();
+    cargoProfileEpps.forEach(e => { if (e && e.trim()) combined.add(e.trim()); });
+    ipevarEpps.forEach(e => { if (e && e.trim()) combined.add(e.trim()); });
+    return Array.from(combined);
+  }, [cargoProfileEpps, ipevarEpps]);
 
   const handleGenerate = useCallback(async () => {
     if (!selectedWorker) {
@@ -290,6 +379,19 @@ export default function EPPWorkspace() {
       });
       const eppData = await eppRes.json();
       setEppDocs(Array.isArray(eppData) ? eppData : []);
+
+      // 4. Fetch Official Matriz IPEVAR (Hito 1)
+      try {
+        const matrixRes = await fetch('/api/sgsst/gtc45-workspace/official', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (matrixRes.ok) {
+          const matrixData = await matrixRes.json();
+          setOfficialMatrixRows(Array.isArray(matrixData?.matrixRows) ? matrixData.matrixRows : []);
+        }
+      } catch (mErr) {
+        console.warn('[EPP Workspace] Error loading official matrix:', mErr);
+      }
     } catch (err) {
       console.error('[EPP Workspace] Fetch error:', err);
       showToast({ message: 'Error al cargar los datos del módulo EPP', status: 'error' });
@@ -473,6 +575,174 @@ export default function EPPWorkspace() {
     setFormResultadoInspeccion('N/A');
     setFormSignature(null);
     setFormObservaciones('');
+  };
+
+  const handleQuickDeliver = (eppName: string) => {
+    const isAlturas = /arnés|eslinga|mosquetón|anclaje|línea de vida|freno/i.test(eppName);
+    setFormEppName(eppName);
+    setFormTipo(isAlturas ? 'Alturas' : 'Regular');
+    setFormCantidad(1);
+    setFormFechaEntrega(new Date().toISOString().substring(0, 10));
+    setFormVencimientoInterval('6');
+    setFormObservaciones(`Dotación requerida según ${activeCargoProfile?.eppSeleccionados?.includes(eppName) ? 'Perfil de Cargo' : 'Matriz IPEVAR Hito 1'}`);
+    setIsModalOpen(true);
+  };
+
+  const handleDeliverAllRecommended = async () => {
+    if (!selectedWorker) return;
+    if (recommendedEpps.length === 0) {
+      showToast({ message: 'No hay EPPs requeridos para entregar a este cargo.', status: 'warning' });
+      return;
+    }
+
+    const currentDeliveries = selectedDoc ? [...selectedDoc.entregas] : [];
+    const existingNames = new Set(currentDeliveries.map(d => d.nombre.toLowerCase().trim()));
+
+    const pendingEpps = recommendedEpps.filter(e => !existingNames.has(e.toLowerCase().trim()));
+
+    if (pendingEpps.length === 0) {
+      showToast({ message: 'El trabajador ya tiene registrados todos los EPPs requeridos.', status: 'info' });
+      return;
+    }
+
+    const confirmMsg = `¿Desea registrar la entrega de dotación de ${pendingEpps.length} EPPs requeridos para ${selectedWorker.nombre}?`;
+    if (!confirm(confirmMsg)) return;
+
+    setLoading(true);
+    const todayStr = new Date().toISOString().substring(0, 10);
+    const defaultExpiry = new Date();
+    defaultExpiry.setMonth(defaultExpiry.getMonth() + 6);
+    const defaultExpiryStr = defaultExpiry.toISOString().substring(0, 10);
+
+    const newItems: EppItem[] = pendingEpps.map((eppName, idx) => {
+      const isAlturas = /arnés|eslinga|mosquetón|anclaje|línea de vida|freno/i.test(eppName);
+      return {
+        id: `EPP-${Date.now()}-${idx}`,
+        nombre: eppName,
+        tipo: isAlturas ? 'Alturas' : 'Regular',
+        fechaEntrega: todayStr,
+        fechaVencimiento: defaultExpiryStr,
+        cantidad: 1,
+        estado: 'Entregado',
+        firmaTrabajador: selectedWorker.firmaDigital || undefined,
+        observaciones: `Dotación completa requerida según Matriz IPEVAR / Perfil de Cargo (${selectedWorker.cargo})`
+      };
+    });
+
+    const updatedDeliveries = [...currentDeliveries, ...newItems];
+
+    try {
+      const res = await fetch('/api/sgsst/epp/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          workerId: selectedWorker.id,
+          documento: selectedWorker.identificacion,
+          nombreTrabajador: selectedWorker.nombre,
+          cargo: selectedWorker.cargo || 'Sin cargo',
+          entregas: updatedDeliveries
+        })
+      });
+
+      if (!res.ok) throw new Error('Save failed');
+
+      showToast({ message: `¡Se registraron ${newItems.length} entregas de EPP con firma para ${selectedWorker.nombre}!`, status: 'success' });
+      loadData();
+    } catch (err) {
+      console.error(err);
+      showToast({ message: 'Error al registrar las entregas de dotación', status: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSyncFromIpevar = async () => {
+    if (!selectedWorker?.cargo) return;
+    if (matchingIpevarRows.length === 0) {
+      showToast({ 
+        message: `No se encontraron peligros en la Matriz IPEVAR para "${selectedWorker.cargo}". Verifique la matriz en Hito 1.`, 
+        status: 'warning' 
+      });
+      return;
+    }
+
+    setIsSyncingIpevar(true);
+    try {
+      const extracted = extractEppsFromIpevarRows(matchingIpevarRows);
+      if (extracted.length === 0) {
+        showToast({ 
+          message: 'Los peligros de la Matriz IPEVAR para este cargo no tienen medidas EPP especificadas.', 
+          status: 'info' 
+        });
+        return;
+      }
+
+      const res = await fetch('/api/sgsst/perfiles-cargo/ensure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          nombreCargo: selectedWorker.cargo,
+          medida_eppu: extracted.join(', '),
+          nro_expuestos: matchingIpevarRows[0]?.nro_expuestos || 1,
+          proceso: matchingIpevarRows[0]?.proceso || '',
+          actividad: matchingIpevarRows[0]?.actividad || '',
+        })
+      });
+      const data = await res.json();
+      if (data.perfilesList) {
+        setCargoProfiles(data.perfilesList);
+      }
+      showToast({ 
+        message: `¡Se sincronizaron ${extracted.length} EPPs desde la Matriz IPEVAR (Hito 1) para "${selectedWorker.cargo}"!`, 
+        status: 'success' 
+      });
+      loadData();
+    } catch (err) {
+      console.error('[EPP Sync IPEVAR]', err);
+      showToast({ message: 'Error al sincronizar con la Matriz IPEVAR', status: 'error' });
+    } finally {
+      setIsSyncingIpevar(false);
+    }
+  };
+
+  const handleApplyStandardPack = async () => {
+    if (!selectedWorker?.cargo) return;
+    const standardPack = [
+      'Casco de seguridad dieléctrico con barbuquejo',
+      'Gafas de seguridad con filtro UV',
+      'Botas de seguridad con puntera de acero',
+      'Guantes de protección mecánica (vaqueta o nitrilo)',
+      'Protectores auditivos de inserción'
+    ];
+
+    setIsSyncingIpevar(true);
+    try {
+      const res = await fetch('/api/sgsst/perfiles-cargo/ensure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          nombreCargo: selectedWorker.cargo,
+          medida_eppu: standardPack.join(', '),
+        })
+      });
+      const data = await res.json();
+      if (data.perfilesList) {
+        setCargoProfiles(data.perfilesList);
+      }
+      showToast({ 
+        message: `¡Dotación estándar básica de campo asignada al cargo "${selectedWorker.cargo}"!`, 
+        status: 'success' 
+      });
+      loadData();
+    } catch (err) {
+      console.error(err);
+      showToast({ message: 'Error al asignar dotación básica', status: 'error' });
+    } finally {
+      setIsSyncingIpevar(false);
+    }
   };
 
   // Helper to generate the HTML for print/download
@@ -773,30 +1043,209 @@ export default function EPPWorkspace() {
             {/* Contenido principal */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               
-              {/* EPP Sugeridos del Cargo */}
+              {/* EPP Sugeridos del Cargo y Matriz IPEVAR */}
               <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
-                <button 
-                  onClick={() => setIsCargoExpanded(!isCargoExpanded)} 
-                  className="w-full flex items-center justify-between p-4 bg-surface-tertiary"
-                >
-                  <div className="flex items-center gap-2">
-                    {isCargoExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-                    <Shield className="w-5 h-5 text-teal-500" />
-                    <span className="font-semibold text-text-primary">EPP Requeridos por el Cargo</span>
-                  </div>
-                </button>
-                {isCargoExpanded && (
-                  <div className="p-5 border-t border-border-medium bg-surface-primary space-y-3.5">
-                    {recommendedEpps.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {recommendedEpps.map((epp, idx) => (
-                          <span key={idx} className="bg-surface-secondary border border-border-light dark:border-white/5 text-text-primary text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5">
-                            <CheckCircle className="w-3.5 h-3.5 text-teal-500" /> {epp}
+                <div className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-surface-tertiary gap-3">
+                  <button 
+                    onClick={() => setIsCargoExpanded(!isCargoExpanded)} 
+                    className="flex items-center gap-2 text-left"
+                  >
+                    {isCargoExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
+                    <Shield className="w-5 h-5 text-teal-500 shrink-0" />
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-text-primary text-sm sm:text-base">EPP Requeridos por el Cargo y Matriz IPEVAR</span>
+                        {matchingIpevarRows.length > 0 && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 font-semibold border border-teal-500/20 flex items-center gap-1">
+                            <Zap className="w-3 h-3 text-teal-500" />
+                            {matchingIpevarRows.length} Peligros IPEVAR
                           </span>
-                        ))}
+                        )}
+                        {recommendedEpps.length > 0 && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold border border-blue-500/20">
+                            {recommendedEpps.length} EPPs Exigidos
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+
+                  <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                    <button
+                      onClick={handleSyncFromIpevar}
+                      disabled={isSyncingIpevar}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-surface-primary hover:bg-surface-secondary text-text-primary border border-border-medium shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                      title="Sincronizar EPPs del cargo con la Matriz de Peligros IPEVAR (Hito 1)"
+                    >
+                      <RefreshCw className={cn("w-3.5 h-3.5 text-teal-500", isSyncingIpevar && "animate-spin")} />
+                      <span>{isSyncingIpevar ? 'Sincronizando...' : 'Sincronizar con IPEVAR'}</span>
+                    </button>
+                    {recommendedEpps.length > 0 && (
+                      <button
+                        onClick={handleDeliverAllRecommended}
+                        disabled={loading}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-700 text-white shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                        title="Registrar entrega de todos los EPPs requeridos no entregados aún"
+                      >
+                        <PackageCheck className="w-3.5 h-3.5 text-white" />
+                        <span className="hidden sm:inline">Entregar Dotación Completa</span>
+                        <span className="sm:hidden">Dotación</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {isCargoExpanded && (
+                  <div className="p-5 border-t border-border-medium bg-surface-primary space-y-4">
+                    {/* Explicación de trazabilidad */}
+                    <div className="text-xs text-text-secondary flex items-center justify-between flex-wrap gap-2 pb-1 border-b border-border-light dark:border-white/5">
+                      <span>
+                        Peligros y dotación vinculados al cargo: <strong className="text-text-primary">{selectedWorker?.cargo || 'Sin cargo'}</strong>
+                      </span>
+                      <div className="flex items-center gap-3 text-[11px]">
+                        <span className="flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-full bg-teal-500"></span> Matriz IPEVAR Hito 1
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-full bg-blue-500"></span> Perfil de Cargo
+                        </span>
+                      </div>
+                    </div>
+
+                    {recommendedEpps.length > 0 ? (
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap gap-2.5">
+                          {recommendedEpps.map((epp, idx) => {
+                            const isDelivered = selectedDoc?.entregas.some(
+                              ent => ent.nombre.toLowerCase().trim() === epp.toLowerCase().trim() && ent.estado === 'Entregado'
+                            );
+                            const fromIpevar = ipevarEpps.some(ie => ie.toLowerCase() === epp.toLowerCase());
+                            const fromCargo = cargoProfileEpps.some(ce => ce.toLowerCase() === epp.toLowerCase());
+
+                            return (
+                              <div 
+                                key={idx} 
+                                className={cn(
+                                  "border text-xs px-3 py-2 rounded-xl font-medium flex items-center gap-2 transition-all shadow-2xs",
+                                  isDelivered 
+                                    ? "bg-emerald-500/5 border-emerald-500/20 text-text-primary" 
+                                    : "bg-surface-secondary border-border-medium hover:border-teal-500/40 text-text-primary"
+                                )}
+                              >
+                                {isDelivered ? (
+                                  <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                                ) : (
+                                  <Shield className="w-4 h-4 text-teal-500 shrink-0" />
+                                )}
+                                
+                                <span className="font-semibold">{epp}</span>
+
+                                {/* Source badge */}
+                                {fromIpevar && (
+                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-teal-500/10 text-teal-600 dark:text-teal-400 font-mono font-medium">
+                                    IPEVAR
+                                  </span>
+                                )}
+                                {fromCargo && !fromIpevar && (
+                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-mono font-medium">
+                                    Cargo
+                                  </span>
+                                )}
+
+                                {/* Action */}
+                                {isDelivered ? (
+                                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                    Entregado
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => handleQuickDeliver(epp)}
+                                    className="ml-1 text-[11px] text-teal-600 dark:text-teal-400 hover:text-teal-700 font-bold bg-teal-500/10 hover:bg-teal-500/20 px-2 py-0.5 rounded flex items-center gap-0.5 transition-colors"
+                                    title={`Registrar entrega de ${epp}`}
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                    <span>Entregar</span>
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Botón para desplegar peligros IPEVAR vinculados */}
+                        {matchingIpevarRows.length > 0 && (
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={() => setIsIpevarHazardsExpanded(!isIpevarHazardsExpanded)}
+                              className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 flex items-center gap-1.5 transition-colors"
+                            >
+                              {isIpevarHazardsExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                              <span>{isIpevarHazardsExpanded ? 'Ocultar matriz de peligros del cargo' : `Ver ${matchingIpevarRows.length} peligros identificados en Matriz IPEVAR (Hito 1)`}</span>
+                            </button>
+
+                            {isIpevarHazardsExpanded && (
+                              <div className="mt-2.5 space-y-2 max-h-72 overflow-y-auto pr-1">
+                                {matchingIpevarRows.map((r, i) => (
+                                  <div key={i} className="p-3 bg-surface-secondary/40 border border-border-light dark:border-white/5 rounded-xl text-xs space-y-1">
+                                    <div className="flex justify-between items-start gap-2">
+                                      <div className="font-bold text-text-primary">
+                                        {r.proceso ? `${r.proceso} • ` : ''}{r.actividad || r.tareas || 'Actividad general'}
+                                      </div>
+                                      {r.nivel_riesgo_interpretacion && (
+                                        <span className={cn(
+                                          "px-2 py-0.5 rounded text-[10px] font-bold shrink-0",
+                                          r.nivel_riesgo_interpretacion === 'I' || r.nivel_riesgo_interpretacion === 'No Aceptable' ? "bg-red-500/10 text-red-500 border border-red-500/20" :
+                                          r.nivel_riesgo_interpretacion === 'II' ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" :
+                                          "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                                        )}>
+                                          Riesgo {r.nivel_riesgo_interpretacion}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-text-secondary">
+                                      <strong className="text-text-primary">Peligro:</strong> {r.peligro_descripcion || 'Sin descripción'} {r.peligro_clasificacion ? `(${r.peligro_clasificacion})` : ''}
+                                    </p>
+                                    {(r.medida_eppu || r.controles_individuo) && (
+                                      <p className="text-teal-600 dark:text-teal-400 font-medium">
+                                        <strong>Control EPP:</strong> {r.medida_eppu || r.controles_individuo}
+                                      </p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <p className="text-xs text-text-secondary font-medium">Este cargo no tiene EPPs específicos asignados en el Perfil de Cargo. Se aplica la protección estándar básica.</p>
+                      <div className="p-4 bg-surface-secondary/50 rounded-xl border border-dashed border-border-medium text-center space-y-3">
+                        <AlertCircle className="w-8 h-8 text-amber-500 mx-auto opacity-80" />
+                        <div>
+                          <p className="text-xs font-semibold text-text-primary">No se detectaron EPPs específicos para "{selectedWorker?.cargo || 'este cargo'}"</p>
+                          <p className="text-[11px] text-text-secondary mt-0.5 max-w-md mx-auto">
+                            Puedes sincronizar los peligros y controles desde la Matriz IPEVAR de Hito 1 o asignar la dotación básica estándar de obra y terreno.
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-center gap-2 pt-1">
+                          <button
+                            onClick={handleSyncFromIpevar}
+                            disabled={isSyncingIpevar}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-700 text-white shadow-xs flex items-center gap-1.5 transition-colors"
+                          >
+                            <Zap className="w-3.5 h-3.5" />
+                            <span>Escanear Matriz IPEVAR</span>
+                          </button>
+                          <button
+                            onClick={handleApplyStandardPack}
+                            disabled={isSyncingIpevar}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-surface-primary hover:bg-surface-secondary text-text-primary border border-border-medium shadow-xs flex items-center gap-1.5 transition-colors"
+                          >
+                            <Shield className="w-3.5 h-3.5 text-blue-500" />
+                            <span>Asignar Dotación Estándar</span>
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
