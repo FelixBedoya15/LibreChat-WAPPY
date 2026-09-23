@@ -1,13 +1,12 @@
 diff --git a/node_modules/@google/generative-ai/dist/index.js b/node_modules/@google/generative-ai/dist/index.js
-index 61b2c39..41d9c33 100644
+index 61b2c39..892ba88 100644
 --- a/node_modules/@google/generative-ai/dist/index.js
 +++ b/node_modules/@google/generative-ai/dist/index.js
-@@ -685,9 +685,12 @@ function processStream(response) {
+@@ -685,9 +685,11 @@ function processStream(response) {
      const inputStream = response.body.pipeThrough(new TextDecoderStream("utf8", { fatal: true }));
      const responseStream = getResponseStream(inputStream);
      const [stream1, stream2] = responseStream.tee();
 +    const respPromise = getResponsePromise(stream2);
-+    // Prevent unhandled rejection when callers only consume stream1
 +    respPromise.catch(() => {});
      return {
          stream: generateResponseSequence(stream1),
@@ -16,31 +15,28 @@ index 61b2c39..41d9c33 100644
      };
  }
  async function getResponsePromise(stream) {
-@@ -729,6 +732,23 @@ function getResponseStream(inputStream) {
+@@ -729,14 +731,26 @@ function getResponseStream(inputStream) {
                      .read()
                      .then(({ value, done }) => {
                      if (done) {
 +                        currentText = currentText.replace(/^(?::[^\n]*\r?\n|\r?\n)+/, "");
-+                        if (currentText.trim()) {
-+                            const trimmed = currentText.trim();
-+                            if (trimmed.startsWith("data: ")) {
-+                                try {
-+                                    const parsedResponse = JSON.parse(trimmed.substring(6).trim());
-+                                    controller.enqueue(parsedResponse);
-+                                    currentText = "";
-+                                }
-+                                catch (e) {
-+                                    // keep currentText for error
-+                                }
-+                            }
-+                            else if (trimmed === "data: [DONE]" || trimmed.startsWith(":")) {
-+                                currentText = "";
-+                            }
-+                        }
                          if (currentText.trim()) {
-                             controller.error(new GoogleGenerativeAIError("Failed to parse stream"));
-                             return;
-@@ -737,6 +757,7 @@ function getResponseStream(inputStream) {
+-                            controller.error(new GoogleGenerativeAIError("Failed to parse stream"));
+-                            return;
++                            const lines = currentText.split(/\r?\n/);
++                            for (const line of lines) {
++                                const clean = line.replace(/^data:\s*/, '').trim();
++                                if (clean && clean !== '[DONE]' && !clean.startsWith(':')) {
++                                    try {
++                                        const parsed = JSON.parse(clean);
++                                        controller.enqueue(parsed);
++                                    } catch (e) {
++                                        // Ignore incomplete tail or non-JSON comments on close
++                                    }
++                                }
++                            }
+                         }
+                         controller.close();
                          return;
                      }
                      currentText += value;
@@ -48,7 +44,7 @@ index 61b2c39..41d9c33 100644
                      let match = currentText.match(responseLineRE);
                      let parsedResponse;
                      while (match) {
-@@ -749,6 +770,7 @@ function getResponseStream(inputStream) {
+@@ -749,6 +763,7 @@ function getResponseStream(inputStream) {
                          }
                          controller.enqueue(parsedResponse);
                          currentText = currentText.substring(match[0].length);
@@ -56,11 +52,13 @@ index 61b2c39..41d9c33 100644
                          match = currentText.match(responseLineRE);
                      }
                      return pump();
-@@ -859,13 +881,81 @@ function aggregateResponses(responses) {
+@@ -859,13 +874,79 @@ function aggregateResponses(responses) {
   * limitations under the License.
   */
  async function generateContentStream(apiKey, model, params, requestOptions) {
-+    let body;
+-    const response = await makeModelRequest(model, Task.STREAM_GENERATE_CONTENT, apiKey, 
+-    /* stream */ true, JSON.stringify(params), requestOptions);
++        let body;
 +    try {
 +        body = JSON.stringify(params);
 +    } catch (err) {
@@ -94,13 +92,13 @@ index 61b2c39..41d9c33 100644
 +            throw err;
 +        }
 +    }
-     const response = await makeModelRequest(model, Task.STREAM_GENERATE_CONTENT, apiKey, 
--    /* stream */ true, JSON.stringify(params), requestOptions);
-+    /* stream */ true, body, requestOptions);
++    const response = await makeModelRequest(model, Task.STREAM_GENERATE_CONTENT, apiKey, /* stream */ true, body, requestOptions);
      return processStream(response);
  }
  async function generateContent(apiKey, model, params, requestOptions) {
-+    let body;
+-    const response = await makeModelRequest(model, Task.GENERATE_CONTENT, apiKey, 
+-    /* stream */ false, JSON.stringify(params), requestOptions);
++        let body;
 +    try {
 +        body = JSON.stringify(params);
 +    } catch (err) {
@@ -134,9 +132,7 @@ index 61b2c39..41d9c33 100644
 +            throw err;
 +        }
 +    }
-     const response = await makeModelRequest(model, Task.GENERATE_CONTENT, apiKey, 
--    /* stream */ false, JSON.stringify(params), requestOptions);
-+    /* stream */ false, body, requestOptions);
++    const response = await makeModelRequest(model, Task.GENERATE_CONTENT, apiKey, /* stream */ false, body, requestOptions);
      const responseJson = await response.json();
      const enhancedResponse = addHelpers(responseJson);
      return {

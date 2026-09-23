@@ -40,36 +40,32 @@ if (!content.includes('respPromise.catch')) {
   );
 }
 
-// 2. Parchear getResponseStream para limpiar comentarios SSE (: keepalive) y parsear trailing chunks
-if (!content.includes('currentText.replace(/^(?::[^\\n]*\\r?\\n|\\r?\\n)+/')) {
-  content = content.replace(
-    /if \(done\) \{\s*if \(currentText\.trim\(\)\) \{\s*controller\.error\(new GoogleGenerativeAIError\("Failed to parse stream"\)\);\s*return;\s*\}\s*controller\.close\(\);\s*return;\s*\}/g,
-    `if (done) {
+// 2. Parchear getResponseStream para limpiar comentarios SSE (: keepalive) y parsear trailing chunks sin lanzar error fatal al cerrar
+const targetClose = 'if (done) {\n                        if (currentText.trim()) {\n                            controller.error(new GoogleGenerativeAIError("Failed to parse stream"));\n                            return;\n                        }\n                        controller.close();\n                        return;\n                    }';
+
+const safeClose = `if (done) {
                         currentText = currentText.replace(/^(?::[^\\n]*\\r?\\n|\\r?\\n)+/, "");
                         if (currentText.trim()) {
-                            const trimmed = currentText.trim();
-                            if (trimmed.startsWith("data: ")) {
-                                try {
-                                    const parsedResponse = JSON.parse(trimmed.substring(6).trim());
-                                    controller.enqueue(parsedResponse);
-                                    currentText = "";
-                                }
-                                catch (e) {
-                                    // keep currentText for error
+                            const lines = currentText.split(/\\r?\\n/);
+                            for (const line of lines) {
+                                const clean = line.replace(/^data:\\s*/, '').trim();
+                                if (clean && clean !== '[DONE]' && !clean.startsWith(':')) {
+                                    try {
+                                        const parsed = JSON.parse(clean);
+                                        controller.enqueue(parsed);
+                                    } catch (e) {
+                                        // Ignore incomplete tail or non-JSON comments on close
+                                    }
                                 }
                             }
-                            else if (trimmed === "data: [DONE]" || trimmed.startsWith(":")) {
-                                currentText = "";
-                            }
-                        }
-                        if (currentText.trim()) {
-                            controller.error(new GoogleGenerativeAIError("Failed to parse stream"));
-                            return;
                         }
                         controller.close();
                         return;
-                    }`
-  );
+                    }`;
+
+if (content.includes(targetClose)) {
+  content = content.replace(targetClose, safeClose);
+}
 
   content = content.replace(
     /currentText \+= value;\s*let match = currentText\.match\(responseLineRE\);/g,
@@ -84,7 +80,55 @@ if (!content.includes('currentText.replace(/^(?::[^\\n]*\\r?\\n|\\r?\\n)+/')) {
                         currentText = currentText.replace(/^(?::[^\\n]*\\r?\\n|\\r?\\n)+/, "");
                         match = currentText.match(responseLineRE);`
   );
+
+// 3. Parchear generateContentStream y generateContent para manejar RangeError (Invalid string length)
+if (!content.includes('Texto truncado por límite de tamaño')) {
+  const sanitizeFunction = `    let body;
+    try {
+        body = JSON.stringify(params);
+    } catch (err) {
+        if (err.name === 'RangeError' || (err.message && err.message.includes('Invalid string length'))) {
+            const sanitizeObj = (obj) => {
+                if (!obj || typeof obj !== 'object') return obj;
+                if (Array.isArray(obj)) return obj.map(sanitizeObj).filter((item) => item !== null && item !== undefined);
+                const clean = {};
+                for (const key of Object.keys(obj)) {
+                    const val = obj[key];
+                    if (key === 'inlineData' || key === 'inline_data') {
+                        if (val && typeof val === 'object' && val.data && typeof val.data === 'string' && val.data.length > 35000000) {
+                            continue;
+                        }
+                    }
+                    if (key === 'data' && typeof val === 'string' && val.length > 35000000) {
+                        continue;
+                    }
+                    if (typeof val === 'string' && val.length > 1000000) {
+                        clean[key] = val.substring(0, 500000) + '\\n\\n[...Texto truncado por límite de tamaño...]';
+                    } else if (typeof val === 'object' && val !== null) {
+                        clean[key] = sanitizeObj(val);
+                    } else {
+                        clean[key] = val;
+                    }
+                }
+                return clean;
+            };
+            body = JSON.stringify(sanitizeObj(params));
+        } else {
+            throw err;
+        }
+    }`;
+
+  content = content.replace(
+    /const response = await makeModelRequest\(model, Task\.STREAM_GENERATE_CONTENT, apiKey,\s*\/\* stream \*\/ true, JSON\.stringify\(params\), requestOptions\);/g,
+    `${sanitizeFunction}\n    const response = await makeModelRequest(model, Task.STREAM_GENERATE_CONTENT, apiKey, /* stream */ true, body, requestOptions);`
+  );
+
+  content = content.replace(
+    /const response = await makeModelRequest\(model, Task\.GENERATE_CONTENT, apiKey,\s*\/\* stream \*\/ false, JSON\.stringify\(params\), requestOptions\);/g,
+    `${sanitizeFunction}\n    const response = await makeModelRequest(model, Task.GENERATE_CONTENT, apiKey, /* stream */ false, body, requestOptions);`
+  );
 }
 
 fs.writeFileSync(targetFile, content, 'utf8');
-console.log('✅ @google/generative-ai parcheado exitosamente con Stream Parser & Unhandled Rejection Fix.');
+console.log('✅ @google/generative-ai parcheado exitosamente con Stream Parser, RangeError Sanitizer & Unhandled Rejection Fix.');
+
