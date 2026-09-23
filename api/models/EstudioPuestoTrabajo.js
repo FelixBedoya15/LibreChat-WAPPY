@@ -125,6 +125,10 @@ const estudioPuestoTrabajoSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    slotDurationMinutes: {
+      type: Number,
+      default: 30,
+    },
     completedAt: {
       type: Date,
       default: null,

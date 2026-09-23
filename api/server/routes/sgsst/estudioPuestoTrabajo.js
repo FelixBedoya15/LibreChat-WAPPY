@@ -15,11 +15,75 @@ const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
 const router = express.Router();
 
 // ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
-async function getActiveCompanyId(userId, subUserAssignedCompany = null) {
-  if (subUserAssignedCompany) return subUserAssignedCompany;
-  let active = await CompanyInfo.findOne({ user: userId, isActive: true });
-  if (!active) active = await CompanyInfo.findOne({ user: userId });
+async function getActiveCompanyId(userIdOrUser, subUserAssignedCompany = null) {
+  let userId = userIdOrUser;
+  let assignedCompany = subUserAssignedCompany;
+  let isSubUser = false;
+  let parentUser = null;
+
+  if (userIdOrUser && typeof userIdOrUser === 'object') {
+    userId = userIdOrUser.id || userIdOrUser._id;
+    isSubUser = !!userIdOrUser.isSubUser;
+    assignedCompany = userIdOrUser.assignedCompany || subUserAssignedCompany;
+    parentUser = userIdOrUser.parentUser;
+  }
+
+  if (assignedCompany) return assignedCompany;
+
+  const targetUserId = (isSubUser && parentUser) ? parentUser : userId;
+  let active = await CompanyInfo.findOne({ user: targetUserId, isActive: true });
+  if (!active) active = await CompanyInfo.findOne({ user: targetUserId });
   return active ? active._id : null;
+}
+
+// ─── Helper: Parsear Fecha y Hora de Cita con Tolerancia de Formatos ─────────
+function parseScheduledDate(dateStr, timeStr) {
+  if (!dateStr) return null;
+  let year = 0, month = 0, day = 0;
+  if (typeof dateStr === 'string' && dateStr.includes('-')) {
+    const parts = dateStr.split('-');
+    if (parts[0].length === 4) {
+      year = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      day = parseInt(parts[2], 10);
+    } else {
+      day = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      year = parseInt(parts[2], 10);
+    }
+  } else if (typeof dateStr === 'string' && dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts[2] && parts[2].length === 4) {
+      day = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      year = parseInt(parts[2], 10);
+    } else if (parts[0] && parts[0].length === 4) {
+      year = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      day = parseInt(parts[2], 10);
+    }
+  }
+
+  let hours = 9, minutes = 0;
+  if (timeStr && typeof timeStr === 'string') {
+    const isPM = /pm|p\.m\./i.test(timeStr);
+    const isAM = /am|a\.m\./i.test(timeStr);
+    const clean = timeStr.replace(/[^0-9:]/g, '');
+    const parts = clean.split(':');
+    if (parts.length >= 2) {
+      hours = parseInt(parts[0], 10) || 0;
+      minutes = parseInt(parts[1], 10) || 0;
+      if (isPM && hours < 12) hours += 12;
+      if (isAM && hours === 12) hours = 0;
+    }
+  }
+
+  if (year && !isNaN(month) && day) {
+    const d = new Date(year, month, day, hours, minutes, 0);
+    if (!isNaN(d.getTime())) return d;
+  }
+  const fallback = new Date(`${dateStr} ${timeStr || ''}`);
+  return isNaN(fallback.getTime()) ? null : fallback;
 }
 
 // ─── Helper: Sincronizar Trabajador con Perfil Sociodemográfico ───────────────
@@ -618,7 +682,12 @@ router.patch('/:id', requireJwtAuth, async (req, res) => {
 router.get('/appointments/:companyId', requireJwtAuth, async (req, res) => {
   try {
     if (!checkEptPermission(req, res)) return;
-    const { companyId } = req.params;
+    let { companyId } = req.params;
+
+    if (!companyId || companyId === 'undefined' || companyId === 'null' || !mongoose.Types.ObjectId.isValid(companyId)) {
+      companyId = await getActiveCompanyId(req.user);
+    }
+
     if (!companyId) return res.status(400).json({ error: 'companyId requerido' });
 
     const appointments = await EstudioPuestoTrabajo.find({
@@ -677,16 +746,34 @@ router.post('/schedule', requireJwtAuth, async (req, res) => {
       scheduledAt,
       slotDurationMinutes,
       appointmentNotes,
+      scheduledByName,
     } = req.body;
 
-    if (!companyId || !workerId || !workerName || !scheduledAt) {
+    let targetCompanyId = companyId;
+    if (!targetCompanyId || targetCompanyId === 'undefined' || targetCompanyId === 'null' || !mongoose.Types.ObjectId.isValid(targetCompanyId)) {
+      targetCompanyId = await getActiveCompanyId(req.user);
+    }
+
+    if (!targetCompanyId || !mongoose.Types.ObjectId.isValid(targetCompanyId)) {
       return res.status(400).json({
-        error: 'Datos incompletos: companyId, workerId, workerName y scheduledAt son obligatorios.',
+        error: 'No se pudo determinar la empresa activa para agendar la cita. Por favor selecciona o recarga la empresa.',
       });
     }
 
-    const startAt = new Date(scheduledAt);
-    if (isNaN(startAt.getTime())) {
+    if (!workerId || !workerName || !scheduledAt) {
+      return res.status(400).json({
+        error: 'Datos incompletos: workerId, workerName y scheduledAt son obligatorios.',
+      });
+    }
+
+    let startAt = new Date(scheduledAt);
+    if (isNaN(startAt.getTime()) && typeof scheduledAt === 'string') {
+      const parts = scheduledAt.split(/[T ]/);
+      if (parts.length >= 2) {
+        startAt = parseScheduledDate(parts[0], parts[1]);
+      }
+    }
+    if (!startAt || isNaN(startAt.getTime())) {
       return res.status(400).json({ error: 'Fecha y hora de cita no válida.' });
     }
 
@@ -694,7 +781,7 @@ router.post('/schedule', requireJwtAuth, async (req, res) => {
     const endAt = new Date(startAt.getTime() + durationMin * 60000);
 
     const appointment = new EstudioPuestoTrabajo({
-      companyId,
+      companyId: targetCompanyId,
       user: req.user.id || req.user._id,
       workerId: String(workerId).trim(),
       workerName: String(workerName).trim(),
@@ -703,8 +790,9 @@ router.post('/schedule', requireJwtAuth, async (req, res) => {
       status: 'programado',
       scheduledAt: startAt,
       scheduledEndAt: endAt,
+      slotDurationMinutes: durationMin,
       scheduledBy: req.user._id || req.user.id,
-      scheduledByName: req.user.name || 'Prevencionista SST',
+      scheduledByName: String(scheduledByName || req.user.name || 'Prevencionista SST').trim(),
       appointmentNotes: String(appointmentNotes || '').trim(),
       evaluationType: 'auto',
       evaluatorName: 'Auto-reporte asistido por WAPPY IA (Turno Programado)',
@@ -714,7 +802,7 @@ router.post('/schedule', requireJwtAuth, async (req, res) => {
     await appointment.save();
 
     logger.info(
-      `[EPT Schedule] Cita programada para ${workerName} (${workerId}) en ${companyId} a las ${startAt.toISOString()}`
+      `[EPT Schedule] Cita programada para ${workerName} (${workerId}) en ${targetCompanyId} a las ${startAt.toISOString()}`
     );
 
     return res.status(201).json({
@@ -724,7 +812,7 @@ router.post('/schedule', requireJwtAuth, async (req, res) => {
     });
   } catch (err) {
     logger.error('[EPT Routes] POST /schedule error:', err);
-    return res.status(500).json({ error: 'Error al programar cita ergonómica' });
+    return res.status(500).json({ error: err.message || 'Error al programar cita ergonómica' });
   }
 });
 
@@ -733,6 +821,11 @@ router.post('/schedule', requireJwtAuth, async (req, res) => {
 router.patch('/appointment/:id', requireJwtAuth, async (req, res) => {
   try {
     if (!checkEptPermission(req, res)) return;
+    const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'ID de cita no válido.' });
+    }
+
     const { scheduledAt, slotDurationMinutes, appointmentNotes, status, workerName, workerId, cargo, actividad, scheduledByName } = req.body;
 
     const apt = await EstudioPuestoTrabajo.findById(id);
@@ -745,8 +838,12 @@ router.patch('/appointment/:id', requireJwtAuth, async (req, res) => {
     if (scheduledByName !== undefined) apt.scheduledByName = String(scheduledByName).trim();
 
     if (scheduledAt) {
-      const newStart = new Date(scheduledAt);
-      if (!isNaN(newStart.getTime())) {
+      let newStart = new Date(scheduledAt);
+      if (isNaN(newStart.getTime()) && typeof scheduledAt === 'string') {
+        const parts = scheduledAt.split(/[T ]/);
+        if (parts.length >= 2) newStart = parseScheduledDate(parts[0], parts[1]);
+      }
+      if (newStart && !isNaN(newStart.getTime())) {
         apt.scheduledAt = newStart;
         const durationMin = Number(slotDurationMinutes) || apt.slotDurationMinutes || 30;
         apt.scheduledEndAt = new Date(newStart.getTime() + durationMin * 60000);
@@ -768,7 +865,7 @@ router.patch('/appointment/:id', requireJwtAuth, async (req, res) => {
     return res.json({ success: true, appointment: apt });
   } catch (err) {
     logger.error('[EPT Routes] PATCH /appointment error:', err);
-    return res.status(500).json({ error: 'Error al actualizar cita' });
+    return res.status(500).json({ error: err.message || 'Error al actualizar cita' });
   }
 });
 
@@ -777,7 +874,13 @@ router.patch('/appointment/:id', requireJwtAuth, async (req, res) => {
 router.get('/config/:companyId', requireJwtAuth, async (req, res) => {
   try {
     if (!checkEptPermission(req, res)) return;
-    const company = await CompanyInfo.findById(req.params.companyId).select('eptConfig companyName').lean();
+    let { companyId } = req.params;
+    if (!companyId || companyId === 'undefined' || companyId === 'null' || !mongoose.Types.ObjectId.isValid(companyId)) {
+      companyId = await getActiveCompanyId(req.user);
+    }
+    if (!companyId) return res.status(404).json({ error: 'Empresa no encontrada.' });
+
+    const company = await CompanyInfo.findById(companyId).select('eptConfig companyName').lean();
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada.' });
 
     return res.json({
@@ -797,9 +900,15 @@ router.get('/config/:companyId', requireJwtAuth, async (req, res) => {
 router.put('/config/:companyId', requireJwtAuth, async (req, res) => {
   try {
     if (!checkEptPermission(req, res)) return;
+    let { companyId } = req.params;
+    if (!companyId || companyId === 'undefined' || companyId === 'null' || !mongoose.Types.ObjectId.isValid(companyId)) {
+      companyId = await getActiveCompanyId(req.user);
+    }
+    if (!companyId) return res.status(404).json({ error: 'Empresa no encontrada.' });
+
     const { requireAppointment, slotDurationMinutes, maxConcurrentWorkerSessions } = req.body;
 
-    const company = await CompanyInfo.findById(req.params.companyId);
+    const company = await CompanyInfo.findById(companyId);
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada.' });
 
     if (!company.eptConfig) {
@@ -818,7 +927,7 @@ router.put('/config/:companyId', requireJwtAuth, async (req, res) => {
     company.markModified('eptConfig');
     await company.save();
 
-    logger.info(`[EPT Config] Updated EPT config for company ${req.params.companyId}`);
+    logger.info(`[EPT Config] Updated EPT config for company ${companyId}`);
     return res.json({ success: true, eptConfig: company.eptConfig });
   } catch (err) {
     logger.error('[EPT Routes] PUT /config error:', err);

@@ -181,6 +181,55 @@ const WorkerAutocomplete = ({
   );
 };
 
+const parseScheduledDate = (dateStr: string, timeStr: string): Date | null => {
+  if (!dateStr) return null;
+  let year = 0, month = 0, day = 0;
+  if (typeof dateStr === 'string' && dateStr.includes('-')) {
+    const parts = dateStr.split('-');
+    if (parts[0].length === 4) {
+      year = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      day = parseInt(parts[2], 10);
+    } else {
+      day = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      year = parseInt(parts[2], 10);
+    }
+  } else if (typeof dateStr === 'string' && dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts[2] && parts[2].length === 4) {
+      day = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      year = parseInt(parts[2], 10);
+    } else if (parts[0] && parts[0].length === 4) {
+      year = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      day = parseInt(parts[2], 10);
+    }
+  }
+
+  let hours = 9, minutes = 0;
+  if (timeStr && typeof timeStr === 'string') {
+    const isPM = /pm|p\.m\./i.test(timeStr);
+    const isAM = /am|a\.m\./i.test(timeStr);
+    const clean = timeStr.replace(/[^0-9:]/g, '');
+    const parts = clean.split(':');
+    if (parts.length >= 2) {
+      hours = parseInt(parts[0], 10) || 0;
+      minutes = parseInt(parts[1], 10) || 0;
+      if (isPM && hours < 12) hours += 12;
+      if (isAM && hours === 12) hours = 0;
+    }
+  }
+
+  if (year && !isNaN(month) && day) {
+    const d = new Date(year, month, day, hours, minutes, 0);
+    if (!isNaN(d.getTime())) return d;
+  }
+  const fallback = new Date(`${dateStr} ${timeStr || ''}`);
+  return isNaN(fallback.getTime()) ? null : fallback;
+};
+
 const RISK_BADGES: Record<string, { bg: string; text: string; border: string }> = {
   Crítico: { bg: 'bg-red-50 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-300', border: 'border-red-300 dark:border-red-800' },
   Alto: { bg: 'bg-amber-50 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-300 dark:border-amber-800' },
@@ -505,14 +554,17 @@ export default function EstudioPuestoTrabajo() {
   // Open schedule modal for new appointment
   const handleOpenNewAppointment = () => {
     setEditingAppointmentId(null);
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     setScheduleForm({
       workerId: '',
       workerName: '',
       cargo: '',
       actividad: 'Auto-evaluación postural y ergonomía en puesto de trabajo',
-      scheduledDate: new Date().toISOString().split('T')[0],
-      scheduledTime: '09:00',
-      slotDurationMinutes: 30,
+      scheduledDate: dateStr,
+      scheduledTime: timeStr,
+      slotDurationMinutes: companyEptConfig?.slotDurationMinutes || 30,
       appointmentNotes: '',
       scheduledByName: user?.name || 'Fisioterapeuta Especialista',
       status: 'programado',
@@ -523,18 +575,24 @@ export default function EstudioPuestoTrabajo() {
   // Open schedule modal to edit or reschedule
   const handleOpenEditAppointment = (item: any) => {
     setEditingAppointmentId(item._id);
-    let dateStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    let dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     let timeStr = '09:00';
     if (item.scheduledAt) {
       try {
         const d = new Date(item.scheduledAt);
-        dateStr = d.toISOString().split('T')[0];
-        timeStr = d.toTimeString().slice(0, 5);
+        if (!isNaN(d.getTime())) {
+          dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        }
       } catch (_) {}
     } else if (item.createdAt) {
       try {
         const d = new Date(item.createdAt);
-        dateStr = d.toISOString().split('T')[0];
+        if (!isNaN(d.getTime())) {
+          dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        }
       } catch (_) {}
     }
 
@@ -545,7 +603,7 @@ export default function EstudioPuestoTrabajo() {
       actividad: item.actividad || 'Auto-evaluación postural y ergonomía en puesto de trabajo',
       scheduledDate: dateStr,
       scheduledTime: timeStr,
-      slotDurationMinutes: item.slotDurationMinutes || 30,
+      slotDurationMinutes: item.slotDurationMinutes || companyEptConfig?.slotDurationMinutes || 30,
       appointmentNotes: item.appointmentNotes || item.notes || '',
       scheduledByName: item.scheduledByName || item.evaluatorName || user?.name || 'Fisioterapeuta Especialista',
       status: item.status || 'programado',
@@ -559,10 +617,17 @@ export default function EstudioPuestoTrabajo() {
       showToast({ message: 'Por favor selecciona trabajador, fecha y hora.', status: 'warning' });
       return;
     }
+
+    const scheduledAt = parseScheduledDate(scheduleForm.scheduledDate, scheduleForm.scheduledTime);
+    if (!scheduledAt || isNaN(scheduledAt.getTime())) {
+      showToast({ message: 'La fecha u hora seleccionada no es válida.', status: 'warning' });
+      return;
+    }
+
+    const cid = activeCompanyId || companyInfo?._id || '';
+
     setIsSubmittingSchedule(true);
     try {
-      const scheduledAt = new Date(`${scheduleForm.scheduledDate}T${scheduleForm.scheduledTime}:00`);
-      
       if (editingAppointmentId) {
         // EDICIÓN O REPROGRAMACIÓN DE TURNO/AUTOEVALUACIÓN
         const payload = {
@@ -570,8 +635,8 @@ export default function EstudioPuestoTrabajo() {
           workerName: scheduleForm.workerName,
           cargo: scheduleForm.cargo,
           actividad: scheduleForm.actividad,
-          scheduledAt,
-          slotDurationMinutes: scheduleForm.slotDurationMinutes,
+          scheduledAt: scheduledAt.toISOString(),
+          slotDurationMinutes: Number(scheduleForm.slotDurationMinutes) || 30,
           appointmentNotes: scheduleForm.appointmentNotes,
           scheduledByName: scheduleForm.scheduledByName,
           status: scheduleForm.status,
@@ -579,6 +644,7 @@ export default function EstudioPuestoTrabajo() {
 
         const res = await fetch(`/api/sgsst/estudio-puesto/appointment/${editingAppointmentId}`, {
           method: 'PATCH',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -588,26 +654,27 @@ export default function EstudioPuestoTrabajo() {
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || 'Error al reprogramar autoevaluación');
+          throw new Error(errData.error || errData.message || `Error del servidor al reprogramar (${res.status})`);
         }
 
         showToast({ message: '¡Turno/Autoevaluación ergonómica actualizada y reprogramada exitosamente!', status: 'success' });
       } else {
         // CREACIÓN DE NUEVA CITA
         const payload = {
-          companyId: activeCompanyId,
+          companyId: cid,
           workerId: scheduleForm.workerId,
           workerName: scheduleForm.workerName,
           cargo: scheduleForm.cargo,
           actividad: scheduleForm.actividad,
-          scheduledAt,
-          slotDurationMinutes: scheduleForm.slotDurationMinutes,
+          scheduledAt: scheduledAt.toISOString(),
+          slotDurationMinutes: Number(scheduleForm.slotDurationMinutes) || 30,
           appointmentNotes: scheduleForm.appointmentNotes,
           scheduledByName: scheduleForm.scheduledByName,
         };
 
         const res = await fetch('/api/sgsst/estudio-puesto/schedule', {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -617,7 +684,7 @@ export default function EstudioPuestoTrabajo() {
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || 'Error al programar autoevaluación');
+          throw new Error(errData.error || errData.message || `Error del servidor al programar (${res.status})`);
         }
 
         showToast({ message: '¡Autoevaluación ergonómica programada exitosamente!', status: 'success' });
@@ -625,9 +692,10 @@ export default function EstudioPuestoTrabajo() {
 
       setShowScheduleModal(false);
       setEditingAppointmentId(null);
-      if (activeCompanyId) {
-        loadAppointments(activeCompanyId);
-        loadStudies(activeCompanyId);
+      const targetCid = cid || activeCompanyId;
+      if (targetCid) {
+        loadAppointments(targetCid);
+        loadStudies(targetCid);
       }
       setScheduleForm((prev) => ({
         ...prev,
@@ -649,6 +717,7 @@ export default function EstudioPuestoTrabajo() {
     try {
       const res = await fetch(`/api/sgsst/estudio-puesto/appointment/${id}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -657,10 +726,14 @@ export default function EstudioPuestoTrabajo() {
       });
       if (res.ok) {
         showToast({ message: 'Autoevaluación cancelada correctamente.', status: 'info' });
-        loadAppointments(activeCompanyId);
+        const targetCid = activeCompanyId || companyInfo?._id;
+        if (targetCid) loadAppointments(targetCid);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showToast({ message: errData.error || errData.message || 'Error al cancelar autoevaluación.', status: 'error' });
       }
-    } catch (e) {
-      showToast({ message: 'Error al cancelar autoevaluación.', status: 'error' });
+    } catch (e: any) {
+      showToast({ message: e.message || 'Error al cancelar autoevaluación.', status: 'error' });
     }
   };
 
@@ -678,9 +751,10 @@ export default function EstudioPuestoTrabajo() {
       minute: '2-digit',
       hour12: true,
     });
-    const link = `${window.location.origin}/sgsst-public/estudio-puesto/${activeCompanyId}?cedula=${apt.workerId}`;
+    const resolvedCompanyId = activeCompanyId || companyInfo?._id || apt.companyId;
+    const link = `${window.location.origin}/sgsst-public/estudio-puesto/${resolvedCompanyId}?cedula=${apt.workerId}`;
 
-    const text = `📅 *Autoevaluación Ergonómica - Modo Live con Fisioterapeuta Laboral IA*\n\nHola *${apt.workerName}*, tienes asignado tu turno de evaluación postural en tiempo real con el *Fisioterapeuta Laboral IA* de WAPPY:\n\n🗓 *Fecha:* ${dateStr}\n⏰ *Hora:* ${timeStr}\n🎯 *Duración:* ${apt.slotDurationMinutes || companyEptConfig.slotDurationMinutes || 30} minutos (3 Fases Posturales)\n🏢 *Empresa:* ${companyInfo?.companyName || 'Somos SST'}\n🔗 *Enlace de Ingreso:* ${link}\n\n_La autoevaluación se realizará a través del chat interactivo por voz y cámara en 3 fases: postura en silla y apoyo lumbar, alcance a teclado/mouse, y región cervical/pantalla. Por favor conéctate puntualmente desde un computador o dispositivo con cámara y micrófono._`;
+    const text = `📅 *Autoevaluación Ergonómica - Modo Live con Fisioterapeuta Laboral IA*\n\nHola *${apt.workerName}*, tienes asignado tu turno de evaluación postural en tiempo real con el *Fisioterapeuta Laboral IA* de WAPPY:\n\n🗓 *Fecha:* ${dateStr}\n⏰ *Hora:* ${timeStr}\n🎯 *Duración:* ${apt.slotDurationMinutes || companyEptConfig?.slotDurationMinutes || 30} minutos (3 Fases Posturales)\n🏢 *Empresa:* ${companyInfo?.companyName || 'Somos SST'}\n🔗 *Enlace de Ingreso:* ${link}\n\n_La autoevaluación se realizará a través del chat interactivo por voz y cámara en 3 fases: postura en silla y apoyo lumbar, alcance a teclado/mouse, y región cervical/pantalla. Por favor conéctate puntualmente desde un computador o dispositivo con cámara y micrófono._`;
 
     navigator.clipboard.writeText(text);
     showToast({ message: 'Mensaje de WhatsApp copiado al portapapeles.', status: 'success' });
