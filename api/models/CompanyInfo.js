@@ -156,6 +156,20 @@ const companyInfoSchema = new mongoose.Schema({
         }],
         default: [],
     },
+    eptConfig: {
+        requireAppointment: {
+            type: Boolean,
+            default: true,
+        },
+        slotDurationMinutes: {
+            type: Number,
+            default: 30,
+        },
+        maxConcurrentWorkerSessions: {
+            type: Number,
+            default: 1,
+        },
+    },
 }, { timestamps: true });
 
 module.exports = mongoose.model('CompanyInfo', companyInfoSchema);

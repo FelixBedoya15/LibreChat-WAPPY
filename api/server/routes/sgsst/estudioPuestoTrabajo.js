@@ -89,15 +89,33 @@ async function syncWorkerWithCompanyProfile({ companyId, userId, workerName, wor
   }
 }
 
+// ─── Helper: Validar Permisos EPT para Subusuarios ───────────────────────────
+function checkEptPermission(req, res) {
+  if (!req.user) {
+    res.status(401).json({ error: 'No autenticado' });
+    return false;
+  }
+  // Usuario principal siempre tiene acceso total
+  if (!req.user.isSubUser) return true;
+  const perms = req.user.subUserPermissions || [];
+  if (perms.includes('sgsst:estudio_puesto') || perms.includes('sgsst:perfil_sociodemografico_all')) {
+    return true;
+  }
+  res.status(403).json({ error: 'No tienes permisos asignados para gestionar Estudios de Puesto de Trabajo o programar citas.' });
+  return false;
+}
+
 // ─── GET /api/sgsst/estudio-puesto/company/:companyId ─────────────────────────
 router.get('/company/:companyId', requireJwtAuth, async (req, res) => {
   try {
+    if (!checkEptPermission(req, res)) return;
     const { companyId } = req.params;
     if (!companyId) return res.status(400).json({ error: 'companyId requerido' });
 
-    const studies = await EstudioPuestoTrabajo.find({ companyId })
-      .sort({ createdAt: -1 })
-      .lean();
+    const [studies, company] = await Promise.all([
+      EstudioPuestoTrabajo.find({ companyId }).sort({ createdAt: -1 }).lean(),
+      CompanyInfo.findById(companyId).select('eptConfig companyName').lean(),
+    ]);
 
     // Calculate ergonomic KPIs
     const total = studies.length;
@@ -118,6 +136,11 @@ router.get('/company/:companyId', requireJwtAuth, async (req, res) => {
     return res.json({
       success: true,
       studies,
+      companyConfig: company?.eptConfig || {
+        requireAppointment: true,
+        slotDurationMinutes: 30,
+        maxConcurrentWorkerSessions: 1,
+      },
       kpis: {
         total,
         critical,
@@ -464,12 +487,215 @@ REGLAS DE FORMATO Y SALIDA:
 // ─── DELETE /api/sgsst/estudio-puesto/:id ──────────────────────────────────────
 router.delete('/:id', requireJwtAuth, async (req, res) => {
   try {
+    if (!checkEptPermission(req, res)) return;
     const deleted = await EstudioPuestoTrabajo.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ error: 'Estudio no encontrado' });
     return res.json({ success: true, message: 'Estudio eliminado correctamente' });
   } catch (err) {
     logger.error('[EPT Routes] DELETE /:id error:', err);
     return res.status(500).json({ error: 'Error al eliminar estudio' });
+  }
+});
+
+// ─── GET /api/sgsst/estudio-puesto/appointments/:companyId ─────────────────────
+// Listar todas las citas programadas y realizadas de la empresa
+router.get('/appointments/:companyId', requireJwtAuth, async (req, res) => {
+  try {
+    if (!checkEptPermission(req, res)) return;
+    const { companyId } = req.params;
+    if (!companyId) return res.status(400).json({ error: 'companyId requerido' });
+
+    const appointments = await EstudioPuestoTrabajo.find({
+      companyId,
+      $or: [
+        { scheduledAt: { $ne: null } },
+        { status: { $in: ['programado', 'en_curso'] } },
+      ],
+    })
+      .sort({ scheduledAt: -1, createdAt: -1 })
+      .lean();
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    let scheduledCount = 0;
+    let completedCount = 0;
+    let todayCount = 0;
+
+    appointments.forEach((apt) => {
+      if (apt.status === 'programado' || apt.status === 'en_curso') scheduledCount++;
+      if (apt.status === 'completado') completedCount++;
+      if (apt.scheduledAt && new Date(apt.scheduledAt) >= startOfToday && new Date(apt.scheduledAt) <= endOfToday) {
+        todayCount++;
+      }
+    });
+
+    return res.json({
+      success: true,
+      appointments,
+      stats: {
+        total: appointments.length,
+        scheduled: scheduledCount,
+        completed: completedCount,
+        today: todayCount,
+      },
+    });
+  } catch (err) {
+    logger.error('[EPT Routes] GET /appointments error:', err);
+    return res.status(500).json({ error: 'Error al obtener agenda de citas EPT' });
+  }
+});
+
+// ─── POST /api/sgsst/estudio-puesto/schedule ───────────────────────────────────
+// Programar cita 1 a 1 para un trabajador
+router.post('/schedule', requireJwtAuth, async (req, res) => {
+  try {
+    if (!checkEptPermission(req, res)) return;
+    const {
+      companyId,
+      workerId,
+      workerName,
+      cargo,
+      actividad,
+      scheduledAt,
+      slotDurationMinutes,
+      appointmentNotes,
+    } = req.body;
+
+    if (!companyId || !workerId || !workerName || !scheduledAt) {
+      return res.status(400).json({
+        error: 'Datos incompletos: companyId, workerId, workerName y scheduledAt son obligatorios.',
+      });
+    }
+
+    const startAt = new Date(scheduledAt);
+    if (isNaN(startAt.getTime())) {
+      return res.status(400).json({ error: 'Fecha y hora de cita no válida.' });
+    }
+
+    const durationMin = Number(slotDurationMinutes) || 30;
+    const endAt = new Date(startAt.getTime() + durationMin * 60000);
+
+    const appointment = new EstudioPuestoTrabajo({
+      companyId,
+      user: req.user.id || req.user._id,
+      workerId: String(workerId).trim(),
+      workerName: String(workerName).trim(),
+      cargo: String(cargo || 'Colaborador').trim(),
+      actividad: String(actividad || 'Auto-evaluación postural programada').trim(),
+      status: 'programado',
+      scheduledAt: startAt,
+      scheduledEndAt: endAt,
+      scheduledBy: req.user._id || req.user.id,
+      scheduledByName: req.user.name || 'Prevencionista SST',
+      appointmentNotes: String(appointmentNotes || '').trim(),
+      evaluationType: 'auto',
+      evaluatorName: 'Auto-reporte asistido por WAPPY IA (Turno Programado)',
+      channel: 'somos_sst',
+    });
+
+    await appointment.save();
+
+    logger.info(
+      `[EPT Schedule] Cita programada para ${workerName} (${workerId}) en ${companyId} a las ${startAt.toISOString()}`
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Cita ergonómica programada exitosamente.',
+      appointment,
+    });
+  } catch (err) {
+    logger.error('[EPT Routes] POST /schedule error:', err);
+    return res.status(500).json({ error: 'Error al programar cita ergonómica' });
+  }
+});
+
+// ─── PATCH /api/sgsst/estudio-puesto/appointment/:id ───────────────────────────
+// Reprogramar, cambiar estado o notas de una cita
+router.patch('/appointment/:id', requireJwtAuth, async (req, res) => {
+  try {
+    if (!checkEptPermission(req, res)) return;
+    const { id } = req.params;
+    const { scheduledAt, slotDurationMinutes, appointmentNotes, status } = req.body;
+
+    const apt = await EstudioPuestoTrabajo.findById(id);
+    if (!apt) return res.status(404).json({ error: 'Cita no encontrada.' });
+
+    if (scheduledAt) {
+      const newStart = new Date(scheduledAt);
+      if (!isNaN(newStart.getTime())) {
+        apt.scheduledAt = newStart;
+        const durationMin = Number(slotDurationMinutes) || 30;
+        apt.scheduledEndAt = new Date(newStart.getTime() + durationMin * 60000);
+      }
+    }
+    if (appointmentNotes !== undefined) apt.appointmentNotes = String(appointmentNotes).trim();
+    if (status && ['programado', 'en_curso', 'completado', 'cancelado'].includes(status)) {
+      apt.status = status;
+      if (status === 'completado') apt.completedAt = new Date();
+    }
+
+    await apt.save();
+    return res.json({ success: true, appointment: apt });
+  } catch (err) {
+    logger.error('[EPT Routes] PATCH /appointment error:', err);
+    return res.status(500).json({ error: 'Error al actualizar cita' });
+  }
+});
+
+// ─── GET & PUT /api/sgsst/estudio-puesto/config/:companyId ─────────────────────
+// Gestión de la configuración de agendamiento de la empresa
+router.get('/config/:companyId', requireJwtAuth, async (req, res) => {
+  try {
+    if (!checkEptPermission(req, res)) return;
+    const company = await CompanyInfo.findById(req.params.companyId).select('eptConfig companyName').lean();
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada.' });
+
+    return res.json({
+      success: true,
+      eptConfig: company.eptConfig || {
+        requireAppointment: true,
+        slotDurationMinutes: 30,
+        maxConcurrentWorkerSessions: 1,
+      },
+    });
+  } catch (err) {
+    logger.error('[EPT Routes] GET /config error:', err);
+    return res.status(500).json({ error: 'Error al obtener configuración EPT' });
+  }
+});
+
+router.put('/config/:companyId', requireJwtAuth, async (req, res) => {
+  try {
+    if (!checkEptPermission(req, res)) return;
+    const { requireAppointment, slotDurationMinutes, maxConcurrentWorkerSessions } = req.body;
+
+    const company = await CompanyInfo.findById(req.params.companyId);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada.' });
+
+    if (!company.eptConfig) {
+      company.eptConfig = {};
+    }
+    if (typeof requireAppointment === 'boolean') {
+      company.eptConfig.requireAppointment = requireAppointment;
+    }
+    if (typeof slotDurationMinutes === 'number') {
+      company.eptConfig.slotDurationMinutes = Math.max(10, Math.min(120, slotDurationMinutes));
+    }
+    if (typeof maxConcurrentWorkerSessions === 'number') {
+      company.eptConfig.maxConcurrentWorkerSessions = Math.max(1, Math.min(5, maxConcurrentWorkerSessions));
+    }
+
+    company.markModified('eptConfig');
+    await company.save();
+
+    logger.info(`[EPT Config] Updated EPT config for company ${req.params.companyId}`);
+    return res.json({ success: true, eptConfig: company.eptConfig });
+  } catch (err) {
+    logger.error('[EPT Routes] PUT /config error:', err);
+    return res.status(500).json({ error: 'Error al actualizar configuración EPT' });
   }
 });
 

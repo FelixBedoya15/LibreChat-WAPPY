@@ -2306,9 +2306,9 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
 
             const convoText = (this.conversationTurns || []).join('\n');
 
-            let extractedWorkerName = workerNameMatch && !workerNameMatch[1].includes('[') && workerNameMatch[1] !== 'N/A' 
+            let extractedWorkerName = this.config?.workerName || (workerNameMatch && !workerNameMatch[1].includes('[') && workerNameMatch[1] !== 'N/A' 
                 ? workerNameMatch[1].trim() 
-                : '';
+                : '');
             if (!extractedWorkerName && convoText) {
                 const nameRegex = /(?:me llamo|mi nombre es|nombre(?:\s+completo)?\s*(?:es|:))\s*([A-ZÁÉÍÓÚÑa-záéíóúñ\s]{3,40})/i;
                 const mName = convoText.match(nameRegex);
@@ -2320,9 +2320,9 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
                 extractedWorkerName = this.user?.name || 'Trabajador Evaluado';
             }
 
-            let extractedWorkerId = workerIdMatch && !workerIdMatch[1].includes('[') && workerIdMatch[1] !== 'N/A'
+            let extractedWorkerId = this.config?.workerId || (workerIdMatch && !workerIdMatch[1].includes('[') && workerIdMatch[1] !== 'N/A'
                 ? workerIdMatch[1].trim()
-                : '';
+                : '');
             if (!extractedWorkerId && convoText) {
                 const docRegex = /(?:c[eé]dula|cc|identificaci[oó]n|documento|doc)[\s:]*([0-9\.\-]{6,15})/i;
                 const mDoc = convoText.match(docRegex);
@@ -2336,7 +2336,7 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
                 }
             }
 
-            let extractedCargo = cargoMatch && !cargoMatch[1].includes('[') ? cargoMatch[1].trim() : '';
+            let extractedCargo = this.config?.cargo || (cargoMatch && !cargoMatch[1].includes('[') ? cargoMatch[1].trim() : '');
             if (!extractedCargo && convoText) {
                 const cargoRegex = /(?:cargo|puesto(?:\s+de\s+trabajo)?)\s*(?:es|:)?\s*([A-ZÁÉÍÓÚÑa-záéíóúñ\s]{3,40})/i;
                 const mCargo = convoText.match(cargoRegex);
@@ -2348,7 +2348,7 @@ En la sección "4.1 Matriz Ergonómica Comparativa Multifase", en la columna "Te
                 extractedCargo = 'Puesto Operativo / Administrativo';
             }
 
-            const extractedActividad = actividadMatch && !actividadMatch[1].includes('[') ? actividadMatch[1].trim() : 'Evaluación ergonómica y postural en ciclo regular';
+            const extractedActividad = this.config?.actividad || (actividadMatch && !actividadMatch[1].includes('[') ? actividadMatch[1].trim() : 'Evaluación ergonómica y postural en ciclo regular');
             const extractedModalidad = (modalidadMatch && modalidadMatch[1].toLowerCase().includes('asist')) || (convoText.toLowerCase().includes('compañero') || convoText.toLowerCase().includes('asistid')) ? 'asistida' : 'auto';
 
             // Store extracted worker metadata on the session instance for persistence

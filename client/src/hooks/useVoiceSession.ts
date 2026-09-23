@@ -23,12 +23,17 @@ interface UseVoiceSessionOptions {
     endpoint?: string;
     template?: string;
     agentId?: string;
+    token?: string;
+    companyId?: string;
+    workerName?: string;
+    workerId?: string;
+    cargo?: string;
+    actividad?: string;
 }
 
-
-
 export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
-    const { token } = useAuthContext();
+    const { token: authContextToken } = useAuthContext();
+    const token = options.token || authContextToken;
     const { conversationId, disableAudio } = options;
 
     const optionsRef = useRef(options);
@@ -414,6 +419,21 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                         wsUrl += `&tenshiKey=${encodeURIComponent(localTenshiKey)}`;
                     }
                 } catch (e) {}
+            }
+            if (options.companyId) {
+                wsUrl += `&companyId=${encodeURIComponent(options.companyId)}`;
+            }
+            if (options.workerName) {
+                wsUrl += `&workerName=${encodeURIComponent(options.workerName)}`;
+            }
+            if (options.workerId) {
+                wsUrl += `&workerId=${encodeURIComponent(options.workerId)}`;
+            }
+            if (options.cargo) {
+                wsUrl += `&cargo=${encodeURIComponent(options.cargo)}`;
+            }
+            if (options.actividad) {
+                wsUrl += `&actividad=${encodeURIComponent(options.actividad)}`;
             }
 
             console.log('[VoiceSession] Connecting to:', wsUrl);

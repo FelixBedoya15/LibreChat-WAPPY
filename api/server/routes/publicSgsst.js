@@ -6,6 +6,30 @@ const Notification = require('~/models/Notification');
 
 const router = express.Router();
 
+// ─── Control de Concurrencia de Sesiones 1 a 1 para Trabajadores (EPT) ────────
+// Protege las claves API de saturación y garantiza atención individualizada.
+// SOLO aplica a trabajadores públicos, nunca a usuarios administradores ni subusuarios en LibreChat.
+const activeWorkerSessionsByCompany = new Map();
+const WORKER_SESSION_TIMEOUT_MS = 25 * 60 * 1000; // 25 minutos máximo por turno
+
+function getActiveWorkerSession(companyId) {
+  if (!companyId) return null;
+  const key = String(companyId);
+  const session = activeWorkerSessionsByCompany.get(key);
+  if (!session) return null;
+  if (Date.now() - session.startedAt > WORKER_SESSION_TIMEOUT_MS) {
+    activeWorkerSessionsByCompany.delete(key);
+    return null;
+  }
+  return session;
+}
+
+function releaseWorkerSession(companyId) {
+  if (companyId) {
+    activeWorkerSessionsByCompany.delete(String(companyId));
+  }
+}
+
 // ─── Helper: Resolver Empresa Activa ─────────────────────────────────────────
 async function resolveActiveCompany(companyId) {
   if (!mongoose.Types.ObjectId.isValid(companyId)) return null;
@@ -1472,11 +1496,314 @@ router.get('/estudio-puesto/:companyId', async (req, res) => {
         logo: company.logoBase64 || null,
         city: company.city || '',
       },
+      companyConfig: company.eptConfig || {
+        requireAppointment: true,
+        slotDurationMinutes: 30,
+        maxConcurrentWorkerSessions: 1,
+      },
       workers,
     });
   } catch (error) {
     logger.error('[Public SGSST] GET /estudio-puesto error:', error);
     return res.status(500).json({ error: 'Error al consultar datos de auto-evaluación.' });
+  }
+});
+
+// ─── GET /api/public-sgsst/estudio-puesto/appointment-status/:companyId/:workerId ───
+// Consulta el estado de la cita 1 a 1 y la disponibilidad de la sala para el trabajador
+router.get('/estudio-puesto/appointment-status/:companyId/:workerId', async (req, res) => {
+  try {
+    const { companyId, workerId } = req.params;
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada.' });
+    }
+
+    const cleanWorkerId = String(workerId || '').trim();
+    const eptConfig = company.eptConfig || {
+      requireAppointment: true,
+      slotDurationMinutes: 30,
+      maxConcurrentWorkerSessions: 1,
+    };
+    const requireAppointment = eptConfig.requireAppointment !== false;
+
+    // 1. Revisar si hay una sesión concurrente activa de otro trabajador en esta empresa
+    const activeSession = getActiveWorkerSession(company._id);
+    const isBusy = !!activeSession && activeSession.workerId !== cleanWorkerId;
+
+    // 2. Buscar cita programada del trabajador
+    const EstudioPuestoTrabajo = mongoose.models.EstudioPuestoTrabajo || require('~/models/EstudioPuestoTrabajo');
+    const apt = await EstudioPuestoTrabajo.findOne({
+      companyId: company._id,
+      workerId: cleanWorkerId,
+      status: { $in: ['programado', 'en_curso'] },
+    })
+      .sort({ scheduledAt: 1 })
+      .lean();
+
+    let canStart = false;
+    let status = 'ready';
+    let message = '';
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    if (!requireAppointment) {
+      canStart = !isBusy;
+      status = isBusy ? 'busy_session' : 'ready';
+      message = isBusy
+        ? 'El Fisioterapeuta Laboral IA se encuentra en una consulta 1 a 1 con otro colaborador en este instante. Por favor espera a que concluya para iniciar tu turno.'
+        : '¡Acceso habilitado para tu auto-evaluación ergonómica en vivo!';
+    } else {
+      if (!apt) {
+        canStart = false;
+        status = 'no_appointment';
+        message = 'Este módulo requiere cita previa programada para garantizar una evaluación 1 a 1 con el Fisioterapeuta IA y evitar saturación de recursos. Comunícate con el área de SST de tu empresa para agendar tu fecha y hora.';
+      } else {
+        const scheduledDate = apt.scheduledAt ? new Date(apt.scheduledAt) : null;
+        if (!scheduledDate) {
+          canStart = !isBusy;
+          status = isBusy ? 'busy_session' : 'turn_ready';
+          message = isBusy
+            ? 'El Fisioterapeuta Laboral IA está en consulta 1 a 1 con otro colaborador. Por favor espera unos minutos.'
+            : '¡Tu turno está habilitado!';
+        } else if (scheduledDate > endOfToday) {
+          canStart = false;
+          status = 'future_appointment';
+          const dateStr = scheduledDate.toLocaleDateString('es-CO', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          });
+          const timeStr = scheduledDate.toLocaleTimeString('es-CO', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+          });
+          message = `Tienes tu cita ergonómica programada para el ${dateStr} a las ${timeStr}. Tu acceso se habilitará el día de tu turno. ¡Gracias por tu compromiso con la salud laboral!`;
+        } else {
+          canStart = !isBusy;
+          status = isBusy ? 'busy_session' : 'turn_ready';
+          const timeStr = scheduledDate.toLocaleTimeString('es-CO', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+          });
+          message = isBusy
+            ? 'El Fisioterapeuta Laboral IA está en consulta 1 a 1 con otro compañero. Tu turno programado para hoy iniciará en cuanto termine.'
+            : `¡Tu turno está activo! Cita programada para hoy a las ${timeStr}. Puedes iniciar tu auto-evaluación en vivo.`;
+        }
+      }
+    }
+
+    return res.json({
+      success: true,
+      canStart,
+      isBusy,
+      status,
+      requireAppointment,
+      hasAppointment: !!apt,
+      appointment: apt,
+      companyConfig: eptConfig,
+      message,
+    });
+  } catch (err) {
+    logger.error('[Public SGSST] GET /appointment-status error:', err);
+    return res.status(500).json({ error: 'Error al consultar estado de cita.' });
+  }
+});
+
+// ─── POST /api/public-sgsst/estudio-puesto/release-session/:companyId ──────────
+// Libera la sala 1 a 1 de la empresa cuando un trabajador cierra la sesión o cancela
+router.post('/estudio-puesto/release-session/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const { workerId } = req.body || {};
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada.' });
+    }
+    const current = getActiveWorkerSession(company._id);
+    if (!workerId || (current && current.workerId === String(workerId).trim())) {
+      releaseWorkerSession(company._id);
+    }
+    return res.json({ success: true, message: 'Sala 1 a 1 liberada correctamente.' });
+  } catch (err) {
+    logger.error('[Public SGSST] POST /release-session error:', err);
+    return res.status(500).json({ error: 'Error al liberar sesión.' });
+  }
+});
+
+
+// ─── POST /api/public-sgsst/estudio-puesto/session/:companyId ──────────────────
+// Inicia y prepara una sesión Live de análisis biomecánico con el Fisioterapeuta Laboral
+router.post('/estudio-puesto/session/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const { workerName, workerId, cargo, actividad } = req.body || {};
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada o enlace inactivo.' });
+    }
+
+    const cleanWorkerId = String(workerId || '').trim();
+    const cleanWorkerName = String(workerName || '').trim();
+
+    // ── 1. Control de Concurrencia 1 a 1 para Trabajadores (Protección de API Keys) ──
+    const activeSession = getActiveWorkerSession(company._id);
+    if (activeSession && activeSession.workerId !== cleanWorkerId) {
+      return res.status(429).json({
+        success: false,
+        isBusy: true,
+        message:
+          'El Fisioterapeuta Laboral IA se encuentra en una consulta 1 a 1 con otro colaborador en este instante. Por favor espera a que concluya su turno para iniciar el tuyo y evitar saturación de las claves API.',
+      });
+    }
+
+    // ── 2. Validación de Cita Previa Obligatoria si la empresa lo exige ──
+    const eptConfig = company.eptConfig || { requireAppointment: true };
+    const EstudioPuestoTrabajo = mongoose.models.EstudioPuestoTrabajo || require('~/models/EstudioPuestoTrabajo');
+    let scheduledAppointment = null;
+
+    if (cleanWorkerId) {
+      scheduledAppointment = await EstudioPuestoTrabajo.findOne({
+        companyId: company._id,
+        workerId: cleanWorkerId,
+        status: { $in: ['programado', 'en_curso'] },
+      }).sort({ scheduledAt: 1 });
+    }
+
+    if (eptConfig.requireAppointment !== false) {
+      if (!scheduledAppointment) {
+        return res.status(403).json({
+          success: false,
+          requiresAppointment: true,
+          message:
+            'Este módulo requiere cita previa programada para ingresar a la auto-evaluación en vivo. Por favor comunícate con el área de SST de tu empresa.',
+        });
+      }
+
+      const now = new Date();
+      const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      if (scheduledAppointment.scheduledAt && new Date(scheduledAppointment.scheduledAt) > endOfToday) {
+        const dateStr = new Date(scheduledAppointment.scheduledAt).toLocaleDateString('es-CO', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+        const timeStr = new Date(scheduledAppointment.scheduledAt).toLocaleTimeString('es-CO', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+        return res.status(403).json({
+          success: false,
+          isFutureAppointment: true,
+          scheduledAt: scheduledAppointment.scheduledAt,
+          message: `Tu cita ergonómica está programada para el ${dateStr} a las ${timeStr}. Tu acceso se habilitará el día de tu turno.`,
+        });
+      }
+    }
+
+    // Resolver el agente Fisioterapeuta Laboral
+    const Agent = mongoose.models.Agent || require('~/models/Agent');
+    let agent = null;
+    if (Agent) {
+      agent = await Agent.findOne({
+        $or: [
+          { id: 'fisioterapeuta_laboral' },
+          { name: /fisioterapeuta/i },
+          { name: /biomec[aá]nic/i },
+          { name: /ergonom[ií]a/i },
+        ],
+      }).lean();
+    }
+    if (!agent && Agent) {
+      agent = await Agent.findOne({}).lean();
+    }
+
+    const resolvedAgentId = agent?.id || agent?._id?.toString() || 'fisioterapeuta_laboral';
+
+    // Resolver usuario propietario para firmar JWT temporal
+    let userId = company.user ? company.user.toString() : null;
+    let User = mongoose.models.User;
+    if (!User) {
+      try {
+        User = require('~/db/models').User;
+      } catch (e) {}
+    }
+    if (User) {
+      let validUser = null;
+      if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+        validUser = await User.findById(userId).lean();
+      }
+      if (!validUser) {
+        validUser = (await User.findOne({ role: 'ADMIN' }).lean()) || (await User.findOne({}).lean());
+        if (validUser) {
+          userId = validUser._id.toString();
+        }
+      }
+    }
+    if (!userId) {
+      userId = company._id.toString();
+    }
+
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    const crypto = require('crypto');
+    const conversationId = crypto.randomUUID();
+
+    // Pre-crear la conversación vinculada al usuario administrador con tags de Somos SST
+    try {
+      const Conversation = mongoose.models.Conversation || require('~/db/models').Conversation;
+      if (Conversation) {
+        const title = workerName
+          ? `Auto-evaluación EPT - ${workerName} (${cargo || 'Puesto'})`
+          : `Auto-evaluación EPT en Vivo - ${company.companyName || 'Empresa'}`;
+
+        await Conversation.create({
+          conversationId,
+          user: userId,
+          endpoint: 'agents',
+          agent_id: resolvedAgentId,
+          model: 'gemini-3.7-flash',
+          title,
+          tags: ['sgsst-ept', 'sgsst-live-analysis', 'biomecanica', `company-${company._id}`],
+        });
+      }
+    } catch (convoErr) {
+      logger.warn('[Public SGSST] No se pudo pre-crear conversación EPT:', convoErr?.message);
+    }
+
+    // Registrar la sesión activa del trabajador para la empresa (bloqueo 1 a 1 temporal para evitar saturar claves API)
+    activeWorkerSessionsByCompany.set(String(company._id), {
+      workerId: cleanWorkerId,
+      workerName: cleanWorkerName,
+      startedAt: Date.now(),
+    });
+
+    if (scheduledAppointment) {
+      scheduledAppointment.status = 'en_curso';
+      await scheduledAppointment.save().catch(() => {});
+    }
+
+    return res.json({
+      success: true,
+      token,
+      agentId: resolvedAgentId,
+      agentName: agent?.name || 'Fisioterapeuta Laboral',
+      agentModel: 'gemini-3.7-flash',
+      conversationId,
+      companyName: company.companyName,
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] EPT session error:', error);
+    return res.status(500).json({ error: 'Error al iniciar sesión Live con el Fisioterapeuta.' });
   }
 });
 
@@ -1502,39 +1829,278 @@ router.post('/estudio-puesto/:companyId', async (req, res) => {
       actionLevel,
       riskLevel,
       notes,
+      reportHtml: incomingReportHtml,
+      conversationId: incomingConvoId,
     } = req.body;
 
     if (!workerName || !workerId || !cargo) {
       return res.status(400).json({ error: 'Nombre, identificación y cargo son obligatorios.' });
     }
 
+    const cleanDoc = String(workerId).trim();
+    const cleanName = String(workerName).trim();
+    const cleanCargo = String(cargo).trim();
+    const cleanActividad = String(actividad || 'Labor cotidiana en puesto de trabajo').trim();
+
+    let finalReportHtml = incomingReportHtml || '';
+    let calculatedRula = rulaScore || 4;
+    let calculatedReba = rebaScore || 4;
+    let finalRiskLevel = riskLevel || 'Medio';
+    let finalActionLevel = actionLevel || 'Nivel 2 - Requiere Ajustes Posturales';
+
+    // Si no viene el reporte HTML ya compilado (p. ej. en chequeo asistido rápido), generarlo con IA
+    if (!finalReportHtml || finalReportHtml.length < 50) {
+      try {
+        const { generateWithKeyRotation } = require('./sgsst/sgsstGemini');
+        const {
+          buildStandardHeader,
+          buildWorkerSubHeader,
+          buildSignatureSection,
+          buildCompanyContextString,
+        } = require('./sgsst/reportHeader');
+
+        const companyInfo = await CompanyInfo.findById(company._id).lean();
+        const currentDate = new Date().toLocaleDateString('es-CO', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+
+        const standardHeaderHtml = buildStandardHeader({
+          title: 'INFORME TÉCNICO DE AUTO-EVALUACIÓN ERGONÓMICA Y BIOMECÁNICA (EPT)',
+          companyInfo: companyInfo || company,
+          date: currentDate,
+          norm: 'Resolución 2400 de 1979 / GTC 45 / ISO 11226 / Métodos RULA y REBA',
+          responsibleName: companyInfo?.responsibleSST || 'Área de SG-SST',
+        });
+
+        const workerSubHeaderHtml = buildWorkerSubHeader({
+          workerName: cleanName,
+          workerId: cleanDoc,
+          cargo: cleanCargo,
+          actividad: cleanActividad,
+          evaluationType: 'auto',
+          evaluatorName: 'Auto-reporte asistido por WAPPY IA',
+        });
+
+        let evidencesHtml = '';
+        if (Array.isArray(evidences) && evidences.length > 0) {
+          const photosCards = evidences
+            .map((ev, idx) => {
+              const phaseNum = ev.phase || idx + 1;
+              const phaseTitle = ev.label || `Evidencia ${phaseNum}`;
+              return `
+              <div style="flex:1; min-width:240px; max-width:320px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.04);">
+                <div style="background:#0f766e; color:#ffffff; padding:6px 12px; font-size:11px; font-weight:700; text-transform:uppercase;">
+                  ${phaseTitle}
+                </div>
+                <div style="height:200px; background:#000000; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                  <img src="${ev.url}" style="width:100%; height:100%; object-fit:cover;" alt="Evidencia ${phaseNum}" />
+                </div>
+              </div>`;
+            })
+            .join('');
+
+          evidencesHtml = `
+          <div style="margin:20px 0; page-break-inside:avoid;">
+            <h3 style="color:#0f766e; font-size:14px; font-weight:700; margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px;">
+              📸 Registro Fotográfico del Puesto de Trabajo
+            </h3>
+            <div style="display:flex; flex-wrap:wrap; gap:16px; justify-content:center;">
+              ${photosCards}
+            </div>
+          </div>`;
+        }
+
+        const companyContext = buildCompanyContextString(companyInfo || company);
+        const prompt = `
+Eres el Fisioterapeuta Laboral y Auditor Ergonómico Especialista de WAPPY IA.
+Genera el cuerpo técnico de un INFORME OFICIAL DE AUTO-EVALUACIÓN DE PUESTO DE TRABAJO (EPT) bajo normatividad colombiana (Resolución 2400 de 1979, Decreto 1072 de 2015, GTC 45 e ISO 11226).
+
+${companyContext}
+
+DATOS DEL COLABORADOR Y PUESTO:
+- Trabajador: ${cleanName} (C.C. ${cleanDoc})
+- Cargo evaluado: ${cleanCargo}
+- Actividad laboral: ${cleanActividad}
+- Modalidad: Auto-evaluación en línea vía portal del trabajador WAPPY
+- Hallazgos ergonómicos reportados:
+${notes || 'Chequeo postural general de oficina y puesto con PVD.'}
+- Nivel de Riesgo Preliminar: ${finalRiskLevel}
+- Nivel de Acción Estimado: ${finalActionLevel}
+
+REGLAS DE FORMATO Y SALIDA:
+- NO incluyas encabezados de empresa ni títulos globales (ya están creados en el sub-encabezado).
+- Devuelve ÚNICAMENTE código HTML limpio estructurado con etiquetas <h3>, <p>, <ul>, <li> y tablas <div class="table-responsive"><table style="width:100%; min-width:800px; border-collapse:separate; border-radius:10px; border:1px solid #cbd5e1;">...</table></div>.
+- El contenido debe incluir:
+  1. <h3>1. Justificación y Alcance Biomecánico del Puesto</h3>
+  2. <h3>2. Análisis Postural por Segmento Corporal (Cuello, Tronco, Miembros Superiores e Inferiores)</h3>
+  3. <h3>3. Matriz de Valoración Ergonómica RULA / REBA</h3> (tabla comparativa con criterios, puntuaciones de grupo A y B, y nivel de acción).
+  4. <h3>4. Factores Contribuyentes de Carga Física y Entorno (Mesa, Pantalla, Silla, Confort)</h3>
+  5. <h3>5. Plan de Intervención y Recomendaciones de Higiene Postural (Pausas activas dirigidas, ajustes dimensionales)</h3>
+  6. <h3>6. Dictamen de Aptitud Biomecánica y Compromiso de Auto-cuidado</h3>
+- Tono profesional, técnico, médico-laboral y proactivo.
+`;
+
+        let userIdForAi = company.user ? String(company.user) : null;
+        const aiResponse = await generateWithKeyRotation({
+          userId: userIdForAi,
+          model: 'gemini-3.7-flash',
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          systemInstruction: 'Eres el Fisioterapeuta Laboral experto en Ergonomía, RULA, REBA e ISO 11226 de WAPPY IA.',
+        });
+
+        let aiHtml = aiResponse?.text || '<p>Auto-evaluación ergonómica completada satisfactoriamente.</p>';
+        aiHtml = aiHtml.replace(/```html/gi, '').replace(/```/g, '').trim();
+
+        const signatureHtml = buildSignatureSection({
+          companyInfo: companyInfo || company,
+          responsibleName: companyInfo?.responsibleSST || 'Área de SG-SST',
+          worker: { nombre: cleanName, identificacion: cleanDoc, cargo: cleanCargo },
+        });
+
+        finalReportHtml = `
+<div class="report-container" style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#111827; line-height:1.6;">
+  <style>
+    .ai-report-content h3 { color: #0f766e; margin-top: 22px; margin-bottom: 10px; font-weight: 700; border-bottom: 1px solid #ccfbf1; padding-bottom: 5px; font-size: 1.15em; }
+    .ai-report-content p, .ai-report-content li { color: #334155; margin-bottom: 8px; font-size: 0.95em; }
+    .ai-report-content .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 16px 0; border-radius: 10px; border: 1px solid #e2e8f0; }
+    .ai-report-content table { width: 100%; min-width: 800px; table-layout: auto; border-collapse: separate; border-spacing: 0; margin: 0; font-size: 0.85em; }
+    .ai-report-content th { background-color: #0f766e; color: #ffffff; padding: 9px 10px; text-align: left; }
+    .ai-report-content td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
+    .ai-report-content tr:nth-child(even) td { background-color: #f8fafc; }
+  </style>
+
+  ${standardHeaderHtml}
+  ${workerSubHeaderHtml}
+  ${evidencesHtml}
+
+  <div class="ai-report-content" style="background:#ffffff; padding:10px 0;">
+    ${aiHtml}
+  </div>
+
+  ${signatureHtml}
+</div>`.trim();
+      } catch (aiErr) {
+        logger.error('[Public SGSST] Error generating AI report HTML for EPT:', aiErr);
+      }
+    }
+
     const EstudioPuestoTrabajo = require('~/models/EstudioPuestoTrabajo');
     const newStudy = new EstudioPuestoTrabajo({
       companyId: company._id,
       user: company.user,
-      workerId: String(workerId).trim(),
-      workerName: String(workerName).trim(),
-      cargo: String(cargo).trim(),
-      actividad: String(actividad || '').trim(),
+      workerId: cleanDoc,
+      workerName: cleanName,
+      cargo: cleanCargo,
+      actividad: cleanActividad,
       evaluationType: 'auto',
       evaluatorName: 'Auto-reporte por trabajador vía QR',
       channel: 'qr_public',
       telemetry: telemetry || {},
       evidences: evidences || [],
-      rulaScore: rulaScore || null,
-      rebaScore: rebaScore || null,
-      actionLevel: actionLevel || 'Nivel 1 - Aceptable',
-      riskLevel: riskLevel || 'Bajo',
+      rulaScore: calculatedRula,
+      rebaScore: calculatedReba,
+      actionLevel: finalActionLevel,
+      riskLevel: finalRiskLevel,
+      reportHtml: finalReportHtml,
       notes: notes || '',
       status: 'completado',
+      modelUsed: 'gemini-3.7-flash',
     });
 
     await newStudy.save();
 
+    // ── Crear/Actualizar la conversación en LibreChat para el usuario administrador ──
+    const targetUserId = company.user ? String(company.user) : null;
+    const conversationId = incomingConvoId || require('crypto').randomUUID();
+
+    if (targetUserId) {
+      try {
+        const { saveMessage, saveConvo } = require('~/models');
+        const userMsgId = require('crypto').randomUUID();
+        const aiMsgId = require('crypto').randomUUID();
+
+        const userText = `Auto-evaluación ergonómica realizada por el trabajador: **${cleanName}** (C.C. ${cleanDoc}), Cargo: **${cleanCargo}**. Actividad: ${cleanActividad}.\n${notes || ''}`;
+
+        await saveMessage(
+          { user: { id: targetUserId } },
+          {
+            messageId: userMsgId,
+            conversationId,
+            text: userText,
+            content: [{ type: 'text', text: userText }],
+            user: targetUserId,
+            sender: 'User',
+            isCreatedByUser: true,
+            model: 'gemini-3.7-flash',
+          },
+          { context: 'PublicEPT - User' }
+        );
+
+        const reportTitle = `Informe Técnico de Auto-evaluación EPT - ${cleanName}`;
+        const aiMessageText = `Se ha procesado y compilado el informe técnico de auto-evaluación ergonómica para **${cleanName}** (${cleanCargo}).\n\n- **Nivel de Riesgo**: ${finalRiskLevel}\n- **Nivel de Acción**: ${finalActionLevel}\n- **Puntuación RULA estimada**: ${calculatedRula}\n\n:::canvas{title="${reportTitle}" fileType="text" identifier="ept-${newStudy._id}"}\n${finalReportHtml}\n:::\n`;
+
+        await saveMessage(
+          { user: { id: targetUserId } },
+          {
+            messageId: aiMsgId,
+            conversationId,
+            parentMessageId: userMsgId,
+            sender: 'Fisioterapeuta Laboral',
+            text: aiMessageText,
+            content: [{ type: 'text', text: aiMessageText }],
+            isCreatedByUser: false,
+            isHtmlReport: true,
+            model: 'gemini-3.7-flash',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          { context: 'PublicEPT - AI' }
+        );
+
+        await saveConvo(
+          { user: { id: targetUserId } },
+          {
+            conversationId,
+            endpoint: 'agents',
+            agent_id: 'fisioterapeuta_laboral',
+            model: 'gemini-3.7-flash',
+            title: `Auto-evaluación EPT - ${cleanName} (${cleanCargo})`,
+            tags: ['sgsst-ept', 'biomecanica', `company-${company._id}`],
+          },
+          { context: 'PublicEPT - Convo' }
+        );
+
+        // Sincronizar en LiveEditorSession para el Canvas
+        try {
+          const LiveEditorSession = require('~/models/LiveEditorSession');
+          if (LiveEditorSession) {
+            await LiveEditorSession.findOneAndUpdate(
+              { conversationId, companyId: company._id },
+              {
+                $set: {
+                  content: finalReportHtml,
+                  contentUpdatedAt: new Date(),
+                  companyId: company._id,
+                  fileName: reportTitle,
+                },
+                $setOnInsert: { user: targetUserId },
+              },
+              { upsert: true, new: true }
+            );
+          }
+        } catch (leErr) {
+          logger.warn('[Public SGSST] Could not sync LiveEditorSession for EPT:', leErr?.message);
+        }
+      } catch (convoSaveErr) {
+        logger.warn('[Public SGSST] Could not save conversation in LibreChat:', convoSaveErr?.message);
+      }
+    }
+
     // Sincronizar o crear el trabajador en el perfil sociodemográfico de la empresa
     const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
     if (PerfilSociodemograficoData) {
-      const cleanDoc = String(workerId).trim();
       let perfilDoc = await PerfilSociodemograficoData.findOne({ companyId: company._id });
       if (!perfilDoc && company.user) {
         perfilDoc = new PerfilSociodemograficoData({
@@ -1550,19 +2116,19 @@ router.post('/estudio-puesto/:companyId', async (req, res) => {
         );
 
         const dateStr = new Date().toLocaleDateString('es-CO');
-        const eptNote = `Auto-evaluación EPT vía QR (${dateStr}): ${actionLevel || 'Evaluado'}. Actividad: ${actividad || cargo}`;
+        const eptNote = `Auto-evaluación EPT vía QR (${dateStr}): ${finalActionLevel}. Actividad: ${cleanActividad}`;
 
         if (existingIdx >= 0) {
           const w = perfilDoc.trabajadores[existingIdx];
-          if (!w.cargo && cargo) w.cargo = cargo.trim();
+          if (!w.cargo && cleanCargo) w.cargo = cleanCargo;
           w.completedByAI = true;
           w.diagnosticoMedico = w.diagnosticoMedico ? `${w.diagnosticoMedico} | ${eptNote}` : eptNote;
         } else {
           perfilDoc.trabajadores.push({
             id: new mongoose.Types.ObjectId().toString(),
-            nombre: String(workerName).trim(),
+            nombre: cleanName,
             identificacion: cleanDoc,
-            cargo: String(cargo).trim(),
+            cargo: cleanCargo,
             completedByAI: true,
             diagnosticoMedico: eptNote,
             recomendacionesMedicas: 'Revisión postural y pausas activas periódicas.',
@@ -1581,7 +2147,7 @@ router.post('/estudio-puesto/:companyId', async (req, res) => {
           company.user,
           cleanDoc,
           'estudio_puesto',
-          `Auto-evaluación ergonómica de puesto de trabajo realizada (${actionLevel || 'EPT'})`,
+          `Auto-evaluación ergonómica de puesto de trabajo realizada (${finalActionLevel})`,
           40,
           String(newStudy._id)
         );
@@ -1590,10 +2156,45 @@ router.post('/estudio-puesto/:companyId', async (req, res) => {
       }
     }
 
+    // ── Liberar Concurrencia de la Sala 1 a 1 de la Empresa (Protección de API Keys) ──
+    releaseWorkerSession(company._id);
+
+    // ── Si el colaborador tenía una cita programada o en curso, actualizarla a completada ──
+    try {
+      const EstudioPuestoTrabajoModel =
+        mongoose.models.EstudioPuestoTrabajo || require('~/models/EstudioPuestoTrabajo');
+      await EstudioPuestoTrabajoModel.updateMany(
+        {
+          companyId: company._id,
+          workerId: cleanDoc,
+          status: { $in: ['programado', 'en_curso'] },
+        },
+        {
+          $set: {
+            status: 'completado',
+            completedAt: new Date(),
+            rulaScore: calculatedRula,
+            rebaScore: calculatedReba,
+            riskLevel: finalRiskLevel,
+            actionLevel: finalActionLevel,
+            reportHtml: finalReportHtml,
+          },
+        }
+      );
+    } catch (aptErr) {
+      logger.warn('[Public SGSST] Error updating scheduled appointment to completado:', aptErr?.message);
+    }
+
     return res.json({
       success: true,
       message: 'Auto-evaluación ergonómica registrada exitosamente.',
       studyId: newStudy._id,
+      reportHtml: finalReportHtml,
+      riskLevel: finalRiskLevel,
+      actionLevel: finalActionLevel,
+      rulaScore: calculatedRula,
+      rebaScore: calculatedReba,
+      conversationId,
     });
   } catch (error) {
     logger.error('[Public SGSST] POST /estudio-puesto error:', error);
@@ -1905,4 +2506,5 @@ router.post('/convivencia/:companyId', async (req, res) => {
 });
 
 module.exports = router;
-
+module.exports.releaseWorkerSession = releaseWorkerSession;
+module.exports.getActiveWorkerSession = getActiveWorkerSession;

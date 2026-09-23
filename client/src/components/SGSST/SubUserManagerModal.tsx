@@ -157,6 +157,12 @@ export const AVAILABLE_PERMISSIONS: PermissionOption[] = [
         description: 'Registro, caracterización e investigación de incidentes y accidentes de trabajo.',
         category: 'Somos SST Operativo'
     },
+    {
+        id: 'sgsst:estudio_puesto',
+        label: 'Estudios de Puesto (EPT) & Agendamiento 1 a 1',
+        description: 'Programar citas ergonómicas a trabajadores, gestionar agenda y consultar informes técnicos.',
+        category: 'Somos SST Operativo'
+    },
 
     // ─── 3. Matrices & Legal ─────────────────────────────────────────────
     {

@@ -19,6 +19,11 @@ import {
   Eye,
   Camera,
   Layers,
+  Calendar,
+  Clock,
+  MessageCircle,
+  Send,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -47,6 +52,27 @@ interface EPTStudy {
   reportHtml?: string;
   telemetry?: any;
   evidences?: Array<{ phase: number; label: string; url: string; telemetry?: any }>;
+  status?: 'completado' | 'borrador' | 'programado' | 'en_curso' | 'cancelado';
+  createdAt?: string;
+}
+
+interface EPTAppointment {
+  _id?: string;
+  companyId: string;
+  workerId: string;
+  workerName: string;
+  cargo: string;
+  actividad?: string;
+  scheduledAt: string;
+  scheduledEndAt?: string;
+  scheduledByName?: string;
+  appointmentNotes?: string;
+  status: 'programado' | 'en_curso' | 'completado' | 'cancelado';
+  completedAt?: string;
+  rulaScore?: number;
+  rebaScore?: number;
+  riskLevel?: string;
+  reportHtml?: string;
   createdAt?: string;
 }
 
@@ -64,9 +90,19 @@ const RISK_BADGES: Record<string, { bg: string; text: string; border: string }> 
   Bajo: { bg: 'bg-teal-50 dark:bg-teal-950/40', text: 'text-teal-700 dark:text-teal-300', border: 'border-teal-300 dark:border-teal-800' },
 };
 
+const APPOINTMENT_BADGES: Record<string, { bg: string; text: string; border: string; label: string }> = {
+  programado: { bg: 'bg-amber-50 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-300 dark:border-amber-800', label: 'Programado' },
+  en_curso: { bg: 'bg-blue-50 dark:bg-blue-950/40', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-300 dark:border-blue-800', label: 'En Consulta 1 a 1' },
+  completado: { bg: 'bg-emerald-50 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-300', border: 'border-emerald-300 dark:border-emerald-800', label: 'Completado' },
+  cancelado: { bg: 'bg-slate-50 dark:bg-zinc-800', text: 'text-slate-500 dark:text-zinc-400', border: 'border-slate-200 dark:border-zinc-700', label: 'Cancelado' },
+};
+
 export default function EstudioPuestoTrabajo() {
   const { user } = useAuthContext();
   const { showToast } = useToastContext();
+
+  // Navigation tab: 'estudios' (Expedientes EPT) vs 'agenda' (Agenda & Citas 1 a 1)
+  const [activeTab, setActiveTab] = useState<'estudios' | 'agenda'>('estudios');
 
   // Selected AI Model (defaults to Gemini 3.7 Flash, synchronized with platform)
   const [selectedModel, setSelectedModel] = useState<string>(
@@ -87,6 +123,34 @@ export default function EstudioPuestoTrabajo() {
     mediumPct: 0,
     lowPct: 0,
   });
+
+  // Appointments and Scheduling State
+  const [appointments, setAppointments] = useState<EPTAppointment[]>([]);
+  const [appointmentsStats, setAppointmentsStats] = useState({
+    total: 0,
+    scheduled: 0,
+    completed: 0,
+    today: 0,
+  });
+  const [companyEptConfig, setCompanyEptConfig] = useState({
+    requireAppointment: true,
+    slotDurationMinutes: 30,
+    maxConcurrentWorkerSessions: 1,
+  });
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({
+    workerId: '',
+    workerName: '',
+    cargo: '',
+    actividad: 'Auto-evaluación postural y ergonomía en puesto de trabajo',
+    scheduledDate: new Date().toISOString().split('T')[0],
+    scheduledTime: '09:00',
+    slotDurationMinutes: 30,
+    appointmentNotes: '',
+  });
+  const [filterAppointmentStatus, setFilterAppointmentStatus] = useState<string>('all');
+  const [appointmentSearchTerm, setAppointmentSearchTerm] = useState('');
 
   const [availableWorkers, setAvailableWorkers] = useState<WorkerSimple[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -145,11 +209,27 @@ export default function EstudioPuestoTrabajo() {
         const data = await res.json();
         setStudies(data.studies || []);
         if (data.kpis) setKpis(data.kpis);
+        if (data.companyConfig) setCompanyEptConfig(data.companyConfig);
       }
     } catch (err) {
       console.error('[EPT] Error loading studies:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Load Appointments and Schedule stats
+  const loadAppointments = async (cid: string) => {
+    if (!cid) return;
+    try {
+      const res = await fetch(`/api/sgsst/estudio-puesto/appointments/${cid}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAppointments(data.appointments || []);
+        if (data.stats) setAppointmentsStats(data.stats);
+      }
+    } catch (err) {
+      console.warn('[EPT] Error loading appointments:', err);
     }
   };
 
@@ -175,8 +255,121 @@ export default function EstudioPuestoTrabajo() {
     if (activeCompanyId) {
       loadStudies(activeCompanyId);
       loadWorkers(activeCompanyId);
+      loadAppointments(activeCompanyId);
     }
   }, [activeCompanyId]);
+
+  // Toggle Require Appointment
+  const handleToggleRequireAppointment = async (val: boolean) => {
+    if (!activeCompanyId) return;
+    try {
+      const newConfig = { ...companyEptConfig, requireAppointment: val };
+      setCompanyEptConfig(newConfig);
+      const res = await fetch(`/api/sgsst/estudio-puesto/config/${activeCompanyId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newConfig),
+      });
+      if (res.ok) {
+        showToast({
+          message: val
+            ? 'Cita previa obligatoria activada para colaboradores.'
+            : 'Acceso flexible activado para colaboradores.',
+          status: 'success',
+        });
+      }
+    } catch (e) {
+      showToast({ message: 'Error al actualizar configuración.', status: 'error' });
+    }
+  };
+
+  // Schedule appointment submit
+  const handleScheduleSubmit = async () => {
+    if (!scheduleForm.workerId || !scheduleForm.workerName || !scheduleForm.scheduledDate || !scheduleForm.scheduledTime) {
+      showToast({ message: 'Por favor selecciona trabajador, fecha y hora.', status: 'warning' });
+      return;
+    }
+    setIsSubmittingSchedule(true);
+    try {
+      const scheduledAt = new Date(`${scheduleForm.scheduledDate}T${scheduleForm.scheduledTime}:00`);
+      const payload = {
+        companyId: activeCompanyId,
+        workerId: scheduleForm.workerId,
+        workerName: scheduleForm.workerName,
+        cargo: scheduleForm.cargo,
+        actividad: scheduleForm.actividad,
+        scheduledAt,
+        slotDurationMinutes: scheduleForm.slotDurationMinutes,
+        appointmentNotes: scheduleForm.appointmentNotes,
+      };
+
+      const res = await fetch('/api/sgsst/estudio-puesto/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Error al programar cita');
+      }
+
+      showToast({ message: '¡Cita ergonómica programada exitosamente!', status: 'success' });
+      setShowScheduleModal(false);
+      loadAppointments(activeCompanyId);
+      setScheduleForm((prev) => ({
+        ...prev,
+        workerId: '',
+        workerName: '',
+        cargo: '',
+        appointmentNotes: '',
+      }));
+    } catch (err: any) {
+      showToast({ message: err.message || 'Error al agendar cita.', status: 'error' });
+    } finally {
+      setIsSubmittingSchedule(false);
+    }
+  };
+
+  // Cancel appointment
+  const handleCancelAppointment = async (id: string) => {
+    if (!confirm('¿Seguro que deseas cancelar esta cita programada?')) return;
+    try {
+      const res = await fetch(`/api/sgsst/estudio-puesto/appointment/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelado' }),
+      });
+      if (res.ok) {
+        showToast({ message: 'Cita cancelada correctamente.', status: 'info' });
+        loadAppointments(activeCompanyId);
+      }
+    } catch (e) {
+      showToast({ message: 'Error al cancelar cita.', status: 'error' });
+    }
+  };
+
+  // Copy WhatsApp invitation message
+  const handleCopyWhatsAppInvite = (apt: EPTAppointment) => {
+    const d = apt.scheduledAt ? new Date(apt.scheduledAt) : new Date();
+    const dateStr = d.toLocaleDateString('es-CO', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const timeStr = d.toLocaleTimeString('es-CO', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+    const link = `${window.location.origin}/sgsst-public/estudio-puesto/${activeCompanyId}?cedula=${apt.workerId}`;
+
+    const text = `📅 *Cita Ergonómica 1 a 1 - Somos SST*\n\nHola *${apt.workerName}*, tienes asignado tu turno de evaluación postural y biomecánica con el *Fisioterapeuta Laboral IA* de WAPPY:\n\n🗓 *Fecha:* ${dateStr}\n⏰ *Hora:* ${timeStr}\n🎯 *Duración:* ${companyEptConfig.slotDurationMinutes || 30} minutos\n🏢 *Empresa:* ${companyInfo?.companyName || 'Somos SST'}\n🔗 *Enlace de Ingreso:* ${link}\n\n_Para garantizar una atención 1 a 1 de máxima calidad y evitar saturación de claves de IA, por favor conéctate puntualmente desde un dispositivo con cámara y micrófono._`;
+
+    navigator.clipboard.writeText(text);
+    showToast({ message: 'Mensaje de WhatsApp copiado al portapapeles.', status: 'success' });
+  };
 
   // Filtered studies
   const filteredStudies = useMemo(() => {
@@ -192,6 +385,35 @@ export default function EstudioPuestoTrabajo() {
       return matchSearch && matchFilter;
     });
   }, [studies, searchTerm, filterRisk]);
+
+  // Filtered appointments
+  const filteredAppointments = useMemo(() => {
+    return appointments.filter((apt) => {
+      const matchSearch =
+        !appointmentSearchTerm ||
+        apt.workerName?.toLowerCase().includes(appointmentSearchTerm.toLowerCase()) ||
+        apt.workerId?.toLowerCase().includes(appointmentSearchTerm.toLowerCase()) ||
+        apt.cargo?.toLowerCase().includes(appointmentSearchTerm.toLowerCase());
+
+      const matchStatus =
+        filterAppointmentStatus === 'all' || apt.status === filterAppointmentStatus;
+
+      return matchSearch && matchStatus;
+    });
+  }, [appointments, appointmentSearchTerm, filterAppointmentStatus]);
+
+  // Autocomplete selection for schedule modal
+  const handleSelectWorkerForSchedule = (doc: string) => {
+    const found = availableWorkers.find((w) => String(w.identificacion).trim() === doc.trim());
+    if (found) {
+      setScheduleForm((prev) => ({
+        ...prev,
+        workerName: found.nombre,
+        workerId: found.identificacion,
+        cargo: found.cargo || prev.cargo,
+      }));
+    }
+  };
 
   // Handle selecting a study to view in LiveEditor
   const handleSelectStudyToView = (study: EPTStudy) => {
@@ -339,6 +561,14 @@ export default function EstudioPuestoTrabajo() {
               <span className="hidden sm:inline">QR Trabajadores</span>
             </button>
             <button
+              onClick={() => setShowScheduleModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-bold hover:bg-amber-100 transition-all shadow-sm"
+              title="Programar turno 1 a 1 para colaborador"
+            >
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Programar Turno</span>
+            </button>
+            <button
               onClick={() => setShowNewModal(true)}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white text-xs font-bold transition-all shadow-md active:scale-95"
             >
@@ -349,7 +579,58 @@ export default function EstudioPuestoTrabajo() {
         }
       />
 
-      {/* ─── TARJETAS DE KPIS ERGONÓMICOS Y BIOMECÁNICOS ──────────────────── */}
+      {/* ─── TABS DE NAVEGACIÓN (EXPEDIENTES VS AGENDA 1 A 1) ───────────── */}
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab('estudios')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all',
+              activeTab === 'estudios'
+                ? 'bg-teal-600 text-white shadow-md'
+                : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+            )}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Expedientes EPT ({studies.length})</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('agenda');
+              loadAppointments(activeCompanyId);
+            }}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all relative',
+              activeTab === 'agenda'
+                ? 'bg-teal-600 text-white shadow-md'
+                : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+            )}
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Agenda & Citas 1 a 1 ({appointments.length})</span>
+            {appointmentsStats.today > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-400 text-slate-900 font-extrabold animate-pulse">
+                {appointmentsStats.today} hoy
+              </span>
+            )}
+          </button>
+        </div>
+
+        {activeTab === 'agenda' && (
+          <button
+            onClick={() => setShowScheduleModal(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-teal-600 hover:from-amber-500 hover:to-teal-500 text-white text-xs font-bold transition-all shadow-md active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Programar Turno 1 a 1</span>
+          </button>
+        )}
+      </div>
+
+      {activeTab === 'estudios' ? (
+        <>
+          {/* ─── TARJETAS DE KPIS ERGONÓMICOS Y BIOMECÁNICOS ──────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
         {/* Total EPTs */}
         <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
@@ -656,6 +937,313 @@ export default function EstudioPuestoTrabajo() {
           </div>
         </CollapsibleReportBox>
       </div>
+        </>
+      ) : (
+        /* ─── VISTA DE AGENDA & CITAS 1 A 1 ─────────────────────────────── */
+        <div className="space-y-4">
+          {/* Banner y Control de Concurrencia */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-teal-900/10 via-amber-900/10 to-teal-900/10 border border-teal-200 dark:border-teal-800/60 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                  Protección de API Keys & Agendamiento 1 a 1
+                </h3>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-zinc-300 max-w-2xl leading-relaxed">
+                Los turnos programados garantizan que los colaboradores realicen su auto-evaluación postural con el <strong>Fisioterapeuta Laboral IA</strong> de manera individual y sin colapsar cuotas de inteligencia artificial.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0 bg-white dark:bg-zinc-900 p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-xs">
+              <div className="text-right">
+                <span className="block text-xs font-bold text-slate-900 dark:text-white">
+                  Exigir Cita Previa Obligatoria
+                </span>
+                <span className="block text-[10px] text-slate-500 dark:text-zinc-400">
+                  {companyEptConfig.requireAppointment ? 'Activado (Solo turno del día)' : 'Desactivado (Acceso libre)'}
+                </span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={companyEptConfig.requireAppointment}
+                onClick={() => handleToggleRequireAppointment(!companyEptConfig.requireAppointment)}
+                className={cn(
+                  'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none',
+                  companyEptConfig.requireAppointment ? 'bg-teal-600' : 'bg-slate-300 dark:bg-zinc-700'
+                )}
+              >
+                <span
+                  className={cn(
+                    'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                    companyEptConfig.requireAppointment ? 'translate-x-5' : 'translate-x-0'
+                  )}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Tarjetas KPIs de Agenda */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+            {/* Total Citas */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
+              <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400">
+                <span className="text-xs font-bold uppercase tracking-wider">Total Citas</span>
+                <Calendar className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              </div>
+              <div className="mt-2">
+                <span className="text-2xl font-black text-slate-900 dark:text-white">{appointmentsStats.total}</span>
+                <span className="text-[11px] text-slate-500 ml-2 font-medium">turnos</span>
+              </div>
+            </div>
+
+            {/* Programadas Pendientes */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-950/60 shadow-sm flex flex-col justify-between">
+              <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
+                <span className="text-xs font-bold uppercase tracking-wider">Programadas</span>
+                <Clock className="w-4 h-4" />
+              </div>
+              <div className="mt-2">
+                <span className="text-2xl font-black text-amber-600 dark:text-amber-400">{appointmentsStats.scheduled}</span>
+                <span className="text-[11px] text-slate-500 ml-2 font-medium">pendientes</span>
+              </div>
+            </div>
+
+            {/* Citas de Hoy */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-teal-200 dark:border-teal-950/60 shadow-sm flex flex-col justify-between">
+              <div className="flex items-center justify-between text-teal-600 dark:text-teal-400">
+                <span className="text-xs font-bold uppercase tracking-wider">Turnos para Hoy</span>
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div className="mt-2 flex items-baseline justify-between">
+                <span className="text-2xl font-black text-teal-600 dark:text-teal-400">{appointmentsStats.today}</span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300">
+                  Prioridad
+                </span>
+              </div>
+            </div>
+
+            {/* Completadas */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-emerald-200 dark:border-emerald-950/60 shadow-sm flex flex-col justify-between">
+              <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+                <span className="text-xs font-bold uppercase tracking-wider">Completadas</span>
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <div className="mt-2">
+                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{appointmentsStats.completed}</span>
+                <span className="text-[11px] text-slate-500 ml-2 font-medium">evaluados</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Directorio de Citas y Turnos */}
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
+            {/* Filtros de la Agenda */}
+            <div className="p-4 md:p-5 border-b border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="relative w-full sm:w-80">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Buscar turno por trabajador o cédula..."
+                  value={appointmentSearchTerm}
+                  onChange={(e) => setAppointmentSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-800 dark:text-zinc-100"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 w-full sm:w-auto justify-between sm:justify-end overflow-x-auto">
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl text-[11px] font-semibold">
+                  <button
+                    onClick={() => setFilterAppointmentStatus('all')}
+                    className={cn(
+                      'px-2.5 py-1 rounded-lg transition-all',
+                      filterAppointmentStatus === 'all'
+                        ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm font-bold'
+                        : 'text-slate-500 hover:text-slate-900 dark:text-zinc-400'
+                    )}
+                  >
+                    Todos ({appointments.length})
+                  </button>
+                  <button
+                    onClick={() => setFilterAppointmentStatus('programado')}
+                    className={cn(
+                      'px-2 py-1 rounded-lg transition-all',
+                      filterAppointmentStatus === 'programado'
+                        ? 'bg-amber-500 text-white font-bold'
+                        : 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                    )}
+                  >
+                    Programados
+                  </button>
+                  <button
+                    onClick={() => setFilterAppointmentStatus('en_curso')}
+                    className={cn(
+                      'px-2 py-1 rounded-lg transition-all',
+                      filterAppointmentStatus === 'en_curso'
+                        ? 'bg-blue-600 text-white font-bold'
+                        : 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30'
+                    )}
+                  >
+                    En Curso
+                  </button>
+                  <button
+                    onClick={() => setFilterAppointmentStatus('completado')}
+                    className={cn(
+                      'px-2 py-1 rounded-lg transition-all',
+                      filterAppointmentStatus === 'completado'
+                        ? 'bg-emerald-600 text-white font-bold'
+                        : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
+                    )}
+                  >
+                    Completados
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Tabla de Citas */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/80 dark:bg-zinc-800/40 border-b border-slate-200 dark:border-zinc-800 text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                    <th className="py-3 px-4">Colaborador / Cédula</th>
+                    <th className="py-3 px-4">Fecha y Hora Programada</th>
+                    <th className="py-3 px-4 text-center">Duración</th>
+                    <th className="py-3 px-4">Programado Por</th>
+                    <th className="py-3 px-4 text-center">Estado</th>
+                    <th className="py-3 px-4 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/60">
+                  {filteredAppointments.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400 dark:text-zinc-500">
+                        <Calendar className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                        <p className="font-semibold text-xs">No hay citas registradas con este filtro</p>
+                        <p className="text-[11px] mt-0.5">Programa un nuevo turno 1 a 1 para tus colaboradores.</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredAppointments.map((apt) => {
+                      const badge = APPOINTMENT_BADGES[apt.status] || APPOINTMENT_BADGES.programado;
+                      const dateObj = apt.scheduledAt ? new Date(apt.scheduledAt) : null;
+                      const dateFormatted = dateObj
+                        ? dateObj.toLocaleDateString('es-CO', {
+                            weekday: 'short',
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                        : 'Sin fecha';
+                      const timeFormatted = dateObj
+                        ? dateObj.toLocaleTimeString('es-CO', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true,
+                          })
+                        : '--:--';
+
+                      return (
+                        <tr
+                          key={apt._id}
+                          className="hover:bg-slate-50/60 dark:hover:bg-zinc-800/30 transition-colors"
+                        >
+                          {/* Colaborador */}
+                          <td className="py-3.5 px-4">
+                            <div className="font-bold text-slate-900 dark:text-white">
+                              {apt.workerName}
+                            </div>
+                            <div className="text-[11px] text-slate-500 dark:text-zinc-400 flex items-center gap-1.5 mt-0.5">
+                              <span>C.C. {apt.workerId}</span>
+                              {apt.cargo && (
+                                <>
+                                  <span>•</span>
+                                  <span className="truncate max-w-[150px]">{apt.cargo}</span>
+                                </>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Fecha & Hora */}
+                          <td className="py-3.5 px-4 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-zinc-200 text-xs">
+                              <Calendar className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                              <span>{dateFormatted}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                              <Clock className="w-3.5 h-3.5 text-amber-500" />
+                              <span>{timeFormatted}</span>
+                            </div>
+                          </td>
+
+                          {/* Duración */}
+                          <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                            <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 font-semibold text-[11px]">
+                              {apt.slotDurationMinutes || 30} min
+                            </span>
+                          </td>
+
+                          {/* Programado Por */}
+                          <td className="py-3.5 px-4 text-slate-600 dark:text-zinc-400 text-[11px]">
+                            <span className="font-medium text-slate-800 dark:text-zinc-200">
+                              {apt.scheduledByName || 'SST'}
+                            </span>
+                            {apt.appointmentNotes && (
+                              <div className="text-[10px] text-slate-400 truncate max-w-[140px] mt-0.5" title={apt.appointmentNotes}>
+                                {apt.appointmentNotes}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Estado */}
+                          <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                            <span
+                              className={cn(
+                                'px-2.5 py-0.5 rounded-full text-[10px] font-bold border inline-block',
+                                badge.bg,
+                                badge.text,
+                                badge.border
+                              )}
+                            >
+                              {badge.label}
+                            </span>
+                          </td>
+
+                          {/* Acciones */}
+                          <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Botón WhatsApp */}
+                              <button
+                                onClick={() => handleCopyWhatsAppInvite(apt)}
+                                className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100 transition-colors"
+                                title="Copiar invitación formal para WhatsApp"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Botón Cancelar (si está programado) */}
+                              {apt.status === 'programado' && (
+                                <button
+                                  onClick={() => handleCancelAppointment(apt._id)}
+                                  className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-colors"
+                                  title="Cancelar turno programado"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── MODAL: NUEVO ESTUDIO DE PUESTO (MANUAL / ASISTIDO POR IA) ────── */}
       {showNewModal &&
@@ -905,6 +1493,196 @@ export default function EstudioPuestoTrabajo() {
                   className="w-full py-2 px-4 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                 >
                   Cerrar
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* ─── MODAL: PROGRAMAR CITA 1 A 1 ──────────────────────────────────── */}
+      {showScheduleModal &&
+        ReactDOM.createPortal(
+          <div
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={() => !isSubmittingSchedule && setShowScheduleModal(false)}
+          >
+            <div
+              className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between bg-amber-50/50 dark:bg-amber-950/20">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-md">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                      Programar Cita Ergonómica 1 a 1
+                    </h3>
+                    <p className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
+                      Control de Concurrencia & Compromiso del Colaborador
+                    </p>
+                  </div>
+                </div>
+                <button
+                  disabled={isSubmittingSchedule}
+                  onClick={() => setShowScheduleModal(false)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 text-sm font-bold p-1 rounded-lg"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-6 space-y-3.5 max-h-[75vh] overflow-y-auto text-xs">
+                {/* Autocomplete de trabajadores */}
+                {availableWorkers.length > 0 && (
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Seleccionar Colaborador Registrado
+                    </label>
+                    <select
+                      onChange={(e) => handleSelectWorkerForSchedule(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    >
+                      <option value="">Selecciona un colaborador...</option>
+                      {availableWorkers.map((w) => (
+                        <option key={w.identificacion} value={w.identificacion}>
+                          {w.nombre} (C.C. {w.identificacion}) - {w.cargo || 'Sin cargo'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Cédula / ID *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Cédula"
+                      value={scheduleForm.workerId}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, workerId: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Nombre Completo *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Nombre"
+                      value={scheduleForm.workerName}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, workerName: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                    Cargo
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Asistente Administrativo"
+                    value={scheduleForm.cargo}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, cargo: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Fecha de la Cita *
+                    </label>
+                    <input
+                      type="date"
+                      value={scheduleForm.scheduledDate}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, scheduledDate: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Hora de Inicio *
+                    </label>
+                    <input
+                      type="time"
+                      value={scheduleForm.scheduledTime}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, scheduledTime: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                    Duración Estimada
+                  </label>
+                  <select
+                    value={scheduleForm.slotDurationMinutes}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, slotDurationMinutes: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                  >
+                    <option value={15}>15 minutos (Chequeo express)</option>
+                    <option value={30}>30 minutos (Estándar RULA / REBA)</option>
+                    <option value={45}>45 minutos (Evaluación profunda)</option>
+                    <option value={60}>60 minutos (Integral biomecánica)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                    Notas o Foco de la Evaluación (Opcional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Ej: Reporta molestias lumbares y tensión cervical al final de la jornada..."
+                    value={scheduleForm.appointmentNotes}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, appointmentNotes: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none text-xs"
+                  />
+                </div>
+
+                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                  <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>
+                    Al confirmar la cita se generará la invitación formal con enlace directo para WhatsApp. Solo 1 colaborador puede estar en vivo por turno.
+                  </span>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 bg-slate-50 dark:bg-zinc-800/60 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  disabled={isSubmittingSchedule}
+                  onClick={() => setShowScheduleModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmittingSchedule}
+                  onClick={handleScheduleSubmit}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-lg transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {isSubmittingSchedule ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Agendando Turno...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="w-4 h-4" />
+                      <span>Confirmar Cita 1 a 1</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

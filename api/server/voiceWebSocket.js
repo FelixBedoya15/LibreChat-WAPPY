@@ -99,6 +99,11 @@ function setupVoiceWebSocket(server) {
             if (mode) config.mode = mode;
             if (agentId) config.agentId = agentId;
             if (params.tenshiKey) config.tenshiKey = params.tenshiKey;
+            if (params.companyId) config.companyId = params.companyId;
+            if (params.workerName) config.workerName = params.workerName;
+            if (params.workerId) config.workerId = params.workerId;
+            if (params.cargo) config.cargo = params.cargo;
+            if (params.actividad) config.actividad = params.actividad;
 
             const result = await createSession(ws, user.id, conversationId, config);
 
@@ -119,6 +124,16 @@ function setupVoiceWebSocket(server) {
                 type: 'status',
                 data: { status: 'listening' },
             }));
+
+            // Liberar slot 1 a 1 de trabajador cuando se cierre la conexión
+            if (config.companyId) {
+                ws.on('close', () => {
+                    try {
+                        const { releaseWorkerSession } = require('./routes/publicSgsst');
+                        releaseWorkerSession(config.companyId);
+                    } catch (e) {}
+                });
+            }
 
         } catch (error) {
             logger.error('[WebSocket] Connection error:', error);

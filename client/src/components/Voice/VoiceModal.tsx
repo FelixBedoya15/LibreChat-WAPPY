@@ -43,6 +43,10 @@ interface VoiceModalProps {
     model?: string;
     endpoint?: string;
     agentId?: string;
+    token?: string;
+    companyId?: string;
+    workerData?: { workerName?: string; workerId?: string; cargo?: string; actividad?: string };
+    onReportGenerated?: (html: string, messageId?: string) => void;
 }
 
 const playStartupSound = () => {
@@ -72,7 +76,20 @@ const playStartupSound = () => {
 import { resolveInspectionProtocol, INSPECTION_PROTOCOLS, ERGONOMIC_PHASES, type InspectionProtocol } from '~/utils/inspectionProtocols';
 export { ERGONOMIC_PHASES };
 
-const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onConversationUpdated, model, endpoint, agentId }) => {
+const VoiceModal: FC<VoiceModalProps> = ({
+    isOpen,
+    onClose,
+    conversationId,
+    onConversationIdUpdate,
+    onConversationUpdated,
+    model,
+    endpoint,
+    agentId,
+    token,
+    companyId,
+    workerData,
+    onReportGenerated,
+}) => {
     const localize = useLocalize();
     const [voiceChatGeneral, setVoiceChatGeneral] = useRecoilState(store.voiceChatGeneral);
     const [selectedVoice, setSelectedVoice] = useState(voiceChatGeneral);
@@ -120,7 +137,10 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         const modelStr = (model || '').toLowerCase();
 
         // 1. Direct name or instructions match
+        const explicitId = (agentId || '').toLowerCase();
         if (
+            explicitId.includes('fisioterapeuta') ||
+            explicitId.includes('biomec') ||
             agentName.includes('biomec') ||
             agentName.includes('fisioterapeuta') ||
             agentName.includes('ergon') ||
@@ -268,6 +288,12 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         endpoint,
         agentId: effectiveAgentId,
         template: isBiomechanicsAgent ? 'biomecanico_mediapipe' : undefined,
+        token,
+        companyId,
+        workerName: workerData?.workerName,
+        workerId: workerData?.workerId,
+        cargo: workerData?.cargo,
+        actividad: workerData?.actividad,
         onAudioReceived: (audioData: string) => {
             handleAudioReceived(audioData);
         },
@@ -327,10 +353,13 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                         : 'Informe Técnico de Evaluación SST',
                     fileType: 'text',
                     content: html,
-                    messageId: messageId,
+                    messageId: messageId || '',
                     isStreaming: false,
                 });
                 setIsCanvasActive(true);
+            }
+            if (onReportGenerated && html && html.length > 30) {
+                onReportGenerated(html, messageId);
             }
             setTimeout(() => setReportSuccess(false), 6000);
             if (onConversationUpdated) {
@@ -362,7 +391,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             setIsGeneratingReport(false);
             setStatusText(`Error: ${error}`);
         },
-    }), [conversationId, onConversationIdUpdate, onConversationUpdated, voiceChatGeneral, model, endpoint, isBiomechanicsAgent, effectiveAgentId]);
+    }), [conversationId, onConversationIdUpdate, onConversationUpdated, voiceChatGeneral, model, endpoint, isBiomechanicsAgent, effectiveAgentId, token, companyId, workerData, onReportGenerated]);
 
     const {
         isConnected,

@@ -102,9 +102,36 @@ const estudioPuestoTrabajoSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    // Programación y Citas 1 a 1
+    scheduledAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    scheduledEndAt: {
+      type: Date,
+      default: null,
+    },
+    scheduledBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    scheduledByName: {
+      type: String,
+      default: '',
+    },
+    appointmentNotes: {
+      type: String,
+      default: '',
+    },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
     status: {
       type: String,
-      enum: ['completado', 'borrador'],
+      enum: ['completado', 'borrador', 'programado', 'en_curso', 'cancelado'],
       default: 'completado',
       index: true,
     },
