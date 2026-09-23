@@ -742,11 +742,6 @@ export default function useEventHandlers({
           },
           submission,
         );
-        if (conversationId) {
-          setTimeout(() => {
-            queryClient.invalidateQueries([QueryKeys.messages, conversationId]);
-          }, 1500);
-        }
         return;
       } else if (!isAssistantsEndpoint(endpoint)) {
         const convoId = conversationId || `_${v4()}`;
