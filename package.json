@@ -99,6 +99,7 @@
   },
   "homepage": "https://librechat.ai/",
   "dependencies": {
+    "@google/generative-ai": "0.24.0",
     "patch-package": "^8.0.1",
     "postinstall-postinstall": "^2.1.0",
     "stripe": "^20.4.0"
