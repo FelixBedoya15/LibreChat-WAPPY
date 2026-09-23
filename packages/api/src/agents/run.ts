@@ -93,6 +93,7 @@ export async function createRun({
         provider,
         streaming,
         streamUsage,
+        maxRetries: 0,
       },
       agent.model_parameters,
     );

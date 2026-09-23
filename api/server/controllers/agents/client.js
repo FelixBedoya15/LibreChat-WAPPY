@@ -164,6 +164,10 @@ const extractRetryDelayMs = (err) => {
   return null;
 };
 
+/** Cooldown map to remember models that recently threw 503 / high demand so subsequent requests don't freeze */
+const overloadedModelCooldowns = new Map();
+const OVERLOAD_COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes cooldown
+
 class AgentClient extends BaseClient {
   constructor(options = {}) {
     super(null, options);
@@ -1497,9 +1501,22 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         primaryAgentModel = isPublicChat ? 'gemini-3.5-flash-lite' : (envAgentModels[0] || 'gemini-3.8-flash');
       }
 
-      const agentModelFallbacks = isPublicChat
+      const rawFallbacks = isPublicChat
         ? ['gemini-3.5-flash-lite', 'gemini-3.5-flash']
         : [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
+
+      const now = Date.now();
+      const activeModels = rawFallbacks.filter((m) => !overloadedModelCooldowns.has(m) || overloadedModelCooldowns.get(m) < now);
+      const coolingModels = rawFallbacks.filter((m) => overloadedModelCooldowns.has(m) && overloadedModelCooldowns.get(m) >= now);
+      const agentModelFallbacks = activeModels.length > 0 ? [...activeModels, ...coolingModels] : rawFallbacks;
+
+      // Ensure maxRetries: 0 so @langchain/google-genai does NOT do hidden 6-retry exponential delays on 503
+      if (this.options.agent.model_parameters) {
+        this.options.agent.model_parameters.maxRetries = 0;
+      }
+      if (config?.configurable?.endpointOption?.model_parameters) {
+        config.configurable.endpointOption.model_parameters.maxRetries = 0;
+      }
 
       let attemptErrors = [];
       let success = false;
@@ -1517,10 +1534,12 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
           // Apply the fallback model before retrying
           logger.warn(`[AgentClient] Quota/Overloaded — rotating agent model to "${currentModel}" (fallback ${mi}/${agentModelFallbacks.length - 1})`);
           this.options.agent.model_parameters.model = currentModel;
+          this.options.agent.model_parameters.maxRetries = 0;
           this.options.agent.model = currentModel;
           this.model = currentModel;
           if (config?.configurable?.endpointOption?.model_parameters) {
             config.configurable.endpointOption.model_parameters.model = currentModel;
+            config.configurable.endpointOption.model_parameters.maxRetries = 0;
           }
           if (config?.configurable?.endpointOption) {
             config.configurable.endpointOption.model = currentModel;
@@ -1531,6 +1550,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
             for (const secondaryAg of this.agentConfigs.values()) {
               if (secondaryAg.model_parameters) {
                 secondaryAg.model_parameters.model = currentModel;
+                secondaryAg.model_parameters.maxRetries = 0;
               }
               secondaryAg.model = currentModel;
             }
@@ -1710,7 +1730,8 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
               const reason = err?.status === 503 || err?.message?.includes('503')
                 ? '503 Service Unavailable'
                 : 'Failed to parse stream (stream unparseable/overload)';
-              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing issues (${reason}). Rotating immediately to next fallback model...`);
+              overloadedModelCooldowns.set(currentModel, Date.now() + OVERLOAD_COOLDOWN_MS);
+              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing issues (${reason}). Cooldown set for 2m. Rotating immediately to next fallback model...`);
               rotateToNextModel = true;
               break;
             } else if (isRetryable && i < keys.length - 1) {

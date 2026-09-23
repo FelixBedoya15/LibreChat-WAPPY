@@ -28706,6 +28706,7 @@ function createRun({ runId, signal, agents: agents$1, requestBody, tokenCounter,
                 provider,
                 streaming,
                 streamUsage,
+                maxRetries: 0,
             }, agent.model_parameters);
             const systemMessage = Object.values((_b = agent.toolContextMap) !== null && _b !== void 0 ? _b : {})
                 .join('\n')
