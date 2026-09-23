@@ -231,9 +231,9 @@ class GoogleClient extends BaseClient {
     if (!this._modelFallbacks) {
       let currentModel = this.modelOptions.modelName ?? this.modelOptions.model ?? '';
       if (!currentModel || currentModel.includes('live') || currentModel.includes('native-audio') || currentModel.includes('transcribe')) {
-        currentModel = 'gemini-3.5-flash-lite';
+        currentModel = 'gemini-3.7-flash';
       }
-      const envModels = (process.env.GOOGLE_MODELS || 'gemini-3.5-flash-lite,gemini-3.5-flash,gemini-3.7-flash,gemini-3.8-flash,gemini-3.6-flash')
+      const envModels = (process.env.GOOGLE_MODELS || 'gemini-3.7-flash,gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite')
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean)

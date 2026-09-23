@@ -16,6 +16,7 @@ import TermsOfServicePage from '~/components/Auth/TermsOfServicePage';
 import WappyAboutPage from '~/components/Auth/WappyAboutPage';
 import ComunidadPage from '~/components/Marketing/ComunidadPage';
 import MatrizPage from '~/components/Marketing/MatrizPage';
+import LandingPage from '~/components/Marketing/LandingPage';
 import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom';
 import {
   Login,
@@ -265,6 +266,26 @@ export const router = createBrowserRouter(
       element: (
         <AuthContextProvider>
           <MatrizPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'landing',
+      element: (
+        <AuthContextProvider>
+          <LandingPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'inicio',
+      element: (
+        <AuthContextProvider>
+          <LandingPage />
           <ApiErrorWatcher />
         </AuthContextProvider>
       ),
