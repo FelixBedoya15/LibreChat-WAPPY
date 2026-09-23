@@ -24,6 +24,7 @@ import {
   MessageCircle,
   Send,
   ShieldCheck,
+  Video,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -233,6 +234,7 @@ export default function EstudioPuestoTrabajo() {
     slotDurationMinutes: 30,
     maxConcurrentWorkerSessions: 1,
   });
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
   const [scheduleForm, setScheduleForm] = useState({
@@ -403,10 +405,29 @@ export default function EstudioPuestoTrabajo() {
     }
   }, [token, activeCompanyId]);
 
+  // Load Company EPT Configuration (requireAppointment, slots, etc.)
+  const loadCompanyConfig = async (cid: string) => {
+    if (!cid) return;
+    try {
+      const res = await fetch(`/api/sgsst/estudio-puesto/config/${cid}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.eptConfig) {
+          setCompanyEptConfig(data.eptConfig);
+        }
+      }
+    } catch (err) {
+      console.warn('[EPT] Error loading config:', err);
+    }
+  };
+
   useEffect(() => {
     if (activeCompanyId) {
       loadStudies(activeCompanyId);
       loadAppointments(activeCompanyId);
+      loadCompanyConfig(activeCompanyId);
     }
   }, [activeCompanyId, token]);
 
@@ -414,23 +435,66 @@ export default function EstudioPuestoTrabajo() {
   const handleToggleRequireAppointment = async (val: boolean) => {
     if (!activeCompanyId) return;
     try {
+      setIsSavingConfig(true);
       const newConfig = { ...companyEptConfig, requireAppointment: val };
       setCompanyEptConfig(newConfig);
       const res = await fetch(`/api/sgsst/estudio-puesto/config/${activeCompanyId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(newConfig),
       });
       if (res.ok) {
+        const data = await res.json();
+        if (data.eptConfig) {
+          setCompanyEptConfig(data.eptConfig);
+        }
         showToast({
           message: val
             ? 'Programación previa obligatoria activada para colaboradores.'
-            : 'Acceso libre activado para colaboradores.',
+            : 'Acceso libre activado para colaboradores (sin cita previa requerida).',
           status: 'success',
         });
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Error al actualizar configuración en servidor');
       }
-    } catch (e) {
-      showToast({ message: 'Error al actualizar configuración.', status: 'error' });
+    } catch (e: any) {
+      showToast({ message: e.message || 'Error al actualizar configuración.', status: 'error' });
+      loadCompanyConfig(activeCompanyId);
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
+
+  // Guardar Datos manualmente (Botón estándar de persistencia en Toolbar)
+  const handleSaveData = async () => {
+    if (!activeCompanyId) {
+      showToast({ message: 'No hay empresa activa seleccionada.', status: 'warning' });
+      return;
+    }
+    try {
+      setIsSavingConfig(true);
+      const res = await fetch(`/api/sgsst/estudio-puesto/config/${activeCompanyId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(companyEptConfig),
+      });
+      if (res.ok) {
+        showToast({ message: 'Configuración y datos de EPT guardados exitosamente.', status: 'success' });
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Error al guardar datos');
+      }
+    } catch (e: any) {
+      showToast({ message: e.message || 'Error al guardar datos.', status: 'error' });
+    } finally {
+      setIsSavingConfig(false);
     }
   };
 
@@ -574,19 +638,6 @@ export default function EstudioPuestoTrabajo() {
     }, 150);
   };
 
-  // Autocomplete selection for worker
-  const handleSelectWorkerFromList = (doc: string) => {
-    const found = availableWorkers.find((w) => String(w.identificacion).trim() === doc.trim());
-    if (found) {
-      setNewStudyForm((prev) => ({
-        ...prev,
-        workerName: found.nombre,
-        workerId: found.identificacion,
-        cargo: found.cargo || prev.cargo,
-      }));
-    }
-  };
-
   // Generate Report with selected AI model
   const handleGenerateAiReport = async () => {
     if (!newStudyForm.workerName || !newStudyForm.workerId || !newStudyForm.cargo) {
@@ -614,7 +665,10 @@ export default function EstudioPuestoTrabajo() {
       // 1. Guardar primero el registro en la base de datos
       const saveRes = await fetch('/api/sgsst/estudio-puesto', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(payload),
       });
 
@@ -625,7 +679,10 @@ export default function EstudioPuestoTrabajo() {
       // 2. Generar el informe técnico con el modelo Gemini seleccionado
       const genRes = await fetch('/api/sgsst/estudio-puesto/generate-report', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ ...payload, studyId: savedStudyId }),
       });
 
@@ -659,7 +716,10 @@ export default function EstudioPuestoTrabajo() {
   const handleDeleteStudy = async (id: string) => {
     if (!confirm('¿Seguro que deseas eliminar este estudio técnico?')) return;
     try {
-      const res = await fetch(`/api/sgsst/estudio-puesto/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/sgsst/estudio-puesto/${id}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (res.ok) {
         showToast({ message: 'Estudio eliminado correctamente', status: 'success' });
         loadStudies(activeCompanyId);
@@ -685,6 +745,33 @@ export default function EstudioPuestoTrabajo() {
       <SGSSTToolbar
         selectedModel={selectedModel}
         onSelectModel={setSelectedModel}
+        onSaveLocal={handleSaveData}
+        isSavingLocal={isSavingConfig}
+        historyButtons={[
+          {
+            id: 'tb-tab-estudios',
+            onClick: () => setActiveTab('estudios'),
+            label: `Expedientes (${studies.length})`,
+            icon: FileText,
+            title: 'Ver Expedientes de Estudios de Puesto (EPT)',
+            variant: 'history',
+            active: activeTab === 'estudios',
+            badge: studies.length > 0 ? studies.length : undefined,
+          },
+          {
+            id: 'tb-tab-agenda',
+            onClick: () => {
+              setActiveTab('agenda');
+              if (activeCompanyId) loadAppointments(activeCompanyId);
+            },
+            label: `Agenda (${appointments.length})`,
+            icon: Calendar,
+            title: 'Ver Agenda de Autoevaluaciones Ergonómicas',
+            variant: 'history',
+            active: activeTab === 'agenda',
+            badge: appointmentsStats.today > 0 ? `${appointmentsStats.today}` : (appointments.length > 0 ? appointments.length : undefined),
+          },
+        ]}
         customSections={[
           <div key="ept-custom-toolbar" className="flex items-center gap-1.5">
             <ToolbarButton
@@ -715,74 +802,28 @@ export default function EstudioPuestoTrabajo() {
         ]}
       />
 
-      {/* ─── TABS DE NAVEGACIÓN (EXPEDIENTES VS AGENDA DE AUTOEVALUACIONES) ───────────── */}
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setActiveTab('estudios')}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all',
-              activeTab === 'estudios'
-                ? 'bg-teal-600 text-white shadow-md'
-                : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+      {/* ─── ENCABEZADO DE SECCIÓN ACTIVA (SIN BOTONES DUPLICADOS) ───────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-zinc-800 pb-3">
+        <div>
+          <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+            {activeTab === 'estudios' ? (
+              <>
+                <FileText className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                <span>Expedientes de Estudios de Puesto de Trabajo (EPT)</span>
+              </>
+            ) : (
+              <>
+                <Calendar className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                <span>Agenda de Autoevaluaciones Ergonómicas</span>
+              </>
             )}
-          >
-            <FileText className="w-4 h-4" />
-            <span>Expedientes EPT ({studies.length})</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('agenda');
-              loadAppointments(activeCompanyId);
-            }}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all relative',
-              activeTab === 'agenda'
-                ? 'bg-teal-600 text-white shadow-md'
-                : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-            )}
-          >
-            <Calendar className="w-4 h-4" />
-            <span>Agenda de Autoevaluaciones ({appointments.length})</span>
-            {appointmentsStats.today > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-400 text-slate-900 font-extrabold animate-pulse">
-                {appointmentsStats.today} hoy
-              </span>
-            )}
-          </button>
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+            {activeTab === 'estudios'
+              ? `Gestiona y consulta los ${studies.length} expedientes ergonómicos con evaluaciones RULA / REBA.`
+              : `Turnos individuales programados para auto-evaluación ergonómica en vivo con el Fisioterapeuta IA.`}
+          </p>
         </div>
-
-        {activeTab === 'agenda' && (
-          <ToolbarButton
-            id="agenda-tab-programar"
-            onClick={() => setShowScheduleModal(true)}
-            label="Programar Autoevaluación"
-            icon={Plus}
-            title="Programar Autoevaluación Ergonómica para Colaborador"
-            variant="dummy"
-          />
-        )}
-        {activeTab === 'estudios' && (
-          <div className="flex items-center gap-1.5">
-            <ToolbarButton
-              id="estudios-tab-new"
-              onClick={() => setShowNewModal(true)}
-              label="Nuevo EPT"
-              icon={Plus}
-              title="Crear Nuevo Estudio EPT"
-              variant="ai"
-            />
-            <ToolbarButton
-              id="estudios-tab-qr"
-              onClick={() => setShowQrModal(true)}
-              label="QR Trabajadores"
-              icon={QrCode}
-              title="Código QR para Trabajadores"
-              variant="default"
-            />
-          </div>
-        )}
       </div>
 
       {activeTab === 'estudios' ? (
@@ -1452,83 +1493,104 @@ export default function EstudioPuestoTrabajo() {
               </div>
 
               <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
-                {/* Autocomplete sugerido de trabajadores existentes */}
-                {availableWorkers.length > 0 && (
+                {/* ── Selector / Autocomplete con Estilo Método OWAS (Imagen 5) ── */}
+                <div className="space-y-3">
                   <div>
                     <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                      Cargar colaborador de la empresa (Opcional)
+                      Trabajador(es) Evaluado(s) *
                     </label>
-                    <select
-                      onChange={(e) => handleSelectWorkerFromList(e.target.value)}
-                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                    >
-                      <option value="">Selecciona un trabajador registrado...</option>
-                      {availableWorkers.map((w) => (
-                        <option key={w.identificacion} value={w.identificacion}>
-                          {w.nombre} (C.C. {w.identificacion}) - {w.cargo || 'Sin cargo'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                      Nombre Completo *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ej: Juan Carlos Gómez"
+                    <WorkerAutocomplete
                       value={newStudyForm.workerName}
-                      onChange={(e) => setNewStudyForm({ ...newStudyForm, workerName: e.target.value })}
-                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                      onChange={(v: string) => {
+                        const m = availableWorkers.find(
+                          (w) => w.nombre.toLowerCase() === v.toLowerCase()
+                        );
+                        setNewStudyForm((prev) => ({
+                          ...prev,
+                          workerName: v,
+                          workerId: m ? (m.identificacion || m.cedula || '') : prev.workerId,
+                          cargo: m && m.cargo ? m.cargo : prev.cargo,
+                        }));
+                      }}
+                      onSelect={(w: WorkerSimple) => {
+                        setNewStudyForm((prev) => ({
+                          ...prev,
+                          workerName: w.nombre || '',
+                          workerId: w.identificacion || w.cedula || '',
+                          cargo: w.cargo || '',
+                        }));
+                      }}
+                      data={availableWorkers}
+                      searchKey="nombre"
+                      placeholder="Nombre completo"
+                      wrapperClassName="w-full"
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                     />
                   </div>
 
-                  <div>
-                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                      Cédula / Documento *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ej: 1020304050"
-                      value={newStudyForm.workerId}
-                      onChange={(e) => setNewStudyForm({ ...newStudyForm, workerId: e.target.value })}
-                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                        Cédula / Documento *
+                      </label>
+                      <WorkerAutocomplete
+                        value={newStudyForm.workerId}
+                        onChange={(v: string) => {
+                          const m = availableWorkers.find(
+                            (w) => (w.identificacion || w.cedula) === v
+                          );
+                          setNewStudyForm((prev) => ({
+                            ...prev,
+                            workerId: v,
+                            workerName: m ? m.nombre : prev.workerName,
+                            cargo: m && m.cargo ? m.cargo : prev.cargo,
+                          }));
+                        }}
+                        onSelect={(w: WorkerSimple) => {
+                          setNewStudyForm((prev) => ({
+                            ...prev,
+                            workerId: w.identificacion || w.cedula || '',
+                            workerName: w.nombre || '',
+                            cargo: w.cargo || '',
+                          }));
+                        }}
+                        data={availableWorkers}
+                        searchKey="identificacion"
+                        placeholder="Cédula"
+                        wrapperClassName="w-full"
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                        Cargo / Puesto *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ej: Analista de Operaciones"
+                        value={newStudyForm.cargo}
+                        onChange={(e) => setNewStudyForm({ ...newStudyForm, cargo: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                      Cargo / Puesto *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ej: Analista de Operaciones"
-                      value={newStudyForm.cargo}
-                      onChange={(e) => setNewStudyForm({ ...newStudyForm, cargo: e.target.value })}
-                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                      Modalidad
-                    </label>
-                    <select
-                      value={newStudyForm.evaluationType}
-                      onChange={(e) =>
-                        setNewStudyForm({ ...newStudyForm, evaluationType: e.target.value as any })
-                      }
-                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                    >
-                      <option value="auto">Auto-evaluación en línea</option>
-                      <option value="asistida">Evaluación Asistida (Inspector SST)</option>
-                    </select>
-                  </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                    Modalidad
+                  </label>
+                  <select
+                    value={newStudyForm.evaluationType}
+                    onChange={(e) =>
+                      setNewStudyForm({ ...newStudyForm, evaluationType: e.target.value as any })
+                    }
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                  >
+                    <option value="auto">Auto-evaluación en línea</option>
+                    <option value="asistida">Evaluación Asistida (Inspector SST)</option>
+                  </select>
                 </div>
 
                 <div>

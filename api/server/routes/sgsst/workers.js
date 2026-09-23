@@ -50,39 +50,44 @@ async function runIndexAndCompanyMigration() {
                 for (const worker of trabajadores) {
                     if (!worker.identificacion) continue;
                     const cleanDoc = String(worker.identificacion).trim();
+                    if (!cleanDoc) continue;
                     
-                    // Only update workers who don't have a companyId set yet
-                    const result = await SgsstWorker.updateMany(
-                        { 
-                            user, 
-                            documento: cleanDoc, 
+                    // Check if worker with this companyId already exists
+                    const existingWithCompany = await SgsstWorker.findOne({
+                        user,
+                        companyId,
+                        documento: cleanDoc
+                    });
+
+                    if (existingWithCompany) {
+                        // Any remaining records with companyId: null for this user & doc are redundant orphans
+                        await SgsstWorker.deleteMany({
+                            user,
+                            documento: cleanDoc,
+                            _id: { $ne: existingWithCompany._id },
                             $or: [
-                                { companyId: null }, 
+                                { companyId: null },
                                 { companyId: { $exists: false } }
-                            ] 
-                        },
-                        { $set: { companyId } }
-                    );
-                    restoredCount += result.modifiedCount || 0;
+                            ]
+                        });
+                    } else {
+                        const result = await SgsstWorker.updateOne(
+                            { 
+                                user, 
+                                documento: cleanDoc, 
+                                $or: [
+                                    { companyId: null }, 
+                                    { companyId: { $exists: false } }
+                                ] 
+                            },
+                            { $set: { companyId } }
+                        );
+                        restoredCount += result.modifiedCount || 0;
+                    }
                 }
             }
             if (restoredCount > 0) {
                 logger.info(`[SGSST Workers Migration] Successfully restored companyId for ${restoredCount} workers.`);
-            }
-
-            // --- DEDUPLICATION OF SGSSTWORKERS BEFORE REPAIR & CLONING ---
-            logger.info('[SGSST Workers Migration] Deduplicating SgsstWorker collection...');
-            const allWorkersBefore = await SgsstWorker.find({}).lean();
-            const seenBefore = new Set();
-            for (const worker of allWorkersBefore) {
-                if (!worker.documento || !worker.user || !worker.companyId) continue;
-                const key = `${worker.user}_${worker.companyId}_${String(worker.documento).trim()}`;
-                if (seenBefore.has(key)) {
-                    logger.warn(`[SGSST Workers Repair] Deleting duplicate SgsstWorker record: ${worker.nombre} (${worker.documento}) for company ${worker.companyId}`);
-                    await SgsstWorker.deleteOne({ _id: worker._id });
-                } else {
-                    seenBefore.add(key);
-                }
             }
 
             // --- SELF-HEALING REPAIR & CLONING ---
@@ -91,6 +96,7 @@ async function runIndexAndCompanyMigration() {
             for (const worker of allWorkers) {
                 if (!worker.documento || !worker.user) continue;
                 const cleanDoc = String(worker.documento).trim();
+                if (!cleanDoc) continue;
                 
                 // Support both String and Number representation of identificacion in PerfilSociodemograficoData
                 const isNumeric = /^\d+$/.test(cleanDoc);
@@ -115,9 +121,37 @@ async function runIndexAndCompanyMigration() {
                 // If worker's current companyId is not in the list of profiles they belong to, fix it
                 if (!worker.companyId || !companyIds.includes(String(worker.companyId))) {
                     const firstCompanyId = matchingProfiles[0].companyId;
-                    await SgsstWorker.updateOne({ _id: worker._id }, { $set: { companyId: firstCompanyId } });
-                    logger.info(`[SGSST Workers Repair] Corrected worker ${worker.nombre} (${cleanDoc}) companyId to ${firstCompanyId}`);
-                    worker.companyId = firstCompanyId; // update local ref
+
+                    // Guard against creating duplicate in firstCompanyId
+                    const existingInFirstCompany = await SgsstWorker.findOne({
+                        _id: { $ne: worker._id },
+                        user: worker.user,
+                        companyId: firstCompanyId,
+                        documento: cleanDoc
+                    });
+
+                    if (existingInFirstCompany) {
+                        logger.warn(`[SGSST Workers Repair] Worker ${worker.nombre || ''} (${cleanDoc}) already exists in company ${firstCompanyId}. Merging and removing redundant record.`);
+                        const arrayFields = ['riesgosBioIndividual', 'fitAlerts', 'atel', 'actos_inseguros', 'participaciones_ipevar', 'capacitaciones', 'ats'];
+                        let needSave = false;
+                        for (const field of arrayFields) {
+                            if (Array.isArray(worker[field]) && worker[field].length > 0) {
+                                if (!Array.isArray(existingInFirstCompany[field]) || existingInFirstCompany[field].length === 0) {
+                                    existingInFirstCompany[field] = worker[field];
+                                    needSave = true;
+                                }
+                            }
+                        }
+                        if (needSave) {
+                            await existingInFirstCompany.save();
+                        }
+                        await SgsstWorker.deleteOne({ _id: worker._id });
+                        continue;
+                    } else {
+                        await SgsstWorker.updateOne({ _id: worker._id }, { $set: { companyId: firstCompanyId } });
+                        logger.info(`[SGSST Workers Repair] Corrected worker ${worker.nombre} (${cleanDoc}) companyId to ${firstCompanyId}`);
+                        worker.companyId = firstCompanyId; // update local ref
+                    }
                 }
                 
                 // Clone worker if they belong to other companies but don't have a record there
@@ -136,6 +170,7 @@ async function runIndexAndCompanyMigration() {
                             ...worker,
                             _id: new mongoose.Types.ObjectId(),
                             companyId: pCompanyId,
+                            documento: cleanDoc,
                             riesgosBioIndividual: worker.riesgosBioIndividual || [],
                             fitAlerts: worker.fitAlerts || [],
                             atel: worker.atel || [],
@@ -151,12 +186,118 @@ async function runIndexAndCompanyMigration() {
             }
         }
 
-        // Ensure the new index is built
+        // --- DEFINITIVE DEDUPLICATION PASS BEFORE INDEXING ---
+        // Guarantees zero duplicate key conflicts for (user, companyId, documento)
+        logger.info('[SGSST Workers Migration] Running final deduplication pass before building unique index...');
+        
+        // Remove invalid records with missing/empty documento
+        await SgsstWorker.deleteMany({
+            $or: [
+                { documento: null },
+                { documento: { $exists: false } },
+                { documento: '' }
+            ]
+        });
+
+        // Trim documento on all records
+        const allDocsToTrim = await SgsstWorker.find({}).select('_id documento').lean();
+        for (const doc of allDocsToTrim) {
+            if (doc.documento) {
+                const trimmed = String(doc.documento).trim();
+                if (trimmed !== doc.documento) {
+                    await SgsstWorker.updateOne({ _id: doc._id }, { $set: { documento: trimmed } });
+                }
+            }
+        }
+
+        const finalWorkers = await SgsstWorker.find({}).sort({ updatedAt: -1, _id: -1 }).lean();
+        const seenKeys = new Map();
+
+        for (const w of finalWorkers) {
+            if (!w.user || !w.documento) continue;
+            const cleanDoc = String(w.documento).trim();
+            if (!cleanDoc) {
+                await SgsstWorker.deleteOne({ _id: w._id });
+                continue;
+            }
+
+            // If companyId is missing, attempt to link to active company
+            let compId = w.companyId;
+            if (!compId) {
+                const defaultCompany = await CompanyInfo.findOne({ user: w.user, isActive: true }) || await CompanyInfo.findOne({ user: w.user });
+                if (defaultCompany) {
+                    compId = defaultCompany._id;
+                    const testKey = `${w.user}_${compId}_${cleanDoc}`;
+                    if (seenKeys.has(testKey)) {
+                        // Already exists in default company, remove orphan
+                        await SgsstWorker.deleteOne({ _id: w._id });
+                        continue;
+                    }
+                    await SgsstWorker.updateOne({ _id: w._id }, { $set: { companyId: compId } });
+                }
+            }
+
+            const compIdStr = compId ? String(compId) : 'NO_COMPANY';
+            const key = `${w.user}_${compIdStr}_${cleanDoc}`;
+
+            if (seenKeys.has(key)) {
+                const primaryId = seenKeys.get(key);
+                logger.warn(`[SGSST Workers Migration] Deduplicating record: ${w.nombre || ''} (${cleanDoc}) id: ${w._id} into primary: ${primaryId}`);
+
+                // Merge richer arrays into primary doc
+                const primaryDoc = await SgsstWorker.findById(primaryId);
+                if (primaryDoc) {
+                    let updated = false;
+                    const arrayFields = [
+                        'riesgosBioIndividual', 'fitAlerts', 'atel',
+                        'actos_inseguros', 'participaciones_ipevar',
+                        'capacitaciones', 'ats'
+                    ];
+                    for (const field of arrayFields) {
+                        if (Array.isArray(w[field]) && w[field].length > 0) {
+                            if (!Array.isArray(primaryDoc[field]) || primaryDoc[field].length === 0) {
+                                primaryDoc[field] = w[field];
+                                updated = true;
+                            }
+                        }
+                    }
+                    if ((!primaryDoc.cargo || primaryDoc.cargo === '') && w.cargo) {
+                        primaryDoc.cargo = w.cargo;
+                        updated = true;
+                    }
+                    if ((!primaryDoc.condicionesSalud || primaryDoc.condicionesSalud === '') && w.condicionesSalud) {
+                        primaryDoc.condicionesSalud = w.condicionesSalud;
+                        updated = true;
+                    }
+                    if ((!primaryDoc.fitScore || primaryDoc.fitScore === 0) && w.fitScore > 0) {
+                        primaryDoc.fitScore = w.fitScore;
+                        updated = true;
+                    }
+                    if (updated) {
+                        await primaryDoc.save();
+                    }
+                }
+
+                await SgsstWorker.deleteOne({ _id: w._id });
+            } else {
+                seenKeys.set(key, w._id);
+            }
+        }
+
+        // Ensure the new unique index is built cleanly
         logger.info('[SGSST Workers Migration] Ensuring new unique index: user_1_companyId_1_documento_1');
+        const currentCheckIndexes = await SgsstWorker.collection.indexes();
+        const existingTargetIndex = currentCheckIndexes.find(idx => idx.name === 'user_1_companyId_1_documento_1');
+        if (existingTargetIndex && !existingTargetIndex.unique) {
+            logger.info('[SGSST Workers Migration] Existing index user_1_companyId_1_documento_1 is not unique. Dropping to recreate...');
+            await SgsstWorker.collection.dropIndex('user_1_companyId_1_documento_1');
+        }
+
         await SgsstWorker.collection.createIndex(
             { user: 1, companyId: 1, documento: 1 },
             { unique: true, sparse: true }
         );
+        logger.info('[SGSST Workers Migration] Unique index user_1_companyId_1_documento_1 ensured successfully.');
     } catch (e) {
         logger.error('[SGSST Workers Migration] Error during migration:', e);
     }
