@@ -13,14 +13,20 @@ This skill outlines the strict, safe workflow for deploying code updates, prompt
 ## 1. Pre-Deployment Checks (Local Machine)
 
 Before executing or guiding deployment commands on the production VPS, ensure:
-1. All local changes are committed and pushed to the remote repository:
+1. **Frontend Changes? Compile Locally First:** If any file in `client/src/**` was modified, you MUST run:
+   ```bash
+   npm run build:client
+   git add client/dist
+   ```
+   *(See `client-build-deploy` skill; Dokploy copies `client/dist` directly and does NOT compile it).*
+2. All local changes are committed and pushed to the remote repository:
    ```bash
    git status
    git add .
    git commit -m "feat(agents): update prompts and system configurations"
    git push origin main
    ```
-2. Any newly added scripts or migrations have been syntax-checked and tested.
+3. Any newly added scripts or migrations have been syntax-checked and tested.
 
 ---
 

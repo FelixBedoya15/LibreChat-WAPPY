@@ -9,7 +9,19 @@
 
 ---
 
-## 2. Skills Disponibles en el Proyecto
+## 2. Compilación Local Obligatoria del Frontend (Dokploy & `client/dist`)
+- **Regla Estricta y Crítica:** `Dockerfile.multi` en Dokploy **NO compila el frontend en el servidor**; simplemente copia la carpeta `client/dist` del repositorio (`COPY client/dist ./client/dist`).
+- Por tanto, **SIEMPRE** que se modifique cualquier archivo de la interfaz (`client/src/**/*` o paquetes frontend), el agente DEBE ejecutar localmente antes del commit:
+  ```bash
+  npm run build:client
+  git add client/src client/dist
+  ```
+  Está terminantemente prohibido hacer commit únicamente de `client/src` sin compilar e incluir `client/dist`, ya que de lo contrario Dokploy desplegará la versión compilada vieja.
+
+---
+
+## 3. Skills Disponibles en el Proyecto
+- **`client-build-deploy`**: [.agents/skills/client-build-deploy/SKILL.md](file:///.agents/skills/client-build-deploy/SKILL.md) - Compilación local obligatoria (`npm run build:client`), actualización de `client/dist` y auto-despliegue en Dokploy.
 - **`vps-deploy-sync`**: [.agents/skills/vps-deploy-sync/SKILL.md](file:///.agents/skills/vps-deploy-sync/SKILL.md) - Despliegue seguro y sincronización de agentes en el VPS de producción.
 - **`create-lms-course`**: [.agents/skills/create-lms-course/SKILL.md](file:///.agents/skills/create-lms-course/SKILL.md) - Creación y estructuración de cursos para el LMS de WAPPY.
 - **`publish-blog-article`**: [.agents/skills/publish-blog-article/SKILL.md](file:///.agents/skills/publish-blog-article/SKILL.md) - Redacción de artículos para el blog optimizados para SEO/AEO y distribución multicanal.
