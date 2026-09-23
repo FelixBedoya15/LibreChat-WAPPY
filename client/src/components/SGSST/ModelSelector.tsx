@@ -7,6 +7,7 @@ import { EModelEndpoint } from 'librechat-data-provider';
 
 // Modern official Gemini Flash model lineup
 export const AI_MODELS = [
+  { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash (Recomendado)' },
   { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
   { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash' },
   { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
@@ -43,6 +44,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
 
       if (filtered.length > 0) {
         const formatName = (id: string) => {
+          if (id === 'gemini-3.8-flash') return 'Gemini 3.8 Flash';
           if (id === 'gemini-3.7-flash') return 'Gemini 3.7 Flash';
           if (id === 'gemini-3.6-flash') return 'Gemini 3.6 Flash';
           if (id === 'gemini-3.5-flash') return 'Gemini 3.5 Flash';

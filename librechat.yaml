@@ -214,19 +214,18 @@ endpoints:
     apiKey: "${GOOGLE_KEY}"
     models:
       default:
-        - "gemini-3.7-flash"
         - "gemini-3.8-flash"
+        - "gemini-3.7-flash"
         - "gemini-3.6-flash"
         - "gemini-3.5-flash"
         - "gemini-3.5-flash-lite"
-        - "gemini-3.1-flash-lite"
         - "gemini-3.1-flash-live-preview"
         - "gemini-3.5-transcribe"
         - "gemini-3.5-transcribe-live"
         - "gemini-2.5-flash-native-audio-preview-12-2025"
         - "gemini-2.5-flash-native-audio-preview-09-2025"
       fetch: false
-    titleModel: "gemini-3.5-flash-lite"
+    titleModel: "${GOOGLE_TITLE_MODEL:-gemini-3.5-flash-lite}"
   # assistants:
   #   disableBuilder: false # Disable Assistants Builder Interface by setting to `true`
   #   pollIntervalMs: 3000  # Polling interval for checking assistant updates
@@ -334,7 +333,7 @@ endpoints:
         fetch: true
       titleConvo: true
       titleEndpoint: "google"
-      titleModel: "gemini-3.1-flash-lite"
+      titleModel: "${GOOGLE_TITLE_MODEL:-gemini-3.5-flash-lite}"
       modelDisplayLabel: 'Groq'
 
     # Mistral AI Example
@@ -401,7 +400,7 @@ endpoints:
         fetch: true
       titleConvo: true
       titleEndpoint: "google"
-      titleModel: "gemini-3.1-flash-lite"
+      titleModel: "${GOOGLE_TITLE_MODEL:-gemini-3.5-flash-lite}"
       modelDisplayLabel: "NVIDIA"
       iconURL: "https://upload.wikimedia.org/wikipedia/commons/2/21/Nvidia_logo_image.png"
       dropParams: ["user", "frequency_penalty", "presence_penalty", "stop"]

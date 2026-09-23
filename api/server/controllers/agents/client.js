@@ -1480,15 +1480,10 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       // Build model fallback list from GOOGLE_MODELS env for quota/overload rotation
       // Exclude audio/live-only models: they return 404 for streamGenerateContent
       const isPublicChat = this.options.req?.body?.isPublicChat === true;
-      let primaryAgentModel = this.options.agent?.model_parameters?.model || this.options.agent?.model || '';
-      if (primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe')) {
-        primaryAgentModel = 'gemini-3.7-flash';
-      }
-      let defaultModels = 'gemini-3.7-flash,gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite';
+      let defaultModels = 'gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite';
 
       if (isPublicChat) {
-        primaryAgentModel = 'gemini-3.5-flash-lite';
-        defaultModels = 'gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.5-flash';
+        defaultModels = 'gemini-3.5-flash-lite,gemini-3.5-flash';
       }
 
       const envAgentModels = (process.env.GOOGLE_MODELS || defaultModels)
@@ -1497,8 +1492,13 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         .filter(Boolean)
         .filter((m) => !m.includes('native-audio') && !m.includes('-live-') && !m.includes('-transcribe') && !m.includes('live-preview'));
       
+      let primaryAgentModel = this.options.agent?.model_parameters?.model || this.options.agent?.model || '';
+      if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe')) {
+        primaryAgentModel = isPublicChat ? 'gemini-3.5-flash-lite' : (envAgentModels[0] || 'gemini-3.8-flash');
+      }
+
       const agentModelFallbacks = isPublicChat
-        ? ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.5-flash']
+        ? ['gemini-3.5-flash-lite', 'gemini-3.5-flash']
         : [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
 
       let attemptErrors = [];
@@ -1703,10 +1703,14 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
               logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on all ${keys.length} keys. Rotating immediately to next model...`);
               rotateToNextModel = true;
               break;
-            } else if (isServiceUnavailable && (err?.status === 503 || err?.message?.includes('503') || err?.message?.includes('high demand'))) {
-              // 503 is an infrastructure-level overload at Google for this specific model.
-              // Retrying other keys against the same overloaded model cluster just hangs the user for minutes.
-              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing high demand (503 Service Unavailable). Rotating immediately to next fallback model...`);
+            } else if (
+              (isServiceUnavailable && (err?.status === 503 || err?.message?.includes('503') || err?.message?.includes('high demand'))) ||
+              err?.message?.includes('Failed to parse stream')
+            ) {
+              const reason = err?.status === 503 || err?.message?.includes('503')
+                ? '503 Service Unavailable'
+                : 'Failed to parse stream (stream unparseable/overload)';
+              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing issues (${reason}). Rotating immediately to next fallback model...`);
               rotateToNextModel = true;
               break;
             } else if (isRetryable && i < keys.length - 1) {
