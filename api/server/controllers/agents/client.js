@@ -1645,7 +1645,11 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
             }
 
             lastErr = err;
-            const isDailyQuotaExceeded = err?.message?.includes('GenerateRequestsPerDay') || err?.message?.includes('limit: 20');
+            const isDailyQuotaExceeded =
+              err?.message?.includes('GenerateRequestsPerDay') ||
+              err?.message?.includes('limit: 20') ||
+              err?.message?.includes('exhausted your capacity') ||
+              err?.message?.includes('quota will reset after');
             const isQuotaEvent = err?.status === 429 || err?.message?.includes('429');
             const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
             const isInvalidKey = err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
@@ -1727,13 +1731,10 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
               }
             }
 
-            if (isDailyQuotaExceeded && i < keys.length - 1) {
-              logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on Key ${i + 1}. Retrying with next API key ${i + 2}...`);
-              continue; // Try next key, same model
-            } else if (isDailyQuotaExceeded) {
+            if (isDailyQuotaExceeded) {
               const DAILY_QUOTA_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 horas de enfriamiento
               overloadedModelCooldowns.set(currentModel, Date.now() + DAILY_QUOTA_COOLDOWN_MS);
-              logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on all ${keys.length} keys (429 limit: 20). Cooldown set for 6h. Rotating immediately to next model...`);
+              logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" (429 limit: 20 per day). Cooldown set for 6h. Rotating IMMEDIATELY to next available fallback model...`);
               rotateToNextModel = true;
               break;
             } else if (
