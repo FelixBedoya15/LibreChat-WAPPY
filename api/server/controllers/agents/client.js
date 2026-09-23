@@ -1649,6 +1649,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
             const isQuotaEvent = err?.status === 429 || err?.message?.includes('429');
             const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
             const isInvalidKey = err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
+            const isNotFound = err?.status === 404 || err?.message?.includes('404') || err?.message?.includes('not found') || err?.message?.includes('not supported for generateContent');
             const isServiceUnavailable = err?.status === 503 || err?.message?.includes('503') ||
               err?.message?.includes('overloaded') || err?.message?.includes('Service Unavailable') ||
               err?.message?.includes('UNAVAILABLE') || err?.message?.includes('Failed to parse stream') ||
@@ -1662,7 +1663,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
             const isFunctionCallSequenceError = err?.message?.includes('function call turn comes immediately after a user turn') ||
               err?.message?.includes('function response turn');
 
-            const isRetryable = isDailyQuotaExceeded || isQuotaEvent || isGenericQuota || isInvalidKey || isServiceUnavailable || isNetworkError || isFunctionCallSequenceError;
+            const isRetryable = isDailyQuotaExceeded || isQuotaEvent || isGenericQuota || isInvalidKey || isNotFound || isServiceUnavailable || isNetworkError || isFunctionCallSequenceError;
 
             if (isFunctionCallSequenceError) {
               logger.warn('[AgentClient] Detected function call sequence violation from Google Gemini. Sanitizing payload to remove orphaned tool calls before retry...');
@@ -1733,18 +1734,27 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
             } else if (isDailyQuotaExceeded) {
               const DAILY_QUOTA_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 horas de enfriamiento
               overloadedModelCooldowns.set(currentModel, Date.now() + DAILY_QUOTA_COOLDOWN_MS);
-              logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on all ${keys.length} keys (429 limit: 20). Cooldown set for 6h. Rotating immediately to next model...`);
+              logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on all ${keys.length} keys (429 limit: 20). Cooldown set for 6h. Rotating to next model...`);
               rotateToNextModel = true;
               break;
-            } else if (
-              (isServiceUnavailable && (err?.status === 503 || err?.message?.includes('503') || err?.message?.includes('high demand'))) ||
-              err?.message?.includes('Failed to parse stream')
-            ) {
+            } else if (isServiceUnavailable && i < keys.length - 1) {
+              logger.warn(`[AgentClient] Model "${currentModel}" high demand / 503 on Key ${i + 1}. Retrying with next API key ${i + 2}...`);
+              continue; // Try next key, same model
+            } else if (isServiceUnavailable) {
               const reason = err?.status === 503 || err?.message?.includes('503')
                 ? '503 Service Unavailable'
                 : 'Failed to parse stream (stream unparseable/overload)';
               overloadedModelCooldowns.set(currentModel, Date.now() + OVERLOAD_COOLDOWN_MS);
-              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing issues (${reason}). Cooldown set for 2m. Rotating immediately to next fallback model...`);
+              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing issues (${reason}) on all ${keys.length} keys. Cooldown set for 2m. Rotating to next model...`);
+              rotateToNextModel = true;
+              break;
+            } else if (isNotFound && i < keys.length - 1) {
+              logger.warn(`[AgentClient] Model "${currentModel}" not found / unsupported (404) on Key ${i + 1}. Retrying with next API key ${i + 2}...`);
+              continue; // Try next key, same model
+            } else if (isNotFound) {
+              const NOT_FOUND_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 horas de enfriamiento
+              overloadedModelCooldowns.set(currentModel, Date.now() + NOT_FOUND_COOLDOWN_MS);
+              logger.warn(`[AgentClient] Model "${currentModel}" not found or unsupported (404) on all ${keys.length} keys. Rotating to next model...`);
               rotateToNextModel = true;
               break;
             } else if (isRetryable && i < keys.length - 1) {
@@ -1757,7 +1767,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
                 logger.warn(`[AgentClient] Quota/Rate limit encountered on Key ${i + 1}. Pausing ${pauseMs}ms before trying Key ${i + 2}...`);
                 await sleep(pauseMs, abortController?.signal);
               } else {
-                logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : isNetworkError ? 'Network / Fetch failed' : isServiceUnavailable ? 'Model unavailable/overloaded (503)' : 'Rate limit / Quota'}). Retrying with next API key ${i + 2}...`);
+                logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : isNetworkError ? 'Network / Fetch failed' : 'Rate limit / Quota'}). Retrying with next API key ${i + 2}...`);
               }
               if (abortController?.signal?.aborted) {
                 break;
