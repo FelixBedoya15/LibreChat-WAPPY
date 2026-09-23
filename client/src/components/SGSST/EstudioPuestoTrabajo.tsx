@@ -31,7 +31,7 @@ import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
-import SGSSTToolbar from './SGSSTToolbar';
+import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import { QRCodeSVG } from 'qrcode.react';
 import cn from '~/utils/cn';
@@ -65,6 +65,7 @@ interface EPTAppointment {
   actividad?: string;
   scheduledAt: string;
   scheduledEndAt?: string;
+  slotDurationMinutes?: number;
   scheduledByName?: string;
   appointmentNotes?: string;
   status: 'programado' | 'en_curso' | 'completado' | 'cancelado';
@@ -80,8 +81,103 @@ interface WorkerSimple {
   id?: string;
   nombre: string;
   identificacion: string;
+  cedula?: string;
   cargo: string;
 }
+
+// ─── WorkerAutocomplete (Estilo idéntico a Método OWAS - Imagen 5) ───────────
+const WorkerAutocomplete = ({
+  value,
+  onChange,
+  onSelect,
+  data,
+  searchKey,
+  placeholder,
+  className,
+  wrapperClassName,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSelect?: (w: WorkerSimple) => void;
+  data: WorkerSimple[];
+  searchKey: 'nombre' | 'identificacion';
+  placeholder?: string;
+  className?: string;
+  wrapperClassName?: string;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    if (!value || value.trim() === '') return data;
+    const query = value.toLowerCase().trim();
+    return data.filter((w) => {
+      const targetVal = searchKey === 'identificacion' ? (w.identificacion || w.cedula) : w.nombre;
+      return targetVal && String(targetVal).toLowerCase().includes(query);
+    });
+  }, [data, value, searchKey]);
+
+  const exact = useMemo(() => {
+    if (!value || !filtered || filtered.length !== 1) return false;
+    const item = filtered[0];
+    const itemVal = searchKey === 'identificacion' ? (item.identificacion || item.cedula) : item.nombre;
+    return String(itemVal).toLowerCase() === value.toLowerCase().trim();
+  }, [value, filtered, searchKey]);
+
+  return (
+    <div className={`relative ${wrapperClassName || 'w-full'}`} ref={wrapperRef}>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setIsOpen(true);
+        }}
+        onFocus={() => setIsOpen(true)}
+        className={className}
+        placeholder={placeholder}
+        autoComplete="off"
+      />
+      {isOpen && filtered.length > 0 && !exact && (
+        <ul className="absolute z-50 w-full mt-1 max-h-52 overflow-auto bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-2xl py-1 text-left">
+          {filtered.map((w, idx) => {
+            const idVal = w.identificacion || w.cedula || '';
+            return (
+              <li
+                key={w.id || idVal || idx}
+                className="px-3.5 py-2.5 text-xs cursor-pointer hover:bg-teal-50 dark:hover:bg-zinc-700/60 transition-colors border-b border-slate-100 dark:border-zinc-700/30 last:border-b-0"
+                onClick={() => {
+                  if (onSelect) {
+                    onSelect(w);
+                  } else {
+                    onChange(searchKey === 'identificacion' ? idVal : w.nombre);
+                  }
+                  setIsOpen(false);
+                }}
+              >
+                <div className="font-bold text-slate-800 dark:text-zinc-100">{w.nombre}</div>
+                <div className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                  CC: {idVal} {w.cargo ? `• ${w.cargo}` : ''}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+};
 
 const RISK_BADGES: Record<string, { bg: string; text: string; border: string }> = {
   Crítico: { bg: 'bg-red-50 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-300', border: 'border-red-300 dark:border-red-800' },
@@ -98,7 +194,7 @@ const APPOINTMENT_BADGES: Record<string, { bg: string; text: string; border: str
 };
 
 export default function EstudioPuestoTrabajo() {
-  const { user } = useAuthContext();
+  const { user, token } = useAuthContext();
   const { showToast } = useToastContext();
 
   // Navigation tab: 'estudios' (Expedientes EPT) vs 'agenda' (Agenda & Citas 1 a 1)
@@ -151,7 +247,6 @@ export default function EstudioPuestoTrabajo() {
   });
   const [filterAppointmentStatus, setFilterAppointmentStatus] = useState<string>('all');
   const [appointmentSearchTerm, setAppointmentSearchTerm] = useState('');
-  const [isManualWorkerEntry, setIsManualWorkerEntry] = useState(false);
 
   const [availableWorkers, setAvailableWorkers] = useState<WorkerSimple[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -187,7 +282,9 @@ export default function EstudioPuestoTrabajo() {
   // Load Active Company Info
   const loadCompanyInfo = async () => {
     try {
-      const res = await fetch('/api/sgsst/company-info');
+      const res = await fetch('/api/sgsst/company-info', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (res.ok) {
         const comp = await res.json();
         if (comp && comp._id) {
@@ -205,7 +302,9 @@ export default function EstudioPuestoTrabajo() {
     if (!cid) return;
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/sgsst/estudio-puesto/company/${cid}`);
+      const res = await fetch(`/api/sgsst/estudio-puesto/company/${cid}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (res.ok) {
         const data = await res.json();
         setStudies(data.studies || []);
@@ -223,7 +322,9 @@ export default function EstudioPuestoTrabajo() {
   const loadAppointments = async (cid: string) => {
     if (!cid) return;
     try {
-      const res = await fetch(`/api/sgsst/estudio-puesto/appointments/${cid}`);
+      const res = await fetch(`/api/sgsst/estudio-puesto/appointments/${cid}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (res.ok) {
         const data = await res.json();
         setAppointments(data.appointments || []);
@@ -234,34 +335,56 @@ export default function EstudioPuestoTrabajo() {
     }
   };
 
-  // Load registered workers for autocomplete directly from Perfil Sociodemográfico
+  // Load registered workers for autocomplete directly from Perfil Sociodemográfico (exacto a MetodoOwas)
   const loadWorkers = async (cid?: string) => {
     try {
       let list: WorkerSimple[] = [];
-      if (cid) {
-        const res = await fetch(`/api/sgsst/estudio-puesto/workers/${cid}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.workers) && data.workers.length > 0) {
-            list = data.workers;
-          }
-        }
-      }
-      // Fallback directo a /api/sgsst/perfil-sociodemografico/data
-      if (list.length === 0) {
-        const fbRes = await fetch('/api/sgsst/perfil-sociodemografico/data');
+      const authHeaders: Record<string, string> = token
+        ? { Authorization: `Bearer ${token}` }
+        : {};
+
+      // 1. Primario: consulta directa al Perfil Sociodemográfico (idéntico a MetodoOwas - Imagen 5)
+      try {
+        const fbRes = await fetch('/api/sgsst/perfil-sociodemografico/data', {
+          headers: authHeaders,
+        });
         if (fbRes.ok) {
           const fbData = await fbRes.json();
-          if (Array.isArray(fbData.trabajadores)) {
+          if (Array.isArray(fbData.trabajadores) && fbData.trabajadores.length > 0) {
             list = fbData.trabajadores.map((w: any) => ({
               id: w.id || w._id,
               nombre: w.nombre || '',
-              identificacion: w.identificacion || '',
+              identificacion: w.identificacion || w.cedula || '',
+              cedula: w.identificacion || w.cedula || '',
               cargo: w.cargo || '',
             }));
           }
         }
+      } catch (e) {
+        console.warn('[EPT] Fallback to workers endpoint:', e);
       }
+
+      // 2. Si no hay lista o hay companyId específico, consultar endpoint de EPT workers
+      if (list.length === 0 && cid) {
+        try {
+          const res = await fetch(`/api/sgsst/estudio-puesto/workers/${cid}`, {
+            headers: authHeaders,
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data.workers) && data.workers.length > 0) {
+              list = data.workers.map((w: any) => ({
+                id: w.id || w._id,
+                nombre: w.nombre || '',
+                identificacion: w.identificacion || w.cedula || '',
+                cedula: w.identificacion || w.cedula || '',
+                cargo: w.cargo || '',
+              }));
+            }
+          }
+        } catch (_) {}
+      }
+
       list = list.filter((w) => w.nombre && w.nombre.trim().length > 0);
       list.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
       setAvailableWorkers(list);
@@ -272,16 +395,20 @@ export default function EstudioPuestoTrabajo() {
 
   useEffect(() => {
     loadCompanyInfo();
-    loadWorkers();
-  }, []);
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      loadWorkers(activeCompanyId);
+    }
+  }, [token, activeCompanyId]);
 
   useEffect(() => {
     if (activeCompanyId) {
       loadStudies(activeCompanyId);
-      loadWorkers(activeCompanyId);
       loadAppointments(activeCompanyId);
     }
-  }, [activeCompanyId]);
+  }, [activeCompanyId, token]);
 
   // Toggle Require Appointment
   const handleToggleRequireAppointment = async (val: boolean) => {
@@ -426,30 +553,6 @@ export default function EstudioPuestoTrabajo() {
     });
   }, [appointments, appointmentSearchTerm, filterAppointmentStatus]);
 
-  // Autocomplete selection for schedule modal
-  const handleSelectWorkerForSchedule = (val: string) => {
-    if (!val) {
-      setScheduleForm((prev) => ({
-        ...prev,
-        workerName: '',
-        workerId: '',
-        cargo: '',
-      }));
-      return;
-    }
-    const found = availableWorkers.find(
-      (w) => String(w.identificacion).trim() === val.trim() || w.nombre === val
-    );
-    if (found) {
-      setScheduleForm((prev) => ({
-        ...prev,
-        workerName: found.nombre,
-        workerId: found.identificacion,
-        cargo: found.cargo || '',
-      }));
-    }
-  };
-
   // Handle selecting a study to view in LiveEditor
   const handleSelectStudyToView = (study: EPTStudy) => {
     setSelectedStudy(study);
@@ -572,46 +675,38 @@ export default function EstudioPuestoTrabajo() {
 
   return (
     <div className="w-full min-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 p-4 md:p-6 space-y-6">
-      {/* ─── TOOLBAR SUPERIOR ESTÁNDAR ───────────────────────────────────── */}
+      {/* ─── TOOLBAR SUPERIOR ESTÁNDAR SGSST CON BOTONES EXPANDIBLES ──────── */}
       <SGSSTToolbar
-        activeModule="estudio_puesto"
-        moduleTitle="Estudios de Puesto de Trabajo (EPT)"
-        companyInfo={companyInfo}
-        onCompanyChange={(newComp) => {
-          setCompanyInfo(newComp);
-          if (newComp?._id) setActiveCompanyId(newComp._id);
-        }}
-        rightContent={
-          <div className="flex items-center gap-2">
-            <ModelSelector
-              selectedModel={selectedModel}
-              onSelectModel={(m) => setSelectedModel(m)}
-            />
-            <button
-              onClick={() => setShowQrModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 text-xs font-bold hover:bg-teal-100 transition-all shadow-sm"
-              title="Generar código QR de Auto-evaluación para trabajadores"
-            >
-              <QrCode className="w-4 h-4" />
-              <span className="hidden sm:inline">QR Trabajadores</span>
-            </button>
-            <button
+        selectedModel={selectedModel}
+        onSelectModel={setSelectedModel}
+        customSections={[
+          <div key="ept-custom-toolbar" className="flex items-center gap-1.5">
+            <ToolbarButton
+              id="tb-schedule"
               onClick={() => setShowScheduleModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-bold hover:bg-amber-100 transition-all shadow-sm"
-              title="Programar turno 1 a 1 para colaborador"
-            >
-              <Calendar className="w-4 h-4" />
-              <span className="hidden sm:inline">Programar Turno</span>
-            </button>
-            <button
+              label="Programar Turno 1 a 1"
+              icon={Calendar}
+              title="Programar Turno 1 a 1 para Colaborador (Modo Live)"
+              variant="dummy"
+            />
+            <ToolbarButton
+              id="tb-qr"
+              onClick={() => setShowQrModal(true)}
+              label="QR Trabajadores"
+              icon={QrCode}
+              title="Código QR y Enlace Directo para Trabajadores"
+              variant="default"
+            />
+            <ToolbarButton
+              id="tb-new"
               onClick={() => setShowNewModal(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white text-xs font-bold transition-all shadow-md active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nuevo EPT</span>
-            </button>
-          </div>
-        }
+              label="Nuevo EPT"
+              icon={Plus}
+              title="Crear Nuevo Estudio de Puesto (EPT)"
+              variant="ai"
+            />
+          </div>,
+        ]}
       />
 
       {/* ─── TABS DE NAVEGACIÓN (EXPEDIENTES VS AGENDA 1 A 1) ───────────── */}
@@ -653,13 +748,34 @@ export default function EstudioPuestoTrabajo() {
         </div>
 
         {activeTab === 'agenda' && (
-          <button
+          <ToolbarButton
+            id="agenda-tab-programar"
             onClick={() => setShowScheduleModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-teal-600 hover:from-amber-500 hover:to-teal-500 text-white text-xs font-bold transition-all shadow-md active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Programar Turno 1 a 1</span>
-          </button>
+            label="Programar Turno 1 a 1"
+            icon={Plus}
+            title="Programar Turno 1 a 1 para Colaborador"
+            variant="dummy"
+          />
+        )}
+        {activeTab === 'estudios' && (
+          <div className="flex items-center gap-1.5">
+            <ToolbarButton
+              id="estudios-tab-new"
+              onClick={() => setShowNewModal(true)}
+              label="Nuevo EPT"
+              icon={Plus}
+              title="Crear Nuevo Estudio EPT"
+              variant="ai"
+            />
+            <ToolbarButton
+              id="estudios-tab-qr"
+              onClick={() => setShowQrModal(true)}
+              label="QR Trabajadores"
+              icon={QrCode}
+              title="Código QR para Trabajadores"
+              variant="default"
+            />
+          </div>
         )}
       </div>
 
@@ -801,10 +917,13 @@ export default function EstudioPuestoTrabajo() {
 
             <button
               onClick={() => loadStudies(activeCompanyId)}
-              className="p-2 text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 transition-all rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800"
+              className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-zinc-800 px-2 border border-slate-200 dark:border-zinc-700"
               title="Recargar estudios"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[90px] group-hover:opacity-100 sm:flex">
+                <span className="text-[11px] font-bold">Recargar</span>
+              </div>
             </button>
           </div>
         </div>
@@ -920,17 +1039,23 @@ export default function EstudioPuestoTrabajo() {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleSelectStudyToView(s)}
-                            className="p-1.5 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-colors"
+                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 px-1.5 shadow-sm"
                             title="Ver y editar informe en Live Editor"
                           >
-                            <Eye className="w-3.5 h-3.5" />
+                            <Eye className="w-3.5 h-3.5 shrink-0" />
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[80px] group-hover:opacity-100 sm:flex">
+                              <span className="text-[10px] font-bold">Ver</span>
+                            </div>
                           </button>
                           <button
                             onClick={() => handleDeleteStudy(s._id!)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-colors"
+                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-all duration-300 px-1.5 shadow-sm"
                             title="Eliminar estudio"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[80px] group-hover:opacity-100 sm:flex">
+                              <span className="text-[10px] font-bold">Eliminar</span>
+                            </div>
                           </button>
                         </div>
                       </td>
@@ -1251,20 +1376,26 @@ export default function EstudioPuestoTrabajo() {
                               {/* Botón WhatsApp */}
                               <button
                                 onClick={() => handleCopyWhatsAppInvite(apt)}
-                                className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100 transition-colors"
+                                className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100 transition-all duration-300 px-1.5 shadow-sm"
                                 title="Copiar invitación formal para WhatsApp"
                               >
-                                <MessageCircle className="w-3.5 h-3.5" />
+                                <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[120px] group-hover:opacity-100 sm:flex">
+                                  <span className="text-[10px] font-bold">WhatsApp</span>
+                                </div>
                               </button>
 
                               {/* Botón Cancelar (si está programado) */}
                               {apt.status === 'programado' && (
                                 <button
                                   onClick={() => handleCancelAppointment(apt._id)}
-                                  className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-colors"
+                                  className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-all duration-300 px-1.5 shadow-sm"
                                   title="Cancelar turno programado"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[90px] group-hover:opacity-100 sm:flex">
+                                    <span className="text-[10px] font-bold">Cancelar</span>
+                                  </div>
                                 </button>
                               )}
                             </div>
@@ -1595,123 +1726,102 @@ export default function EstudioPuestoTrabajo() {
                   </div>
                 </div>
 
-                {/* ── Selector de Trabajador desde Perfil Sociodemográfico ── */}
-                {!isManualWorkerEntry ? (
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block font-bold text-slate-700 dark:text-zinc-300">
-                          Colaborador (Perfil Sociodemográfico) *
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setIsManualWorkerEntry(true)}
-                          className="text-[11px] text-teal-600 dark:text-teal-400 font-semibold hover:underline"
-                        >
-                          + Ingresar manualmente
-                        </button>
-                      </div>
-                      <select
-                        value={scheduleForm.workerId}
-                        onChange={(e) => handleSelectWorkerForSchedule(e.target.value)}
-                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                      >
-                        <option value="">
-                          {availableWorkers.length > 0
-                            ? `-- Selecciona el colaborador por su nombre (${availableWorkers.length} disponibles) --`
-                            : 'Cargando colaboradores del perfil sociodemográfico...'}
-                        </option>
-                        {availableWorkers.map((w) => (
-                          <option key={w.identificacion} value={w.identificacion}>
-                            {w.nombre}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Auto-llenado de Cédula y Cargo */}
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                          Cédula / ID (Auto)
-                        </label>
-                        <input
-                          type="text"
-                          readOnly
-                          placeholder="Auto-completada"
-                          value={scheduleForm.workerId}
-                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-semibold focus:outline-none cursor-default"
-                        />
-                      </div>
-                      <div>
-                        <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                          Cargo / Puesto (Auto)
-                        </label>
-                        <input
-                          type="text"
-                          readOnly
-                          placeholder="Auto-completado"
-                          value={scheduleForm.cargo}
-                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-semibold focus:outline-none cursor-default"
-                        />
-                      </div>
-                    </div>
+                {/* ── Selector / Autocomplete con Estilo Método OWAS (Imagen 5) ── */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1 text-xs">
+                      Nombre Completo del Colaborador *
+                    </label>
+                    <WorkerAutocomplete
+                      value={scheduleForm.workerName}
+                      onChange={(v: string) => {
+                        const m = availableWorkers.find(
+                          (w) => w.nombre.toLowerCase() === v.toLowerCase()
+                        );
+                        setScheduleForm((prev) => ({
+                          ...prev,
+                          workerName: v,
+                          workerId: m ? (m.identificacion || m.cedula || '') : prev.workerId,
+                          cargo: m && m.cargo ? m.cargo : prev.cargo,
+                        }));
+                      }}
+                      onSelect={(w: WorkerSimple) => {
+                        setScheduleForm((prev) => ({
+                          ...prev,
+                          workerName: w.nombre || '',
+                          workerId: w.identificacion || w.cedula || '',
+                          cargo: w.cargo || '',
+                        }));
+                      }}
+                      data={availableWorkers}
+                      searchKey="nombre"
+                      placeholder="Escribe o selecciona por nombre (ej: Carlos Alberto Ramírez...)"
+                      wrapperClassName="w-full"
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 font-semibold focus:ring-2 focus:ring-teal-500 focus:outline-none text-xs"
+                    />
                   </div>
-                ) : (
-                  /* Modo Manual Alternativo */
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-700 dark:text-zinc-300">
-                        Ingreso Manual de Colaborador
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setIsManualWorkerEntry(false)}
-                        className="text-[11px] text-teal-600 dark:text-teal-400 font-semibold hover:underline"
-                      >
-                        ← Volver a lista del Perfil Sociodemográfico
-                      </button>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1 text-xs">
+                        Cédula / ID *
+                      </label>
+                      <WorkerAutocomplete
+                        value={scheduleForm.workerId}
+                        onChange={(v: string) => {
+                          const m = availableWorkers.find(
+                            (w) => (w.identificacion || w.cedula) === v
+                          );
+                          setScheduleForm((prev) => ({
+                            ...prev,
+                            workerId: v,
+                            workerName: m ? m.nombre : prev.workerName,
+                            cargo: m && m.cargo ? m.cargo : prev.cargo,
+                          }));
+                        }}
+                        onSelect={(w: WorkerSimple) => {
+                          setScheduleForm((prev) => ({
+                            ...prev,
+                            workerId: w.identificacion || w.cedula || '',
+                            workerName: w.nombre || '',
+                            cargo: w.cargo || '',
+                          }));
+                        }}
+                        data={availableWorkers}
+                        searchKey="identificacion"
+                        placeholder="Cédula / Documento"
+                        wrapperClassName="w-full"
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 font-semibold focus:ring-2 focus:ring-teal-500 focus:outline-none text-xs"
+                      />
                     </div>
                     <div>
-                      <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                        Nombre Completo *
+                      <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1 text-xs">
+                        Cargo / Puesto
                       </label>
                       <input
                         type="text"
-                        placeholder="Nombre completo del trabajador"
-                        value={scheduleForm.workerName}
-                        onChange={(e) => setScheduleForm({ ...scheduleForm, workerName: e.target.value })}
-                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                        placeholder="Ej: Director de Proyecto"
+                        value={scheduleForm.cargo}
+                        onChange={(e) =>
+                          setScheduleForm({ ...scheduleForm, cargo: e.target.value })
+                        }
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 font-semibold focus:ring-2 focus:ring-teal-500 focus:outline-none text-xs"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                          Cédula / ID *
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Cédula"
-                          value={scheduleForm.workerId}
-                          onChange={(e) => setScheduleForm({ ...scheduleForm, workerId: e.target.value })}
-                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
-                          Cargo
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Ej: Asistente Administrativo"
-                          value={scheduleForm.cargo}
-                          onChange={(e) => setScheduleForm({ ...scheduleForm, cargo: e.target.value })}
-                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
                   </div>
-                )}
+
+                  {availableWorkers.length > 0 &&
+                    availableWorkers.some(
+                      (w) =>
+                        (w.identificacion || w.cedula) === scheduleForm.workerId ||
+                        w.nombre.toLowerCase() === scheduleForm.workerName.toLowerCase()
+                    ) && (
+                      <div className="flex items-center gap-1.5 text-[11px] text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-950/40 p-2 rounded-xl border border-teal-200 dark:border-teal-900/50">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>Colaborador verificado en Perfil Sociodemográfico / Huella Biocéntrica</span>
+                      </div>
+                    )}
+                </div>
 
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
