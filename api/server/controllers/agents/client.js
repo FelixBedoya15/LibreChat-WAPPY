@@ -1484,11 +1484,11 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       if (primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe')) {
         primaryAgentModel = 'gemini-3.7-flash';
       }
-      let defaultModels = 'gemini-3.7-flash,gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-flash,gemini-1.5-pro';
+      let defaultModels = 'gemini-3.7-flash,gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite';
 
       if (isPublicChat) {
-        primaryAgentModel = 'gemini-2.0-flash';
-        defaultModels = 'gemini-2.0-flash,gemini-2.5-flash,gemini-1.5-flash';
+        primaryAgentModel = 'gemini-3.5-flash-lite';
+        defaultModels = 'gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.5-flash';
       }
 
       const envAgentModels = (process.env.GOOGLE_MODELS || defaultModels)
@@ -1497,16 +1497,8 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         .filter(Boolean)
         .filter((m) => !m.includes('native-audio') && !m.includes('-live-') && !m.includes('-transcribe') && !m.includes('live-preview'));
       
-      // Ensure robust production Google models are always in the fallback chain to survive 503s
-      const standardFallbacks = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
-      for (const sf of standardFallbacks) {
-        if (!envAgentModels.includes(sf)) {
-          envAgentModels.push(sf);
-        }
-      }
-
       const agentModelFallbacks = isPublicChat
-        ? ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash']
+        ? ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.5-flash']
         : [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
 
       let attemptErrors = [];
@@ -1711,20 +1703,10 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
               logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on all ${keys.length} keys. Rotating immediately to next model...`);
               rotateToNextModel = true;
               break;
-            } else if (
-              (isServiceUnavailable && (err?.status === 503 || err?.message?.includes('503') || err?.message?.includes('high demand'))) ||
-              err?.message?.includes('Failed to parse stream') ||
-              err?.message?.includes('not found') ||
-              err?.status === 404
-            ) {
-              // 503 or stream parsing/not found is an infrastructure-level overload or model unavailability at Google for this specific model.
-              // Retrying other keys against the same broken/overloaded model cluster just hangs the user for minutes.
-              const reason = err?.status === 503 || err?.message?.includes('503')
-                ? '503 Service Unavailable'
-                : err?.message?.includes('Failed to parse stream')
-                ? 'Failed to parse stream (model unstreamable/not found)'
-                : (err?.status || err?.message?.substring(0, 80));
-              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing issues (${reason}). Rotating immediately to next fallback model...`);
+            } else if (isServiceUnavailable && (err?.status === 503 || err?.message?.includes('503') || err?.message?.includes('high demand'))) {
+              // 503 is an infrastructure-level overload at Google for this specific model.
+              // Retrying other keys against the same overloaded model cluster just hangs the user for minutes.
+              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing high demand (503 Service Unavailable). Rotating immediately to next fallback model...`);
               rotateToNextModel = true;
               break;
             } else if (isRetryable && i < keys.length - 1) {
