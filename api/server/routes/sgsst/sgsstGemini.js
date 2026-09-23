@@ -24,6 +24,7 @@ const { AuthKeys, EModelEndpoint } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
 const { User } = require('~/db/models');
 const { logger } = require('~/config');
+const geminiPoolManager = require('~/server/services/GeminiPoolManager');
 
 // Non-live Gemini models for 503 fallback rotation (matching .env GOOGLE_MODELS minus live ones)
 const SGSST_FALLBACK_MODELS = [
@@ -222,15 +223,17 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
     const currentModel = modelsToTry[modelIdx];
     let allKeysExhaustedDueTo429 = false;
 
+    const prioritizedKeys = geminiPoolManager.getPrioritizedKeys(apiKeys, currentModel, userId);
+
     // Inner loop: iterate over keys (mirrors chat's this.rotateKey() pattern)
-    for (let keyIdx = 0; keyIdx < apiKeys.length; keyIdx++) {
-      const apiKey = apiKeys[keyIdx];
+    for (let keyIdx = 0; keyIdx < prioritizedKeys.length; keyIdx++) {
+      const apiKey = prioritizedKeys[keyIdx];
 
       try {
         if (keyIdx > 0 || modelIdx > 0) {
           logger.warn(
             `[SGSST Gemini] Reintentando... Modelo="${currentModel}", ` +
-            `Clave #${keyIdx + 1}/${apiKeys.length}`
+            `Clave #${keyIdx + 1}/${prioritizedKeys.length}`
           );
         }
 
@@ -258,6 +261,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         }
 
         const result = await model.generateContent(contentPayload);
+        geminiPoolManager.reportKeySuccess(apiKey, currentModel);
         return result; // ✅ success
 
       } catch (err) {
@@ -285,6 +289,14 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         // 404 model not found — unique to SGSST: rotate model so we don't freeze on deprecated experimental models
         const is404 = status === 404 || msg.includes('404') ||
           msg.includes('not found') || msg.includes('is not found for api version');
+
+        const isDaily = msg.includes('generaterequestsperday') || msg.includes('limit: 20');
+
+        geminiPoolManager.reportKeyStatus(apiKey, currentModel, {
+          status,
+          message: err.message,
+          isDailyLimit: isDaily,
+        });
 
         if (isRateLimit || isQuotaExceeded || isInvalidKey) {
           logger.warn(
@@ -314,7 +326,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
     // → advance to the next model automatically (don't throw yet)
     if (allKeysExhaustedDueTo429) {
       logger.warn(
-        `[SGSST Gemini] Todas las claves API (${apiKeys.length}) agotadas para ` +
+        `[SGSST Gemini] Todas las claves API (${prioritizedKeys.length}) agotadas para ` +
         `"${currentModel}". Rotando al siguiente modelo de respaldo...`
       );
       // Continue outer for → modelIdx++ automatically

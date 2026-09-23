@@ -48,6 +48,7 @@ const { getRoleByName } = require('~/models/Role');
 const { loadAgent } = require('~/models/Agent');
 const { getMCPManager } = require('~/config');
 const { getActiveSkillInstructions } = require('~/server/services/skillRouter');
+const geminiPoolManager = require('~/server/services/GeminiPoolManager');
 
 const omitTitleOptions = new Set([
   'stream',
@@ -1080,19 +1081,23 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         }
 
         let rotateToNextModel = false;
-        for (let ki = 0; ki < memKeys.length; ki++) {
+        const memUserId = this.user ?? this.options?.req?.user?.id ?? 'global';
+        const prioritizedMemKeys = geminiPoolManager.getPrioritizedKeys(memKeys, currentMemModel, memUserId);
+        for (let ki = 0; ki < prioritizedMemKeys.length; ki++) {
+          const currentKey = prioritizedMemKeys[ki];
           try {
             // Inject current key + model into memory agent config before each attempt
-            if (memKeys[ki] && appConfig?.memory?.agent) {
+            if (currentKey && appConfig?.memory?.agent) {
               if (!appConfig.memory.agent.model_parameters) {
                 appConfig.memory.agent.model_parameters = {};
               }
-              appConfig.memory.agent.model_parameters.apiKey = memKeys[ki];
+              appConfig.memory.agent.model_parameters.apiKey = currentKey;
               appConfig.memory.agent.model_parameters.model = currentMemModel;
             }
             // Re-create the processor with the updated key & model
             await this.useMemory();
             const result = await this.processMemory([bufferMessage]);
+            geminiPoolManager.reportKeySuccess(currentKey, currentMemModel);
             success = true;
             return result;
           } catch (err) {
@@ -1102,8 +1107,15 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
             const isInvalidKey = err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
             const isServiceUnavailable = err?.status === 503 || err?.message?.includes('503') ||
               err?.message?.includes('overloaded') || err?.message?.includes('UNAVAILABLE');
+            const isDaily = err?.message?.includes('GenerateRequestsPerDay') || err?.message?.includes('limit: 20');
 
-            if ((isQuota || isGenericQuota || isInvalidKey || isServiceUnavailable) && ki < memKeys.length - 1) {
+            geminiPoolManager.reportKeyStatus(currentKey, currentMemModel, {
+              status: err?.status,
+              message: err?.message,
+              isDailyLimit: isDaily,
+            });
+
+            if ((isQuota || isGenericQuota || isInvalidKey || isServiceUnavailable) && ki < prioritizedMemKeys.length - 1) {
                logger.warn(
                  `[MemoryAgent] Error (${isInvalidKey ? 'Clave inválida' : isServiceUnavailable ? 'Modelo sobrecargado (503)' : 'Rate limit'}). Rotando a clave ${ki + 2}...`,
                );
@@ -1571,17 +1583,20 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         }
 
         let rotateToNextModel = false;
-        for (let i = 0; i < keys.length; i++) {
+        const currentUserId = this.user ?? this.options?.req?.user?.id ?? 'global';
+        const prioritizedKeys = geminiPoolManager.getPrioritizedKeys(keys, currentModel, currentUserId);
+        for (let i = 0; i < prioritizedKeys.length; i++) {
           if (abortController?.signal?.aborted) {
             logger.info('[AgentClient] Request aborted. Halting key loop.');
             break;
           }
+          const currentKey = prioritizedKeys[i];
           try {
-            if (keys[i]) {
+            if (currentKey) {
               // Inject rotated key into the primary agent
-              this.options.agent.model_parameters.apiKey = keys[i];
+              this.options.agent.model_parameters.apiKey = currentKey;
               if (config?.configurable?.endpointOption?.model_parameters) {
-                config.configurable.endpointOption.model_parameters.apiKey = keys[i];
+                config.configurable.endpointOption.model_parameters.apiKey = currentKey;
               }
               
               // CRITICAL BUGFIX: Also inject the rotated key into ALL secondary agents
@@ -1592,7 +1607,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
                   if (!secondaryAg.model_parameters) {
                     secondaryAg.model_parameters = {};
                   }
-                  secondaryAg.model_parameters.apiKey = keys[i];
+                  secondaryAg.model_parameters.apiKey = currentKey;
                 }
               }
             }
@@ -1610,6 +1625,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
               toolSet,
             );
             await runAgents(pristineMessages);
+            geminiPoolManager.reportKeySuccess(currentKey, currentModel);
             success = true;
             break; // Exit key loop on success
           } catch (err) {
@@ -1664,6 +1680,16 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
               err?.message?.includes('function response turn');
 
             const isRetryable = isDailyQuotaExceeded || isQuotaEvent || isGenericQuota || isInvalidKey || isNotFound || isServiceUnavailable || isNetworkError || isFunctionCallSequenceError;
+
+            const retryDelayMs = extractRetryDelayMs(err);
+
+            // Report key status to GeminiPoolManager for Circuit Breaking and Quota Isolation
+            geminiPoolManager.reportKeyStatus(currentKey, currentModel, {
+              status: err?.status,
+              message: err?.message,
+              retryDelayMs,
+              isDailyLimit: isDailyQuotaExceeded,
+            });
 
             if (isFunctionCallSequenceError) {
               logger.warn('[AgentClient] Detected function call sequence violation from Google Gemini. Sanitizing payload to remove orphaned tool calls before retry...');
@@ -1728,16 +1754,16 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
               }
             }
 
-            if (isDailyQuotaExceeded && i < keys.length - 1) {
+            if (isDailyQuotaExceeded && i < prioritizedKeys.length - 1) {
               logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on Key ${i + 1}. Retrying with next API key ${i + 2}...`);
               continue; // Try next key, same model
             } else if (isDailyQuotaExceeded) {
               const DAILY_QUOTA_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 horas de enfriamiento
               overloadedModelCooldowns.set(currentModel, Date.now() + DAILY_QUOTA_COOLDOWN_MS);
-              logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on all ${keys.length} keys (429 limit: 20). Cooldown set for 6h. Rotating to next model...`);
+              logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on all ${prioritizedKeys.length} keys (429 limit: 20). Cooldown set for 6h. Rotating to next model...`);
               rotateToNextModel = true;
               break;
-            } else if (isServiceUnavailable && i < keys.length - 1) {
+            } else if (isServiceUnavailable && i < prioritizedKeys.length - 1) {
               logger.warn(`[AgentClient] Model "${currentModel}" high demand / 503 on Key ${i + 1}. Retrying with next API key ${i + 2}...`);
               continue; // Try next key, same model
             } else if (isServiceUnavailable) {
@@ -1745,23 +1771,22 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
                 ? '503 Service Unavailable'
                 : 'Failed to parse stream (stream unparseable/overload)';
               overloadedModelCooldowns.set(currentModel, Date.now() + OVERLOAD_COOLDOWN_MS);
-              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing issues (${reason}) on all ${keys.length} keys. Cooldown set for 2m. Rotating to next model...`);
+              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing issues (${reason}) on all ${prioritizedKeys.length} keys. Cooldown set for 2m. Rotating to next model...`);
               rotateToNextModel = true;
               break;
-            } else if (isNotFound && i < keys.length - 1) {
+            } else if (isNotFound && i < prioritizedKeys.length - 1) {
               logger.warn(`[AgentClient] Model "${currentModel}" not found / unsupported (404) on Key ${i + 1}. Retrying with next API key ${i + 2}...`);
               continue; // Try next key, same model
             } else if (isNotFound) {
               const NOT_FOUND_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 horas de enfriamiento
               overloadedModelCooldowns.set(currentModel, Date.now() + NOT_FOUND_COOLDOWN_MS);
-              logger.warn(`[AgentClient] Model "${currentModel}" not found or unsupported (404) on all ${keys.length} keys. Rotating to next model...`);
+              logger.warn(`[AgentClient] Model "${currentModel}" not found or unsupported (404) on all ${prioritizedKeys.length} keys. Rotating to next model...`);
               rotateToNextModel = true;
               break;
-            } else if (isRetryable && i < keys.length - 1) {
+            } else if (isRetryable && i < prioritizedKeys.length - 1) {
               if (abortController?.signal?.aborted) {
                 break;
               }
-              const retryDelayMs = extractRetryDelayMs(err);
               if (retryDelayMs && isQuotaEvent) {
                 const pauseMs = Math.min(retryDelayMs, 2000);
                 logger.warn(`[AgentClient] Quota/Rate limit encountered on Key ${i + 1}. Pausing ${pauseMs}ms before trying Key ${i + 2}...`);
@@ -1779,25 +1804,25 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
               }
               // Si aún quedan modelos de respaldo disponibles, rotar inmediatamente sin dormir 30 segundos
               const hasMoreFallbackModels = mi < agentModelFallbacks.length - 1;
-              const retryDelayMs = extractRetryDelayMs(err);
               if (!hasMoreFallbackModels && isQuotaEvent && retryDelayMs && retryDelayMs <= 32000) {
                 const waitSec = Math.round(retryDelayMs / 1000);
-                logger.warn(`[AgentClient] All ${keys.length} API keys hit rate limit for model "${currentModel}". Google requested retry in ${waitSec}s. Backing off ${waitSec}s before final retry...`);
+                logger.warn(`[AgentClient] All ${prioritizedKeys.length} API keys hit rate limit for model "${currentModel}". Google requested retry in ${waitSec}s. Backing off ${waitSec}s before final retry...`);
                 await sleep(retryDelayMs, abortController?.signal);
                 if (abortController?.signal?.aborted) {
                   break;
                 }
                 try {
-                  this.options.agent.model_parameters.apiKey = keys[0];
+                  const fallbackKey = prioritizedKeys[0] || keys[0];
+                  this.options.agent.model_parameters.apiKey = fallbackKey;
                   if (config?.configurable?.endpointOption?.model_parameters) {
-                    config.configurable.endpointOption.model_parameters.apiKey = keys[0];
+                    config.configurable.endpointOption.model_parameters.apiKey = fallbackKey;
                   }
                   if (this.agentConfigs && this.agentConfigs.size > 0) {
                     for (const secondaryAg of this.agentConfigs.values()) {
                       if (!secondaryAg.model_parameters) {
                         secondaryAg.model_parameters = {};
                       }
-                      secondaryAg.model_parameters.apiKey = keys[0];
+                      secondaryAg.model_parameters.apiKey = fallbackKey;
                     }
                   }
                   const backoffPayload = continuationPayload || payload;
@@ -1807,6 +1832,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
                     toolSet,
                   );
                   await runAgents(pristineMessages);
+                  geminiPoolManager.reportKeySuccess(fallbackKey, currentModel);
                   success = true;
                   break;
                 } catch (backoffErr) {
@@ -1829,7 +1855,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
                 break;
               }
               if (!success) {
-                logger.warn(`[AgentClient] All ${keys.length} API keys exhausted, network error, or model unavailable for "${currentModel}". Rotating to next model...`);
+                logger.warn(`[AgentClient] All ${prioritizedKeys.length} API keys exhausted, network error, or model unavailable for "${currentModel}". Rotating to next model...`);
                 rotateToNextModel = true;
                 break; // Break key loop → outer loop advances to next model
               }

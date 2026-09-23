@@ -24,6 +24,7 @@ const {
 } = require('librechat-data-provider');
 const { encodeAndFormat } = require('~/server/services/Files/images');
 const { spendTokens } = require('~/models/spendTokens');
+const geminiPoolManager = require('~/server/services/GeminiPoolManager');
 const {
   formatMessage,
   createContextHandlers,
@@ -65,7 +66,9 @@ class GoogleClient extends BaseClient {
     this.access_token = null;
 
     const apiKey = creds[AuthKeys.GOOGLE_API_KEY];
-    this.apiKeys = apiKey ? apiKey.split(',').map((k) => k.trim()).filter((k) => k.length > 0) : [];
+    const rawKeys = apiKey ? apiKey.split(',').map((k) => k.trim()).filter((k) => k.length > 0) : [];
+    const initialModel = options?.modelOptions?.model || options?.model || '';
+    this.apiKeys = geminiPoolManager.getPrioritizedKeys(rawKeys, initialModel, options.user || 'global');
     this.currentKeyIndex = 0;
     this.apiKey = this.apiKeys[this.currentKeyIndex];
     logger.debug(`[GoogleClient] Initialized with ${this.apiKeys.length} keys. First key: ${this.apiKey ? this.apiKey.substring(0, 5) + '...' : 'none'}`);
@@ -145,6 +148,11 @@ class GoogleClient extends BaseClient {
     }
 
     this.modelOptions = this.options.modelOptions || {};
+    if (this.apiKeys && this.apiKeys.length > 1 && this.modelOptions.model) {
+      this.apiKeys = geminiPoolManager.getPrioritizedKeys(this.apiKeys, this.modelOptions.model, this.options.user || 'global');
+      this.currentKeyIndex = 0;
+      this.apiKey = this.apiKeys[this.currentKeyIndex];
+    }
 
     this.options.attachments?.then((attachments) => this.checkVisionRequest(attachments));
 
@@ -785,6 +793,7 @@ class GoogleClient extends BaseClient {
           };
         }
 
+        geminiPoolManager.reportKeySuccess(this.apiKey, this.modelOptions?.model);
         return reply;
       }
 
@@ -852,6 +861,11 @@ class GoogleClient extends BaseClient {
         (e.message && (e.message.includes('overloaded') || e.message.includes('Service Unavailable') || e.message.includes('UNAVAILABLE')));
 
       if (isRateLimit || isQuotaExceeded || isInvalidKey) {
+        geminiPoolManager.reportKeyStatus(this.apiKey, this.modelOptions?.model, {
+          status: e.status || (e.response && e.response.status),
+          message: e.message,
+          isDailyLimit: e.message && (e.message.includes('GenerateRequestsPerDay') || e.message.includes('limit: 20')),
+        });
         if (this.rotateKey()) {
           logger.warn(`[GoogleClient] Encountered ${e.status || (e.response && e.response.status)} error (${isInvalidKey ? 'Invalid Key' : 'Rate Limit/Quota'}). Retrying with next API key...`);
           const { sendEvent } = require('@librechat/api');
@@ -875,16 +889,22 @@ class GoogleClient extends BaseClient {
         }
       }
 
-      if (isServiceUnavailable && this.rotateModel()) {
-        logger.warn(`[GoogleClient] Model overloaded/unavailable (503). Switching to fallback model and retrying...`);
-        const { sendEvent } = require('@librechat/api');
-        await sendEvent(options.res, { event: 'clear_step_maps', data: { messageId: this.responseMessageId } });
+      if (isServiceUnavailable) {
+        geminiPoolManager.reportKeyStatus(this.apiKey, this.modelOptions?.model, {
+          status: 503,
+          message: e.message,
+        });
+        if (this.rotateModel()) {
+          logger.warn(`[GoogleClient] Model overloaded/unavailable (503). Switching to fallback model and retrying...`);
+          const { sendEvent } = require('@librechat/api');
+          await sendEvent(options.res, { event: 'clear_step_maps', data: { messageId: this.responseMessageId } });
 
-        if (options.onProgress) {
-          options.onProgress({ clear_step_maps: true });
+          if (options.onProgress) {
+            options.onProgress({ clear_step_maps: true });
+          }
+
+          return this.getCompletion(_payload, options);
         }
-
-        return this.getCompletion(_payload, options);
       }
     }
 
@@ -893,6 +913,7 @@ class GoogleClient extends BaseClient {
         }" }`;
       throw new Error(errorMessage);
     }
+    geminiPoolManager.reportKeySuccess(this.apiKey, this.modelOptions?.model);
     return reply;
   }
 

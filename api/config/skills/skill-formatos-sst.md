@@ -443,9 +443,10 @@ Cuando el usuario pida que el aplicativo esté **"conectado a la IA"**, tenga un
 ### 🎯 PROTOCOLO DEL AGENTE:
 1. Incluye el **Botón Flotante Lanzador** y el **Panel / Drawer de Chat** en el HTML del aplicativo.
 2. Integra el **Selector de Modelos Oficiales de WAPPY** en el encabezado del chat (`gemini-3.7-flash`, `gemini-3.8-flash`, `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.5-flash-lite`).
-3. Conecta el chat al endpoint `/api/sgsst/canvas/app-builder/generate` (o `/api/sgsst/canvas/ai-chat`) con `credentials: 'include'`.
-4. Implementa la función `getAppCurrentContext()` para que el asistente conozca en todo momento las filas de datos, filtros aplicados, totales e indicadores calculados en pantalla.
-5. Diseña el widget **100% responsivo**: en celulares se despliega como modal/bottom-sheet de pantalla completa adaptable (`w-full h-[85vh] fixed bottom-0`), y en escritorio como un panel flotante elegante (`sm:w-96 sm:h-[580px] sm:bottom-6 sm:right-6`).
+3. Conecta el chat de forma híbrida: si está dentro de WAPPY usa `/api/sgsst/canvas/app-builder/generate`, y si está en local (`file:///`) o standalone se conecta directamente a la API de Google Gemini (`generativelanguage.googleapis.com`).
+4. Implementa el **micro-botón de configuración discreto (icono ⚙️)** en el encabezado del chat con un panel colapsable que contenga un campo protegido (`type="password"`) guardado en `localStorage.getItem('wappy_gemini_api_key')`, para que la clave no quede visible ni expuesta a los trabajadores.
+5. Implementa la función `getAppCurrentContext()` para que el asistente conozca en todo momento las filas de datos, filtros aplicados, totales e indicadores calculados en pantalla.
+6. Diseña el widget **100% responsivo**: en celulares se despliega como modal/bottom-sheet de pantalla completa adaptable (`w-full h-[85vh] fixed bottom-0`), y en escritorio como un panel flotante elegante (`sm:w-96 sm:h-[580px] sm:bottom-6 sm:right-6`).
 
 ---
 
@@ -486,11 +487,35 @@ Inserta este bloque antes de cerrar la etiqueta `</body>`:
                 </div>
             </div>
             <div class="flex items-center gap-1">
+                <!-- Botón de Configuración Discreta (Engranaje) -->
+                <button type="button" onclick="toggleWappyAiConfig()" class="p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors relative" title="Ajustes de Conexión IA">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                    <span id="wappy-ai-key-indicator" class="hidden absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400"></span>
+                </button>
                 <button type="button" onclick="clearWappyAiChat()" class="p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors" title="Limpiar conversación">
                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                 </button>
                 <button type="button" onclick="toggleWappyAiChat()" class="p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors" title="Cerrar chat">
                     <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Panel Colapsable Discreto de Configuración (Oculto por defecto) -->
+        <div id="wappy-ai-config-panel" class="hidden bg-teal-950/80 border border-teal-500/30 rounded-xl p-3 text-xs flex flex-col gap-2 transition-all">
+            <div class="flex items-center justify-between text-teal-200">
+                <span class="font-bold flex items-center gap-1 text-[11px]">
+                    <i data-lucide="key" class="w-3.5 h-3.5"></i> Conexión Privada (Gemini API Key)
+                </span>
+                <span id="wappy-ai-key-status" class="text-[9px] text-teal-300">Modo Servidor / Sin clave</span>
+            </div>
+            <p class="text-[10px] text-teal-200/70 leading-tight">
+                Al abrir este formato en tu computador (archivo descargado), ingresa tu API Key para habilitar la IA. Se guarda de forma privada en tu navegador.
+            </p>
+            <div class="flex items-center gap-1.5">
+                <input type="password" id="wappy-ai-apikey-input" placeholder="AIzaSy... (Tu clave privada)" class="flex-1 bg-black/40 text-white px-2.5 py-1.5 rounded-lg border border-teal-500/40 text-xs focus:outline-none focus:border-emerald-400 placeholder-teal-400/40">
+                <button type="button" onclick="saveWappyAiApiKey()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[11px] transition-all active:scale-95 shadow-sm">
+                    Guardar
                 </button>
             </div>
         </div>
@@ -555,11 +580,12 @@ Inserta este módulo de script para orquestar la comunicación con el backend:
 
 ```javascript
 // =========================================================================
-// 🤖 WAPPY AI COPILOT JAVASCRIPT CONTROLLER
+// 🤖 WAPPY AI COPILOT JAVASCRIPT CONTROLLER (HÍBRIDO: SERVIDOR O LOCAL)
 // =========================================================================
 
 const WAPPY_AI_CONFIG = {
-    apiUrl: '/api/sgsst/canvas/app-builder/generate', // Endpoint backend autenticado
+    apiUrl: '/api/sgsst/canvas/app-builder/generate', // Endpoint backend si corre en servidor WAPPY
+    storageKey: 'wappy_gemini_api_key', // Clave privada en LocalStorage del navegador
     history: [],
     isGenerating: false
 };
@@ -571,10 +597,48 @@ function toggleWappyAiChat() {
     const isHidden = drawer.classList.contains('hidden');
     if (isHidden) {
         drawer.classList.remove('hidden');
+        updateApiKeyUI();
         if (typeof lucide !== 'undefined') lucide.createIcons();
         document.getElementById('wappy-ai-chat-input')?.focus();
     } else {
         drawer.classList.add('hidden');
+    }
+}
+
+// 1.1 Toggle y guardado del panel discreto de configuración de API Key
+function toggleWappyAiConfig() {
+    const panel = document.getElementById('wappy-ai-config-panel');
+    if (!panel) return;
+    panel.classList.toggle('hidden');
+    updateApiKeyUI();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function saveWappyAiApiKey() {
+    const input = document.getElementById('wappy-ai-apikey-input');
+    const val = input ? input.value.trim() : '';
+    if (val) {
+        localStorage.setItem(WAPPY_AI_CONFIG.storageKey, val);
+        updateApiKeyUI();
+        toggleWappyAiConfig();
+    } else {
+        localStorage.removeItem(WAPPY_AI_CONFIG.storageKey);
+        updateApiKeyUI();
+    }
+}
+
+function updateApiKeyUI() {
+    const saved = localStorage.getItem(WAPPY_AI_CONFIG.storageKey);
+    const indicator = document.getElementById('wappy-ai-key-indicator');
+    const status = document.getElementById('wappy-ai-key-status');
+    const input = document.getElementById('wappy-ai-apikey-input');
+    if (saved) {
+        if (indicator) indicator.classList.remove('hidden');
+        if (status) status.innerText = '● Clave local configurada';
+        if (input && !input.value) input.value = saved;
+    } else {
+        if (indicator) indicator.classList.add('hidden');
+        if (status) status.innerText = 'Modo Servidor / Sin clave';
     }
 }
 
@@ -649,7 +713,7 @@ function getAppCurrentContext() {
     }
 }
 
-// 5. Envío y Procesamiento del Mensaje a la IA
+// 5. Envío y Procesamiento del Mensaje a la IA (Híbrido: Servidor o Gemini Directo)
 async function sendWappyAiMessage() {
     const input = document.getElementById('wappy-ai-chat-input');
     const sendBtn = document.getElementById('wappy-ai-send-btn');
@@ -660,6 +724,8 @@ async function sendWappyAiMessage() {
     if (!text || WAPPY_AI_CONFIG.isGenerating) return;
 
     const selectedModel = modelSelect?.value || 'gemini-3.7-flash';
+    const localApiKey = localStorage.getItem(WAPPY_AI_CONFIG.storageKey);
+    const isLocalFile = window.location.protocol === 'file:' || !window.location.host;
 
     // Añadir mensaje del usuario a la interfaz
     appendMessageToChat('user', text);
@@ -673,31 +739,70 @@ async function sendWappyAiMessage() {
 
     try {
         const appDataContext = getAppCurrentContext();
+        let aiText = '';
+        let usedBackend = false;
 
-        const response = await fetch(WAPPY_AI_CONFIG.apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-                taskType: 'chat',
-                model: selectedModel,
-                userInput: text,
-                history: WAPPY_AI_CONFIG.history.slice(-6), // Enviar últimos 6 turnos
-                context: appDataContext,
-                systemPrompt: `Eres el Asistente WAPPY AI Copilot especializado en este aplicativo de SG-SST. Responde analizando rigurosamente los datos actuales y la normatividad colombiana.`
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+        // Estrategia 1: Si no es archivo local file://, intentar conexión al backend WAPPY
+        if (!isLocalFile) {
+            try {
+                const response = await fetch(WAPPY_AI_CONFIG.apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        taskType: 'chat',
+                        model: selectedModel,
+                        userInput: text,
+                        history: WAPPY_AI_CONFIG.history.slice(-6),
+                        context: appDataContext,
+                        systemPrompt: `Eres el Asistente WAPPY AI Copilot especializado en este aplicativo de SG-SST. Responde analizando rigurosamente los datos actuales y la normatividad colombiana.`
+                    })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    aiText = data.result || data.text || '';
+                    usedBackend = true;
+                }
+            } catch (backendErr) {
+                console.warn("[WappyAiCopilot] Backend no accesible, evaluando modo autónomo:", backendErr.message);
+            }
         }
 
-        const data = await response.json();
-        const aiText = data.result || data.text || 'Sin respuesta del modelo.';
+        // Estrategia 2: Modo Autónomo (file:// o sin backend) usando Gemini API directa
+        if (!usedBackend) {
+            if (!localApiKey) {
+                removeLoadingFromChat(loadingId);
+                appendMessageToChat('agent', `⚙️ **Modo Autónomo Local Activo:** Para consultar a la IA desde un archivo descargado o en local, haz clic en el engranaje **⚙️** del encabezado y guarda tu **Gemini API Key** (se guardará de forma privada en este navegador).`);
+                WAPPY_AI_CONFIG.isGenerating = false;
+                if (sendBtn) sendBtn.disabled = false;
+                return;
+            }
+
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selectedModel)}:generateContent?key=${encodeURIComponent(localApiKey)}`;
+            const systemContext = `Eres el Asistente WAPPY AI Copilot especializado en este aplicativo de SG-SST (Dec. 1072/2015, Res. 0312/2019).\n\nContexto actual de datos:\n${appDataContext}`;
+
+            const geminiRes = await fetch(geminiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [
+                        { role: 'user', parts: [{ text: `${systemContext}\n\nPregunta del usuario: ${text}` }] }
+                    ]
+                })
+            });
+
+            if (!geminiRes.ok) {
+                const errData = await geminiRes.json().catch(() => ({}));
+                throw new Error(errData?.error?.message || `HTTP ${geminiRes.status}`);
+            }
+
+            const geminiData = await geminiRes.json();
+            aiText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sin respuesta del modelo.';
+        }
 
         // Remover indicador de carga y agregar respuesta
         removeLoadingFromChat(loadingId);
-        appendMessageToChat('agent', aiText, data.model || selectedModel);
+        appendMessageToChat('agent', aiText, selectedModel);
 
         // Guardar en historial
         WAPPY_AI_CONFIG.history.push({ sender: 'user', text: text });
@@ -706,7 +811,7 @@ async function sendWappyAiMessage() {
     } catch (err) {
         console.error("[WappyAiCopilot] Error al consultar IA:", err);
         removeLoadingFromChat(loadingId);
-        appendMessageToChat('agent', `⚠️ No se pudo procesar la consulta con IA (${err.message}). Por favor verifica tu sesión.`);
+        appendMessageToChat('agent', `⚠️ No se pudo procesar la consulta con IA (${err.message}). Por favor verifica tu API Key en el engranaje ⚙️ o la conexión a internet.`);
     } finally {
         WAPPY_AI_CONFIG.isGenerating = false;
         if (sendBtn) sendBtn.disabled = false;
@@ -767,6 +872,11 @@ function removeLoadingFromChat(id) {
     const el = document.getElementById(id);
     if (el) el.remove();
 }
+
+// Inicializar estado de API Key al cargar
+window.addEventListener('DOMContentLoaded', () => {
+    updateApiKeyUI();
+});
 ```
 
 
