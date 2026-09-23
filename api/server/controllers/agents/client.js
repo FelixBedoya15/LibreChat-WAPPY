@@ -1484,7 +1484,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       // Build model fallback list from GOOGLE_MODELS env for quota/overload rotation
       // Exclude audio/live-only models: they return 404 for streamGenerateContent
       const isPublicChat = this.options.req?.body?.isPublicChat === true;
-      let defaultModels = 'gemini-3.7-flash,gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite';
+      let defaultModels = 'gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite';
 
       if (isPublicChat) {
         defaultModels = 'gemini-3.5-flash-lite,gemini-3.5-flash';
@@ -1498,7 +1498,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       
       let primaryAgentModel = this.options.agent?.model_parameters?.model || this.options.agent?.model || '';
       if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe')) {
-        primaryAgentModel = isPublicChat ? 'gemini-3.5-flash-lite' : (envAgentModels[0] || 'gemini-3.7-flash');
+        primaryAgentModel = isPublicChat ? 'gemini-3.5-flash-lite' : (envAgentModels[0] || 'gemini-3.8-flash');
       }
 
       if (isPublicChat) {
