@@ -344,7 +344,7 @@ ${cleanContent}
 
     tools = [...new Set(tools)];
 
-    const defaultModel = (process.env.GOOGLE_MODELS || 'gemini-3.8-flash').split(',')[0].trim();
+    const defaultModel = (process.env.GOOGLE_MODELS || 'gemini-3.5-flash-lite').split(',')[0].trim();
     const agentModel = val.model || defaultModel;
 
     let agent = await Agent.findOne({ name: val.name });
@@ -534,7 +534,7 @@ ${cleanContent}
             .find((k) => k && k.startsWith('AIza') && k !== 'user_provided');
           if (key) {
             const genAI = new GoogleGenerativeAI(key);
-            genModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash', generationConfig: { temperature: 0.7 } });
+            genModel = genAI.getGenerativeModel({ model: 'gemini-3.5-flash-lite', generationConfig: { temperature: 0.7 } });
           }
         } catch (e) {}
 

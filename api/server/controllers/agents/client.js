@@ -1484,7 +1484,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       // Build model fallback list from GOOGLE_MODELS env for quota/overload rotation
       // Exclude audio/live-only models: they return 404 for streamGenerateContent
       const isPublicChat = this.options.req?.body?.isPublicChat === true;
-      let defaultModels = 'gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite';
+      let defaultModels = 'gemini-3.5-flash-lite,gemini-3.5-flash,gemini-3.7-flash,gemini-3.8-flash,gemini-3.6-flash';
 
       if (isPublicChat) {
         defaultModels = 'gemini-3.5-flash-lite,gemini-3.5-flash';
@@ -1498,7 +1498,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       
       let primaryAgentModel = this.options.agent?.model_parameters?.model || this.options.agent?.model || '';
       if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe')) {
-        primaryAgentModel = isPublicChat ? 'gemini-3.5-flash-lite' : (envAgentModels[0] || 'gemini-3.8-flash');
+        primaryAgentModel = isPublicChat ? 'gemini-3.5-flash-lite' : (envAgentModels[0] || 'gemini-3.5-flash-lite');
       }
 
       const rawFallbacks = isPublicChat
@@ -1530,9 +1530,16 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
           break;
         }
         const currentModel = agentModelFallbacks[mi];
-        if (mi > 0) {
-          // Apply the fallback model before retrying
-          logger.warn(`[AgentClient] Quota/Overloaded — rotating agent model to "${currentModel}" (fallback ${mi}/${agentModelFallbacks.length - 1})`);
+        const isModelChanged = this.options.agent.model !== currentModel || this.options.agent.model_parameters?.model !== currentModel;
+        if (isModelChanged || mi > 0) {
+          if (mi > 0) {
+            logger.warn(`[AgentClient] Quota/Overloaded — rotating agent model to "${currentModel}" (fallback ${mi}/${agentModelFallbacks.length - 1})`);
+          } else {
+            logger.info(`[AgentClient] Applying active model "${currentModel}" for agent execution`);
+          }
+          if (!this.options.agent.model_parameters) {
+            this.options.agent.model_parameters = {};
+          }
           this.options.agent.model_parameters.model = currentModel;
           this.options.agent.model_parameters.maxRetries = 0;
           this.options.agent.model = currentModel;
@@ -1720,7 +1727,9 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
               logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on Key ${i + 1}. Retrying with next API key ${i + 2}...`);
               continue; // Try next key, same model
             } else if (isDailyQuotaExceeded) {
-              logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on all ${keys.length} keys. Rotating immediately to next model...`);
+              const DAILY_QUOTA_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 horas de enfriamiento
+              overloadedModelCooldowns.set(currentModel, Date.now() + DAILY_QUOTA_COOLDOWN_MS);
+              logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on all ${keys.length} keys (429 limit: 20). Cooldown set for 6h. Rotating immediately to next model...`);
               rotateToNextModel = true;
               break;
             } else if (
@@ -1854,6 +1863,35 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
             part.tool_call_id != null
           );
         });
+      }
+
+      // Safety net: If a tool was executed (e.g. canvas, matriz_ipevar, etc.)
+      // but no text response was emitted (e.g. 2nd step was aborted, closed, or silent),
+      // ensure the user receives a helpful conversational confirmation instead of an empty bubble.
+      const hasTextPart = this.contentParts.some(
+        (part) => part && (part.type === ContentTypes.TEXT || (typeof part.text === 'string' && part.text.trim().length > 0))
+      );
+      const hasToolActivity = this.contentParts.some(
+        (part) => part && (part.type === ContentTypes.TOOL_CALL || part.type === ContentTypes.TOOL_RESULT || part.tool_call_ids != null || part.tool_call_id != null)
+      );
+
+      if (hasToolActivity && !hasTextPart) {
+        const fallbackMsg = 'He procesado tu solicitud y generado el contenido correspondiente. Puedes visualizar el resultado en el panel lateral.';
+        this.contentParts.push({
+          type: ContentTypes.TEXT,
+          [ContentTypes.TEXT]: fallbackMsg,
+          text: fallbackMsg,
+        });
+        try {
+          const { sendEvent } = require('@librechat/api');
+          sendEvent(this.options.res, {
+            event: 'messageDelta',
+            data: {
+              messageId: this.responseMessageId,
+              text: fallbackMsg,
+            },
+          });
+        } catch (_) {}
       }
 
       try {
