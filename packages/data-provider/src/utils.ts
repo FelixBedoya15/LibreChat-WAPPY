@@ -22,8 +22,14 @@ export function extractEnvVariable(value: string) {
   // Special case: if it's just a single environment variable
   const singleMatch = trimmed.match(envVarRegex);
   if (singleMatch) {
-    const varName = singleMatch[1];
-    return process.env[varName] || trimmed;
+    let varName = singleMatch[1];
+    let fallback = '';
+    if (varName.includes(':-')) {
+      const parts = varName.split(':-');
+      varName = parts[0];
+      fallback = parts.slice(1).join(':-');
+    }
+    return process.env[varName] || fallback || trimmed;
   }
 
   // For multiple variables, process them using a regex loop
@@ -43,8 +49,14 @@ export function extractEnvVariable(value: string) {
 
   // Process matches in reverse order to avoid position shifts
   for (let i = matches.length - 1; i >= 0; i--) {
-    const { fullMatch, varName, index } = matches[i];
-    const envValue = process.env[varName] || fullMatch;
+    let { fullMatch, varName, index } = matches[i];
+    let fallback = '';
+    if (varName.includes(':-')) {
+      const parts = varName.split(':-');
+      varName = parts[0];
+      fallback = parts.slice(1).join(':-');
+    }
+    const envValue = process.env[varName] || fallback || fullMatch;
 
     // Replace at exact position
     result = result.substring(0, index) + envValue + result.substring(index + fullMatch.length);

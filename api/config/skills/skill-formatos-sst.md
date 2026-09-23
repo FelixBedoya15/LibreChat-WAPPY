@@ -306,15 +306,21 @@ Dependiendo de si se trata de un formulario de campo, matriz o calculadora:
 
 ---
 
-## 📊 5. MÓDULO DE BASE DE DATOS EN TIEMPO REAL CON GOOGLE SHEETS (DRIVE DEL USUARIO)
+## 📊 5. MÓDULO OPCIONAL: GOOGLE SHEETS (SÓLO SI EL USUARIO LO SOLICITA EXPLÍCITAMENTE)
 
-Cuando el usuario pida un aplicativo con **memoria, persistencia o conectado a Google Sheets / Drive**:
+> [!WARNING]
+> **REGLA DE ACTIVACIÓN ESTRICTA:**
+> Usa la herramienta `google_sheets` **ÚNICAMENTE** si el usuario menciona de forma explícita palabras como *"Google Sheets"*, *"hoja de cálculo"*, *"conectar con Drive"* o *"guardar en mi hoja de Drive"*.
+>
+> Si el usuario solicita: *"crear un aplicativo"*, *"landing page"*, *"dashboard"*, *"matriz de peligros"*, *"calculadora"*, *"visor interactivo"* o cualquier interfaz visual **sin pedir expresamente Google Sheets**, **ESTÁ TOTALMENTE PROHIBIDO LLAMAR A `google_sheets`**.
+> En esos casos, debes llamar directamente e INMEDIATAMENTE a la herramienta `canvas` (`accion: "crear"`, `fileType: "html"`, `title: "..."`, `content: "<!DOCTYPE html>..."`) para que el usuario vea el aplicativo funcionando al instante en el lienzo lateral.
 
-### 🎯 PROTOCOLO DEL AGENTE ANTES DE CREAR EL HTML:
+### 🎯 PROTOCOLO CUANDO EL USUARIO SOLICITA EXPLÍCITAMENTE GOOGLE SHEETS:
 1. Ejecuta la herramienta `google_sheets` con `action: "create_spreadsheet"` para crear la hoja en el Drive del usuario (ej: `title: "WAPPY - Indicadores de Accidentalidad - " + empresa`).
 2. Agrega las cabeceras de columnas en la fila 1 mediante `action: "append_spreadsheet_values"` con `values: [["Cabecera1", "Cabecera2", ...]]`.
 3. Opcionalmente ejecuta `action: "format_spreadsheet"` con el `spreadsheetId` para aplicar diseño corporativo (#0f766e), bordes y auto-ajuste de columnas. *(Nota: No es necesario especificar rango "Sheet1!A1", la herramienta detecta automáticamente la pestaña activa tanto en español como en inglés)*.
 4. Inyecta el ID retornado (`spreadsheetId`) y el enlace directo en el HTML del aplicativo dentro de `WAPPY_SHEETS_CONFIG.spreadsheetId` y en el botón "Abrir en Drive".
+5. Llama a la herramienta `canvas` con `accion: "crear"`, `fileType: "html"` conteniendo el aplicativo conectado.
 
 ### 🖥️ WIDGET VISUAL DE SINCRONIZACIÓN (Colocar en el Header o Toolbar del HTML):
 ```html
