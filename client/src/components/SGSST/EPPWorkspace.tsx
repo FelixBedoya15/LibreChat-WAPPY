@@ -1074,20 +1074,20 @@ export default function EPPWorkspace() {
                     <button
                       onClick={handleSyncFromIpevar}
                       disabled={isSyncingIpevar}
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-surface-primary hover:bg-surface-secondary text-text-primary border border-border-medium shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                      className="px-3.5 py-2 text-xs font-bold rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
                       title="Sincronizar EPPs del cargo con la Matriz de Peligros IPEVAR (Hito 1)"
                     >
-                      <RefreshCw className={cn("w-3.5 h-3.5 text-teal-500", isSyncingIpevar && "animate-spin")} />
+                      <RefreshCw className={cn("w-3.5 h-3.5 text-teal-600 dark:text-teal-400", isSyncingIpevar && "animate-spin")} />
                       <span>{isSyncingIpevar ? 'Sincronizando...' : 'Sincronizar con IPEVAR'}</span>
                     </button>
                     {recommendedEpps.length > 0 && (
                       <button
                         onClick={handleDeliverAllRecommended}
                         disabled={loading}
-                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-700 text-white shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                        className="px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
                         title="Registrar entrega de todos los EPPs requeridos no entregados aún"
                       >
-                        <PackageCheck className="w-3.5 h-3.5 text-white" />
+                        <PackageCheck className="w-4 h-4 text-white" />
                         <span className="hidden sm:inline">Entregar Dotación Completa</span>
                         <span className="sm:hidden">Dotación</span>
                       </button>
@@ -1227,11 +1227,11 @@ export default function EPPWorkspace() {
                             Puedes sincronizar los peligros y controles desde la Matriz IPEVAR de Hito 1 o asignar la dotación básica estándar de obra y terreno.
                           </p>
                         </div>
-                        <div className="flex items-center justify-center gap-2 pt-1">
+                        <div className="flex items-center justify-center gap-2.5 pt-1">
                           <button
                             onClick={handleSyncFromIpevar}
                             disabled={isSyncingIpevar}
-                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-700 text-white shadow-xs flex items-center gap-1.5 transition-colors"
+                            className="px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md flex items-center gap-2 transition-all active:scale-95"
                           >
                             <Zap className="w-3.5 h-3.5" />
                             <span>Escanear Matriz IPEVAR</span>
@@ -1239,7 +1239,7 @@ export default function EPPWorkspace() {
                           <button
                             onClick={handleApplyStandardPack}
                             disabled={isSyncingIpevar}
-                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-surface-primary hover:bg-surface-secondary text-text-primary border border-border-medium shadow-xs flex items-center gap-1.5 transition-colors"
+                            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-2 transition-all active:scale-95"
                           >
                             <Shield className="w-3.5 h-3.5 text-blue-500" />
                             <span>Asignar Dotación Estándar</span>
@@ -1364,10 +1364,13 @@ export default function EPPWorkspace() {
                                   <td className="p-3.5 text-right">
                                     <button
                                       onClick={() => handleDeleteEpp(ent.id)}
-                                      className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                      className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-all duration-300 px-1.5 shadow-sm active:scale-95 ml-auto"
                                       title="Eliminar registro"
                                     >
-                                      <Trash2 className="w-4 h-4" />
+                                      <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                                      <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[80px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-[10px] font-bold">Eliminar</span>
+                                      </div>
                                     </button>
                                   </td>
                                 </tr>
@@ -1709,14 +1712,14 @@ export default function EPPWorkspace() {
               <button
                 onClick={() => { setIsModalOpen(false); resetForm(); }}
                 disabled={loading}
-                className="px-4 py-2 border border-border-medium hover:bg-surface-hover text-text-primary rounded-xl font-bold text-sm transition-colors shadow-sm"
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors active:scale-95"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSaveEpp}
                 disabled={loading}
-                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50"
               >
                 Guardar Registro
               </button>

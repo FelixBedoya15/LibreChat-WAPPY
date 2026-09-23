@@ -568,6 +568,51 @@ router.delete('/:id', requireJwtAuth, async (req, res) => {
   }
 });
 
+// ─── PATCH /api/sgsst/estudio-puesto/:id ───────────────────────────────────────
+// Editar o reprogramar estudio / autoevaluación
+router.patch('/:id', requireJwtAuth, async (req, res) => {
+  try {
+    if (!checkEptPermission(req, res)) return;
+    const { id } = req.params;
+    const updateData = req.body;
+
+    const study = await EstudioPuestoTrabajo.findById(id);
+    if (!study) return res.status(404).json({ error: 'Estudio o turno no encontrado' });
+
+    if (updateData.workerName !== undefined) study.workerName = String(updateData.workerName).trim();
+    if (updateData.workerId !== undefined) study.workerId = String(updateData.workerId).trim();
+    if (updateData.cargo !== undefined) study.cargo = String(updateData.cargo).trim();
+    if (updateData.actividad !== undefined) study.actividad = String(updateData.actividad).trim();
+    if (updateData.appointmentNotes !== undefined) study.appointmentNotes = String(updateData.appointmentNotes).trim();
+    if (updateData.scheduledByName !== undefined) study.scheduledByName = String(updateData.scheduledByName).trim();
+    if (updateData.status && ['programado', 'en_curso', 'completado', 'cancelado'].includes(updateData.status)) {
+      study.status = updateData.status;
+      if (updateData.status === 'completado') study.completedAt = new Date();
+    }
+
+    if (updateData.scheduledAt) {
+      const newStart = new Date(updateData.scheduledAt);
+      if (!isNaN(newStart.getTime())) {
+        study.scheduledAt = newStart;
+        const durationMin = Number(updateData.slotDurationMinutes) || study.slotDurationMinutes || 30;
+        study.scheduledEndAt = new Date(newStart.getTime() + durationMin * 60000);
+      }
+    }
+    if (updateData.slotDurationMinutes !== undefined) {
+      study.slotDurationMinutes = Number(updateData.slotDurationMinutes) || 30;
+      if (study.scheduledAt) {
+        study.scheduledEndAt = new Date(new Date(study.scheduledAt).getTime() + study.slotDurationMinutes * 60000);
+      }
+    }
+
+    await study.save();
+    return res.json({ success: true, study, appointment: study });
+  } catch (err) {
+    logger.error('[EPT Routes] PATCH /:id error:', err);
+    return res.status(500).json({ error: 'Error al actualizar estudio o turno' });
+  }
+});
+
 // ─── GET /api/sgsst/estudio-puesto/appointments/:companyId ─────────────────────
 // Listar todas las citas programadas y realizadas de la empresa
 router.get('/appointments/:companyId', requireJwtAuth, async (req, res) => {
@@ -688,18 +733,29 @@ router.post('/schedule', requireJwtAuth, async (req, res) => {
 router.patch('/appointment/:id', requireJwtAuth, async (req, res) => {
   try {
     if (!checkEptPermission(req, res)) return;
-    const { id } = req.params;
-    const { scheduledAt, slotDurationMinutes, appointmentNotes, status } = req.body;
+    const { scheduledAt, slotDurationMinutes, appointmentNotes, status, workerName, workerId, cargo, actividad, scheduledByName } = req.body;
 
     const apt = await EstudioPuestoTrabajo.findById(id);
     if (!apt) return res.status(404).json({ error: 'Cita no encontrada.' });
+
+    if (workerName !== undefined) apt.workerName = String(workerName).trim();
+    if (workerId !== undefined) apt.workerId = String(workerId).trim();
+    if (cargo !== undefined) apt.cargo = String(cargo).trim();
+    if (actividad !== undefined) apt.actividad = String(actividad).trim();
+    if (scheduledByName !== undefined) apt.scheduledByName = String(scheduledByName).trim();
 
     if (scheduledAt) {
       const newStart = new Date(scheduledAt);
       if (!isNaN(newStart.getTime())) {
         apt.scheduledAt = newStart;
-        const durationMin = Number(slotDurationMinutes) || 30;
+        const durationMin = Number(slotDurationMinutes) || apt.slotDurationMinutes || 30;
         apt.scheduledEndAt = new Date(newStart.getTime() + durationMin * 60000);
+      }
+    }
+    if (slotDurationMinutes !== undefined) {
+      apt.slotDurationMinutes = Number(slotDurationMinutes) || 30;
+      if (apt.scheduledAt) {
+        apt.scheduledEndAt = new Date(new Date(apt.scheduledAt).getTime() + apt.slotDurationMinutes * 60000);
       }
     }
     if (appointmentNotes !== undefined) apt.appointmentNotes = String(appointmentNotes).trim();

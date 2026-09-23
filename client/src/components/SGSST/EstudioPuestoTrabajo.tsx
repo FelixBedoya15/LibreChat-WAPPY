@@ -25,6 +25,7 @@ import {
   Send,
   ShieldCheck,
   Video,
+  Pencil,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -236,6 +237,7 @@ export default function EstudioPuestoTrabajo() {
   });
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [editingAppointmentId, setEditingAppointmentId] = useState<string | null>(null);
   const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
   const [scheduleForm, setScheduleForm] = useState({
     workerId: '',
@@ -246,6 +248,8 @@ export default function EstudioPuestoTrabajo() {
     scheduledTime: '09:00',
     slotDurationMinutes: 30,
     appointmentNotes: '',
+    scheduledByName: '',
+    status: 'programado',
   });
   const [filterAppointmentStatus, setFilterAppointmentStatus] = useState<string>('all');
   const [appointmentSearchTerm, setAppointmentSearchTerm] = useState('');
@@ -498,7 +502,58 @@ export default function EstudioPuestoTrabajo() {
     }
   };
 
-  // Schedule appointment submit
+  // Open schedule modal for new appointment
+  const handleOpenNewAppointment = () => {
+    setEditingAppointmentId(null);
+    setScheduleForm({
+      workerId: '',
+      workerName: '',
+      cargo: '',
+      actividad: 'Auto-evaluación postural y ergonomía en puesto de trabajo',
+      scheduledDate: new Date().toISOString().split('T')[0],
+      scheduledTime: '09:00',
+      slotDurationMinutes: 30,
+      appointmentNotes: '',
+      scheduledByName: user?.name || 'Fisioterapeuta Especialista',
+      status: 'programado',
+    });
+    setShowScheduleModal(true);
+  };
+
+  // Open schedule modal to edit or reschedule
+  const handleOpenEditAppointment = (item: any) => {
+    setEditingAppointmentId(item._id);
+    let dateStr = new Date().toISOString().split('T')[0];
+    let timeStr = '09:00';
+    if (item.scheduledAt) {
+      try {
+        const d = new Date(item.scheduledAt);
+        dateStr = d.toISOString().split('T')[0];
+        timeStr = d.toTimeString().slice(0, 5);
+      } catch (_) {}
+    } else if (item.createdAt) {
+      try {
+        const d = new Date(item.createdAt);
+        dateStr = d.toISOString().split('T')[0];
+      } catch (_) {}
+    }
+
+    setScheduleForm({
+      workerId: item.workerId || '',
+      workerName: item.workerName || '',
+      cargo: item.cargo || '',
+      actividad: item.actividad || 'Auto-evaluación postural y ergonomía en puesto de trabajo',
+      scheduledDate: dateStr,
+      scheduledTime: timeStr,
+      slotDurationMinutes: item.slotDurationMinutes || 30,
+      appointmentNotes: item.appointmentNotes || item.notes || '',
+      scheduledByName: item.scheduledByName || item.evaluatorName || user?.name || 'Fisioterapeuta Especialista',
+      status: item.status || 'programado',
+    });
+    setShowScheduleModal(true);
+  };
+
+  // Schedule or Reschedule appointment submit
   const handleScheduleSubmit = async () => {
     if (!scheduleForm.workerId || !scheduleForm.workerName || !scheduleForm.scheduledDate || !scheduleForm.scheduledTime) {
       showToast({ message: 'Por favor selecciona trabajador, fecha y hora.', status: 'warning' });
@@ -507,34 +562,73 @@ export default function EstudioPuestoTrabajo() {
     setIsSubmittingSchedule(true);
     try {
       const scheduledAt = new Date(`${scheduleForm.scheduledDate}T${scheduleForm.scheduledTime}:00`);
-      const payload = {
-        companyId: activeCompanyId,
-        workerId: scheduleForm.workerId,
-        workerName: scheduleForm.workerName,
-        cargo: scheduleForm.cargo,
-        actividad: scheduleForm.actividad,
-        scheduledAt,
-        slotDurationMinutes: scheduleForm.slotDurationMinutes,
-        appointmentNotes: scheduleForm.appointmentNotes,
-      };
+      
+      if (editingAppointmentId) {
+        // EDICIÓN O REPROGRAMACIÓN DE TURNO/AUTOEVALUACIÓN
+        const payload = {
+          workerId: scheduleForm.workerId,
+          workerName: scheduleForm.workerName,
+          cargo: scheduleForm.cargo,
+          actividad: scheduleForm.actividad,
+          scheduledAt,
+          slotDurationMinutes: scheduleForm.slotDurationMinutes,
+          appointmentNotes: scheduleForm.appointmentNotes,
+          scheduledByName: scheduleForm.scheduledByName,
+          status: scheduleForm.status,
+        };
 
-      const res = await fetch('/api/sgsst/estudio-puesto/schedule', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
+        const res = await fetch(`/api/sgsst/estudio-puesto/appointment/${editingAppointmentId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(payload),
+        });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Error al programar autoevaluación');
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Error al reprogramar autoevaluación');
+        }
+
+        showToast({ message: '¡Turno/Autoevaluación ergonómica actualizada y reprogramada exitosamente!', status: 'success' });
+      } else {
+        // CREACIÓN DE NUEVA CITA
+        const payload = {
+          companyId: activeCompanyId,
+          workerId: scheduleForm.workerId,
+          workerName: scheduleForm.workerName,
+          cargo: scheduleForm.cargo,
+          actividad: scheduleForm.actividad,
+          scheduledAt,
+          slotDurationMinutes: scheduleForm.slotDurationMinutes,
+          appointmentNotes: scheduleForm.appointmentNotes,
+          scheduledByName: scheduleForm.scheduledByName,
+        };
+
+        const res = await fetch('/api/sgsst/estudio-puesto/schedule', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Error al programar autoevaluación');
+        }
+
+        showToast({ message: '¡Autoevaluación ergonómica programada exitosamente!', status: 'success' });
       }
 
-      showToast({ message: '¡Autoevaluación ergonómica programada exitosamente!', status: 'success' });
       setShowScheduleModal(false);
-      loadAppointments(activeCompanyId);
+      setEditingAppointmentId(null);
+      if (activeCompanyId) {
+        loadAppointments(activeCompanyId);
+        loadStudies(activeCompanyId);
+      }
       setScheduleForm((prev) => ({
         ...prev,
         workerId: '',
@@ -543,7 +637,7 @@ export default function EstudioPuestoTrabajo() {
         appointmentNotes: '',
       }));
     } catch (err: any) {
-      showToast({ message: err.message || 'Error al agendar autoevaluación.', status: 'error' });
+      showToast({ message: err.message || 'Error al procesar autoevaluación.', status: 'error' });
     } finally {
       setIsSubmittingSchedule(false);
     }
@@ -776,7 +870,7 @@ export default function EstudioPuestoTrabajo() {
           <div key="ept-custom-toolbar" className="flex items-center gap-1.5">
             <ToolbarButton
               id="tb-schedule"
-              onClick={() => setShowScheduleModal(true)}
+              onClick={handleOpenNewAppointment}
               label="Programar Autoevaluación"
               icon={Calendar}
               title="Programar Autoevaluación Ergonómica para Colaborador"
@@ -1086,7 +1180,7 @@ export default function EstudioPuestoTrabajo() {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleSelectStudyToView(s)}
-                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 px-1.5 shadow-sm"
+                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95"
                             title="Ver y editar informe en Live Editor"
                           >
                             <Eye className="w-3.5 h-3.5 shrink-0" />
@@ -1095,8 +1189,18 @@ export default function EstudioPuestoTrabajo() {
                             </div>
                           </button>
                           <button
+                            onClick={() => handleOpenEditAppointment(s)}
+                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95"
+                            title="Editar datos o reprogramar autoevaluación con la fisioterapeuta"
+                          >
+                            <Pencil className="w-3.5 h-3.5 shrink-0" />
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                              <span className="text-[10px] font-bold">Reprogramar</span>
+                            </div>
+                          </button>
+                          <button
                             onClick={() => handleDeleteStudy(s._id!)}
-                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-all duration-300 px-1.5 shadow-sm"
+                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-all duration-300 px-1.5 shadow-sm active:scale-95"
                             title="Eliminar estudio"
                           >
                             <Trash2 className="w-3.5 h-3.5 shrink-0" />
@@ -1423,7 +1527,7 @@ export default function EstudioPuestoTrabajo() {
                               {/* Botón WhatsApp */}
                               <button
                                 onClick={() => handleCopyWhatsAppInvite(apt)}
-                                className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100 transition-all duration-300 px-1.5 shadow-sm"
+                                className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95"
                                 title="Copiar invitación formal para WhatsApp"
                               >
                                 <MessageCircle className="w-3.5 h-3.5 shrink-0" />
@@ -1432,11 +1536,23 @@ export default function EstudioPuestoTrabajo() {
                                 </div>
                               </button>
 
+                              {/* Botón Editar / Reprogramar */}
+                              <button
+                                onClick={() => handleOpenEditAppointment(apt)}
+                                className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95"
+                                title="Editar datos o reprogramar autoevaluación"
+                              >
+                                <Pencil className="w-3.5 h-3.5 shrink-0" />
+                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                                  <span className="text-[10px] font-bold">Reprogramar</span>
+                                </div>
+                              </button>
+
                               {/* Botón Cancelar (si está programado) */}
                               {apt.status === 'programado' && (
                                 <button
                                   onClick={() => handleCancelAppointment(apt._id)}
-                                  className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-all duration-300 px-1.5 shadow-sm"
+                                  className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-all duration-300 px-1.5 shadow-sm active:scale-95"
                                   title="Cancelar turno programado"
                                 >
                                   <Trash2 className="w-3.5 h-3.5 shrink-0" />
@@ -1748,14 +1864,14 @@ export default function EstudioPuestoTrabajo() {
               <div className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between bg-amber-50/50 dark:bg-amber-950/20">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-md">
-                    <Calendar className="w-4 h-4" />
+                    {editingAppointmentId ? <Pencil className="w-4 h-4" /> : <Calendar className="w-4 h-4" />}
                   </div>
                   <div>
                     <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
-                      Programar Autoevaluación Ergonómica
+                      {editingAppointmentId ? 'Editar / Reprogramar Autoevaluación' : 'Programar Autoevaluación Ergonómica'}
                     </h3>
                     <p className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
-                      Turno Individual & Compromiso del Colaborador
+                      {editingAppointmentId ? 'Actualización de Turno & Fisioterapeuta Responsable' : 'Turno Individual & Compromiso del Colaborador'}
                     </p>
                   </div>
                 </div>
@@ -1934,6 +2050,37 @@ export default function EstudioPuestoTrabajo() {
 
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                    Fisioterapeuta / Especialista Responsable
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Fisioterapeuta Laboral WAPPY SST"
+                    value={scheduleForm.scheduledByName}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, scheduledByName: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none text-xs font-semibold text-slate-800 dark:text-zinc-200"
+                  />
+                </div>
+
+                {editingAppointmentId && (
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Estado del Turno
+                    </label>
+                    <select
+                      value={scheduleForm.status}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, status: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-teal-500 focus:outline-none font-semibold text-slate-800 dark:text-zinc-200"
+                    >
+                      <option value="programado">Programado</option>
+                      <option value="en_curso">En Consulta 1 a 1</option>
+                      <option value="completado">Completado</option>
+                      <option value="cancelado">Cancelado</option>
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
                     Notas o Foco de la Evaluación (Opcional)
                   </label>
                   <textarea
@@ -1948,7 +2095,9 @@ export default function EstudioPuestoTrabajo() {
                 <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-2">
                   <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <span>
-                    Al confirmar la autoevaluación se generará el mensaje con enlace directo para WhatsApp. Las evaluaciones se realizan de manera individual.
+                    {editingAppointmentId
+                      ? 'Los cambios se guardarán y actualizarán de inmediato la agenda y el expediente del colaborador.'
+                      : 'Al confirmar la autoevaluación se generará el mensaje con enlace directo para WhatsApp. Las evaluaciones se realizan de manera individual.'}
                   </span>
                 </div>
               </div>
@@ -1971,12 +2120,12 @@ export default function EstudioPuestoTrabajo() {
                   {isSubmittingSchedule ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Agendando Turno...</span>
+                      <span>{editingAppointmentId ? 'Guardando Cambios...' : 'Agendando Turno...'}</span>
                     </>
                   ) : (
                     <>
-                      <Calendar className="w-4 h-4" />
-                      <span>Confirmar Autoevaluación</span>
+                      {editingAppointmentId ? <Pencil className="w-4 h-4" /> : <Calendar className="w-4 h-4" />}
+                      <span>{editingAppointmentId ? 'Guardar Cambios / Reprogramar' : 'Confirmar Autoevaluación'}</span>
                     </>
                   )}
                 </button>
