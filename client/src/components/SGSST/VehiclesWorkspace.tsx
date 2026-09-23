@@ -21,8 +21,10 @@ import {
   ChevronRight,
   X,
   ShieldAlert,
-  Loader2
+  Loader2,
+  ArrowLeft
 } from 'lucide-react';
+import { cn } from '~/utils';
 import { SignaturePad } from './SignaturePad';
 import { exportVehiclesToExcel } from './exportVehicles';
 import { saveAs } from 'file-saver';
@@ -272,13 +274,13 @@ export default function VehiclesWorkspace() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const wData = await wRes.json();
-      setWorkers(wData.trabajadores || []);
+      setWorkers(Array.isArray(wData?.trabajadores) ? wData.trabajadores : []);
 
       const vRes = await fetch('/api/sgsst/vehicles/data', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const vData = await vRes.json();
-      setVehicles(vData || []);
+      setVehicles(Array.isArray(vData) ? vData : []);
     } catch (err) {
       console.error('[Vehicles Workspace] Fetch error:', err);
       showToast({ message: 'Error al cargar los datos de vehículos', status: 'error' });
@@ -546,17 +548,17 @@ export default function VehiclesWorkspace() {
   };
 
   const filteredVehicles = vehicles.filter(v => 
-    v.placa.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    v.conductorNombre.toLowerCase().includes(searchQuery.toLowerCase())
+    (v.placa || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (v.conductorNombre || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <div className="w-full space-y-6">
-      <div className="flex flex-col xl:flex-row h-[780px] w-full border border-border-light dark:border-white/10 rounded-3xl bg-surface-primary shadow-lg overflow-hidden animate-in fade-in duration-200">
+      <div className="flex flex-col md:flex-row h-[780px] w-full border border-border-light dark:border-white/10 rounded-3xl bg-surface-primary shadow-lg overflow-hidden animate-in fade-in duration-200">
       
       {/* ── SECTOR IZQUIERDO: LISTA DE VEHÍCULOS ── */}
-      <div className="w-full xl:w-96 border-r border-border-light dark:border-white/10 flex flex-col bg-surface-secondary/40 shrink-0">
-        <div className="p-5 border-b border-border-light dark:border-white/10 space-y-4">
+      <div className={cn("w-full md:w-80 lg:w-96 border-r border-border-light dark:border-white/10 flex flex-col bg-surface-secondary/40 shrink-0 h-full", selectedVehicle && "hidden md:flex")}>
+        <div className="p-4 md:p-5 border-b border-border-light dark:border-white/10 space-y-4 shrink-0">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-extrabold text-text-primary flex items-center gap-2">
               <Car className="w-5 h-5 text-teal-500" /> Vehículos PESV
@@ -631,11 +633,17 @@ export default function VehiclesWorkspace() {
       </div>
 
       {/* ── SECTOR DERECHO: DETALLE DEL VEHÍCULO ── */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-surface-primary">
+      <div className={cn("flex-1 min-w-0 h-full flex flex-col overflow-hidden bg-surface-primary", !selectedVehicle && "hidden md:flex")}>
         {selectedVehicle ? (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="p-6 border-b border-border-light dark:border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-secondary/20">
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden h-full">
+            <div className="p-4 md:p-6 border-b border-border-light dark:border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-secondary/20 shrink-0">
               <div className="space-y-1">
+                <button
+                  onClick={() => setSelectedVehicle(null)}
+                  className="md:hidden inline-flex items-center gap-1.5 text-xs font-bold text-teal-600 dark:text-teal-400 mb-1 hover:underline"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Volver a vehículos
+                </button>
                 <h2 className="text-xl font-extrabold text-text-primary">{selectedVehicle.placa}</h2>
                 <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-text-secondary">
                   <span>{selectedVehicle.marca} {selectedVehicle.modelo}</span>

@@ -17,8 +17,10 @@ import {
   ChevronRight,
   X,
   ShieldAlert,
-  Loader2
+  Loader2,
+  ArrowLeft
 } from 'lucide-react';
+import { cn } from '~/utils';
 import { exportChemicalsToExcel } from './exportChemicals';
 import { saveAs } from 'file-saver';
 import { SGSSTToolbar } from './SGSSTToolbar';
@@ -254,13 +256,13 @@ export default function ChemicalsWorkspace() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const wData = await wRes.json();
-      setWorkers(wData.trabajadores || []);
+      setWorkers(Array.isArray(wData?.trabajadores) ? wData.trabajadores : []);
 
       const cRes = await fetch('/api/sgsst/chemicals/data', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const cData = await cRes.json();
-      setChemicals(cData || []);
+      setChemicals(Array.isArray(cData) ? cData : []);
     } catch (err) {
       console.error(err);
       showToast({ message: 'Error al cargar inventario químico', status: 'error' });
@@ -498,17 +500,17 @@ export default function ChemicalsWorkspace() {
   };
 
   const filteredChemicals = chemicals.filter(p => 
-    p.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.fabricante.toLowerCase().includes(searchQuery.toLowerCase())
+    (p.nombre || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (p.fabricante || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <div className="w-full space-y-6">
-      <div className="flex flex-col xl:flex-row h-[780px] w-full border border-border-light dark:border-white/10 rounded-3xl bg-surface-primary shadow-lg overflow-hidden animate-in fade-in duration-200">
+      <div className="flex flex-col md:flex-row h-[780px] w-full border border-border-light dark:border-white/10 rounded-3xl bg-surface-primary shadow-lg overflow-hidden animate-in fade-in duration-200">
       
       {/* SECTOR IZQUIERDO: LISTADO */}
-      <div className="w-full xl:w-96 border-r border-border-light dark:border-white/10 flex flex-col bg-surface-secondary/40 shrink-0">
-        <div className="p-5 border-b border-border-light dark:border-white/10 space-y-4">
+      <div className={cn("w-full md:w-80 lg:w-96 border-r border-border-light dark:border-white/10 flex flex-col bg-surface-secondary/40 shrink-0 h-full", selectedProduct && "hidden md:flex")}>
+        <div className="p-4 md:p-5 border-b border-border-light dark:border-white/10 space-y-4 shrink-0">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-extrabold text-text-primary flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-teal-500" /> Inventario Químico
@@ -584,11 +586,17 @@ export default function ChemicalsWorkspace() {
       </div>
 
       {/* SECTOR DERECHO: DETALLE PRODUCTO */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-surface-primary">
+      <div className={cn("flex-1 min-w-0 h-full flex flex-col overflow-hidden bg-surface-primary", !selectedProduct && "hidden md:flex")}>
         {selectedProduct ? (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="p-6 border-b border-border-light dark:border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-secondary/20">
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden h-full">
+            <div className="p-4 md:p-6 border-b border-border-light dark:border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-secondary/20 shrink-0">
               <div className="space-y-1">
+                <button
+                  onClick={() => setSelectedProduct(null)}
+                  className="md:hidden inline-flex items-center gap-1.5 text-xs font-bold text-teal-600 dark:text-teal-400 mb-1 hover:underline"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Volver al inventario
+                </button>
                 <h2 className="text-xl font-extrabold text-text-primary">{selectedProduct.nombre}</h2>
                 <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-text-secondary">
                   <span>Fabricante: {selectedProduct.fabricante || 'Sin registrar'}</span>

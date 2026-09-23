@@ -16,6 +16,7 @@ import {
   Printer, 
   Wrench, 
   ArrowRight,
+  ArrowLeft,
   ClipboardList,
   FileSpreadsheet,
   Download,
@@ -25,6 +26,7 @@ import {
   ShieldAlert,
   Loader2
 } from 'lucide-react';
+import { cn } from '~/utils';
 import { SignaturePad } from './SignaturePad';
 import { exportEppToExcel } from './exportEpp';
 import { saveAs } from 'file-saver';
@@ -116,8 +118,9 @@ export default function EPPWorkspace() {
   // Calculations for selected worker
   const selectedDoc = eppDocs.find(doc => doc.workerId === selectedWorker?.id);
   const activeCargoProfile = cargoProfiles.find(profile => 
-    profile.nombreCargo.toLowerCase().trim() === selectedWorker?.cargo?.toLowerCase()?.trim() ||
-    profile.id === selectedWorker?.id // fallback link
+    profile?.nombreCargo && selectedWorker?.cargo &&
+    profile.nombreCargo.toLowerCase().trim() === selectedWorker.cargo.toLowerCase().trim() ||
+    profile?.id === selectedWorker?.id // fallback link
   );
   const recommendedEpps = activeCargoProfile?.eppSeleccionados || [];
 
@@ -272,21 +275,21 @@ export default function EPPWorkspace() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const workersData = await workersRes.json();
-      setWorkers(workersData.trabajadores || []);
+      setWorkers(Array.isArray(workersData?.trabajadores) ? workersData.trabajadores : []);
 
       // 2. Fetch Cargo Profiles
       const cargoRes = await fetch('/api/sgsst/perfiles-cargo/data', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const cargoData = await cargoRes.json();
-      setCargoProfiles(cargoData.perfilesList || []);
+      setCargoProfiles(Array.isArray(cargoData?.perfilesList) ? cargoData.perfilesList : []);
 
       // 3. Fetch EPP Deliveries
       const eppRes = await fetch('/api/sgsst/epp/data', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const eppData = await eppRes.json();
-      setEppDocs(eppData || []);
+      setEppDocs(Array.isArray(eppData) ? eppData : []);
     } catch (err) {
       console.error('[EPP Workspace] Fetch error:', err);
       showToast({ message: 'Error al cargar los datos del módulo EPP', status: 'error' });
@@ -627,17 +630,17 @@ export default function EPPWorkspace() {
 
   // Filters workers list based on search
   const filteredWorkers = workers.filter(w => 
-    w.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    w.identificacion.includes(searchQuery)
+    (w.nombre || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (w.identificacion || '').includes(searchQuery)
   );
 
   return (
     <div className="w-full space-y-6">
-      <div className="flex flex-col xl:flex-row h-[780px] w-full border border-border-light dark:border-white/10 rounded-3xl bg-surface-primary shadow-lg overflow-hidden animate-in fade-in duration-200">
+      <div className="flex flex-col md:flex-row h-[780px] w-full border border-border-light dark:border-white/10 rounded-3xl bg-surface-primary shadow-lg overflow-hidden animate-in fade-in duration-200">
       
       {/* ── SECTOR IZQUIERDO: LISTA DE TRABAJADORES ── */}
-      <div className="w-full xl:w-96 border-r border-border-light dark:border-white/10 flex flex-col bg-surface-secondary/40 shrink-0">
-        <div className="p-5 border-b border-border-light dark:border-white/10 space-y-4">
+      <div className={cn("w-full md:w-80 lg:w-96 border-r border-border-light dark:border-white/10 flex flex-col bg-surface-secondary/40 shrink-0 h-full", selectedWorker && "hidden md:flex")}>
+        <div className="p-4 md:p-5 border-b border-border-light dark:border-white/10 space-y-4 shrink-0">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-extrabold text-text-primary flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-teal-500" /> Trabajadores
@@ -717,13 +720,19 @@ export default function EPPWorkspace() {
       </div>
 
       {/* ── SECTOR DERECHO: DETALLE DE EPP Y SEGUIMIENTO ── */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-surface-primary">
+      <div className={cn("flex-1 min-w-0 h-full flex flex-col overflow-hidden bg-surface-primary", !selectedWorker && "hidden md:flex")}>
         {selectedWorker ? (
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden h-full">
             
             {/* Cabecera del trabajador */}
-            <div className="p-6 border-b border-border-light dark:border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-secondary/20">
+            <div className="p-4 md:p-6 border-b border-border-light dark:border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-secondary/20 shrink-0">
               <div className="space-y-1">
+                <button
+                  onClick={() => setSelectedWorker(null)}
+                  className="md:hidden inline-flex items-center gap-1.5 text-xs font-bold text-teal-600 dark:text-teal-400 mb-1 hover:underline"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Volver a trabajadores
+                </button>
                 <h2 className="text-xl font-extrabold text-text-primary">{selectedWorker.nombre}</h2>
                 <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-text-secondary">
                   <span>C.C. {selectedWorker.identificacion}</span>
