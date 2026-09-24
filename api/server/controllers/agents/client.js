@@ -1618,14 +1618,19 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       const isPureExplanation = PURE_EXPLANATION_REGEX.test(userQuery);
       const hasCreationIntent = CREATION_INTENT_REGEX.test(userQuery);
 
-      // Canvas / Aplicativo es SIEMPRE Alta Complejidad (gemini-3.8-flash),
-      // a menos que sea una pregunta estrictamente explicativa (ej: "qué es un aplicativo" o "explícame las fórmulas del aplicativo").
+      // Arquitectura de DOS MODELOS para Canvas / Aplicativos:
+      // 1. Orquestador de Conversación y Herramientas (Chat, planificación, Google Sheets, Drive, Docs):
+      //    Opera en "gemini-3.5-flash-lite" (500 RPD por llave, ultra rápido, sin saturación 503 en la UI).
+      // 2. Especialista Técnico en Código (CanvasTool Camino B):
+      //    Micro-delega internamente en CanvasTool.js a "gemini-3.8-flash" (con escalera 3.7 -> 3.6 -> 3.5 -> 3.5-lite)
+      //    para sintetizar el aplicativo HTML5/Tailwind/Chart.js con todo el contexto acumulado de las herramientas.
+      // Por tanto, las solicitudes de aplicativos o Canvas NUNCA deben forzar al agente orquestador a 3.8 en el chat.
       const isCanvasTask = hasCanvasTrigger && (!isPureExplanation || hasCreationIntent);
 
-      // Matrices y Documentos complejos son Alta Complejidad si no son explicaciones puras
-      const isMatrixOrDocTask = hasMatrixDocTrigger && !isPureExplanation;
+      // Matrices y Documentos complejos extensos sin Canvas (solo redacción pura en chat si no es explicación):
+      const isMatrixOrDocTask = hasMatrixDocTrigger && !isPureExplanation && !isCanvasTask;
 
-      const isComplexTask = isCanvasTask || isMatrixOrDocTask;
+      const isComplexTask = isMatrixOrDocTask;
       const userExplicitModel = this.options.req?.body?.model;
       let primaryAgentModel = this.options.agent?.model_parameters?.model || this.options.agent?.model || '';
       let rawFallbacks = [];
@@ -1637,14 +1642,19 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         primaryAgentModel = userExplicitModel;
         rawFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
         logger.info(`[WAPPY Brain Router] Modelo explícito del usuario: "${primaryAgentModel}"`);
+      } else if (isCanvasTask) {
+        // Arquitectura de Dos Modelos: Agente orquestador rápido + CanvasTool potente
+        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.8-flash'];
+        primaryAgentModel = 'gemini-3.5-flash-lite';
+        rawFallbacks = operationalModels;
+        logger.info(`[WAPPY Brain Router] [DOS MODELOS] Tarea de Aplicativo/Canvas detectada. Orquestador: "${primaryAgentModel}" (500 RPD, baja latencia). CanvasTool delegará la síntesis de código a "gemini-3.8-flash".`);
       } else if (isComplexTask) {
-        // Tarea de Alta Complejidad (Canvas / Matrices GTC 45, PESV, Químicos / RIT / Blog):
-        // Prioridad: gemini-3.8-flash -> gemini-3.7-flash -> gemini-3.6-flash -> gemini-3.5-flash -> gemini-3.5-flash-lite
+        // Redacción extensa pura en texto (sin Canvas) que requiere razonamiento profundo:
         if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe')) {
           primaryAgentModel = envAgentModels[0] || 'gemini-3.8-flash';
         }
         rawFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
-        logger.info(`[WAPPY Brain Router] [ALTA COMPLEJIDAD] Tarea técnica/diseño detectada. Modelo prioritario: "${primaryAgentModel}" (Razonamiento profundo)`);
+        logger.info(`[WAPPY Brain Router] [ALTA COMPLEJIDAD TEXTUAL] Redacción técnica profunda en chat. Modelo prioritario: "${primaryAgentModel}"`);
       } else {
         // Tarea Operativa / Rápida:
         // Herramientas: Google Sheets (CRUD), Docs, Slides, Gmail, Calendar, Drive, Automatizaciones, Analíticas, Consultas Normativas, Chat General.
