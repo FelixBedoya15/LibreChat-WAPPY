@@ -2039,6 +2039,49 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         });
       }
 
+      // Canvas Auto-Fulfillment Guard:
+      // Si el usuario solicitó un aplicativo interactivo o canvas (isCanvasTask === true),
+      // pero el agente terminó su ejecución sin haber llamado a la herramienta Canvas (ej. solo llamó a google_sheets o se detuvo):
+      const hasCanvasCalled = this.contentParts.some(
+        (part) =>
+          (part && part.type === ContentTypes.TOOL_CALL && (part.tool_call?.name === 'canvas' || part.tool_call?.name === 'CanvasTool')) ||
+          (part && part.type === ContentTypes.TOOL_RESULT && (part.tool_name === 'canvas' || part.tool_name === 'CanvasTool'))
+      );
+
+      if (isCanvasTask && !hasCanvasCalled) {
+        logger.warn(
+          `[AgentClient Canvas Auto-Fulfill] Tarea de Aplicativo/Canvas solicitada ("${userQuery.substring(0, 100)}") pero el agente concluyó sin llamar a CanvasTool. Auto-generando aplicativo en Canvas con gemini-3.8-flash...`
+        );
+        try {
+          const CanvasTool = require('../../app/clients/tools/structured/CanvasTool');
+          const canvasToolInstance = new CanvasTool({ req: this.options.req });
+
+          const sheetsOutputPart = this.contentParts.find(
+            (p) => p && p.type === ContentTypes.TOOL_RESULT && (typeof p.output === 'string' && (p.output.includes('spreadsheets/d/') || p.output.includes('Hoja de cálculo')))
+          );
+          const sheetsInfo = sheetsOutputPart ? (typeof sheetsOutputPart.output === 'string' ? sheetsOutputPart.output : JSON.stringify(sheetsOutputPart.output)) : '';
+
+          const asksAccidentIndicators = /f[oó]rmula|indicador|accidentalidad|0312|frecuencia|severidad|ausentismo/i.test(userQuery);
+          const appTitle = asksAccidentIndicators
+            ? 'Aplicativo Indicadores de Accidentalidad (Res. 0312)'
+            : 'Aplicativo Interactivo SG-SST';
+
+          const canvasResult = await canvasToolInstance._call(
+            {
+              accion: 'crear',
+              fileType: 'html',
+              title: appTitle,
+              content: `Requerimiento del usuario: ${userQuery}\n${sheetsInfo ? `Base de datos vinculada en Google Sheets:\n${sheetsInfo}` : ''}`,
+            },
+            { configurable: { thread_id: this.conversationId } }
+          );
+
+          logger.info(`[AgentClient Canvas Auto-Fulfill] Aplicativo en Canvas generado con éxito por gemini-3.8-flash: ${canvasResult}`);
+        } catch (canvasAutoErr) {
+          logger.error('[AgentClient Canvas Auto-Fulfill] Error auto-generando Canvas:', canvasAutoErr);
+        }
+      }
+
       // Safety net: Ensure the user ALWAYS receives a real, helpful conversational text response,
       // never leaving an empty bubble or just a 'Thoughts' block with no text.
       const hasRealText = this.contentParts.some(
@@ -2059,7 +2102,29 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
 
         const asksIndicatorsOrFormulas = /f[oó]rmula|indicador|accidentalidad|0312|frecuencia|severidad|ausentismo|mortalidad/i.test(userQuery);
         let fallbackMsg = '';
-        if (hasToolActivity) {
+
+        // Extraer enlace y título a Google Sheets si se ejecutó
+        let sheetsUrlMatch = '';
+        let sheetsTitleMatch = '';
+        for (const p of this.contentParts) {
+          const outStr = typeof p?.output === 'string' ? p.output : (p?.output ? JSON.stringify(p.output) : '');
+          const urlM = outStr.match(/https:\/\/docs\.google\.com\/spreadsheets\/d\/[a-zA-Z0-9_-]+/);
+          if (urlM) sheetsUrlMatch = urlM[0];
+          const titleM = outStr.match(/Título:\s*"([^"]+)"/);
+          if (titleM) sheetsTitleMatch = titleM[1];
+        }
+
+        if (isCanvasTask) {
+          const appTitle = asksIndicatorsOrFormulas
+            ? 'Aplicativo Indicadores de Accidentalidad (Res. 0312)'
+            : 'Aplicativo Interactivo SG-SST';
+
+          fallbackMsg = `¡Listo! He configurado tu requerimiento y generado el aplicativo interactivo en el panel lateral de Canvas:
+
+${sheetsUrlMatch ? `📊 **Base de Datos en Google Sheets:**\n- **Hoja:** [${sheetsTitleMatch || 'Indicadores de Accidentalidad'}](${sheetsUrlMatch})\n\n` : ''}📱 **Aplicativo Interactivo en Canvas:**
+- **Título:** ${appTitle}
+- **Panel lateral:** Ya puedes visualizar los indicadores mínimos (IF, IS, PAM, TA, TAus), interactuar con las métricas en tiempo real y registrar los datos.`;
+        } else if (hasToolActivity) {
           fallbackMsg = 'He procesado tu solicitud y ejecutado las acciones correspondientes. Puedes visualizar el resultado en el panel lateral o en el historial.';
         } else if (asksIndicatorsOrFormulas) {
           fallbackMsg = `### 🏛️ Indicadores Mínimos de Accidentalidad (Resolución 0312 de 2019 - Artículo 30)
