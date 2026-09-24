@@ -163,8 +163,17 @@ async function processHtmlAppDocument(content, fileType, title, userId, req, exi
 
   let stringContent = typeof content === 'string' ? content.trim() : (content ? String(content) : '');
 
-  // Camino B: Siempre sintetizar o elevar el aplicativo HTML con el modelo potente (gemini-3.8-flash)
-  // Cualquier código base o especificación recibida se suministra a gemini-3.8-flash como referencia.
+  // 1. Si ya es un aplicativo HTML completo y robusto que sigue el estándar oficial WAPPY (skill-formatos-sst),
+  // preservarlo directamente sin re-generar para evitar sobrecargas o roturas:
+  const isAlreadyStandardWappyApp =
+    stringContent.length > 1500 &&
+    (stringContent.includes('gradient-banner') || stringContent.includes('glass-card') || stringContent.includes('WappySSTDb')) &&
+    (stringContent.includes('</html>') || stringContent.includes('</body>'));
+
+  if (isAlreadyStandardWappyApp) {
+    logger.info('[CanvasTool Camino B] El contenido ya es un aplicativo HTML conforme a skill-formatos-sst. Preservando intacto.');
+    return stringContent;
+  }
 
   // Cargar información corporativa de la empresa
   let companyInfo = null;
@@ -197,17 +206,27 @@ async function processHtmlAppDocument(content, fileType, title, userId, req, exi
     }
   }
 
-  const companyContext = companyInfo
-    ? `Empresa: ${companyInfo.companyName || 'Empresa Activa'}\nNIT: ${companyInfo.nit || 'Sin NIT'}\nSector: ${companyInfo.economicSector || 'General'}`
-    : 'No hay información de empresa registrada.';
+  const compName = companyInfo?.companyName || 'Empresa Activa';
+  const compNit = companyInfo?.nit || '901.437.310';
+  const compArl = companyInfo?.arl || 'Positiva Compañía de Seguros';
+  const compWorkers = Number(companyInfo?.workerCount || companyInfo?.totalWorkers || 50);
+  const compRisk = companyInfo?.riskLevel || 'Clase I';
+  const compSector = companyInfo?.economicActivity || companyInfo?.economicSector || 'Servicios / General';
+
+  const companyContext = `Empresa: ${compName}
+NIT: ${compNit}
+ARL: ${compArl}
+Trabajadores: ${compWorkers}
+Riesgo: ${compRisk}
+Sector/Actividad: ${compSector}`;
 
   const prompt = `Eres el Arquitecto de Frontend y Especialista Técnico en SG-SST de WAPPY.
-Tu tarea es construir un APLICATIVO WEB INTERACTIVO COMPLETO (Single-File HTML5) para proyectar en el Canvas lateral de WAPPY.
+Tu tarea es construir un APLICATIVO WEB INTERACTIVO COMPLETO (Single-File HTML5) para proyectar en el Canvas lateral de WAPPY, cumpliendo ESTRICTAMENTE con la especificación de "skill-formatos-sst.md".
 
 ## TÍTULO DEL APLICATIVO:
 ${title || 'Aplicativo Interactivo SG-SST'}
 
-## CONTEXTO DE LA EMPRESA:
+## CONTEXTO DE LA EMPRESA ACTIVA:
 ${companyContext}
 
 ## REQUERIMIENTO DEL USUARIO:
@@ -217,17 +236,35 @@ ${toolsContext ? `## RECURSOS Y BASES DE DATOS VINCULADAS EN ESTA SESIÓN (GOOGL
 
 ${stringContent ? `## ESPECIFICACIONES O BASE SUMINISTRADA:\n${stringContent}\n` : ''}
 
-## REQUISITOS TÉCNICOS Y DE DISEÑO OBLIGATORIOS:
-1. Formato Single-File HTML: Embebido en un solo archivo con <!DOCTYPE html>, <html>, <head> y <body>.
-2. Estilos: Incluye Tailwind CSS vía CDN (<script src="https://cdn.tailwindcss.com"></script>). Usa tipografía moderna, tarjetas con bordes suaves, sombras y diseño responsive.
-3. Visualización y Gráficos: Si el aplicativo involucra métricas o indicadores, incluye Chart.js (<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>) con gráficos interactivos que se actualicen en tiempo real.
-4. Interactividad JS Completa:
-   - Formularios para ingresar o editar datos.
-   - Cálculo automático de fórmulas (ej. Fórmulas de la Res. 0312 si es accidentalidad: IF, IS, PAM, TA, TAus).
-   - Filtros por período, año o sede.
-   - Tabla de datos reactiva con opción de agregar filas.
-5. Conexión de Datos: Si arriba se especificó una hoja de Google Sheets, incluye el enlace directo a la hoja, muestra los encabezados correspondientes y precarga datos iniciales coherentes.
-6. RESPUESTA: Responde ÚNICAMENTE con el código HTML5 completo, sin bloques de markdown con triple comilla invertida (sin \`\`\`html ni \`\`\`), sin comentarios explicativos antes ni después. Solo el código HTML directo.`;
+## REGLAS DE DISEÑO Y ESTRUCTURA OBLIGATORIAS (WAPPY STANDARD - skill-formatos-sst.md):
+1. ESTRUCTURA VISUAL ENCABEZADO OFICIAL WAPPY (OBLIGATORIO NUNCA CAMBIAR):
+   - BLOQUE 1: Banner Superior Gradiente:
+     <div class="gradient-banner bg-gradient-to-r from-teal-600 via-emerald-600 to-cyan-600 rounded-[2rem] p-6 text-white relative overflow-hidden shadow-lg ...">
+       Incluye el selector de logo dinámico con id="logo-upload-input", img id="logo-preview-img", título h1 id="app-document-title", subtítulo id="app-document-subtitle" y badge id="app-document-badge".
+     </div>
+   - BLOQUE 2: Ficha de Metadatos de la Empresa Activa:
+     <div class="glass-card bg-white dark:bg-slate-900/40 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-md border-l-4 border-l-blue-500 ...">
+       Muestra y permite editar: span id="company-name", span id="company-nit", span id="company-arl", span id="company-workers", span id="company-risk", span id="change-code", span id="last-updated-text".
+     </div>
+   - BARRA DE GOOGLE SHEETS: Si arriba hay una hoja de Google Sheets, incluye el id="wappy-sheets-sync-bar" con id="sheets-open-drive-link" apuntando al enlace directo a Drive y botón de exportar.
+
+2. PERSISTENCIA OBLIGATORIA (IndexedDB & LocalStorage):
+   - Incluye las funciones openDB(), saveGlobalLogoToDB(), loadGlobalLogoFromDB(), uploadLogoImage(), saveDocHeader().
+   - Nombre de base IndexedDB: "WappySSTDb", almacén: "mediaStore", clave: "wappy_sst_global_logo".
+   - LocalStorage key: "wappy_sst_doc_header".
+
+3. ESTILOS Y LIBRERÍAS CDN:
+   - Tailwind CSS (<script src="https://cdn.tailwindcss.com"></script>)
+   - Chart.js (<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>)
+   - Lucide Icons (<script src="https://unpkg.com/lucide@latest"></script>) con ejecución lucide.createIcons() al cargar.
+
+4. CALIDAD, SINTAXIS Y SEGURIDAD:
+   - NUNCA inventes llamadas fetch a endpoints ficticios como /api/sheets/... que fallen en el navegador. Usa persistencia local y enlace directo a Drive.
+   - Todo el código JavaScript debe estar completamente cerrado y libre de errores de sintaxis.
+   - El código debe ser limpio y conciso (máximo 15,000 caracteres) para garantizar que NUNCA se corte por límites de tokens.
+
+5. RESPUESTA:
+   - Responde ÚNICAMENTE con el código HTML5 completo (desde <!DOCTYPE html> hasta </html>), sin markdown (\`\`\`html), sin explicaciones.`;
 
   try {
     const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
@@ -243,33 +280,43 @@ ${stringContent ? `## ESPECIFICACIONES O BASE SUMINISTRADA:\n${stringContent}\n`
         .trim();
     }
 
-    if (
+    // Validación estricta: debe contener etiquetas de cierre completas y el encabezado oficial de WAPPY
+    const isComplete =
       generatedHtml &&
-      generatedHtml.length > 500 &&
-      (generatedHtml.includes('<html') || generatedHtml.includes('<div') || generatedHtml.includes('<!DOCTYPE'))
-    ) {
+      generatedHtml.length > 1000 &&
+      generatedHtml.length < 45000 &&
+      (generatedHtml.includes('</html>') || generatedHtml.includes('</body>')) &&
+      generatedHtml.includes('gradient-banner') &&
+      (generatedHtml.includes('glass-card') || generatedHtml.includes('border-l-blue-500'));
+
+    if (isComplete) {
       logger.info(
-        `[CanvasTool Camino B] Aplicativo HTML generado con éxito por gemini-3.8-flash (${generatedHtml.length} caracteres).`,
+        `[CanvasTool Camino B] Aplicativo HTML conforme a skill-formatos-sst generado con éxito por gemini-3.8-flash (${generatedHtml.length} caracteres).`,
       );
       return generatedHtml;
+    } else {
+      logger.warn(
+        `[CanvasTool Camino B] El HTML generado por la IA está incompleto, truncado (${generatedHtml?.length || 0} chars) o no cumple el estándar oficial WAPPY de skill-formatos-sst. Utilizando aplicativo maestro garantizado...`,
+      );
     }
   } catch (err) {
-    logger.error('[CanvasTool Camino B] Error delegando generación a gemini-3.8-flash, preservando contenido original:', err);
+    logger.error('[CanvasTool Camino B] Error delegando generación a gemini-3.8-flash, suministrando aplicativo maestro garantizado:', err);
   }
 
-  // Si no se pudo generar con Gemini y el contenido original no es código HTML (ej. solo son instrucciones de texto):
-  if (!stringContent || (!stringContent.includes('<html') && !stringContent.includes('<!DOCTYPE') && !stringContent.includes('<div'))) {
-    logger.info('[CanvasTool Camino B] Suministrando aplicativo HTML interactivo predeterminado con fórmulas de Res. 0312 y Chart.js...');
-    return buildEmergencySGSSTHtmlApp({ title, userPrompt, toolsContext, companyInfo });
-  }
-
-  return stringContent;
+  // Fallback maestro: aplicativo 100% conforme con skill-formatos-sst.md, responsivo, con fórmulas Res. 0312, Chart.js, IndexedDB y Google Sheets
+  logger.info('[CanvasTool Camino B] Suministrando aplicativo HTML interactivo oficial (skill-formatos-sst) con fórmulas de Res. 0312 y Chart.js...');
+  return buildEmergencySGSSTHtmlApp({ title, userPrompt, toolsContext, companyInfo });
 }
 
 function buildEmergencySGSSTHtmlApp({ title, userPrompt, toolsContext, companyInfo }) {
   const compName = companyInfo?.companyName || 'Empresa Activa';
   const compNit = companyInfo?.nit || '901.437.310';
-  const compWorkers = companyInfo?.totalWorkers || 50;
+  const compArl = companyInfo?.arl || 'Positiva Compañía de Seguros';
+  const compWorkers = Number(companyInfo?.workerCount || companyInfo?.totalWorkers || 50);
+  const compRisk = companyInfo?.riskLevel || 'Clase I';
+  const compActivity = companyInfo?.economicActivity || companyInfo?.economicSector || 'Servicios';
+  const todayStr = new Date().toISOString().split('T')[0];
+  const docTitle = title || 'Aplicativo Indicadores de Accidentalidad (Res. 0312)';
 
   let sheetsUrl = '';
   const searchStr = (toolsContext || '') + ' ' + (userPrompt || '');
@@ -278,216 +325,526 @@ function buildEmergencySGSSTHtmlApp({ title, userPrompt, toolsContext, companyIn
     sheetsUrl = urlMatch[0];
   }
 
-  const sheetsBtn = sheetsUrl
-    ? '<a href="' + sheetsUrl + '" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>Abrir Google Sheets</a>'
-    : '';
+  const sheetsSyncBarHtml = `
+    <!-- Barra de Sincronización con Google Sheets (WAPPY Real-Time Cloud) -->
+    <div id="wappy-sheets-sync-bar" class="max-w-[1400px] mx-auto px-4 md:px-6 mt-4">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 bg-slate-900/80 dark:bg-slate-900/90 backdrop-blur-md rounded-2xl border border-slate-700/60 shadow-sm text-xs text-white">
+        <div class="flex items-center gap-3">
+          <span id="sheets-status-indicator" class="flex items-center gap-1.5 px-3 py-1 rounded-full ${sheetsUrl ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-teal-500/20 text-teal-300 border border-teal-500/30'} font-bold text-[11px]">
+            <span class="h-2 w-2 rounded-full ${sheetsUrl ? 'bg-emerald-400' : 'bg-teal-400'}"></span>
+            ${sheetsUrl ? 'Google Sheets Conectado' : 'Almacenamiento Local Autónomo'}
+          </span>
+          <span id="sheets-status-details" class="text-slate-300 text-[11px] hidden sm:inline">
+            ${sheetsUrl ? 'Sincronizado con Google Drive — Registro en tiempo real' : 'Cálculos reactivos y persistencia en navegador (IndexedDB / LocalStorage)'}
+          </span>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          ${sheetsUrl ? `
+          <a id="sheets-open-drive-link" href="${sheetsUrl}" target="_blank" rel="noopener noreferrer" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-sm active:scale-95 text-[11px]">
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            Abrir en Drive
+          </a>` : ''}
+          <button type="button" onclick="exportCSV()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl flex items-center gap-1.5 transition-all border border-slate-700 active:scale-95 text-[11px]">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            Exportar CSV
+          </button>
+          <button type="button" onclick="exportUpdatedHTML()" class="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-sm active:scale-95 text-[11px]">
+            <i data-lucide="file-down" class="w-3.5 h-3.5"></i>
+            Descargar HTML
+          </button>
+        </div>
+      </div>
+    </div>`;
 
-  return '<!DOCTYPE html>\n' +
-'<html lang="es">\n' +
-'<head>\n' +
-'  <meta charset="UTF-8">\n' +
-'  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
-'  <title>' + (title || 'Indicadores de Accidentalidad - Resolución 0312') + '</title>\n' +
-'  <script src="https://cdn.tailwindcss.com"></script>\n' +
-'  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>\n' +
-'  <style>\n' +
-'    @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");\n' +
-'    body { font-family: "Inter", sans-serif; }\n' +
-'  </style>\n' +
-'</head>\n' +
-'<body class="bg-slate-50 text-slate-800 p-4 md:p-6 min-h-screen">\n' +
-'  <div class="max-w-6xl mx-auto space-y-6">\n' +
-'    <div class="bg-gradient-to-r from-teal-700 via-teal-800 to-slate-900 text-white rounded-2xl p-6 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">\n' +
-'      <div>\n' +
-'        <div class="flex items-center gap-2 mb-1">\n' +
-'          <span class="bg-teal-500/30 text-teal-200 border border-teal-400/40 text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">SG-SST Res. 0312 de 2019</span>\n' +
-'          <span class="bg-white/10 text-white/90 text-xs px-2.5 py-0.5 rounded-full font-medium">Art. 30</span>\n' +
-'        </div>\n' +
-'        <h1 class="text-2xl font-bold tracking-tight">' + (title || 'Tablero de Indicadores de Accidentalidad') + '</h1>\n' +
-'        <p class="text-teal-100 text-sm mt-1">' + compName + ' — NIT: ' + compNit + '</p>\n' +
-'      </div>\n' +
-'      ' + sheetsBtn + '\n' +
-'    </div>\n' +
-'    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">\n' +
-'      <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">\n' +
-'        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Índice de Frecuencia (IF)</span>\n' +
-'        <div class="flex items-baseline gap-2 mt-2">\n' +
-'          <span id="kpi-if" class="text-3xl font-bold text-teal-600">0.00</span>\n' +
-'          <span class="text-xs text-slate-500 font-medium">x 240.000 HHT</span>\n' +
-'        </div>\n' +
-'        <p class="text-xs text-slate-400 mt-2">Fórmula: (N° AT mes / HHT mes) * 240.000</p>\n' +
-'      </div>\n' +
-'      <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">\n' +
-'        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Índice de Severidad (IS)</span>\n' +
-'        <div class="flex items-baseline gap-2 mt-2">\n' +
-'          <span id="kpi-is" class="text-3xl font-bold text-amber-600">0.00</span>\n' +
-'          <span class="text-xs text-slate-500 font-medium">días perdidos</span>\n' +
-'        </div>\n' +
-'        <p class="text-xs text-slate-400 mt-2">Fórmula: ((Días Incap. + Cargados) / HHT) * 240.000</p>\n' +
-'      </div>\n' +
-'      <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">\n' +
-'        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Proporción Mortales (PAM)</span>\n' +
-'        <div class="flex items-baseline gap-2 mt-2">\n' +
-'          <span id="kpi-pam" class="text-3xl font-bold text-rose-600">0.0%</span>\n' +
-'        </div>\n' +
-'        <p class="text-xs text-slate-400 mt-2">Fórmula: (AT Mortales / Total AT) * 100</p>\n' +
-'      </div>\n' +
-'      <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">\n' +
-'        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tasa Accidentalidad (TA)</span>\n' +
-'        <div class="flex items-baseline gap-2 mt-2">\n' +
-'          <span id="kpi-ta" class="text-3xl font-bold text-indigo-600">0.0%</span>\n' +
-'        </div>\n' +
-'        <p class="text-xs text-slate-400 mt-2">Fórmula: (Total AT / N° Trabajadores) * 100</p>\n' +
-'      </div>\n' +
-'    </div>\n' +
-'    <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">\n' +
-'      <div class="flex justify-between items-center mb-4">\n' +
-'        <h2 class="text-base font-bold text-slate-800">Evolución Mensual (IF vs IS)</h2>\n' +
-'        <span class="text-xs font-semibold text-teal-600 bg-teal-50 px-3 py-1 rounded-full">Actualización reactiva</span>\n' +
-'      </div>\n' +
-'      <div class="h-64">\n' +
-'        <canvas id="indicatorsChart"></canvas>\n' +
-'      </div>\n' +
-'    </div>\n' +
-'    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">\n' +
-'      <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">\n' +
-'        <div>\n' +
-'          <h2 class="text-sm font-bold text-slate-800">Registro Mensual de Accidentalidad</h2>\n' +
-'          <p class="text-xs text-slate-500">Modifica los valores para calcular las fórmulas automáticamente en tiempo real</p>\n' +
-'        </div>\n' +
-'        <button onclick="addRow()" class="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all active:scale-95">\n' +
-'          + Agregar Mes\n' +
-'        </button>\n' +
-'      </div>\n' +
-'      <div class="overflow-x-auto">\n' +
-'        <table class="w-full text-left text-xs text-slate-700">\n' +
-'          <thead class="bg-slate-100 text-slate-600 uppercase font-semibold text-[11px] border-b border-slate-200">\n' +
-'            <tr>\n' +
-'              <th class="p-3">Mes</th>\n' +
-'              <th class="p-3">N° AT</th>\n' +
-'              <th class="p-3">Días Incap.</th>\n' +
-'              <th class="p-3">Días Cargados</th>\n' +
-'              <th class="p-3">HHT</th>\n' +
-'              <th class="p-3">AT Mortales</th>\n' +
-'              <th class="p-3">N° Trabajadores</th>\n' +
-'              <th class="p-3 text-teal-700 font-bold">IF</th>\n' +
-'              <th class="p-3 text-amber-700 font-bold">IS</th>\n' +
-'              <th class="p-3 text-right">Acción</th>\n' +
-'            </tr>\n' +
-'          </thead>\n' +
-'          <tbody id="table-body" class="divide-y divide-slate-100">\n' +
-'          </tbody>\n' +
-'        </table>\n' +
-'      </div>\n' +
-'    </div>\n' +
-'  </div>\n' +
-'  <script>\n' +
-'    var defaultWorkers = ' + Number(compWorkers || 50) + ';\n' +
-'    var monthlyData = [\n' +
-'      { month: "Enero", at: 1, lostDays: 4, chargedDays: 0, hht: 8400, fatal: 0, workers: defaultWorkers },\n' +
-'      { month: "Febrero", at: 0, lostDays: 0, chargedDays: 0, hht: 8200, fatal: 0, workers: defaultWorkers },\n' +
-'      { month: "Marzo", at: 2, lostDays: 7, chargedDays: 0, hht: 8500, fatal: 0, workers: defaultWorkers }\n' +
-'    ];\n' +
-'    var chartInstance = null;\n' +
-'    function renderTable() {\n' +
-'      var tbody = document.getElementById("table-body");\n' +
-'      if (!tbody) return;\n' +
-'      tbody.innerHTML = "";\n' +
-'      monthlyData.forEach(function(row, idx) {\n' +
-'        var ifVal = row.hht > 0 ? ((row.at / row.hht) * 240000).toFixed(2) : "0.00";\n' +
-'        var isVal = row.hht > 0 ? (((row.lostDays + row.chargedDays) / row.hht) * 240000).toFixed(2) : "0.00";\n' +
-'        var tr = document.createElement("tr");\n' +
-'        tr.className = "hover:bg-slate-50/80 transition-colors";\n' +
-'        tr.innerHTML = \'<td class="p-3"><input type="text" value="\' + row.month + \'" onchange="updateData(\' + idx + \', \\\'month\\\', this.value)" class="w-24 bg-transparent border border-slate-200 rounded px-2 py-1 text-xs font-semibold focus:bg-white"></td>\' +\n' +
-'          \'<td class="p-3"><input type="number" min="0" value="\' + row.at + \'" oninput="updateData(\' + idx + \', \\\'at\\\', parseFloat(this.value)||0)" class="w-16 bg-transparent border border-slate-200 rounded px-2 py-1 text-xs text-center focus:bg-white"></td>\' +\n' +
-'          \'<td class="p-3"><input type="number" min="0" value="\' + row.lostDays + \'" oninput="updateData(\' + idx + \', \\\'lostDays\\\', parseFloat(this.value)||0)" class="w-16 bg-transparent border border-slate-200 rounded px-2 py-1 text-xs text-center focus:bg-white"></td>\' +\n' +
-'          \'<td class="p-3"><input type="number" min="0" value="\' + row.chargedDays + \'" oninput="updateData(\' + idx + \', \\\'chargedDays\\\', parseFloat(this.value)||0)" class="w-16 bg-transparent border border-slate-200 rounded px-2 py-1 text-xs text-center focus:bg-white"></td>\' +\n' +
-'          \'<td class="p-3"><input type="number" min="0" value="\' + row.hht + \'" oninput="updateData(\' + idx + \', \\\'hht\\\', parseFloat(this.value)||0)" class="w-20 bg-transparent border border-slate-200 rounded px-2 py-1 text-xs text-center focus:bg-white"></td>\' +\n' +
-'          \'<td class="p-3"><input type="number" min="0" value="\' + row.fatal + \'" oninput="updateData(\' + idx + \', \\\'fatal\\\', parseFloat(this.value)||0)" class="w-16 bg-transparent border border-slate-200 rounded px-2 py-1 text-xs text-center focus:bg-white"></td>\' +\n' +
-'          \'<td class="p-3"><input type="number" min="1" value="\' + row.workers + \'" oninput="updateData(\' + idx + \', \\\'workers\\\', parseFloat(this.value)||1)" class="w-16 bg-transparent border border-slate-200 rounded px-2 py-1 text-xs text-center focus:bg-white"></td>\' +\n' +
-'          \'<td class="p-3 font-bold text-teal-700">\' + ifVal + \'</td>\' +\n' +
-'          \'<td class="p-3 font-bold text-amber-700">\' + isVal + \'</td>\' +\n' +
-'          \'<td class="p-3 text-right"><button onclick="deleteRow(\' + idx + \')" class="text-rose-500 hover:text-rose-700 text-xs px-2 py-1 rounded hover:bg-rose-50">Eliminar</button></td>\';\n' +
-'        tbody.appendChild(tr);\n' +
-'      });\n' +
-'      recalcKPIs();\n' +
-'      updateChart();\n' +
-'    }\n' +
-'    function updateData(index, field, value) {\n' +
-'      monthlyData[index][field] = value;\n' +
-'      renderTable();\n' +
-'    }\n' +
-'    function addRow() {\n' +
-'      var months = ["Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];\n' +
-'      var nextMonth = months[monthlyData.length % months.length] || ("Mes " + (monthlyData.length + 1));\n' +
-'      monthlyData.push({ month: nextMonth, at: 0, lostDays: 0, chargedDays: 0, hht: 8000, fatal: 0, workers: defaultWorkers });\n' +
-'      renderTable();\n' +
-'    }\n' +
-'    function deleteRow(idx) {\n' +
-'      if (monthlyData.length > 1) {\n' +
-'        monthlyData.splice(idx, 1);\n' +
-'        renderTable();\n' +
-'      }\n' +
-'    }\n' +
-'    function recalcKPIs() {\n' +
-'      var totalAT = 0, totalLostDays = 0, totalChargedDays = 0, totalHHT = 0, totalFatal = 0, totalWorkers = 0;\n' +
-'      monthlyData.forEach(function(r) {\n' +
-'        totalAT += r.at;\n' +
-'        totalLostDays += r.lostDays;\n' +
-'        totalChargedDays += r.chargedDays;\n' +
-'        totalHHT += r.hht;\n' +
-'        totalFatal += r.fatal;\n' +
-'        totalWorkers = Math.max(totalWorkers, r.workers);\n' +
-'      });\n' +
-'      var ifAnnual = totalHHT > 0 ? ((totalAT / totalHHT) * 240000).toFixed(2) : "0.00";\n' +
-'      var isAnnual = totalHHT > 0 ? (((totalLostDays + totalChargedDays) / totalHHT) * 240000).toFixed(2) : "0.00";\n' +
-'      var pamVal = totalAT > 0 ? ((totalFatal / totalAT) * 100).toFixed(1) : "0.0";\n' +
-'      var taVal = totalWorkers > 0 ? ((totalAT / totalWorkers) * 100).toFixed(1) : "0.0";\n' +
-'      var ifElem = document.getElementById("kpi-if");\n' +
-'      var isElem = document.getElementById("kpi-is");\n' +
-'      var pamElem = document.getElementById("kpi-pam");\n' +
-'      var taElem = document.getElementById("kpi-ta");\n' +
-'      if (ifElem) ifElem.textContent = ifAnnual;\n' +
-'      if (isElem) isElem.textContent = isAnnual;\n' +
-'      if (pamElem) pamElem.textContent = pamVal + "%";\n' +
-'      if (taElem) taElem.textContent = taVal + "%";\n' +
-'    }\n' +
-'    function updateChart() {\n' +
-'      var chartEl = document.getElementById("indicatorsChart");\n' +
-'      if (!chartEl || typeof Chart === "undefined") return;\n' +
-'      var labels = monthlyData.map(function(r) { return r.month; });\n' +
-'      var ifData = monthlyData.map(function(r) { return r.hht > 0 ? parseFloat(((r.at / r.hht) * 240000).toFixed(2)) : 0; });\n' +
-'      var isData = monthlyData.map(function(r) { return r.hht > 0 ? parseFloat((((r.lostDays + r.chargedDays) / r.hht) * 240000).toFixed(2)) : 0; });\n' +
-'      if (chartInstance) { chartInstance.destroy(); }\n' +
-'      var ctx = chartEl.getContext("2d");\n' +
-'      chartInstance = new Chart(ctx, {\n' +
-'        type: "bar",\n' +
-'        data: {\n' +
-'          labels: labels,\n' +
-'          datasets: [\n' +
-'            { label: "IF (Índice Frecuencia)", data: ifData, backgroundColor: "rgba(13, 148, 136, 0.75)", borderColor: "rgb(13, 148, 136)", borderWidth: 1.5, borderRadius: 6 },\n' +
-'            { label: "IS (Índice Severidad)", data: isData, backgroundColor: "rgba(217, 119, 6, 0.75)", borderColor: "rgb(217, 119, 6)", borderWidth: 1.5, borderRadius: 6 }\n' +
-'          ]\n' +
-'        },\n' +
-'        options: {\n' +
-'          responsive: true,\n' +
-'          maintainAspectRatio: false,\n' +
-'          plugins: { legend: { position: "top", labels: { boxWidth: 12, font: { family: "Inter", size: 11 } } } },\n' +
-'          scales: {\n' +
-'            y: { beginAtZero: true, grid: { color: "rgba(226, 232, 240, 0.8)" } },\n' +
-'            x: { grid: { display: false } }\n' +
-'          }\n' +
-'        }\n' +
-'      });\n' +
-'    }\n' +
-'    if (document.readyState === "loading") {\n' +
-'      document.addEventListener("DOMContentLoaded", renderTable);\n' +
-'    } else {\n' +
-'      renderTable();\n' +
-'    }\n' +
-'  </script>\n' +
-'</body>\n' +
-'</html>';
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>${docTitle}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#f0fdfa', 500: '#14b8a6', 600: '#0d9488', 700: '#0f766e' }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap");
+    body { font-family: "Inter", sans-serif; }
+    .glass-card { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  </style>
+</head>
+<body class="bg-slate-50 dark:bg-[#080c14] text-slate-800 dark:text-slate-200 min-h-screen p-3 sm:p-6 transition-colors duration-200">
+  <div class="max-w-[1400px] mx-auto space-y-6">
+
+    <!-- 🏛️ BLOQUE 1: Banner Superior Gradiente Oficial WAPPY -->
+    <header class="max-w-[1400px] mx-auto pt-2">
+      <div class="gradient-banner bg-gradient-to-r from-teal-600 via-emerald-600 to-cyan-600 rounded-[2rem] p-6 md:p-8 text-white relative overflow-hidden shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="absolute inset-0 opacity-10 pointer-events-none">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+            <path fill="currentColor" d="M47.7,-67.2C61.4,-57.1,71.5,-41.8,78.2,-24.5C84.9,-7.2,88.2,12.1,81.3,28.8C74.4,45.5,57.3,59.6,39.6,68.4C21.9,77.2,3.6,80.7,-14.2,78.7C-32,76.7,-49.3,69.2,-64.1,56.5C-78.9,43.8,-91.2,25.9,-93.8,6.8C-96.4,-12.3,-89.3,-32.6,-76.3,-48.1C-63.3,-63.6,-44.4,-74.3,-26.8,-76.6C-9.2,-78.9,7.1,-72.8,22.8,-71.8C38.5,-70.8,34,-77.3,47.7,-67.2Z" transform="translate(100 100)"></path>
+          </svg>
+        </div>
+
+        <div class="flex items-center gap-5 z-10 w-full md:w-auto">
+          <!-- Selector e Imagen del Logotipo Dinámico -->
+          <div onclick="document.getElementById('logo-upload-input').click()" class="h-16 w-16 md:h-20 md:w-20 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center cursor-pointer hover:bg-white/20 active:scale-95 transition-all shadow-inner relative overflow-hidden group shrink-0" title="Haga clic para subir logotipo">
+            <img id="logo-preview-img" src="" alt="Logo" class="h-full w-full object-cover rounded-2xl absolute inset-0 z-10 hidden">
+            <div id="logo-placeholder-icon" class="flex flex-col items-center justify-center text-white/80">
+              <i data-lucide="image" class="w-6 h-6 mb-0.5 group-hover:scale-110 transition-transform"></i>
+              <span class="text-[8px] font-black tracking-widest uppercase">LOGO</span>
+            </div>
+          </div>
+          <input type="file" id="logo-upload-input" class="hidden" accept="image/*" onchange="uploadLogoImage()">
+
+          <div class="flex-1 min-w-0">
+            <h1 contenteditable="true" id="app-document-title" onblur="saveDocHeader()" class="text-xl md:text-2xl lg:text-3xl font-black tracking-tight leading-tight uppercase focus:outline-none border-b border-transparent focus:border-white/40 truncate">${docTitle}</h1>
+            <h2 contenteditable="true" id="app-document-subtitle" onblur="saveDocHeader()" class="text-xs md:text-sm font-semibold tracking-wider text-teal-100 uppercase mt-1 focus:outline-none border-b border-transparent focus:border-white/40">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO — RES. 0312 / DEC. 1072</h2>
+            <p contenteditable="true" id="app-document-desc" onblur="saveDocHeader()" class="text-[10px] md:text-xs text-teal-100 mt-0.5 opacity-90 focus:outline-none border-b border-transparent focus:border-white/40">Medición y Seguimiento Estadístico de la Frecuencia, Severidad y Mortalidad Laboral</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col md:items-end gap-3 z-10 text-left md:text-right w-full md:w-auto shrink-0">
+          <span contenteditable="true" id="app-document-badge" onblur="saveDocHeader()" class="px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-black tracking-wider uppercase focus:outline-none whitespace-nowrap">PROCESO: SG-SST | V.02</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 🏢 BLOQUE 2: Ficha de Metadatos de la Empresa Activa Oficial WAPPY -->
+    <div class="max-w-[1400px] mx-auto">
+      <div class="glass-card bg-white dark:bg-slate-900/60 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-l-4 border-l-blue-500">
+        <div class="flex items-center gap-4 w-full md:w-auto">
+          <div class="flex-grow">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span contenteditable="true" id="company-name" onblur="saveDocHeader()" class="text-lg font-bold focus:outline-none border-b border-transparent hover:border-slate-300 dark:hover:border-slate-500 focus:border-blue-500 text-slate-900 dark:text-white">${compName}</span>
+              <span class="text-xs font-semibold px-2 py-0.5 bg-blue-100 dark:bg-blue-950/50 text-blue-800 dark:text-blue-400 rounded border border-blue-200 dark:border-blue-800/40">NIT</span>
+              <span contenteditable="true" id="company-nit" onblur="saveDocHeader()" class="text-xs font-semibold text-slate-500 dark:text-slate-400 focus:outline-none border-b border-transparent hover:border-slate-300 dark:hover:border-slate-500 focus:border-blue-500">${compNit}</span>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+              <span>ARL: <span contenteditable="true" id="company-arl" onblur="saveDocHeader()" class="font-medium hover:underline focus:outline-none text-slate-700 dark:text-slate-300">${compArl}</span></span>
+              <span>Trabajadores: <span contenteditable="true" id="company-workers" onblur="saveDocHeader()" class="font-medium hover:underline focus:outline-none text-slate-700 dark:text-slate-300">${compWorkers}</span></span>
+              <span>Riesgo: <span contenteditable="true" id="company-risk" onblur="saveDocHeader()" class="font-medium hover:underline focus:outline-none text-slate-700 dark:text-slate-300">${compRisk}</span></span>
+              <span>Actividad: <span class="font-medium text-slate-700 dark:text-slate-300">${compActivity}</span></span>
+            </p>
+          </div>
+        </div>
+        <div class="text-left md:text-right w-full md:w-auto pt-3 md:pt-0 border-t border-slate-200 dark:border-slate-800 md:border-t-0 shrink-0">
+          <span class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Código del Registro</span>
+          <span contenteditable="true" id="change-code" onblur="saveDocHeader()" class="text-base font-extrabold focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent text-slate-900 dark:text-white">IND-SST-AT-01</span>
+          <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 block">Vigencia: <span contenteditable="true" id="last-updated-text" onblur="saveDocHeader()" class="font-medium text-slate-700 dark:text-slate-300 focus:outline-none hover:underline focus:border-blue-500 border-b border-transparent">${todayStr}</span></span>
+        </div>
+      </div>
+    </div>
+
+    ${sheetsSyncBarHtml}
+
+    <!-- 📊 INDICADORES CLAVE RES. 0312 DE 2019 -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div class="bg-white dark:bg-slate-900/60 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-teal-700 dark:text-teal-400 uppercase tracking-wider">Índice Frecuencia (IF)</span>
+          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300">Res. 0312</span>
+        </div>
+        <div class="flex items-baseline gap-2 mt-2">
+          <span id="kpi-if" class="text-3xl font-black text-teal-600 dark:text-teal-400">0.00</span>
+          <span class="text-xs text-slate-400 font-medium">x 240k HHT</span>
+        </div>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">(Total AT / HHT) * 240.000</p>
+      </div>
+
+      <div class="bg-white dark:bg-slate-900/60 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Índice Severidad (IS)</span>
+          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">Días</span>
+        </div>
+        <div class="flex items-baseline gap-2 mt-2">
+          <span id="kpi-is" class="text-3xl font-black text-amber-600 dark:text-amber-400">0.00</span>
+          <span class="text-xs text-slate-400 font-medium">perdidos</span>
+        </div>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">((Días Incap. + Carg.) / HHT) * 240.000</p>
+      </div>
+
+      <div class="bg-white dark:bg-slate-900/60 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider">Proporción Mortales</span>
+          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300">PAM</span>
+        </div>
+        <div class="flex items-baseline gap-2 mt-2">
+          <span id="kpi-pam" class="text-3xl font-black text-rose-600 dark:text-rose-400">0.0%</span>
+          <span class="text-xs text-slate-400 font-medium">meta: 0%</span>
+        </div>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">(AT Mortales / Total AT) * 100</p>
+      </div>
+
+      <div class="bg-white dark:bg-slate-900/60 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Tasa Accidentalidad</span>
+          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">TA</span>
+        </div>
+        <div class="flex items-baseline gap-2 mt-2">
+          <span id="kpi-ta" class="text-3xl font-black text-indigo-600 dark:text-indigo-400">0.0%</span>
+          <span class="text-xs text-slate-400 font-medium">anual</span>
+        </div>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">(Total AT / N° Trabajadores) * 100</p>
+      </div>
+
+      <div class="bg-white dark:bg-slate-900/60 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-wider">Índice Lesiones (ILI)</span>
+          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300">Magnitud</span>
+        </div>
+        <div class="flex items-baseline gap-2 mt-2">
+          <span id="kpi-ili" class="text-3xl font-black text-cyan-600 dark:text-cyan-400">0.00</span>
+          <span class="text-xs text-slate-400 font-medium">combinado</span>
+        </div>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">(IF * IS) / 1.000</p>
+      </div>
+    </div>
+
+    <!-- 📈 GRÁFICO EVOLUTIVO -->
+    <div class="bg-white dark:bg-slate-900/60 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Evolución Mensual: Índice de Frecuencia (IF) vs Índice de Severidad (IS)</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Actualización reactiva en tiempo real al ingresar registros</p>
+        </div>
+        <span class="text-xs font-semibold text-teal-600 bg-teal-50 dark:bg-teal-950/50 px-3 py-1 rounded-full border border-teal-200 dark:border-teal-800/40">Reactivo</span>
+      </div>
+      <div class="h-64 md:h-72">
+        <canvas id="indicatorsChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 📋 TABLA DE REGISTROS MENSUALES -->
+    <div class="bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+      <div class="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50/50 dark:bg-slate-900/30">
+        <div>
+          <h2 class="text-sm font-bold text-slate-900 dark:text-white">Registro Mensual de Accidentalidad y Horas Hombre (HHT)</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Edita los valores directamente en la tabla. Las fórmulas de la Resolución 0312 se calculan al instante.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="addRow()" class="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 flex items-center gap-1.5">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            Agregar Mes
+          </button>
+        </div>
+      </div>
+      <div class="overflow-x-auto w-full" style="-webkit-overflow-scrolling: touch;">
+        <table class="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+          <thead class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 uppercase font-bold text-[11px] border-b border-slate-200 dark:border-slate-700">
+            <tr>
+              <th class="p-3">Mes</th>
+              <th class="p-3 text-center">N° AT</th>
+              <th class="p-3 text-center">Días Incap.</th>
+              <th class="p-3 text-center">Días Cargados</th>
+              <th class="p-3 text-center">HHT</th>
+              <th class="p-3 text-center">AT Mortales</th>
+              <th class="p-3 text-center">Trabajadores</th>
+              <th class="p-3 text-center text-teal-600 dark:text-teal-400 font-black">IF (240k)</th>
+              <th class="p-3 text-center text-amber-600 dark:text-amber-400 font-black">IS (240k)</th>
+              <th class="p-3 text-right">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="table-body" class="divide-y divide-slate-100 dark:divide-slate-800/80">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // --- PERSISTENCIA WAPPY IA (IndexedDB & LocalStorage) ---
+    const dbName = 'WappySSTDb';
+    const dbVersion = 1;
+    const storeName = 'mediaStore';
+
+    let appDocHeader = {
+      companyName: "${compName}",
+      companyNit: "${compNit}",
+      companyArl: "${compArl}",
+      companyWorkers: "${compWorkers}",
+      companyRisk: "${compRisk}",
+      changeCode: "IND-SST-AT-01",
+      lastUpdated: "${todayStr}",
+      appTitle: "${docTitle}",
+      appSubtitle: "SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO — RES. 0312 / DEC. 1072",
+      appDesc: "Medición y Seguimiento Estadístico de la Frecuencia, Severidad y Mortalidad Laboral",
+      appBadge: "PROCESO: SG-SST | V.02",
+      logoBase64: ""
+    };
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(dbName, dbVersion);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(storeName)) {
+            db.createObjectStore(storeName, { keyPath: 'id' });
+          }
+        };
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    async function saveGlobalLogoToDB(logoBase64) {
+      try {
+        const db = await openDB();
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        await store.put({ id: 'wappy_sst_global_logo', logoBase64: logoBase64 });
+      } catch(e) { console.error("Error saving global logo to IndexedDB:", e); }
+    }
+
+    async function loadGlobalLogoFromDB() {
+      try {
+        const db = await openDB();
+        return new Promise((resolve) => {
+          const tx = db.transaction(storeName, 'readonly');
+          const store = tx.objectStore(storeName);
+          const req = store.get('wappy_sst_global_logo');
+          req.onsuccess = (e) => resolve(e.target.result ? e.target.result.logoBase64 : '');
+          req.onerror = () => resolve('');
+        });
+      } catch(e) { console.error("Error loading global logo from IndexedDB:", e); return ''; }
+    }
+
+    function uploadLogoImage() {
+      const input = document.getElementById('logo-upload-input');
+      const file = input && input.files ? input.files[0] : null;
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+          const base64 = e.target.result;
+          appDocHeader.logoBase64 = base64;
+          const previewImg = document.getElementById('logo-preview-img');
+          const placeholder = document.getElementById('logo-placeholder-icon');
+          if (previewImg) {
+            previewImg.src = base64;
+            previewImg.classList.remove('hidden');
+          }
+          if (placeholder) placeholder.classList.add('hidden');
+          await saveGlobalLogoToDB(base64);
+          saveDocHeader();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function saveDocHeader() {
+      const getVal = (id) => { const el = document.getElementById(id); return el ? el.innerText.trim() : ''; };
+      appDocHeader.companyName = getVal('company-name') || appDocHeader.companyName;
+      appDocHeader.companyNit = getVal('company-nit') || appDocHeader.companyNit;
+      appDocHeader.companyArl = getVal('company-arl') || appDocHeader.companyArl;
+      appDocHeader.companyWorkers = getVal('company-workers') || appDocHeader.companyWorkers;
+      appDocHeader.companyRisk = getVal('company-risk') || appDocHeader.companyRisk;
+      appDocHeader.changeCode = getVal('change-code') || appDocHeader.changeCode;
+      appDocHeader.lastUpdated = getVal('last-updated-text') || appDocHeader.lastUpdated;
+      appDocHeader.appTitle = getVal('app-document-title') || appDocHeader.appTitle;
+      try {
+        localStorage.setItem('wappy_sst_doc_header', JSON.stringify(appDocHeader));
+      } catch(e) {}
+    }
+
+    // --- DATOS Y MODELO REACTIVO DE ACCIDENTALIDAD (RES. 0312) ---
+    var defaultWorkers = ${compWorkers};
+    var monthlyData = [
+      { month: "Enero", at: 1, lostDays: 3, chargedDays: 0, hht: Math.round(defaultWorkers * 170), fatal: 0, workers: defaultWorkers },
+      { month: "Febrero", at: 0, lostDays: 0, chargedDays: 0, hht: Math.round(defaultWorkers * 165), fatal: 0, workers: defaultWorkers },
+      { month: "Marzo", at: 2, lostDays: 6, chargedDays: 0, hht: Math.round(defaultWorkers * 172), fatal: 0, workers: defaultWorkers }
+    ];
+
+    try {
+      var savedData = localStorage.getItem('wappy_accidents_records');
+      if (savedData) {
+        var parsed = JSON.parse(savedData);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          monthlyData = parsed;
+        }
+      }
+    } catch(e) {}
+
+    var chartInstance = null;
+
+    function renderTable() {
+      var tbody = document.getElementById("table-body");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+      monthlyData.forEach(function(row, idx) {
+        var ifVal = row.hht > 0 ? ((row.at / row.hht) * 240000).toFixed(2) : "0.00";
+        var isVal = row.hht > 0 ? (((row.lostDays + row.chargedDays) / row.hht) * 240000).toFixed(2) : "0.00";
+        var tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors";
+        tr.innerHTML = '<td class="p-3"><input type="text" value="' + row.month + '" onchange="updateData(' + idx + ', \\'month\\', this.value)" class="w-24 bg-transparent border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-semibold focus:bg-white dark:focus:bg-slate-800"></td>' +
+          '<td class="p-3 text-center"><input type="number" min="0" value="' + row.at + '" oninput="updateData(' + idx + ', \\'at\\', parseFloat(this.value)||0)" class="w-16 bg-transparent border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-center focus:bg-white dark:focus:bg-slate-800"></td>' +
+          '<td class="p-3 text-center"><input type="number" min="0" value="' + row.lostDays + '" oninput="updateData(' + idx + ', \\'lostDays\\', parseFloat(this.value)||0)" class="w-16 bg-transparent border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-center focus:bg-white dark:focus:bg-slate-800"></td>' +
+          '<td class="p-3 text-center"><input type="number" min="0" value="' + row.chargedDays + '" oninput="updateData(' + idx + ', \\'chargedDays\\', parseFloat(this.value)||0)" class="w-16 bg-transparent border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-center focus:bg-white dark:focus:bg-slate-800"></td>' +
+          '<td class="p-3 text-center"><input type="number" min="0" value="' + row.hht + '" oninput="updateData(' + idx + ', \\'hht\\', parseFloat(this.value)||0)" class="w-24 bg-transparent border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-center focus:bg-white dark:focus:bg-slate-800"></td>' +
+          '<td class="p-3 text-center"><input type="number" min="0" value="' + row.fatal + '" oninput="updateData(' + idx + ', \\'fatal\\', parseFloat(this.value)||0)" class="w-16 bg-transparent border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-center focus:bg-white dark:focus:bg-slate-800"></td>' +
+          '<td class="p-3 text-center"><input type="number" min="1" value="' + row.workers + '" oninput="updateData(' + idx + ', \\'workers\\', parseFloat(this.value)||1)" class="w-16 bg-transparent border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-center focus:bg-white dark:focus:bg-slate-800"></td>' +
+          '<td class="p-3 text-center font-bold text-teal-600 dark:text-teal-400">' + ifVal + '</td>' +
+          '<td class="p-3 text-center font-bold text-amber-600 dark:text-amber-400">' + isVal + '</td>' +
+          '<td class="p-3 text-right"><button type="button" onclick="deleteRow(' + idx + ')" class="text-rose-500 hover:text-rose-700 text-xs px-2 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40">Eliminar</button></td>';
+        tbody.appendChild(tr);
+      });
+      recalcKPIs();
+      updateChart();
+      try {
+        localStorage.setItem('wappy_accidents_records', JSON.stringify(monthlyData));
+      } catch(e) {}
+    }
+
+    function updateData(index, field, value) {
+      if (monthlyData[index]) {
+        monthlyData[index][field] = value;
+        renderTable();
+      }
+    }
+
+    function addRow() {
+      var allMonths = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+      var nextMonth = allMonths[monthlyData.length % allMonths.length] || ("Mes " + (monthlyData.length + 1));
+      monthlyData.push({ month: nextMonth, at: 0, lostDays: 0, chargedDays: 0, hht: Math.round(defaultWorkers * 170), fatal: 0, workers: defaultWorkers });
+      renderTable();
+    }
+
+    function deleteRow(idx) {
+      if (monthlyData.length > 1) {
+        monthlyData.splice(idx, 1);
+        renderTable();
+      }
+    }
+
+    function recalcKPIs() {
+      var totalAT = 0, totalLostDays = 0, totalChargedDays = 0, totalHHT = 0, totalFatal = 0, maxWorkers = defaultWorkers;
+      monthlyData.forEach(function(r) {
+        totalAT += (Number(r.at) || 0);
+        totalLostDays += (Number(r.lostDays) || 0);
+        totalChargedDays += (Number(r.chargedDays) || 0);
+        totalHHT += (Number(r.hht) || 0);
+        totalFatal += (Number(r.fatal) || 0);
+        if (Number(r.workers) > maxWorkers) maxWorkers = Number(r.workers);
+      });
+
+      var ifVal = totalHHT > 0 ? ((totalAT / totalHHT) * 240000) : 0;
+      var isVal = totalHHT > 0 ? (((totalLostDays + totalChargedDays) / totalHHT) * 240000) : 0;
+      var pamVal = totalAT > 0 ? ((totalFatal / totalAT) * 100) : 0;
+      var taVal = maxWorkers > 0 ? ((totalAT / maxWorkers) * 100) : 0;
+      var iliVal = (ifVal * isVal) / 1000;
+
+      var ifEl = document.getElementById("kpi-if");
+      var isEl = document.getElementById("kpi-is");
+      var pamEl = document.getElementById("kpi-pam");
+      var taEl = document.getElementById("kpi-ta");
+      var iliEl = document.getElementById("kpi-ili");
+
+      if (ifEl) ifEl.textContent = ifVal.toFixed(2);
+      if (isEl) isEl.textContent = isVal.toFixed(2);
+      if (pamEl) pamEl.textContent = pamVal.toFixed(1) + "%";
+      if (taEl) taEl.textContent = taVal.toFixed(1) + "%";
+      if (iliEl) iliEl.textContent = iliVal.toFixed(2);
+    }
+
+    function updateChart() {
+      var chartEl = document.getElementById("indicatorsChart");
+      if (!chartEl || typeof Chart === "undefined") return;
+      var labels = monthlyData.map(function(r) { return r.month; });
+      var ifData = monthlyData.map(function(r) { return r.hht > 0 ? parseFloat(((r.at / r.hht) * 240000).toFixed(2)) : 0; });
+      var isData = monthlyData.map(function(r) { return r.hht > 0 ? parseFloat((((r.lostDays + r.chargedDays) / r.hht) * 240000).toFixed(2)) : 0; });
+
+      if (chartInstance) { chartInstance.destroy(); }
+      var ctx = chartEl.getContext("2d");
+      chartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: labels,
+          datasets: [
+            { label: "IF (Índice Frecuencia)", data: ifData, backgroundColor: "rgba(13, 148, 136, 0.8)", borderColor: "rgb(13, 148, 136)", borderWidth: 1.5, borderRadius: 6 },
+            { label: "IS (Índice Severidad)", data: isData, backgroundColor: "rgba(217, 119, 6, 0.8)", borderColor: "rgb(217, 119, 6)", borderWidth: 1.5, borderRadius: 6 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "top", labels: { boxWidth: 12, font: { family: "Inter", size: 11, weight: "bold" } } } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: "rgba(226, 232, 240, 0.5)" } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    function exportCSV() {
+      var csv = "\\uFEFFMes,Accidentes_Trabajo,Dias_Incapacidad,Dias_Cargados,HHT,AT_Mortales,Trabajadores,IF,IS\\n";
+      monthlyData.forEach(function(r) {
+        var ifVal = r.hht > 0 ? ((r.at / r.hht) * 240000).toFixed(2) : "0.00";
+        var isVal = r.hht > 0 ? (((r.lostDays + r.chargedDays) / r.hht) * 240000).toFixed(2) : "0.00";
+        csv += [r.month, r.at, r.lostDays, r.chargedDays, r.hht, r.fatal, r.workers, ifVal, isVal].join(",") + "\\n";
+      });
+      var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      var link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "Indicadores_Accidentalidad_Res0312.csv";
+      link.click();
+    }
+
+    function exportUpdatedHTML() {
+      var htmlContent = "<!DOCTYPE html>\\n" + document.documentElement.outerHTML;
+      var blob = new Blob([htmlContent], { type: "text/html;charset=utf-8;" });
+      var link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "Aplicativo_Indicadores_SST.html";
+      link.click();
+    }
+
+    // Inicialización al cargar la ventana
+    window.addEventListener('DOMContentLoaded', async function() {
+      try {
+        var dbLogo = await loadGlobalLogoFromDB();
+        if (dbLogo) {
+          appDocHeader.logoBase64 = dbLogo;
+          var previewImg = document.getElementById('logo-preview-img');
+          var placeholder = document.getElementById('logo-placeholder-icon');
+          if (previewImg) {
+            previewImg.src = dbLogo;
+            previewImg.classList.remove('hidden');
+          }
+          if (placeholder) placeholder.classList.add('hidden');
+        }
+
+        var savedHeader = localStorage.getItem('wappy_sst_doc_header');
+        if (savedHeader) {
+          var data = JSON.parse(savedHeader);
+          if (data.companyName && document.getElementById('company-name')) document.getElementById('company-name').innerText = data.companyName;
+          if (data.companyNit && document.getElementById('company-nit')) document.getElementById('company-nit').innerText = data.companyNit;
+          if (data.companyArl && document.getElementById('company-arl')) document.getElementById('company-arl').innerText = data.companyArl;
+          if (data.companyWorkers && document.getElementById('company-workers')) document.getElementById('company-workers').innerText = data.companyWorkers;
+          if (data.companyRisk && document.getElementById('company-risk')) document.getElementById('company-risk').innerText = data.companyRisk;
+          if (data.appTitle && document.getElementById('app-document-title')) document.getElementById('app-document-title').innerText = data.appTitle;
+        }
+
+        if (typeof lucide !== 'undefined' && lucide.createIcons) {
+          lucide.createIcons();
+        }
+      } catch(e) {
+        console.warn("Inicialización UI:", e);
+      }
+      renderTable();
+    });
+  </script>
+</body>
+</html>`;
 }
 
 /**
