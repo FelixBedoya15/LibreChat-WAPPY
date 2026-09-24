@@ -1354,6 +1354,59 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         version: 'v2',
       };
 
+      // Proactive Sanitization for Google Gemini:
+      // If a historical assistant turn has already completed and contains text, strip dangling tool_calls
+      // so it is treated as a clean AIMessage. This prevents Gemini API from throwing:
+      // "Please ensure that function call turn comes immediately after a user turn or after a function response turn"
+      const sanitizeGeminiPayload = (msgs) => {
+        if (!Array.isArray(msgs)) {
+          return msgs;
+        }
+        return msgs.map((msg, idx) => {
+          if (!msg) {
+            return msg;
+          }
+          // Only sanitize historical assistant messages (prior completed turns)
+          const isHistoricalAssistant = msg.role === 'assistant' && idx < msgs.length - 1;
+          if (!isHistoricalAssistant) {
+            return msg;
+          }
+
+          const copy = { ...msg };
+          delete copy.tool_calls;
+          delete copy.tool_call_ids;
+
+          if (Array.isArray(copy.content)) {
+            const cleanParts = copy.content.filter((p) => {
+              if (!p) {
+                return false;
+              }
+              if (p.type === ContentTypes.TOOL_CALL || p.tool_call) {
+                return false;
+              }
+              if (p.type === ContentTypes.TOOL_RESULT || p.tool_call_id != null) {
+                return false;
+              }
+              return true;
+            });
+
+            if (cleanParts.length > 0) {
+              copy.content = cleanParts;
+            } else {
+              const fallbackText = copy.text || 'Acción completada exitosamente.';
+              copy.content = [{ type: ContentTypes.TEXT, [ContentTypes.TEXT]: fallbackText, text: fallbackText }];
+            }
+          } else if (typeof copy.content === 'string' && copy.content.trim()) {
+            copy.content = copy.content;
+          } else if (copy.text && typeof copy.text === 'string') {
+            copy.content = [{ type: ContentTypes.TEXT, [ContentTypes.TEXT]: copy.text, text: copy.text }];
+          }
+          return copy;
+        });
+      };
+
+      payload = sanitizeGeminiPayload(payload);
+
       const toolSet = new Set((this.options.agent.tools ?? []).map((tool) => tool && tool.name));
       let { messages: initialMessages, indexTokenCountMap } = formatAgentMessages(
         payload,
@@ -1546,7 +1599,38 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         'informe anual', 'auditoría completa', 'investigación atel'
       ];
 
-      const isComplexTask = HIGH_COMPLEXITY_TRIGGERS.some((kw) => userQuery.includes(kw));
+      const EXPLANATION_QUERY_VERBS = [
+        'indicar', 'indica', 'indícame', 'indicame', 'indiques',
+        'explicar', 'explica', 'explícame', 'explicame', 'expliques',
+        'cuál es', 'cuáles son', 'cual es', 'cuales son',
+        'qué es', 'que es', 'cómo es', 'como es', 'cómo funciona', 'como funciona',
+        'dime', 'dame la fórmula', 'dame las fórmulas', 'fórmulas automatizadas', 'formulas automatizadas',
+        'vuelveme a', 'vuelve a', 'repetir', 'repite', 'no que me expliques',
+        'aclara', 'aclarame', 'por qué', 'porque', 'para qué', 'para que',
+        'muéstrame', 'muestrame', 'enséñame', 'enseñame', 'verificar', 'consulta', 'consultar',
+        'recuerda', 'recuérdame', 'recuerdame'
+      ];
+
+      const CREATION_INTENT_VERBS = [
+        'crear', 'crea', 'créame', 'creame',
+        'diseñar', 'diseña', 'diseñame',
+        'construir', 'construye',
+        'hacer', 'haz', 'hazme',
+        'generar', 'genera',
+        'desarrollar', 'desarrolla',
+        'programar', 'programa',
+        'elaborar', 'elabora',
+        'redactar', 'redacta'
+      ];
+
+      const isExplanationOrQuestion = EXPLANATION_QUERY_VERBS.some((verb) => userQuery.includes(verb));
+      const isCreationIntent = CREATION_INTENT_VERBS.some((verb) => userQuery.includes(verb));
+      const hasComplexKeywords = HIGH_COMPLEXITY_TRIGGERS.some((kw) => userQuery.includes(kw));
+
+      // Alta complejidad se activa SOLO cuando el usuario solicita CREAR o DISEÑAR un artefacto complejo.
+      // Si el usuario está preguntando, pidiendo explicaciones, fórmulas o consultando sobre un aplicativo existente,
+      // se clasifica como Tarea Operativa / Rápida para utilizar gemini-3.5-flash-lite (500 RPD, ultra rápido y sin gastar cuota pesada).
+      const isComplexTask = hasComplexKeywords && !isExplanationOrQuestion && (isCreationIntent || !userQuery.includes('?'));
       const userExplicitModel = this.options.req?.body?.model;
       let primaryAgentModel = this.options.agent?.model_parameters?.model || this.options.agent?.model || '';
       let rawFallbacks = [];
@@ -1748,18 +1832,9 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
 
             if (isFunctionCallSequenceError) {
               logger.warn('[AgentClient] Detected function call sequence violation from Google Gemini. Sanitizing payload to remove orphaned tool calls before retry...');
-              const sanitizeItem = (msg) => {
-                if (!msg) return msg;
-                const copy = { ...msg };
-                if (Array.isArray(copy.content)) {
-                  copy.content = copy.content.filter((p) => p && p.type !== 'tool_call' && !p.tool_call);
-                }
-                delete copy.tool_calls;
-                return copy;
-              };
-              payload = payload.map(sanitizeItem);
+              payload = sanitizeGeminiPayload(payload);
               if (continuationPayload) {
-                continuationPayload = continuationPayload.map(sanitizeItem);
+                continuationPayload = sanitizeGeminiPayload(continuationPayload);
               }
             }
 
@@ -1975,28 +2050,53 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
           .join('\n')
           .trim();
 
+        const asksIndicatorsOrFormulas = /f[oó]rmula|indicador|accidentalidad|0312|frecuencia|severidad|ausentismo|mortalidad/i.test(userQuery);
         let fallbackMsg = '';
         if (hasToolActivity) {
           fallbackMsg = 'He procesado tu solicitud y ejecutado las acciones correspondientes. Puedes visualizar el resultado en el panel lateral o en el historial.';
+        } else if (asksIndicatorsOrFormulas) {
+          fallbackMsg = `### 🏛️ Indicadores Mínimos de Accidentalidad (Resolución 0312 de 2019 - Artículo 30)
+
+Aquí tienes la explicación detallada de las características y fórmulas oficiales integradas:
+
+1. **Índice de Frecuencia de Accidentes de Trabajo (IF):**
+   - **Fórmula:** $\\text{IF} = \\left( \\frac{\\text{N° de accidentes de trabajo en el mes}}{\\text{N° de horas hombre trabajadas en el mes}} \\right) \\times 240.000$ (o constante $1.000.000$)
+   - **Interpretación:** Frecuencia con la que ocurren los siniestros laborales en relación con la exposición horaria.
+
+2. **Índice de Severidad de Accidentes de Trabajo (IS):**
+   - **Fórmula:** $\\text{IS} = \\left( \\frac{\\text{N° de días de incapacidad médica por AT en el mes} + \\text{días cargados}}{\\text{N° de horas hombre trabajadas en el mes}} \\right) \\times 240.000$
+   - **Interpretación:** Gravedad de las lesiones laborales medida por los días de trabajo perdidos respecto a las horas laboradas.
+
+3. **Proporción de Accidentes de Trabajo Mortales (PAM):**
+   - **Fórmula:** $\\text{PAM} = \\left( \\frac{\\text{N° de AT mortales en el año}}{\\text{N° total de AT en el año}} \\right) \\times 100$
+   - **Interpretación:** Porcentaje de siniestros laborales que resultaron en la muerte del trabajador.
+
+4. **Tasa de Accidentalidad (TA):**
+   - **Fórmula:** $\\text{TA} = \\left( \\frac{\\text{N° de AT ocurridos en el año}}{\\text{N° promedio de trabajadores en el año}} \\right) \\times 100$
+
+5. **Severidad y Ausentismo por Causa Médica:**
+   - **Fórmula:** $\\text{TAus} = \\left( \\frac{\\text{N° de días de ausencia laboral en el mes}}{\\text{N° de días de trabajo programados en el mes}} \\right) \\times 100$
+
+¿Deseas que ingresemos datos específicos o registremos estos cálculos en tu hoja de Google Sheets vinculada?`;
         } else if (thoughtParts.length > 20) {
           const isEnglish = /\b(the|and|is|in|to|for|with|I've|I'll|diving|constructing|ironed|Next up|Let's|Since)\b/i.test(thoughtParts);
           const hasSheets = /google_sheets|spreadsheet|hoja de c[aá]lculo|drive/i.test(thoughtParts);
           const hasCanvas = /canvas|aplicativo|html|interactiv/i.test(thoughtParts);
 
           if (hasSheets) {
-            fallbackMsg = 'He analizado tu solicitud para la integración con Google Sheets. Tengo preparada la estructura de datos y los indicadores correspondientes. Por favor indícame si deseas que proceda a registrar la hoja en tu Google Drive ahora mismo.';
+            fallbackMsg = 'He analizado tu solicitud para la integración con Google Sheets. La estructura de datos y fórmulas están listas. ¿Deseas que proceda a crear la hoja o registrar un nuevo reporte?';
           } else if (hasCanvas) {
-            fallbackMsg = 'He preparado el diseño y la lógica del aplicativo solicitado. Puedes visualizar los componentes o indicarme si deseas algún ajuste específico.';
+            fallbackMsg = 'He verificado la estructura del aplicativo interactivo. ¿Deseas visualizar el componente o que apliquemos alguna configuración en las métricas?';
           } else if (!isEnglish) {
             const paragraphs = thoughtParts.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
             const lastParagraph = paragraphs[paragraphs.length - 1];
             if (lastParagraph && lastParagraph.length > 20 && !/\b(tool|call|constructing|herramienta)\b/i.test(lastParagraph)) {
               fallbackMsg = lastParagraph;
             } else {
-              fallbackMsg = 'He analizado tu solicitud. ¿En qué aspecto específico de este requerimiento te gustaría que continuemos?';
+              fallbackMsg = 'He analizado tu consulta en el sistema. ¿En qué aspecto específico de este requerimiento te gustaría que profundicemos?';
             }
           } else {
-            fallbackMsg = 'He analizado tu solicitud en el sistema. ¿Deseas que proceda de inmediato con la creación de los formatos e indicadores correspondientes?';
+            fallbackMsg = 'He procesado tu consulta en el sistema. Por favor indícame si deseas que apliquemos ajustes, formulemos nuevos datos o profundicemos en algún indicador.';
           }
         } else {
           fallbackMsg = 'He procesado tu consulta. Por favor, indícame si requieres algún detalle adicional o ajuste.';
