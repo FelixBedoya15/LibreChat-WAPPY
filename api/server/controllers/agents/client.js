@@ -2402,6 +2402,10 @@ Aquí tienes la explicación detallada de las características y fórmulas ofici
         );
       });
 
+      if (!titleResult?.title) {
+        return;
+      }
+
       return sanitizeTitle(titleResult.title);
     } catch (err) {
       logger.error('[api/server/controllers/agents/client.js #titleConvo] Error after generating title', err);
