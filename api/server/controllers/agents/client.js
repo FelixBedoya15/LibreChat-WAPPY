@@ -1508,20 +1508,45 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         .filter(Boolean)
         .filter((m) => !m.includes('native-audio') && !m.includes('-live-') && !m.includes('-transcribe') && !m.includes('live-preview'));
       
-      // WAPPY Brain Router: Selección táctica de modelo según el tipo de requerimiento
+      // WAPPY Brain Router: Caracterización y selección táctica de modelo según complejidad de herramientas y tarea
       let userQuery = (this.options.req?.body?.text || '').toLowerCase();
       if (!userQuery && Array.isArray(this.options.req?.body?.messages) && this.options.req.body.messages.length > 0) {
         const lastMsg = this.options.req.body.messages[this.options.req.body.messages.length - 1];
         userQuery = (lastMsg?.text || lastMsg?.content || '').toLowerCase();
       }
 
-      const isComplexDesignOrCanvas = [
+      // Herramientas y tareas de ALTA COMPLEJIDAD (Requieren razonamiento profundo / generación extensa de código):
+      // - Canvas & Editor Live (HTML5, Tailwind, interactividad, apps web)
+      // - Matriz IPEVAR (GTC 45, cálculos de probabilidad, consecuencia y controles)
+      // - Matriz PESV (Res. 20223040040595, 24 pasos de seguridad vial)
+      // - Matriz de Compatibilidad Química (SGA, UN, almacenamiento seguro de reactivos)
+      // - Editor RIT (Reglamento Interno de Trabajo, CST, descargos y sanciones legales)
+      // - Blog Editor (Artículos largos estructurados, SEO y AEO)
+      // - Informes técnicos periciales, actas y contratos complejos
+      const HIGH_COMPLEXITY_TRIGGERS = [
+        // Canvas & Aplicativos
         'aplicativo', 'dashboard', 'canvas', 'lienzo', 'interactivo', 'calculadora',
-        'diseñar', 'diseña', 'redactar', 'redacte', 'crear carta', 'crea una carta',
-        'crear acta', 'crea un acta', 'crear contrato', 'crea un contrato',
-        'crear plantilla', 'diseñar plantilla', 'informe anual', 'matriz ipevar', 'matriz pesv'
-      ].some((kw) => userQuery.includes(kw));
+        'diseñar', 'diseña', 'interfaz', 'componente html',
+        // Matriz IPEVAR (GTC 45)
+        'matriz ipevar', 'ipevar', 'gtc 45', 'gtc-45', 'matriz de peligros', 'identificación de peligros',
+        'evaluación de riesgos', 'valoración de riesgos',
+        // Matriz PESV (Seguridad Vial)
+        'matriz pesv', 'pesv', 'seguridad vial', 'plan estratégico de seguridad vial', '20223040040595',
+        // Matriz Compatibilidad Química
+        'matriz de compatibilidad', 'matriz compatibilidad', 'compatibilidad química', 'sustancias químicas',
+        'almacenamiento químico', 'sga', 'pictogramas sga', 'hoja de seguridad', 'fds',
+        // Legal & RIT (CST)
+        'editor_rit', 'reglamento interno', 'reglamento de trabajo', 'rit', 'código sustantivo',
+        'proceso disciplinario', 'descargos', 'escala de faltas',
+        // Blog Editor
+        'blog_editor', 'redactar artículo', 'artículo de blog', 'publicar en blog', 'post de blog',
+        // Documentos Extensos / Plantillas / Auditorías
+        'redactar', 'redacte', 'crear carta', 'crea una carta', 'crear acta', 'crea un acta',
+        'crear contrato', 'crea un contrato', 'crear plantilla', 'diseñar plantilla',
+        'informe anual', 'auditoría completa', 'investigación atel'
+      ];
 
+      const isComplexTask = HIGH_COMPLEXITY_TRIGGERS.some((kw) => userQuery.includes(kw));
       const userExplicitModel = this.options.req?.body?.model;
       let primaryAgentModel = this.options.agent?.model_parameters?.model || this.options.agent?.model || '';
       let rawFallbacks = [];
@@ -1532,21 +1557,23 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       } else if (userExplicitModel && userExplicitModel !== 'default' && userExplicitModel !== '') {
         primaryAgentModel = userExplicitModel;
         rawFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
-        logger.info(`[WAPPY Brain Router] Modelo explícito seleccionado por usuario: "${primaryAgentModel}"`);
-      } else if (isComplexDesignOrCanvas) {
-        // Tarea de diseño / Canvas / maquetación pesada: arrancar con modelo de máxima capacidad
+        logger.info(`[WAPPY Brain Router] Modelo explícito del usuario: "${primaryAgentModel}"`);
+      } else if (isComplexTask) {
+        // Tarea de Alta Complejidad (Canvas / Matrices GTC 45, PESV, Químicos / RIT / Blog):
+        // Prioridad: gemini-3.8-flash -> gemini-3.7-flash -> gemini-3.6-flash -> gemini-3.5-flash -> gemini-3.5-flash-lite
         if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe')) {
           primaryAgentModel = envAgentModels[0] || 'gemini-3.8-flash';
         }
         rawFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
-        logger.info(`[WAPPY Brain Router] Tarea de Diseño/Canvas detectada. Modelo prioritario: "${primaryAgentModel}"`);
+        logger.info(`[WAPPY Brain Router] [ALTA COMPLEJIDAD] Tarea técnica/diseño detectada. Modelo prioritario: "${primaryAgentModel}" (Razonamiento profundo)`);
       } else {
-        // Tarea operativa / Google Sheets / cálculos / consultas normativas / chat rápido:
-        // Priorizar gemini-3.5-flash-lite (ultra rápido, 500 RPD por llave, sin lags de pensamiento)
+        // Tarea Operativa / Rápida:
+        // Herramientas: Google Sheets (CRUD), Docs, Slides, Gmail, Calendar, Drive, Automatizaciones, Analíticas, Consultas Normativas, Chat General.
+        // Prioridad: gemini-3.5-flash-lite (500 RPD por llave, ultra rápido) -> gemini-3.5-flash -> 3.6 -> 3.7 -> 3.8
         const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.8-flash'];
         primaryAgentModel = 'gemini-3.5-flash-lite';
         rawFallbacks = operationalModels;
-        logger.info(`[WAPPY Brain Router] Tarea Operativa/Sheets/Consulta detectada. Modelo prioritario: "${primaryAgentModel}" (500 RPD)`);
+        logger.info(`[WAPPY Brain Router] [OPERATIVA / RÁPIDA] Tarea Sheets/Docs/Consultas detectada. Modelo prioritario: "${primaryAgentModel}" (500 RPD, baja latencia)`);
       }
 
       const now = Date.now();
