@@ -1354,11 +1354,6 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         version: 'v2',
       };
 
-      if (this.options?.req) {
-        this.options.req.contentParts = this.contentParts;
-        this.options.req.activeAgentClient = this;
-      }
-
       // Proactive Sanitization for Google Gemini:
       // If a historical assistant turn has already completed and contains text, strip dangling tool_calls
       // so it is treated as a clean AIMessage. This prevents Gemini API from throwing:
@@ -1584,8 +1579,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       const CANVAS_APP_TRIGGERS = [
         'aplicativo', 'dashboard', 'canvas', 'lienzo', 'interactivo', 'calculadora',
         'componente html', 'interfaz web', 'aplicación interactiva', 'aplicacion interactiva',
-        'aplicativo interactivo', 'app', 'aplicacion', 'aplicación', 'widget',
-        'interfaz interactiva', 'simulador', 'diseñar', 'diseña'
+        'diseñar', 'diseña'
       ];
 
       const COMPLEX_MATRIX_DOC_TRIGGERS = [
@@ -1619,19 +1613,14 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       const isPureExplanation = PURE_EXPLANATION_REGEX.test(userQuery);
       const hasCreationIntent = CREATION_INTENT_REGEX.test(userQuery);
 
-      // Arquitectura de DOS MODELOS para Canvas / Aplicativos:
-      // 1. Orquestador de Conversación y Herramientas (Chat, planificación, Google Sheets, Drive, Docs):
-      //    Opera en "gemini-3.5-flash-lite" (500 RPD por llave, ultra rápido, sin saturación 503 en la UI).
-      // 2. Especialista Técnico en Código (CanvasTool Camino B):
-      //    Micro-delega internamente en CanvasTool.js a "gemini-3.8-flash" (con escalera 3.7 -> 3.6 -> 3.5 -> 3.5-lite)
-      //    para sintetizar el aplicativo HTML5/Tailwind/Chart.js con todo el contexto acumulado de las herramientas.
-      // Por tanto, las solicitudes de aplicativos o Canvas NUNCA deben forzar al agente orquestador a 3.8 en el chat.
+      // Canvas / Aplicativo es SIEMPRE Alta Complejidad (gemini-3.8-flash),
+      // a menos que sea una pregunta estrictamente explicativa (ej: "qué es un aplicativo" o "explícame las fórmulas del aplicativo").
       const isCanvasTask = hasCanvasTrigger && (!isPureExplanation || hasCreationIntent);
 
-      // Matrices y Documentos complejos extensos sin Canvas (solo redacción pura en chat si no es explicación):
-      const isMatrixOrDocTask = hasMatrixDocTrigger && !isPureExplanation && !isCanvasTask;
+      // Matrices y Documentos complejos son Alta Complejidad si no son explicaciones puras
+      const isMatrixOrDocTask = hasMatrixDocTrigger && !isPureExplanation;
 
-      const isComplexTask = isMatrixOrDocTask;
+      const isComplexTask = isCanvasTask || isMatrixOrDocTask;
       const userExplicitModel = this.options.req?.body?.model;
       let primaryAgentModel = this.options.agent?.model_parameters?.model || this.options.agent?.model || '';
       let rawFallbacks = [];
@@ -1643,19 +1632,14 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         primaryAgentModel = userExplicitModel;
         rawFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
         logger.info(`[WAPPY Brain Router] Modelo explícito del usuario: "${primaryAgentModel}"`);
-      } else if (isCanvasTask) {
-        // Arquitectura de Dos Modelos: Agente orquestador rápido + CanvasTool potente
-        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.8-flash'];
-        primaryAgentModel = 'gemini-3.5-flash-lite';
-        rawFallbacks = operationalModels;
-        logger.info(`[WAPPY Brain Router] [DOS MODELOS] Tarea de Aplicativo/Canvas detectada. Orquestador: "${primaryAgentModel}" (500 RPD, baja latencia). CanvasTool delegará la síntesis de código a "gemini-3.8-flash".`);
       } else if (isComplexTask) {
-        // Redacción extensa pura en texto (sin Canvas) que requiere razonamiento profundo:
+        // Tarea de Alta Complejidad (Canvas / Matrices GTC 45, PESV, Químicos / RIT / Blog):
+        // Prioridad: gemini-3.8-flash -> gemini-3.7-flash -> gemini-3.6-flash -> gemini-3.5-flash -> gemini-3.5-flash-lite
         if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe')) {
           primaryAgentModel = envAgentModels[0] || 'gemini-3.8-flash';
         }
         rawFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
-        logger.info(`[WAPPY Brain Router] [ALTA COMPLEJIDAD TEXTUAL] Redacción técnica profunda en chat. Modelo prioritario: "${primaryAgentModel}"`);
+        logger.info(`[WAPPY Brain Router] [ALTA COMPLEJIDAD] Tarea técnica/diseño detectada. Modelo prioritario: "${primaryAgentModel}" (Razonamiento profundo)`);
       } else {
         // Tarea Operativa / Rápida:
         // Herramientas: Google Sheets (CRUD), Docs, Slides, Gmail, Calendar, Drive, Automatizaciones, Analíticas, Consultas Normativas, Chat General.
@@ -1904,8 +1888,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
                 ? '503 Service Unavailable'
                 : 'Failed to parse stream (stream unparseable/overload)';
               overloadedModelCooldowns.set(currentModel, Date.now() + OVERLOAD_COOLDOWN_MS);
-              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing high demand (${reason}). Pausing 1500ms before rotating to next fallback model...`);
-              await sleep(1500, abortController?.signal);
+              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing high demand (${reason}). Rotating immediately to next fallback model...`);
               rotateToNextModel = true;
               break;
             } else if (isNotFound && i < prioritizedKeys.length - 1) {
@@ -2039,77 +2022,6 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         });
       }
 
-      // Canvas Auto-Fulfillment Guard:
-      // Si el usuario solicitó un aplicativo interactivo o canvas (isCanvasTask === true),
-      // pero el agente terminó su ejecución sin haber llamado a la herramienta Canvas (ej. solo llamó a google_sheets o se detuvo):
-      const hasCanvasCalled = this.contentParts.some(
-        (part) =>
-          (part && part.type === ContentTypes.TOOL_CALL && (part.tool_call?.name === 'canvas' || part.tool_call?.name === 'CanvasTool')) ||
-          (part && part.type === ContentTypes.TOOL_RESULT && (part.tool_name === 'canvas' || part.tool_name === 'CanvasTool'))
-      );
-
-      if (isCanvasTask && !hasCanvasCalled) {
-        logger.warn(
-          `[AgentClient Canvas Auto-Fulfill] Tarea de Aplicativo/Canvas solicitada ("${userQuery.substring(0, 100)}") pero el agente concluyó sin llamar a CanvasTool. Auto-generando aplicativo en Canvas con gemini-3.8-flash...`
-        );
-        try {
-          const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
-          const userObj = this.options.req?.user || {};
-          const effectiveUserId = (this.user || userObj.id || userObj._id || '')?.toString();
-          const reqForCanvas = {
-            ...this.options.req,
-            user: { ...userObj, id: effectiveUserId },
-            contentParts: this.contentParts,
-            body: {
-              ...(this.options.req?.body || {}),
-              text: userQuery,
-            },
-          };
-          const canvasToolInstance = new CanvasTool({ req: reqForCanvas });
-
-          const sheetsOutputPart = this.contentParts.find(
-            (p) => p && p.type === ContentTypes.TOOL_RESULT && (typeof p.output === 'string' && (p.output.includes('spreadsheets/d/') || p.output.includes('Hoja de cálculo')))
-          );
-          const sheetsInfo = sheetsOutputPart ? (typeof sheetsOutputPart.output === 'string' ? sheetsOutputPart.output : JSON.stringify(sheetsOutputPart.output)) : '';
-
-          const asksAccidentIndicators = /f[oó]rmula|indicador|accidentalidad|0312|frecuencia|severidad|ausentismo/i.test(userQuery);
-          const appTitle = asksAccidentIndicators
-            ? 'Aplicativo Indicadores de Accidentalidad (Res. 0312)'
-            : 'Aplicativo Interactivo SG-SST';
-
-          const canvasResult = await canvasToolInstance._call(
-            {
-              accion: 'crear',
-              fileType: 'html',
-              title: appTitle,
-              content: `Requerimiento del usuario: ${userQuery}\n${sheetsInfo ? `Base de datos vinculada en Google Sheets:\n${sheetsInfo}` : ''}`,
-            },
-            { configurable: { thread_id: this.conversationId } }
-          );
-
-          const toolCallId = `call_auto_canvas_${Date.now()}`;
-          this.contentParts.push({
-            type: ContentTypes.TOOL_CALL,
-            tool_call_ids: [toolCallId],
-            tool_call: {
-              name: 'canvas',
-              args: { accion: 'crear', fileType: 'html', title: appTitle },
-              id: toolCallId,
-            },
-          });
-          this.contentParts.push({
-            type: ContentTypes.TOOL_RESULT,
-            tool_call_id: toolCallId,
-            tool_name: 'canvas',
-            output: canvasResult,
-          });
-
-          logger.info(`[AgentClient Canvas Auto-Fulfill] Aplicativo en Canvas generado con éxito por gemini-3.8-flash: ${canvasResult}`);
-        } catch (canvasAutoErr) {
-          logger.error('[AgentClient Canvas Auto-Fulfill] Error auto-generando Canvas:', canvasAutoErr);
-        }
-      }
-
       // Safety net: Ensure the user ALWAYS receives a real, helpful conversational text response,
       // never leaving an empty bubble or just a 'Thoughts' block with no text.
       const hasRealText = this.contentParts.some(
@@ -2130,29 +2042,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
 
         const asksIndicatorsOrFormulas = /f[oó]rmula|indicador|accidentalidad|0312|frecuencia|severidad|ausentismo|mortalidad/i.test(userQuery);
         let fallbackMsg = '';
-
-        // Extraer enlace y título a Google Sheets si se ejecutó
-        let sheetsUrlMatch = '';
-        let sheetsTitleMatch = '';
-        for (const p of this.contentParts) {
-          const outStr = typeof p?.output === 'string' ? p.output : (p?.output ? JSON.stringify(p.output) : '');
-          const urlM = outStr.match(/https:\/\/docs\.google\.com\/spreadsheets\/d\/[a-zA-Z0-9_-]+/);
-          if (urlM) sheetsUrlMatch = urlM[0];
-          const titleM = outStr.match(/Título:\s*"([^"]+)"/);
-          if (titleM) sheetsTitleMatch = titleM[1];
-        }
-
-        if (isCanvasTask) {
-          const appTitle = asksIndicatorsOrFormulas
-            ? 'Aplicativo Indicadores de Accidentalidad (Res. 0312)'
-            : 'Aplicativo Interactivo SG-SST';
-
-          fallbackMsg = `¡Listo! He configurado tu requerimiento y generado el aplicativo interactivo en el panel lateral de Canvas:
-
-${sheetsUrlMatch ? `📊 **Base de Datos en Google Sheets:**\n- **Hoja:** [${sheetsTitleMatch || 'Indicadores de Accidentalidad'}](${sheetsUrlMatch})\n\n` : ''}📱 **Aplicativo Interactivo en Canvas:**
-- **Título:** ${appTitle}
-- **Panel lateral:** Ya puedes visualizar los indicadores mínimos (IF, IS, PAM, TA, TAus), interactuar con las métricas en tiempo real y registrar los datos.`;
-        } else if (hasToolActivity) {
+        if (hasToolActivity) {
           fallbackMsg = 'He procesado tu solicitud y ejecutado las acciones correspondientes. Puedes visualizar el resultado en el panel lateral o en el historial.';
         } else if (asksIndicatorsOrFormulas) {
           fallbackMsg = `### 🏛️ Indicadores Mínimos de Accidentalidad (Resolución 0312 de 2019 - Artículo 30)

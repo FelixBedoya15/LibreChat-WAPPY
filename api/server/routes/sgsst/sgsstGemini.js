@@ -313,9 +313,6 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
             `[SGSST Gemini] Modelo "${currentModel}" falló (${is503 ? '503 Sobrecargado' : '404 No Encontrado'}). ` +
             `Rotando a modelo de respaldo...`
           );
-          if (is503) {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-          }
           break; // break inner for → outer for advances modelIdx
         }
 
