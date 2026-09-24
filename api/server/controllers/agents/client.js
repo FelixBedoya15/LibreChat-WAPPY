@@ -1763,15 +1763,12 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
               logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on all ${prioritizedKeys.length} keys (429 limit: 20). Cooldown set for 6h. Rotating to next model...`);
               rotateToNextModel = true;
               break;
-            } else if (isServiceUnavailable && i < prioritizedKeys.length - 1) {
-              logger.warn(`[AgentClient] Model "${currentModel}" high demand / 503 on Key ${i + 1}. Retrying with next API key ${i + 2}...`);
-              continue; // Try next key, same model
             } else if (isServiceUnavailable) {
               const reason = err?.status === 503 || err?.message?.includes('503')
                 ? '503 Service Unavailable'
                 : 'Failed to parse stream (stream unparseable/overload)';
               overloadedModelCooldowns.set(currentModel, Date.now() + OVERLOAD_COOLDOWN_MS);
-              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing issues (${reason}) on all ${prioritizedKeys.length} keys. Cooldown set for 2m. Rotating to next model...`);
+              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing high demand (${reason}). Rotating immediately to next fallback model...`);
               rotateToNextModel = true;
               break;
             } else if (isNotFound && i < prioritizedKeys.length - 1) {

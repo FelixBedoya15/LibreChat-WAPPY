@@ -218,13 +218,13 @@ class GeminiPoolManager {
       return;
     }
 
-    // 3. Sobrecarga de Servidor (503 Service Unavailable)
+    // 3. Sobrecarga de Servidor (503 Service Unavailable / High Demand)
     const is503 = status === 503 || msg.includes('503') || msg.includes('high demand') || msg.includes('overloaded');
     if (is503) {
-      const delay = 30000; // 30s de enfriamiento para no insistir en un servidor saturado
-      this.keyCooldowns.set(key, Date.now() + delay);
-      logger.warn(
-        `[GeminiPoolManager] [CircuitBreaker] Llave ${masked} en pausa de 30s por sobrecarga (503) en Google.`
+      // 503 es una saturación del MODELO en Google, NO de la clave API.
+      // Las claves API se mantienen activas para no retrasar la rotación al siguiente modelo de respaldo.
+      logger.info(
+        `[GeminiPoolManager] Sobrecarga temporal (503) en modelo "${cleanModel}". Las claves API se conservan listas para modelos de respaldo.`
       );
     }
   }
