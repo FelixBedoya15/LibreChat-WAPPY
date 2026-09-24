@@ -1354,6 +1354,11 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         version: 'v2',
       };
 
+      if (this.options?.req) {
+        this.options.req.contentParts = this.contentParts;
+        this.options.req.activeAgentClient = this;
+      }
+
       // Proactive Sanitization for Google Gemini:
       // If a historical assistant turn has already completed and contains text, strip dangling tool_calls
       // so it is treated as a clean AIMessage. This prevents Gemini API from throwing:

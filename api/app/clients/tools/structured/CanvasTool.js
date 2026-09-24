@@ -7,6 +7,7 @@ const {
   buildSignatureSection,
 } = require('~/server/routes/sgsst/reportHeader');
 const { syncCanvasToLiveEditor } = require('~/server/routes/sgsst/syncBridge');
+const { logger } = require('@librechat/data-schemas');
 
 function hasHeader(html) {
   if (!html || typeof html !== 'string') return false;
@@ -143,6 +144,124 @@ async function processTextDocument(content, fileType, title, userId, existingCon
     if (signatureHtml) {
       stringContent = stringContent + '\n\n' + signatureHtml;
     }
+  }
+
+  return stringContent;
+}
+
+/**
+ * Camino B: Generación / Enriquecimiento de Aplicativos HTML5 en Canvas usando el modelo potente (gemini-3.8-flash).
+ * Si el agente orquestador (ej. gemini-3.5-flash-lite) llama a Canvas con fileType='html',
+ * esta función transfiere la memoria del chat, los datos de la empresa y los resultados de las herramientas previas
+ * (ej. la hoja de Google Sheets creada en este mismo turno) para que gemini-3.8-flash sintetice la aplicación interactiva.
+ * La rotación recorre la escalera completa: gemini-3.8-flash -> 3.7 -> 3.6 -> 3.5 -> 3.5-flash-lite.
+ */
+async function processHtmlAppDocument(content, fileType, title, userId, req, existingContent) {
+  if (fileType !== 'html') {
+    return content;
+  }
+
+  let stringContent = typeof content === 'string' ? content.trim() : (content ? String(content) : '');
+
+  // Si ya es un aplicativo HTML completo y robusto (más de 2500 caracteres, scripts y estilos Tailwind/Chart), preservarlo
+  const isAlreadyFullApp =
+    stringContent.length > 2500 &&
+    (stringContent.includes('<script') || stringContent.includes('tailwindcss')) &&
+    (stringContent.includes('<!DOCTYPE') || stringContent.includes('<html') || stringContent.includes('<div'));
+
+  if (isAlreadyFullApp) {
+    return stringContent;
+  }
+
+  // Cargar información corporativa de la empresa
+  let companyInfo = null;
+  try {
+    companyInfo =
+      (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
+      (await CompanyInfo.findOne({ user: userId }));
+  } catch (err) {
+    logger.warn('[CanvasTool Camino B] Error cargando CompanyInfo:', err.message);
+  }
+
+  // Extraer contexto del usuario y del turno actual
+  const userPrompt =
+    req?.body?.text ||
+    (Array.isArray(req?.body?.messages) && req.body.messages.length > 0
+      ? req.body.messages[req.body.messages.length - 1]?.text ||
+        req.body.messages[req.body.messages.length - 1]?.content ||
+        ''
+      : '');
+
+  // Extraer herramientas ejecutadas en este turno (ej. Google Sheets creado previamente)
+  let toolsContext = '';
+  if (Array.isArray(req?.contentParts)) {
+    for (const part of req.contentParts) {
+      if (part && part.type === 'tool_result' && part.output) {
+        toolsContext += `\n- Resultado de herramienta previa: ${typeof part.output === 'string' ? part.output : JSON.stringify(part.output)}`;
+      } else if (part && part.type === 'tool_call' && part.tool_call) {
+        toolsContext += `\n- Herramienta ejecutada: ${part.tool_call.name} con argumentos: ${typeof part.tool_call.args === 'string' ? part.tool_call.args : JSON.stringify(part.tool_call.args)}`;
+      }
+    }
+  }
+
+  const companyContext = companyInfo
+    ? `Empresa: ${companyInfo.companyName || 'Empresa Activa'}\nNIT: ${companyInfo.nit || 'Sin NIT'}\nSector: ${companyInfo.economicSector || 'General'}`
+    : 'No hay información de empresa registrada.';
+
+  const prompt = `Eres el Arquitecto de Frontend y Especialista Técnico en SG-SST de WAPPY.
+Tu tarea es construir un APLICATIVO WEB INTERACTIVO COMPLETO (Single-File HTML5) para proyectar en el Canvas lateral de WAPPY.
+
+## TÍTULO DEL APLICATIVO:
+${title || 'Aplicativo Interactivo SG-SST'}
+
+## CONTEXTO DE LA EMPRESA:
+${companyContext}
+
+## REQUERIMIENTO DEL USUARIO:
+${userPrompt || title || 'Aplicativo interactivo para gestión de indicadores o procesos SG-SST'}
+
+${toolsContext ? `## RECURSOS Y BASES DE DATOS VINCULADAS EN ESTA SESIÓN (GOOGLE SHEETS / HERRAMIENTAS):\n${toolsContext}\n` : ''}
+
+${stringContent ? `## ESPECIFICACIONES O BASE SUMINISTRADA:\n${stringContent}\n` : ''}
+
+## REQUISITOS TÉCNICOS Y DE DISEÑO OBLIGATORIOS:
+1. Formato Single-File HTML: Embebido en un solo archivo con <!DOCTYPE html>, <html>, <head> y <body>.
+2. Estilos: Incluye Tailwind CSS vía CDN (<script src="https://cdn.tailwindcss.com"></script>). Usa tipografía moderna, tarjetas con bordes suaves, sombras y diseño responsive.
+3. Visualización y Gráficos: Si el aplicativo involucra métricas o indicadores, incluye Chart.js (<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>) con gráficos interactivos que se actualicen en tiempo real.
+4. Interactividad JS Completa:
+   - Formularios para ingresar o editar datos.
+   - Cálculo automático de fórmulas (ej. Fórmulas de la Res. 0312 si es accidentalidad: IF, IS, PAM, TA, TAus).
+   - Filtros por período, año o sede.
+   - Tabla de datos reactiva con opción de agregar filas.
+5. Conexión de Datos: Si arriba se especificó una hoja de Google Sheets, incluye el enlace directo a la hoja, muestra los encabezados correspondientes y precarga datos iniciales coherentes.
+6. RESPUESTA: Responde ÚNICAMENTE con el código HTML5 completo, sin bloques de markdown con triple comilla invertida (sin \`\`\`html ni \`\`\`), sin comentarios explicativos antes ni después. Solo el código HTML directo.`;
+
+  try {
+    const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
+    logger.info('[CanvasTool Camino B] Delegando generación técnica de aplicativo HTML a gemini-3.8-flash (Rotación completa)...');
+    const result = await generateWithKeyRotation('gemini-3.8-flash', userId, prompt);
+    const response = await result?.response;
+    let generatedHtml = response?.text ? response.text() : '';
+
+    if (generatedHtml) {
+      generatedHtml = generatedHtml
+        .replace(/^```(?:html)?\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+    }
+
+    if (
+      generatedHtml &&
+      generatedHtml.length > 500 &&
+      (generatedHtml.includes('<html') || generatedHtml.includes('<div') || generatedHtml.includes('<!DOCTYPE'))
+    ) {
+      logger.info(
+        `[CanvasTool Camino B] Aplicativo HTML generado con éxito por gemini-3.8-flash (${generatedHtml.length} caracteres).`,
+      );
+      return generatedHtml;
+    }
+  } catch (err) {
+    logger.error('[CanvasTool Camino B] Error delegando generación a gemini-3.8-flash, preservando contenido original:', err);
   }
 
   return stringContent;
@@ -413,6 +532,15 @@ class CanvasTool extends Tool {
               userId,
               session.content,
             );
+          } else if (activeFileType === 'html') {
+            parsedContent = await processHtmlAppDocument(
+              parsedContent ?? session.content,
+              activeFileType,
+              activeTitle,
+              userId,
+              this.req,
+              session.content,
+            );
           }
 
           const maxHistoryVersion = (session.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
@@ -461,6 +589,15 @@ class CanvasTool extends Tool {
               fileType,
               activeTitle,
               userId,
+              null,
+            );
+          } else if (fileType === 'html') {
+            parsedContent = await processHtmlAppDocument(
+              parsedContent,
+              fileType,
+              activeTitle,
+              userId,
+              this.req,
               null,
             );
           }
@@ -514,6 +651,15 @@ class CanvasTool extends Tool {
               activeFileType,
               activeTitle,
               userId,
+              null,
+            );
+          } else if (activeFileType === 'html') {
+            parsedContent = await processHtmlAppDocument(
+              parsedContent,
+              activeFileType,
+              activeTitle,
+              userId,
+              this.req,
               null,
             );
           }
@@ -576,6 +722,15 @@ class CanvasTool extends Tool {
               activeFileType,
               activeTitle,
               userId,
+              session.content,
+            );
+          } else if (activeFileType === 'html') {
+            parsedContent = await processHtmlAppDocument(
+              parsedContent ?? session.content,
+              activeFileType,
+              activeTitle,
+              userId,
+              this.req,
               session.content,
             );
           }
