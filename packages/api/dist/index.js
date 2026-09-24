@@ -538,6 +538,9 @@ function sendEvent(res, event) {
     }
     try {
         res.write(`event: message\ndata: ${JSON.stringify(event)}\n\n`);
+        if (typeof res.flush === 'function') {
+            res.flush();
+        }
     }
     catch (error) {
         // Ignore write errors to closed connection

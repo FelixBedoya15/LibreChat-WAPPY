@@ -17,6 +17,9 @@ export function sendEvent(res: ServerResponse, event: ServerSentEvent): void {
   }
   try {
     res.write(`event: message\ndata: ${JSON.stringify(event)}\n\n`);
+    if (typeof (res as any).flush === 'function') {
+      (res as any).flush();
+    }
   } catch (error) {
     // Ignore write errors to closed connection
   }

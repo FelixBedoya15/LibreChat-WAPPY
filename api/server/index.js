@@ -113,7 +113,19 @@ const startServer = async () => {
   app.use(cookieParser());
 
   if (!isEnabled(DISABLE_COMPRESSION)) {
-    app.use(compression());
+    app.use(
+      compression({
+        filter: (req, res) => {
+          if (
+            req.headers.accept?.includes('text/event-stream') ||
+            res.getHeader('Content-Type')?.includes('text/event-stream')
+          ) {
+            return false;
+          }
+          return compression.filter(req, res);
+        },
+      }),
+    );
   } else {
     console.warn('Response compression has been disabled via DISABLE_COMPRESSION.');
   }

@@ -6,6 +6,12 @@ function setHeaders(req, res, next) {
     'Access-Control-Allow-Origin': '*',
     'X-Accel-Buffering': 'no',
   });
+  if (typeof res.flushHeaders === 'function') {
+    res.flushHeaders();
+  }
+  if (typeof res.flush === 'function') {
+    res.flush();
+  }
   next();
 }
 

@@ -239,7 +239,14 @@ const AgentController = async (req, res, next, initializeClient, addTitle) => {
           return;
         }
         logger.debug('[AgentController] Sending keep-alive SSE ping');
-        res.write(':\n\n');
+        try {
+          res.write(':\n\n');
+          if (typeof res.flush === 'function') {
+            res.flush();
+          }
+        } catch (_) {
+          // Socket might have closed
+        }
       }, 15000);
     }
 
