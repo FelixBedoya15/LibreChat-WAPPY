@@ -257,7 +257,237 @@ ${stringContent ? `## ESPECIFICACIONES O BASE SUMINISTRADA:\n${stringContent}\n`
     logger.error('[CanvasTool Camino B] Error delegando generación a gemini-3.8-flash, preservando contenido original:', err);
   }
 
+  // Si no se pudo generar con Gemini y el contenido original no es código HTML (ej. solo son instrucciones de texto):
+  if (!stringContent || (!stringContent.includes('<html') && !stringContent.includes('<!DOCTYPE') && !stringContent.includes('<div'))) {
+    logger.info('[CanvasTool Camino B] Suministrando aplicativo HTML interactivo predeterminado con fórmulas de Res. 0312 y Chart.js...');
+    return buildEmergencySGSSTHtmlApp({ title, userPrompt, toolsContext, companyInfo });
+  }
+
   return stringContent;
+}
+
+function buildEmergencySGSSTHtmlApp({ title, userPrompt, toolsContext, companyInfo }) {
+  const compName = companyInfo?.companyName || 'Empresa Activa';
+  const compNit = companyInfo?.nit || '901.437.310';
+  const compWorkers = companyInfo?.totalWorkers || 50;
+
+  let sheetsUrl = '';
+  const searchStr = (toolsContext || '') + ' ' + (userPrompt || '');
+  const urlMatch = searchStr.match(/https:\/\/docs\.google\.com\/spreadsheets\/d\/[a-zA-Z0-9_-]+/);
+  if (urlMatch) {
+    sheetsUrl = urlMatch[0];
+  }
+
+  const sheetsBtn = sheetsUrl
+    ? '<a href="' + sheetsUrl + '" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>Abrir Google Sheets</a>'
+    : '';
+
+  return '<!DOCTYPE html>\n' +
+'<html lang="es">\n' +
+'<head>\n' +
+'  <meta charset="UTF-8">\n' +
+'  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+'  <title>' + (title || 'Indicadores de Accidentalidad - Resolución 0312') + '</title>\n' +
+'  <script src="https://cdn.tailwindcss.com"></script>\n' +
+'  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>\n' +
+'  <style>\n' +
+'    @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");\n' +
+'    body { font-family: "Inter", sans-serif; }\n' +
+'  </style>\n' +
+'</head>\n' +
+'<body class="bg-slate-50 text-slate-800 p-4 md:p-6 min-h-screen">\n' +
+'  <div class="max-w-6xl mx-auto space-y-6">\n' +
+'    <div class="bg-gradient-to-r from-teal-700 via-teal-800 to-slate-900 text-white rounded-2xl p-6 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">\n' +
+'      <div>\n' +
+'        <div class="flex items-center gap-2 mb-1">\n' +
+'          <span class="bg-teal-500/30 text-teal-200 border border-teal-400/40 text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">SG-SST Res. 0312 de 2019</span>\n' +
+'          <span class="bg-white/10 text-white/90 text-xs px-2.5 py-0.5 rounded-full font-medium">Art. 30</span>\n' +
+'        </div>\n' +
+'        <h1 class="text-2xl font-bold tracking-tight">' + (title || 'Tablero de Indicadores de Accidentalidad') + '</h1>\n' +
+'        <p class="text-teal-100 text-sm mt-1">' + compName + ' — NIT: ' + compNit + '</p>\n' +
+'      </div>\n' +
+'      ' + sheetsBtn + '\n' +
+'    </div>\n' +
+'    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">\n' +
+'      <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">\n' +
+'        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Índice de Frecuencia (IF)</span>\n' +
+'        <div class="flex items-baseline gap-2 mt-2">\n' +
+'          <span id="kpi-if" class="text-3xl font-bold text-teal-600">0.00</span>\n' +
+'          <span class="text-xs text-slate-500 font-medium">x 240.000 HHT</span>\n' +
+'        </div>\n' +
+'        <p class="text-xs text-slate-400 mt-2">Fórmula: (N° AT mes / HHT mes) * 240.000</p>\n' +
+'      </div>\n' +
+'      <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">\n' +
+'        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Índice de Severidad (IS)</span>\n' +
+'        <div class="flex items-baseline gap-2 mt-2">\n' +
+'          <span id="kpi-is" class="text-3xl font-bold text-amber-600">0.00</span>\n' +
+'          <span class="text-xs text-slate-500 font-medium">días perdidos</span>\n' +
+'        </div>\n' +
+'        <p class="text-xs text-slate-400 mt-2">Fórmula: ((Días Incap. + Cargados) / HHT) * 240.000</p>\n' +
+'      </div>\n' +
+'      <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">\n' +
+'        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Proporción Mortales (PAM)</span>\n' +
+'        <div class="flex items-baseline gap-2 mt-2">\n' +
+'          <span id="kpi-pam" class="text-3xl font-bold text-rose-600">0.0%</span>\n' +
+'        </div>\n' +
+'        <p class="text-xs text-slate-400 mt-2">Fórmula: (AT Mortales / Total AT) * 100</p>\n' +
+'      </div>\n' +
+'      <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">\n' +
+'        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tasa Accidentalidad (TA)</span>\n' +
+'        <div class="flex items-baseline gap-2 mt-2">\n' +
+'          <span id="kpi-ta" class="text-3xl font-bold text-indigo-600">0.0%</span>\n' +
+'        </div>\n' +
+'        <p class="text-xs text-slate-400 mt-2">Fórmula: (Total AT / N° Trabajadores) * 100</p>\n' +
+'      </div>\n' +
+'    </div>\n' +
+'    <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">\n' +
+'      <div class="flex justify-between items-center mb-4">\n' +
+'        <h2 class="text-base font-bold text-slate-800">Evolución Mensual (IF vs IS)</h2>\n' +
+'        <span class="text-xs font-semibold text-teal-600 bg-teal-50 px-3 py-1 rounded-full">Actualización reactiva</span>\n' +
+'      </div>\n' +
+'      <div class="h-64">\n' +
+'        <canvas id="indicatorsChart"></canvas>\n' +
+'      </div>\n' +
+'    </div>\n' +
+'    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">\n' +
+'      <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">\n' +
+'        <div>\n' +
+'          <h2 class="text-sm font-bold text-slate-800">Registro Mensual de Accidentalidad</h2>\n' +
+'          <p class="text-xs text-slate-500">Modifica los valores para calcular las fórmulas automáticamente en tiempo real</p>\n' +
+'        </div>\n' +
+'        <button onclick="addRow()" class="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all active:scale-95">\n' +
+'          + Agregar Mes\n' +
+'        </button>\n' +
+'      </div>\n' +
+'      <div class="overflow-x-auto">\n' +
+'        <table class="w-full text-left text-xs text-slate-700">\n' +
+'          <thead class="bg-slate-100 text-slate-600 uppercase font-semibold text-[11px] border-b border-slate-200">\n' +
+'            <tr>\n' +
+'              <th class="p-3">Mes</th>\n' +
+'              <th class="p-3">N° AT</th>\n' +
+'              <th class="p-3">Días Incap.</th>\n' +
+'              <th class="p-3">Días Cargados</th>\n' +
+'              <th class="p-3">HHT</th>\n' +
+'              <th class="p-3">AT Mortales</th>\n' +
+'              <th class="p-3">N° Trabajadores</th>\n' +
+'              <th class="p-3 text-teal-700 font-bold">IF</th>\n' +
+'              <th class="p-3 text-amber-700 font-bold">IS</th>\n' +
+'              <th class="p-3 text-right">Acción</th>\n' +
+'            </tr>\n' +
+'          </thead>\n' +
+'          <tbody id="table-body" class="divide-y divide-slate-100">\n' +
+'          </tbody>\n' +
+'        </table>\n' +
+'      </div>\n' +
+'    </div>\n' +
+'  </div>\n' +
+'  <script>\n' +
+'    var defaultWorkers = ' + Number(compWorkers || 50) + ';\n' +
+'    var monthlyData = [\n' +
+'      { month: "Enero", at: 1, lostDays: 4, chargedDays: 0, hht: 8400, fatal: 0, workers: defaultWorkers },\n' +
+'      { month: "Febrero", at: 0, lostDays: 0, chargedDays: 0, hht: 8200, fatal: 0, workers: defaultWorkers },\n' +
+'      { month: "Marzo", at: 2, lostDays: 7, chargedDays: 0, hht: 8500, fatal: 0, workers: defaultWorkers }\n' +
+'    ];\n' +
+'    var chartInstance = null;\n' +
+'    function renderTable() {\n' +
+'      var tbody = document.getElementById("table-body");\n' +
+'      if (!tbody) return;\n' +
+'      tbody.innerHTML = "";\n' +
+'      monthlyData.forEach(function(row, idx) {\n' +
+'        var ifVal = row.hht > 0 ? ((row.at / row.hht) * 240000).toFixed(2) : "0.00";\n' +
+'        var isVal = row.hht > 0 ? (((row.lostDays + row.chargedDays) / row.hht) * 240000).toFixed(2) : "0.00";\n' +
+'        var tr = document.createElement("tr");\n' +
+'        tr.className = "hover:bg-slate-50/80 transition-colors";\n' +
+'        tr.innerHTML = \'<td class="p-3"><input type="text" value="\' + row.month + \'" onchange="updateData(\' + idx + \', \\\'month\\\', this.value)" class="w-24 bg-transparent border border-slate-200 rounded px-2 py-1 text-xs font-semibold focus:bg-white"></td>\' +\n' +
+'          \'<td class="p-3"><input type="number" min="0" value="\' + row.at + \'" oninput="updateData(\' + idx + \', \\\'at\\\', parseFloat(this.value)||0)" class="w-16 bg-transparent border border-slate-200 rounded px-2 py-1 text-xs text-center focus:bg-white"></td>\' +\n' +
+'          \'<td class="p-3"><input type="number" min="0" value="\' + row.lostDays + \'" oninput="updateData(\' + idx + \', \\\'lostDays\\\', parseFloat(this.value)||0)" class="w-16 bg-transparent border border-slate-200 rounded px-2 py-1 text-xs text-center focus:bg-white"></td>\' +\n' +
+'          \'<td class="p-3"><input type="number" min="0" value="\' + row.chargedDays + \'" oninput="updateData(\' + idx + \', \\\'chargedDays\\\', parseFloat(this.value)||0)" class="w-16 bg-transparent border border-slate-200 rounded px-2 py-1 text-xs text-center focus:bg-white"></td>\' +\n' +
+'          \'<td class="p-3"><input type="number" min="0" value="\' + row.hht + \'" oninput="updateData(\' + idx + \', \\\'hht\\\', parseFloat(this.value)||0)" class="w-20 bg-transparent border border-slate-200 rounded px-2 py-1 text-xs text-center focus:bg-white"></td>\' +\n' +
+'          \'<td class="p-3"><input type="number" min="0" value="\' + row.fatal + \'" oninput="updateData(\' + idx + \', \\\'fatal\\\', parseFloat(this.value)||0)" class="w-16 bg-transparent border border-slate-200 rounded px-2 py-1 text-xs text-center focus:bg-white"></td>\' +\n' +
+'          \'<td class="p-3"><input type="number" min="1" value="\' + row.workers + \'" oninput="updateData(\' + idx + \', \\\'workers\\\', parseFloat(this.value)||1)" class="w-16 bg-transparent border border-slate-200 rounded px-2 py-1 text-xs text-center focus:bg-white"></td>\' +\n' +
+'          \'<td class="p-3 font-bold text-teal-700">\' + ifVal + \'</td>\' +\n' +
+'          \'<td class="p-3 font-bold text-amber-700">\' + isVal + \'</td>\' +\n' +
+'          \'<td class="p-3 text-right"><button onclick="deleteRow(\' + idx + \')" class="text-rose-500 hover:text-rose-700 text-xs px-2 py-1 rounded hover:bg-rose-50">Eliminar</button></td>\';\n' +
+'        tbody.appendChild(tr);\n' +
+'      });\n' +
+'      recalcKPIs();\n' +
+'      updateChart();\n' +
+'    }\n' +
+'    function updateData(index, field, value) {\n' +
+'      monthlyData[index][field] = value;\n' +
+'      renderTable();\n' +
+'    }\n' +
+'    function addRow() {\n' +
+'      var months = ["Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];\n' +
+'      var nextMonth = months[monthlyData.length % months.length] || ("Mes " + (monthlyData.length + 1));\n' +
+'      monthlyData.push({ month: nextMonth, at: 0, lostDays: 0, chargedDays: 0, hht: 8000, fatal: 0, workers: defaultWorkers });\n' +
+'      renderTable();\n' +
+'    }\n' +
+'    function deleteRow(idx) {\n' +
+'      if (monthlyData.length > 1) {\n' +
+'        monthlyData.splice(idx, 1);\n' +
+'        renderTable();\n' +
+'      }\n' +
+'    }\n' +
+'    function recalcKPIs() {\n' +
+'      var totalAT = 0, totalLostDays = 0, totalChargedDays = 0, totalHHT = 0, totalFatal = 0, totalWorkers = 0;\n' +
+'      monthlyData.forEach(function(r) {\n' +
+'        totalAT += r.at;\n' +
+'        totalLostDays += r.lostDays;\n' +
+'        totalChargedDays += r.chargedDays;\n' +
+'        totalHHT += r.hht;\n' +
+'        totalFatal += r.fatal;\n' +
+'        totalWorkers = Math.max(totalWorkers, r.workers);\n' +
+'      });\n' +
+'      var ifAnnual = totalHHT > 0 ? ((totalAT / totalHHT) * 240000).toFixed(2) : "0.00";\n' +
+'      var isAnnual = totalHHT > 0 ? (((totalLostDays + totalChargedDays) / totalHHT) * 240000).toFixed(2) : "0.00";\n' +
+'      var pamVal = totalAT > 0 ? ((totalFatal / totalAT) * 100).toFixed(1) : "0.0";\n' +
+'      var taVal = totalWorkers > 0 ? ((totalAT / totalWorkers) * 100).toFixed(1) : "0.0";\n' +
+'      var ifElem = document.getElementById("kpi-if");\n' +
+'      var isElem = document.getElementById("kpi-is");\n' +
+'      var pamElem = document.getElementById("kpi-pam");\n' +
+'      var taElem = document.getElementById("kpi-ta");\n' +
+'      if (ifElem) ifElem.textContent = ifAnnual;\n' +
+'      if (isElem) isElem.textContent = isAnnual;\n' +
+'      if (pamElem) pamElem.textContent = pamVal + "%";\n' +
+'      if (taElem) taElem.textContent = taVal + "%";\n' +
+'    }\n' +
+'    function updateChart() {\n' +
+'      var chartEl = document.getElementById("indicatorsChart");\n' +
+'      if (!chartEl || typeof Chart === "undefined") return;\n' +
+'      var labels = monthlyData.map(function(r) { return r.month; });\n' +
+'      var ifData = monthlyData.map(function(r) { return r.hht > 0 ? parseFloat(((r.at / r.hht) * 240000).toFixed(2)) : 0; });\n' +
+'      var isData = monthlyData.map(function(r) { return r.hht > 0 ? parseFloat((((r.lostDays + r.chargedDays) / r.hht) * 240000).toFixed(2)) : 0; });\n' +
+'      if (chartInstance) { chartInstance.destroy(); }\n' +
+'      var ctx = chartEl.getContext("2d");\n' +
+'      chartInstance = new Chart(ctx, {\n' +
+'        type: "bar",\n' +
+'        data: {\n' +
+'          labels: labels,\n' +
+'          datasets: [\n' +
+'            { label: "IF (Índice Frecuencia)", data: ifData, backgroundColor: "rgba(13, 148, 136, 0.75)", borderColor: "rgb(13, 148, 136)", borderWidth: 1.5, borderRadius: 6 },\n' +
+'            { label: "IS (Índice Severidad)", data: isData, backgroundColor: "rgba(217, 119, 6, 0.75)", borderColor: "rgb(217, 119, 6)", borderWidth: 1.5, borderRadius: 6 }\n' +
+'          ]\n' +
+'        },\n' +
+'        options: {\n' +
+'          responsive: true,\n' +
+'          maintainAspectRatio: false,\n' +
+'          plugins: { legend: { position: "top", labels: { boxWidth: 12, font: { family: "Inter", size: 11 } } } },\n' +
+'          scales: {\n' +
+'            y: { beginAtZero: true, grid: { color: "rgba(226, 232, 240, 0.8)" } },\n' +
+'            x: { grid: { display: false } }\n' +
+'          }\n' +
+'        }\n' +
+'      });\n' +
+'    }\n' +
+'    if (document.readyState === "loading") {\n' +
+'      document.addEventListener("DOMContentLoaded", renderTable);\n' +
+'    } else {\n' +
+'      renderTable();\n' +
+'    }\n' +
+'  </script>\n' +
+'</body>\n' +
+'</html>';
 }
 
 /**

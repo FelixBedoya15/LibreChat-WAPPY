@@ -2053,8 +2053,19 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
           `[AgentClient Canvas Auto-Fulfill] Tarea de Aplicativo/Canvas solicitada ("${userQuery.substring(0, 100)}") pero el agente concluyó sin llamar a CanvasTool. Auto-generando aplicativo en Canvas con gemini-3.8-flash...`
         );
         try {
-          const CanvasTool = require('../../app/clients/tools/structured/CanvasTool');
-          const canvasToolInstance = new CanvasTool({ req: this.options.req });
+          const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
+          const userObj = this.options.req?.user || {};
+          const effectiveUserId = (this.user || userObj.id || userObj._id || '')?.toString();
+          const reqForCanvas = {
+            ...this.options.req,
+            user: { ...userObj, id: effectiveUserId },
+            contentParts: this.contentParts,
+            body: {
+              ...(this.options.req?.body || {}),
+              text: userQuery,
+            },
+          };
+          const canvasToolInstance = new CanvasTool({ req: reqForCanvas });
 
           const sheetsOutputPart = this.contentParts.find(
             (p) => p && p.type === ContentTypes.TOOL_RESULT && (typeof p.output === 'string' && (p.output.includes('spreadsheets/d/') || p.output.includes('Hoja de cálculo')))
@@ -2075,6 +2086,23 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
             },
             { configurable: { thread_id: this.conversationId } }
           );
+
+          const toolCallId = `call_auto_canvas_${Date.now()}`;
+          this.contentParts.push({
+            type: ContentTypes.TOOL_CALL,
+            tool_call_ids: [toolCallId],
+            tool_call: {
+              name: 'canvas',
+              args: { accion: 'crear', fileType: 'html', title: appTitle },
+              id: toolCallId,
+            },
+          });
+          this.contentParts.push({
+            type: ContentTypes.TOOL_RESULT,
+            tool_call_id: toolCallId,
+            tool_name: 'canvas',
+            output: canvasResult,
+          });
 
           logger.info(`[AgentClient Canvas Auto-Fulfill] Aplicativo en Canvas generado con éxito por gemini-3.8-flash: ${canvasResult}`);
         } catch (canvasAutoErr) {
