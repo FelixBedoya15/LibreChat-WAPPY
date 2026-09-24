@@ -1576,10 +1576,13 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       // - Editor RIT (Reglamento Interno de Trabajo, CST, descargos y sanciones legales)
       // - Blog Editor (Artículos largos estructurados, SEO y AEO)
       // - Informes técnicos periciales, actas y contratos complejos
-      const HIGH_COMPLEXITY_TRIGGERS = [
-        // Canvas & Aplicativos
+      const CANVAS_APP_TRIGGERS = [
         'aplicativo', 'dashboard', 'canvas', 'lienzo', 'interactivo', 'calculadora',
-        'diseñar', 'diseña', 'interfaz', 'componente html',
+        'componente html', 'interfaz web', 'aplicación interactiva', 'aplicacion interactiva',
+        'diseñar', 'diseña'
+      ];
+
+      const COMPLEX_MATRIX_DOC_TRIGGERS = [
         // Matriz IPEVAR (GTC 45)
         'matriz ipevar', 'ipevar', 'gtc 45', 'gtc-45', 'matriz de peligros', 'identificación de peligros',
         'evaluación de riesgos', 'valoración de riesgos',
@@ -1594,43 +1597,30 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         // Blog Editor
         'blog_editor', 'redactar artículo', 'artículo de blog', 'publicar en blog', 'post de blog',
         // Documentos Extensos / Plantillas / Auditorías
-        'redactar', 'redacte', 'crear carta', 'crea una carta', 'crear acta', 'crea un acta',
+        'crear carta', 'crea una carta', 'crear acta', 'crea un acta',
         'crear contrato', 'crea un contrato', 'crear plantilla', 'diseñar plantilla',
         'informe anual', 'auditoría completa', 'investigación atel'
       ];
 
-      const EXPLANATION_QUERY_VERBS = [
-        'indicar', 'indica', 'indícame', 'indicame', 'indiques',
-        'explicar', 'explica', 'explícame', 'explicame', 'expliques',
-        'cuál es', 'cuáles son', 'cual es', 'cuales son',
-        'qué es', 'que es', 'cómo es', 'como es', 'cómo funciona', 'como funciona',
-        'dime', 'dame la fórmula', 'dame las fórmulas', 'fórmulas automatizadas', 'formulas automatizadas',
-        'vuelveme a', 'vuelve a', 'repetir', 'repite', 'no que me expliques',
-        'aclara', 'aclarame', 'por qué', 'porque', 'para qué', 'para que',
-        'muéstrame', 'muestrame', 'enséñame', 'enseñame', 'verificar', 'consulta', 'consultar',
-        'recuerda', 'recuérdame', 'recuerdame'
-      ];
+      // Verbos de consulta / explicación (usando límites de palabra \b para NUNCA confundir 'indicadores' con 'indica')
+      const PURE_EXPLANATION_REGEX = /\b(explicar|explica|expl[ií]came|expliques|cu[aá]l es|cu[aá]les son|qu[eé] es|c[oó]mo funciona|como funciona|dame la f[oó]rmula|dame las f[oó]rmulas|f[oó]rmulas automatizadas|formulas automatizadas|no que me expliques|aclara|aclarame|por qu[eé]|para qu[eé]|vuelveme a indicar|vuelve a indicar|volver a indicar)\b/i;
 
-      const CREATION_INTENT_VERBS = [
-        'crear', 'crea', 'créame', 'creame',
-        'diseñar', 'diseña', 'diseñame',
-        'construir', 'construye',
-        'hacer', 'haz', 'hazme',
-        'generar', 'genera',
-        'desarrollar', 'desarrolla',
-        'programar', 'programa',
-        'elaborar', 'elabora',
-        'redactar', 'redacta'
-      ];
+      // Verbos de creación / diseño / desarrollo
+      const CREATION_INTENT_REGEX = /\b(crear|crea|cr[eé]ame|dise[nñ]ar|dise[nñ]a|dise[nñ]ame|construir|construye|hacer|haz|hazme|generar|genera|desarrollar|desarrolla|programar|programa|elaborar|elabora|redactar|redacta|realizar|realiza|implementar|implementa|montar|monta|deseo|quiero|necesito|armar|arma)\b/i;
 
-      const isExplanationOrQuestion = EXPLANATION_QUERY_VERBS.some((verb) => userQuery.includes(verb));
-      const isCreationIntent = CREATION_INTENT_VERBS.some((verb) => userQuery.includes(verb));
-      const hasComplexKeywords = HIGH_COMPLEXITY_TRIGGERS.some((kw) => userQuery.includes(kw));
+      const hasCanvasTrigger = CANVAS_APP_TRIGGERS.some((kw) => userQuery.includes(kw));
+      const hasMatrixDocTrigger = COMPLEX_MATRIX_DOC_TRIGGERS.some((kw) => userQuery.includes(kw));
+      const isPureExplanation = PURE_EXPLANATION_REGEX.test(userQuery);
+      const hasCreationIntent = CREATION_INTENT_REGEX.test(userQuery);
 
-      // Alta complejidad se activa SOLO cuando el usuario solicita CREAR o DISEÑAR un artefacto complejo.
-      // Si el usuario está preguntando, pidiendo explicaciones, fórmulas o consultando sobre un aplicativo existente,
-      // se clasifica como Tarea Operativa / Rápida para utilizar gemini-3.5-flash-lite (500 RPD, ultra rápido y sin gastar cuota pesada).
-      const isComplexTask = hasComplexKeywords && !isExplanationOrQuestion && (isCreationIntent || !userQuery.includes('?'));
+      // Canvas / Aplicativo es SIEMPRE Alta Complejidad (gemini-3.8-flash),
+      // a menos que sea una pregunta estrictamente explicativa (ej: "qué es un aplicativo" o "explícame las fórmulas del aplicativo").
+      const isCanvasTask = hasCanvasTrigger && (!isPureExplanation || hasCreationIntent);
+
+      // Matrices y Documentos complejos son Alta Complejidad si no son explicaciones puras
+      const isMatrixOrDocTask = hasMatrixDocTrigger && !isPureExplanation;
+
+      const isComplexTask = isCanvasTask || isMatrixOrDocTask;
       const userExplicitModel = this.options.req?.body?.model;
       let primaryAgentModel = this.options.agent?.model_parameters?.model || this.options.agent?.model || '';
       let rawFallbacks = [];
