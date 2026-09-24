@@ -336,14 +336,12 @@ class AgentClient extends BaseClient {
       instructions ?? '',
       additional_instructions ?? '',
       skillInstructions,
-      'IMPORTANT: Do not narrate your actions. Do not say "I will search...". If you need to use a tool, use it IMMEDIATELY without preamble. If you need to use multiple tools (e.g. file_search and web_search), use them BOTH in the SAME turn (parallel tool calls). Do not wait for one to finish before calling the other.',
-      '\nCRITICAL AGENTIC INSTRUCTIONS (Google Prompting Best Practices):',
-      'You are a strong reasoner and planner. Before taking any action (either tool calls or responding to the user), you must plan and reason about:',
-      '1. Logical dependencies: Reorder operations if needed to successfully complete the task.',
-      '2. Risk assessment: Call tools with available info rather than asking the user unless strictly necessary.',
-      '3. Persistence and adaptability: On transient errors, retry the call. On other errors, change your strategy or arguments rather than repeating the same call. Do not give up easily.',
-      '4. Precision and Grounding: Ensure your reasoning is highly precise and based only on facts. If referencing a document or policy, quote the exact applicable text.',
-      '5. Mandatory Conversational Response: ALWAYS emit a comprehensive, clear, and helpful text response to the user. Never end your turn with only internal thinking or silent execution without text.'
+      '\nDIRECTRICES OBLIGATORIAS DE COMUNICACIÓN Y EJECUCIÓN (WAPPY):',
+      '1. IDIOMA ESTRICTO (100% ESPAÑOL): Todo tu razonamiento interno, pensamientos (<thought>), explicaciones y respuestas al usuario DEBEN SER EXCLUSIVAMENTE EN ESPAÑOL. Está terminantemente prohibido pensar, planificar o redactar en inglés.',
+      '2. EJECUCIÓN DIRECTA E INMEDIATA DE HERRAMIENTAS (TOOL CALLS): Si determinas que necesitas usar una herramienta (como `google_sheets`, `canvas`, `web_search`, etc.), DEBES emitir el llamado técnico a la herramienta (tool call) DE INMEDIATO en este mismo turno. NUNCA narres tus intenciones ni escribas en tus pensamientos "Next up is...", "A continuación construiré la llamada", "Voy a crear la hoja..." sin emitir la llamada técnica real. Si vas a usar una herramienta, llámala directamente.',
+      '3. LLAMADAS EN PARALELO: Si necesitas usar varias herramientas en el mismo turno, ejecútalas en paralelo.',
+      '4. RESPUESTA VISIBLE OBLIGATORIA: Todo mensaje debe contener una respuesta conversacional visible, clara, cálida y profesional para el usuario en español. NUNCA termines tu turno dejando únicamente bloques de pensamiento (<thought>) sin texto conversacional visible.',
+      '5. PRECISIÓN Y RIGOR SST: Basa tus análisis y cálculos en la normativa colombiana aplicable (Decreto 1072 de 2015, Resolución 0312 de 2019, Resolución 20223040040595 para PESV, etc.).'
     ]
       .filter(Boolean)
       .join('\n')
@@ -1925,15 +1923,25 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         let fallbackMsg = '';
         if (hasToolActivity) {
           fallbackMsg = 'He procesado tu solicitud y ejecutado las acciones correspondientes. Puedes visualizar el resultado en el panel lateral o en el historial.';
-        } else if (thoughtParts.length > 50) {
-          // If the model did extensive reasoning but finished without emitting a separate text part,
-          // extract the last paragraph or synthesize a response so the user gets the actual answer!
-          const paragraphs = thoughtParts.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
-          const lastParagraph = paragraphs[paragraphs.length - 1];
-          if (lastParagraph && lastParagraph.length > 20) {
-            fallbackMsg = lastParagraph;
+        } else if (thoughtParts.length > 20) {
+          const isEnglish = /\b(the|and|is|in|to|for|with|I've|I'll|diving|constructing|ironed|Next up|Let's|Since)\b/i.test(thoughtParts);
+          const hasSheets = /google_sheets|spreadsheet|hoja de c[aá]lculo|drive/i.test(thoughtParts);
+          const hasCanvas = /canvas|aplicativo|html|interactiv/i.test(thoughtParts);
+
+          if (hasSheets) {
+            fallbackMsg = 'He analizado tu solicitud para la integración con Google Sheets. Tengo preparada la estructura de datos y los indicadores correspondientes. Por favor indícame si deseas que proceda a registrar la hoja en tu Google Drive ahora mismo.';
+          } else if (hasCanvas) {
+            fallbackMsg = 'He preparado el diseño y la lógica del aplicativo solicitado. Puedes visualizar los componentes o indicarme si deseas algún ajuste específico.';
+          } else if (!isEnglish) {
+            const paragraphs = thoughtParts.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+            const lastParagraph = paragraphs[paragraphs.length - 1];
+            if (lastParagraph && lastParagraph.length > 20 && !/\b(tool|call|constructing|herramienta)\b/i.test(lastParagraph)) {
+              fallbackMsg = lastParagraph;
+            } else {
+              fallbackMsg = 'He analizado tu solicitud. ¿En qué aspecto específico de este requerimiento te gustaría que continuemos?';
+            }
           } else {
-            fallbackMsg = 'He analizado tu solicitud. ¿En qué aspecto específico de este requerimiento te gustaría que profundicemos?';
+            fallbackMsg = 'He analizado tu solicitud en el sistema. ¿Deseas que proceda de inmediato con la creación de los formatos e indicadores correspondientes?';
           }
         } else {
           fallbackMsg = 'He procesado tu consulta. Por favor, indícame si requieres algún detalle adicional o ajuste.';
