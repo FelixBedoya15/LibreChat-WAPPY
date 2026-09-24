@@ -1,23 +1,6 @@
-import SGSSTDashboard from '~/components/SGSST/Dashboard';
-import PublicReportView from '~/components/SGSST/PublicReportView';
-import PublicReporteActos from '~/components/SGSST/PublicReporteActos';
-import PublicParticipacionIPEVAR from '~/components/SGSST/PublicParticipacionIPEVAR';
-import PublicAltaDireccion from '~/components/SGSST/PublicAltaDireccion';
-import PublicAtelTestimonio from '~/components/SGSST/PublicAtelTestimonio';
-import PublicPerfilUpdate from '~/components/SGSST/PublicPerfilUpdate';
-import PublicMoodTracker from '~/components/SGSST/PublicMoodTracker';
-import PublicEstudioPuesto from '~/components/SGSST/PublicEstudioPuesto';
-import PublicColaboradorHub from '~/components/SGSST/PublicColaboradorHub';
-import PublicComites from '~/components/SGSST/PublicComites';
-import PublicConvivencia from '~/components/SGSST/PublicConvivencia';
-import MoodAnalyticsDashboard from '~/components/SGSST/MoodAnalyticsDashboard';
-import PrivacyPolicyPage from '~/components/Auth/PrivacyPolicyPage';
-import TermsOfServicePage from '~/components/Auth/TermsOfServicePage';
-import WappyAboutPage from '~/components/Auth/WappyAboutPage';
-import ComunidadPage from '~/components/Marketing/ComunidadPage';
-import MatrizPage from '~/components/Marketing/MatrizPage';
-import LandingPage from '~/components/Marketing/LandingPage';
+import React, { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Spinner } from '@librechat/client';
 import {
   Login,
   VerifyEmail,
@@ -28,7 +11,6 @@ import {
   RequestPasswordReset,
 } from '~/components/Auth';
 import { MarketplaceProvider } from '~/components/Agents/MarketplaceContext';
-import AgentMarketplace from '~/components/Agents/Marketplace';
 import { OAuthSuccess, OAuthError } from '~/components/OAuth';
 import { AuthContextProvider } from '~/hooks/AuthContext';
 import RouteErrorBoundary from './RouteErrorBoundary';
@@ -37,37 +19,64 @@ import LoginLayout from './Layouts/Login';
 import dashboardRoutes from './Dashboard';
 import ShareRoute from './ShareRoute';
 import ChatRoute from './ChatRoute';
-import TrainingDashboard from '~/components/Training/TrainingDashboard';
-import CourseViewer from '~/components/Training/CourseViewer';
-import TrainingAdminDashboard from '~/components/Training/TrainingAdminDashboard';
-import CourseEditor from '~/components/Training/CourseEditor';
-import RutaAprendizajeDashboard from '~/components/RutaAprendizaje/RutaAprendizajeDashboard';
-import RutaAprendizajeAdminDashboard from '~/components/RutaAprendizaje/RutaAprendizajeAdminDashboard';
-import RutaAprendizajeCourseEditor from '~/components/RutaAprendizaje/RutaAprendizajeCourseEditor';
-import RutaAprendizajeCourseViewer from '~/components/RutaAprendizaje/RutaAprendizajeCourseViewer';
-import PublicRutaAprendizaje from '~/components/RutaAprendizaje/PublicRutaAprendizaje';
-import PublicRutaCourseViewer from '~/components/RutaAprendizaje/PublicRutaCourseViewer';
-import BlogDashboard from '~/components/Blog/BlogDashboard';
-import BlogAdminDashboard from '~/components/Blog/BlogAdminDashboard';
-import BlogPostEditor from '~/components/Blog/BlogPostEditor';
-import BlogPostViewer from '~/components/Blog/BlogPostViewer';
-import TenshiAdminPanel from '~/components/Tenshi/TenshiAdminPanel';
-import ChatSSTView from '~/components/ChatSST/ChatSSTView';
-import EventsMeetDashboard from '~/components/EventsMeet/EventsMeetDashboard';
-import EventsMeetAdminDashboard from '~/components/EventsMeet/EventsMeetAdminDashboard';
-
-import AuditoriaDashboard from '~/components/Auditoria/AuditoriaDashboard';
-import Automatizaciones from '~/components/SGSST/Automatizaciones';
-import CentroControlSST from '~/components/SGSST/CentroControlSST';
-import AcademiaDashboard from '~/components/Academia/AcademiaDashboard';
-import PlansPage from '~/components/Plans/PlansPage';
-import ContactPage from '~/components/Plans/ContactPage';
-import KanbanDashboard from '~/components/Kanban/KanbanDashboard';
-import AmbassadorDashboard from '~/components/Ambassadors/AmbassadorDashboard';
-import RoadmapPage from '~/components/Roadmap/RoadmapPage';
 import Search from './Search';
 import Root from './Root';
 import RoadmapNotifier from '~/components/Roadmap/RoadmapNotifier';
+
+// Lazy-loaded secondary dashboards and public pages for fast initial bundle load
+const SGSSTDashboard = lazy(() => import('~/components/SGSST/Dashboard'));
+const PublicReportView = lazy(() => import('~/components/SGSST/PublicReportView'));
+const PublicReporteActos = lazy(() => import('~/components/SGSST/PublicReporteActos'));
+const PublicParticipacionIPEVAR = lazy(() => import('~/components/SGSST/PublicParticipacionIPEVAR'));
+const PublicAltaDireccion = lazy(() => import('~/components/SGSST/PublicAltaDireccion'));
+const PublicAtelTestimonio = lazy(() => import('~/components/SGSST/PublicAtelTestimonio'));
+const PublicPerfilUpdate = lazy(() => import('~/components/SGSST/PublicPerfilUpdate'));
+const PublicMoodTracker = lazy(() => import('~/components/SGSST/PublicMoodTracker'));
+const PublicEstudioPuesto = lazy(() => import('~/components/SGSST/PublicEstudioPuesto'));
+const PublicColaboradorHub = lazy(() => import('~/components/SGSST/PublicColaboradorHub'));
+const PublicComites = lazy(() => import('~/components/SGSST/PublicComites'));
+const PublicConvivencia = lazy(() => import('~/components/SGSST/PublicConvivencia'));
+const MoodAnalyticsDashboard = lazy(() => import('~/components/SGSST/MoodAnalyticsDashboard'));
+const PrivacyPolicyPage = lazy(() => import('~/components/Auth/PrivacyPolicyPage'));
+const TermsOfServicePage = lazy(() => import('~/components/Auth/TermsOfServicePage'));
+const WappyAboutPage = lazy(() => import('~/components/Auth/WappyAboutPage'));
+const ComunidadPage = lazy(() => import('~/components/Marketing/ComunidadPage'));
+const MatrizPage = lazy(() => import('~/components/Marketing/MatrizPage'));
+const LandingPage = lazy(() => import('~/components/Marketing/LandingPage'));
+const AgentMarketplace = lazy(() => import('~/components/Agents/Marketplace'));
+const CourseViewer = lazy(() => import('~/components/Training/CourseViewer'));
+const TrainingAdminDashboard = lazy(() => import('~/components/Training/TrainingAdminDashboard'));
+const CourseEditor = lazy(() => import('~/components/Training/CourseEditor'));
+const RutaAprendizajeAdminDashboard = lazy(() => import('~/components/RutaAprendizaje/RutaAprendizajeAdminDashboard'));
+const RutaAprendizajeCourseEditor = lazy(() => import('~/components/RutaAprendizaje/RutaAprendizajeCourseEditor'));
+const RutaAprendizajeCourseViewer = lazy(() => import('~/components/RutaAprendizaje/RutaAprendizajeCourseViewer'));
+const PublicRutaAprendizaje = lazy(() => import('~/components/RutaAprendizaje/PublicRutaAprendizaje'));
+const PublicRutaCourseViewer = lazy(() => import('~/components/RutaAprendizaje/PublicRutaCourseViewer'));
+const BlogAdminDashboard = lazy(() => import('~/components/Blog/BlogAdminDashboard'));
+const BlogPostEditor = lazy(() => import('~/components/Blog/BlogPostEditor'));
+const BlogPostViewer = lazy(() => import('~/components/Blog/BlogPostViewer'));
+const TenshiAdminPanel = lazy(() => import('~/components/Tenshi/TenshiAdminPanel'));
+const ChatSSTView = lazy(() => import('~/components/ChatSST/ChatSSTView'));
+const EventsMeetAdminDashboard = lazy(() => import('~/components/EventsMeet/EventsMeetAdminDashboard'));
+const AuditoriaDashboard = lazy(() => import('~/components/Auditoria/AuditoriaDashboard'));
+const CentroControlSST = lazy(() => import('~/components/SGSST/CentroControlSST'));
+const AcademiaDashboard = lazy(() => import('~/components/Academia/AcademiaDashboard'));
+const PlansPage = lazy(() => import('~/components/Plans/PlansPage'));
+const ContactPage = lazy(() => import('~/components/Plans/ContactPage'));
+const AmbassadorDashboard = lazy(() => import('~/components/Ambassadors/AmbassadorDashboard'));
+const RoadmapPage = lazy(() => import('~/components/Roadmap/RoadmapPage'));
+
+const PageLoader = () => (
+  <div className="flex h-full w-full items-center justify-center p-8 min-h-[50vh]">
+    <Spinner className="h-8 w-8 text-teal-600 dark:text-teal-400" />
+  </div>
+);
+
+const withSuspense = (node: React.ReactNode) => (
+  <Suspense fallback={<PageLoader />}>
+    {node}
+  </Suspense>
+);
 
 const EmbajadoresRedirect = () => {
   window.location.replace('/embajadores.html');
@@ -114,73 +123,73 @@ export const router = createBrowserRouter(
     },
     {
       path: 'report/:id',
-      element: <PublicReportView />,
+      element: withSuspense(<PublicReportView />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/reportar/:companyId',
-      element: <PublicReporteActos />,
+      element: withSuspense(<PublicReporteActos />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/animo/:companyId',
-      element: <PublicMoodTracker />,
+      element: withSuspense(<PublicMoodTracker />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/estudio-puesto/:companyId',
-      element: <PublicEstudioPuesto />,
+      element: withSuspense(<PublicEstudioPuesto />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/ipevar/:companyId',
-      element: <PublicParticipacionIPEVAR />,
+      element: withSuspense(<PublicParticipacionIPEVAR />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/alta-direccion/:companyId',
-      element: <PublicAltaDireccion />,
+      element: withSuspense(<PublicAltaDireccion />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/atel-testimonio/:companyId',
-      element: <PublicAtelTestimonio />,
+      element: withSuspense(<PublicAtelTestimonio />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/perfil-update/:companyId/:workerId?',
-      element: <PublicPerfilUpdate />,
+      element: withSuspense(<PublicPerfilUpdate />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/ruta-aprendizaje/:companyId',
-      element: <PublicRutaAprendizaje />,
+      element: withSuspense(<PublicRutaAprendizaje />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/ruta-aprendizaje/:companyId/course/:courseId',
-      element: <PublicRutaCourseViewer />,
+      element: withSuspense(<PublicRutaCourseViewer />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/colaborador/:companyId/:cedula?',
-      element: <PublicColaboradorHub />,
+      element: withSuspense(<PublicColaboradorHub />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/comites/:companyId',
-      element: <PublicComites />,
+      element: withSuspense(<PublicComites />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'sgsst-public/convivencia/:companyId',
-      element: <PublicConvivencia />,
+      element: withSuspense(<PublicConvivencia />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       // Catch-all for UUIDs at the root (solves the 404 without prefix)
       path: ':id',
-      element: <PublicReportView />,
+      element: withSuspense(<PublicReportView />),
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -218,22 +227,22 @@ export const router = createBrowserRouter(
     },
     {
       path: 'privacy',
-      element: <PrivacyPolicyPage />,
+      element: withSuspense(<PrivacyPolicyPage />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'terms',
-      element: <TermsOfServicePage />,
+      element: withSuspense(<TermsOfServicePage />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'about',
-      element: <WappyAboutPage />,
+      element: withSuspense(<WappyAboutPage />),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'comunidad',
-      element: (
+      element: withSuspense(
         <AuthContextProvider>
           <ComunidadPage />
           <ApiErrorWatcher />
@@ -243,7 +252,7 @@ export const router = createBrowserRouter(
     },
     {
       path: 'comunidadmp',
-      element: (
+      element: withSuspense(
         <AuthContextProvider>
           <ComunidadPage />
           <ApiErrorWatcher />
@@ -253,7 +262,7 @@ export const router = createBrowserRouter(
     },
     {
       path: 'wappyvital',
-      element: (
+      element: withSuspense(
         <AuthContextProvider>
           <ComunidadPage />
           <ApiErrorWatcher />
@@ -263,7 +272,7 @@ export const router = createBrowserRouter(
     },
     {
       path: 'matriz',
-      element: (
+      element: withSuspense(
         <AuthContextProvider>
           <MatrizPage />
           <ApiErrorWatcher />
@@ -273,7 +282,7 @@ export const router = createBrowserRouter(
     },
     {
       path: 'landing',
-      element: (
+      element: withSuspense(
         <AuthContextProvider>
           <LandingPage />
           <ApiErrorWatcher />
@@ -283,7 +292,7 @@ export const router = createBrowserRouter(
     },
     {
       path: 'inicio',
-      element: (
+      element: withSuspense(
         <AuthContextProvider>
           <LandingPage />
           <ApiErrorWatcher />
@@ -293,7 +302,7 @@ export const router = createBrowserRouter(
     },
     {
       path: 'planes',
-      element: (
+      element: withSuspense(
         <AuthContextProvider>
           <PlansPage />
           <ApiErrorWatcher />
@@ -313,7 +322,7 @@ export const router = createBrowserRouter(
     },
     {
       path: 'hoja-de-ruta',
-      element: (
+      element: withSuspense(
         <AuthContextProvider>
           <RoadmapPage />
           <ApiErrorWatcher />
@@ -324,7 +333,7 @@ export const router = createBrowserRouter(
     },
     {
       path: 'contactanos',
-      element: (
+      element: withSuspense(
         <AuthContextProvider>
           <ContactPage />
           <ApiErrorWatcher />
@@ -350,7 +359,7 @@ export const router = createBrowserRouter(
     },
     {
       path: 'blog/:postId/:slug?',
-      element: (
+      element: withSuspense(
         <AuthContextProvider>
           <BlogPostViewer />
           <ApiErrorWatcher />
@@ -404,24 +413,24 @@ export const router = createBrowserRouter(
             },
             {
               path: 'chat-sst',
-              element: <ChatSSTView />,
+              element: withSuspense(<ChatSSTView />),
             },
             {
               path: 'events-meet/admin',
-              element: <EventsMeetAdminDashboard />,
+              element: withSuspense(<EventsMeetAdminDashboard />),
             },
 
             {
               path: 'sgsst',
-              element: <SGSSTDashboard />,
+              element: withSuspense(<SGSSTDashboard />),
             },
             {
               path: 'sgsst/animo',
-              element: <MoodAnalyticsDashboard />,
+              element: withSuspense(<MoodAnalyticsDashboard />),
             },
             {
               path: 'sgsst/automatizaciones',
-              element: <CentroControlSST />,
+              element: withSuspense(<CentroControlSST />),
             },
             {
               /* Redirect old GTC-45 workspace URLs to the equivalent native chat */
@@ -435,87 +444,87 @@ export const router = createBrowserRouter(
 
             {
               path: 'academia',
-              element: <AcademiaDashboard />,
+              element: withSuspense(<AcademiaDashboard />),
             },
             {
               path: 'training',
-              element: <AcademiaDashboard />,
+              element: withSuspense(<AcademiaDashboard />),
             },
             {
               path: 'training/admin',
-              element: <TrainingAdminDashboard />,
+              element: withSuspense(<TrainingAdminDashboard />),
             },
             {
               path: 'training/admin/courses/:id',
-              element: <CourseEditor />,
+              element: withSuspense(<CourseEditor />),
             },
             {
               path: 'training/:courseId/:slug?',
-              element: <CourseViewer />,
+              element: withSuspense(<CourseViewer />),
             },
             {
               path: 'ruta-aprendizaje',
-              element: <AcademiaDashboard />,
+              element: withSuspense(<AcademiaDashboard />),
             },
             {
               path: 'ruta-aprendizaje/admin',
-              element: <RutaAprendizajeAdminDashboard />,
+              element: withSuspense(<RutaAprendizajeAdminDashboard />),
             },
             {
               path: 'ruta-aprendizaje/admin/courses/:id',
-              element: <RutaAprendizajeCourseEditor />,
+              element: withSuspense(<RutaAprendizajeCourseEditor />),
             },
             {
               path: 'ruta-aprendizaje/:courseId/:slug?',
-              element: <RutaAprendizajeCourseViewer />,
+              element: withSuspense(<RutaAprendizajeCourseViewer />),
             },
             {
               path: 'blog',
-              element: <AcademiaDashboard />,
+              element: withSuspense(<AcademiaDashboard />),
             },
             {
               path: 'events-meet',
-              element: <AcademiaDashboard />,
+              element: withSuspense(<AcademiaDashboard />),
             },
             {
               path: 'blog/admin',
-              element: <BlogAdminDashboard />,
+              element: withSuspense(<BlogAdminDashboard />),
             },
             {
               path: 'tenshi/admin',
-              element: <TenshiAdminPanel />,
+              element: withSuspense(<TenshiAdminPanel />),
             },
             {
               path: 'blog/admin/posts/:id',
-              element: <BlogPostEditor />,
+              element: withSuspense(<BlogPostEditor />),
             },
             {
               path: 'auditoria',
-              element: <AuditoriaDashboard />,
+              element: withSuspense(<AuditoriaDashboard />),
             },
             {
               path: 'kanban',
-              element: <CentroControlSST />,
+              element: withSuspense(<CentroControlSST />),
             },
             {
               path: 'control',
-              element: <CentroControlSST />,
+              element: withSuspense(<CentroControlSST />),
             },
             {
               path: 'sgsst/control',
-              element: <CentroControlSST />,
+              element: withSuspense(<CentroControlSST />),
             },
             {
               path: 'embajadores/dashboard',
-              element: <AmbassadorDashboard />,
+              element: withSuspense(<AmbassadorDashboard />),
             },
             {
               path: 'embajadores',
-              element: <AmbassadorDashboard />,
+              element: withSuspense(<AmbassadorDashboard />),
             },
             {
               path: 'agents',
-              element: (
+              element: withSuspense(
                 <MarketplaceProvider>
                   <AgentMarketplace />
                 </MarketplaceProvider>
@@ -523,7 +532,7 @@ export const router = createBrowserRouter(
             },
             {
               path: 'agents/:category',
-              element: (
+              element: withSuspense(
                 <MarketplaceProvider>
                   <AgentMarketplace />
                 </MarketplaceProvider>

@@ -36,11 +36,10 @@ export default defineConfig(({ command }) => ({
     react(),
     nodePolyfills(),
     VitePWA({
-      selfDestroying: true,
-      injectRegister: 'auto', // 'auto' = inject registration code so the self-destroying SW actually replaces the old one
-      registerType: 'autoUpdate', // 'prompt' | 'autoUpdate'
+      injectRegister: 'auto',
+      registerType: 'autoUpdate',
       devOptions: {
-        enabled: false, // disable service worker registration in development mode
+        enabled: false,
       },
       useCredentials: true,
       includeManifestIcons: false,
@@ -53,45 +52,64 @@ export default defineConfig(({ command }) => ({
           'assets/apple-touch-icon*.png',
           'assets/maskable-icon.png',
           'manifest.webmanifest',
+          'manifest.json',
         ],
-        globIgnores: ['images/**/*', '**/*.map', 'index.html'],
-        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
-        navigateFallbackDenylist: [/^\/oauth/, /^\/api/],
+        globIgnores: ['images/**/*', 'videos/**/*', '**/*.map'],
+        maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
+        navigateFallbackDenylist: [/^\/oauth/, /^\/api/, /^\/download/],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/assets/'),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'wappy-assets-cache',
+              expiration: {
+                maxEntries: 120,
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+              },
+            },
+          },
+        ],
       },
-      includeAssets: [],
-
+      includeAssets: ['assets/favicon-32x32.png', 'assets/apple-touch-icon-180x180.png'],
       manifest: {
-        name: 'WAPPY IA',
+        id: '/',
+        name: 'WAPPY IA - Tu asistente de IA avanzado',
         short_name: 'WAPPY IA',
+        description: 'WAPPY IA - Tu asistente de inteligencia artificial avanzado',
+        start_url: '/',
+        scope: '/',
         display: 'standalone',
-        background_color: '#000000',
+        orientation: 'portrait',
+        background_color: '#171717',
         theme_color: '#009688',
         icons: [
           {
-            src: 'assets/favicon-32x32.png',
+            src: '/assets/favicon-32x32.png',
             sizes: '32x32',
             type: 'image/png',
           },
           {
-            src: 'assets/favicon-16x16.png',
+            src: '/assets/favicon-16x16.png',
             sizes: '16x16',
             type: 'image/png',
           },
           {
-            src: 'assets/apple-touch-icon-180x180.png',
+            src: '/assets/apple-touch-icon-180x180.png',
             sizes: '180x180',
             type: 'image/png',
           },
           {
-            src: 'assets/icon-192x192.png',
+            src: '/assets/icon-192x192.png',
             sizes: '192x192',
             type: 'image/png',
+            purpose: 'any',
           },
           {
-            src: 'assets/maskable-icon.png',
+            src: '/assets/maskable-icon.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'maskable',
+            purpose: 'any maskable',
           },
         ],
       },
@@ -101,7 +119,7 @@ export default defineConfig(({ command }) => ({
       threshold: 51200,
     }),
   ],
-  publicDir: command === 'serve' ? './public' : false,
+  publicDir: './public',
   build: {
     sourcemap: process.env.NODE_ENV === 'development',
     outDir: './dist',
@@ -232,6 +250,51 @@ export default defineConfig(({ command }) => ({
           // Create a separate chunk for all locale files under src/locales.
           if (normalizedId.includes('/src/locales/')) {
             return 'locales';
+          }
+          // Heavy internal application chunks to prevent massive 11MB initial bundle
+          if (
+            normalizedId.includes('/src/components/Canvas/sstTemplates') ||
+            normalizedId.includes('/src/components/Canvas/extended_templates') ||
+            normalizedId.includes('/src/components/Canvas/rit_template')
+          ) {
+            return 'canvas-templates';
+          }
+          if (
+            normalizedId.includes('/src/utils/sgsstPhotoAssets') ||
+            normalizedId.includes('/src/utils/dummyDataGenerator')
+          ) {
+            return 'sgsst-assets';
+          }
+          if (normalizedId.includes('/src/components/SGSST/')) {
+            return 'sgsst-modules';
+          }
+          if (
+            normalizedId.includes('/src/components/Training/') ||
+            normalizedId.includes('/src/components/RutaAprendizaje/') ||
+            normalizedId.includes('/src/components/Academia/')
+          ) {
+            return 'lms-modules';
+          }
+          if (normalizedId.includes('/src/components/Blog/')) {
+            return 'blog-modules';
+          }
+          if (normalizedId.includes('/src/components/Marketing/')) {
+            return 'marketing-pages';
+          }
+          if (normalizedId.includes('/src/components/Auditoria/')) {
+            return 'auditoria-modules';
+          }
+          if (normalizedId.includes('/src/components/EventsMeet/')) {
+            return 'events-modules';
+          }
+          if (normalizedId.includes('/src/components/Plans/')) {
+            return 'plans-module';
+          }
+          if (normalizedId.includes('/src/components/Ambassadors/')) {
+            return 'ambassadors-module';
+          }
+          if (normalizedId.includes('/src/components/Kanban/')) {
+            return 'kanban-module';
           }
           // Let Rollup decide automatically for any other files.
           return null;

@@ -342,7 +342,8 @@ class AgentClient extends BaseClient {
       '1. Logical dependencies: Reorder operations if needed to successfully complete the task.',
       '2. Risk assessment: Call tools with available info rather than asking the user unless strictly necessary.',
       '3. Persistence and adaptability: On transient errors, retry the call. On other errors, change your strategy or arguments rather than repeating the same call. Do not give up easily.',
-      '4. Precision and Grounding: Ensure your reasoning is highly precise and based only on facts. If referencing a document or policy, quote the exact applicable text.'
+      '4. Precision and Grounding: Ensure your reasoning is highly precise and based only on facts. If referencing a document or policy, quote the exact applicable text.',
+      '5. Mandatory Conversational Response: ALWAYS emit a comprehensive, clear, and helpful text response to the user. Never end your turn with only internal thinking or silent execution without text.'
     ]
       .filter(Boolean)
       .join('\n')
@@ -1420,6 +1421,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         const agentsForRun = agents.map((agent) => ({
           ...agent,
           tools: agent.tools ? [...agent.tools] : agent.tools,
+          ...(agent.provider === Providers.GOOGLE || agent.provider === 'google' ? { reasoningKey: 'reasoning' } : {}),
         }));
 
         // Build agentId → name map for transfer tracking (safe: only used after execution)
@@ -1902,23 +1904,52 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         });
       }
 
-      // Safety net: If a tool was executed (e.g. canvas, matriz_ipevar, etc.)
-      // but no text response was emitted (e.g. 2nd step was aborted, closed, or silent),
-      // ensure the user receives a helpful conversational confirmation instead of an empty bubble.
-      const hasTextPart = this.contentParts.some(
-        (part) => part && (part.type === ContentTypes.TEXT || (typeof part.text === 'string' && part.text.trim().length > 0))
-      );
-      const hasToolActivity = this.contentParts.some(
-        (part) => part && (part.type === ContentTypes.TOOL_CALL || part.type === ContentTypes.TOOL_RESULT || part.tool_call_ids != null || part.tool_call_id != null)
+      // Safety net: Ensure the user ALWAYS receives a real, helpful conversational text response,
+      // never leaving an empty bubble or just a 'Thoughts' block with no text.
+      const hasRealText = this.contentParts.some(
+        (part) => part && part.type === ContentTypes.TEXT && typeof part.text === 'string' && part.text.trim().length > 0
       );
 
-      if (hasToolActivity && !hasTextPart) {
-        const fallbackMsg = 'He procesado tu solicitud y generado el contenido correspondiente. Puedes visualizar el resultado en el panel lateral.';
+      if (!hasRealText) {
+        const hasToolActivity = this.contentParts.some(
+          (part) => part && (part.type === ContentTypes.TOOL_CALL || part.type === ContentTypes.TOOL_RESULT || part.tool_call_ids != null || part.tool_call_id != null)
+        );
+
+        // Check if there are thought/reasoning blocks
+        const thoughtParts = this.contentParts
+          .filter((part) => part && (part.type === ContentTypes.THINK || typeof part.think === 'string'))
+          .map((part) => (typeof part.think === 'string' ? part.think : (part[ContentTypes.THINK] || '')))
+          .join('\n')
+          .trim();
+
+        let fallbackMsg = '';
+        if (hasToolActivity) {
+          fallbackMsg = 'He procesado tu solicitud y ejecutado las acciones correspondientes. Puedes visualizar el resultado en el panel lateral o en el historial.';
+        } else if (thoughtParts.length > 50) {
+          // If the model did extensive reasoning but finished without emitting a separate text part,
+          // extract the last paragraph or synthesize a response so the user gets the actual answer!
+          const paragraphs = thoughtParts.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+          const lastParagraph = paragraphs[paragraphs.length - 1];
+          if (lastParagraph && lastParagraph.length > 20) {
+            fallbackMsg = lastParagraph;
+          } else {
+            fallbackMsg = 'He analizado tu solicitud. ¿En qué aspecto específico de este requerimiento te gustaría que profundicemos?';
+          }
+        } else {
+          fallbackMsg = 'He procesado tu consulta. Por favor, indícame si requieres algún detalle adicional o ajuste.';
+        }
+
+        // Clean any empty text parts first
+        this.contentParts = this.contentParts.filter(
+          (part) => !(part && part.type === ContentTypes.TEXT && (!part.text || !part.text.trim()))
+        );
+
         this.contentParts.push({
           type: ContentTypes.TEXT,
           [ContentTypes.TEXT]: fallbackMsg,
           text: fallbackMsg,
         });
+
         try {
           const { sendEvent } = require('@librechat/api');
           sendEvent(this.options.res, {

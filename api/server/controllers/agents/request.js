@@ -11,8 +11,11 @@ const { saveMessage } = require('~/models');
 
 const MAX_AGENT_EXECUTION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes safety cap for interactive sessions
 
-function createCloseHandler(abortController) {
+function createCloseHandler(abortController, res) {
   return function (manual) {
+    if (res && (res.writableEnded || res.finished)) {
+      return;
+    }
     if (!manual) {
       logger.info(
         '[AgentController] HTTP connection closed by client (user navigated away or switched tabs). Request continues in background until finished, user Stop, or 10m safety timeout.',
@@ -129,7 +132,7 @@ const AgentController = async (req, res, next, initializeClient, addTitle) => {
 
   try {
     let prelimAbortController = new AbortController();
-    const prelimCloseHandler = createCloseHandler(prelimAbortController);
+    const prelimCloseHandler = createCloseHandler(prelimAbortController, res);
     res.on('close', prelimCloseHandler);
     const removePrelimHandler = (manual) => {
       try {
@@ -186,7 +189,7 @@ const AgentController = async (req, res, next, initializeClient, addTitle) => {
     };
 
     const { abortController, onStart } = createAbortController(req, res, getAbortData, getReqData);
-    const closeHandler = createCloseHandler(abortController);
+    const closeHandler = createCloseHandler(abortController, res);
     res.on('close', closeHandler);
     cleanupHandlers.push(() => {
       try {
