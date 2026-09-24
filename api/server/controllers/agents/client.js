@@ -1508,18 +1508,46 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         .filter(Boolean)
         .filter((m) => !m.includes('native-audio') && !m.includes('-live-') && !m.includes('-transcribe') && !m.includes('live-preview'));
       
-      let primaryAgentModel = this.options.agent?.model_parameters?.model || this.options.agent?.model || '';
-      if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe')) {
-        primaryAgentModel = isPublicChat ? 'gemini-3.5-flash-lite' : (envAgentModels[0] || 'gemini-3.8-flash');
+      // WAPPY Brain Router: Selección táctica de modelo según el tipo de requerimiento
+      let userQuery = (this.options.req?.body?.text || '').toLowerCase();
+      if (!userQuery && Array.isArray(this.options.req?.body?.messages) && this.options.req.body.messages.length > 0) {
+        const lastMsg = this.options.req.body.messages[this.options.req.body.messages.length - 1];
+        userQuery = (lastMsg?.text || lastMsg?.content || '').toLowerCase();
       }
+
+      const isComplexDesignOrCanvas = [
+        'aplicativo', 'dashboard', 'canvas', 'lienzo', 'interactivo', 'calculadora',
+        'diseñar', 'diseña', 'redactar', 'redacte', 'crear carta', 'crea una carta',
+        'crear acta', 'crea un acta', 'crear contrato', 'crea un contrato',
+        'crear plantilla', 'diseñar plantilla', 'informe anual', 'matriz ipevar', 'matriz pesv'
+      ].some((kw) => userQuery.includes(kw));
+
+      const userExplicitModel = this.options.req?.body?.model;
+      let primaryAgentModel = this.options.agent?.model_parameters?.model || this.options.agent?.model || '';
+      let rawFallbacks = [];
 
       if (isPublicChat) {
         primaryAgentModel = 'gemini-3.5-flash-lite';
+        rawFallbacks = ['gemini-3.5-flash-lite', 'gemini-3.5-flash'];
+      } else if (userExplicitModel && userExplicitModel !== 'default' && userExplicitModel !== '') {
+        primaryAgentModel = userExplicitModel;
+        rawFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
+        logger.info(`[WAPPY Brain Router] Modelo explícito seleccionado por usuario: "${primaryAgentModel}"`);
+      } else if (isComplexDesignOrCanvas) {
+        // Tarea de diseño / Canvas / maquetación pesada: arrancar con modelo de máxima capacidad
+        if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe')) {
+          primaryAgentModel = envAgentModels[0] || 'gemini-3.8-flash';
+        }
+        rawFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
+        logger.info(`[WAPPY Brain Router] Tarea de Diseño/Canvas detectada. Modelo prioritario: "${primaryAgentModel}"`);
+      } else {
+        // Tarea operativa / Google Sheets / cálculos / consultas normativas / chat rápido:
+        // Priorizar gemini-3.5-flash-lite (ultra rápido, 500 RPD por llave, sin lags de pensamiento)
+        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.8-flash'];
+        primaryAgentModel = 'gemini-3.5-flash-lite';
+        rawFallbacks = operationalModels;
+        logger.info(`[WAPPY Brain Router] Tarea Operativa/Sheets/Consulta detectada. Modelo prioritario: "${primaryAgentModel}" (500 RPD)`);
       }
-
-      const rawFallbacks = isPublicChat
-        ? ['gemini-3.5-flash-lite', 'gemini-3.5-flash']
-        : [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
 
       const now = Date.now();
       const activeModels = rawFallbacks.filter((m) => !overloadedModelCooldowns.has(m) || overloadedModelCooldowns.get(m) < now);

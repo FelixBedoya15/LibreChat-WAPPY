@@ -225,7 +225,7 @@ const loadAgent = async ({ req, spec, agent_id, endpoint, model_parameters }) =>
   }
 
   if (userQuery) {
-    const canvasKeywords = ['redactar', 'redacte', 'crear carta', 'crea una carta', 'crear acta', 'crea un acta', 'crear documento', 'crea un documento', 'crear contrato', 'crea un contrato', 'crear plantilla', 'crea una plantilla', 'diseñar plantilla', 'diseña una plantilla', 'en el canvas', 'en canvas', 'lienzo', 'lienzo de word'];
+    const canvasKeywords = ['aplicativo', 'dashboard', 'calculadora', 'redactar', 'redacte', 'crear carta', 'crea una carta', 'crear acta', 'crea un acta', 'crear documento', 'crea un documento', 'crear contrato', 'crea un contrato', 'crear plantilla', 'crea una plantilla', 'diseñar plantilla', 'diseña una plantilla', 'en el canvas', 'en canvas', 'lienzo', 'lienzo de word'];
     if (canvasKeywords.some(kw => userQuery.includes(kw))) {
       if (!agent.tools.includes('canvas')) {
         agent.tools.push('canvas');
