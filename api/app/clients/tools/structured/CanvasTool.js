@@ -163,15 +163,8 @@ async function processHtmlAppDocument(content, fileType, title, userId, req, exi
 
   let stringContent = typeof content === 'string' ? content.trim() : (content ? String(content) : '');
 
-  // Si ya es un aplicativo HTML completo y robusto (más de 2500 caracteres, scripts y estilos Tailwind/Chart), preservarlo
-  const isAlreadyFullApp =
-    stringContent.length > 2500 &&
-    (stringContent.includes('<script') || stringContent.includes('tailwindcss')) &&
-    (stringContent.includes('<!DOCTYPE') || stringContent.includes('<html') || stringContent.includes('<div'));
-
-  if (isAlreadyFullApp) {
-    return stringContent;
-  }
+  // Camino B: Siempre sintetizar o elevar el aplicativo HTML con el modelo potente (gemini-3.8-flash)
+  // Cualquier código base o especificación recibida se suministra a gemini-3.8-flash como referencia.
 
   // Cargar información corporativa de la empresa
   let companyInfo = null;
@@ -307,7 +300,8 @@ class CanvasTool extends Tool {
         .optional()
         .describe(
           'Contenido principal del archivo. OBLIGATORIO al crear o actualizar completamente. Si usas acciones parciales o "leer", envía un string vacío o no lo envíes.\n' +
-            '- Para "text" y "html": una cadena de texto (Markdown, HTML enriquecido o código HTML/CSS plano).\n' +
+            '- Para "text": una cadena de texto (Markdown, HTML enriquecido o texto estructurado).\n' +
+            '- Para "html": especificaciones técnicas, fórmulas SG-SST (ej. Res. 0312), enlaces a Google Sheets o bosquejo del aplicativo. El Especialista Técnico de WAPPY ("gemini-3.8-flash") sintetizará el aplicativo HTML5 interactivo completo con Tailwind CSS y Chart.js.\n' +
             '- Para "excel": un JSON stringificado o array bidimensional directo representando la grilla, ej: [["Col1", "Col2"], ["Dato1", "Dato2"]].\n' +
             '- Para "presentation": un JSON stringificado o array directo representando las diapositivas, ej: [{"title": "SST", "bullets": ["Seguridad", "Salud"]}].',
         ),

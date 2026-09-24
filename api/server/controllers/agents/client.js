@@ -1584,7 +1584,8 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       const CANVAS_APP_TRIGGERS = [
         'aplicativo', 'dashboard', 'canvas', 'lienzo', 'interactivo', 'calculadora',
         'componente html', 'interfaz web', 'aplicación interactiva', 'aplicacion interactiva',
-        'diseñar', 'diseña'
+        'aplicativo interactivo', 'app', 'aplicacion', 'aplicación', 'widget',
+        'interfaz interactiva', 'simulador', 'diseñar', 'diseña'
       ];
 
       const COMPLEX_MATRIX_DOC_TRIGGERS = [
@@ -1903,7 +1904,8 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
                 ? '503 Service Unavailable'
                 : 'Failed to parse stream (stream unparseable/overload)';
               overloadedModelCooldowns.set(currentModel, Date.now() + OVERLOAD_COOLDOWN_MS);
-              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing high demand (${reason}). Rotating immediately to next fallback model...`);
+              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing high demand (${reason}). Pausing 1500ms before rotating to next fallback model...`);
+              await sleep(1500, abortController?.signal);
               rotateToNextModel = true;
               break;
             } else if (isNotFound && i < prioritizedKeys.length - 1) {

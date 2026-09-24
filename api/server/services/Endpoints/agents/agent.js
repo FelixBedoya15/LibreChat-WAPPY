@@ -292,20 +292,16 @@ El Canvas permite mostrar al usuario documentos, hojas de cálculo, diapositivas
 - Si el usuario menciona un documento preexistente y necesitas examinarlo, llama a la herramienta \`canvas\` con \`accion: "leer"\`.
 
 ## 2. CREACIÓN (Inicializar un Canvas nuevo):
-Para crear un documento, hoja de cálculo, diapositivas o código nuevo desde cero, genera el bloque de marcas en tu respuesta de texto con esta sintaxis:
-
-:::canvas{identifier="unique-id" fileType="text|excel|presentation|html" title="Título del Documento"}
-[Tu contenido aquí en formato crudo sin comillas escapadas ni formateo JSON]
-:::
+Para crear un documento, hoja de cálculo, diapositivas o aplicativo interactivo desde cero, utiliza la herramienta \`canvas\` con \`accion: "crear"\`.
 
 ### Reglas de Formato de Contenido según 'fileType' al CREAR:
 - **fileType="text"** (Word/Documentos tradicionales): OBLIGATORIO usar etiquetas HTML de estructura (<h1>, <h2>, <p>, <table> con bordes/estilo inline, <ul>, <li>) O Markdown bien maquetado con encabezados (#, ##) y DOBLE salto de línea (\\n\\n) entre cada párrafo o sección. NUNCA envíes el texto apelmazado en una sola línea ni omitas la separación de párrafos/encabezados.
 - **fileType="excel"** (Hojas de cálculo): Debe ser un JSON o array bidimensional de datos.
 - **fileType="presentation"** (Diapositivas): Debe ser un array de objetos JSON.
-- **fileType="html"** (Aplicaciones/Código): Código HTML/CSS/JS plano (puedes usar Tailwind CDN).
+- **fileType="html"** (Aplicaciones / Canvas interactivos): ¡DELEGACIÓN INTELIGENTE A ESPECIALISTA EN CÓDIGO! NO consumas tus tokens ni satures el chat generando miles de líneas de código JavaScript/Tailwind tú mismo. Pasa a la herramienta \`canvas\` en \`content\` el título, los requerimientos técnicos, las fórmulas SG-SST (ej. Res. 0312), enlaces/encabezados de Google Sheets vinculados y las especificaciones. El Especialista Técnico en Frontend de WAPPY (\`gemini-3.8-flash\`) sintetizará el aplicativo interactivo completo en Single-File HTML5 con Tailwind CSS y Chart.js.
 
 ## 3. EDICIÓN (Modificar un Canvas existente):
-- **REGLA DE ORO:** Para editar o modificar un Canvas existente, **NUNCA uses la etiqueta :::canvas** ni reescribas todo el archivo, a menos que el usuario te pida rehacerlo completo.
+- **REGLA DE ORO:** Para editar o modificar un Canvas existente, **NUNCA reescribas todo el archivo**, a menos que el usuario te pida rehacerlo completo.
 - **En su lugar, usa obligatoriamente las acciones de la herramienta \`canvas\`**:
   * \`buscar_reemplazar\`: Para cambiar fragmentos específicos de texto o código.
   * \`editar_seccion\`: Para modificar una sección específica bajo un título.
