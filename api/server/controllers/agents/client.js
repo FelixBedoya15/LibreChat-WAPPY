@@ -2076,6 +2076,14 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       );
 
       if (!hasRealText) {
+        let userQuery = (this.options.req?.body?.text || '').toLowerCase();
+        if (!userQuery && Array.isArray(this.options.req?.body?.messages) && this.options.req.body.messages.length > 0) {
+          const lastMsg = this.options.req.body.messages[this.options.req.body.messages.length - 1];
+          userQuery = (lastMsg?.text || lastMsg?.content || '').toLowerCase();
+        }
+        const asksIndicatorsOrFormulas = /f[oó]rmula|indicador|accidentalidad|0312|frecuencia|severidad|ausentismo|mortalidad/i.test(userQuery);
+        const isMatrixReq = /matriz|peligro|ipevar|gtc|pesv/i.test(userQuery);
+
         const hasToolActivity = this.contentParts.some(
           (part) => part && (part.type === ContentTypes.TOOL_CALL || part.type === ContentTypes.TOOL_RESULT || part.tool_call_ids != null || part.tool_call_id != null)
         );
@@ -2096,9 +2104,15 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
 
         let fallbackMsg = '';
         if (hasWriteActivity) {
-          fallbackMsg = 'He procesado tu solicitud y registrado exitosamente la información en el sistema. Puedes visualizar los datos actualizados en el panel lateral.';
+          fallbackMsg = isMatrixReq
+            ? 'He procesado tu solicitud y registrado exitosamente los peligros en tu Matriz IPEVAR en vivo. Ya puedes visualizarlos y gestionarlos en el panel lateral.'
+            : 'He procesado tu solicitud y registrado exitosamente la información en el sistema. Puedes visualizar los datos actualizados en el panel lateral.';
         } else if (hasToolActivity) {
-          fallbackMsg = 'He consultado la información y el contexto en el sistema. ¿Deseas que proceda a registrar los riesgos y controles evaluados en la tabla en vivo?';
+          fallbackMsg = isMatrixReq
+            ? 'He consultado la información y analizado los procesos de tu empresa. ¿Deseas que proceda a registrar los peligros evaluados en tu Matriz IPEVAR en vivo?'
+            : 'He consultado la información y el contexto en el sistema. ¿Deseas que proceda a registrar los datos en el panel en vivo?';
+        } else if (isMatrixReq) {
+          fallbackMsg = 'He analizado tu solicitud para la matriz de peligros. Por favor indícame qué proceso, actividad o puesto de trabajo deseas evaluar para registrar los riesgos en tu Matriz IPEVAR en vivo.';
         } else if (asksIndicatorsOrFormulas) {
           fallbackMsg = `### 🏛️ Indicadores Mínimos de Accidentalidad (Resolución 0312 de 2019 - Artículo 30)
 
