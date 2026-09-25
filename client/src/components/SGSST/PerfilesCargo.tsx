@@ -264,6 +264,15 @@ export const parseCleanControlTexts = (rawText: string): string[] => {
     return Array.from(new Set(items));
 };
 
+/**
+ * Asegura que el valor actual esté dentro del listado de opciones.
+ * Si no existe, lo agrega al final para que el select no quede en blanco.
+ */
+const ensureOption = (options: string[], currentValue: string): string[] => {
+    if (!currentValue || options.includes(currentValue)) return options;
+    return [...options, currentValue];
+};
+
 const EPP_OPTIONS = [
     'Casco de seguridad (Dieléctrico/Tipo I/II)',
     'Gafas de seguridad (Claras/Oscuras/Antiempañantes)',
