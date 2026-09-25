@@ -250,7 +250,7 @@ ${cleanContent}
   console.log('🔌 Conectado a MongoDB:', MONGO_URI);
 
   const adminUser = await User.findOne({ role: 'ADMIN' }) || await User.findOne({});
-  const authorId = adminUser._id;
+  const authorId = adminUser ? adminUser._id : new mongoose.Types.ObjectId();
   const globalProject = await Project.findOne({ name: 'Global' }) || await Project.findOne({});
   const globalProjectId = globalProject ? globalProject._id.toString() : null;
 

@@ -1174,11 +1174,21 @@ export default function MatrizIPEVARTable({
   const handleDirectImport = () => {
     if (pendingDirectRows.length === 0) return;
     setIsConfirmModalOpen(false);
-    const combined = [...matrixRows, ...pendingDirectRows];
+    let combined = pendingDirectRows;
+    if (matrixRows.length > 0) {
+      const shouldReplace = window.confirm(
+        '¿Deseas REEMPLAZAR la matriz existente con los riesgos del archivo?\n\n• Aceptar: Reemplazar completamente la matriz actual.\n• Cancelar: Mantener los riesgos existentes y agregar los nuevos al final.'
+      );
+      combined = shouldReplace ? pendingDirectRows : [...matrixRows, ...pendingDirectRows];
+    }
     setMatrixRows(combined);
     isDirtyRef.current = true;
     saveMatrixData(combined);
-    alert(`¡Éxito! Se importaron ${pendingDirectRows.length} riesgos directamente de tu archivo.`);
+    showToast({
+      message: `¡Éxito! Se importaron ${pendingDirectRows.length} riesgos directamente de tu archivo.`,
+      status: 'success',
+      severity: 'success',
+    });
     setPendingDirectRows([]);
     setPendingRawRows([]);
   };
@@ -1207,19 +1217,35 @@ export default function MatrizIPEVARTable({
           proceso: toSentenceCase(r.proceso),
           zona: toSentenceCase(r.zona),
         }));
-        const combined = [...matrixRows, ...normalized];
+        let combined = normalized;
+        if (matrixRows.length > 0) {
+          const shouldReplace = window.confirm(
+            '¿Deseas REEMPLAZAR la matriz existente con los riesgos reconstruidos por la IA?\n\n• Aceptar: Reemplazar completamente la matriz actual.\n• Cancelar: Mantener los riesgos existentes y agregar los nuevos al final.'
+          );
+          combined = shouldReplace ? normalized : [...matrixRows, ...normalized];
+        }
         setMatrixRows(combined);
         isDirtyRef.current = true;
         saveMatrixData(combined);
-        alert(
-          `¡Éxito! La IA de Wappy ha reconstruido y mapeado ${data.matrixRows.length} riesgos de tu matriz al formato estándar GTC 45.`
-        );
+        showToast({
+          message: `¡Éxito! La IA de Wappy ha reconstruido y mapeado ${data.matrixRows.length} riesgos de tu matriz al formato estándar GTC 45.`,
+          status: 'success',
+          severity: 'success',
+        });
       } else {
-        alert('No se pudieron recuperar filas procesadas.');
+        showToast({
+          message: 'No se pudieron recuperar filas procesadas.',
+          status: 'warning',
+          severity: 'warning',
+        });
       }
     } catch (err: any) {
       console.error('[Matriz] AI Import error:', err);
-      alert(`Error en la reconstrucción con IA: ${err.message}`);
+      showToast({
+        message: `Error en la reconstrucción con IA: ${err.message}`,
+        status: 'error',
+        severity: 'error',
+      });
     } finally {
       setIsAiImportLoading(false);
       setPendingRawRows([]);
@@ -2639,6 +2665,15 @@ export default function MatrizIPEVARTable({
 
   const renderModals = () => (
     <>
+      {/* ── Hidden File Input for Excel/JSON Import ──────────────────────── */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept=".xlsx,.xls,.json"
+        onChange={handleImportFile}
+      />
+
       {/* ── AI Adapt Loading Overlay ────────────────────────────────────── */}
       {isAiImportLoading && (
         <div className="fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md">
@@ -2794,13 +2829,6 @@ export default function MatrizIPEVARTable({
             Descargar Formato en Blanco (Excel)
           </button>
         </div>
-        <input
-          type="file"
-          ref={fileInputRef}
-          className="hidden"
-          accept=".xlsx,.xls,.json"
-          onChange={handleImportFile}
-        />
         {renderModals()}
       </div>
     );

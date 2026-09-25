@@ -288,14 +288,27 @@ const AuthContextProvider = ({
   return <AuthContext.Provider value={memoedValue}>{children}</AuthContext.Provider>;
 };
 
+const defaultAuthContext: TAuthContext = {
+  user: undefined,
+  token: undefined,
+  isAuthenticated: false,
+  error: undefined,
+  login: () => {},
+  logout: () => {},
+  setError: () => {},
+  setUser: () => {},
+  roles: {},
+};
+
 const useAuthContext = () => {
   const context = useContext(AuthContext);
 
   if (context === undefined) {
-    throw new Error('useAuthContext should be used inside AuthProvider');
+    return defaultAuthContext;
   }
 
   return context;
 };
 
 export { AuthContextProvider, useAuthContext, AuthContext };
+
