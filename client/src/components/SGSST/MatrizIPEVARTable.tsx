@@ -2911,7 +2911,7 @@ export default function MatrizIPEVARTable({
                 id: 'sync-controles-anexo-e-official',
                 onClick: handleSyncControlesAnexoE,
                 title: 'Analizar Factores de Reducción (Anexo E Costo/Beneficio) y enviar controles propuestos al Centro de Control (Kanban)',
-                label: isSyncingControles ? 'Sincronizando…' : '⚡ Controles y Anexo E (Kanban)',
+                label: isSyncingControles ? 'Sincronizando…' : 'Sincronizar Anexo E con Centro de Control',
                 icon: CheckSquare,
                 variant: 'ai',
                 disabled: isSyncingControles || matrixRows.length === 0,
@@ -3198,8 +3198,8 @@ export default function MatrizIPEVARTable({
                   ) : (
                     <CheckSquare className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-indigo-600 dark:text-indigo-400" />
                   )}
-                  <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100">
-                    {isSyncingControles ? 'Sincronizando…' : '⚡ Controles y Anexo E (Kanban)'}
+                  <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[340px] group-hover:opacity-100">
+                    {isSyncingControles ? 'Sincronizando…' : 'Sincronizar Anexo E con Centro de Control'}
                   </span>
                 </button>
               )}

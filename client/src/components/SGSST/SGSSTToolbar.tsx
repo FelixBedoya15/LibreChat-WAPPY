@@ -326,7 +326,7 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
       </div>
 
       {label && (
-        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[340px] group-hover:opacity-100 sm:flex">
           <span className="text-sm font-bold tracking-wide">{label}</span>
         </div>
       )}

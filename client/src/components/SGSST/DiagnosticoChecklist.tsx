@@ -939,14 +939,22 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             type="button"
             onClick={() => runComplianceScan(true)}
             disabled={isScanning}
-            className="flex shrink-0 items-center gap-1.5 self-end rounded-xl bg-teal-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-teal-700 disabled:opacity-50 sm:self-auto"
+            title="Re-escanear evidencias en aplicativos de WAPPY"
+            aria-label="Re-escanear Aplicativos"
+            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/30 bg-teal-600 px-2 text-white shadow-sm outline-none transition-all duration-300 hover:scale-105 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5"
           >
-            {isScanning ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-            {isScanning ? 'Escaneando...' : 'Re-escanear Aplicativos'}
+            <div className="relative flex shrink-0 items-center justify-center">
+              {isScanning ? (
+                <Loader2 className="h-4 w-4 animate-spin text-white" />
+              ) : (
+                <Sparkles className="h-4 w-4 text-white" />
+              )}
+            </div>
+            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+              <span className="text-xs font-bold tracking-wide">
+                {isScanning ? 'Escaneando...' : 'Re-escanear Aplicativos'}
+              </span>
+            </div>
           </button>
         </div>
       )}
@@ -1110,22 +1118,36 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             type="button"
             onClick={handleSyncToKanban}
             disabled={isSyncingKanban}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm transition-all disabled:opacity-50"
+            title="Sincronizar estándares no conformes con Centro de Control"
+            aria-label="Sincronizar con Centro de Control"
+            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-600 px-2 text-white shadow-sm outline-none transition-all duration-300 hover:scale-105 hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5"
           >
-            {isSyncingKanban ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Trello className="w-4 h-4" />
-            )}
-            <span>Sincronizar con Centro de Control</span>
+            <div className="relative flex shrink-0 items-center justify-center">
+              {isSyncingKanban ? (
+                <Loader2 className="h-4 w-4 animate-spin text-white" />
+              ) : (
+                <Trello className="h-4 w-4 text-white" />
+              )}
+            </div>
+            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+              <span className="text-xs font-bold tracking-wide">
+                {isSyncingKanban ? 'Sincronizando...' : 'Sincronizar con Centro de Control'}
+              </span>
+            </div>
           </button>
 
           <a
             href="/sgsst?tab=acpm"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-surface-primary hover:bg-surface-secondary text-cyan-600 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-800 transition-colors"
+            title="Ver Plan ACPM en Centro de Control"
+            aria-label="Ver Plan ACPM"
+            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-cyan-200 bg-surface-primary px-2 text-cyan-600 shadow-sm outline-none transition-all duration-300 hover:scale-105 hover:bg-cyan-50 hover:border-cyan-300 dark:border-cyan-800 dark:text-cyan-400 dark:hover:bg-cyan-950/40 sm:h-9 sm:min-w-[36px] sm:px-2.5"
           >
-            <span>Ver Plan ACPM</span>
-            <ExternalLink className="w-3.5 h-3.5" />
+            <div className="relative flex shrink-0 items-center justify-center">
+              <ExternalLink className="h-4 w-4" />
+            </div>
+            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[160px] group-hover:opacity-100 sm:flex">
+              <span className="text-xs font-bold tracking-wide">Ver Plan ACPM</span>
+            </div>
           </a>
         </div>
       </div>

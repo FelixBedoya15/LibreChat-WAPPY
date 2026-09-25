@@ -64,6 +64,9 @@ function preparePreviewHtml(html: string): string {
   if (!html) return '';
   let content = cleanHtmlContent(html);
 
+  // Sanitizar cualquier SVG con path orgánico decorativo que use fill="currentColor" para evitar que pinte en negro
+  content = content.replace(/(<svg[^>]*>[\s\S]*?<path[^>]*?)fill="currentColor"/gi, '$1fill="rgba(255,255,255,0.25)"');
+
   const hasHtml = /<html[^>]*>/i.test(content);
   const hasHead = /<head[^>]*>/i.test(content);
 
@@ -140,8 +143,62 @@ function preparePreviewHtml(html: string): string {
     min-height: 100%;
     box-sizing: border-box;
   }
+
+  /* Blindaje crítico ante retrasos o bloqueo de Tailwind CDN en el iframe */
+  .hidden, [class*="hidden"], input[type="file"]#logo-upload-input {
+    display: none !important;
+  }
+  .absolute, [class*="absolute"] {
+    position: absolute !important;
+  }
+  .relative, [class*="relative"] {
+    position: relative !important;
+  }
+  .inset-0, [class*="inset-0"] {
+    top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important;
+  }
+  .opacity-10, [class*="opacity-10"] {
+    opacity: 0.1 !important;
+  }
+  .pointer-events-none {
+    pointer-events: none !important;
+  }
+
+  /* Blindaje contra 'bola negra': Garantiza que banners y SVGs decorativos de fondo NUNCA se muestren en negro sólido */
+  .gradient-banner, [class*="gradient-banner"] {
+    background: linear-gradient(135deg, #0d9488 0%, #06b6d4 100%) !important;
+    color: #ffffff !important;
+    position: relative !important;
+    overflow: hidden !important;
+    border-radius: 1.5rem !important;
+  }
+  .gradient-banner svg,
+  [class*="gradient-banner"] svg,
+  [class*="opacity-10"] svg,
+  svg[viewBox="0 0 200 200"] {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    opacity: 0.15 !important;
+    fill: rgba(255, 255, 255, 0.25) !important;
+    color: rgba(255, 255, 255, 0.25) !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+  }
+  .gradient-banner path,
+  [class*="gradient-banner"] path,
+  [class*="opacity-10"] path,
+  svg[viewBox="0 0 200 200"] path {
+    fill: rgba(255, 255, 255, 0.25) !important;
+  }
 </style>
 `;
+
+  const tailwindScript = !content.includes('cdn.tailwindcss.com') 
+    ? '<script src="https://cdn.tailwindcss.com"></script>\n' 
+    : '';
 
   if (!hasHtml) {
     content = `<!DOCTYPE html>
@@ -158,9 +215,9 @@ function preparePreviewHtml(html: string): string {
 </body>
 </html>`;
   } else if (hasHead) {
-    content = content.replace(/<head[^>]*>/i, (match) => `${match}\n${safeShim}\n${responsiveBaseStyle}`);
+    content = content.replace(/<head[^>]*>/i, (match) => `${match}\n${tailwindScript}${safeShim}\n${responsiveBaseStyle}`);
   } else {
-    content = content.replace(/<html[^>]*>/i, (match) => `${match}\n<head>\n${safeShim}\n${responsiveBaseStyle}\n</head>`);
+    content = content.replace(/<html[^>]*>/i, (match) => `${match}\n<head>\n${tailwindScript}${safeShim}\n${responsiveBaseStyle}\n</head>`);
   }
 
   return content;
