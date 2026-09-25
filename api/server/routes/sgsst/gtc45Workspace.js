@@ -112,7 +112,9 @@ router.post('/set-official', requireJwtAuth, async (req, res) => {
       if (sourceSession) {
         rowsToSave = sourceSession.matrixRows;
         conclusionsToSave = sourceSession.chartConclusions;
-        sourceSession.isOfficial = true;
+        // IMPORTANTE: NO marcar isOfficial=true en la sesión de chat fuente.
+        // Solo la sesión oficial (conversationId === officialConvoId) debe tener isOfficial=true.
+        // Usamos promotedAt para registrar cuándo fue promovida.
         sourceSession.promotedAt = new Date();
         if (officialTitle) sourceSession.officialTitle = officialTitle;
         await sourceSession.save();
@@ -126,6 +128,7 @@ router.post('/set-official', requireJwtAuth, async (req, res) => {
         }
       }
     }
+
 
     const normalizedRows = (rowsToSave || []).map(row => ({
       ...row,
@@ -263,11 +266,14 @@ router.get('/list-user-matrices', requireJwtAuth, async (req, res) => {
     }
 
     const items = sessions.map(s => {
-      const isMasterOfficial = s.conversationId === officialConvoId || s.isOfficial === true;
+      // SOLO la sesión cuyo conversationId es exactamente officialConvoId es la "ACTIVA".
+      // No usar s.isOfficial de la DB en sesiones de chat — ese flag puede quedar sucio.
+      const isMasterOfficial = s.conversationId === officialConvoId;
       let displayTitle = s.officialTitle ? s.officialTitle.replace(/\bOficial\s*/gi, '').trim() : (titleMap[s.conversationId] || 'Matriz de Peligros');
       if (s.conversationId === officialConvoId) {
         displayTitle = displayTitle || '⭐ Matriz Activa del Sistema';
       }
+
 
       const rows = s.matrixRows || [];
       const criticalCount = rows.filter(r => (Number(r.nr) || 0) >= 150).length;
