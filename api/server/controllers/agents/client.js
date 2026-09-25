@@ -1554,7 +1554,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       // Build model fallback list from GOOGLE_MODELS env for quota/overload rotation
       // Exclude audio/live-only models: they return 404 for streamGenerateContent
       const isPublicChat = this.options.req?.body?.isPublicChat === true;
-      let defaultModels = 'gemini-3.8-flash,gemini-3.5-flash,gemini-2.5-flash,gemini-3.5-flash-lite';
+      let defaultModels = 'gemini-3.5-flash-lite,gemini-3.5-flash,gemini-3.6-flash,gemini-3.7-flash,gemini-3.8-flash';
 
       if (isPublicChat) {
         defaultModels = 'gemini-3.5-flash-lite,gemini-3.5-flash';
@@ -1564,7 +1564,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean)
-        .filter((m) => !m.includes('native-audio') && !m.includes('-live-') && !m.includes('-transcribe') && !m.includes('live-preview'));
+        .filter((m) => !m.includes('native-audio') && !m.includes('-live-') && !m.includes('-transcribe') && !m.includes('live-preview') && !m.includes('gemini-2.5'));
       
       // WAPPY Brain Router: Caracterización y selección táctica de modelo según complejidad de herramientas y tarea
       let userQuery = (this.options.req?.body?.text || '').toLowerCase();
@@ -1573,14 +1573,8 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         userQuery = (lastMsg?.text || lastMsg?.content || '').toLowerCase();
       }
 
-      // Herramientas y tareas de ALTA COMPLEJIDAD (Requieren razonamiento profundo / generación extensa de código):
-      // - Canvas & Editor Live (HTML5, Tailwind, interactividad, apps web)
-      // - Matriz IPEVAR (GTC 45, cálculos de probabilidad, consecuencia y controles)
-      // - Matriz PESV (Res. 20223040040595, 24 pasos de seguridad vial)
-      // - Matriz de Compatibilidad Química (SGA, UN, almacenamiento seguro de reactivos)
-      // - Editor RIT (Reglamento Interno de Trabajo, CST, descargos y sanciones legales)
-      // - Blog Editor (Artículos largos estructurados, SEO y AEO)
-      // - Informes técnicos periciales, actas y contratos complejos
+      // Herramientas y tareas estructuradas (Matrices IPEVAR, PESV, Química, RIT, Blog):
+      // gemini-3.5-flash-lite es el modelo primario por su altísima velocidad, confiabilidad en function calling y 500 RPD
       const CANVAS_APP_TRIGGERS = [
         'aplicativo', 'dashboard', 'canvas', 'lienzo', 'interactivo', 'calculadora',
         'componente html', 'interfaz web', 'aplicación interactiva', 'aplicacion interactiva',
@@ -1640,14 +1634,16 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.8-flash'];
         primaryAgentModel = 'gemini-3.5-flash-lite';
         rawFallbacks = operationalModels;
-        logger.info(`[WAPPY Brain Router] [DOS MODELOS] Tarea de Aplicativo/Canvas detectada. Orquestador: "${primaryAgentModel}" (500 RPD, baja latencia). CanvasTool delegará la síntesis de código a "gemini-3.8-flash".`);
+        logger.info(`[WAPPY Brain Router] [DOS MODELOS] Tarea de Aplicativo/Canvas detectada. Orquestador: "${primaryAgentModel}" (500 RPD, baja latencia). CanvasTool delegará la síntesis de código.`);
       } else if (isComplexTask) {
-        // Redacción extensa pura en texto (sin Canvas) que requiere razonamiento profundo:
-        if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe')) {
-          primaryAgentModel = envAgentModels[0] || 'gemini-3.8-flash';
+        // Matrices Especializadas (IPEVAR, PESV, Química) y Redacción Documental:
+        // Priorizar gemini-3.5-flash-lite por su consistencia sin sobrecargas 503, seguido de gemini-3.5-flash
+        const matrixModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.8-flash'];
+        if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe') || primaryAgentModel.includes('gemini-2.5')) {
+          primaryAgentModel = 'gemini-3.5-flash-lite';
         }
-        rawFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
-        logger.info(`[WAPPY Brain Router] [ALTA COMPLEJIDAD TEXTUAL] Redacción técnica profunda en chat. Modelo prioritario: "${primaryAgentModel}"`);
+        rawFallbacks = [primaryAgentModel, ...matrixModels.filter((m) => m !== primaryAgentModel)];
+        logger.info(`[WAPPY Brain Router] [MATRIZ / DOCS] Tarea estructurada detectada. Modelo prioritario: "${primaryAgentModel}"`);
       } else {
         // Tarea Operativa / Rápida:
         // Herramientas: Google Sheets (CRUD), Docs, Slides, Gmail, Calendar, Drive, Automatizaciones, Analíticas, Consultas Normativas, Chat General.
