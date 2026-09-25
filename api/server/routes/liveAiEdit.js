@@ -58,24 +58,27 @@ ${dataStr.slice(0, 4000)}${dataStr.length > 4000 ? '\n...(truncado)' : ''}
   // Use the entire report text if available, otherwise fall back to surroundingContext
   const reportContext = fullReportText || surroundingContext || '';
 
-  // 1. WEB SEARCH (SearXNG) Integration
+  // 1. WEB SEARCH (SearXNG) Integration (omitir si es celda interna de matriz para no contaminar con fragmentos web)
   let webContext = '';
-  try {
-      const searxngUrl = process.env.SEARXNG_INSTANCE_URL || 'https://searxng.wappy.club/search';
-      
-      // Perform a search based on the instruction provided by the user
-      const searchResponse = await axios.get(searxngUrl, {
-          params: { q: instruction, format: 'json', language: 'es' },
-          timeout: 5000
-      });
+  const isMatrixInternalCell = reportSourceData && (reportSourceData.currentRow || (reportSourceData.field && reportSourceData.field.includes('GTC-45')));
+  if (!isMatrixInternalCell) {
+    try {
+        const searxngUrl = process.env.SEARXNG_INSTANCE_URL || 'https://searxng.wappy.club/search';
+        
+        // Perform a search based on the instruction provided by the user
+        const searchResponse = await axios.get(searxngUrl, {
+            params: { q: instruction, format: 'json', language: 'es' },
+            timeout: 5000
+        });
 
-      if (searchResponse.data && searchResponse.data.results && searchResponse.data.results.length > 0) {
-          const topResults = searchResponse.data.results.slice(0, 3);
-          const formattedResults = topResults.map(r => `- ${r.title}: ${r.content}`).join('\n');
-          webContext = `\nCONTEXTO ENCONTRADO EN INTERNET (SearXNG):\n${formattedResults}\n`;
-      }
-  } catch (searchError) {
-      logger.warn(`[LiveAiEdit] SearXNG Web Search failed: ${searchError.message}`);
+        if (searchResponse.data && searchResponse.data.results && searchResponse.data.results.length > 0) {
+            const topResults = searchResponse.data.results.slice(0, 3);
+            const formattedResults = topResults.map(r => `- ${r.title}: ${r.content}`).join('\n');
+            webContext = `\nCONTEXTO ENCONTRADO EN INTERNET (SearXNG):\n${formattedResults}\n`;
+        }
+    } catch (searchError) {
+        logger.warn(`[LiveAiEdit] SearXNG Web Search failed: ${searchError.message}`);
+    }
   }
 
   let fieldSpecificPrompt = '';
@@ -83,13 +86,28 @@ ${dataStr.slice(0, 4000)}${dataStr.length > 4000 ? '\n...(truncado)' : ''}
     const field = reportSourceData.field;
 
     if (field === 'Factores de Reducción (Anexo E)') {
-      fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Factores de Reducción (Anexo E)" de la matriz GTC-45.
-TERMINANTEMENTE PROHIBIDO: No uses frases cortas como "Seguimiento a pausas activas. (Responsable: X, Mensual)".
-OBLIGATORIO — Redacta un párrafo analítico de MÍNIMO 3 oraciones completas que:
-1. Explique TÉCNICA y ESPECÍFICAMENTE por qué el control propuesto reduce el riesgo (mecanismo biomecánico, epidemiológico, toxicológico o conductual según aplique).
-2. Sustente la VIABILIDAD TÉCNICA y FINANCIERA de la implementación, comparando el costo de la medida vs. el costo de la enfermedad laboral, el ausentismo o las compensaciones futuras.
-3. Justifique la RELACIÓN COSTO-BENEFICIO: demuestra cómo la combinación de controles mejora la productividad operativa, reduce la siniestralidad y garantiza el cumplimiento normativo colombiano (Decreto 1072/2015, GTC-45).
-Redacta con lenguaje técnico SST profesional. Basa tu análisis en los controles existentes y propuestos que aparecen en el contexto (datos de origen).`;
+      const r = reportSourceData.currentRow || {};
+      const peligroTxt = r.peligro_descripcion ? `${r.peligro_descripcion} (${r.peligro_clasificacion || 'Peligro'})` : 'Peligro evaluado';
+      fieldSpecificPrompt = `ATENCIÓN: Estás redactando los "Factores de Reducción (Anexo E)" de la matriz GTC-45.
+DATOS CONCRETOS DE ESTA FILA EN LA MATRIZ:
+- Proceso: ${r.proceso || 'Operativo'} | Actividad: ${r.actividad || 'General'} | Cargo: ${r.cargo || 'Trabajador'}
+- Peligro: ${peligroTxt}
+- Controles de Intervención Propuestos:
+  * Eliminación: ${r.medida_eliminacion || 'Ninguno'}
+  * Sustitución: ${r.medida_sustitucion || 'Ninguno'}
+  * Ingeniería: ${r.medida_ingenieria || 'Ninguno'}
+  * Administrativos: ${r.medida_administrativa || 'Ninguno'}
+  * EPP: ${r.medida_eppu || 'Ninguno'}
+- Peor Consecuencia: ${r.peor_consecuencia || 'Enfermedad laboral / Accidente de trabajo'}
+
+TERMINANTEMENTE PROHIBIDO:
+- PROHIBIDO responder con etiquetas cortas, títulos ni frases de pocas palabras (PROHIBIDO cosas como "enfermedades laborales visuales", "cumplimiento normativo", "pausas activas").
+- PROHIBIDO devolver listas de viñetas simples o texto truncado.
+
+OBLIGATORIO — Redacta un párrafo analítico estructurado y profesional (MÍNIMO 3 a 4 oraciones completas):
+1. Explica técnicamente por qué la combinación de controles propuestos (especialmente de ingeniería y administrativos) reduce y contiene eficazmente el peligro específico (${peligroTxt}).
+2. Sustenta la viabilidad técnica y financiera contrastando el costo de implementar las medidas preventivas frente al severo impacto económico, legal y prestacional de ${r.peor_consecuencia || 'enfermedades e incapacidades laborales'}.
+3. Justifica la relación costo-beneficio bajo el Anexo E de la GTC-45 demostrando cómo la intervención protege la continuidad operativa y asegura el cumplimiento estricto del Decreto 1072/2015.`;
 
     } else if (field === 'Controles en la Fuente') {
       fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Controles en la Fuente" de la matriz GTC-45.

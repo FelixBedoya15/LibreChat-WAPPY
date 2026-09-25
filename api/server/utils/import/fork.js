@@ -5,6 +5,78 @@ const { createImportBatchBuilder } = require('./importBatchBuilder');
 const BaseClient = require('~/app/clients/BaseClient');
 const { getConvo } = require('~/models/Conversation');
 const { getMessages } = require('~/models/Message');
+const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
+const CanvasSession = require('~/models/CanvasSession');
+const PESVWorkspaceSession = require('~/models/PESVWorkspaceSession');
+const ChemicalCompatibilitySession = require('~/models/ChemicalCompatibilitySession');
+
+/**
+ * Clones all WAPPY session data (matrices, canvas, etc.) from one conversationId to another.
+ * Called after fork/duplicate to ensure the new conversation has the same workspace context.
+ * @param {string} originalConvoId - The source conversation ID
+ * @param {string} newConvoId - The newly created conversation ID
+ * @param {string} userId - The user ID (MongoDB ObjectId string)
+ */
+async function cloneSessionsForFork(originalConvoId, newConvoId, userId) {
+  try {
+    const userObjectId = userId;
+
+    // Clone GTC45WorkspaceSession (Matriz IPEVAR)
+    const gtcSession = await GTC45WorkspaceSession.findOne({ conversationId: originalConvoId }).lean();
+    if (gtcSession) {
+      const { _id, conversationId: _cid, createdAt: _ca, updatedAt: _ua, ...gtcData } = gtcSession;
+      await GTC45WorkspaceSession.create({
+        ...gtcData,
+        conversationId: newConvoId,
+        user: userObjectId,
+        // Forked sessions are NOT official and not linked as source
+        isOfficial: false,
+        sourceConversationId: null,
+        promotedAt: null,
+      });
+      logger.debug(`[fork] Cloned GTC45WorkspaceSession → ${newConvoId}`);
+    }
+
+    // Clone CanvasSession
+    const canvasSession = await CanvasSession.findOne({ conversationId: originalConvoId }).lean();
+    if (canvasSession) {
+      const { _id, conversationId: _cid, createdAt: _ca, updatedAt: _ua, ...canvasData } = canvasSession;
+      await CanvasSession.create({
+        ...canvasData,
+        conversationId: newConvoId,
+        user: userObjectId,
+      });
+      logger.debug(`[fork] Cloned CanvasSession → ${newConvoId}`);
+    }
+
+    // Clone PESVWorkspaceSession (Matriz PESV)
+    const pesvSession = await PESVWorkspaceSession.findOne({ conversationId: originalConvoId }).lean();
+    if (pesvSession) {
+      const { _id, conversationId: _cid, createdAt: _ca, updatedAt: _ua, ...pesvData } = pesvSession;
+      await PESVWorkspaceSession.create({
+        ...pesvData,
+        conversationId: newConvoId,
+        user: userObjectId,
+      });
+      logger.debug(`[fork] Cloned PESVWorkspaceSession → ${newConvoId}`);
+    }
+
+    // Clone ChemicalCompatibilitySession (Matriz de Compatibilidad)
+    const chemSession = await ChemicalCompatibilitySession.findOne({ conversationId: originalConvoId }).lean();
+    if (chemSession) {
+      const { _id, conversationId: _cid, createdAt: _ca, updatedAt: _ua, ...chemData } = chemSession;
+      await ChemicalCompatibilitySession.create({
+        ...chemData,
+        conversationId: newConvoId,
+        user: userObjectId,
+      });
+      logger.debug(`[fork] Cloned ChemicalCompatibilitySession → ${newConvoId}`);
+    }
+  } catch (err) {
+    // Non-fatal: log but don't break the fork
+    logger.error(`[fork] Error cloning WAPPY sessions from ${originalConvoId} to ${newConvoId}:`, err);
+  }
+}
 
 /**
  * Helper function to clone messages with proper parent-child relationships and timestamps
@@ -142,9 +214,14 @@ async function forkConversation({
       }" forked from conversation ID ${originalConvoId}`,
     );
 
+    // Clone WAPPY session data (Matriz IPEVAR, Canvas, PESV, Chemical) to the new conversation
+    const newConvoId = result.conversation.conversationId;
+    await cloneSessionsForFork(originalConvoId, newConvoId, requestUserId);
+
     if (!records) {
       return result;
     }
+
 
     const conversation = await getConvo(requestUserId, result.conversation.conversationId);
     const messages = await getMessages({
@@ -393,7 +470,12 @@ async function duplicateConversation({ userId, conversationId }) {
     `user: ${userId} | New conversation "${originalConvo.title}" duplicated from conversation ID ${conversationId}`,
   );
 
+  // Clone WAPPY session data (Matriz IPEVAR, Canvas, PESV, Chemical) to the new conversation
+  const newConvoId = result.conversation.conversationId;
+  await cloneSessionsForFork(conversationId, newConvoId, userId);
+
   const conversation = await getConvo(userId, result.conversation.conversationId);
+
   const messages = await getMessages({
     user: userId,
     conversationId: conversation.conversationId,

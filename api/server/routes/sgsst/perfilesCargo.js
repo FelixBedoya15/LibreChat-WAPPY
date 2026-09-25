@@ -41,6 +41,34 @@ function toSentenceCase(str) {
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
 }
 
+function parseCleanEppText(rawText) {
+  if (!rawText || typeof rawText !== 'string') return [];
+  const text = rawText.trim();
+  if (!text || text === 'Ninguno' || text === 'No aplica' || text === 'N/A') return [];
+
+  const adminActionVerbs = /^(sensibilizar|capacitar|entrenar|definir|establecer|realizar|monitorear|implementar|entregar|verificar|inspeccionar|garantizar|asegurar|disponer|suministrar|promover|fomentar|evitar|mantener|diseñar|evaluar)\b/i;
+  const clausePhrases = /\b(especialmente en|prefiriendo el|que estén|y con el|y con la|de acuerdo a|en caso de|durante la)\b/i;
+
+  const items = [];
+  const chunks = text.split(/[\n;•]+/).map((s) => s.trim()).filter(Boolean);
+
+  for (const chunk of chunks) {
+    if (adminActionVerbs.test(chunk)) continue;
+    const subParts = chunk.split(/,/).map((s) => s.trim()).filter(Boolean);
+    for (const part of subParts) {
+      if (part.length < 3) continue;
+      if (adminActionVerbs.test(part) || clausePhrases.test(part)) continue;
+      const cleaned = part.replace(/^[-*•\s]+/, '').trim();
+      if (cleaned.length > 2 && cleaned.length < 80) {
+        const capitalized = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+        items.push(capitalized);
+      }
+    }
+  }
+
+  return Array.from(new Set(items));
+}
+
 /**
  * Asegura que un perfil de cargo exista en PerfilCargoData.
  * Si no existe, lo crea automáticamente y lo añade a perfilesList.
@@ -79,20 +107,17 @@ async function ensurePerfilExists(userId, companyId, cargoName, contextInfo = {}
 
   if (existing) {
     let modified = false;
-    const eppSources = [contextInfo.medida_eppu, contextInfo.controles_individuo];
-    const currentEpps = new Set(existing.eppSeleccionados || []);
-    const prevCount = currentEpps.size;
+    const cleanExisting = (existing.eppSeleccionados || []).flatMap((e) => parseCleanEppText(e));
+    const currentEpps = new Set(cleanExisting);
+    const prevCount = (existing.eppSeleccionados || []).length;
 
-    eppSources.forEach((txt) => {
-      if (txt && typeof txt === 'string' && txt !== 'Ninguno' && txt !== 'No aplica' && txt !== 'N/A') {
-        const parts = txt.split(/[,;\n•\-\/]+/).map((s) => s.trim()).filter((s) => s.length > 2);
-        parts.forEach((p) => {
-          currentEpps.add(p.charAt(0).toUpperCase() + p.slice(1));
-        });
-      }
-    });
+    // Solo extraer EPPs de la columna específica de EPP
+    if (contextInfo.medida_eppu) {
+      const parts = parseCleanEppText(contextInfo.medida_eppu);
+      parts.forEach((p) => currentEpps.add(p));
+    }
 
-    if (currentEpps.size > prevCount) {
+    if (currentEpps.size !== prevCount) {
       existing.eppSeleccionados = Array.from(currentEpps);
       modified = true;
     }
@@ -157,14 +182,8 @@ async function ensurePerfilExists(userId, companyId, cargoName, contextInfo = {}
     contextInfo.medida_eppu !== 'Ninguno' &&
     contextInfo.medida_eppu !== 'No aplica'
   ) {
-    epps.push(contextInfo.medida_eppu);
-  }
-  if (
-    contextInfo.controles_individuo &&
-    contextInfo.controles_individuo !== 'Ninguno' &&
-    !epps.includes(contextInfo.controles_individuo)
-  ) {
-    epps.push(contextInfo.controles_individuo);
+    const cleanList = parseCleanEppText(contextInfo.medida_eppu);
+    epps.push(...cleanList);
   }
 
   const cFuente = [];

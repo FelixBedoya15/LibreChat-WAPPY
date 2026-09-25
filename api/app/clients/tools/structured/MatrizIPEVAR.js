@@ -224,6 +224,24 @@ class MatrizIPEVAR extends Tool {
         
         session.markModified('matrixRows');
         await session.save();
+
+        // Sincronización en paralelo con Somos SST (Matriz Oficial) al borrar
+        if (conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
+          const officialConvoId = `official-${companyId || userId}`;
+          const isOfficialSource = session.isOfficial || (await GTC45Matrix.exists({ conversationId: officialConvoId, sourceConversationId: conversationId }));
+          if (isOfficialSource && conversationId !== officialConvoId) {
+            await GTC45Matrix.findOneAndUpdate(
+              { conversationId: officialConvoId },
+              {
+                $set: {
+                  matrixRows: session.matrixRows,
+                  updatedAt: new Date(),
+                },
+              }
+            );
+            console.log(`[MatrizIPEVAR Tool] Borrado sincronizado en paralelo con la Matriz Oficial ("${officialConvoId}")`);
+          }
+        }
         
         return JSON.stringify({
           mensaje: `Se eliminaron exitosamente ${deletedCount} riesgos de la base de datos.`,
@@ -324,6 +342,22 @@ class MatrizIPEVAR extends Tool {
         const tempId = `temp-${userId}`;
         await GTC45Matrix.deleteOne({ conversationId: tempId, user: userId });
         console.log(`[MatrizIPEVAR Tool] Cleaned up temporary session for user ${userId}`);
+
+        // Sincronización en paralelo con Somos SST (Matriz Oficial)
+        const officialConvoId = `official-${companyId || userId}`;
+        const isOfficialSource = session.isOfficial || (await GTC45Matrix.exists({ conversationId: officialConvoId, sourceConversationId: conversationId }));
+        if (isOfficialSource && conversationId !== officialConvoId) {
+          await GTC45Matrix.findOneAndUpdate(
+            { conversationId: officialConvoId },
+            {
+              $set: {
+                matrixRows: session.matrixRows,
+                updatedAt: new Date(),
+              },
+            }
+          );
+          console.log(`[MatrizIPEVAR Tool] Sincronizada en paralelo con la Matriz Oficial ("${officialConvoId}")`);
+        }
       }
 
       console.log(`[MatrizIPEVAR Tool] Transacción Masiva Exitosa. Insertados: ${insertedCount}, Actualizados: ${updatedCount}`);

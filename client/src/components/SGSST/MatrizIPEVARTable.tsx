@@ -3596,7 +3596,7 @@ export default function MatrizIPEVARTable({
                     EPP
                   </th>
                   {/* Anexo E */}
-                  <th className="min-w-[220px] border-l-2 border-purple-400/30 bg-purple-50/50 px-4 py-3 text-left text-purple-700 dark:bg-purple-900/10 dark:text-purple-400">
+                  <th className="min-w-[420px] border-l-2 border-purple-400/30 bg-purple-50/50 px-4 py-3 text-left text-purple-700 dark:bg-purple-900/10 dark:text-purple-400">
                     FACTORES REDUCCIÓN (Anexo E)
                   </th>
                   {/* Acciones */}
@@ -4229,7 +4229,7 @@ export default function MatrizIPEVARTable({
                       <AITextarea
                         value={row.factores_reduccion || ''}
                         onChange={(v) => handleCellChange(idx, 'factores_reduccion', v)}
-                        minW="210px"
+                        minW="400px"
                         fieldLabel="Factores de Reducción (Anexo E)"
                         row={row}
                         token={token}

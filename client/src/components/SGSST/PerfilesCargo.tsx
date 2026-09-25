@@ -33,6 +33,7 @@ import {
     MapPin,
     Upload,
     RefreshCw,
+    GripVertical,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { NotificationSeverity } from '~/common';
@@ -191,6 +192,78 @@ const JORNADA_OPTIONS = [
     'Jornada flexible',
 ];
 
+const ESCALA_SALARIAL_OPTIONS = [
+    'Menos de 1 SMMLV',
+    '1 SMMLV',
+    '1 a 1.5 SMMLV',
+    '1.5 a 2 SMMLV',
+    '2 a 3 SMMLV',
+    '3 a 4 SMMLV',
+    '4 a 6 SMMLV',
+    '6 a 8 SMMLV',
+    'Más de 8 SMMLV',
+    'Salario Integral',
+    'A convenir / Por honorarios',
+];
+
+// Parser limpio para extraer solo elementos reales de protección personal sin frases administrativas
+export const parseCleanEppText = (rawText: string): string[] => {
+    if (!rawText || typeof rawText !== 'string') return [];
+    const text = rawText.trim();
+    if (!text || text === 'Ninguno' || text === 'No aplica' || text === 'N/A') return [];
+
+    const adminActionVerbs = /^(sensibilizar|capacitar|entrenar|definir|establecer|realizar|monitorear|implementar|entregar|verificar|inspeccionar|garantizar|asegurar|disponer|suministrar|promover|fomentar|evitar|mantener|diseñar|evaluar)\b/i;
+    const clausePhrases = /\b(especialmente en|prefiriendo el|que estén|y con el|y con la|de acuerdo a|en caso de|durante la)\b/i;
+
+    const items: string[] = [];
+    // Dividir por saltos de línea, viñetas o punto y coma
+    const chunks = text.split(/[\n;•]+/).map(s => s.trim()).filter(Boolean);
+
+    for (const chunk of chunks) {
+        if (adminActionVerbs.test(chunk)) continue;
+        const subParts = chunk.split(/,/).map(s => s.trim()).filter(Boolean);
+        for (const part of subParts) {
+            if (part.length < 3) continue;
+            if (adminActionVerbs.test(part) || clausePhrases.test(part)) continue;
+            const cleaned = part.replace(/^[-*•\s]+/, '').trim();
+            if (cleaned.length > 2 && cleaned.length < 80) {
+                const capitalized = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+                items.push(capitalized);
+            }
+        }
+    }
+
+    return Array.from(new Set(items));
+};
+
+export const parseCleanControlTexts = (rawText: string): string[] => {
+    if (!rawText || typeof rawText !== 'string') return [];
+    const text = rawText.trim();
+    if (!text || text === 'Ninguno' || text === 'No aplica' || text === 'N/A') return [];
+
+    const items: string[] = [];
+    const chunks = text.split(/[\n;•]+/).map(s => s.trim()).filter(Boolean);
+
+    for (const chunk of chunks) {
+        const subParts = chunk.split(/,/).map(s => s.trim()).filter(Boolean);
+        const allShort = subParts.length > 1 && subParts.every(p => p.length < 50 && !/^(que |y con |especialmente )/i.test(p));
+        if (allShort) {
+            for (const part of subParts) {
+                const cleaned = part.replace(/^[-*•\s]+/, '').trim();
+                if (cleaned.length > 2) {
+                    items.push(cleaned.charAt(0).toUpperCase() + cleaned.slice(1));
+                }
+            }
+        } else {
+            const cleaned = chunk.replace(/^[-*•\s]+/, '').trim();
+            if (cleaned.length > 2) {
+                items.push(cleaned.charAt(0).toUpperCase() + cleaned.slice(1));
+            }
+        }
+    }
+    return Array.from(new Set(items));
+};
+
 const EPP_OPTIONS = [
     'Casco de seguridad (Dieléctrico/Tipo I/II)',
     'Gafas de seguridad (Claras/Oscuras/Antiempañantes)',
@@ -304,7 +377,7 @@ const FIELD_SECTIONS = [
             { key: 'sectorOrganizacion', label: 'Sector de la Organización', type: 'select', options: SECTOR_ORGANIZACION_OPTIONS },
             { key: 'tipoContrato', label: 'Tipo de Vinculación', type: 'select', options: [] },
             { key: 'jornada', label: 'Jornada Laboral', type: 'select', options: JORNADA_OPTIONS },
-            { key: 'escalasSalarial', label: 'Escala Salarial', placeholder: '1.8 SMMLV - 2.5 SMMLV', type: 'text' },
+            { key: 'escalasSalarial', label: 'Escala Salarial', type: 'select', options: ESCALA_SALARIAL_OPTIONS },
         ]
     },
     {
@@ -458,6 +531,10 @@ const PerfilesCargo = () => {
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [isAiImportLoading, setIsAiImportLoading] = useState(false);
     const [pendingFileData, setPendingFileData] = useState<{ dataUrl: string; name: string; type: string } | null>(null);
+
+    // ─── Drag and Drop State (Reordenar Perfiles) ───
+    const [draggedPerfilIndex, setDraggedPerfilIndex] = useState<number | null>(null);
+    const [dragOverPerfilIndex, setDragOverPerfilIndex] = useState<number | null>(null);
 
     const handleImageUpload = (key: string, e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -778,59 +855,38 @@ const PerfilesCargo = () => {
             return;
         }
 
-        const newEpps = new Set<string>(formData.eppSeleccionados || []);
+        const cleanExistingEpps = (formData.eppSeleccionados || []).flatMap(e => parseCleanEppText(e));
+        const newEpps = new Set<string>(cleanExistingEpps);
         matchingIpevarRows.forEach(r => {
-            const eppTexts = [r.medida_eppu, r.controles_individuo];
-            eppTexts.forEach(txt => {
-                if (txt && txt !== 'Ninguno' && txt !== 'No aplica') {
-                    const parts = txt.split(/[,;\n•\-\/]+/).map((s: string) => s.trim()).filter((s: string) => s.length > 2);
-                    parts.forEach((p: string) => {
-                        const capitalized = p.charAt(0).toUpperCase() + p.slice(1);
-                        newEpps.add(capitalized);
-                    });
-                }
-            });
+            // EPPs se extraen estrictamente de la medida de intervención EPP (medida_eppu)
+            const extracted = parseCleanEppText(r.medida_eppu);
+            extracted.forEach(item => newEpps.add(item));
         });
 
-        const newFuente = new Set<string>(formData.controlesFuenteSeleccionados || []);
+        const newFuente = new Set<string>((formData.controlesFuenteSeleccionados || []).flatMap(c => parseCleanControlTexts(c)));
         matchingIpevarRows.forEach(r => {
             const fuenteTexts = [r.medida_ingenieria, r.controles_fuente, r.medida_eliminacion, r.medida_sustitucion];
             fuenteTexts.forEach(txt => {
-                if (txt && txt !== 'Ninguno' && txt !== 'No aplica') {
-                    const parts = txt.split(/[,;\n•\-]+/).map((s: string) => s.trim()).filter((s: string) => s.length > 3);
-                    parts.forEach((p: string) => {
-                        const capitalized = p.charAt(0).toUpperCase() + p.slice(1);
-                        newFuente.add(capitalized);
-                    });
-                }
+                const parts = parseCleanControlTexts(txt);
+                parts.forEach(p => newFuente.add(p));
             });
         });
 
-        const newMedio = new Set<string>(formData.controlesMedioSeleccionados || []);
+        const newMedio = new Set<string>((formData.controlesMedioSeleccionados || []).flatMap(c => parseCleanControlTexts(c)));
         matchingIpevarRows.forEach(r => {
             const medioTexts = [r.controles_medio];
             medioTexts.forEach(txt => {
-                if (txt && txt !== 'Ninguno' && txt !== 'No aplica') {
-                    const parts = txt.split(/[,;\n•\-]+/).map((s: string) => s.trim()).filter((s: string) => s.length > 3);
-                    parts.forEach((p: string) => {
-                        const capitalized = p.charAt(0).toUpperCase() + p.slice(1);
-                        newMedio.add(capitalized);
-                    });
-                }
+                const parts = parseCleanControlTexts(txt);
+                parts.forEach(p => newMedio.add(p));
             });
         });
 
         const newEntrenamientos = new Set<string>(formData.entrenamientosSeleccionados || []);
         matchingIpevarRows.forEach(r => {
-            const adminTexts = [r.medida_administrativa];
+            const adminTexts = [r.medida_administrativa, r.controles_individuo];
             adminTexts.forEach(txt => {
-                if (txt && txt !== 'Ninguno' && txt !== 'No aplica') {
-                    const parts = txt.split(/[,;\n•\-]+/).map((s: string) => s.trim()).filter((s: string) => s.length > 3);
-                    parts.forEach((p: string) => {
-                        const capitalized = p.charAt(0).toUpperCase() + p.slice(1);
-                        newEntrenamientos.add(capitalized);
-                    });
-                }
+                const parts = parseCleanControlTexts(txt);
+                parts.forEach(p => newEntrenamientos.add(p));
             });
         });
 
@@ -926,6 +982,68 @@ const PerfilesCargo = () => {
             setReportMessageId(null);
             setSelectedWorkerId(null);
             setRefreshTrigger(p => p + 1);
+        }
+    };
+
+    // ─── Drag & Drop Handlers (Reordenar Perfiles al gusto) ─────────────────
+    const handlePerfilDragStart = (e: React.DragEvent, index: number) => {
+        setDraggedPerfilIndex(index);
+        e.dataTransfer.setData('text/plain', String(index));
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handlePerfilDragOver = (e: React.DragEvent, index: number) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (dragOverPerfilIndex !== index) {
+            setDragOverPerfilIndex(index);
+        }
+    };
+
+    const handlePerfilDragEnd = () => {
+        setDraggedPerfilIndex(null);
+        setDragOverPerfilIndex(null);
+    };
+
+    const handlePerfilDrop = async (e: React.DragEvent, targetIndex: number) => {
+        e.preventDefault();
+        const rawSource = e.dataTransfer.getData('text/plain');
+        const sourceIndex = rawSource !== '' ? parseInt(rawSource, 10) : draggedPerfilIndex;
+
+        setDraggedPerfilIndex(null);
+        setDragOverPerfilIndex(null);
+
+        if (sourceIndex === null || isNaN(sourceIndex) || sourceIndex === targetIndex) {
+            return;
+        }
+
+        const updated = [...perfiles];
+        const [movedItem] = updated.splice(sourceIndex, 1);
+        if (!movedItem) return;
+        updated.splice(targetIndex, 0, movedItem);
+
+        // Optimistic UI update
+        setPerfiles(updated);
+
+        // Persist new ordering directly to MongoDB
+        if (token) {
+            try {
+                await fetch('/api/sgsst/perfiles-cargo/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ perfilesList: updated }),
+                });
+                showToast({
+                    message: `Cargo "${movedItem.nombreCargo || 'Cargo'}" reordenado exitosamente`,
+                    severity: NotificationSeverity.SUCCESS,
+                });
+            } catch (err) {
+                console.error('[PerfilesCargo] Error al guardar orden de perfiles:', err);
+                showToast({
+                    message: 'Error al persistir el nuevo orden de perfiles',
+                    severity: NotificationSeverity.ERROR,
+                });
+            }
         }
     };
 
@@ -1451,6 +1569,9 @@ const PerfilesCargo = () => {
             } else if (field.key === 'tipoContrato') {
                 currentVal = normalizeVinculacion(formData.tipoContrato || 'Contrato laboral a término indefinido');
                 selectOptions = getVinculacionOptionsForSector(formData.sectorOrganizacion || 'Sector privado', currentVal);
+            } else if (field.key === 'escalasSalarial') {
+                currentVal = formData.escalasSalarial || '1 SMMLV';
+                selectOptions = ensureOption(ESCALA_SALARIAL_OPTIONS, currentVal);
             }
 
             return (
@@ -1557,7 +1678,10 @@ const PerfilesCargo = () => {
                         <div className="w-8 h-8 rounded-xl bg-teal-500/10 dark:bg-teal-400/10 flex items-center justify-center border border-teal-500/20">
                             <Briefcase className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" />
                         </div>
-                        <span className="text-xs font-black text-text-primary dark:text-text-primary uppercase tracking-widest bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">Listado de Perfiles</span>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-black text-text-primary dark:text-text-primary uppercase tracking-widest bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">Listado de Perfiles</span>
+                            <span className="text-[10px] text-text-tertiary font-medium">Arrastra las tarjetas para reorganizar a tu gusto</span>
+                        </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <button
@@ -1579,16 +1703,27 @@ const PerfilesCargo = () => {
                     </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {perfiles.map(p => {
+                    {perfiles.map((p, index) => {
                         const isActive = activePerfilId === p.id;
+                        const isDragging = draggedPerfilIndex === index;
+                        const isDragOver = dragOverPerfilIndex === index && draggedPerfilIndex !== index;
                         return (
                             <div 
                                 key={p.id} 
+                                draggable
+                                onDragStart={(e) => handlePerfilDragStart(e, index)}
+                                onDragOver={(e) => handlePerfilDragOver(e, index)}
+                                onDrop={(e) => handlePerfilDrop(e, index)}
+                                onDragEnd={handlePerfilDragEnd}
                                 className={cn(
-                                    "group relative flex flex-col justify-between p-5 rounded-3xl transition-all duration-300 cursor-pointer border select-none transform overflow-hidden h-[150px] shadow-sm hover:shadow-md",
-                                    isActive 
-                                        ? "bg-gradient-to-br from-teal-900 via-teal-850 to-cyan-900 text-white border-transparent ring-2 ring-teal-500/20 shadow-[0_4px_20px_rgba(20,184,166,0.25)] hover:scale-[1.02] active:scale-[0.98]" 
-                                        : "bg-surface-primary/70 text-text-secondary border-border-medium/60 hover:border-teal-500/50 hover:text-text-primary hover:shadow-[0_4px_20px_rgba(20,184,166,0.1)] hover:bg-surface-secondary/90 hover:scale-[1.02] active:scale-[0.98] dark:bg-surface-primary/20"
+                                    "group relative flex flex-col justify-between p-5 rounded-3xl transition-all duration-200 cursor-grab active:cursor-grabbing border select-none transform overflow-hidden h-[150px] shadow-sm hover:shadow-md",
+                                    isDragging && "opacity-30 scale-95 border-2 border-dashed border-teal-500 shadow-none z-10",
+                                    isDragOver && "ring-2 ring-teal-500 scale-[1.04] shadow-2xl z-20 border-teal-500 bg-teal-500/10",
+                                    !isDragging && !isDragOver && (
+                                        isActive 
+                                            ? "bg-gradient-to-br from-teal-900 via-teal-850 to-cyan-900 text-white border-transparent ring-2 ring-teal-500/20 shadow-[0_4px_20px_rgba(20,184,166,0.25)] hover:scale-[1.02] active:scale-[0.98]" 
+                                            : "bg-surface-primary/70 text-text-secondary border-border-medium/60 hover:border-teal-500/50 hover:text-text-primary hover:shadow-[0_4px_20px_rgba(20,184,166,0.1)] hover:bg-surface-secondary/90 hover:scale-[1.02] active:scale-[0.98] dark:bg-surface-primary/20"
+                                    )
                                 )}
                                 onClick={() => {
                                     handleSelectPerfil(p.id);
@@ -1602,14 +1737,29 @@ const PerfilesCargo = () => {
 
                                 <div className="space-y-2">
                                     <div className="flex items-start justify-between">
-                                        <div className={cn(
-                                            "flex items-center justify-center w-8 h-8 rounded-2xl shadow-inner transition-colors",
-                                            isActive ? "bg-white/20 text-white" : "bg-teal-500/10 text-teal-600 dark:bg-teal-400/10 dark:text-teal-400"
-                                        )}>
-                                            <Briefcase className="w-4.5 h-4.5" />
+                                        <div className="flex items-center gap-1.5">
+                                            {/* Grip drag handle icon */}
+                                            <div 
+                                                className={cn(
+                                                    "cursor-grab active:cursor-grabbing p-0.5 rounded-lg opacity-40 group-hover:opacity-100 transition-opacity",
+                                                    isActive ? "text-teal-200" : "text-text-tertiary"
+                                                )}
+                                                title="Arrastra para reordenar"
+                                            >
+                                                <GripVertical className="w-4 h-4" />
+                                            </div>
+                                            <div className={cn(
+                                                "flex items-center justify-center w-8 h-8 rounded-2xl shadow-inner transition-colors",
+                                                isActive ? "bg-white/20 text-white" : "bg-teal-500/10 text-teal-600 dark:bg-teal-400/10 dark:text-teal-400"
+                                            )}>
+                                                <Briefcase className="w-4.5 h-4.5" />
+                                            </div>
                                         </div>
                                         {/* Delete Button */}
                                         <button
+                                            type="button"
+                                            draggable={false}
+                                            onMouseDown={(e) => e.stopPropagation()}
                                             onClick={(e) => { e.stopPropagation(); handleDeletePerfil(p.id); }}
                                             className={cn(
                                                 "p-1.5 rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100",

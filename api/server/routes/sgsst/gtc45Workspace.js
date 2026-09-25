@@ -202,6 +202,21 @@ router.put('/official', requireJwtAuth, async (req, res) => {
       { upsert: true, new: true }
     );
 
+    // Sincronización en paralelo: Si esta matriz oficial proviene de un chat activo, sincronizar también el chat
+    if (session && session.sourceConversationId) {
+      await GTC45WorkspaceSession.findOneAndUpdate(
+        { conversationId: session.sourceConversationId },
+        {
+          $set: {
+            matrixRows: normalizedRows,
+            ...(chartConclusions !== undefined ? { chartConclusions } : {}),
+            updatedAt: new Date(),
+          },
+        }
+      );
+      logger.info(`[GTC45Workspace PUT /official] Sincronizada en paralelo con el chat fuente "${session.sourceConversationId}"`);
+    }
+
     res.json({
       success: true,
       matrixRows: session.matrixRows,
@@ -362,6 +377,22 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
       const tempId = `temp-${userId}`;
       await GTC45WorkspaceSession.deleteOne({ conversationId: tempId, user: userId });
       logger.info(`[GTC45Workspace PUT] Deleted temporary session for user ${userId} since real session was created.`);
+    }
+
+    // Sincronización en paralelo con Somos SST (Matriz Oficial)
+    const officialConvoId = `official-${companyId || userId}`;
+    const isOfficialSource = session.isOfficial || (await GTC45WorkspaceSession.exists({ conversationId: officialConvoId, sourceConversationId: conversationId }));
+    if (isOfficialSource && conversationId !== officialConvoId) {
+      await GTC45WorkspaceSession.findOneAndUpdate(
+        { conversationId: officialConvoId },
+        {
+          $set: {
+            matrixRows: normalizedRows,
+            updatedAt: new Date(),
+          },
+        }
+      );
+      logger.info(`[GTC45Workspace PUT /:conversationId] Sincronizada en paralelo con la Matriz Oficial de Somos SST ("${officialConvoId}")`);
     }
 
     res.json({ success: true, matrixRows: session.matrixRows });
