@@ -26,12 +26,11 @@ const { User } = require('~/db/models');
 const { logger } = require('~/config');
 const geminiPoolManager = require('~/server/services/GeminiPoolManager');
 
-// Non-live Gemini models for 503 fallback rotation (matching .env GOOGLE_MODELS minus live ones)
+// Non-live Gemini models for 503 fallback rotation (matching verified GA models)
 const SGSST_FALLBACK_MODELS = [
   'gemini-3.8-flash',
-  'gemini-3.7-flash',
-  'gemini-3.6-flash',
   'gemini-3.5-flash',
+  'gemini-2.5-flash',
   'gemini-3.5-flash-lite',
 ];
 

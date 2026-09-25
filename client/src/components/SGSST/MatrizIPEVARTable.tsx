@@ -1170,6 +1170,7 @@ export default function MatrizIPEVARTable({
   const [pendingRawRows, setPendingRawRows] = useState<any[]>([]);
   const [pendingDirectRows, setPendingDirectRows] = useState<MatrixRow[]>([]);
   const [isAiImportLoading, setIsAiImportLoading] = useState(false);
+  const handleAutoAssignCargosRef = useRef<((rows?: MatrixRow[]) => Promise<void>) | null>(null);
 
   const handleDirectImport = () => {
     if (pendingDirectRows.length === 0) return;
@@ -1191,6 +1192,21 @@ export default function MatrizIPEVARTable({
     });
     setPendingDirectRows([]);
     setPendingRawRows([]);
+
+    // Verificar si hay filas sin perfil de cargo asignado
+    const hasUnassignedCargos = combined.some(
+      (r) => !r.cargo || r.cargo.trim() === '' || r.cargo.toLowerCase().includes('cargo / rol')
+    );
+    if (hasUnassignedCargos) {
+      setTimeout(() => {
+        const doAutoAssign = window.confirm(
+          'Se detectaron riesgos sin Perfil de Cargo asignado en la matriz.\n\n¿Deseas que la IA clasifique y asigne automáticamente los Perfiles de Cargo de tu empresa a cada riesgo, comparando cada actividad con la descripción del perfil?'
+        );
+        if (doAutoAssign && handleAutoAssignCargosRef.current) {
+          handleAutoAssignCargosRef.current(combined);
+        }
+      }, 400);
+    }
   };
 
   const handleAiImport = async () => {
@@ -1232,6 +1248,21 @@ export default function MatrizIPEVARTable({
           status: 'success',
           severity: 'success',
         });
+
+        // Verificar si quedaron cargos pendientes de asignar
+        const hasUnassignedCargos = combined.some(
+          (r) => !r.cargo || r.cargo.trim() === '' || r.cargo.toLowerCase().includes('cargo / rol')
+        );
+        if (hasUnassignedCargos) {
+          setTimeout(() => {
+            const doAutoAssign = window.confirm(
+              'Se detectaron riesgos sin Perfil de Cargo asignado en la matriz.\n\n¿Deseas que la IA clasifique y asigne automáticamente los Perfiles de Cargo de tu empresa a cada riesgo, comparando cada actividad con la descripción del perfil?'
+            );
+            if (doAutoAssign && handleAutoAssignCargosRef.current) {
+              handleAutoAssignCargosRef.current(combined);
+            }
+          }, 400);
+        }
       } else {
         showToast({
           message: 'No se pudieron recuperar filas procesadas.',
@@ -1963,15 +1994,16 @@ export default function MatrizIPEVARTable({
   }, [token]);
 
   // ── Auto-Asignar Cargos con IA (Sin editar fila por fila) ─────────────────
-  const handleAutoAssignCargos = async () => {
-    if (matrixRows.length === 0) {
+  const handleAutoAssignCargos = async (customRows?: MatrixRow[]) => {
+    const rowsToProcess = customRows || matrixRows;
+    if (rowsToProcess.length === 0) {
       showToast({ message: 'No hay riesgos en la matriz para clasificar cargos.', status: 'warning' });
       return;
     }
     try {
       setIsAutoAssigningCargos(true);
       const targetConvoId = isOfficialApp
-        ? null
+        ? 'official'
         : (!actualConvoId || actualConvoId === 'new')
           ? (userId ? `temp-${userId}` : null)
           : actualConvoId;
@@ -1983,7 +2015,7 @@ export default function MatrizIPEVARTable({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          matrixRows,
+          matrixRows: rowsToProcess,
           conversationId: targetConvoId,
           modelName: selectedModel,
         }),
@@ -2001,9 +2033,11 @@ export default function MatrizIPEVARTable({
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({ matrixRows: data.matrixRows }),
           });
+          window.dispatchEvent(new CustomEvent('ipevar-official-updated'));
+          if (onRefreshOfficialList) onRefreshOfficialList();
         }
         showToast({
-          message: data.message || `Cargos asignados automáticamente con IA a ${data.matrixRows.length} riesgos.`,
+          message: data.message || `Cargos asignados automáticamente con IA a ${data.matrixRows.length} riesgos según los perfiles de la empresa.`,
           status: 'success',
         });
       }
@@ -2017,6 +2051,7 @@ export default function MatrizIPEVARTable({
       setIsAutoAssigningCargos(false);
     }
   };
+  handleAutoAssignCargosRef.current = handleAutoAssignCargos;
 
   // ── Sincronizar Controles y Factores de Reducción (Anexo E) con Centro de Control ──
   const handleSyncControlesAnexoE = async () => {
@@ -2998,6 +3033,31 @@ export default function MatrizIPEVARTable({
                 </div>
               </button>
 
+              {/* Asignar Cargos IA */}
+              {matrixRows.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleAutoAssignCargos()}
+                  disabled={isAutoAssigningCargos}
+                  title="Auto-asignar cargos con IA según los perfiles de la empresa (la actividad se compara con la descripción de cada perfil)"
+                  aria-label="Asignar Cargos con IA"
+                  className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 px-2 shadow-sm outline-none transition-all duration-300 disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105"
+                >
+                  <div className="relative flex flex-shrink-0 items-center justify-center">
+                    {isAutoAssigningCargos ? (
+                      <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 animate-spin text-teal-600 dark:text-teal-400" />
+                    ) : (
+                      <Briefcase className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-teal-600 dark:text-teal-400" />
+                    )}
+                  </div>
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                    <span className="text-sm font-bold tracking-wide">
+                      {isAutoAssigningCargos ? 'Asignando Cargos…' : 'Asignar Cargos IA'}
+                    </span>
+                  </div>
+                </button>
+              )}
+
               {/* Pantalla Completa */}
               <button
                 type="button"
@@ -3420,10 +3480,31 @@ export default function MatrizIPEVARTable({
                     PROCESO <SortIcon field="proceso" />
                   </th>
                   <th
-                    className="min-w-[160px] cursor-pointer px-4 py-3 text-left hover:text-teal-600"
+                    className="min-w-[170px] cursor-pointer px-4 py-3 text-left hover:text-teal-600"
                     onClick={() => toggleSort('cargo')}
                   >
-                    CARGO <SortIcon field="cargo" />
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="flex items-center gap-1">
+                        CARGO <SortIcon field="cargo" />
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAutoAssignCargos();
+                        }}
+                        disabled={isAutoAssigningCargos}
+                        title="Auto-asignar cargos con IA comparando la actividad con la descripción de los perfiles de la empresa"
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-600 dark:text-teal-400 text-[10px] font-bold border border-teal-500/20 transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50"
+                      >
+                        {isAutoAssigningCargos ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3 w-3" />
+                        )}
+                        <span>IA</span>
+                      </button>
+                    </div>
                   </th>
                   <th className="min-w-[130px] px-4 py-3 text-left">ZONA</th>
                   <th className="min-w-[160px] px-4 py-3 text-left">ACTIVIDAD</th>

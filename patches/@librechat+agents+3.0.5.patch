@@ -140,7 +140,7 @@ index 48c6de6..7568bdc 100644
          });
          let lastUsageMetadata;
 diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs b/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
-index 450e0d6..f3fe3ec 100644
+index 450e0d6..1c7cf21 100644
 --- a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
 +++ b/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
 @@ -329,13 +329,21 @@ function convertMessageContentToParts(message, isMultimodalModel, previousMessag
@@ -158,10 +158,10 @@ index 450e0d6..f3fe3ec 100644
 +            const resultFunc = {
 +                name: tc.name,
 +                args: tc.args,
-             };
++            };
 +            const part = {
 +                functionCall: resultFunc,
-+            };
+             };
 +            if (sigs && sigs[idx]) {
 +                part.thought_signature = sigs[idx];
 +            } else if (tc.signature) {
@@ -215,7 +215,62 @@ index 450e0d6..f3fe3ec 100644
          const content = {
              role: actualRole,
              parts,
-@@ -458,6 +472,20 @@ function convertResponseContentToChatGenerationChunk(response, extra) {
+@@ -409,30 +423,35 @@ function convertResponseContentToChatGenerationChunk(response, extra) {
+         content = textParts.join('');
+     }
+     else if (candidateContent && Array.isArray(candidateContent.parts)) {
+-        content = candidateContent.parts.map((p) => {
++        const nonThoughtParts = [];
++        for (const p of candidateContent.parts) {
+             if ('text' in p && 'thought' in p && p.thought === true) {
+                 reasoningParts.push(p.text ?? '');
++                continue;
+             }
+-            else if ('text' in p) {
+-                return {
++            if ('text' in p) {
++                nonThoughtParts.push({
+                     type: 'text',
+                     text: p.text,
+-                };
++                });
+             }
+             else if ('executableCode' in p) {
+-                return {
++                nonThoughtParts.push({
+                     type: 'executableCode',
+                     executableCode: p.executableCode,
+-                };
++                });
+             }
+             else if ('codeExecutionResult' in p) {
+-                return {
++                nonThoughtParts.push({
+                     type: 'codeExecutionResult',
+                     codeExecutionResult: p.codeExecutionResult,
+-                };
++                });
+             }
+-            return p;
+-        });
++            else if (p && typeof p === 'object') {
++                nonThoughtParts.push(p);
++            }
++        }
++        content = nonThoughtParts;
+     }
+     else {
+         // no content returned - likely due to abnormal stop reason, e.g. malformed function call
+@@ -443,7 +462,7 @@ function convertResponseContentToChatGenerationChunk(response, extra) {
+         text = content;
+     }
+     else if (Array.isArray(content)) {
+-        const block = content.find((b) => 'text' in b);
++        const block = content.find((b) => b && typeof b === 'object' && 'text' in b);
+         text = block?.text ?? '';
+     }
+     const toolCallChunks = [];
+@@ -458,6 +477,20 @@ function convertResponseContentToChatGenerationChunk(response, extra) {
          })));
      }
      const additional_kwargs = {};
@@ -653,7 +708,7 @@ index f936ded..9c2e380 100644
              /** @ts-ignore */
              const { stream } = await this.client.generateContentStream(request);
 diff --git a/node_modules/@librechat/agents/dist/esm/llm/google/utils/common.mjs b/node_modules/@librechat/agents/dist/esm/llm/google/utils/common.mjs
-index 02305d8..0eb8cd6 100644
+index 02305d8..e6673df 100644
 --- a/node_modules/@librechat/agents/dist/esm/llm/google/utils/common.mjs
 +++ b/node_modules/@librechat/agents/dist/esm/llm/google/utils/common.mjs
 @@ -348,13 +348,24 @@ function convertBaseMessagesToContent(messages, isMultimodalModel, convertSystem
@@ -700,6 +755,61 @@ index 02305d8..0eb8cd6 100644
          const content = {
              role: actualRole,
              parts,
+@@ -407,30 +413,35 @@ function convertResponseContentToChatGenerationChunk(response, extra) {
+         content = textParts.join('');
+     }
+     else if (candidateContent && Array.isArray(candidateContent.parts)) {
+-        content = candidateContent.parts.map((p) => {
++        const nonThoughtParts = [];
++        for (const p of candidateContent.parts) {
+             if ('text' in p && 'thought' in p && p.thought === true) {
+                 reasoningParts.push(p.text ?? '');
++                continue;
+             }
+-            else if ('text' in p) {
+-                return {
++            if ('text' in p) {
++                nonThoughtParts.push({
+                     type: 'text',
+                     text: p.text,
+-                };
++                });
+             }
+             else if ('executableCode' in p) {
+-                return {
++                nonThoughtParts.push({
+                     type: 'executableCode',
+                     executableCode: p.executableCode,
+-                };
++                });
+             }
+             else if ('codeExecutionResult' in p) {
+-                return {
++                nonThoughtParts.push({
+                     type: 'codeExecutionResult',
+                     codeExecutionResult: p.codeExecutionResult,
+-                };
++                });
+             }
+-            return p;
+-        });
++            else if (p && typeof p === 'object') {
++                nonThoughtParts.push(p);
++            }
++        }
++        content = nonThoughtParts;
+     }
+     else {
+         // no content returned - likely due to abnormal stop reason, e.g. malformed function call
+@@ -441,7 +452,7 @@ function convertResponseContentToChatGenerationChunk(response, extra) {
+         text = content;
+     }
+     else if (Array.isArray(content)) {
+-        const block = content.find((b) => 'text' in b);
++        const block = content.find((b) => b && typeof b === 'object' && 'text' in b);
+         text = block?.text ?? '';
+     }
+     const toolCallChunks = [];
 diff --git a/node_modules/@librechat/agents/dist/esm/tools/search/firecrawl.mjs b/node_modules/@librechat/agents/dist/esm/tools/search/firecrawl.mjs
 index c75aa27..6eccf9b 100644
 --- a/node_modules/@librechat/agents/dist/esm/tools/search/firecrawl.mjs

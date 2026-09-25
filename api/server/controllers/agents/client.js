@@ -1554,7 +1554,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       // Build model fallback list from GOOGLE_MODELS env for quota/overload rotation
       // Exclude audio/live-only models: they return 404 for streamGenerateContent
       const isPublicChat = this.options.req?.body?.isPublicChat === true;
-      let defaultModels = 'gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite';
+      let defaultModels = 'gemini-3.8-flash,gemini-3.5-flash,gemini-2.5-flash,gemini-3.5-flash-lite';
 
       if (isPublicChat) {
         defaultModels = 'gemini-3.5-flash-lite,gemini-3.5-flash';
@@ -1618,17 +1618,10 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       const isPureExplanation = PURE_EXPLANATION_REGEX.test(userQuery);
       const hasCreationIntent = CREATION_INTENT_REGEX.test(userQuery);
 
-      // Arquitectura de DOS MODELOS para Canvas / Aplicativos:
-      // 1. Orquestador de Conversación y Herramientas (Chat, planificación, Google Sheets, Drive, Docs):
-      //    Opera en "gemini-3.5-flash-lite" (500 RPD por llave, ultra rápido, sin saturación 503 en la UI).
-      // 2. Especialista Técnico en Código (CanvasTool Camino B):
-      //    Micro-delega internamente en CanvasTool.js a "gemini-3.8-flash" (con escalera 3.7 -> 3.6 -> 3.5 -> 3.5-lite)
-      //    para sintetizar el aplicativo HTML5/Tailwind/Chart.js con todo el contexto acumulado de las herramientas.
-      // Por tanto, las solicitudes de aplicativos o Canvas NUNCA deben forzar al agente orquestador a 3.8 en el chat.
-      const isCanvasTask = hasCanvasTrigger && (!isPureExplanation || hasCreationIntent);
-
-      // Matrices y Documentos complejos extensos sin Canvas (solo redacción pura en chat si no es explicación):
-      const isMatrixOrDocTask = hasMatrixDocTrigger && !isPureExplanation && !isCanvasTask;
+      // Prioridad Crítica: Las tareas de Matrices Especializadas (IPEVAR, PESV, Química) y Documentos Legales
+      // tienen precedencia absoluta sobre Canvas. Si el usuario pide diseñar/elaborar una matriz, es una tarea de MATRIZ.
+      const isMatrixOrDocTask = hasMatrixDocTrigger && !isPureExplanation;
+      const isCanvasTask = !isMatrixOrDocTask && hasCanvasTrigger && (!isPureExplanation || hasCreationIntent);
 
       const isComplexTask = isMatrixOrDocTask;
       const userExplicitModel = this.options.req?.body?.model;
@@ -1852,27 +1845,70 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
               .map((p) => p[ContentTypes.TEXT] || p.text || '')
               .join('');
 
-            const hasSubstantialProgress = accumulatedText.trim().length >= 100;
+            const toolParts = partialParts.filter((p) =>
+              p && (
+                p.type === ContentTypes.TOOL_CALL ||
+                p.type === ContentTypes.TOOL_RESULT ||
+                p.tool_call != null ||
+                p.tool_result != null ||
+                p.tool_call_ids != null ||
+                p.tool_call_id != null
+              )
+            );
+            const hasToolProgress = toolParts.length > 0;
+            const hasTextProgress = accumulatedText.trim().length >= 100;
+            const hasSubstantialProgress = hasTextProgress || hasToolProgress;
 
             if (hasSubstantialProgress && isRetryable) {
               logger.warn(
-                `[AgentClient Buffer Preservation] Preservando buffer de generación parcial (${accumulatedText.length} caracteres). NO se emite clear_step_maps. La siguiente clave continuará exactamente desde el último carácter emitido.`,
+                `[AgentClient Buffer Preservation] Preservando buffer de progreso parcial (${accumulatedText.length} caracteres, ${toolParts.length} partes de herramientas). NO se emite clear_step_maps. El siguiente modelo/clave continuará con el contexto acumulado.`,
               );
-              // Prepare continuation payload with the entire accumulated text for context
-              continuationPayload = [
-                ...payload,
-                {
-                  role: 'assistant',
-                  content: accumulatedText,
-                },
-                {
-                  role: 'user',
-                  content:
-                    'IMPORTANTE: Tu respuesta o generación previa se interrumpió abruptamente debido a una pérdida momentánea de conexión. ' +
-                    'CONTINÚA EXACTAMENTE a partir del último carácter emitido sin repetir nada de lo que ya se generó antes. ' +
-                    'NO incluyas introducciones, saludos ni disculpas; continúa directamente el código o texto a partir de ese punto exacto para completarlo.',
-                },
-              ];
+
+              // Si hubo progreso de herramientas, construir continuación rica con herramientas y resultados ya ejecutados
+              if (hasToolProgress) {
+                const toolSummaryList = toolParts
+                  .map((tp) => {
+                    if (tp.type === ContentTypes.TOOL_CALL || tp.tool_call) {
+                      const name = tp.tool_call?.name || tp.name || 'herramienta';
+                      const args = typeof tp.tool_call?.args === 'string' ? tp.tool_call.args : JSON.stringify(tp.tool_call?.args || {});
+                      return `[Herramienta Ejecutada]: ${name} con parámetros: ${args.substring(0, 400)}`;
+                    } else if (tp.type === ContentTypes.TOOL_RESULT || tp.tool_result) {
+                      const out = typeof tp.output === 'string' ? tp.output : JSON.stringify(tp.output || tp.tool_result || '');
+                      return `[Resultado Obtenido]: ${out.substring(0, 500)}`;
+                    }
+                    return null;
+                  })
+                  .filter(Boolean)
+                  .join('\n');
+
+                continuationPayload = [
+                  ...payload,
+                  ...(accumulatedText.trim().length > 0 ? [{ role: 'assistant', content: accumulatedText }] : []),
+                  {
+                    role: 'user',
+                    content:
+                      `SISTEMA DE RECUPERACIÓN Y CONTINUIDAD: La ejecución previa avanzó pero se produjo una desconexión o rotación de modelo/cuota.\n` +
+                      `Las siguientes herramientas ya fueron ejecutadas exitosamente:\n${toolSummaryList}\n\n` +
+                      `INSTRUCCIÓN OBLIGATORIA: NO reinicies el proceso desde cero ni vuelvas a leer lo que ya está consultado. CONTINÚA directamente ejecutando la siguiente acción pendiente (por ejemplo, si ya se leyó el contexto o matriz, procede inmediatamente a registrar o escribir las filas de peligros restantes en matriz_ipevar).`,
+                  },
+                ];
+              } else {
+                // Prepare continuation payload with the entire accumulated text for context
+                continuationPayload = [
+                  ...payload,
+                  {
+                    role: 'assistant',
+                    content: accumulatedText,
+                  },
+                  {
+                    role: 'user',
+                    content:
+                      'IMPORTANTE: Tu respuesta o generación previa se interrumpió abruptamente debido a una pérdida momentánea de conexión. ' +
+                      'CONTINÚA EXACTAMENTE a partir del último carácter emitido sin repetir nada de lo que ya se generó antes. ' +
+                      'NO incluyas introducciones, saludos ni disculpas; continúa directamente el código o texto a partir de ese punto exacto para completarlo.',
+                  },
+                ];
+              }
             } else {
               // Clean up partial output from failed run if no substantial progress was made
               this.contentParts.splice(initialContentPartsLength);
@@ -2055,10 +2091,18 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
           .join('\n')
           .trim();
 
-        const asksIndicatorsOrFormulas = /f[oó]rmula|indicador|accidentalidad|0312|frecuencia|severidad|ausentismo|mortalidad/i.test(userQuery);
+        const hasWriteActivity = this.contentParts.some((p) => {
+          if (!p) return false;
+          const args = p.tool_call?.args || p.args;
+          const argsStr = typeof args === 'string' ? args : JSON.stringify(args || {});
+          return argsStr.includes('"escribir"') || argsStr.includes('"crear"') || argsStr.includes('"actualizar"');
+        });
+
         let fallbackMsg = '';
-        if (hasToolActivity) {
-          fallbackMsg = 'He procesado tu solicitud y ejecutado las acciones correspondientes. Puedes visualizar el resultado en el panel lateral o en el historial.';
+        if (hasWriteActivity) {
+          fallbackMsg = 'He procesado tu solicitud y registrado exitosamente la información en el sistema. Puedes visualizar los datos actualizados en el panel lateral.';
+        } else if (hasToolActivity) {
+          fallbackMsg = 'He consultado la información y el contexto en el sistema. ¿Deseas que proceda a registrar los riesgos y controles evaluados en la tabla en vivo?';
         } else if (asksIndicatorsOrFormulas) {
           fallbackMsg = `### 🏛️ Indicadores Mínimos de Accidentalidad (Resolución 0312 de 2019 - Artículo 30)
 

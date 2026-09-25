@@ -913,7 +913,47 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
       return res.json({ matrixRows: [] });
     }
 
+    const companyId = await getActiveCompanyId(userId);
     const cleanedRows = cleanRawRows(rawRows);
+
+    // Obtener perfiles de cargo existentes de la empresa para emparejar la actividad con su descripción
+    const PerfilCargoModel = mongoose.models.PerfilCargoData;
+    let perfilesDetallados = [];
+    if (PerfilCargoModel) {
+      try {
+        const cargoDoc = await PerfilCargoModel.findOne({
+          user: userId,
+          ...(companyId ? { companyId } : {}),
+        }).lean();
+        if (cargoDoc && Array.isArray(cargoDoc.perfilesList)) {
+          perfilesDetallados = cargoDoc.perfilesList
+            .filter((p) => p && p.nombreCargo)
+            .map((p) => ({
+              nombreCargo: toSentenceCase(p.nombreCargo),
+              area: p.area || '',
+              nivelCargo: p.nivelCargo || '',
+              descripcion: (
+                p.contextoAdicional ||
+                (p.report ? p.report.replace(/<[^>]+>/g, ' ').substring(0, 400) : '') ||
+                ''
+              ).trim(),
+            }));
+        }
+      } catch (err) {
+        logger.warn('[GTC45/ai-parse-matrix] Error loading PerfilCargoData:', err.message);
+      }
+    }
+
+    const perfilesFormatText = perfilesDetallados.length > 0
+      ? perfilesDetallados
+          .map(
+            (p, i) =>
+              `${i + 1}. CARGO: "${p.nombreCargo}"
+   - Área: ${p.area || 'General'} | Nivel: ${p.nivelCargo || 'Operativo'}
+   - DESCRIPCIÓN Y ACTIVIDADES DEL PERFIL: ${p.descripcion || 'Sin descripción adicional'}`
+          )
+          .join('\n\n')
+      : 'No hay cargos registrados previamente en el aplicativo de Perfiles de la empresa.';
 
     const CHUNK_SIZE = 50;
     const chunks = [];
@@ -937,15 +977,26 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
 
       const prompt = `Eres un experto certificado en Seguridad y Salud en el Trabajo y en la metodología GTC-45:2012 colombiana.
 Te hemos proporcionado una lista de filas extraídas de una matriz o archivo Excel.
-Tu tarea es mapear y adaptar con máxima fidelidad la información existente de cada fila al formato estándar de Wappy (GTC-45 IPEVAR).
+Tu tarea es mapear y adaptar con máxima fidelidad la información existente de cada fila al formato estándar de Wappy (GTC-45 IPEVAR), ASIGNANDO ADEMÁS EL CARGO CORRESPONDIENTE COMPARANDO LA ACTIVIDAD CON LOS PERFILES DE LA EMPRESA.
+
+CATÁLOGO DE PERFILES DE CARGO REGISTRADOS EN LA EMPRESA (CON SU DESCRIPCIÓN):
+${perfilesFormatText}
 
 REGLA DE ORO DE FIDELIDAD (NO INVENTAR):
 - Respeta estrictamente los datos, peligros, descripciones, consecuencias, procesos y controles presentes en las filas de origen. NUNCA inventes peligros no descritos ni sustituyas la información original por ejemplos genéricos.
 - Si en el origen un campo ya tiene información específica (ej. peligros, consecuencias, controles existentes de fuente/medio/individuo, medidas de intervención), CONSÉRVALA fielmente.
 - Si en el origen un control o medida no existe o viene en blanco, escribe 'Ninguno' o 'No aplica'. No inventes controles artificiales a menos que se trate de inferir la clasificación técnica estricta GTC-45 (Físico, Químico, Biológico, Biomecánico, Psicosocial, Condiciones de seguridad, Fenómenos naturales).
 
+REGLA CLAVE DE ASIGNACIÓN DE CARGO (LA ACTIVIDAD DEBE PARECERSE A LA DESCRIPCIÓN DEL PERFIL):
+- Analiza con cuidado el campo "actividad" y "tareas" de cada fila.
+- Compara la labor descrita en la "actividad" con el campo "DESCRIPCIÓN Y ACTIVIDADES DEL PERFIL" de cada perfil de cargo registrado en la empresa.
+- Si la actividad coincide, se asemeja o describe tareas correspondientes a la descripción de un perfil registrado, asigna EXACTAMENTE ese nombre de cargo registrado.
+- Ejemplo: Si la actividad dice "Socio director, socios gerentes (administrativo...)" o describe labores gerenciales/directivas, debe emparejarse con el perfil directivo registrado de la empresa (ej: "Director de Proyecto / Gerente de Obra" o "Socio Director").
+- Si no hay coincidencia con ningún perfil registrado, infiere un nombre de cargo profesional técnico coherente con la labor.
+
 El formato de salida que requerimos para cada fila es un objeto JSON con la siguiente estructura exacta:
 {
+  "cargo": "<Nombre exacto del cargo asignado según la descripción de los perfiles de la empresa o acorde a la actividad.>",
   "proceso": "<área, proceso o sección original en formato tipo oración (ej. Administración, Operativo, Gestión Humana).>",
   "zona": "<zona, lugar, oficina o sede original en formato tipo oración. Si no está especificada, usa la misma área o 'Instalaciones principales'.>",
   "actividad": "<cargo o actividad descrita en la fila original.>",
@@ -1095,15 +1146,17 @@ router.post('/auto-assign-cargos', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     const companyId = await getActiveCompanyId(userId);
-    const { matrixRows, conversationId, modelName = 'gemini-2.5-flash' } = req.body;
+    const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
+    const { matrixRows, conversationId } = req.body;
 
     if (!matrixRows || !Array.isArray(matrixRows) || matrixRows.length === 0) {
       return res.status(400).json({ error: 'No se enviaron filas de la matriz para procesar.' });
     }
 
-    // 1. Obtener los perfiles de cargo existentes de la empresa
+    // 1. Obtener los perfiles de cargo existentes de la empresa con descripción completa
     const PerfilCargoModel = mongoose.models.PerfilCargoData;
     let availableCargos = [];
+    let perfilesDetallados = [];
     if (PerfilCargoModel) {
       try {
         const cargoDoc = await PerfilCargoModel.findOne({
@@ -1111,10 +1164,19 @@ router.post('/auto-assign-cargos', requireJwtAuth, async (req, res) => {
           ...(companyId ? { companyId } : {}),
         }).lean();
         if (cargoDoc && Array.isArray(cargoDoc.perfilesList)) {
-          availableCargos = cargoDoc.perfilesList
-            .map(p => p.nombreCargo)
-            .filter(Boolean)
-            .map(c => toSentenceCase(c));
+          perfilesDetallados = cargoDoc.perfilesList
+            .filter((p) => p && p.nombreCargo)
+            .map((p) => ({
+              nombreCargo: toSentenceCase(p.nombreCargo),
+              area: p.area || '',
+              nivelCargo: p.nivelCargo || '',
+              descripcion: (
+                p.contextoAdicional ||
+                (p.report ? p.report.replace(/<[^>]+>/g, ' ').substring(0, 400) : '') ||
+                ''
+              ).trim(),
+            }));
+          availableCargos = perfilesDetallados.map((p) => p.nombreCargo);
         }
       } catch (err) {
         logger.warn('[GTC45Workspace /auto-assign-cargos] Error loading PerfilCargoData:', err.message);
@@ -1128,7 +1190,19 @@ router.post('/auto-assign-cargos', requireJwtAuth, async (req, res) => {
       companyContext = `Empresa: ${company.companyName || ''}, Actividad: ${company.economicActivity || ''}, Sector: ${company.sector || ''}`;
     }
 
-    // 3. Preparar resumen compacto de filas para optimizar tokens
+    // 3. Preparar formato textual enriquecido de los perfiles para la IA
+    const perfilesFormatText = perfilesDetallados.length > 0
+      ? perfilesDetallados
+          .map(
+            (p, i) =>
+              `${i + 1}. CARGO: "${p.nombreCargo}"
+   - Área: ${p.area || 'General'} | Nivel: ${p.nivelCargo || 'Operativo'}
+   - DESCRIPCIÓN Y ACTIVIDADES DEL PERFIL: ${p.descripcion || 'Sin descripción detallada'}`
+          )
+          .join('\n\n')
+      : 'No hay cargos registrados previamente en el aplicativo de Perfiles de la empresa.';
+
+    // 4. Preparar resumen compacto de filas para optimizar tokens
     const rowsSummary = matrixRows.map((r, index) => ({
       index,
       proceso: r.proceso || '',
@@ -1140,28 +1214,34 @@ router.post('/auto-assign-cargos', requireJwtAuth, async (req, res) => {
       cargoActual: r.cargo || '',
     }));
 
-    const prompt = `Eres un Director Senior de Seguridad y Salud en el Trabajo (SG-SST) experto en perfiles de cargo y matrices de peligros IPEVAR (GTC-45).
-Tu misión es ASIGNAR el CARGO o puesto de trabajo expuesto más exacto y coherente a cada fila de riesgo de la matriz.
+    const prompt = `Eres un Director Senior de Seguridad y Salud en el Trabajo (SG-SST) y Recursos Humanos experto en perfiles de cargo, profesiogramas y matrices de peligros IPEVAR (GTC-45:2012).
+Tu misión es ASIGNAR con la máxima precisión el CARGO o puesto de trabajo correspondiente a cada fila de la matriz de riesgos.
 
 CONTEXTO EMPRESARIAL:
 ${companyContext || 'No especificado'}
 
-CARGOS REGISTRADOS EN EL SISTEMA DE LA EMPRESA (DAR PRIORIDAD A ESTOS SI ENCAJAN):
-${availableCargos.length > 0 ? availableCargos.map(c => `- ${c}`).join('\n') : 'No hay cargos registrados aún en el aplicativo de Perfiles; infiere los cargos estándar de la industria.'}
+CATÁLOGO DE PERFILES DE CARGO REGISTRADOS EN LA EMPRESA (CON SU DESCRIPCIÓN Y ACTIVIDADES):
+${perfilesFormatText}
 
 FILAS A CLASIFICAR (Array JSON):
 ${JSON.stringify(rowsSummary, null, 2)}
 
-INSTRUCCIONES ESTRICTAS:
-1. Revisa cada fila: su proceso, actividad, tareas y descripción del peligro.
-2. Si una fila YA tiene un cargo asignado válido en cargoActual, CONSÉRVALO exactamente igual.
-3. Si la fila NO tiene cargo (o está vacío):
-   a) PRIORIDAD ABSOLUTA A CARGOS EXISTENTES: Revisa la lista de CARGOS REGISTRADOS EN EL SISTEMA DE LA EMPRESA. Si alguno de los cargos existentes coincide, encaja o abarca la labor de esa fila, asigna EXACTAMENTE ese nombre de cargo registrado para sincronizar con el aplicativo de Perfiles de Cargo.
-   b) CREAR NUEVO SOLO SI NO EXISTE: SOLO si ningún cargo registrado de la empresa describe ni aplica a la actividad de la fila, crea y asigna un cargo nuevo específico, técnico y profesional en español acorde a la labor (ej: "Socio Director", "Operario de Producción", "Soldador"). NUNCA fuerces un cargo administrativo si la labor es gerencial, directiva o de planta industrial.
-4. Responde ÚNICAMENTE con un JSON array válido de objetos con este formato exacto, sin texto adicional ni explicaciones:
+REGLA CLAVE DE ORO (LA ACTIVIDAD DE LA MATRIZ DEBE PARECERSE A LA DESCRIPCIÓN DEL PERFIL):
+1. Revisa con sumo cuidado el texto de "actividad" y "tareas" de cada fila de la matriz.
+2. Compara dicha labor contra la "DESCRIPCIÓN Y ACTIVIDADES DEL PERFIL" de cada perfil de cargo de la empresa listado arriba.
+3. Si la actividad de la fila coincide, se asemeja, se relaciona o describe funciones que forman parte de la descripción de un perfil registrado:
+   - ASIGNA EXACTAMENTE EL NOMBRE DE ESE CARGO ("nombreCargo" exacto del catálogo registrado).
+   - Ejemplo: Si la actividad dice "Socio director, socios gerentes (administrativo...)" o describe labores gerenciales o directivas, compárala con la descripción de los perfiles directivos registrados (ej: "Director de Proyecto / Gerente de Obra" o "Socio Director") y asígnalo.
+   - Ejemplo: Si la actividad describe excavaciones, zanjas o movimiento de tierras, emparéjala con el perfil de cargo cuya descripción abarca esa labor ("Operador de Excavadora", "Ayudante Práctico de Excavación", etc.).
+   - Ejemplo: Si la actividad describe encofrados, formaleta o armado de vigas, compárala con "Oficial de Encofrados y Formaleta", etc.
+4. Si una fila YA tiene un cargo asignado en "cargoActual" que coincide con uno de los cargos de la empresa y es coherente con la actividad, CONSÉRVALO. Si está vacío o dice "Cargo / Rol...", asígnalo obligatoriamente.
+5. Solo si la actividad de la fila es completamente ajena y no guarda ninguna relación con ninguno de los perfiles registrados de la empresa, asigna un nombre de cargo profesional, técnico y formal en español acorde a la labor.
+
+FORMATO DE SALIDA:
+Responde ÚNICAMENTE con un JSON array válido de objetos con este formato exacto, sin texto adicional ni bloques markdown (\`\`\`json):
 [
-  { "index": 0, "cargo": "Nombre del Cargo" },
-  { "index": 1, "cargo": "Nombre del Cargo" }
+  { "index": 0, "cargo": "Nombre del Cargo Exacto" },
+  { "index": 1, "cargo": "Nombre del Cargo Exacto" }
 ]`;
 
     const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });
@@ -1205,15 +1285,16 @@ INSTRUCCIONES ESTRICTAS:
       };
     });
 
-    // Si se pasa conversationId, actualizar directamente la sesión en base de datos
-    if (conversationId) {
-      const isOfficial = conversationId.startsWith('official-');
-      await GTC45WorkspaceSession.findOneAndUpdate(
-        { conversationId, ...(isOfficial ? {} : { user: userId }) },
-        { $set: { matrixRows: updatedRows } }
-      );
-      logger.info(`[GTC45Workspace /auto-assign-cargos] Persisted ${updatedRows.length} rows to session ${conversationId}`);
-    }
+    // Si se pasa conversationId o es oficial, actualizar directamente la sesión en base de datos
+    const targetConvoId = (!conversationId || conversationId === 'official' || conversationId.startsWith('official-'))
+      ? `official-${companyId || userId}`
+      : conversationId;
+
+    await GTC45WorkspaceSession.findOneAndUpdate(
+      { conversationId: targetConvoId },
+      { $set: { matrixRows: updatedRows } }
+    );
+    logger.info(`[GTC45Workspace /auto-assign-cargos] Persisted ${updatedRows.length} rows to session ${targetConvoId}`);
 
     // Asegurar que todos los cargos asignados queden creados y persistidos en Perfiles de Cargo (PerfilCargoData)
     if (typeof ensurePerfilExists === 'function') {
