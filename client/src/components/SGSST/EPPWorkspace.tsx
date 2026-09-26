@@ -1228,12 +1228,12 @@ export default function EPPWorkspace() {
           {
             id: 'tb-tab-trabajadores',
             onClick: () => setActiveView('workers'),
-            label: `Entregas (${workers.length})`,
+            label: `Trabajadores (${workers.length})`,
             icon: UserCheck,
-            title: 'Ver Entregas y Dotación de EPP por Colaborador',
+            title: 'Ver Colaboradores y Dotación de EPP',
             variant: 'history',
             active: activeView === 'workers',
-            badge: workers.length > 0 ? workers.length : undefined,
+            badge: expiredDeliveries > 0 ? expiredDeliveries : undefined,
           },
           {
             id: 'tb-tab-almacen',
@@ -1597,7 +1597,7 @@ export default function EPPWorkspace() {
                     <Shield className="w-5 h-5 text-teal-500 shrink-0" />
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-text-primary text-sm sm:text-base">EPP Requeridos por el Cargo y Matriz IPEVAR</span>
+                        <span className="font-semibold text-text-primary text-sm sm:text-base">Dotación y EPP Requeridos</span>
                         {matchingIpevarRows.length > 0 && (
                           <span className="text-[11px] px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 font-semibold border border-teal-500/20 flex items-center gap-1">
                             <Zap className="w-3 h-3 text-teal-500" />
@@ -1639,21 +1639,6 @@ export default function EPPWorkspace() {
 
                 {isCargoExpanded && (
                   <div className="p-5 border-t border-border-medium bg-surface-primary space-y-4">
-                    {/* Explicación de trazabilidad */}
-                    <div className="text-xs text-text-secondary flex items-center justify-between flex-wrap gap-2 pb-1 border-b border-border-light dark:border-white/5">
-                      <span>
-                        Peligros y dotación vinculados al cargo: <strong className="text-text-primary">{selectedWorker?.cargo || 'Sin cargo'}</strong>
-                      </span>
-                      <div className="flex items-center gap-3 text-[11px]">
-                        <span className="flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-full bg-teal-500"></span> Matriz IPEVAR Hito 1
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-full bg-blue-500"></span> Perfil de Cargo
-                        </span>
-                      </div>
-                    </div>
-
                     {recommendedEpps.length > 0 ? (
                       <div className="space-y-3">
                         <div className="flex flex-wrap gap-2.5">
@@ -1711,11 +1696,6 @@ export default function EPPWorkspace() {
                                 {fromIpevar && (
                                   <span className="text-[10px] px-1.5 py-0.2 rounded bg-teal-500/10 text-teal-600 dark:text-teal-400 font-mono font-medium">
                                     IPEVAR
-                                  </span>
-                                )}
-                                {fromCargo && !fromIpevar && (
-                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-mono font-medium">
-                                    Cargo
                                   </span>
                                 )}
 
@@ -1786,31 +1766,31 @@ export default function EPPWorkspace() {
                         )}
                       </div>
                     ) : (
-                      <div className="p-4 bg-surface-secondary/50 rounded-xl border border-dashed border-border-medium text-center space-y-3">
-                        <AlertCircle className="w-8 h-8 text-amber-500 mx-auto opacity-80" />
-                        <div>
-                          <p className="text-xs font-semibold text-text-primary">No se detectaron EPPs específicos para "{selectedWorker?.cargo || 'este cargo'}"</p>
-                          <p className="text-[11px] text-text-secondary mt-0.5 max-w-md mx-auto">
-                            Puedes sincronizar los peligros y controles desde la Matriz IPEVAR de Hito 1 o asignar la dotación básica estándar de obra y terreno.
-                          </p>
-                        </div>
-                        <div className="flex items-center justify-center gap-2.5 pt-1">
-                          <button
+                      <div className="p-4 bg-surface-secondary/40 rounded-2xl border border-dashed border-border-medium text-center space-y-3">
+                        <p className="text-xs text-text-secondary max-w-md mx-auto">
+                          Sincronice los controles desde la Matriz IPEVAR de Hito 1 o asigne la dotación básica estándar.
+                        </p>
+                        <div className="flex items-center justify-center gap-2 pt-1">
+                          <ToolbarButton
+                            id="btn-sync-ipevar"
                             onClick={handleSyncFromIpevar}
                             disabled={isSyncingIpevar}
-                            className="px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md flex items-center gap-2 transition-all active:scale-95"
-                          >
-                            <Zap className="w-3.5 h-3.5" />
-                            <span>Escanear Matriz IPEVAR</span>
-                          </button>
-                          <button
+                            isLoading={isSyncingIpevar}
+                            label="Escanear Matriz IPEVAR"
+                            icon={Zap}
+                            title="Escanear Matriz IPEVAR (Hito 1) para detectar EPPs sugeridos"
+                            variant="ai"
+                          />
+                          <ToolbarButton
+                            id="btn-apply-standard"
                             onClick={handleApplyStandardPack}
                             disabled={isSyncingIpevar}
-                            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-2 transition-all active:scale-95"
-                          >
-                            <Shield className="w-3.5 h-3.5 text-blue-500" />
-                            <span>Asignar Dotación Estándar</span>
-                          </button>
+                            isLoading={isSyncingIpevar}
+                            label="Asignar Dotación Estándar"
+                            icon={Shield}
+                            title="Asignar dotación básica estándar de obra y terreno"
+                            variant="dummy"
+                          />
                         </div>
                       </div>
                     )}
