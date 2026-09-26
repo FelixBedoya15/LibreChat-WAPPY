@@ -18,6 +18,7 @@ export interface ExportWorkerEntry {
   direccion?: string;
   telefono?: string;
   cargo?: string;
+  salario?: string;
   fechaNacimiento?: string;
   lugarNacimiento?: string;
   barrio?: string;
@@ -240,6 +241,7 @@ export const exportPerfilSociodemograficoToExcel = async (
     { header: 'Dirección', key: 'direccion', width: 26 },
     { header: 'Teléfono', key: 'telefono', width: 18 },
     { header: 'Cargo', key: 'cargo', width: 32 },
+    { header: 'Salario Base / IBC ($)', key: 'salario', width: 22 },
     { header: 'Fecha de Nacimiento', key: 'fechaNacimiento', width: 20 },
     { header: 'Lugar de Nacimiento', key: 'lugarNacimiento', width: 22 },
     { header: 'Barrio', key: 'barrio', width: 20 },
@@ -337,6 +339,7 @@ export const exportPerfilSociodemograficoToExcel = async (
       direccion: w.direccion || '',
       telefono: w.telefono || '',
       cargo: w.cargo || '',
+      salario: w.salario || '',
       fechaNacimiento: w.fechaNacimiento || '',
       lugarNacimiento: w.lugarNacimiento || '',
       barrio: w.barrio || '',

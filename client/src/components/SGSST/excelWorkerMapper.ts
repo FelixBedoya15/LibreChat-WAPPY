@@ -230,6 +230,7 @@ export function smartMapExcelToWorkers(importedRows: RawRow[], emptyWorkerTempla
     const estrato = findRowValue(row, ['estrato']);
     const vivienda = findRowValue(row, ['tenenciadevivienda', 'tipodevivienda', 'vivienda']);
     const nivelEscolaridad = findRowValue(row, ['formacionacademica', 'nivelescolaridad', 'escolaridad', 'estudios', 'tituloobtenido']);
+    const salario = findRowValue(row, ['salario', 'salariobase', 'sueldo', 'remuneracion', 'ibc', 'salariomensual']);
 
     // 8. Datos Médicos & Fisiológicos
     const rawPeso = findRowValue(row, ['cualessupeso', 'pesokg', 'peso']);
@@ -337,6 +338,7 @@ export function smartMapExcelToWorkers(importedRows: RawRow[], emptyWorkerTempla
       nombre: nombre || row['Nombre'] || row.nombre || '',
       identificacion: identificacion || row['Identificación'] || row.identificacion || '',
       cargo: cargo || row['Cargo'] || row.cargo || '',
+      salario: salario || row['Salario'] || row['Salario Base'] || row.salario || '',
       genero: genero || row['Género'] || row.genero || '',
       edad: edad || row['Edad'] || row.edad || '',
       fechaNacimiento: fechaNacimiento || row['Fecha de Nacimiento'] || row.fechaNacimiento || '',

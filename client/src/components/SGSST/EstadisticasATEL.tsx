@@ -528,23 +528,23 @@ const EstadisticasATEL = () => {
                             Gestión Integral de Ausentismo, ATEL & Costos Laborales
                         </h2>
                         <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg border border-border-medium bg-surface-primary shadow-xs">
+                            <div className="inline-flex items-center gap-1.5 p-1 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-sm">
                                 <button
                                     type="button"
                                     onClick={() => setYear(y => y - 1)}
                                     title="Año anterior"
-                                    className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
+                                    className="w-7 h-7 flex items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-2xs active:scale-95"
                                 >
                                     <ChevronLeft className="w-3.5 h-3.5" />
                                 </button>
-                                <span className="text-xs font-black font-mono text-teal-600 dark:text-teal-400 px-1">
+                                <span className="px-2.5 py-0.5 rounded-xl text-xs font-black font-mono bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs">
                                     {year}
                                 </span>
                                 <button
                                     type="button"
                                     onClick={() => setYear(y => y + 1)}
                                     title="Año siguiente"
-                                    className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
+                                    className="w-7 h-7 flex items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-2xs active:scale-95"
                                 >
                                     <ChevronRight className="w-3.5 h-3.5" />
                                 </button>
@@ -619,45 +619,60 @@ const EstadisticasATEL = () => {
                     <div className="flex flex-col md:flex-row min-h-[550px] overflow-hidden">
                         {/* Month Selector Sidebar */}
                         <div className="w-full md:w-52 bg-surface-tertiary/20 border-b md:border-b-0 md:border-r border-border-medium flex md:flex-col overflow-x-auto md:overflow-visible">
-                            <div className="p-3 bg-surface-primary/80 border-b border-border-medium flex flex-col gap-2 shrink-0">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-text-tertiary flex items-center gap-1.5">
-                                    <Calendar className="w-3.5 h-3.5 text-teal-500" />
-                                    Año de Registro
-                                </span>
-                                <div className="flex items-center justify-between gap-1 bg-surface-secondary rounded-xl p-1 border border-border-medium">
+                            <div className="p-3 bg-surface-primary/90 border-b border-border-medium flex flex-col gap-2.5 shrink-0">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-text-tertiary flex items-center gap-1.5">
+                                        <Calendar className="w-3.5 h-3.5 text-teal-500" />
+                                        Año de Registro
+                                    </span>
+                                    <span className={`font-black text-[10px] px-2 py-0.5 rounded-full border ${totalYearEvents > 0 ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 text-amber-700 dark:text-amber-300' : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 text-emerald-700 dark:text-emerald-300'}`}>
+                                        {totalYearEvents} {totalYearEvents === 1 ? 'evento' : 'eventos'}
+                                    </span>
+                                </div>
+
+                                {/* Botonera Cápsula WAPPY para Selección de Año */}
+                                <div className="flex items-center justify-between gap-1 p-1 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-sm w-full">
                                     <button
                                         type="button"
                                         onClick={() => setYear(y => y - 1)}
                                         title="Año anterior"
-                                        className="p-1.5 rounded-lg hover:bg-surface-tertiary text-text-secondary hover:text-text-primary transition-colors shrink-0"
+                                        className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-2xs active:scale-95 shrink-0"
                                     >
-                                        <ChevronLeft className="w-3.5 h-3.5" />
+                                        <ChevronLeft className="w-4 h-4" />
                                     </button>
-                                    <select
-                                        value={year}
-                                        onChange={(e) => setYear(Number(e.target.value))}
-                                        className="bg-transparent text-xs font-black text-text-primary focus:outline-none cursor-pointer text-center flex-1 py-1"
-                                    >
-                                        {availableYears.map(y => (
-                                            <option key={y} value={y} className="bg-surface-primary text-text-primary">
-                                                Año {y}
-                                            </option>
-                                        ))}
-                                    </select>
+
+                                    <div className="flex-1 flex items-center justify-center px-1">
+                                        <span className="px-3 py-1 rounded-xl text-xs font-black font-mono bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs">
+                                            Año {year}
+                                        </span>
+                                    </div>
+
                                     <button
                                         type="button"
                                         onClick={() => setYear(y => y + 1)}
                                         title="Año siguiente"
-                                        className="p-1.5 rounded-lg hover:bg-surface-tertiary text-text-secondary hover:text-text-primary transition-colors shrink-0"
+                                        className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-2xs active:scale-95 shrink-0"
                                     >
-                                        <ChevronRight className="w-3.5 h-3.5" />
+                                        <ChevronRight className="w-4 h-4" />
                                     </button>
                                 </div>
-                                <div className="flex items-center justify-between text-[10px] text-text-secondary px-0.5">
-                                    <span>Eventos {year}:</span>
-                                    <span className={`font-black px-1.5 py-0.2 rounded-md ${totalYearEvents > 0 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'}`}>
-                                        {totalYearEvents} {totalYearEvents === 1 ? 'evento' : 'eventos'}
-                                    </span>
+
+                                {/* Accesos directos a años registrados con badges estilo cápsula */}
+                                <div className="flex items-center justify-center gap-1.5 flex-wrap pt-0.5">
+                                    {availableYears.sort().map(y => (
+                                        <button
+                                            key={y}
+                                            type="button"
+                                            onClick={() => setYear(y)}
+                                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all active:scale-95 ${
+                                                year === y
+                                                    ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs font-extrabold'
+                                                    : 'border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 shadow-2xs'
+                                            }`}
+                                        >
+                                            {y}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
 
@@ -684,20 +699,20 @@ const EstadisticasATEL = () => {
                         <div className="flex-1 p-4 md:p-6 space-y-5 bg-surface-primary/10 overflow-auto">
                             {/* Navegación por Sub-Tabs (WAPPY Design System) */}
                             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-medium pb-3">
-                                <div className="inline-flex items-center gap-1.5 p-1 rounded-2xl bg-surface-tertiary border border-border-medium shadow-xs">
+                                <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-md shadow-slate-200/30 dark:shadow-none">
                                     <button
                                         type="button"
                                         onClick={() => setActiveTab('novedades')}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 ${
                                             activeTab === 'novedades'
                                                 ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs'
-                                                : 'text-text-secondary hover:text-text-primary'
+                                                : 'border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 shadow-2xs'
                                         }`}
                                     >
                                         <Layers className="w-3.5 h-3.5" />
                                         <span>1. Novedades & Ausencias</span>
                                         {currentData.events?.length > 0 && (
-                                            <span className="bg-teal-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                                            <span className="bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                                                 {currentData.events.length}
                                             </span>
                                         )}
@@ -706,10 +721,10 @@ const EstadisticasATEL = () => {
                                     <button
                                         type="button"
                                         onClick={() => setActiveTab('indicadores')}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 ${
                                             activeTab === 'indicadores'
                                                 ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs'
-                                                : 'text-text-secondary hover:text-text-primary'
+                                                : 'border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 shadow-2xs'
                                         }`}
                                     >
                                         <Activity className="w-3.5 h-3.5" />
@@ -719,10 +734,10 @@ const EstadisticasATEL = () => {
                                     <button
                                         type="button"
                                         onClick={() => setActiveTab('financiero')}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 ${
                                             activeTab === 'financiero'
                                                 ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs'
-                                                : 'text-text-secondary hover:text-text-primary'
+                                                : 'border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 shadow-2xs'
                                         }`}
                                     >
                                         <DollarSign className="w-3.5 h-3.5" />
@@ -982,12 +997,12 @@ const EstadisticasATEL = () => {
                                     <button
                                         onClick={() => handleGenerate('MONTH')}
                                         disabled={isGenerating || !currentData.numTrabajadores}
-                                        className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-xl transition-all duration-300 shadow-xs font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {isGenerating ? (
-                                            <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                                            <Loader2 className="h-4 w-4 animate-spin text-teal-600" />
                                         ) : (
-                                            <Calendar className="h-4 w-4 mr-1.5 text-teal-600" />
+                                            <Calendar className="h-4 w-4 text-teal-600" />
                                         )}
                                         <span>Informe Mensual ({MONTHS[currentMonthIndex]})</span>
                                     </button>

@@ -118,6 +118,9 @@ interface WorkerEntry {
     limitacionesBiomecanicas: string;
     alergiasQuimicas: string;
 
+    // Salario / Remuneración
+    salario?: string;
+
     completedByAI: boolean;
     consentimientoFirmaDigital: string;
     firmaDigital: string | null;
@@ -125,7 +128,7 @@ interface WorkerEntry {
 
 const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
     nombre: '', identificacion: '', edad: '', genero: '', estadoCivil: '',
-    nivelEscolaridad: '', direccion: '', telefono: '', cargo: '',
+    nivelEscolaridad: '', direccion: '', telefono: '', cargo: '', salario: '',
     fechaExamenMedico: '', fechaCursoAlturasAutorizado: '', fechaCursoAlturasCoordinador: '',
     diagnosticoMedico: '', recomendacionesMedicas: '', fechaSeguimiento: '',
         fechaNacimiento: '', lugarNacimiento: '', barrio: '', municipioDomicilio: '', correoElectronico: '', deporte: '', alimentacion: '', riesgoCardiovascular: '',

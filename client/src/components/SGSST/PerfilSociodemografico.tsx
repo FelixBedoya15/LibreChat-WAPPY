@@ -18,6 +18,7 @@ import {
     User,
     UserCheck,
     Info,
+    DollarSign,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
@@ -149,6 +150,9 @@ interface WorkerEntry {
     limitacionesBiomecanicas: string;
     alergiasQuimicas: string;
 
+    // Salario / Remuneración
+    salario?: string;
+
     completedByAI: boolean;
     consentimientoFirmaDigital: string;
     firmaDigital: string | null;
@@ -156,7 +160,7 @@ interface WorkerEntry {
 
 const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
     nombre: '', identificacion: '', edad: '', genero: '', estadoCivil: '',
-    nivelEscolaridad: '', direccion: '', telefono: '', cargo: '',
+    nivelEscolaridad: '', direccion: '', telefono: '', cargo: '', salario: '',
     fechaExamenMedico: '', fechaCursoAlturasAutorizado: '', fechaCursoAlturasCoordinador: '',
     diagnosticoMedico: '', recomendacionesMedicas: '', fechaSeguimiento: '',
         fechaNacimiento: '', lugarNacimiento: '', barrio: '', municipioDomicilio: '', correoElectronico: '', deporte: '', alimentacion: '', riesgoCardiovascular: '',
@@ -1258,6 +1262,24 @@ const PerfilSociodemografico = () => {
                                                             <div className="space-y-1 md:col-span-2">
                                                                 <label className="text-xs font-bold text-text-secondary uppercase">Acompañamiento Psicológico (Terapia)</label>
                                                                 <SingleSelect value={w.terapiaPsicologica || ''} onChange={val => updateWorkerField(w.id, 'terapiaPsicologica', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                                            </div>
+                                                            <div className="space-y-1.5 md:col-span-2 pt-3 border-t border-border-medium/60">
+                                                                <label className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tight flex items-center gap-1.5">
+                                                                    <DollarSign className="w-3.5 h-3.5 text-emerald-500" /> Salario Mensual Base / IBC ($ COP)
+                                                                </label>
+                                                                <div className="relative">
+                                                                    <span className="absolute left-3 top-2.5 text-xs text-text-secondary font-bold">$</span>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={w.salario || ''}
+                                                                        onChange={e => updateWorkerField(w.id, 'salario', e.target.value)}
+                                                                        placeholder="Ej: 2.000.000 ó 1600000"
+                                                                        className="w-full text-sm pl-7 pr-3 py-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-inner focus:ring-2 focus:ring-emerald-400 outline-none font-medium"
+                                                                    />
+                                                                </div>
+                                                                <span className="text-[10px] text-text-secondary">
+                                                                    Salario base integral para liquidación de ausentismo, incapacidades (IBC) y costos ATEL.
+                                                                </span>
                                                             </div>
                                                         </div>
                                                     </div>

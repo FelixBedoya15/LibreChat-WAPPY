@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, Trash2, Activity, Calendar, DollarSign, User, ShieldAlert, FileText, CheckCircle2, AlertCircle, Clock, ChevronDown, ChevronUp, Eye } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Plus, Trash2, Activity, Calendar, DollarSign, User, ShieldAlert, FileText, CheckCircle2, AlertCircle, Clock, ChevronDown, ChevronUp, Eye, Search } from 'lucide-react';
+import { useAuthContext } from '~/hooks/AuthContext';
 
 export type AbsenceCategory = 'SALUD' | 'LICENCIA_LEY' | 'PERMISOS' | 'DISRUPCION';
 
@@ -93,12 +94,94 @@ export const EVENT_TYPES_CONFIG: Record<EventType, { label: string; category: Ab
     NO_JUSTIF: { label: 'Falta Injustificada / Abandono', category: 'DISRUPCION', desc: 'Descuento de salario y pérdida del descanso dominical remunerado.', badge: 'bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-400 border-red-300 font-bold' }
 };
 
+// ─── Worker Autocomplete Component (WAPPY Standard) ──────────────────────────
+export const WorkerAutocomplete = ({
+    value,
+    onChange,
+    onSelect,
+    data,
+    searchKey,
+    placeholder,
+    className,
+    wrapperClassName,
+}: {
+    value: string;
+    onChange: (val: string) => void;
+    onSelect?: (worker: any) => void;
+    data: any[];
+    searchKey: 'nombre' | 'identificacion';
+    placeholder: string;
+    className?: string;
+    wrapperClassName?: string;
+}) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: any) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredOptions = data.filter(w => {
+        const searchVal = w[searchKey];
+        if (!value) return true;
+        return searchVal && String(searchVal).toLowerCase().includes(String(value).toLowerCase());
+    });
+
+    const exactMatch = value && filteredOptions.find(w => String(w[searchKey]).toLowerCase() === String(value).toLowerCase());
+
+    return (
+        <div className={`relative ${wrapperClassName || 'w-full'}`} ref={wrapperRef}>
+            <input
+                type="text"
+                value={value}
+                onChange={(e) => { onChange(e.target.value); setIsOpen(true); }}
+                onFocus={() => setIsOpen(true)}
+                className={className}
+                placeholder={placeholder}
+                autoComplete="off"
+            />
+            {isOpen && filteredOptions.length > 0 && !exactMatch && (
+                <ul className="absolute z-50 w-full mt-1 max-h-52 overflow-auto bg-surface-primary border border-border-medium rounded-xl shadow-xl py-1 text-left origin-top animate-in fade-in zoom-in-95 duration-200">
+                    {filteredOptions.map((w, idx) => (
+                        <li
+                            key={idx}
+                            className="px-4 py-2 text-xs text-text-primary hover:bg-surface-hover cursor-pointer transition-colors border-b border-border-light/40 last:border-0"
+                            onClick={() => {
+                                if (onSelect) onSelect(w);
+                                else onChange(w[searchKey]);
+                                setIsOpen(false);
+                            }}
+                        >
+                            <div className="font-bold text-text-primary">{w.nombre}</div>
+                            <div className="text-[11px] text-text-secondary mt-0.5 flex items-center gap-2 flex-wrap">
+                                <span>CC: {w.identificacion}</span>
+                                {w.cargo && <span>• Cargo: {w.cargo}</span>}
+                                {w.salario && (
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                                        • Salario Base: ${w.salario}
+                                    </span>
+                                )}
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+};
+
 export function calculateEventFinancials(event: Partial<ATELContext>): EventFinancials {
     const dias = Number(event.diasIncapacidad) || 0;
+    // IBC mensual integral (incluye salario base + horas extras + recargos constitutivos según Art. 127 CST)
     const ibc = Number(event.colaborador?.ibcMensual) || 1600000;
     const sd = ibc / 30;
     const tipo = event.tipo || 'Ausentismo';
-    const reemplazo = Number(event.costoReemplazo) || 0;
 
     let costSalario = 0;
     let costSS = 0;
@@ -142,7 +225,8 @@ export function calculateEventFinancials(event: Partial<ATELContext>): EventFina
         costPrest = 0;
     }
 
-    const bruto = costSalario + costSS + costPrest + reemplazo;
+    // Costo total bruto integral (el IBC ya incorpora todo el factor salarial ordinario y extraordinario)
+    const bruto = costSalario + costSS + costPrest;
     const indirecto = Math.round((bruto - (recobroEPS + recobroARL)) * 1.5);
     const perdidaNeta = Math.max(0, Math.round(bruto + indirecto - (recobroEPS + recobroARL)));
 
@@ -151,7 +235,7 @@ export function calculateEventFinancials(event: Partial<ATELContext>): EventFina
         costoSeguridadSocial: Math.round(costSS),
         costoSeguridadSocialCubiertoARL: Math.round(costSS_ARL),
         costoPrestacional: Math.round(costPrest),
-        costoReemplazo: Math.round(reemplazo),
+        costoReemplazo: 0,
         costoIndirectoIceberg: indirecto,
         costoTotalBruto: Math.round(bruto),
         montoRecobroEPS: Math.round(recobroEPS),
@@ -161,8 +245,30 @@ export function calculateEventFinancials(event: Partial<ATELContext>): EventFina
 }
 
 const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }) => {
+    const { token } = useAuthContext();
+    const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
     const [isAdding, setIsAdding] = useState(false);
     const [selectedEventForDetail, setSelectedEventForDetail] = useState<ATELContext | null>(null);
+
+    // Cargar trabajadores desde el Perfil Sociodemográfico para autocomplete
+    useEffect(() => {
+        if (!token) return;
+        fetch('/api/sgsst/perfil-sociodemografico/data', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.trabajadores?.length) setAvailableWorkers(data.trabajadores);
+            })
+            .catch(err => console.error('Error fetching workers in EventLogger', err));
+    }, [token]);
+
+    const parseSalarioToNumber = (val: any): number => {
+        if (!val) return 0;
+        const clean = String(val).replace(/[^0-9]/g, '');
+        const num = Number(clean);
+        return isNaN(num) ? 0 : num;
+    };
 
     const [newEvent, setNewEvent] = useState<Partial<ATELContext>>({
         tipo: 'EG_EPS',
@@ -283,17 +389,17 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                 
                 <button
                     onClick={() => setIsAdding(!isAdding)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-sm transition-all active:scale-95"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md transition-all active:scale-95"
                 >
                     <Plus className="h-3.5 w-3.5" />
-                    <span>{isAdding ? 'Cerrar Formulario' : 'Registrar Novedad'}</span>
+                    <span>{isAdding ? 'Cerrar Formulario' : '+ Registrar Novedad'}</span>
                 </button>
             </div>
 
             {/* FORMULARIO DE CAPTURA INTEGRAL */}
             {isAdding && (
-                <div className="p-4 bg-surface-secondary/90 border border-teal-500/30 rounded-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200 shadow-md">
-                    <div className="flex items-center justify-between border-b border-border-medium pb-2">
+                <div className="p-5 bg-surface-secondary/95 border border-teal-500/30 rounded-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200 shadow-md">
+                    <div className="flex items-center justify-between border-b border-border-medium pb-2.5">
                         <span className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400 flex items-center gap-2">
                             <Plus className="w-4 h-4" /> Datos de la Ausencia y Trabajador
                         </span>
@@ -362,33 +468,63 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                             />
                         </div>
 
-                        {/* 4. Colaborador: Nombre */}
+                        {/* 4. Colaborador: Nombre con Autocomplete */}
                         <div className="space-y-1">
-                            <label className="text-xs font-semibold text-text-secondary">Nombre del Trabajador</label>
-                            <input
-                                type="text"
-                                placeholder="Ej: Carlos Mario Pérez"
+                            <label className="text-xs font-semibold text-text-secondary flex items-center gap-1">
+                                <User className="w-3.5 h-3.5 text-teal-500" /> Nombre del Trabajador
+                            </label>
+                            <WorkerAutocomplete
                                 value={newEvent.colaborador?.nombre || ''}
-                                onChange={e => setNewEvent({
-                                    ...newEvent,
-                                    colaborador: { ...newEvent.colaborador!, nombre: e.target.value }
-                                })}
-                                className="w-full text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary focus:border-teal-500"
+                                onChange={(val) => setNewEvent(prev => ({
+                                    ...prev,
+                                    colaborador: { ...prev.colaborador!, nombre: val }
+                                }))}
+                                onSelect={(w) => {
+                                    const parsedSal = parseSalarioToNumber(w.salario);
+                                    setNewEvent(prev => ({
+                                        ...prev,
+                                        colaborador: {
+                                            ...prev.colaborador!,
+                                            nombre: w.nombre || '',
+                                            cedula: w.identificacion || prev.colaborador?.cedula || '',
+                                            cargo: w.cargo || prev.colaborador?.cargo || '',
+                                            ibcMensual: parsedSal > 0 ? parsedSal : (prev.colaborador?.ibcMensual || 1600000),
+                                        }
+                                    }));
+                                }}
+                                data={availableWorkers}
+                                searchKey="nombre"
+                                placeholder="Escriba o seleccione..."
+                                className="w-full text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-400"
                             />
                         </div>
 
-                        {/* 5. Cédula */}
+                        {/* 5. Cédula con Autocomplete */}
                         <div className="space-y-1">
                             <label className="text-xs font-semibold text-text-secondary">Cédula / Documento</label>
-                            <input
-                                type="text"
-                                placeholder="Ej: 1020304050"
+                            <WorkerAutocomplete
                                 value={newEvent.colaborador?.cedula || ''}
-                                onChange={e => setNewEvent({
-                                    ...newEvent,
-                                    colaborador: { ...newEvent.colaborador!, cedula: e.target.value }
-                                })}
-                                className="w-full text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary focus:border-teal-500"
+                                onChange={(val) => setNewEvent(prev => ({
+                                    ...prev,
+                                    colaborador: { ...prev.colaborador!, cedula: val }
+                                }))}
+                                onSelect={(w) => {
+                                    const parsedSal = parseSalarioToNumber(w.salario);
+                                    setNewEvent(prev => ({
+                                        ...prev,
+                                        colaborador: {
+                                            ...prev.colaborador!,
+                                            cedula: w.identificacion || '',
+                                            nombre: prev.colaborador?.nombre || w.nombre || '',
+                                            cargo: prev.colaborador?.cargo || w.cargo || '',
+                                            ibcMensual: parsedSal > 0 ? parsedSal : (prev.colaborador?.ibcMensual || 1600000),
+                                        }
+                                    }));
+                                }}
+                                data={availableWorkers}
+                                searchKey="identificacion"
+                                placeholder="Buscar por cédula..."
+                                className="w-full text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-400"
                             />
                         </div>
 
@@ -407,10 +543,10 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                             />
                         </div>
 
-                        {/* 7. IBC Mensual ($ COP) */}
+                        {/* 7. IBC Mensual Integral ($ COP) */}
                         <div className="space-y-1">
                             <label className="text-xs font-semibold text-teal-600 dark:text-teal-400 flex items-center gap-1">
-                                <DollarSign className="w-3.5 h-3.5" /> Salario / IBC Mensual ($ COP) *
+                                <DollarSign className="w-3.5 h-3.5" /> Salario / IBC Integral ($ COP) *
                             </label>
                             <input
                                 type="number"
@@ -439,27 +575,13 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                         </div>
 
                         {/* 9. Causa / Descripción */}
-                        <div className="space-y-1 md:col-span-2">
+                        <div className="space-y-1 md:col-span-3">
                             <label className="text-xs font-semibold text-text-secondary">Causa Inmediata / Descripción</label>
                             <input
                                 type="text"
                                 placeholder="Ej: Dolor lumbar severo tras manipulación manual de cargas"
                                 value={newEvent.causaInmediata || ''}
                                 onChange={e => setNewEvent({ ...newEvent, causaInmediata: e.target.value })}
-                                className="w-full text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary focus:border-teal-500"
-                            />
-                        </div>
-
-                        {/* 10. Costo Reemplazo (Horas extras) */}
-                        <div className="space-y-1">
-                            <label className="text-xs font-semibold text-text-secondary">Horas Extras Reemplazo ($)</label>
-                            <input
-                                type="number"
-                                min="0"
-                                step="10000"
-                                placeholder="0"
-                                value={newEvent.costoReemplazo || ''}
-                                onChange={e => setNewEvent({ ...newEvent, costoReemplazo: Number(e.target.value) })}
                                 className="w-full text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary focus:border-teal-500"
                             />
                         </div>
@@ -493,19 +615,20 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                         </div>
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-2">
+                    <div className="flex justify-end gap-2.5 pt-2">
                         <button
                             type="button"
                             onClick={() => setIsAdding(false)}
-                            className="px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-hover rounded-xl transition-colors"
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all active:scale-95"
                         >
                             Cancelar
                         </button>
                         <button
                             type="button"
                             onClick={handleAdd}
-                            className="px-4 py-1.5 text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-sm transition-all"
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md transition-all active:scale-95"
                         >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
                             Guardar Novedad
                         </button>
                     </div>
@@ -736,10 +859,12 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                                             <span className="text-text-secondary">Pasivo Prestacional Causado:</span>
                                             <span className="font-mono">${fin.costoPrestacional.toLocaleString('es-CO')}</span>
                                         </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-text-secondary">Costos de Reemplazo (Horas extras):</span>
-                                            <span className="font-mono">${fin.costoReemplazo.toLocaleString('es-CO')}</span>
-                                        </div>
+                                        {fin.costoReemplazo > 0 && (
+                                            <div className="flex justify-between">
+                                                <span className="text-text-secondary">Costos de Reemplazo (Histórico):</span>
+                                                <span className="font-mono">${fin.costoReemplazo.toLocaleString('es-CO')}</span>
+                                            </div>
+                                        )}
                                         <div className="flex justify-between">
                                             <span className="text-text-secondary">Costos Ocultos (Iceberg Heinrich/Simonds):</span>
                                             <span className="font-mono text-amber-600">${fin.costoIndirectoIceberg.toLocaleString('es-CO')}</span>
@@ -759,8 +884,9 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
 
                         <div className="flex justify-end pt-2">
                             <button
+                                type="button"
                                 onClick={() => setSelectedEventForDetail(null)}
-                                className="px-4 py-1.5 rounded-xl font-bold text-xs bg-surface-secondary hover:bg-surface-hover text-text-primary border border-border-medium"
+                                className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all active:scale-95"
                             >
                                 Entendido
                             </button>

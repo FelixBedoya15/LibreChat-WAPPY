@@ -69,6 +69,8 @@ const WorkerEntrySchema = new mongoose.Schema({
   licenciaVencimiento: { type: String, default: '' },
   curso50h: { type: String, default: '' },
   curso20h: { type: String, default: '' },
+  // Salario / Remuneración
+  salario: { type: String, default: '' },
   // Biomonitoring / Fisiología
   peso: { type: String, default: '' },
   talla: { type: String, default: '' },
