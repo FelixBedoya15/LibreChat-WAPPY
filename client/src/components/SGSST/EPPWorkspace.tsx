@@ -1419,14 +1419,15 @@ export default function EPPWorkspace() {
             <h2 className="text-lg font-extrabold text-text-primary flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-teal-500" /> Trabajadores
             </h2>
-            <div className="flex items-center gap-2">
-              <button
+            <div className="flex items-center gap-1.5">
+              <ToolbarButton
+                id="workers-excel-btn"
                 onClick={handleExportExcel}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border-medium hover:border-[#0d9488]/40 hover:bg-[#0d9488]/10 text-teal-600 dark:text-teal-400 font-extrabold text-2xs uppercase tracking-wider rounded-xl transition-all shadow-sm cursor-pointer"
+                label="Excel"
+                icon={FileSpreadsheet}
                 title="Descargar base de datos general de entregas de EPP en Excel"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
-              </button>
+                variant="excel"
+              />
               <span className="bg-teal-500/10 text-teal-400 text-xs px-2.5 py-1 rounded-full font-bold">
                 {workers.length}
               </span>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
@@ -18,12 +18,15 @@ import {
   X,
   ShieldAlert,
   Loader2,
-  ArrowLeft
+  ArrowLeft,
+  CheckCircle,
+  FlaskConical,
+  FileCheck
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { exportChemicalsToExcel } from './exportChemicals';
 import { saveAs } from 'file-saver';
-import { SGSSTToolbar } from './SGSSTToolbar';
+import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
@@ -499,6 +502,12 @@ export default function ChemicalsWorkspace() {
     saveAs(blob, `Ficha_Seguridad_SGA_${selectedProduct.nombre.replace(/\s+/g, '_')}.html`);
   };
 
+  // KPIs de Productos Químicos (SGA)
+  const totalChemicals = chemicals.length;
+  const conFds = useMemo(() => chemicals.filter(c => c.tieneFds === 'Sí').length, [chemicals]);
+  const conRotulo = useMemo(() => chemicals.filter(c => c.tieneRotuloSga === 'Sí').length, [chemicals]);
+  const alertasQuimicas = useMemo(() => chemicals.filter(c => c.tieneFds === 'No' || c.tieneRotuloSga === 'No').length, [chemicals]);
+
   const filteredChemicals = chemicals.filter(p => 
     (p.nombre || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (p.fabricante || '').toLowerCase().includes(searchQuery.toLowerCase())
@@ -506,6 +515,118 @@ export default function ChemicalsWorkspace() {
 
   return (
     <div className="w-full space-y-6">
+      
+      {/* ─── TOOLBAR SUPERIOR ESTÁNDAR SGSST CON BOTONES EXPANDIBLES ──────── */}
+      <SGSSTToolbar
+        selectedModel={selectedModel}
+        onSelectModel={setSelectedModel}
+        historyButtons={[
+          {
+            id: 'tb-tab-chemicals',
+            onClick: () => {},
+            label: `Inventario Químico (${totalChemicals})`,
+            icon: FlaskConical,
+            title: 'Ver Inventario Químico y SGA',
+            variant: 'history',
+            active: true,
+            badge: totalChemicals > 0 ? totalChemicals : undefined,
+          },
+        ]}
+        customSections={[
+          <div key="chemicals-custom-toolbar" className="flex items-center gap-1.5">
+            <ToolbarButton
+              id="tb-new-chemical"
+              onClick={() => { resetForm(); setSelectedProduct(null); setIsModalOpen(true); }}
+              label="Registrar Químico"
+              icon={Plus}
+              title="Registrar nuevo producto o sustancia química"
+              variant="ai"
+            />
+            <ToolbarButton
+              id="tb-export-excel-chemicals"
+              onClick={handleExportExcel}
+              label="Exportar Excel"
+              icon={FileSpreadsheet}
+              title="Descargar matriz de productos químicos en Excel"
+              variant="excel"
+            />
+          </div>
+        ]}
+        onAnalyze={handleGenerate}
+        isAnalyzing={isGenerating}
+        exportContent={selectedProduct ? buildHtmlFicha(selectedProduct) : ''}
+        exportFileName={selectedProduct ? `Ficha_Seguridad_SGA_${selectedProduct.nombre.replace(/\s+/g, '_')}` : 'Inventario_Quimico_SGA'}
+        onExportExcel={handleExportExcel}
+      />
+
+      {/* ─── ENCABEZADO DE SECCIÓN ACTIVA (WAPPY DESIGN SYSTEM) ───────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border-light dark:border-white/10 pb-3">
+        <div>
+          <h2 className="text-base font-bold text-text-primary flex items-center gap-2">
+            <FlaskConical className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+            <span>Registro, Matriz e Identificación de Productos Químicos (SGA)</span>
+          </h2>
+          <p className="text-xs text-text-secondary mt-0.5">
+            Matriz de compatibilidad, fichas de datos de seguridad (FDS) y etiquetado SGA (Decreto 1496 de 2018).
+          </p>
+        </div>
+      </div>
+
+      {/* 4 Métricas Clave / KPIs (SGA Químicos) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* KPI 1: Total Químicos */}
+        <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-surface-primary border border-border-medium shadow-2xs">
+          <div className="w-9 h-9 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+            <FlaskConical className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Sustancias</p>
+            <p className="text-sm font-black text-text-primary">{totalChemicals} <span className="text-[10px] font-semibold text-text-secondary">registros</span></p>
+          </div>
+        </div>
+
+        {/* KPI 2: Con FDS */}
+        <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-surface-primary border border-border-medium shadow-2xs">
+          <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+            <FileCheck className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Con Ficha FDS</p>
+            <p className="text-sm font-black text-text-primary">{conFds} <span className="text-[10px] font-semibold text-text-secondary">disponibles</span></p>
+          </div>
+        </div>
+
+        {/* KPI 3: Rótulo Conforme */}
+        <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-surface-primary border border-border-medium shadow-2xs">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+            <CheckCircle className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Rótulo SGA</p>
+            <p className="text-sm font-black text-emerald-500">{conRotulo} <span className="text-[10px] font-semibold text-text-secondary">conformes</span></p>
+          </div>
+        </div>
+
+        {/* KPI 4: Alertas FDS / Rótulo */}
+        <div className={cn(
+          "flex items-center gap-3 px-3.5 py-2.5 rounded-2xl border shadow-2xs transition-colors",
+          alertasQuimicas > 0 ? "bg-red-500/5 border-red-500/30" : "bg-surface-primary border-border-medium"
+        )}>
+          <div className={cn(
+            "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+            alertasQuimicas > 0 ? "bg-red-500/15 text-red-500" : "bg-slate-500/10 text-text-tertiary"
+          )}>
+            <AlertTriangle className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Alertas FDS/SGA</p>
+            <p className={cn("text-sm font-black", alertasQuimicas > 0 ? "text-red-500" : "text-text-secondary")}>
+              {alertasQuimicas} <span className="text-[10px] font-semibold text-text-secondary">pendientes</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col md:flex-row h-[780px] w-full border border-border-light dark:border-white/10 rounded-3xl bg-surface-primary shadow-lg overflow-hidden animate-in fade-in duration-200">
       
       {/* SECTOR IZQUIERDO: LISTADO */}
@@ -515,13 +636,15 @@ export default function ChemicalsWorkspace() {
             <h2 className="text-lg font-extrabold text-text-primary flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-teal-500" /> Inventario Químico
             </h2>
-            <div className="flex items-center gap-2">
-              <button
+            <div className="flex items-center gap-1.5">
+              <ToolbarButton
+                id="chemicals-list-excel"
                 onClick={handleExportExcel}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border-medium hover:border-[#0d9488]/40 hover:bg-[#0d9488]/10 text-teal-600 dark:text-teal-400 font-extrabold text-2xs uppercase tracking-wider rounded-xl transition-all shadow-sm"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
-              </button>
+                label="Excel"
+                icon={FileSpreadsheet}
+                title="Descargar matriz de productos químicos en Excel"
+                variant="excel"
+              />
               <span className="bg-teal-500/10 text-teal-400 text-xs px-2.5 py-1 rounded-full font-bold">
                 {chemicals.length}
               </span>
@@ -539,13 +662,14 @@ export default function ChemicalsWorkspace() {
                 className="w-full pl-10 pr-4 py-2.5 bg-surface-primary border border-border-medium rounded-xl text-sm text-text-primary outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
               />
             </div>
-            <button
+            <ToolbarButton
+              id="chemicals-list-new"
               onClick={() => { resetForm(); setSelectedProduct(null); setIsModalOpen(true); }}
-              className="p-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-sm transition-colors"
+              label="Nuevo"
+              icon={Plus}
               title="Registrar producto químico"
-            >
-              <Plus className="w-5 h-5" />
-            </button>
+              variant="ai"
+            />
           </div>
         </div>
 
@@ -605,25 +729,32 @@ export default function ChemicalsWorkspace() {
                 </div>
               </div>
 
-                <SGSSTToolbar
-                  onAnalyze={handleGenerate}
-                  isAnalyzing={isGenerating}
-                  selectedModel={selectedModel}
-                  onSelectModel={setSelectedModel}
-                  exportContent={selectedProduct ? buildHtmlFicha(selectedProduct) : ''}
-                  exportFileName={`Ficha_Seguridad_SGA_${selectedProduct.nombre.replace(/\s+/g, '_')}`}
-                  persistenceButtons={[
-                    {
-                      id: 'edit-product',
-                      onClick: handleEditClick,
-                      label: 'Editar Producto',
-                      title: 'Editar datos de este producto químico',
-                      icon: Plus,
-                      variant: 'ai'
-                    }
-                  ]}
-                  onExportExcel={handleExportExcel}
+              <div className="flex items-center gap-2">
+                <ToolbarButton
+                  id="cw-edit-product"
+                  onClick={handleEditClick}
+                  label="Editar Producto"
+                  icon={Plus}
+                  title="Editar datos de este producto químico"
+                  variant="ai"
                 />
+                <ToolbarButton
+                  id="cw-print-ficha"
+                  onClick={handlePrintFicha}
+                  label="Imprimir Ficha"
+                  icon={Printer}
+                  title="Imprimir ficha técnica SGA"
+                  variant="default"
+                />
+                <ToolbarButton
+                  id="cw-download-ficha"
+                  onClick={handleDownloadFichaHtml}
+                  label="Descargar HTML"
+                  icon={Download}
+                  title="Descargar ficha técnica en HTML"
+                  variant="default"
+                />
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">

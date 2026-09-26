@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
@@ -8,27 +8,28 @@ import {
   Calendar, 
   CheckCircle, 
   AlertCircle, 
+  AlertTriangle,
   Plus, 
   FileText, 
   Search, 
   FileSignature, 
   Printer, 
   Wrench, 
-  ClipboardList,
-  FileSpreadsheet,
-  Download,
-  ChevronDown,
-  ChevronRight,
-  X,
-  ShieldAlert,
-  Loader2,
-  ArrowLeft
+  ClipboardList, 
+  FileSpreadsheet, 
+  Download, 
+  ChevronDown, 
+  ChevronRight, 
+  X, 
+  ShieldAlert, 
+  Loader2, 
+  ArrowLeft 
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { SignaturePad } from './SignaturePad';
 import { exportHeightsToExcel } from './exportHeights';
 import { saveAs } from 'file-saver';
-import { SGSSTToolbar } from './SGSSTToolbar';
+import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
@@ -490,6 +491,31 @@ export default function HeightsWorkspace() {
     saveAs(blob, `Ficha_Vida_Alturas_${selectedWorker.nombre.replace(/\s+/g, '_')}.html`);
   };
 
+  // KPIs de Equipos de Alturas
+  const totalEquipos = useMemo(() => {
+    return heightsDocs.reduce((acc, d) => acc + (d.equipos?.length || 0), 0);
+  }, [heightsDocs]);
+
+  const expiredEquipos = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let count = 0;
+    heightsDocs.forEach(d => {
+      (d.equipos || []).forEach(eq => {
+        if (eq.estado === 'Vencido' || eq.estado === 'Retirado') count++;
+        else if (eq.fechaProximaInspeccion) {
+          const prox = new Date(eq.fechaProximaInspeccion + 'T12:00:00');
+          if (prox < today) count++;
+        }
+      });
+    });
+    return count;
+  }, [heightsDocs]);
+
+  const activeEquipos = useMemo(() => {
+    return Math.max(0, totalEquipos - expiredEquipos);
+  }, [totalEquipos, expiredEquipos]);
+
   const filteredWorkers = workers.filter(w => 
     (w.nombre || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (w.identificacion || '').includes(searchQuery)
@@ -497,6 +523,120 @@ export default function HeightsWorkspace() {
 
   return (
     <div className="w-full space-y-6">
+      
+      {/* ─── TOOLBAR SUPERIOR ESTÁNDAR SGSST CON BOTONES EXPANDIBLES ──────── */}
+      <SGSSTToolbar
+        selectedModel={selectedModel}
+        onSelectModel={setSelectedModel}
+        historyButtons={[
+          {
+            id: 'tb-tab-alturas',
+            onClick: () => {},
+            label: `Equipos de Alturas (${totalEquipos})`,
+            icon: Shield,
+            title: 'Ver Equipos Contra Caídas Asignados',
+            variant: 'history',
+            active: true,
+            badge: totalEquipos > 0 ? totalEquipos : undefined,
+          },
+        ]}
+        customSections={[
+          <div key="heights-custom-toolbar" className="flex items-center gap-1.5">
+            {selectedWorker && (
+              <ToolbarButton
+                id="tb-new-equipment"
+                onClick={() => setIsModalOpen(true)}
+                label="Registrar Equipo"
+                icon={Plus}
+                title={`Registrar nuevo equipo de alturas para ${selectedWorker.nombre}`}
+                variant="ai"
+              />
+            )}
+            <ToolbarButton
+              id="tb-export-excel-heights"
+              onClick={handleExportExcel}
+              label="Exportar Excel"
+              icon={FileSpreadsheet}
+              title="Descargar registro de equipos de alturas en Excel"
+              variant="excel"
+            />
+          </div>
+        ]}
+        onAnalyze={handleGenerate}
+        isAnalyzing={isGenerating}
+        exportContent={selectedWorker && selectedDoc && selectedDoc.equipos && selectedDoc.equipos.length > 0 ? buildHtmlFicha(selectedWorker, selectedDoc) : ''}
+        exportFileName={selectedWorker ? `Ficha_Vida_Alturas_${selectedWorker.nombre.replace(/\s+/g, '_')}` : 'Registro_Alturas'}
+        onExportExcel={handleExportExcel}
+      />
+
+      {/* ─── ENCABEZADO DE SECCIÓN ACTIVA (WAPPY DESIGN SYSTEM) ───────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border-light dark:border-white/10 pb-3">
+        <div>
+          <h2 className="text-base font-bold text-text-primary flex items-center gap-2">
+            <Shield className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+            <span>Hoja de Vida y Trazabilidad de Equipos Contra Caídas (Alturas)</span>
+          </h2>
+          <p className="text-xs text-text-secondary mt-0.5">
+            Gestión y control anual de inspección de arneses, eslingas, conectores y líneas de vida (Resolución 4272 de 2021).
+          </p>
+        </div>
+      </div>
+
+      {/* 4 Métricas Clave / KPIs (Alturas) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* KPI 1: Colaboradores Autorizados */}
+        <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-surface-primary border border-border-medium shadow-2xs">
+          <div className="w-9 h-9 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+            <User className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Colaboradores</p>
+            <p className="text-sm font-black text-text-primary">{workers.length} <span className="text-[10px] font-semibold text-text-secondary">personal</span></p>
+          </div>
+        </div>
+
+        {/* KPI 2: Total Equipos */}
+        <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-surface-primary border border-border-medium shadow-2xs">
+          <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+            <Shield className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Equipos Asignados</p>
+            <p className="text-sm font-black text-text-primary">{totalEquipos} <span className="text-[10px] font-semibold text-text-secondary">elementos</span></p>
+          </div>
+        </div>
+
+        {/* KPI 3: Equipos Operativos / Vigentes */}
+        <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-surface-primary border border-border-medium shadow-2xs">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+            <CheckCircle className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Inspección Vigente</p>
+            <p className="text-sm font-black text-emerald-500">{activeEquipos} <span className="text-[10px] font-semibold text-text-secondary">aptos</span></p>
+          </div>
+        </div>
+
+        {/* KPI 4: Vencidos / Alertas */}
+        <div className={cn(
+          "flex items-center gap-3 px-3.5 py-2.5 rounded-2xl border shadow-2xs transition-colors",
+          expiredEquipos > 0 ? "bg-red-500/5 border-red-500/30" : "bg-surface-primary border-border-medium"
+        )}>
+          <div className={cn(
+            "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+            expiredEquipos > 0 ? "bg-red-500/15 text-red-500" : "bg-slate-500/10 text-text-tertiary"
+          )}>
+            <AlertTriangle className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Vencidos / Alerta</p>
+            <p className={cn("text-sm font-black", expiredEquipos > 0 ? "text-red-500" : "text-text-secondary")}>
+              {expiredEquipos} <span className="text-[10px] font-semibold text-text-secondary">inspecciones</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col md:flex-row h-[780px] w-full border border-border-light dark:border-white/10 rounded-3xl bg-surface-primary shadow-lg overflow-hidden animate-in fade-in duration-200">
       
       {/* SECTOR IZQUIERDO: LISTA TRABAJADORES */}
@@ -506,13 +646,15 @@ export default function HeightsWorkspace() {
             <h2 className="text-lg font-extrabold text-text-primary flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-teal-500" /> Trabajadores (Alturas)
             </h2>
-            <div className="flex items-center gap-2">
-              <button
+            <div className="flex items-center gap-1.5">
+              <ToolbarButton
+                id="heights-list-excel"
                 onClick={handleExportExcel}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border-medium hover:border-[#0d9488]/40 hover:bg-[#0d9488]/10 text-teal-600 dark:text-teal-400 font-extrabold text-2xs uppercase tracking-wider rounded-xl transition-all shadow-sm"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
-              </button>
+                label="Excel"
+                icon={FileSpreadsheet}
+                title="Descargar reporte general de alturas en Excel"
+                variant="excel"
+              />
               <span className="bg-teal-500/10 text-teal-400 text-xs px-2.5 py-1 rounded-full font-bold">
                 {workers.length}
               </span>
@@ -590,25 +732,16 @@ export default function HeightsWorkspace() {
                 </div>
               </div>
 
-                <SGSSTToolbar
-                  onAnalyze={handleGenerate}
-                  isAnalyzing={isGenerating}
-                  selectedModel={selectedModel}
-                  onSelectModel={setSelectedModel}
-                  exportContent={selectedWorker && selectedDoc && selectedDoc.equipos && selectedDoc.equipos.length > 0 ? buildHtmlFicha(selectedWorker, selectedDoc) : ''}
-                  exportFileName={`Ficha_Vida_Alturas_${selectedWorker.nombre.replace(/\s+/g, '_')}`}
-                  persistenceButtons={[
-                    {
-                      id: 'add-equipment',
-                      onClick: () => setIsModalOpen(true),
-                      label: 'Registrar Equipo',
-                      title: 'Registrar nuevo equipo de alturas para el trabajador',
-                      icon: Plus,
-                      variant: 'ai'
-                    }
-                  ]}
-                  onExportExcel={handleExportExcel}
+              <div className="flex items-center gap-2">
+                <ToolbarButton
+                  id="hw-new-equipment"
+                  onClick={() => setIsModalOpen(true)}
+                  label="Registrar Equipo"
+                  icon={Plus}
+                  title={`Registrar nuevo equipo de alturas para ${selectedWorker.nombre}`}
+                  variant="ai"
                 />
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">

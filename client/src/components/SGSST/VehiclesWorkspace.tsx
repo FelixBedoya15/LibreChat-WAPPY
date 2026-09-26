@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
@@ -8,27 +8,28 @@ import {
   Calendar, 
   CheckCircle, 
   AlertCircle, 
+  AlertTriangle,
   Plus, 
   FileText, 
   Search, 
   FileSignature, 
   Printer, 
   Wrench, 
-  ClipboardList,
-  FileSpreadsheet,
-  Download,
-  ChevronDown,
-  ChevronRight,
-  X,
-  ShieldAlert,
-  Loader2,
-  ArrowLeft
+  ClipboardList, 
+  FileSpreadsheet, 
+  Download, 
+  ChevronDown, 
+  ChevronRight, 
+  X, 
+  ShieldAlert, 
+  Loader2, 
+  ArrowLeft 
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { SignaturePad } from './SignaturePad';
 import { exportVehiclesToExcel } from './exportVehicles';
 import { saveAs } from 'file-saver';
-import { SGSSTToolbar } from './SGSSTToolbar';
+import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
@@ -547,6 +548,41 @@ export default function VehiclesWorkspace() {
     saveAs(blob, `Inspeccion_PESV_${selectedVehicle.placa}_${insp.fecha}.html`);
   };
 
+  // KPIs de Flota PESV
+  const totalVehicles = vehicles.length;
+  const totalInspections = useMemo(() => {
+    return vehicles.reduce((acc, v) => acc + (v.inspecciones?.length || 0), 0);
+  }, [vehicles]);
+
+  const docAlerts = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const in30Days = new Date();
+    in30Days.setDate(in30Days.getDate() + 30);
+
+    return vehicles.filter(v => {
+      if (v.soatVencimiento) {
+        const soat = new Date(v.soatVencimiento + 'T12:00:00');
+        if (soat <= in30Days) return true;
+      }
+      if (v.tecnomecanicaVencimiento) {
+        const tecno = new Date(v.tecnomecanicaVencimiento + 'T12:00:00');
+        if (tecno <= in30Days) return true;
+      }
+      return false;
+    }).length;
+  }, [vehicles]);
+
+  const approvedInspections = useMemo(() => {
+    let count = 0;
+    vehicles.forEach(v => {
+      (v.inspecciones || []).forEach(i => {
+        if (i.resultado === 'Aprobado') count++;
+      });
+    });
+    return count;
+  }, [vehicles]);
+
   const filteredVehicles = vehicles.filter(v => 
     (v.placa || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (v.conductorNombre || '').toLowerCase().includes(searchQuery.toLowerCase())
@@ -554,6 +590,128 @@ export default function VehiclesWorkspace() {
 
   return (
     <div className="w-full space-y-6">
+      
+      {/* ─── TOOLBAR SUPERIOR ESTÁNDAR SGSST CON BOTONES EXPANDIBLES ──────── */}
+      <SGSSTToolbar
+        selectedModel={selectedModel}
+        onSelectModel={setSelectedModel}
+        historyButtons={[
+          {
+            id: 'tb-tab-flota',
+            onClick: () => {},
+            label: `Flota PESV (${vehicles.length})`,
+            icon: Car,
+            title: 'Ver Flota de Automotores Registrados en PESV',
+            variant: 'history',
+            active: true,
+            badge: vehicles.length > 0 ? vehicles.length : undefined,
+          },
+        ]}
+        customSections={[
+          <div key="veh-custom-toolbar" className="flex items-center gap-1.5">
+            <ToolbarButton
+              id="tb-new-vehicle"
+              onClick={() => setIsNewVehModalOpen(true)}
+              label="Nuevo Vehículo"
+              icon={Plus}
+              title="Registrar nuevo vehículo en la flota PESV"
+              variant="ai"
+            />
+            {selectedVehicle && (
+              <ToolbarButton
+                id="tb-new-inspection"
+                onClick={() => setIsModalOpen(true)}
+                label="Nueva Inspección"
+                icon={Wrench}
+                title={`Registrar inspección pre-operacional para ${selectedVehicle.placa}`}
+                variant="dummy"
+              />
+            )}
+            <ToolbarButton
+              id="tb-export-excel-veh"
+              onClick={handleExportExcel}
+              label="Exportar Excel"
+              icon={FileSpreadsheet}
+              title="Descargar matriz de flota e inspecciones en Excel"
+              variant="excel"
+            />
+          </div>
+        ]}
+        onAnalyze={handleGenerate}
+        isAnalyzing={isGenerating}
+        exportContent={selectedVehicle && selectedVehicle.inspecciones && selectedVehicle.inspecciones.length > 0 ? buildHtmlActa(selectedVehicle, selectedVehicle.inspecciones[selectedVehicle.inspecciones.length - 1]) : ''}
+        exportFileName={selectedVehicle ? `Inspeccion_PESV_${selectedVehicle.placa}` : 'Registro_PESV'}
+        onExportExcel={handleExportExcel}
+      />
+
+      {/* ─── ENCABEZADO DE SECCIÓN ACTIVA (WAPPY DESIGN SYSTEM) ───────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border-light dark:border-white/10 pb-3">
+        <div>
+          <h2 className="text-base font-bold text-text-primary flex items-center gap-2">
+            <Car className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+            <span>Hoja de Vida y Control Pre-Operacional Automotores (PESV)</span>
+          </h2>
+          <p className="text-xs text-text-secondary mt-0.5">
+            Gestión de inspecciones diarias pre-operacionales, control de kilometraje y vigencia de SOAT y Tecnomecánica (Ley 1503 de 2011 / Res. 20223040040595).
+          </p>
+        </div>
+      </div>
+
+      {/* 4 Métricas Clave / KPIs (PESV) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* KPI 1: Flota Total */}
+        <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-surface-primary border border-border-medium shadow-2xs">
+          <div className="w-9 h-9 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+            <Car className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Flota Total</p>
+            <p className="text-sm font-black text-text-primary">{totalVehicles} <span className="text-[10px] font-semibold text-text-secondary">vehículos</span></p>
+          </div>
+        </div>
+
+        {/* KPI 2: Pre-operacionales */}
+        <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-surface-primary border border-border-medium shadow-2xs">
+          <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+            <ClipboardList className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Inspecciones</p>
+            <p className="text-sm font-black text-text-primary">{totalInspections} <span className="text-[10px] font-semibold text-text-secondary">registros</span></p>
+          </div>
+        </div>
+
+        {/* KPI 3: Alertas SOAT / Tecno */}
+        <div className={cn(
+          "flex items-center gap-3 px-3.5 py-2.5 rounded-2xl border shadow-2xs transition-colors",
+          docAlerts > 0 ? "bg-amber-500/5 border-amber-500/30" : "bg-surface-primary border-border-medium"
+        )}>
+          <div className={cn(
+            "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+            docAlerts > 0 ? "bg-amber-500/15 text-amber-500" : "bg-emerald-500/10 text-emerald-500"
+          )}>
+            <AlertTriangle className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Alertas Doc.</p>
+            <p className={cn("text-sm font-black", docAlerts > 0 ? "text-amber-500" : "text-emerald-500")}>
+              {docAlerts} <span className="text-[10px] font-semibold text-text-secondary">por vencer</span>
+            </p>
+          </div>
+        </div>
+
+        {/* KPI 4: Inspecciones Conformes */}
+        <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-surface-primary border border-border-medium shadow-2xs">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+            <CheckCircle className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Aprobadas</p>
+            <p className="text-sm font-black text-emerald-500">{approvedInspections} <span className="text-[10px] font-semibold text-text-secondary">aptos</span></p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col md:flex-row h-[780px] w-full border border-border-light dark:border-white/10 rounded-3xl bg-surface-primary shadow-lg overflow-hidden animate-in fade-in duration-200">
       
       {/* ── SECTOR IZQUIERDO: LISTA DE VEHÍCULOS ── */}
@@ -563,13 +721,15 @@ export default function VehiclesWorkspace() {
             <h2 className="text-lg font-extrabold text-text-primary flex items-center gap-2">
               <Car className="w-5 h-5 text-teal-500" /> Vehículos PESV
             </h2>
-            <div className="flex items-center gap-2">
-              <button
+            <div className="flex items-center gap-1.5">
+              <ToolbarButton
+                id="veh-list-excel"
                 onClick={handleExportExcel}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border-medium hover:border-[#0d9488]/40 hover:bg-[#0d9488]/10 text-teal-600 dark:text-teal-400 font-extrabold text-2xs uppercase tracking-wider rounded-xl transition-all shadow-sm"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
-              </button>
+                label="Excel"
+                icon={FileSpreadsheet}
+                title="Descargar reporte de vehículos en Excel"
+                variant="excel"
+              />
               <span className="bg-teal-500/10 text-teal-400 text-xs px-2.5 py-1 rounded-full font-bold">
                 {vehicles.length}
               </span>
@@ -587,13 +747,14 @@ export default function VehiclesWorkspace() {
                 className="w-full pl-10 pr-4 py-2.5 bg-surface-primary border border-border-medium rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-all"
               />
             </div>
-            <button
+            <ToolbarButton
+              id="veh-quick-add"
               onClick={() => setIsNewVehModalOpen(true)}
-              className="p-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-sm transition-colors"
+              label="Nuevo Vehículo"
+              icon={Plus}
               title="Registrar nuevo vehículo"
-            >
-              <Plus className="w-5 h-5" />
-            </button>
+              variant="ai"
+            />
           </div>
         </div>
 
@@ -652,25 +813,16 @@ export default function VehiclesWorkspace() {
                 </div>
               </div>
 
-                <SGSSTToolbar
-                  onAnalyze={handleGenerate}
-                  isAnalyzing={isGenerating}
-                  selectedModel={selectedModel}
-                  onSelectModel={setSelectedModel}
-                  exportContent={selectedVehicle && selectedVehicle.inspecciones && selectedVehicle.inspecciones.length > 0 ? buildHtmlActa(selectedVehicle, selectedVehicle.inspecciones[selectedVehicle.inspecciones.length - 1]) : ''}
-                  exportFileName={`Inspeccion_PESV_${selectedVehicle.placa}`}
-                  persistenceButtons={[
-                    {
-                      id: 'add-inspection',
-                      onClick: () => setIsModalOpen(true),
-                      label: 'Inspección Pre-operacional',
-                      title: 'Registrar nueva inspección pre-operacional del vehículo',
-                      icon: Plus,
-                      variant: 'ai'
-                    }
-                  ]}
-                  onExportExcel={handleExportExcel}
+              <div className="flex items-center gap-2">
+                <ToolbarButton
+                  id="veh-detail-new-inspection"
+                  onClick={() => setIsModalOpen(true)}
+                  label="Nueva Inspección"
+                  icon={Plus}
+                  title={`Registrar nueva inspección pre-operacional para ${selectedVehicle.placa}`}
+                  variant="ai"
                 />
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -744,19 +896,29 @@ export default function VehiclesWorkspace() {
                                   {insp.resultado}
                                 </span>
                               </td>
-                              <td className="p-3 text-right space-x-2">
-                                <button
-                                  onClick={() => handlePrintInspection(insp)}
-                                  className="text-teal-500 hover:text-teal-400 font-bold hover:underline"
-                                >
-                                  PDF
-                                </button>
-                                <button
-                                  onClick={() => handleDownloadInspectionHtml(insp)}
-                                  className="text-blue-500 hover:text-blue-400 font-bold hover:underline"
-                                >
-                                  HTML
-                                </button>
+                              <td className="p-3 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={() => handlePrintInspection(insp)}
+                                    className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95 cursor-pointer"
+                                    title="Imprimir acta de inspección en PDF"
+                                  >
+                                    <Printer className="w-3.5 h-3.5 shrink-0" />
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[70px] group-hover:opacity-100 sm:flex">
+                                      <span className="text-[10px] font-bold">PDF</span>
+                                    </div>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDownloadInspectionHtml(insp)}
+                                    className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 hover:bg-blue-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95 cursor-pointer"
+                                    title="Descargar acta en HTML"
+                                  >
+                                    <Download className="w-3.5 h-3.5 shrink-0" />
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[80px] group-hover:opacity-100 sm:flex">
+                                      <span className="text-[10px] font-bold">HTML</span>
+                                    </div>
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))}
