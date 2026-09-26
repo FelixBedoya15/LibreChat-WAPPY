@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Plus, Trash2, Activity, Calendar, DollarSign, User, ShieldAlert, FileText, CheckCircle2, AlertCircle, Clock, ChevronDown, ChevronUp, Eye, Search } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
+import { cn } from '~/utils';
 
 export type AbsenceCategory = 'SALUD' | 'LICENCIA_LEY' | 'PERMISOS' | 'DISRUPCION';
 
@@ -388,11 +389,19 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                 </div>
                 
                 <button
+                    type="button"
                     onClick={() => setIsAdding(!isAdding)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md transition-all active:scale-95"
+                    title={isAdding ? 'Cerrar Formulario' : 'Registrar Novedad'}
+                    className="group flex h-8 sm:h-10 min-w-[32px] sm:min-w-[40px] px-2 sm:px-2.5 items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md transition-all duration-300 active:scale-95 border border-teal-500/30"
                 >
-                    <Plus className="h-3.5 w-3.5" />
-                    <span>{isAdding ? 'Cerrar Formulario' : '+ Registrar Novedad'}</span>
+                    <div className="relative flex flex-shrink-0 items-center justify-center">
+                        <Plus className={cn("h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-300", isAdding && "rotate-45")} />
+                    </div>
+                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
+                        <span className="text-xs sm:text-sm font-bold tracking-wide">
+                            {isAdding ? 'Cerrar Formulario' : 'Registrar Novedad'}
+                        </span>
+                    </div>
                 </button>
             </div>
 

@@ -20,6 +20,9 @@ import {
     DollarSign,
     ShieldAlert,
     TrendingDown,
+    TrendingUp,
+    ArrowRightLeft,
+    GitCompare,
     PieChart,
     FileText,
     CheckCircle2,
@@ -27,6 +30,7 @@ import {
     Layers,
     Coins,
 } from 'lucide-react';
+import { cn } from '~/utils';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
@@ -52,7 +56,139 @@ const MONTHS = [
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
-type SubTab = 'novedades' | 'indicadores' | 'financiero';
+export type SubTab = 'novedades' | 'indicadores' | 'financiero' | 'comparativa';
+export type ComparativeType = 'MONTHLY' | 'QUARTERLY' | 'SEMESTRAL' | 'ANNUAL';
+
+export interface PeriodMetrics {
+    periodName: string;
+    avgWorkers: number;
+    totalDiasProgramados: number;
+    numAT: number;
+    numATMortales: number;
+    diasIncapacidadAT: number;
+    diasCargados: number;
+    frecuenciaAT: number;
+    severidadAT: number;
+    casosNuevosEL: number;
+    diasAusenciaMedicaTotal: number;
+    ausentismoMedicoPct: number;
+    diasAusenciaTotal: number;
+    ausentismoGlobalPct: number;
+    totalPerdidaNeta: number;
+    totalRecobroEPS: number;
+    totalRecobroARL: number;
+    totalRecobros: number;
+    totalSeguridadSocialEmpresa: number;
+    totalPrestaciones: number;
+    eventsCount: number;
+}
+
+export const calculatePeriodMetrics = (
+    indices: number[],
+    sourceData: Record<number, MonthData>,
+    periodLabel: string
+): PeriodMetrics => {
+    let workersSum = 0;
+    let monthsWithWorkers = 0;
+    let totalDiasProg = 0;
+    let numAT = 0;
+    let numATMortales = 0;
+    let diasIncapacidadAT = 0;
+    let diasCargados = 0;
+    let casosNuevosEL = 0;
+    let diasAusenciaMedicaTotal = 0;
+    let diasAusenciaTotal = 0;
+    let totalPerdidaNeta = 0;
+    let totalRecobroEPS = 0;
+    let totalRecobroARL = 0;
+    let totalSeguridadSocialEmpresa = 0;
+    let totalPrestaciones = 0;
+    let eventsCount = 0;
+
+    indices.forEach(idx => {
+        const m = sourceData[idx];
+        if (!m) return;
+        const w = Number(m.numTrabajadores) || 0;
+        if (w > 0) {
+            workersSum += w;
+            monthsWithWorkers++;
+        }
+        totalDiasProg += Number(m.diasProgramados) || 0;
+
+        const events = m.events || [];
+        eventsCount += events.length;
+        events.forEach(e => {
+            const dias = Number(e.diasIncapacidad) || 0;
+            const carg = Number(e.diasCargados) || 0;
+            const fin = e.financiero || calculateEventFinancials(e);
+
+            if (e.tipo === 'AT') {
+                numAT += 1;
+                diasIncapacidadAT += dias;
+                diasCargados += carg;
+                if (carg >= 4500 || (e.consecuencia && e.consecuencia.toLowerCase().includes('mortal'))) {
+                    numATMortales += 1;
+                }
+                diasAusenciaMedicaTotal += dias;
+            } else if (e.tipo === 'EL') {
+                casosNuevosEL += 1;
+                diasAusenciaMedicaTotal += dias;
+            } else if (['EG_EPS', 'ACC_COMUN', 'Ausentismo', 'CITA_MED'].includes(e.tipo)) {
+                diasAusenciaMedicaTotal += dias;
+            }
+
+            diasAusenciaTotal += dias;
+            totalPerdidaNeta += (fin.perdidaNetaEmpresa || 0);
+            totalRecobroEPS += (fin.montoRecobroEPS || 0);
+            totalRecobroARL += (fin.montoRecobroARL || 0);
+            totalSeguridadSocialEmpresa += (fin.costoSeguridadSocial || 0);
+            totalPrestaciones += (fin.costoPrestacional || 0);
+        });
+    });
+
+    const avgWorkers = monthsWithWorkers > 0 ? (workersSum / monthsWithWorkers) : 0;
+    const safeW = avgWorkers || 1;
+    const frecuenciaAT = avgWorkers > 0 ? Number(((numAT / safeW) * 100).toFixed(2)) : 0;
+    const severidadAT = avgWorkers > 0 ? Number((((diasIncapacidadAT + diasCargados) / safeW) * 100).toFixed(2)) : 0;
+    const ausentismoMedicoPct = totalDiasProg > 0 ? Number(((diasAusenciaMedicaTotal / totalDiasProg) * 100).toFixed(2)) : 0;
+    const ausentismoGlobalPct = totalDiasProg > 0 ? Number(((diasAusenciaTotal / totalDiasProg) * 100).toFixed(2)) : 0;
+
+    return {
+        periodName: periodLabel,
+        avgWorkers: Math.round(avgWorkers * 10) / 10,
+        totalDiasProgramados: totalDiasProg,
+        numAT,
+        numATMortales,
+        diasIncapacidadAT,
+        diasCargados,
+        frecuenciaAT,
+        severidadAT,
+        casosNuevosEL,
+        diasAusenciaMedicaTotal,
+        ausentismoMedicoPct,
+        diasAusenciaTotal,
+        ausentismoGlobalPct,
+        totalPerdidaNeta: Math.round(totalPerdidaNeta),
+        totalRecobroEPS: Math.round(totalRecobroEPS),
+        totalRecobroARL: Math.round(totalRecobroARL),
+        totalRecobros: Math.round(totalRecobroEPS + totalRecobroARL),
+        totalSeguridadSocialEmpresa: Math.round(totalSeguridadSocialEmpresa),
+        totalPrestaciones: Math.round(totalPrestaciones),
+        eventsCount
+    };
+};
+
+export const getDelta = (valA: number, valB: number) => {
+    const diff = valB - valA;
+    const pct = valA !== 0 ? ((diff / valA) * 100) : (valB > 0 ? 100 : 0);
+    return {
+        diff: Math.round(diff * 100) / 100,
+        pct: Math.round(pct * 10) / 10,
+        isPositive: diff > 0,
+        isNegative: diff < 0,
+        isZero: diff === 0
+    };
+};
 
 const EstadisticasATEL = () => {
     const { t } = useTranslation();
@@ -104,6 +240,52 @@ const EstadisticasATEL = () => {
         currentCalYear + 1
     ]);
     const [activeCompanyInfo, setActiveCompanyInfo] = useState<{ name: string; nit?: string } | null>(null);
+
+    // Comparative Mode State
+    const [comparativeType, setComparativeType] = useState<ComparativeType>('MONTHLY');
+    const [monthCompareA, setMonthCompareA] = useState<number>(Math.max(0, currentMonthIndex - 1));
+    const [monthCompareB, setMonthCompareB] = useState<number>(currentMonthIndex);
+    const [quarterCompareA, setQuarterCompareA] = useState<number>(0); // 0=Q1, 1=Q2, 2=Q3, 3=Q4
+    const [quarterCompareB, setQuarterCompareB] = useState<number>(1);
+    const [yearCompareA, setYearCompareA] = useState<number>(year - 1);
+    const [yearCompareB, setYearCompareB] = useState<number>(year);
+    const [yearCompareAData, setYearCompareAData] = useState<Record<number, MonthData> | null>(null);
+    const [isLoadingYearCompare, setIsLoadingYearCompare] = useState(false);
+
+    // Fetch compare year data for interannual comparison
+    useEffect(() => {
+        if (comparativeType !== 'ANNUAL' || !token) return;
+        if (yearCompareA === year) {
+            setYearCompareAData(annualData);
+            return;
+        }
+        setIsLoadingYearCompare(true);
+        fetch(`/api/sgsst/atel-data/${yearCompareA}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+                const fresh: Record<number, MonthData> = {};
+                MONTHS.forEach((_, i) => {
+                    fresh[i] = { numTrabajadores: '', diasProgramados: '', events: [] };
+                });
+                if (data && data.months) {
+                    Object.keys(data.months).forEach(key => {
+                        const m = data.months[key];
+                        if (m) {
+                            fresh[Number(key)] = {
+                                numTrabajadores: m.numTrabajadores ?? '',
+                                diasProgramados: m.diasProgramados ?? '',
+                                events: Array.isArray(m.events) ? m.events : []
+                            };
+                        }
+                    });
+                }
+                setYearCompareAData(fresh);
+            })
+            .catch(err => console.error('Error fetching compare year data', err))
+            .finally(() => setIsLoadingYearCompare(false));
+    }, [comparativeType, yearCompareA, year, token, annualData]);
 
     // Fetch active company details
     useEffect(() => {
@@ -304,6 +486,62 @@ const EstadisticasATEL = () => {
         };
     }, [currentData.events, currentData.numTrabajadores, currentData.diasProgramados]);
 
+    // Comparative Aggregated Data Memos
+    const comparativeStats = useMemo(() => {
+        let statsA: PeriodMetrics;
+        let statsB: PeriodMetrics;
+        let labelA = '';
+        let labelB = '';
+
+        if (comparativeType === 'MONTHLY') {
+            labelA = `${MONTHS[monthCompareA]} ${year}`;
+            labelB = `${MONTHS[monthCompareB]} ${year}`;
+            statsA = calculatePeriodMetrics([monthCompareA], annualData, labelA);
+            statsB = calculatePeriodMetrics([monthCompareB], annualData, labelB);
+        } else if (comparativeType === 'QUARTERLY') {
+            const qNames = ['Q1 (Ene-Mar)', 'Q2 (Abr-Jun)', 'Q3 (Jul-Sep)', 'Q4 (Oct-Dic)'];
+            const qMonths = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]];
+            labelA = `${qNames[quarterCompareA]} ${year}`;
+            labelB = `${qNames[quarterCompareB]} ${year}`;
+            statsA = calculatePeriodMetrics(qMonths[quarterCompareA], annualData, labelA);
+            statsB = calculatePeriodMetrics(qMonths[quarterCompareB], annualData, labelB);
+        } else if (comparativeType === 'SEMESTRAL') {
+            labelA = `Semestre 1 (Ene-Jun ${year})`;
+            labelB = `Semestre 2 (Jul-Dic ${year})`;
+            statsA = calculatePeriodMetrics([0, 1, 2, 3, 4, 5], annualData, labelA);
+            statsB = calculatePeriodMetrics([6, 7, 8, 9, 10, 11], annualData, labelB);
+        } else {
+            // ANNUAL
+            labelA = `Año ${yearCompareA}`;
+            labelB = `Año ${yearCompareB}`;
+            const dataA = (yearCompareA === year ? annualData : yearCompareAData) || annualData;
+            statsA = calculatePeriodMetrics([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], dataA, labelA);
+            statsB = calculatePeriodMetrics([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], annualData, labelB);
+        }
+
+        return { statsA, statsB, labelA, labelB };
+    }, [comparativeType, monthCompareA, monthCompareB, quarterCompareA, quarterCompareB, yearCompareA, yearCompareB, yearCompareAData, annualData, year]);
+
+    const quartersData = useMemo(() => {
+        return [
+            calculatePeriodMetrics([0, 1, 2], annualData, `Q1 (Ene-Mar ${year})`),
+            calculatePeriodMetrics([3, 4, 5], annualData, `Q2 (Abr-Jun ${year})`),
+            calculatePeriodMetrics([6, 7, 8], annualData, `Q3 (Jul-Sep ${year})`),
+            calculatePeriodMetrics([9, 10, 11], annualData, `Q4 (Oct-Dic ${year})`),
+        ];
+    }, [annualData, year]);
+
+    const semestersData = useMemo(() => {
+        return [
+            calculatePeriodMetrics([0, 1, 2, 3, 4, 5], annualData, `Semestre 1 (Ene-Jun ${year})`),
+            calculatePeriodMetrics([6, 7, 8, 9, 10, 11], annualData, `Semestre 2 (Jul-Dic ${year})`),
+        ];
+    }, [annualData, year]);
+
+    const annual12MonthsData = useMemo(() => {
+        return MONTHS.map((m, idx) => calculatePeriodMetrics([idx], annualData, m));
+    }, [annualData]);
+
     // Save Logic (Persistence)
     const handleSaveData = async () => {
         if (!token) return;
@@ -386,6 +624,101 @@ const EstadisticasATEL = () => {
             setIsGenerating(false);
         }
     }, [annualData, currentMonthIndex, year, selectedModel, token, user, showToast]);
+
+    const handleGenerateComparative = useCallback(async () => {
+        let labelA = '';
+        let labelB = '';
+        let statsA: PeriodMetrics | null = null;
+        let statsB: PeriodMetrics | null = null;
+
+        if (comparativeType === 'MONTHLY') {
+            labelA = `${MONTHS[monthCompareA]} ${year}`;
+            labelB = `${MONTHS[monthCompareB]} ${year}`;
+            statsA = calculatePeriodMetrics([monthCompareA], annualData, labelA);
+            statsB = calculatePeriodMetrics([monthCompareB], annualData, labelB);
+        } else if (comparativeType === 'QUARTERLY') {
+            const qNames = ['Q1 (Ene-Mar)', 'Q2 (Abr-Jun)', 'Q3 (Jul-Sep)', 'Q4 (Oct-Dic)'];
+            const qMonths = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]];
+            labelA = `${qNames[quarterCompareA]} ${year}`;
+            labelB = `${qNames[quarterCompareB]} ${year}`;
+            statsA = calculatePeriodMetrics(qMonths[quarterCompareA], annualData, labelA);
+            statsB = calculatePeriodMetrics(qMonths[quarterCompareB], annualData, labelB);
+        } else if (comparativeType === 'SEMESTRAL') {
+            labelA = `Semestre 1 (Ene-Jun ${year})`;
+            labelB = `Semestre 2 (Jul-Dic ${year})`;
+            statsA = calculatePeriodMetrics([0, 1, 2, 3, 4, 5], annualData, labelA);
+            statsB = calculatePeriodMetrics([6, 7, 8, 9, 10, 11], annualData, labelB);
+        } else if (comparativeType === 'ANNUAL') {
+            labelA = `Año ${yearCompareA}`;
+            labelB = `Año ${yearCompareB}`;
+            const dataA = (yearCompareA === year ? annualData : yearCompareAData) || annualData;
+            statsA = calculatePeriodMetrics([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], dataA, labelA);
+            statsB = calculatePeriodMetrics([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], annualData, labelB);
+        }
+
+        if (!statsA || !statsB) return;
+
+        handleSaveData();
+        setIsGenerating(true);
+
+        const summaryText = `
+- **${labelA}**: ${statsA.avgWorkers} trabajadores promedio, ${statsA.numAT} accidentes de trabajo (AT), ${statsA.diasIncapacidadAT} días incapacidad AT, Frecuencia (IF): ${statsA.frecuenciaAT}, Severidad (IS): ${statsA.severidadAT}, Ausentismo Médico: ${statsA.ausentismoMedicoPct}%, Ausentismo Global: ${statsA.ausentismoGlobalPct}%, Pérdida Neta Empresa: $${statsA.totalPerdidaNeta.toLocaleString('es-CO')} COP, Subsidios Tramitados: $${statsA.totalRecobros.toLocaleString('es-CO')} COP.
+- **${labelB}**: ${statsB.avgWorkers} trabajadores promedio, ${statsB.numAT} accidentes de trabajo (AT), ${statsB.diasIncapacidadAT} días incapacidad AT, Frecuencia (IF): ${statsB.frecuenciaAT}, Severidad (IS): ${statsB.severidadAT}, Ausentismo Médico: ${statsB.ausentismoMedicoPct}%, Ausentismo Global: ${statsB.ausentismoGlobalPct}%, Pérdida Neta Empresa: $${statsB.totalPerdidaNeta.toLocaleString('es-CO')} COP, Subsidios Tramitados: $${statsB.totalRecobros.toLocaleString('es-CO')} COP.
+- **Variaciones principales**:
+  * AT: Delta ${statsB.numAT - statsA.numAT} (${statsA.numAT > 0 ? (((statsB.numAT - statsA.numAT) / statsA.numAT) * 100).toFixed(1) : 0}%)
+  * Frecuencia (IF): Delta ${(statsB.frecuenciaAT - statsA.frecuenciaAT).toFixed(2)}
+  * Severidad (IS): Delta ${(statsB.severidadAT - statsA.severidadAT).toFixed(2)}
+  * Ausentismo Causa Médica: Delta ${(statsB.ausentismoMedicoPct - statsA.ausentismoMedicoPct).toFixed(2)}%
+  * Pérdida Neta Empresa: Delta $${(statsB.totalPerdidaNeta - statsA.totalPerdidaNeta).toLocaleString('es-CO')} COP
+`;
+
+        try {
+            const payload = {
+                scope: 'COMPARATIVE',
+                year,
+                targetMonthIndex: currentMonthIndex,
+                monthName: MONTHS[currentMonthIndex],
+                annualData,
+                modelName: selectedModel,
+                userName: user?.name,
+                comparativeConfig: {
+                    type: comparativeType,
+                    labelA,
+                    labelB,
+                    summaryText
+                }
+            };
+
+            const response = await fetch('/api/sgsst/estadisticas/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Error al generar el informe comparativo');
+            }
+
+            const data = await response.json();
+            setGeneratedReport(data.report);
+            editorContentRef.current = data.report;
+            liveEditorRef.current?.setHTML(data.report);
+            setConversationId('new');
+            setReportMessageId(null);
+            setIsFormExpanded(false);
+
+            showToast({ message: `Informe Comparativo (${labelA} vs ${labelB}) generado`, status: 'success', severity: 'success' });
+        } catch (error: any) {
+            console.error('Comparative generation error:', error);
+            showToast({ message: error.message || 'Error al generar el informe comparativo', status: 'error' });
+        } finally {
+            setIsGenerating(false);
+        }
+    }, [comparativeType, monthCompareA, monthCompareB, quarterCompareA, quarterCompareB, yearCompareA, yearCompareB, yearCompareAData, annualData, year, currentMonthIndex, selectedModel, user, token, showToast]);
 
     const handleSaveReport = useCallback(async () => {
         const contentToSave = editorContentRef.current || generatedReport;
@@ -743,6 +1076,19 @@ const EstadisticasATEL = () => {
                                         <DollarSign className="w-3.5 h-3.5" />
                                         <span>3. Balance Financiero & Pérdidas por IBC</span>
                                     </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('comparativa')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 ${
+                                            activeTab === 'comparativa'
+                                                ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs'
+                                                : 'border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 shadow-2xs'
+                                        }`}
+                                    >
+                                        <TrendingUp className="w-3.5 h-3.5" />
+                                        <span>4. Comparativa Temporal</span>
+                                    </button>
                                 </div>
 
                                 <div className="text-xs font-semibold text-text-secondary">
@@ -986,6 +1332,561 @@ const EstadisticasATEL = () => {
                                 </div>
                             )}
 
+                            {/* TAB 4: COMPARATIVA TEMPORAL (MES / TRIMESTRE / SEMESTRE / AÑO) */}
+                            {activeTab === 'comparativa' && (
+                                <div className="space-y-5 animate-in fade-in duration-200">
+                                    {/* Selector de Modalidad Comparativa en Barra Cápsula WAPPY */}
+                                    <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-primary/70 p-3 rounded-2xl border border-border-medium shadow-xs">
+                                        <div className="flex items-center gap-2">
+                                            <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-800">
+                                                <TrendingUp className="w-4 h-4" />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-xs font-bold text-text-primary">
+                                                    Comparativa Analítica Temporal
+                                                </h4>
+                                                <p className="text-[10px] text-text-secondary">
+                                                    Contrasta siniestralidad, tasas normativas y balance financiero
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="inline-flex items-center gap-1.5 p-1 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-sm">
+                                            <button
+                                                type="button"
+                                                onClick={() => setComparativeType('MONTHLY')}
+                                                className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 ${
+                                                    comparativeType === 'MONTHLY'
+                                                        ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs'
+                                                        : 'border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 shadow-2xs'
+                                                }`}
+                                            >
+                                                Mes a Mes
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setComparativeType('QUARTERLY')}
+                                                className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 ${
+                                                    comparativeType === 'QUARTERLY'
+                                                        ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs'
+                                                        : 'border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 shadow-2xs'
+                                                }`}
+                                            >
+                                                Trimestres (Q)
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setComparativeType('SEMESTRAL')}
+                                                className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 ${
+                                                    comparativeType === 'SEMESTRAL'
+                                                        ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs'
+                                                        : 'border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 shadow-2xs'
+                                                }`}
+                                            >
+                                                Semestral (S1 / S2)
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setComparativeType('ANNUAL')}
+                                                className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 ${
+                                                    comparativeType === 'ANNUAL'
+                                                        ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs'
+                                                        : 'border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 shadow-2xs'
+                                                }`}
+                                            >
+                                                Interanual
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Selectores específicos según modalidad */}
+                                    <div className="bg-surface-primary p-4 rounded-2xl border border-border-medium shadow-xs space-y-4">
+                                        {/* 1. Selectores para Modo Mensual */}
+                                        {comparativeType === 'MONTHLY' && (
+                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-text-secondary">Mes Base (A):</span>
+                                                    <select
+                                                        value={monthCompareA}
+                                                        onChange={(e) => setMonthCompareA(Number(e.target.value))}
+                                                        className="text-xs font-bold p-2 rounded-xl border border-border-medium bg-surface-secondary text-text-primary focus:border-teal-500"
+                                                    >
+                                                        {MONTHS.map((m, idx) => (
+                                                            <option key={idx} value={idx}>{m} {year}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div className="p-2 rounded-full bg-surface-secondary border border-border-medium text-text-secondary">
+                                                    <ArrowRightLeft className="w-4 h-4" />
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-text-secondary">Mes Comparado (B):</span>
+                                                    <select
+                                                        value={monthCompareB}
+                                                        onChange={(e) => setMonthCompareB(Number(e.target.value))}
+                                                        className="text-xs font-bold p-2 rounded-xl border border-border-medium bg-surface-secondary text-text-primary focus:border-teal-500"
+                                                    >
+                                                        {MONTHS.map((m, idx) => (
+                                                            <option key={idx} value={idx}>{m} {year}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 2. Selectores para Modo Trimestral */}
+                                        {comparativeType === 'QUARTERLY' && (
+                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-text-secondary">Trimestre A:</span>
+                                                    <select
+                                                        value={quarterCompareA}
+                                                        onChange={(e) => setQuarterCompareA(Number(e.target.value))}
+                                                        className="text-xs font-bold p-2 rounded-xl border border-border-medium bg-surface-secondary text-text-primary focus:border-teal-500"
+                                                    >
+                                                        <option value={0}>Q1: Enero – Marzo {year}</option>
+                                                        <option value={1}>Q2: Abril – Junio {year}</option>
+                                                        <option value={2}>Q3: Julio – Septiembre {year}</option>
+                                                        <option value={3}>Q4: Octubre – Diciembre {year}</option>
+                                                    </select>
+                                                </div>
+
+                                                <div className="p-2 rounded-full bg-surface-secondary border border-border-medium text-text-secondary">
+                                                    <ArrowRightLeft className="w-4 h-4" />
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-text-secondary">Trimestre B:</span>
+                                                    <select
+                                                        value={quarterCompareB}
+                                                        onChange={(e) => setQuarterCompareB(Number(e.target.value))}
+                                                        className="text-xs font-bold p-2 rounded-xl border border-border-medium bg-surface-secondary text-text-primary focus:border-teal-500"
+                                                    >
+                                                        <option value={0}>Q1: Enero – Marzo {year}</option>
+                                                        <option value={1}>Q2: Abril – Junio {year}</option>
+                                                        <option value={2}>Q3: Julio – Septiembre {year}</option>
+                                                        <option value={3}>Q4: Octubre – Diciembre {year}</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 3. Modo Semestral: información de S1 vs S2 */}
+                                        {comparativeType === 'SEMESTRAL' && (
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="text-xs text-text-secondary">
+                                                    Comparativa estándar para <strong>Rendición de Cuentas Semestral</strong> de la Dirección y COPASST (Res. 0312 Art. 30).
+                                                </div>
+                                                <div className="text-xs font-bold text-teal-600 dark:text-teal-400">
+                                                    Semestre 1 (Ene-Jun) vs. Semestre 2 (Jul-Dic)
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 4. Modo Interanual */}
+                                        {comparativeType === 'ANNUAL' && (
+                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-text-secondary">Año Base:</span>
+                                                    <select
+                                                        value={yearCompareA}
+                                                        onChange={(e) => setYearCompareA(Number(e.target.value))}
+                                                        className="text-xs font-bold p-2 rounded-xl border border-border-medium bg-surface-secondary text-text-primary focus:border-teal-500"
+                                                    >
+                                                        {availableYears.map(y => (
+                                                            <option key={y} value={y}>Año {y}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div className="p-2 rounded-full bg-surface-secondary border border-border-medium text-text-secondary">
+                                                    <ArrowRightLeft className="w-4 h-4" />
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-text-secondary">Año Comparado:</span>
+                                                    <select
+                                                        value={yearCompareB}
+                                                        onChange={(e) => setYearCompareB(Number(e.target.value))}
+                                                        className="text-xs font-bold p-2 rounded-xl border border-border-medium bg-surface-secondary text-text-primary focus:border-teal-500"
+                                                    >
+                                                        {availableYears.map(y => (
+                                                            <option key={y} value={y}>Año {y}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                {isLoadingYearCompare && (
+                                                    <span className="text-xs text-teal-600 flex items-center gap-1">
+                                                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Cargando año...
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Tarjetas Principales Cara a Cara (Face-to-Face) */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Tarjeta Periodo A */}
+                                        <div className="p-4 rounded-2xl bg-surface-primary border border-border-medium shadow-xs space-y-3">
+                                            <div className="flex justify-between items-center border-b border-border-medium/60 pb-2">
+                                                <span className="text-xs font-black uppercase text-teal-600 dark:text-teal-400">
+                                                    {comparativeStats.labelA}
+                                                </span>
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-secondary font-bold text-text-secondary">
+                                                    Periodo Base
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                                <div>
+                                                    <span className="text-[10px] text-text-secondary">Trabajadores Promedio:</span>
+                                                    <div className="font-bold text-text-primary text-sm">{comparativeStats.statsA.avgWorkers}</div>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] text-text-secondary">Accidentes (AT):</span>
+                                                    <div className="font-bold text-rose-600 dark:text-rose-400 text-sm">{comparativeStats.statsA.numAT}</div>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] text-text-secondary">Frecuencia (IF):</span>
+                                                    <div className="font-mono font-bold text-text-primary">{comparativeStats.statsA.frecuenciaAT}</div>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] text-text-secondary">Severidad (IS):</span>
+                                                    <div className="font-mono font-bold text-text-primary">{comparativeStats.statsA.severidadAT}</div>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] text-text-secondary">Ausentismo Médico:</span>
+                                                    <div className="font-mono font-bold text-amber-600">{comparativeStats.statsA.ausentismoMedicoPct}%</div>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] text-text-secondary">Pérdida Neta COP:</span>
+                                                    <div className="font-mono font-black text-rose-600 dark:text-rose-400">
+                                                        ${comparativeStats.statsA.totalPerdidaNeta.toLocaleString('es-CO')}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Tarjeta Periodo B */}
+                                        <div className="p-4 rounded-2xl bg-surface-primary border border-border-medium shadow-xs space-y-3">
+                                            <div className="flex justify-between items-center border-b border-border-medium/60 pb-2">
+                                                <span className="text-xs font-black uppercase text-teal-600 dark:text-teal-400">
+                                                    {comparativeStats.labelB}
+                                                </span>
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-600 font-bold">
+                                                    Periodo Comparado
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                                <div>
+                                                    <span className="text-[10px] text-text-secondary">Trabajadores Promedio:</span>
+                                                    <div className="font-bold text-text-primary text-sm">{comparativeStats.statsB.avgWorkers}</div>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] text-text-secondary">Accidentes (AT):</span>
+                                                    <div className="font-bold text-rose-600 dark:text-rose-400 text-sm">{comparativeStats.statsB.numAT}</div>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] text-text-secondary">Frecuencia (IF):</span>
+                                                    <div className="font-mono font-bold text-text-primary">{comparativeStats.statsB.frecuenciaAT}</div>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] text-text-secondary">Severidad (IS):</span>
+                                                    <div className="font-mono font-bold text-text-primary">{comparativeStats.statsB.severidadAT}</div>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] text-text-secondary">Ausentismo Médico:</span>
+                                                    <div className="font-mono font-bold text-amber-600">{comparativeStats.statsB.ausentismoMedicoPct}%</div>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] text-text-secondary">Pérdida Neta COP:</span>
+                                                    <div className="font-mono font-black text-rose-600 dark:text-rose-400">
+                                                        ${comparativeStats.statsB.totalPerdidaNeta.toLocaleString('es-CO')}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Tabla Comparativa Exhaustiva con Variaciones y Chips */}
+                                    <div className="bg-surface-primary rounded-2xl border border-border-medium overflow-hidden shadow-xs">
+                                        <div className="p-3.5 bg-surface-secondary border-b border-border-medium flex items-center justify-between">
+                                            <h4 className="text-xs font-bold text-text-primary flex items-center gap-2">
+                                                <GitCompare className="w-4 h-4 text-teal-600" />
+                                                Matriz de Variación Porcentual e Indicadores Comparados
+                                            </h4>
+                                            <span className="text-[10px] text-text-secondary font-bold">
+                                                {comparativeStats.labelA} ⟷ {comparativeStats.labelB}
+                                            </span>
+                                        </div>
+
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-xs text-left">
+                                                <thead className="bg-surface-tertiary/60 text-text-secondary font-bold text-[11px] border-b border-border-medium">
+                                                    <tr>
+                                                        <th className="px-3.5 py-2.5">Indicador / Parámetro</th>
+                                                        <th className="px-3 py-2.5 text-right">{comparativeStats.labelA}</th>
+                                                        <th className="px-3 py-2.5 text-right">{comparativeStats.labelB}</th>
+                                                        <th className="px-3 py-2.5 text-right">Diferencia (Delta)</th>
+                                                        <th className="px-3 py-2.5 text-right">% Cambio</th>
+                                                        <th className="px-3.5 py-2.5 text-center">Evaluación</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-border-medium/60 text-text-primary font-medium">
+                                                    {[
+                                                        {
+                                                            name: 'Accidentes de Trabajo (AT)',
+                                                            valA: comparativeStats.statsA.numAT,
+                                                            valB: comparativeStats.statsB.numAT,
+                                                            format: (v: number) => v,
+                                                            isFinancial: false,
+                                                            inverse: true, // less is better
+                                                        },
+                                                        {
+                                                            name: 'Días Perdidos por AT',
+                                                            valA: comparativeStats.statsA.diasIncapacidadAT,
+                                                            valB: comparativeStats.statsB.diasIncapacidadAT,
+                                                            format: (v: number) => v,
+                                                            isFinancial: false,
+                                                            inverse: true,
+                                                        },
+                                                        {
+                                                            name: 'Índice de Frecuencia AT (IF)',
+                                                            valA: comparativeStats.statsA.frecuenciaAT,
+                                                            valB: comparativeStats.statsB.frecuenciaAT,
+                                                            format: (v: number) => v.toFixed(2),
+                                                            isFinancial: false,
+                                                            inverse: true,
+                                                        },
+                                                        {
+                                                            name: 'Índice de Severidad AT (IS)',
+                                                            valA: comparativeStats.statsA.severidadAT,
+                                                            valB: comparativeStats.statsB.severidadAT,
+                                                            format: (v: number) => v.toFixed(2),
+                                                            isFinancial: false,
+                                                            inverse: true,
+                                                        },
+                                                        {
+                                                            name: 'Ausentismo Causa Médica (%)',
+                                                            valA: comparativeStats.statsA.ausentismoMedicoPct,
+                                                            valB: comparativeStats.statsB.ausentismoMedicoPct,
+                                                            format: (v: number) => `${v.toFixed(2)}%`,
+                                                            isFinancial: false,
+                                                            inverse: true,
+                                                        },
+                                                        {
+                                                            name: 'Ausentismo Global Total (%)',
+                                                            valA: comparativeStats.statsA.ausentismoGlobalPct,
+                                                            valB: comparativeStats.statsB.ausentismoGlobalPct,
+                                                            format: (v: number) => `${v.toFixed(2)}%`,
+                                                            isFinancial: false,
+                                                            inverse: true,
+                                                        },
+                                                        {
+                                                            name: 'Días Totales Ausencia',
+                                                            valA: comparativeStats.statsA.diasAusenciaTotal,
+                                                            valB: comparativeStats.statsB.diasAusenciaTotal,
+                                                            format: (v: number) => v,
+                                                            isFinancial: false,
+                                                            inverse: true,
+                                                        },
+                                                        {
+                                                            name: 'Pérdida Neta Asumida Empresa ($)',
+                                                            valA: comparativeStats.statsA.totalPerdidaNeta,
+                                                            valB: comparativeStats.statsB.totalPerdidaNeta,
+                                                            format: (v: number) => `$${v.toLocaleString('es-CO')}`,
+                                                            isFinancial: true,
+                                                            inverse: true,
+                                                        },
+                                                        {
+                                                            name: 'Subsidios Radicados / Recobro ($)',
+                                                            valA: comparativeStats.statsA.totalRecobros,
+                                                            valB: comparativeStats.statsB.totalRecobros,
+                                                            format: (v: number) => `$${v.toLocaleString('es-CO')}`,
+                                                            isFinancial: true,
+                                                            inverse: false, // more is better
+                                                        },
+                                                    ].map((row, idx) => {
+                                                        const delta = getDelta(row.valA, row.valB);
+                                                        const isBetter = row.inverse ? delta.isNegative : delta.isPositive;
+
+                                                        return (
+                                                            <tr key={idx} className="hover:bg-surface-secondary/50 transition-colors">
+                                                                <td className="px-3.5 py-2 font-semibold text-text-primary">
+                                                                    {row.name}
+                                                                </td>
+                                                                <td className="px-3 py-2 text-right font-mono text-text-secondary">
+                                                                    {row.format(row.valA)}
+                                                                </td>
+                                                                <td className="px-3 py-2 text-right font-mono font-bold text-text-primary">
+                                                                    {row.format(row.valB)}
+                                                                </td>
+                                                                <td className="px-3 py-2 text-right font-mono">
+                                                                    {delta.diff > 0 ? `+${row.format(delta.diff)}` : row.format(delta.diff)}
+                                                                </td>
+                                                                <td className="px-3 py-2 text-right font-mono font-bold">
+                                                                    {delta.pct > 0 ? `+${delta.pct}%` : `${delta.pct}%`}
+                                                                </td>
+                                                                <td className="px-3.5 py-2 text-center">
+                                                                    {delta.isZero ? (
+                                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-500 border border-slate-200 dark:border-zinc-700">
+                                                                            Sin variación
+                                                                        </span>
+                                                                    ) : isBetter ? (
+                                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center gap-1 mx-auto w-fit">
+                                                                            <TrendingDown className="w-3 h-3" /> Favorable
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center justify-center gap-1 mx-auto w-fit">
+                                                                            <TrendingUp className="w-3 h-3" /> Alerta
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    {/* Vista Adicional para Trimestres: 4 Tarjetas */}
+                                    {comparativeType === 'QUARTERLY' && (
+                                        <div className="space-y-3">
+                                            <h4 className="text-xs font-bold text-text-primary">
+                                                Resumen de los 4 Trimestres del Año {year}
+                                            </h4>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                                {quartersData.map((q, idx) => (
+                                                    <div key={idx} className="p-3.5 rounded-2xl bg-surface-primary border border-border-medium shadow-xs space-y-2">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-xs font-black uppercase text-teal-600">{q.periodName.split(' ')[0]}</span>
+                                                            <span className="text-[10px] text-text-secondary">{q.eventsCount} eventos</span>
+                                                        </div>
+                                                        <div className="text-xs space-y-1">
+                                                            <div className="flex justify-between">
+                                                                <span className="text-text-secondary">AT Totales:</span>
+                                                                <span className="font-bold text-rose-600">{q.numAT}</span>
+                                                            </div>
+                                                            <div className="flex justify-between">
+                                                                <span className="text-text-secondary">Frecuencia (IF):</span>
+                                                                <span className="font-mono font-bold">{q.frecuenciaAT}</span>
+                                                            </div>
+                                                            <div className="flex justify-between">
+                                                                <span className="text-text-secondary">Ausentismo Med:</span>
+                                                                <span className="font-mono font-bold text-amber-600">{q.ausentismoMedicoPct}%</span>
+                                                            </div>
+                                                            <div className="flex justify-between pt-1 border-t border-border-medium/40">
+                                                                <span className="text-text-secondary">Pérdida Neta:</span>
+                                                                <span className="font-mono font-black text-rose-600 text-[11px]">
+                                                                    ${q.totalPerdidaNeta.toLocaleString('es-CO')}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Vista Adicional para Semestres: S1 vs S2 */}
+                                    {comparativeType === 'SEMESTRAL' && (
+                                        <div className="space-y-3">
+                                            <h4 className="text-xs font-bold text-text-primary">
+                                                Balance Semestral de Gestión SST ({year})
+                                            </h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {semestersData.map((s, idx) => (
+                                                    <div key={idx} className="p-4 rounded-2xl bg-surface-primary border border-border-medium shadow-xs space-y-2">
+                                                        <div className="font-black text-xs uppercase text-teal-600 flex justify-between">
+                                                            <span>{s.periodName}</span>
+                                                            <span className="text-[10px] text-text-secondary">{s.eventsCount} eventos</span>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                                                            <div>
+                                                                <span className="text-[10px] text-text-secondary">Accidentes (AT):</span>
+                                                                <div className="font-bold text-rose-600">{s.numAT}</div>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] text-text-secondary">Días Incapacidad:</span>
+                                                                <div className="font-bold">{s.diasIncapacidadAT}</div>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] text-text-secondary">Tasa Frecuencia (IF):</span>
+                                                                <div className="font-mono font-bold">{s.frecuenciaAT}</div>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] text-text-secondary">Tasa Severidad (IS):</span>
+                                                                <div className="font-mono font-bold">{s.severidadAT}</div>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] text-text-secondary">Ausentismo Médico:</span>
+                                                                <div className="font-mono font-bold text-amber-600">{s.ausentismoMedicoPct}%</div>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] text-text-secondary">Pérdida Neta Total:</span>
+                                                                <div className="font-mono font-black text-rose-600">
+                                                                    ${s.totalPerdidaNeta.toLocaleString('es-CO')}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Matriz Anual Completa de los 12 Meses (Mini-Dashboard Evolutivo) */}
+                                    <div className="bg-surface-primary rounded-2xl border border-border-medium overflow-hidden shadow-xs">
+                                        <div className="p-3 bg-surface-secondary border-b border-border-medium flex items-center justify-between">
+                                            <h4 className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                                                <Calendar className="w-3.5 h-3.5 text-teal-600" />
+                                                Evolución de los 12 Meses del Año {year}
+                                            </h4>
+                                            <span className="text-[10px] text-text-secondary">Consolidado Mensual</span>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-xs text-left">
+                                                <thead className="bg-surface-tertiary/40 text-text-secondary text-[10px] font-bold border-b border-border-medium">
+                                                    <tr>
+                                                        <th className="px-3 py-2">Mes</th>
+                                                        <th className="px-2.5 py-2 text-right">Trabajadores</th>
+                                                        <th className="px-2.5 py-2 text-right">AT</th>
+                                                        <th className="px-2.5 py-2 text-right">Días AT</th>
+                                                        <th className="px-2.5 py-2 text-right">IF</th>
+                                                        <th className="px-2.5 py-2 text-right">IS</th>
+                                                        <th className="px-2.5 py-2 text-right">Ausent. Med %</th>
+                                                        <th className="px-3 py-2 text-right">Pérdida Neta ($ COP)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-border-medium/40 font-mono text-[11px]">
+                                                    {annual12MonthsData.map((m, idx) => (
+                                                        <tr key={idx} className={`hover:bg-surface-secondary/40 transition-colors ${currentMonthIndex === idx ? 'bg-teal-50/40 dark:bg-teal-950/20 font-bold' : ''}`}>
+                                                            <td className="px-3 py-2 font-sans font-semibold text-text-primary flex items-center gap-1.5">
+                                                                <span>{m.periodName}</span>
+                                                                {currentMonthIndex === idx && (
+                                                                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-teal-500 text-white font-bold">Activo</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-2.5 py-2 text-right text-text-secondary">{m.avgWorkers || '—'}</td>
+                                                            <td className="px-2.5 py-2 text-right font-bold text-rose-600">{m.numAT}</td>
+                                                            <td className="px-2.5 py-2 text-right">{m.diasIncapacidadAT}</td>
+                                                            <td className="px-2.5 py-2 text-right">{m.frecuenciaAT}</td>
+                                                            <td className="px-2.5 py-2 text-right">{m.severidadAT}</td>
+                                                            <td className="px-2.5 py-2 text-right text-amber-600 font-bold">{m.ausentismoMedicoPct}%</td>
+                                                            <td className="px-3 py-2 text-right font-bold text-rose-600">
+                                                                ${m.totalPerdidaNeta.toLocaleString('es-CO')}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Generación Inteligente y Botones de Acción */}
                             <div className="pt-4 border-t border-border-medium/60 flex flex-col sm:flex-row justify-between items-center gap-3">
                                 <div className="text-xs text-text-secondary flex items-center gap-2">
@@ -993,32 +1894,74 @@ const EstadisticasATEL = () => {
                                     <span>Genera un informe con balanza de pérdidas en COP ($) y las 6 fórmulas normativas.</span>
                                 </div>
 
-                                <div className="flex items-center gap-2">
+                                <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-md shadow-slate-200/30 dark:shadow-none">
+                                    {/* Botón Informe Mensual */}
                                     <button
+                                        type="button"
                                         onClick={() => handleGenerate('MONTH')}
                                         disabled={isGenerating || !currentData.numTrabajadores}
-                                        className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title={`Generar Informe Mensual (${MONTHS[currentMonthIndex]} ${year})`}
+                                        className="group flex h-8 sm:h-10 min-w-[32px] sm:min-w-[40px] px-2 sm:px-2.5 items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all duration-300 shadow-2xs active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        {isGenerating ? (
-                                            <Loader2 className="h-4 w-4 animate-spin text-teal-600" />
-                                        ) : (
-                                            <Calendar className="h-4 w-4 text-teal-600" />
-                                        )}
-                                        <span>Informe Mensual ({MONTHS[currentMonthIndex]})</span>
+                                        <div className="relative flex flex-shrink-0 items-center justify-center">
+                                            {isGenerating ? (
+                                                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-teal-600 dark:text-teal-400" />
+                                            ) : (
+                                                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400" />
+                                            )}
+                                        </div>
+                                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
+                                            <span className="text-xs sm:text-sm font-bold tracking-wide">
+                                                Informe Mensual ({MONTHS[currentMonthIndex]})
+                                            </span>
+                                        </div>
                                     </button>
 
+                                    {/* Botón Informe Anual (Gradiente IA Naranja) */}
                                     <button
+                                        type="button"
                                         onClick={() => handleGenerate('ANNUAL')}
                                         disabled={isGenerating || !currentData.numTrabajadores}
-                                        className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title={`Generar Informe Anual Consolidado ${year}`}
+                                        className="group flex h-8 sm:h-10 min-w-[32px] sm:min-w-[40px] px-2 sm:px-2.5 items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md transition-all duration-300 active:scale-95 border border-orange-400/40 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        {isGenerating ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Sparkles className="h-4 w-4" />
-                                        )}
-                                        <span>Informe Anual {year}</span>
+                                        <div className="relative flex flex-shrink-0 items-center justify-center">
+                                            {isGenerating ? (
+                                                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-white" />
+                                            ) : (
+                                                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                                            )}
+                                        </div>
+                                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
+                                            <span className="text-xs sm:text-sm font-bold tracking-wide">
+                                                Informe Anual {year}
+                                            </span>
+                                        </div>
                                     </button>
+
+                                    {/* Botón Informe Comparativo IA (si pestaña comparativa activa) */}
+                                    {activeTab === 'comparativa' && (
+                                        <button
+                                            type="button"
+                                            onClick={handleGenerateComparative}
+                                            disabled={isGenerating}
+                                            title="Generar Dictamen Comparativo IA"
+                                            className="group flex h-8 sm:h-10 min-w-[32px] sm:min-w-[40px] px-2 sm:px-2.5 items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md transition-all duration-300 active:scale-95 border border-teal-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <div className="relative flex flex-shrink-0 items-center justify-center">
+                                                {isGenerating ? (
+                                                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-white" />
+                                                ) : (
+                                                    <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                                                )}
+                                            </div>
+                                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
+                                                <span className="text-xs sm:text-sm font-bold tracking-wide">
+                                                    Informe Comparativo IA
+                                                </span>
+                                            </div>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>

@@ -25,13 +25,14 @@ const MONTHS = [
 router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
         const {
-            scope, // 'MONTH' | 'ANNUAL'
+            scope, // 'MONTH' | 'ANNUAL' | 'COMPARATIVE'
             year,
             targetMonthIndex,
             monthName,
             annualData, // Record<number, MonthData>
             modelName,
             userName,
+            comparativeConfig,
         } = req.body;
 
         const safeAnnualData = annualData || {};
@@ -316,17 +317,22 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 
         // Custom Header HTML (Standardized)
         const reportDate = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
-        const reportPeriod = scope === 'ANNUAL' ? `Año ${year} (Acumulado)` : `${monthName} ${year}`;
+        const isComparative = scope === 'COMPARATIVE';
+        const reportPeriod = isComparative
+            ? `Comparativa: ${comparativeConfig?.labelA || 'Periodo A'} vs ${comparativeConfig?.labelB || 'Periodo B'} (${year})`
+            : (scope === 'ANNUAL' ? `Año ${year} (Acumulado)` : `${monthName} ${year}`);
 
         const headerHTML = buildStandardHeader({
-            title: `GESTIÓN INTEGRAL DE AUSENTISMO, ATEL & COSTOS LABORALES — INFORME GERENCIAL (${scope === 'ANNUAL' ? 'ANUAL' : 'MENSUAL'})`,
+            title: `GESTIÓN INTEGRAL DE AUSENTISMO, ATEL & COSTOS LABORALES — INFORME GERENCIAL (${isComparative ? 'COMPARATIVO DE TENDENCIAS' : (scope === 'ANNUAL' ? 'ANUAL' : 'MENSUAL')})`,
             companyInfo: { companyName: companyName, nit: companyNit },
             date: reportDate,
             norm: `Res. 0312 de 2019 Art. 30 · NTC 3793 · CST · Factor Financiero IBC | Periodo: ${reportPeriod}`,
         });
 
         // ─── 4. Build Prompt ───────────────────────────────────────────
-        const periodLabel = scope === 'ANNUAL' ? `Acumulado Año ${year} (hasta ${monthName})` : `Mes: ${monthName} ${year}`;
+        const periodLabel = isComparative
+            ? `Análisis Comparativo: ${comparativeConfig?.labelA || 'Periodo A'} vs ${comparativeConfig?.labelB || 'Periodo B'} (${year})`
+            : (scope === 'ANNUAL' ? `Acumulado Año ${year} (hasta ${monthName})` : `Mes: ${monthName} ${year}`);
         
         let monthlyAnalysisHtml = '';
         if (scope === 'ANNUAL') {
@@ -349,6 +355,12 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
                 }
             });
             monthlyAnalysisHtml += `Crea una sección OBLIGATORIA llamada "Evolución Mensual" donde relates y analices el comportamiento mes tras mes exhaustivamente.\n`;
+        } else if (isComparative && comparativeConfig) {
+            monthlyAnalysisHtml += `\n**ANÁLISIS COMPARATIVO DE TENDENCIAS Y PERIODOS (REQUISITO CRÍTICO):**\n`;
+            monthlyAnalysisHtml += `El usuario requiere contrastar el desempeño de **${comparativeConfig.labelA}** frente a **${comparativeConfig.labelB}** (${comparativeConfig.type || 'Modalidad'}).\n`;
+            monthlyAnalysisHtml += `Resumen cuantitativo comparativo aportado por la plataforma:\n${comparativeConfig.summaryText || ''}\n`;
+            monthlyAnalysisHtml += `DEBES incluir una TABLA COMPARATIVA HTML lado a lado con: Indicador | ${comparativeConfig.labelA} | ${comparativeConfig.labelB} | Variación Absoluta | % Variación | Evaluación (Favorable/Alerta).\n`;
+            monthlyAnalysisHtml += `Analiza el comportamiento de la Frecuencia (IF), Severidad (IS), Ausentismo Médico % y Pérdida Financiera Neta ($ COP) explicando las causas y emitiendo un Plan de Choque Preventivo.\n`;
         }
 
         const promptText = `
