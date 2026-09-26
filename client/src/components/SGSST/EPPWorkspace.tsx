@@ -43,13 +43,14 @@ import {
   Minus,
   Check,
   RotateCw,
-  Save
+  Save,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { SignaturePad } from './SignaturePad';
 import { exportEppToExcel, type EppInventoryItem } from './exportEpp';
 import { saveAs } from 'file-saver';
-import { SGSSTToolbar } from './SGSSTToolbar';
+import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
@@ -1205,124 +1206,206 @@ export default function EPPWorkspace() {
   return (
     <div className="w-full space-y-6">
       
-      {/* ── BARRA SUPERIOR: SELECTOR DE VISTA Y KPIS DE CONTROL ── */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 p-4 md:p-5 rounded-3xl bg-gradient-to-r from-surface-primary via-surface-secondary/60 to-surface-primary border border-border-medium/80 shadow-md">
-        
-        {/* Selector de Pestañas / Vistas con Diseño WAPPY */}
-        <div className="flex items-center gap-3">
-          <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-surface-secondary border border-border-medium/80 shadow-inner">
-            <button
-              type="button"
-              onClick={() => setActiveView('workers')}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all active:scale-95 cursor-pointer",
-                activeView === 'workers'
-                  ? "bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-md shadow-teal-600/20"
-                  : "text-text-secondary hover:text-text-primary hover:bg-surface-primary/60"
-              )}
-            >
-              <UserCheck className="w-4 h-4" />
-              <span>Entregas a Trabajadores</span>
-              <span className={cn(
-                "text-[10px] px-2 py-0.5 rounded-full font-black",
-                activeView === 'workers' ? "bg-white/20 text-white" : "bg-surface-tertiary text-text-tertiary"
-              )}>
-                {workers.length}
-              </span>
-            </button>
+      {/* ─── TOOLBAR SUPERIOR ESTÁNDAR SGSST CON BOTONES EXPANDIBLES ──────── */}
+      <SGSSTToolbar
+        selectedModel={selectedModel}
+        onSelectModel={setSelectedModel}
+        historyButtons={[
+          {
+            id: 'tb-tab-trabajadores',
+            onClick: () => setActiveView('workers'),
+            label: `Entregas (${workers.length})`,
+            icon: UserCheck,
+            title: 'Ver Entregas y Dotación de EPP por Colaborador',
+            variant: 'history',
+            active: activeView === 'workers',
+            badge: workers.length > 0 ? workers.length : undefined,
+          },
+          {
+            id: 'tb-tab-almacen',
+            onClick: () => setActiveView('inventory'),
+            label: `Almacén y Stock (${inventoryItems.length})`,
+            icon: Boxes,
+            title: 'Ver Almacén Central y Control de Stock de EPP',
+            variant: 'history',
+            active: activeView === 'inventory',
+            badge: (lowStockItems.length + outOfStockItems.length) > 0 ? `${lowStockItems.length + outOfStockItems.length}` : (inventoryItems.length > 0 ? inventoryItems.length : undefined),
+          },
+        ]}
+        customSections={[
+          <div key="epp-custom-toolbar" className="flex items-center gap-1.5">
+            {activeView === 'workers' ? (
+              <>
+                {selectedWorker && (
+                  <>
+                    <ToolbarButton
+                      id="tb-new-delivery"
+                      onClick={() => setIsModalOpen(true)}
+                      label="Nueva Entrega"
+                      icon={Plus}
+                      title={`Registrar Entrega de EPP para ${selectedWorker.nombre}`}
+                      variant="ai"
+                    />
+                    {recommendedEpps.length > 0 && (
+                      <ToolbarButton
+                        id="tb-deliver-recommended"
+                        onClick={handleDeliverAllRecommended}
+                        label="Entregar Recomendados"
+                        icon={PackageCheck}
+                        title="Entregar todos los EPP sugeridos pendientes"
+                        variant="dummy"
+                      />
+                    )}
+                  </>
+                )}
+                <ToolbarButton
+                  id="tb-export-excel-workers"
+                  onClick={handleExportExcel}
+                  label="Exportar Excel"
+                  icon={FileSpreadsheet}
+                  title="Descargar matriz de entregas e inventario en Excel"
+                  variant="excel"
+                />
+              </>
+            ) : (
+              <>
+                <ToolbarButton
+                  id="tb-new-epp"
+                  onClick={() => {
+                    resetInventoryForm();
+                    setIsInventoryModalOpen(true);
+                  }}
+                  label="Nuevo EPP"
+                  icon={Plus}
+                  title="Registrar nuevo elemento en bodega"
+                  variant="ai"
+                />
+                <ToolbarButton
+                  id="tb-seed-catalog"
+                  onClick={handleSeedDefaults}
+                  label="Catálogo Sugerido"
+                  icon={Sparkles}
+                  title="Cargar 15 referencias sugeridas de EPP para Colombia"
+                  variant="dummy"
+                  isLoading={invLoading}
+                />
+                <ToolbarButton
+                  id="tb-export-excel-inv"
+                  onClick={handleExportExcel}
+                  label="Exportar Inventario"
+                  icon={FileSpreadsheet}
+                  title="Descargar inventario de bodega en Excel"
+                  variant="excel"
+                />
+              </>
+            )}
+          </div>
+        ]}
+        onAnalyze={handleGenerate}
+        isAnalyzing={isGenerating}
+        exportContent={selectedWorker && selectedDoc && selectedDoc.entregas && selectedDoc.entregas.length > 0 ? buildReceiptHtml(
+          selectedWorker,
+          selectedDoc,
+          selectedDoc.entregas.filter(e => e.firmaTrabajador).slice(-1)[0]?.firmaTrabajador || selectedWorker.firmaDigital,
+          localStorage.getItem('wappy_sst_global_logo') || 'https://wappy.club/assets/logo.png',
+          new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })
+        ) : ''}
+        exportFileName={selectedWorker ? `Acta_Entrega_EPP_${selectedWorker.nombre.replace(/\s+/g, '_')}` : 'Registro_EPP'}
+        onExportExcel={handleExportExcel}
+      />
 
-            <button
-              type="button"
-              onClick={() => setActiveView('inventory')}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all active:scale-95 cursor-pointer",
-                activeView === 'inventory'
-                  ? "bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-md shadow-teal-600/20"
-                  : "text-text-secondary hover:text-text-primary hover:bg-surface-primary/60"
-              )}
-            >
-              <Boxes className="w-4 h-4" />
-              <span>Almacén y Stock de EPP</span>
-              <span className={cn(
-                "text-[10px] px-2 py-0.5 rounded-full font-black",
-                activeView === 'inventory' ? "bg-white/20 text-white" : "bg-surface-tertiary text-text-tertiary"
-              )}>
-                {inventoryItems.length}
-              </span>
-            </button>
+      {/* ─── ENCABEZADO DE SECCIÓN ACTIVA (WAPPY DESIGN SYSTEM) ───────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border-light dark:border-white/10 pb-3">
+        <div>
+          <h2 className="text-base font-bold text-text-primary flex items-center gap-2">
+            {activeView === 'workers' ? (
+              <>
+                <UserCheck className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                <span>Control y Seguimiento de Entregas a Trabajadores</span>
+              </>
+            ) : (
+              <>
+                <Boxes className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                <span>Almacén Central y Control de Stock de EPP</span>
+              </>
+            )}
+          </h2>
+          <p className="text-xs text-text-secondary mt-0.5">
+            {activeView === 'workers'
+              ? 'Gestión de dotaciones individuales, firmas de conformidad y control de caducidad.'
+              : 'Control de existencias físicas, umbrales mínimos de abastecimiento y trazabilidad de almacén.'}
+          </p>
+        </div>
+      </div>
+
+      {/* 4 Métricas Clave / KPIs (Almacén y Operación) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* KPI 1: En Bodega */}
+        <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-surface-primary border border-border-medium shadow-2xs">
+          <div className="w-9 h-9 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+            <Package className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">En Bodega</p>
+            <p className="text-sm font-black text-text-primary">{totalStockUnits} <span className="text-[10px] font-semibold text-text-secondary">uds</span></p>
           </div>
         </div>
 
-        {/* 4 Métricas Clave / KPIs (Almacén y Operación) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {/* KPI 1: En Bodega */}
-          <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-surface-primary border border-border-medium shadow-2xs">
-            <div className="w-9 h-9 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
-              <Package className="w-4.5 h-4.5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">En Bodega</p>
-              <p className="text-sm font-black text-text-primary">{totalStockUnits} <span className="text-[10px] font-semibold text-text-secondary">uds</span></p>
-            </div>
-          </div>
-
-          {/* KPI 2: Stock Crítico / Bajo */}
+        {/* KPI 2: Stock Crítico / Bajo */}
+        <div className={cn(
+          "flex items-center gap-3 px-3.5 py-2.5 rounded-2xl border shadow-2xs transition-colors",
+          (lowStockItems.length > 0 || outOfStockItems.length > 0)
+            ? "bg-amber-500/5 border-amber-500/30"
+            : "bg-surface-primary border-border-medium"
+        )}>
           <div className={cn(
-            "flex items-center gap-3 px-3.5 py-2.5 rounded-2xl border shadow-2xs transition-colors",
+            "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
             (lowStockItems.length > 0 || outOfStockItems.length > 0)
-              ? "bg-amber-500/5 border-amber-500/30"
-              : "bg-surface-primary border-border-medium"
+              ? "bg-amber-500/15 text-amber-500"
+              : "bg-emerald-500/10 text-emerald-500"
           )}>
-            <div className={cn(
-              "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
-              (lowStockItems.length > 0 || outOfStockItems.length > 0)
-                ? "bg-amber-500/15 text-amber-500"
-                : "bg-emerald-500/10 text-emerald-500"
-            )}>
-              <AlertTriangle className="w-4.5 h-4.5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Stock Crítico</p>
-              <p className={cn(
-                "text-sm font-black",
-                (lowStockItems.length > 0 || outOfStockItems.length > 0) ? "text-amber-500" : "text-emerald-500"
-              )}>
-                {lowStockItems.length + outOfStockItems.length} <span className="text-[10px] font-semibold text-text-secondary">refs</span>
-              </p>
-            </div>
+            <AlertTriangle className="w-4.5 h-4.5" />
           </div>
-
-          {/* KPI 3: Total Entregas */}
-          <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-surface-primary border border-border-medium shadow-2xs">
-            <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-4.5 h-4.5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Dotaciones</p>
-              <p className="text-sm font-black text-text-primary">{totalDeliveries} <span className="text-[10px] font-semibold text-text-secondary">entregas</span></p>
-            </div>
-          </div>
-
-          {/* KPI 4: Vencidos / Alertas */}
-          <div className={cn(
-            "flex items-center gap-3 px-3.5 py-2.5 rounded-2xl border shadow-2xs transition-colors",
-            expiredDeliveries > 0 ? "bg-red-500/5 border-red-500/30" : "bg-surface-primary border-border-medium"
-          )}>
-            <div className={cn(
-              "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
-              expiredDeliveries > 0 ? "bg-red-500/15 text-red-500" : "bg-slate-500/10 text-text-tertiary"
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Stock Crítico</p>
+            <p className={cn(
+              "text-sm font-black",
+              (lowStockItems.length > 0 || outOfStockItems.length > 0) ? "text-amber-500" : "text-emerald-500"
             )}>
-              <AlertCircle className="w-4.5 h-4.5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Vencidos</p>
-              <p className={cn("text-sm font-black", expiredDeliveries > 0 ? "text-red-500" : "text-text-secondary")}>
-                {expiredDeliveries} <span className="text-[10px] font-semibold text-text-secondary">alertas</span>
-              </p>
-            </div>
+              {lowStockItems.length + outOfStockItems.length} <span className="text-[10px] font-semibold text-text-secondary">refs</span>
+            </p>
           </div>
         </div>
 
+        {/* KPI 3: Total Entregas */}
+        <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-surface-primary border border-border-medium shadow-2xs">
+          <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Dotaciones</p>
+            <p className="text-sm font-black text-text-primary">{totalDeliveries} <span className="text-[10px] font-semibold text-text-secondary">entregas</span></p>
+          </div>
+        </div>
+
+        {/* KPI 4: Vencidos / Alertas */}
+        <div className={cn(
+          "flex items-center gap-3 px-3.5 py-2.5 rounded-2xl border shadow-2xs transition-colors",
+          expiredDeliveries > 0 ? "bg-red-500/5 border-red-500/30" : "bg-surface-primary border-border-medium"
+        )}>
+          <div className={cn(
+            "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+            expiredDeliveries > 0 ? "bg-red-500/15 text-red-500" : "bg-slate-500/10 text-text-tertiary"
+          )}>
+            <AlertCircle className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Vencidos</p>
+            <p className={cn("text-sm font-black", expiredDeliveries > 0 ? "text-red-500" : "text-text-secondary")}>
+              {expiredDeliveries} <span className="text-[10px] font-semibold text-text-secondary">alertas</span>
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* ── CONTENIDO PRINCIPAL: CONDICIONADO POR activeView ── */}
@@ -1473,31 +1556,14 @@ export default function EPPWorkspace() {
                 </div>
               </div>
 
-              <div className="-my-2">
-                <SGSSTToolbar
-                  onAnalyze={handleGenerate}
-                  isAnalyzing={isGenerating}
-                  selectedModel={selectedModel}
-                  onSelectModel={setSelectedModel}
-                  exportContent={selectedDoc && selectedDoc.entregas && selectedDoc.entregas.length > 0 ? buildReceiptHtml(
-                    selectedWorker,
-                    selectedDoc,
-                    selectedDoc.entregas.filter(e => e.firmaTrabajador).slice(-1)[0]?.firmaTrabajador || selectedWorker.firmaDigital,
-                    localStorage.getItem('wappy_sst_global_logo') || 'https://wappy.club/assets/logo.png',
-                    new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })
-                  ) : ''}
-                  exportFileName={`Acta_Entrega_EPP_${selectedWorker.nombre.replace(/\s+/g, '_')}`}
-                  persistenceButtons={[
-                    {
-                      id: 'add-delivery',
-                      onClick: () => setIsModalOpen(true),
-                      label: 'Registrar Entrega',
-                      title: 'Registrar nueva entrega de EPP',
-                      icon: Plus,
-                      variant: 'ai'
-                    }
-                  ]}
-                  onExportExcel={handleExportExcel}
+              <div className="flex items-center gap-2">
+                <ToolbarButton
+                  id="sw-new-delivery"
+                  onClick={() => setIsModalOpen(true)}
+                  label="Registrar Entrega"
+                  icon={Plus}
+                  title={`Registrar nueva entrega de EPP para ${selectedWorker.nombre}`}
+                  variant="ai"
                 />
               </div>
             </div>
@@ -1532,27 +1598,26 @@ export default function EPPWorkspace() {
                     </div>
                   </button>
 
-                  <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                    <button
+                  <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0">
+                    <ToolbarButton
+                      id="rec-sync-ipevar"
                       onClick={handleSyncFromIpevar}
-                      disabled={isSyncingIpevar}
-                      className="px-3.5 py-2 text-xs font-bold rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                      label={isSyncingIpevar ? 'Sincronizando...' : 'Sincronizar IPEVAR'}
+                      icon={RefreshCw}
                       title="Sincronizar EPPs del cargo con la Matriz de Peligros IPEVAR (Hito 1)"
-                    >
-                      <RefreshCw className={cn("w-3.5 h-3.5 text-teal-600 dark:text-teal-400", isSyncingIpevar && "animate-spin")} />
-                      <span>{isSyncingIpevar ? 'Sincronizando...' : 'Sincronizar con IPEVAR'}</span>
-                    </button>
+                      variant="default"
+                      isLoading={isSyncingIpevar}
+                    />
                     {recommendedEpps.length > 0 && (
-                      <button
+                      <ToolbarButton
+                        id="rec-deliver-all"
                         onClick={handleDeliverAllRecommended}
-                        disabled={loading}
-                        className="px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                        label="Entregar Recomendados"
+                        icon={PackageCheck}
                         title="Registrar entrega de todos los EPPs requeridos no entregados aún"
-                      >
-                        <PackageCheck className="w-4 h-4 text-white" />
-                        <span className="hidden sm:inline">Entregar Dotación Completa</span>
-                        <span className="sm:hidden">Dotación</span>
-                      </button>
+                        variant="ai"
+                        disabled={loading}
+                      />
                     )}
                   </div>
                 </div>
@@ -1913,39 +1978,35 @@ export default function EPPWorkspace() {
           </div>
 
           {/* Botones de Acción Superiores */}
-          <div className="flex items-center flex-wrap gap-2.5">
-            <button
-              type="button"
-              onClick={handleSeedDefaults}
-              disabled={invLoading}
-              className="px-3.5 py-2 rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm text-xs font-bold flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-              title="Cargar 15 referencias estándar de EPP con stock sugerido"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Catálogo Sugerido</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleExportExcel}
-              className="px-3.5 py-2 rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm text-xs font-bold flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
-              title="Exportar inventario y entregas a Excel"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-              <span>Excel</span>
-            </button>
-
-            <button
-              type="button"
+          <div className="flex items-center gap-1.5">
+            <ToolbarButton
+              id="bodega-new-epp"
               onClick={() => {
                 resetInventoryForm();
                 setIsInventoryModalOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nuevo EPP en Bodega</span>
-            </button>
+              label="Nuevo EPP en Bodega"
+              icon={Plus}
+              title="Registrar nuevo elemento en bodega"
+              variant="ai"
+            />
+            <ToolbarButton
+              id="bodega-seed"
+              onClick={handleSeedDefaults}
+              label="Catálogo Sugerido"
+              icon={Sparkles}
+              title="Cargar 15 referencias estándar de EPP con stock sugerido"
+              variant="dummy"
+              isLoading={invLoading}
+            />
+            <ToolbarButton
+              id="bodega-excel"
+              onClick={handleExportExcel}
+              label="Exportar Excel"
+              icon={FileSpreadsheet}
+              title="Exportar inventario y entregas a Excel"
+              variant="excel"
+            />
           </div>
         </div>
 
