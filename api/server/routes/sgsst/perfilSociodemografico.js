@@ -1564,16 +1564,22 @@ Tabla con periodicidad de valoraciones médicas, exámenes paraclínicos (audiom
         doc.markModified('trabajadores');
         await doc.save();
       } else {
+        const cleanId = String(workerId).trim();
+        const filterConditions = [
+          { 'elem.id': cleanId },
+          { 'elem.identificacion': cleanId }
+        ];
+        if (mongoose.Types.ObjectId.isValid(cleanId)) {
+          filterConditions.push({ 'elem._id': new mongoose.Types.ObjectId(cleanId) });
+        }
+
         await PerfilSociodemograficoData.updateOne(
           { 
             user: targetUserId, 
-            ...(companyId ? { companyId } : {}),
-            $or: [
-              { 'trabajadores.id': workerId },
-              { 'trabajadores._id': workerId }
-            ]
+            ...(companyId ? { companyId } : {})
           },
-          { $set: { 'trabajadores.$.dictamenPredictivoH1': fullReport, updatedAt: new Date() } }
+          { $set: { 'trabajadores.$[elem].dictamenPredictivoH1': fullReport, updatedAt: new Date() } },
+          { arrayFilters: [{ $or: filterConditions }] }
         );
       }
     } catch (saveErr) {
@@ -1600,31 +1606,53 @@ router.post('/worker/:workerId/dictamen', express.json({ limit: '10mb' }), requi
     const targetUserId = (isSub && req.user.parentUser) ? req.user.parentUser : req.user.id;
     const companyId = await getActiveCompanyId(targetUserId, isSub ? req.user.assignedCompany : null);
 
-    // 1. Intentar actualización posicional directa
+    const cleanWId = String(workerId).trim();
+    const filterConditions = [
+      { 'elem.id': cleanWId },
+      { 'elem.id': isNaN(Number(cleanWId)) ? cleanWId : Number(cleanWId) },
+      { 'elem.identificacion': cleanWId }
+    ];
+    if (mongoose.Types.ObjectId.isValid(cleanWId)) {
+      filterConditions.push({ 'elem._id': new mongoose.Types.ObjectId(cleanWId) });
+    }
+
+    // 1. Actualización atómica directa con arrayFilters (evita el error de operador posicional con $or)
     let result = await PerfilSociodemograficoData.updateOne(
       { 
         user: targetUserId, 
-        ...(companyId ? { companyId } : {}),
-        $or: [
-          { 'trabajadores.id': workerId },
-          { 'trabajadores.id': isNaN(Number(workerId)) ? workerId : Number(workerId) },
-          { 'trabajadores._id': workerId }
-        ]
+        ...(companyId ? { companyId } : {})
       },
-      { $set: { 'trabajadores.$.dictamenPredictivoH1': dictamen, updatedAt: new Date() } }
+      { 
+        $set: { 
+          'trabajadores.$[elem].dictamenPredictivoH1': dictamen, 
+          updatedAt: new Date() 
+        } 
+      },
+      { 
+        arrayFilters: [{ $or: filterConditions }] 
+      }
     );
 
-    // 2. Fallback de seguridad si no encontró coincidencia directa
-    if (!result || result.matchedCount === 0) {
-      const doc = await PerfilSociodemograficoData.findOne({
+    // 2. Fallback de seguridad si no modificó por discrepancia de companyId o formato
+    if (!result || result.modifiedCount === 0) {
+      let doc = await PerfilSociodemograficoData.findOne({
         user: targetUserId,
         ...(companyId ? { companyId } : {})
       });
-      if (doc && doc.trabajadores) {
-        const idx = doc.trabajadores.findIndex(w => String(w.id) === String(workerId) || String(w._id) === String(workerId));
+      if (!doc) {
+        doc = await PerfilSociodemograficoData.findOne({ user: targetUserId });
+      }
+
+      if (doc && Array.isArray(doc.trabajadores)) {
+        const idx = doc.trabajadores.findIndex(
+          w => String(w.id).trim() === cleanWId ||
+               String(w._id).trim() === cleanWId ||
+               String(w.identificacion).trim() === cleanWId
+        );
         if (idx !== -1) {
           doc.trabajadores[idx].dictamenPredictivoH1 = dictamen;
           doc.markModified('trabajadores');
+          doc.updatedAt = new Date();
           await doc.save();
           result = { matchedCount: 1, modifiedCount: 1 };
         }
