@@ -1070,34 +1070,44 @@ router.get('/data', requireJwtAuth, async (req, res) => {
     const isSub = !!req.user.isSubUser;
     const targetUserId = (isSub && req.user.parentUser) ? req.user.parentUser : req.user.id;
     const companyId = await getActiveCompanyId(targetUserId, isSub ? req.user.assignedCompany : null);
-    const data = await PerfilSociodemograficoData.findOne({ user: targetUserId, companyId: companyId });
+    const data = await PerfilSociodemograficoData.findOne({ user: targetUserId, companyId: companyId }).lean();
     if (data) {
-      // Recalculate scores for all workers to ensure perfect parity with the Matriz
-      // This is the canonical source of truth — any view that reads from here gets the same score
-      let needsSave = false;
       let finalWorkers = data.trabajadores || [];
 
-      if (data.trabajadores && data.trabajadores.length > 0 && !isSub) {
+      // Check if any worker is missing biocentricScore (legacy records)
+      const hasMissingScores = finalWorkers.some(w => w.biocentricScore === undefined || w.biocentricScore === null);
+
+      if (hasMissingScores && !isSub) {
         try {
-          const updatedWorkers = await recalculateAndSyncAllWorkers(targetUserId, companyId, data.trabajadores);
-          // Check if any score changed — if so, persist the updated scores
-          for (let i = 0; i < updatedWorkers.length; i++) {
-            const orig = data.trabajadores[i];
-            const updated = updatedWorkers[i];
-            if (orig && updated && (orig.biocentricScore !== updated.biocentricScore ||
-                JSON.stringify(orig.biocentricAlerts) !== JSON.stringify(updated.biocentricAlerts))) {
-              needsSave = true;
-              break;
+          const PerfilesCargo = mongoose.models.PerfilCargoData;
+          const cargoDoc = PerfilesCargo ? await PerfilesCargo.findOne({ user: targetUserId, companyId }).lean() : null;
+          const perfilesList = cargoDoc?.perfilesList || [];
+
+          finalWorkers = finalWorkers.map(w => {
+            if (w.biocentricScore !== undefined && w.biocentricScore !== null) return w;
+            const fitResult = calculateBiocentricFitBackend(w, perfilesList);
+            return {
+              ...w,
+              biocentricScore: fitResult.score,
+              biocentricAlerts: fitResult.alerts,
+              biocentricIsLethal: fitResult.isLethal
+            };
+          });
+
+          // Sync in background without blocking GET response
+          setImmediate(async () => {
+            try {
+              await recalculateAndSyncAllWorkers(targetUserId, companyId, finalWorkers);
+              await PerfilSociodemograficoData.updateOne(
+                { user: targetUserId, companyId },
+                { $set: { trabajadores: finalWorkers, updatedAt: Date.now() } }
+              );
+            } catch (bgErr) {
+              logger.debug('[SGSST PerfilSociodemografico] Background score sync:', bgErr.message);
             }
-          }
-          if (needsSave) {
-            data.trabajadores = updatedWorkers;
-            data.updatedAt = Date.now();
-            await data.save();
-          }
-          finalWorkers = updatedWorkers;
+          });
         } catch (recalcErr) {
-          logger.error('[SGSST PerfilSociodemografico] Error recalculating scores on GET /data:', recalcErr);
+          logger.error('[SGSST PerfilSociodemografico] Error calculating missing scores on GET /data:', recalcErr);
         }
       }
 
@@ -2379,7 +2389,8 @@ async function recalculateAndSyncAllWorkers(userId, companyId, trabajadoresList)
       };
     });
 
-    // Sincronizar en lote a SgsstWorker
+    // Sincronizar en lote a SgsstWorker con bulkWrite (un solo round-trip)
+    const bulkOps = [];
     for (const w of updatedWorkers) {
       if (!w.identificacion) continue;
       const cleanDoc = String(w.identificacion).trim();
@@ -2389,21 +2400,27 @@ async function recalculateAndSyncAllWorkers(userId, companyId, trabajadoresList)
         .filter(Boolean)
         .join('; ') || '';
 
-      await SgsstWorker.updateOne(
-        { user: userId, companyId, documento: cleanDoc },
-        {
-          $set: {
-            nombre: w.nombre,
-            cargo: w.cargo || '',
-            genero: w.genero || 'No especificado',
-            fechaNacimiento: w.fechaNacimiento || null,
-            condicionesSalud: conditionsStr,
-            fitScore: w.biocentricScore,
-            fitAlerts: w.biocentricAlerts,
-            updatedAt: Date.now()
+      bulkOps.push({
+        updateOne: {
+          filter: { user: userId, companyId, documento: cleanDoc },
+          update: {
+            $set: {
+              nombre: w.nombre,
+              cargo: w.cargo || '',
+              genero: w.genero || 'No especificado',
+              fechaNacimiento: w.fechaNacimiento || null,
+              condicionesSalud: conditionsStr,
+              fitScore: w.biocentricScore,
+              fitAlerts: w.biocentricAlerts,
+              updatedAt: Date.now()
+            }
           }
         }
-      );
+      });
+    }
+
+    if (bulkOps.length > 0) {
+      await SgsstWorker.bulkWrite(bulkOps, { ordered: false });
     }
 
     return updatedWorkers;

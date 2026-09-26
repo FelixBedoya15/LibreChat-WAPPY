@@ -282,9 +282,14 @@ async function ensurePerfilExists(userId, companyId, cargoName, contextInfo = {}
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
     const companyId = await getActiveCompanyId(req.user.id);
-    let data = await PerfilCargoData.findOne({ user: req.user.id, companyId: companyId });
+    let data = await PerfilCargoData.findOne({ user: req.user.id, companyId: companyId }).lean();
 
-    // Sincronizar automáticamente con cargos presentes en la matriz IPEVAR oficial
+    // Si ya existen perfiles registrados, responder de inmediato sin bloquear con escaneo de matriz
+    if (data && Array.isArray(data.perfilesList) && data.perfilesList.length > 0) {
+      return res.json({ perfilesList: data.perfilesList });
+    }
+
+    // Sincronizar automáticamente sólo si la lista está vacía (primera inicialización)
     const GTC45Session = mongoose.models.GTC45WorkspaceSession;
     if (GTC45Session) {
       try {
@@ -294,19 +299,19 @@ router.get('/data', requireJwtAuth, async (req, res) => {
             user: req.user.id,
             ...(companyId ? { companyId } : {}),
             isOfficial: true,
-          })) || (await GTC45Session.findOne({ conversationId: officialConvoId }));
+          }).lean()) || (await GTC45Session.findOne({ conversationId: officialConvoId }).lean());
         if (!session) {
           session = await GTC45Session.findOne({
             user: req.user.id,
             ...(companyId ? { companyId } : {}),
             'matrixRows.0': { $exists: true },
-          }).sort({ updatedAt: -1 });
+          }).sort({ updatedAt: -1 }).lean();
         }
         if (!session) {
           session = await GTC45Session.findOne({
             user: req.user.id,
             'matrixRows.0': { $exists: true },
-          }).sort({ updatedAt: -1 });
+          }).sort({ updatedAt: -1 }).lean();
         }
         if (session && Array.isArray(session.matrixRows)) {
           let hasNew = false;
@@ -317,7 +322,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
             }
           }
           if (hasNew) {
-            data = await PerfilCargoData.findOne({ user: req.user.id, companyId: companyId });
+            data = await PerfilCargoData.findOne({ user: req.user.id, companyId: companyId }).lean();
           }
         }
       } catch (syncErr) {
