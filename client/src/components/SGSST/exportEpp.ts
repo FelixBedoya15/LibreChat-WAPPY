@@ -34,9 +34,28 @@ interface SocioWorker {
   cargo: string;
 }
 
+export interface EppInventoryItem {
+  id: string;
+  codigo?: string;
+  nombre: string;
+  categoria?: string;
+  tipo: 'Regular' | 'Alturas';
+  marca?: string;
+  referencia?: string;
+  talla?: string;
+  unidad?: string;
+  stockActual: number;
+  stockMinimo: number;
+  costoUnitario?: number;
+  ubicacionBodega?: string;
+  observaciones?: string;
+  updatedAt?: string | Date;
+}
+
 export const exportEppToExcel = async (
   eppDocs: WorkerEppDoc[],
-  allWorkers: SocioWorker[]
+  allWorkers: SocioWorker[],
+  inventoryItems?: EppInventoryItem[]
 ) => {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Wappy IA';
@@ -370,6 +389,117 @@ export const exportEppToExcel = async (
     });
     col.width = Math.min(35, Math.max(10, maxLen + 2));
   });
+
+  // ── HOJA 4: INVENTARIO Y STOCK EN BODEGA (Si aplica) ──
+  if (Array.isArray(inventoryItems) && inventoryItems.length > 0) {
+    const wsInventory = wb.addWorksheet('Inventario de Bodega', {
+      views: [{ showGridLines: true }]
+    });
+
+    wsInventory.mergeCells('A1:L2');
+    const titleInv = wsInventory.getCell('A1');
+    titleInv.value = '📦 INVENTARIO Y STOCK GENERAL DE EPP (BODEGA)';
+    titleInv.font = { size: 15, bold: true, color: { argb: 'FFFFFFFF' }, name: 'Segoe UI' };
+    titleInv.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D9488' } };
+    titleInv.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    wsInventory.mergeCells('A3:L3');
+    const infoInv = wsInventory.getCell('A3');
+    infoInv.value = `Corte de inventario: ${new Date().toLocaleDateString('es-CO')} | Total referencias: ${inventoryItems.length}`;
+    infoInv.font = { size: 10, italic: true, color: { argb: 'FF475569' } };
+    infoInv.alignment = { vertical: 'middle', horizontal: 'left' };
+
+    const invHeaders = [
+      'Código / SKU',
+      'Elemento / EPP',
+      'Categoría',
+      'Tipo',
+      'Marca',
+      'Referencia',
+      'Talla',
+      'Unidad',
+      'Stock Actual',
+      'Stock Mínimo',
+      'Estado Stock',
+      'Ubicación'
+    ];
+
+    const hRowInv = wsInventory.addRow(invHeaders);
+    hRowInv.height = 25;
+    hRowInv.eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Segoe UI' };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF115E59' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF042F2E' } },
+        left: { style: 'thin', color: { argb: 'FF042F2E' } },
+        bottom: { style: 'medium', color: { argb: 'FF042F2E' } },
+        right: { style: 'thin', color: { argb: 'FF042F2E' } }
+      };
+    });
+
+    inventoryItems.forEach((item) => {
+      const stock = Number(item.stockActual) || 0;
+      const min = Number(item.stockMinimo) || 0;
+      let estado = 'Óptimo';
+      if (stock === 0) estado = 'Agotado ❌';
+      else if (stock <= min) estado = 'Stock Bajo ⚠️';
+
+      const row = wsInventory.addRow([
+        item.codigo || 'S/C',
+        item.nombre,
+        item.categoria || 'Otro',
+        item.tipo || 'Regular',
+        item.marca || 'N/A',
+        item.referencia || 'N/A',
+        item.talla || 'Única',
+        item.unidad || 'Unidad',
+        stock,
+        min,
+        estado,
+        item.ubicacionBodega || 'Almacén'
+      ]);
+
+      row.height = 22;
+      row.eachCell((cell, colNum) => {
+        cell.font = { size: 10, name: 'Segoe UI' };
+        if (colNum <= 2 || colNum === 12) {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        } else {
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        }
+
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+        };
+
+        if (colNum === 11) {
+          if (stock === 0) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+            cell.font = { bold: true, color: { argb: 'FF991B1B' }, size: 10, name: 'Segoe UI' };
+          } else if (stock <= min) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEF08A10' } };
+            cell.font = { bold: true, color: { argb: 'FF854D0E' }, size: 10, name: 'Segoe UI' };
+          } else {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDF4' } };
+            cell.font = { color: { argb: 'FF166534' }, size: 10, name: 'Segoe UI' };
+          }
+        }
+      });
+    });
+
+    wsInventory.columns.forEach((col) => {
+      let maxLen = 0;
+      col.eachCell!({ includeEmpty: true }, (cell) => {
+        const val = cell.value ? cell.value.toString() : '';
+        if (val.length > maxLen) maxLen = val.length;
+      });
+      col.width = Math.min(35, Math.max(10, maxLen + 2));
+    });
+  }
 
   // Escribir archivo y descargar
   const buffer = await wb.xlsx.writeBuffer();

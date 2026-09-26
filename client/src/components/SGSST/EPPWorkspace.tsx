@@ -28,11 +28,26 @@ import {
   Zap,
   PackageCheck,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  Boxes,
+  Package,
+  ShieldCheck,
+  UserCheck,
+  Edit3,
+  Filter,
+  Info,
+  Tag,
+  Barcode,
+  MapPin,
+  Layers,
+  Minus,
+  Check,
+  RotateCw,
+  Save
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { SignaturePad } from './SignaturePad';
-import { exportEppToExcel } from './exportEpp';
+import { exportEppToExcel, type EppInventoryItem } from './exportEpp';
 import { saveAs } from 'file-saver';
 import { SGSSTToolbar } from './SGSSTToolbar';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
@@ -155,6 +170,39 @@ export default function EPPWorkspace() {
   const [eppDocs, setEppDocs] = useState<WorkerEppDoc[]>([]);
   const [selectedWorker, setSelectedWorker] = useState<SocioWorker | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // ── Vista Activa (Entregas o Almacén) ──
+  const [activeView, setActiveView] = useState<'workers' | 'inventory'>('workers');
+
+  // ── Estado de Inventario y Stock de EPP ──
+  const [inventoryItems, setInventoryItems] = useState<EppInventoryItem[]>([]);
+  const [inventorySearch, setInventorySearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('Todas');
+  const [selectedStockFilter, setSelectedStockFilter] = useState<'all' | 'low' | 'out' | 'ok'>('all');
+  const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
+  const [editingInventoryItem, setEditingInventoryItem] = useState<EppInventoryItem | null>(null);
+  const [invLoading, setInvLoading] = useState(false);
+
+  // Formulario de EPP en Inventario
+  const [invFormCodigo, setInvFormCodigo] = useState('');
+  const [invFormNombre, setInvFormNombre] = useState('');
+  const [invFormCategoria, setInvFormCategoria] = useState('Protección de Cabeza');
+  const [invFormTipo, setInvFormTipo] = useState<'Regular' | 'Alturas'>('Regular');
+  const [invFormMarca, setInvFormMarca] = useState('');
+  const [invFormReferencia, setInvFormReferencia] = useState('');
+  const [invFormTalla, setInvFormTalla] = useState('Única');
+  const [invFormUnidad, setInvFormUnidad] = useState('Unidad');
+  const [invFormStockActual, setInvFormStockActual] = useState(10);
+  const [invFormStockMinimo, setInvFormStockMinimo] = useState(5);
+  const [invFormCostoUnitario, setInvFormCostoUnitario] = useState(0);
+  const [invFormUbicacion, setInvFormUbicacion] = useState('Almacén Principal');
+  const [invFormObservaciones, setInvFormObservaciones] = useState('');
+
+  // Modal Ajuste Rápido de Stock
+  const [isAdjustStockModalOpen, setIsAdjustStockModalOpen] = useState(false);
+  const [adjustingItem, setAdjustingItem] = useState<EppInventoryItem | null>(null);
+  const [adjustDelta, setAdjustDelta] = useState(5);
+  const [adjustReason, setAdjustReason] = useState('Ingreso de compra');
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -212,6 +260,231 @@ export default function EPPWorkspace() {
     ipevarEpps.forEach(e => { if (e && e.trim()) combined.add(e.trim()); });
     return Array.from(combined);
   }, [cargoProfileEpps, ipevarEpps]);
+
+  // ── Categorías y KPIs de Inventario EPP ──
+  const EPP_CATEGORIES = [
+    'Todas',
+    'Protección de Cabeza',
+    'Protección Ocular / Facial',
+    'Protección Auditiva',
+    'Protección Respiratoria',
+    'Protección Manual',
+    'Protección de Pies',
+    'Ropa de Trabajo',
+    'Protección contra Caídas (Alturas)',
+    'Otro'
+  ];
+
+  const totalStockUnits = useMemo(() => {
+    return inventoryItems.reduce((acc, item) => acc + (Number(item.stockActual) || 0), 0);
+  }, [inventoryItems]);
+
+  const lowStockItems = useMemo(() => {
+    return inventoryItems.filter(item => {
+      const stock = Number(item.stockActual) || 0;
+      const min = Number(item.stockMinimo) || 5;
+      return stock <= min && stock > 0;
+    });
+  }, [inventoryItems]);
+
+  const outOfStockItems = useMemo(() => {
+    return inventoryItems.filter(item => (Number(item.stockActual) || 0) === 0);
+  }, [inventoryItems]);
+
+  const totalDeliveries = useMemo(() => {
+    return eppDocs.reduce((acc, doc) => acc + (doc.entregas?.length || 0), 0);
+  }, [eppDocs]);
+
+  const expiredDeliveries = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let count = 0;
+    eppDocs.forEach(doc => {
+      (doc.entregas || []).forEach(e => {
+        if (e.fechaVencimiento) {
+          const v = new Date(e.fechaVencimiento + 'T12:00:00');
+          if (v < today) count++;
+        }
+      });
+    });
+    return count;
+  }, [eppDocs]);
+
+  const getInventoryItemByName = useCallback((name?: string) => {
+    if (!name) return null;
+    const n = name.toLowerCase().trim();
+    let found = inventoryItems.find(i => (i.nombre || '').toLowerCase().trim() === n);
+    if (!found) {
+      found = inventoryItems.find(i => {
+        const iName = (i.nombre || '').toLowerCase().trim();
+        return iName.includes(n) || n.includes(iName);
+      });
+    }
+    return found || null;
+  }, [inventoryItems]);
+
+  const filteredInventory = useMemo(() => {
+    return inventoryItems.filter(item => {
+      const q = inventorySearch.toLowerCase().trim();
+      const matchesSearch = 
+        !q ||
+        (item.nombre || '').toLowerCase().includes(q) ||
+        (item.codigo || '').toLowerCase().includes(q) ||
+        (item.marca || '').toLowerCase().includes(q) ||
+        (item.referencia || '').toLowerCase().includes(q) ||
+        (item.ubicacionBodega || '').toLowerCase().includes(q);
+
+      const matchesCat = selectedCategory === 'Todas' || item.categoria === selectedCategory;
+
+      const stock = Number(item.stockActual) || 0;
+      const min = Number(item.stockMinimo) || 5;
+
+      let matchesStock = true;
+      if (selectedStockFilter === 'low') matchesStock = stock <= min && stock > 0;
+      else if (selectedStockFilter === 'out') matchesStock = stock === 0;
+      else if (selectedStockFilter === 'ok') matchesStock = stock > min;
+
+      return matchesSearch && matchesCat && matchesStock;
+    });
+  }, [inventoryItems, inventorySearch, selectedCategory, selectedStockFilter]);
+
+  const resetInventoryForm = () => {
+    setInvFormCodigo('');
+    setInvFormNombre('');
+    setInvFormCategoria('Protección de Cabeza');
+    setInvFormTipo('Regular');
+    setInvFormMarca('');
+    setInvFormReferencia('');
+    setInvFormTalla('Única');
+    setInvFormUnidad('Unidad');
+    setInvFormStockActual(10);
+    setInvFormStockMinimo(5);
+    setInvFormCostoUnitario(0);
+    setInvFormUbicacion('Almacén Principal');
+    setInvFormObservaciones('');
+    setEditingInventoryItem(null);
+  };
+
+  const handleOpenEditInventory = (item: EppInventoryItem) => {
+    setEditingInventoryItem(item);
+    setInvFormCodigo(item.codigo || '');
+    setInvFormNombre(item.nombre || '');
+    setInvFormCategoria(item.categoria || 'Otro');
+    setInvFormTipo(item.tipo || 'Regular');
+    setInvFormMarca(item.marca || '');
+    setInvFormReferencia(item.referencia || '');
+    setInvFormTalla(item.talla || 'Única');
+    setInvFormUnidad(item.unidad || 'Unidad');
+    setInvFormStockActual(Number(item.stockActual) || 0);
+    setInvFormStockMinimo(Number(item.stockMinimo) || 5);
+    setInvFormCostoUnitario(Number(item.costoUnitario) || 0);
+    setInvFormUbicacion(item.ubicacionBodega || 'Almacén Principal');
+    setInvFormObservaciones(item.observaciones || '');
+    setIsInventoryModalOpen(true);
+  };
+
+  const handleSaveInventoryItem = async () => {
+    if (!invFormNombre.trim()) {
+      showToast({ message: 'El nombre del EPP es obligatorio', status: 'warning' });
+      return;
+    }
+    setInvLoading(true);
+    try {
+      const res = await fetch('/api/sgsst/epp/inventory/item', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          id: editingInventoryItem?.id,
+          codigo: invFormCodigo,
+          nombre: invFormNombre,
+          categoria: invFormCategoria,
+          tipo: invFormTipo,
+          marca: invFormMarca,
+          referencia: invFormReferencia,
+          talla: invFormTalla,
+          unidad: invFormUnidad,
+          stockActual: invFormStockActual,
+          stockMinimo: invFormStockMinimo,
+          costoUnitario: invFormCostoUnitario,
+          ubicacionBodega: invFormUbicacion,
+          observaciones: invFormObservaciones
+        })
+      });
+
+      if (!res.ok) throw new Error('Error al guardar en bodega');
+      const data = await res.json();
+      setInventoryItems(data.items || []);
+      setIsInventoryModalOpen(false);
+      resetInventoryForm();
+      showToast({ message: 'EPP guardado en bodega correctamente', status: 'success' });
+    } catch (err: any) {
+      console.error(err);
+      showToast({ message: err.message || 'Error al guardar EPP en inventario', status: 'error' });
+    } finally {
+      setInvLoading(false);
+    }
+  };
+
+  const handleDeleteInventoryItem = async (itemId: string, nombre: string) => {
+    if (!confirm(`¿Está seguro de eliminar "${nombre}" del inventario de bodega?`)) return;
+    try {
+      const res = await fetch('/api/sgsst/epp/inventory/delete-item', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ itemId })
+      });
+      if (!res.ok) throw new Error('Error al eliminar');
+      const data = await res.json();
+      setInventoryItems(data.items || []);
+      showToast({ message: 'Elemento eliminado del inventario', status: 'success' });
+    } catch (err: any) {
+      showToast({ message: err.message || 'Error al eliminar', status: 'error' });
+    }
+  };
+
+  const handleQuickStockAdjust = async (itemId: string, delta: number, reason = 'Ajuste rápido') => {
+    try {
+      const res = await fetch('/api/sgsst/epp/inventory/adjust-stock', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ itemId, delta, reason })
+      });
+      if (!res.ok) throw new Error('Error al ajustar stock');
+      const data = await res.json();
+      setInventoryItems(data.items || []);
+      showToast({ message: `Stock actualizado (${delta > 0 ? '+' : ''}${delta})`, status: 'success' });
+    } catch (err: any) {
+      showToast({ message: err.message || 'Error al ajustar stock', status: 'error' });
+    }
+  };
+
+  const handleSeedDefaults = async () => {
+    if (!confirm('¿Desea cargar el catálogo estándar sugerido de EPPs para Colombia con stock inicial?')) return;
+    setInvLoading(true);
+    try {
+      const res = await fetch('/api/sgsst/epp/inventory/seed-defaults', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Error al cargar catálogo');
+      const data = await res.json();
+      setInventoryItems(data.items || []);
+      showToast({ message: `Se agregaron ${data.addedCount || 0} referencias al catálogo de EPP`, status: 'success' });
+    } catch (err: any) {
+      showToast({ message: err.message || 'Error al cargar catálogo', status: 'error' });
+    } finally {
+      setInvLoading(false);
+    }
+  };
 
   const handleGenerate = useCallback(async () => {
     if (!selectedWorker) {
@@ -392,6 +665,19 @@ export default function EPPWorkspace() {
       } catch (mErr) {
         console.warn('[EPP Workspace] Error loading official matrix:', mErr);
       }
+
+      // 5. Fetch EPP Warehouse Inventory
+      try {
+        const invRes = await fetch('/api/sgsst/epp/inventory', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (invRes.ok) {
+          const invData = await invRes.json();
+          setInventoryItems(Array.isArray(invData?.items) ? invData.items : []);
+        }
+      } catch (invErr) {
+        console.warn('[EPP Workspace] Error loading inventory:', invErr);
+      }
     } catch (err) {
       console.error('[EPP Workspace] Fetch error:', err);
       showToast({ message: 'Error al cargar los datos del módulo EPP', status: 'error' });
@@ -511,8 +797,12 @@ export default function EPPWorkspace() {
       });
 
       if (!res.ok) throw new Error('Save failed');
+      const resData = await res.json();
+      if (resData.updatedInventory) {
+        setInventoryItems(resData.updatedInventory);
+      }
 
-      showToast({ message: 'EPP registrado y sincronizado exitosamente con IPEVAR', status: 'success' });
+      showToast({ message: 'EPP registrado y descontado del stock de bodega exitosamente', status: 'success' });
       setIsModalOpen(false);
       resetForm();
       loadData();
@@ -527,7 +817,7 @@ export default function EPPWorkspace() {
   // Delete EPP item
   const handleDeleteEpp = async (itemId: string) => {
     if (!selectedWorker || !selectedDoc) return;
-    if (!confirm('¿Está seguro de eliminar este registro de entrega?')) return;
+    if (!confirm('¿Está seguro de eliminar este registro de entrega? Se repondrá la cantidad al stock de bodega si existe.')) return;
 
     setLoading(true);
     const updatedDeliveries = selectedDoc.entregas.filter(item => item.id !== itemId);
@@ -549,8 +839,12 @@ export default function EPPWorkspace() {
       });
 
       if (!res.ok) throw new Error('Save failed');
+      const resData = await res.json();
+      if (resData.updatedInventory) {
+        setInventoryItems(resData.updatedInventory);
+      }
 
-      showToast({ message: 'Registro eliminado exitosamente', status: 'success' });
+      showToast({ message: 'Registro eliminado y cantidad repuesta en bodega', status: 'success' });
       loadData();
     } catch (err) {
       console.error(err);
@@ -648,8 +942,12 @@ export default function EPPWorkspace() {
       });
 
       if (!res.ok) throw new Error('Save failed');
+      const resData = await res.json();
+      if (resData.updatedInventory) {
+        setInventoryItems(resData.updatedInventory);
+      }
 
-      showToast({ message: `¡Se registraron ${newItems.length} entregas de EPP con firma para ${selectedWorker.nombre}!`, status: 'success' });
+      showToast({ message: `¡Se registraron ${newItems.length} entregas de EPP con firma y se descontaron de bodega para ${selectedWorker.nombre}!`, status: 'success' });
       loadData();
     } catch (err) {
       console.error(err);
@@ -890,7 +1188,7 @@ export default function EPPWorkspace() {
   const handleExportExcel = async () => {
     try {
       showToast({ message: 'Generando reporte de Excel...', status: 'info' });
-      await exportEppToExcel(eppDocs, workers);
+      await exportEppToExcel(eppDocs, workers, inventoryItems);
       showToast({ message: 'Reporte Excel generado correctamente', status: 'success' });
     } catch (err) {
       console.error('[EPP Workspace] Excel export error:', err);
@@ -906,6 +1204,129 @@ export default function EPPWorkspace() {
 
   return (
     <div className="w-full space-y-6">
+      
+      {/* ── BARRA SUPERIOR: SELECTOR DE VISTA Y KPIS DE CONTROL ── */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 p-4 md:p-5 rounded-3xl bg-gradient-to-r from-surface-primary via-surface-secondary/60 to-surface-primary border border-border-medium/80 shadow-md">
+        
+        {/* Selector de Pestañas / Vistas con Diseño WAPPY */}
+        <div className="flex items-center gap-3">
+          <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-surface-secondary border border-border-medium/80 shadow-inner">
+            <button
+              type="button"
+              onClick={() => setActiveView('workers')}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all active:scale-95 cursor-pointer",
+                activeView === 'workers'
+                  ? "bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-md shadow-teal-600/20"
+                  : "text-text-secondary hover:text-text-primary hover:bg-surface-primary/60"
+              )}
+            >
+              <UserCheck className="w-4 h-4" />
+              <span>Entregas a Trabajadores</span>
+              <span className={cn(
+                "text-[10px] px-2 py-0.5 rounded-full font-black",
+                activeView === 'workers' ? "bg-white/20 text-white" : "bg-surface-tertiary text-text-tertiary"
+              )}>
+                {workers.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveView('inventory')}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all active:scale-95 cursor-pointer",
+                activeView === 'inventory'
+                  ? "bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-md shadow-teal-600/20"
+                  : "text-text-secondary hover:text-text-primary hover:bg-surface-primary/60"
+              )}
+            >
+              <Boxes className="w-4 h-4" />
+              <span>Almacén y Stock de EPP</span>
+              <span className={cn(
+                "text-[10px] px-2 py-0.5 rounded-full font-black",
+                activeView === 'inventory' ? "bg-white/20 text-white" : "bg-surface-tertiary text-text-tertiary"
+              )}>
+                {inventoryItems.length}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* 4 Métricas Clave / KPIs (Almacén y Operación) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {/* KPI 1: En Bodega */}
+          <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-surface-primary border border-border-medium shadow-2xs">
+            <div className="w-9 h-9 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+              <Package className="w-4.5 h-4.5" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">En Bodega</p>
+              <p className="text-sm font-black text-text-primary">{totalStockUnits} <span className="text-[10px] font-semibold text-text-secondary">uds</span></p>
+            </div>
+          </div>
+
+          {/* KPI 2: Stock Crítico / Bajo */}
+          <div className={cn(
+            "flex items-center gap-3 px-3.5 py-2.5 rounded-2xl border shadow-2xs transition-colors",
+            (lowStockItems.length > 0 || outOfStockItems.length > 0)
+              ? "bg-amber-500/5 border-amber-500/30"
+              : "bg-surface-primary border-border-medium"
+          )}>
+            <div className={cn(
+              "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+              (lowStockItems.length > 0 || outOfStockItems.length > 0)
+                ? "bg-amber-500/15 text-amber-500"
+                : "bg-emerald-500/10 text-emerald-500"
+            )}>
+              <AlertTriangle className="w-4.5 h-4.5" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Stock Crítico</p>
+              <p className={cn(
+                "text-sm font-black",
+                (lowStockItems.length > 0 || outOfStockItems.length > 0) ? "text-amber-500" : "text-emerald-500"
+              )}>
+                {lowStockItems.length + outOfStockItems.length} <span className="text-[10px] font-semibold text-text-secondary">refs</span>
+              </p>
+            </div>
+          </div>
+
+          {/* KPI 3: Total Entregas */}
+          <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-surface-primary border border-border-medium shadow-2xs">
+            <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-4.5 h-4.5" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Dotaciones</p>
+              <p className="text-sm font-black text-text-primary">{totalDeliveries} <span className="text-[10px] font-semibold text-text-secondary">entregas</span></p>
+            </div>
+          </div>
+
+          {/* KPI 4: Vencidos / Alertas */}
+          <div className={cn(
+            "flex items-center gap-3 px-3.5 py-2.5 rounded-2xl border shadow-2xs transition-colors",
+            expiredDeliveries > 0 ? "bg-red-500/5 border-red-500/30" : "bg-surface-primary border-border-medium"
+          )}>
+            <div className={cn(
+              "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+              expiredDeliveries > 0 ? "bg-red-500/15 text-red-500" : "bg-slate-500/10 text-text-tertiary"
+            )}>
+              <AlertCircle className="w-4.5 h-4.5" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Vencidos</p>
+              <p className={cn("text-sm font-black", expiredDeliveries > 0 ? "text-red-500" : "text-text-secondary")}>
+                {expiredDeliveries} <span className="text-[10px] font-semibold text-text-secondary">alertas</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* ── CONTENIDO PRINCIPAL: CONDICIONADO POR activeView ── */}
+      {activeView === 'workers' ? (
       <div className="flex flex-col md:flex-row h-[780px] w-full border border-border-light dark:border-white/10 rounded-3xl bg-surface-primary shadow-lg overflow-hidden animate-in fade-in duration-200">
       
       {/* ── SECTOR IZQUIERDO: LISTA DE TRABAJADORES ── */}
@@ -918,7 +1339,7 @@ export default function EPPWorkspace() {
             <div className="flex items-center gap-2">
               <button
                 onClick={handleExportExcel}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border-medium hover:border-[#0d9488]/40 hover:bg-[#0d9488]/10 text-teal-600 dark:text-teal-400 font-extrabold text-2xs uppercase tracking-wider rounded-xl transition-all shadow-sm"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border-medium hover:border-[#0d9488]/40 hover:bg-[#0d9488]/10 text-teal-600 dark:text-teal-400 font-extrabold text-2xs uppercase tracking-wider rounded-xl transition-all shadow-sm cursor-pointer"
                 title="Descargar base de datos general de entregas de EPP en Excel"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
@@ -943,8 +1364,29 @@ export default function EPPWorkspace() {
 
         <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
           {filteredWorkers.map(w => {
-            const hasDoc = eppDocs.some(doc => doc.workerId === w.id && doc.entregas.length > 0);
+            const workerDoc = eppDocs.find(doc => doc.workerId === w.id);
+            const entregas = workerDoc?.entregas || [];
+            const hasDoc = entregas.length > 0;
             const isSelected = selectedWorker?.id === w.id;
+
+            // Check if any expired
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const hasExpired = entregas.some(e => {
+              if (e.fechaVencimiento) {
+                const v = new Date(e.fechaVencimiento + 'T12:00:00');
+                return v < today;
+              }
+              return false;
+            });
+
+            // Initials
+            const initials = (w.nombre || '')
+              .split(' ')
+              .filter(Boolean)
+              .slice(0, 2)
+              .map(p => p[0]?.toUpperCase())
+              .join('') || 'T';
 
             return (
               <button
@@ -957,25 +1399,45 @@ export default function EPPWorkspace() {
                   setConversationId(null);
                   setReportMessageId(null);
                 }}
-                className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all hover:scale-[1.01] ${
+                className={cn(
+                  "w-full flex items-center justify-between p-3 rounded-2xl border text-left transition-all hover:scale-[1.01] cursor-pointer",
                   isSelected 
-                    ? 'bg-teal-500/10 border-teal-500 text-teal-400' 
-                    : 'bg-surface-primary border-border-light dark:border-white/5 text-text-primary hover:bg-surface-secondary'
-                }`}
+                    ? "bg-teal-500/10 border-teal-500 shadow-sm shadow-teal-500/10" 
+                    : "bg-surface-primary border-border-light dark:border-white/5 text-text-primary hover:bg-surface-secondary/70 hover:border-teal-500/30"
+                )}
               >
                 <div className="flex items-center gap-3 truncate">
-                  <div className={`p-2 rounded-lg shrink-0 ${isSelected ? 'bg-teal-500/20 text-teal-400' : 'bg-surface-secondary text-text-secondary'}`}>
-                    <User className="w-4 h-4" />
+                  <div className={cn(
+                    "w-9 h-9 rounded-xl font-black text-xs flex items-center justify-center shrink-0 border",
+                    isSelected
+                      ? "bg-gradient-to-br from-teal-500 to-emerald-600 text-white border-teal-400 shadow-xs"
+                      : "bg-gradient-to-br from-surface-secondary to-surface-tertiary text-text-secondary border-border-medium"
+                  )}>
+                    {initials}
                   </div>
                   <div className="truncate">
-                    <p className="font-bold text-sm text-text-primary truncate">{w.nombre}</p>
-                    <p className="text-xs text-text-secondary truncate mt-0.5">{w.cargo || 'Sin cargo'}</p>
+                    <p className={cn("font-bold text-sm truncate", isSelected ? "text-teal-600 dark:text-teal-400 font-extrabold" : "text-text-primary")}>
+                      {w.nombre}
+                    </p>
+                    <p className="text-[11px] text-text-secondary truncate mt-0.5">{w.cargo || 'Sin cargo'}</p>
                   </div>
                 </div>
 
-                {hasDoc && (
-                  <Shield className="w-4 h-4 text-teal-500 shrink-0 ml-2" fill="currentColor" fillOpacity={0.2} />
-                )}
+                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                  {hasExpired ? (
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 border border-red-500/20 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> Vencido
+                    </span>
+                  ) : hasDoc ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3" /> {entregas.length}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-text-tertiary px-1.5 py-0.5 rounded bg-surface-secondary">
+                      0 EPP
+                    </span>
+                  )}
+                </div>
               </button>
             );
           })}
@@ -1139,6 +1601,31 @@ export default function EPPWorkspace() {
                                 )}
                                 
                                 <span className="font-semibold">{epp}</span>
+
+                                {/* Warehouse stock badge */}
+                                {(() => {
+                                  const invItem = getInventoryItemByName(epp);
+                                  if (!invItem) return null;
+                                  if (invItem.stockActual === 0) {
+                                    return (
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-red-500/10 text-red-500 font-extrabold border border-red-500/20">
+                                        Agotado (0)
+                                      </span>
+                                    );
+                                  }
+                                  if (invItem.stockActual <= invItem.stockMinimo) {
+                                    return (
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-500 font-extrabold border border-amber-500/20">
+                                        {invItem.stockActual} disp.
+                                      </span>
+                                    );
+                                  }
+                                  return (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-teal-500/10 text-teal-600 dark:text-teal-400 font-extrabold border border-teal-500/20">
+                                      {invItem.stockActual} en bodega
+                                    </span>
+                                  );
+                                })()}
 
                                 {/* Source badge */}
                                 {fromIpevar && (
@@ -1407,6 +1894,354 @@ export default function EPPWorkspace() {
         )}
       </div>
     </div>
+    ) : (
+      /* ── SECTOR DE ALMACÉN Y STOCK DE EPP (VISTA COMPLETA) ── */
+      <div className="w-full flex-1 min-h-[750px] flex flex-col bg-surface-primary rounded-3xl border border-border-light dark:border-white/10 shadow-lg overflow-hidden animate-in fade-in duration-200">
+        
+        {/* Sub-Header del Almacén */}
+        <div className="p-5 border-b border-border-light dark:border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-secondary/30">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center shadow-sm">
+                <Boxes className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-text-primary">Control de Bodega y Stock de EPP</h2>
+                <p className="text-xs text-text-secondary">Control de existencias, tallas, alertas de abastecimiento y trazabilidad de almacén.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Botones de Acción Superiores */}
+          <div className="flex items-center flex-wrap gap-2.5">
+            <button
+              type="button"
+              onClick={handleSeedDefaults}
+              disabled={invLoading}
+              className="px-3.5 py-2 rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm text-xs font-bold flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+              title="Cargar 15 referencias estándar de EPP con stock sugerido"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>Catálogo Sugerido</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="px-3.5 py-2 rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm text-xs font-bold flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
+              title="Exportar inventario y entregas a Excel"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              <span>Excel</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                resetInventoryForm();
+                setIsInventoryModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nuevo EPP en Bodega</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Filtros de Búsqueda y Categorías */}
+        <div className="p-4 border-b border-border-light dark:border-white/10 bg-surface-secondary/20 space-y-3">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+            {/* Buscador */}
+            <div className="relative w-full md:w-80">
+              <Search className="absolute left-3.5 top-3 h-4 w-4 text-text-secondary" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre, código, marca..."
+                value={inventorySearch}
+                onChange={e => setInventorySearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-surface-primary border border-border-medium rounded-xl text-xs text-text-primary placeholder:text-text-tertiary focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-all"
+              />
+            </div>
+
+            {/* Filtro de Estado de Stock */}
+            <div className="flex items-center gap-1.5 self-start md:self-auto overflow-x-auto pb-1 md:pb-0">
+              <button
+                type="button"
+                onClick={() => setSelectedStockFilter('all')}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-2xs font-bold transition-all cursor-pointer",
+                  selectedStockFilter === 'all'
+                    ? "bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/30"
+                    : "bg-surface-primary text-text-secondary border border-border-medium hover:bg-surface-secondary"
+                )}
+              >
+                Todos ({inventoryItems.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedStockFilter('low')}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-2xs font-bold transition-all cursor-pointer flex items-center gap-1",
+                  selectedStockFilter === 'low'
+                    ? "bg-amber-500/10 text-amber-500 border border-amber-500/30"
+                    : "bg-surface-primary text-text-secondary border border-border-medium hover:bg-surface-secondary"
+                )}
+              >
+                <AlertTriangle className="w-3 h-3 text-amber-500" />
+                Stock Bajo ({lowStockItems.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedStockFilter('out')}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-2xs font-bold transition-all cursor-pointer flex items-center gap-1",
+                  selectedStockFilter === 'out'
+                    ? "bg-red-500/10 text-red-500 border border-red-500/30"
+                    : "bg-surface-primary text-text-secondary border border-border-medium hover:bg-surface-secondary"
+                )}
+              >
+                <AlertCircle className="w-3 h-3 text-red-500" />
+                Agotados ({outOfStockItems.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedStockFilter('ok')}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-2xs font-bold transition-all cursor-pointer flex items-center gap-1",
+                  selectedStockFilter === 'ok'
+                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/30"
+                    : "bg-surface-primary text-text-secondary border border-border-medium hover:bg-surface-secondary"
+                )}
+              >
+                <CheckCircle className="w-3 h-3 text-emerald-500" />
+                Óptimo ({inventoryItems.length - lowStockItems.length - outOfStockItems.length})
+              </button>
+            </div>
+          </div>
+
+          {/* Pills de Categoría con Scroll Horizontal */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-0.5 text-2xs">
+            <span className="text-text-tertiary font-bold uppercase tracking-wider text-[10px] shrink-0 mr-1 flex items-center gap-1">
+              <Filter className="w-3 h-3" /> Categoría:
+            </span>
+            {EPP_CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg font-semibold shrink-0 transition-all cursor-pointer",
+                  selectedCategory === cat
+                    ? "bg-teal-600 text-white shadow-2xs font-bold"
+                    : "bg-surface-primary text-text-secondary border border-border-medium hover:bg-surface-secondary hover:text-text-primary"
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tabla de Inventario de Bodega */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-5">
+          {filteredInventory.length > 0 ? (
+            <div className="border border-border-light dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-surface-secondary text-text-secondary font-bold text-2xs uppercase tracking-wider">
+                    <th className="p-3.5">Referencia / EPP</th>
+                    <th className="p-3.5">Categoría</th>
+                    <th className="p-3.5">Marca / Ref</th>
+                    <th className="p-3.5">Talla / Unidad</th>
+                    <th className="p-3.5">Stock en Bodega</th>
+                    <th className="p-3.5">Stock Mínimo</th>
+                    <th className="p-3.5">Ubicación</th>
+                    <th className="p-3.5 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-light dark:divide-white/5">
+                  {filteredInventory.map((item) => {
+                    const stock = Number(item.stockActual) || 0;
+                    const min = Number(item.stockMinimo) || 5;
+                    const isOut = stock === 0;
+                    const isLow = stock <= min && !isOut;
+
+                    return (
+                      <tr key={item.id} className="hover:bg-surface-secondary/40 transition-colors text-text-primary">
+                        {/* Nombre y Código */}
+                        <td className="p-3.5 font-bold">
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-extrabold text-sm">{item.nombre}</span>
+                              {item.tipo === 'Alturas' && (
+                                <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                                  Alturas
+                                </span>
+                              )}
+                            </div>
+                            {item.codigo && (
+                              <p className="text-[10px] text-text-tertiary font-mono">
+                                SKU: {item.codigo}
+                              </p>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Categoría */}
+                        <td className="p-3.5">
+                          <span className="px-2 py-0.5 rounded-md font-semibold text-[10px] bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+                            {item.categoria || 'Otro'}
+                          </span>
+                        </td>
+
+                        {/* Marca y Ref */}
+                        <td className="p-3.5 text-text-secondary">
+                          <div>{item.marca || 'N/A'}</div>
+                          <div className="text-[10px] text-text-tertiary">{item.referencia || ''}</div>
+                        </td>
+
+                        {/* Talla y Unidad */}
+                        <td className="p-3.5 font-semibold text-text-secondary">
+                          <span>{item.talla || 'Única'}</span>
+                          <span className="text-[10px] text-text-tertiary block">({item.unidad || 'Unidad'})</span>
+                        </td>
+
+                        {/* Stock Actual con Status Badge y Barra */}
+                        <td className="p-3.5 align-middle">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-black text-sm">{stock}</span>
+                              <span className={cn(
+                                "text-[10px] font-extrabold px-2 py-0.5 rounded-full border flex items-center gap-1",
+                                isOut ? "bg-red-500/10 text-red-500 border-red-500/20" :
+                                isLow ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                                "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                              )}>
+                                {isOut ? 'Agotado' : isLow ? 'Stock Bajo' : 'Óptimo'}
+                              </span>
+                            </div>
+                            {/* Mini barra de progreso */}
+                            <div className="w-24 h-1.5 bg-surface-tertiary rounded-full overflow-hidden">
+                              <div 
+                                className={cn(
+                                  "h-full rounded-full transition-all duration-500",
+                                  isOut ? "w-0" :
+                                  isLow ? "bg-amber-500" :
+                                  "bg-emerald-500"
+                                )}
+                                style={{ width: `${Math.min(100, Math.max(8, (stock / (min * 2)) * 100))}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Stock Mínimo */}
+                        <td className="p-3.5 font-bold text-text-secondary">
+                          {min} {item.unidad || 'uds'}
+                        </td>
+
+                        {/* Ubicación */}
+                        <td className="p-3.5 text-text-secondary">
+                          <div className="flex items-center gap-1 text-[11px]">
+                            <MapPin className="w-3 h-3 text-text-tertiary shrink-0" />
+                            <span>{item.ubicacionBodega || 'Almacén'}</span>
+                          </div>
+                        </td>
+
+                        {/* Acciones */}
+                        <td className="p-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Botón rápido entrada de stock */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAdjustingItem(item);
+                                setAdjustDelta(5);
+                                setAdjustReason('Ingreso de compra');
+                                setIsAdjustStockModalOpen(true);
+                              }}
+                              className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95 cursor-pointer"
+                              title="Añadir existencias / Entrada de stock"
+                            >
+                              <Plus className="w-3.5 h-3.5 shrink-0" />
+                              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[80px] group-hover:opacity-100 sm:flex">
+                                <span className="text-[10px] font-bold">+ Entrada</span>
+                              </div>
+                            </button>
+
+                            {/* Botón Editar */}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditInventory(item)}
+                              className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95 cursor-pointer"
+                              title="Editar detalles del EPP"
+                            >
+                              <Edit3 className="w-3.5 h-3.5 shrink-0" />
+                              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[70px] group-hover:opacity-100 sm:flex">
+                                <span className="text-[10px] font-bold">Editar</span>
+                              </div>
+                            </button>
+
+                            {/* Botón Eliminar */}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteInventoryItem(item.id, item.nombre)}
+                              className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 transition-all duration-300 px-1.5 shadow-sm active:scale-95 cursor-pointer"
+                              title="Eliminar de inventario"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[70px] group-hover:opacity-100 sm:flex">
+                                <span className="text-[10px] font-bold">Eliminar</span>
+                              </div>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-20 border border-dashed border-border-medium rounded-3xl text-text-tertiary space-y-4">
+              <Boxes className="w-16 h-16 mx-auto opacity-25 text-teal-500" />
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-text-primary">No se encontraron elementos de EPP en bodega</h3>
+                <p className="text-xs text-text-secondary max-w-md mx-auto">
+                  {inventorySearch || selectedCategory !== 'Todas' || selectedStockFilter !== 'all'
+                    ? 'No hay referencias que coincidan con los filtros seleccionados.'
+                    : 'Empieza agregando un elemento o carga el catálogo estándar colombiano de 15 EPPs sugeridos con stock preconfigurado.'}
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleSeedDefaults}
+                  disabled={invLoading}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>Cargar Catálogo Estándar (15 EPPs)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetInventoryForm();
+                    setIsInventoryModalOpen(true);
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm text-xs font-bold flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Crear Primer EPP Manual</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+      </div>
+    )}
 
       {/* Editor de Informe de EPP (Nivel Raíz — Siempre Visible a Todo Ancho) */}
       <CollapsibleReportBox
@@ -1463,21 +2298,88 @@ export default function EPPWorkspace() {
                 </div>
               </div>
 
-              {/* Nombre EPP (con datalist de sugerencias) */}
+              {/* Nombre EPP (con datalist de sugerencias y stock de bodega) */}
               <div className="space-y-1.5">
-                <label className="text-xs uppercase font-bold text-text-secondary">Nombre del EPP / Elemento</label>
+                <div className="flex justify-between items-center">
+                  <label className="text-xs uppercase font-bold text-text-secondary">Nombre del EPP / Elemento</label>
+                  {inventoryItems.length > 0 && (
+                    <span className="text-[10px] text-teal-600 dark:text-teal-400 font-extrabold flex items-center gap-1">
+                      <Boxes className="w-3 h-3" />
+                      {inventoryItems.length} referencias en bodega
+                    </span>
+                  )}
+                </div>
                 <input
                   list="epp-suggestions"
-                  placeholder="Ej. Gafas de seguridad"
+                  placeholder="Ej. Gafas de seguridad o Casco dieléctrico"
                   value={formEppName}
-                  onChange={e => setFormEppName(e.target.value)}
-                  className="w-full p-2.5 bg-surface-primary border border-border-medium rounded-xl text-sm text-text-primary focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-all"
+                  onChange={e => {
+                    const val = e.target.value;
+                    setFormEppName(val);
+                    const matched = getInventoryItemByName(val);
+                    if (matched) {
+                      setFormTipo(matched.tipo || 'Regular');
+                      if (matched.marca) setFormMarca(matched.marca);
+                      if (matched.referencia) setFormReferencia(matched.referencia);
+                    }
+                  }}
+                  className="w-full p-2.5 bg-surface-primary border border-border-medium rounded-xl text-sm text-text-primary focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-all font-semibold"
                 />
                 <datalist id="epp-suggestions">
+                  {/* Items en inventario de bodega */}
+                  {inventoryItems.map(item => (
+                    <option key={item.id} value={item.nombre}>
+                      {`📦 Stock: ${item.stockActual} ${item.unidad || 'uds'} | ${item.categoria || ''}`}
+                    </option>
+                  ))}
+                  {/* Sugerencias estándar */}
                   {suggestionsList.map((item, idx) => (
-                    <option key={idx} value={item} />
+                    <option key={`sug-${idx}`} value={item} />
                   ))}
                 </datalist>
+
+                {/* Status de stock en tiempo real */}
+                {(() => {
+                  const matched = getInventoryItemByName(formEppName);
+                  if (matched) {
+                    const isOut = matched.stockActual === 0;
+                    const isLow = matched.stockActual <= matched.stockMinimo;
+                    const isShort = matched.stockActual < formCantidad;
+                    return (
+                      <div className={cn(
+                        "p-2.5 rounded-xl border flex items-center justify-between text-xs transition-all",
+                        isOut 
+                          ? "bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400"
+                          : isLow
+                            ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
+                            : "bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300"
+                      )}>
+                        <div className="flex items-center gap-2">
+                          <Boxes className="w-4 h-4 shrink-0" />
+                          <span>
+                            <strong>En Bodega ({matched.ubicacionBodega || 'Almacén'}):</strong>{' '}
+                            {matched.stockActual} {matched.unidad || 'uds'} disponibles (Mínimo: {matched.stockMinimo})
+                          </span>
+                        </div>
+                        {isShort ? (
+                          <span className="font-extrabold text-[11px] text-red-500 bg-red-500/10 px-2 py-0.5 rounded">
+                            ⚠️ Insuficiente
+                          </span>
+                        ) : (
+                          <span className="font-bold text-[11px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+                            ✅ Disponible
+                          </span>
+                        )}
+                      </div>
+                    );
+                  }
+                  return (
+                    <p className="text-[11px] text-text-tertiary flex items-center gap-1 pt-0.5">
+                      <Info className="w-3 h-3 text-text-tertiary" />
+                      Elemento libre no vinculado a inventario de bodega.
+                    </p>
+                  );
+                })()}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -1722,6 +2624,344 @@ export default function EPPWorkspace() {
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50"
               >
                 Guardar Registro
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Modal Inventario / Nuevo o Edición de EPP */}
+      {isInventoryModalOpen && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface-primary dark:bg-surface-secondary border border-border-light dark:border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+            {/* Header */}
+            <div className="p-6 border-b border-border-light dark:border-white/10 flex items-center justify-between bg-surface-secondary/30">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                  <Boxes className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-text-primary">
+                    {editingInventoryItem ? 'Editar EPP en Almacén' : 'Registrar Nuevo EPP en Bodega'}
+                  </h3>
+                  <p className="text-xs text-text-secondary">
+                    Gestión de existencias, umbral de alerta y ficha técnica
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setIsInventoryModalOpen(false); resetInventoryForm(); }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary mb-1">Código / SKU</label>
+                  <input
+                    type="text"
+                    value={invFormCodigo}
+                    onChange={(e) => setInvFormCodigo(e.target.value)}
+                    placeholder="Ej. EPP-CAS-01"
+                    className="w-full text-xs px-3 py-2 bg-surface-secondary border border-border-light dark:border-white/10 rounded-xl focus:border-teal-500 focus:outline-none"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-text-secondary mb-1">
+                    Nombre del EPP <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={invFormNombre}
+                    onChange={(e) => setInvFormNombre(e.target.value)}
+                    placeholder="Ej. Casco de Seguridad Tipo II Dieléctrico"
+                    className="w-full text-xs px-3 py-2 bg-surface-secondary border border-border-light dark:border-white/10 rounded-xl focus:border-teal-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary mb-1">Categoría</label>
+                  <select
+                    value={invFormCategoria}
+                    onChange={(e) => setInvFormCategoria(e.target.value)}
+                    className="w-full text-xs px-3 py-2 bg-surface-secondary border border-border-light dark:border-white/10 rounded-xl focus:border-teal-500 focus:outline-none"
+                  >
+                    {EPP_CATEGORIES.filter(c => c !== 'Todas').map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary mb-1">Tipo de Riesgo</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setInvFormTipo('Regular')}
+                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
+                        invFormTipo === 'Regular'
+                          ? 'bg-teal-500 text-white border-teal-600 shadow-sm'
+                          : 'bg-surface-secondary text-text-secondary border-border-light dark:border-white/10 hover:bg-surface-secondary/80'
+                      }`}
+                    >
+                      Regular / Diario
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInvFormTipo('Alturas')}
+                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
+                        invFormTipo === 'Alturas'
+                          ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                          : 'bg-surface-secondary text-text-secondary border-border-light dark:border-white/10 hover:bg-surface-secondary/80'
+                      }`}
+                    >
+                      Trabajo en Alturas
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary mb-1">Marca</label>
+                  <input
+                    type="text"
+                    value={invFormMarca}
+                    onChange={(e) => setInvFormMarca(e.target.value)}
+                    placeholder="Ej. 3M, Steelpro"
+                    className="w-full text-xs px-3 py-2 bg-surface-secondary border border-border-light dark:border-white/10 rounded-xl focus:border-teal-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary mb-1">Referencia / Norma</label>
+                  <input
+                    type="text"
+                    value={invFormReferencia}
+                    onChange={(e) => setInvFormReferencia(e.target.value)}
+                    placeholder="Ej. ANSI Z89.1"
+                    className="w-full text-xs px-3 py-2 bg-surface-secondary border border-border-light dark:border-white/10 rounded-xl focus:border-teal-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary mb-1">Talla</label>
+                  <input
+                    type="text"
+                    value={invFormTalla}
+                    onChange={(e) => setInvFormTalla(e.target.value)}
+                    placeholder="Única / M / L / 40"
+                    className="w-full text-xs px-3 py-2 bg-surface-secondary border border-border-light dark:border-white/10 rounded-xl focus:border-teal-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary mb-1">Unidad de Medida</label>
+                  <select
+                    value={invFormUnidad}
+                    onChange={(e) => setInvFormUnidad(e.target.value)}
+                    className="w-full text-xs px-3 py-2 bg-surface-secondary border border-border-light dark:border-white/10 rounded-xl focus:border-teal-500 focus:outline-none"
+                  >
+                    <option value="Unidad">Unidad</option>
+                    <option value="Par">Par</option>
+                    <option value="Juego">Juego</option>
+                    <option value="Caja">Caja</option>
+                    <option value="Kit">Kit</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 rounded-xl bg-surface-secondary/40 border border-border-light dark:border-white/5">
+                <div>
+                  <label className="block text-xs font-bold text-text-primary mb-1">Stock Actual (Existencias)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={invFormStockActual}
+                    onChange={(e) => setInvFormStockActual(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full text-sm font-bold px-3 py-2 bg-surface-primary border border-border-light dark:border-white/10 rounded-xl text-teal-600 dark:text-teal-400 focus:border-teal-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-amber-600 dark:text-amber-400 mb-1">Stock Mínimo (Alerta)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={invFormStockMinimo}
+                    onChange={(e) => setInvFormStockMinimo(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full text-sm font-bold px-3 py-2 bg-surface-primary border border-border-light dark:border-white/10 rounded-xl text-amber-600 dark:text-amber-400 focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary mb-1">Costo Unitario ($ COP)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={invFormCostoUnitario}
+                    onChange={(e) => setInvFormCostoUnitario(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full text-sm font-semibold px-3 py-2 bg-surface-primary border border-border-light dark:border-white/10 rounded-xl focus:border-teal-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary mb-1">Ubicación en Bodega</label>
+                  <input
+                    type="text"
+                    value={invFormUbicacion}
+                    onChange={(e) => setInvFormUbicacion(e.target.value)}
+                    placeholder="Ej. Estante A-2 / Almacén Central"
+                    className="w-full text-xs px-3 py-2 bg-surface-secondary border border-border-light dark:border-white/10 rounded-xl focus:border-teal-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary mb-1">Observaciones / Especificaciones</label>
+                  <input
+                    type="text"
+                    value={invFormObservaciones}
+                    onChange={(e) => setInvFormObservaciones(e.target.value)}
+                    placeholder="Vida útil, recomendaciones de recambio..."
+                    className="w-full text-xs px-3 py-2 bg-surface-secondary border border-border-light dark:border-white/10 rounded-xl focus:border-teal-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-border-light dark:border-white/10 bg-surface-secondary/40 flex justify-end gap-3">
+              <button
+                onClick={() => { setIsInventoryModalOpen(false); resetInventoryForm(); }}
+                disabled={invLoading}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors active:scale-95"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveInventoryItem}
+                disabled={invLoading}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50"
+              >
+                {invLoading ? <RotateCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Guardar en Almacén
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Modal Ajuste Rápido de Stock */}
+      {isAdjustStockModalOpen && adjustingItem && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface-primary dark:bg-surface-secondary border border-border-light dark:border-white/10 rounded-2xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl">
+            {/* Header */}
+            <div className="p-5 border-b border-border-light dark:border-white/10 flex items-center justify-between bg-surface-secondary/30">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-text-primary">Movimiento de Stock</h3>
+                  <p className="text-xs text-text-secondary truncate max-w-[240px]">{adjustingItem.nombre}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setIsAdjustStockModalOpen(false); setAdjustingItem(null); }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              <div className="p-3 rounded-xl bg-surface-secondary/50 border border-border-light dark:border-white/5 flex items-center justify-between">
+                <span className="text-xs text-text-secondary">Stock actual en bodega:</span>
+                <span className="text-sm font-extrabold text-teal-600 dark:text-teal-400">
+                  {adjustingItem.stockActual} {adjustingItem.unidad || 'unid.'}
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1.5">
+                  Cantidad a ingresar (+) o descontar (-)
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAdjustDelta(prev => prev > 0 ? -prev : (prev || -1))}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                      adjustDelta < 0
+                        ? 'bg-red-500/10 text-red-600 border-red-500/30'
+                        : 'bg-surface-secondary text-text-secondary border-border-light dark:border-white/10'
+                    }`}
+                  >
+                    Salida / Baja
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdjustDelta(prev => Math.abs(prev) || 1)}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                      adjustDelta >= 0
+                        ? 'bg-teal-500/10 text-teal-600 border-teal-500/30'
+                        : 'bg-surface-secondary text-text-secondary border-border-light dark:border-white/10'
+                    }`}
+                  >
+                    Ingreso / Compra
+                  </button>
+                  <input
+                    type="number"
+                    value={adjustDelta}
+                    onChange={(e) => setAdjustDelta(parseInt(e.target.value) || 0)}
+                    className="w-24 text-center font-bold text-sm px-2 py-2 bg-surface-secondary border border-border-light dark:border-white/10 rounded-xl focus:border-teal-500 focus:outline-none"
+                  />
+                </div>
+                <div className="mt-2 text-[11px] text-text-secondary">
+                  Nuevo stock resultante:{' '}
+                  <span className={`font-bold ${Math.max(0, (adjustingItem.stockActual || 0) + adjustDelta) === 0 ? 'text-red-500' : 'text-teal-600 dark:text-teal-400'}`}>
+                    {Math.max(0, (adjustingItem.stockActual || 0) + adjustDelta)} {adjustingItem.unidad || 'unid.'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1">Motivo / Justificación</label>
+                <input
+                  type="text"
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  placeholder="Ej. Factura de compra 104, reposición por daño..."
+                  className="w-full text-xs px-3 py-2 bg-surface-secondary border border-border-light dark:border-white/10 rounded-xl focus:border-teal-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-border-light dark:border-white/10 bg-surface-secondary/40 flex justify-end gap-2">
+              <button
+                onClick={() => { setIsAdjustStockModalOpen(false); setAdjustingItem(null); }}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors active:scale-95"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  if (adjustDelta === 0) {
+                    showToast({ message: 'Ingrese una cantidad diferente de cero', status: 'warning' });
+                    return;
+                  }
+                  await handleQuickStockAdjust(adjustingItem.id, adjustDelta, adjustReason);
+                  setIsAdjustStockModalOpen(false);
+                  setAdjustingItem(null);
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95"
+              >
+                <Check className="w-4 h-4" />
+                Aplicar Movimiento
               </button>
             </div>
           </div>
