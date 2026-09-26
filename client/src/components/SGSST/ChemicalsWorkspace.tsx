@@ -18,10 +18,14 @@ import {
   X,
   ShieldAlert,
   Loader2,
-  ArrowLeft,
   CheckCircle,
   FlaskConical,
-  FileCheck
+  FileCheck,
+  ShieldCheck,
+  Sparkles,
+  Flame,
+  ArrowLeft,
+  ArrowRight
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { exportChemicalsToExcel } from './exportChemicals';
@@ -508,6 +512,27 @@ export default function ChemicalsWorkspace() {
   const conRotulo = useMemo(() => chemicals.filter(c => c.tieneRotuloSga === 'Sí').length, [chemicals]);
   const alertasQuimicas = useMemo(() => chemicals.filter(c => c.tieneFds === 'No' || c.tieneRotuloSga === 'No').length, [chemicals]);
 
+  const chemicalsWithAlerts = useMemo(() => {
+    return chemicals.filter(c => c.tieneFds === 'No' || c.tieneRotuloSga === 'No');
+  }, [chemicals]);
+
+  const hazardStats = useMemo(() => {
+    let inflamables = 0;
+    let corrosivos = 0;
+    let toxicos = 0;
+    let salud = 0;
+    chemicals.forEach(c => {
+      (c.pictogramasSga || []).forEach(p => {
+        const lower = p.toLowerCase();
+        if (lower.includes('inflam')) inflamables++;
+        if (lower.includes('corros')) corrosivos++;
+        if (lower.includes('toxic') || lower.includes('venen')) toxicos++;
+        if (lower.includes('salud') || lower.includes('cancer')) salud++;
+      });
+    });
+    return { inflamables, corrosivos, toxicos, salud };
+  }, [chemicals]);
+
   const filteredChemicals = chemicals.filter(p => 
     (p.nombre || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (p.fabricante || '').toLowerCase().includes(searchQuery.toLowerCase())
@@ -656,7 +681,7 @@ export default function ChemicalsWorkspace() {
               <Search className="absolute left-3.5 top-3.5 h-4.5 w-4.5 text-text-secondary" />
               <input
                 type="text"
-                placeholder="Buscar químico..."
+                placeholder="Buscar químico o fabricante..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-surface-primary border border-border-medium rounded-xl text-sm text-text-primary outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
@@ -673,10 +698,17 @@ export default function ChemicalsWorkspace() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {filteredChemicals.map(p => {
             const isSelected = selectedProduct?.id === p.id;
             const hasAlert = p.tieneFds === 'No' || p.tieneRotuloSga === 'No';
+
+            const stateColor = p.estadoFisico === 'Líquido'
+              ? 'bg-sky-500/10 text-sky-500 border-sky-500/20'
+              : p.estadoFisico === 'Gaseoso'
+              ? 'bg-purple-500/10 text-purple-500 border-purple-500/20'
+              : 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+
             return (
               <button
                 key={p.id}
@@ -688,21 +720,42 @@ export default function ChemicalsWorkspace() {
                   setConversationId(null);
                   setReportMessageId(null);
                 }}
-                className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all hover:scale-[1.01] ${
+                className={cn(
+                  "w-full flex flex-col p-3 rounded-2xl border text-left transition-all hover:scale-[1.01] cursor-pointer space-y-2",
                   isSelected 
-                    ? 'bg-teal-500/10 border-teal-500 text-teal-400' 
-                    : 'bg-surface-primary border-border-light dark:border-white/5 text-text-primary hover:bg-surface-secondary'
-                }`}
-              >
-                <div className="flex items-center gap-3 truncate">
-                  <div className="truncate">
-                    <p className="font-bold text-sm text-text-primary truncate">{p.nombre}</p>
-                    <p className="text-xs text-text-secondary truncate mt-0.5">{p.fabricante || 'Fabricante desconocido'}</p>
-                  </div>
-                </div>
-                {hasAlert && (
-                  <AlertTriangle className="w-4.5 h-4.5 text-amber-500 shrink-0 ml-2" />
+                    ? "bg-teal-500/10 border-teal-500 shadow-sm shadow-teal-500/10" 
+                    : "bg-surface-primary border-border-light dark:border-white/5 text-text-primary hover:bg-surface-secondary/70 hover:border-teal-500/30"
                 )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border", stateColor)}>
+                      <FlaskConical className="w-4 h-4" />
+                    </div>
+                    <div className="truncate">
+                      <p className="font-bold text-xs text-text-primary truncate">{p.nombre}</p>
+                      <p className="text-[10px] text-text-secondary truncate">{p.fabricante || 'Fabricante no especificado'}</p>
+                    </div>
+                  </div>
+                  {hasAlert ? (
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center gap-1 shrink-0 animate-pulse">
+                      <AlertTriangle className="w-2.5 h-2.5" /> Alerta
+                    </span>
+                  ) : (
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 shrink-0">
+                      <CheckCircle className="w-2.5 h-2.5" /> Conforme
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-2xs text-text-secondary pt-1.5 border-t border-border-light/60 dark:border-white/5">
+                  <span className="flex items-center gap-1 font-mono text-[10px]">
+                    Clase ONU: <strong className="text-text-primary">{p.claseOnu || 'N/A'}</strong>
+                  </span>
+                  <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-semibold border", stateColor)}>
+                    {p.estadoFisico}
+                  </span>
+                </div>
               </button>
             );
           })}
@@ -714,18 +767,31 @@ export default function ChemicalsWorkspace() {
         {selectedProduct ? (
           <div className="flex-1 min-w-0 flex flex-col overflow-hidden h-full">
             <div className="p-4 md:p-6 border-b border-border-light dark:border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-secondary/20 shrink-0">
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <button
                   onClick={() => setSelectedProduct(null)}
                   className="md:hidden inline-flex items-center gap-1.5 text-xs font-bold text-teal-600 dark:text-teal-400 mb-1 hover:underline"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" /> Volver al inventario
                 </button>
-                <h2 className="text-xl font-extrabold text-text-primary">{selectedProduct.nombre}</h2>
-                <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-text-secondary">
-                  <span>Fabricante: {selectedProduct.fabricante || 'Sin registrar'}</span>
-                  <span>•</span>
-                  <span>Estado: {selectedProduct.estadoFisico}</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0 border border-teal-500/20">
+                    <FlaskConical className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-text-primary">{selectedProduct.nombre}</h2>
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-text-secondary mt-0.5">
+                      <span>Fabricante: <strong className="text-text-primary">{selectedProduct.fabricante || 'Sin registrar'}</strong></span>
+                      <span>•</span>
+                      <span className="px-2 py-0.5 rounded-md bg-surface-secondary border border-border-medium text-text-primary text-2xs">
+                        {selectedProduct.estadoFisico}
+                      </span>
+                      <span>•</span>
+                      <span className="font-mono text-2xs text-text-primary bg-surface-secondary px-1.5 py-0.5 rounded">
+                        ONU {selectedProduct.claseOnu || 'N/A'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -775,13 +841,13 @@ export default function ChemicalsWorkspace() {
                     <div className={`p-4 border rounded-xl flex items-center justify-between ${selectedProduct.tieneFds === 'Sí' ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
                       <div>
                         <span className="text-3xs uppercase font-bold text-text-secondary">Ficha de Seguridad (FDS)</span>
-                        <p className="text-sm font-extrabold text-text-primary">{selectedProduct.tieneFds === 'Sí' ? 'Disponible' : 'Faltante ❌'}</p>
+                        <p className="text-sm font-extrabold text-text-primary">{selectedProduct.tieneFds === 'Sí' ? 'Disponible (16 Secciones)' : 'Faltante ❌'}</p>
                       </div>
                     </div>
                     <div className={`p-4 border rounded-xl flex items-center justify-between ${selectedProduct.tieneRotuloSga === 'Sí' ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
                       <div>
                         <span className="text-3xs uppercase font-bold text-text-secondary">Etiquetado Rótulo SGA</span>
-                        <p className="text-sm font-extrabold text-text-primary">{selectedProduct.tieneRotuloSga === 'Sí' ? 'Conforme SGA' : 'Inconforme / Faltante ❌'}</p>
+                        <p className="text-sm font-extrabold text-text-primary">{selectedProduct.tieneRotuloSga === 'Sí' ? 'Conforme SGA (Envase Rótulado)' : 'Inconforme / Faltante ❌'}</p>
                       </div>
                     </div>
                   </div>
@@ -802,12 +868,13 @@ export default function ChemicalsWorkspace() {
                 </button>
                 {isPictogramsExpanded && (
                   <div className="p-5 border-t border-border-medium bg-surface-primary space-y-3.5">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2.5">
                       {selectedProduct.pictogramasSga && selectedProduct.pictogramasSga.length > 0 ? (
                         selectedProduct.pictogramasSga.map((pic, idx) => (
-                          <span key={idx} className="bg-surface-secondary border border-border-medium text-text-primary px-3 py-1.5 rounded-xl font-bold text-xs">
-                            {pic}
-                          </span>
+                          <div key={idx} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 border-red-500/80 bg-red-500/5 text-red-600 dark:text-red-400 font-extrabold text-xs shadow-2xs">
+                            <div className="w-3.5 h-3.5 rotate-45 border-2 border-red-500 bg-white dark:bg-zinc-900 shrink-0" />
+                            <span>{pic}</span>
+                          </div>
                         ))
                       ) : (
                         <span className="text-xs text-text-tertiary italic">Sin pictogramas de peligro seleccionados (Sustancia de bajo riesgo).</span>
@@ -836,7 +903,7 @@ export default function ChemicalsWorkspace() {
                       <h3 className="font-extrabold text-sm text-text-primary">Incompatibilidades de Almacenamiento</h3>
                       <ul className="list-disc pl-5 text-xs text-text-secondary space-y-1">
                         {selectedProduct.incompatibilidades && selectedProduct.incompatibilidades.length > 0 ? (
-                          selectedProduct.incompatibilidades.map((inc, idx) => <li key={idx}>{inc}</li>)
+                          selectedProduct.incompatibilidades.map((inc, idx) => <li key={idx} className="text-amber-600 dark:text-amber-400 font-medium">{inc}</li>)
                         ) : (
                           <li className="italic text-text-tertiary">Ninguna incompatibilidad de mezcla registrada.</li>
                         )}
@@ -885,9 +952,125 @@ export default function ChemicalsWorkspace() {
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-text-tertiary">
-            <ClipboardList className="w-16 h-16 mb-4 text-teal-600 opacity-20" />
-            <p className="text-sm font-semibold">Seleccione un producto químico de la lista o registre uno nuevo para comenzar.</p>
+          <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
+            {/* Banner de Bienvenida y Control SGA */}
+            <div className="p-6 rounded-3xl bg-gradient-to-r from-teal-900/15 via-slate-900/10 to-teal-900/15 border border-teal-500/30 shadow-sm relative overflow-hidden">
+              <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="space-y-1.5 max-w-xl">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/15 text-teal-600 dark:text-teal-300 text-2xs font-extrabold uppercase tracking-wider">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Decreto 1496 de 2018 (SGA)
+                  </div>
+                  <h3 className="text-xl font-black text-text-primary">
+                    Centro de Gestión de Sustancias Químicas y Matriz SGA
+                  </h3>
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    Control de Fichas de Datos de Seguridad (FDS de 16 secciones), etiquetado con pictogramas de peligro GHS y matriz de compatibilidad de almacenamiento en bodega.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => { resetForm(); setSelectedProduct(null); setIsModalOpen(true); }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" /> Registrar Químico
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Accesos Rápidos de Gestión */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div
+                onClick={() => { resetForm(); setSelectedProduct(null); setIsModalOpen(true); }}
+                className="p-4 rounded-2xl bg-surface-primary border border-border-medium hover:border-teal-500/50 hover:shadow-md transition-all cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <FlaskConical className="w-5 h-5" />
+                </div>
+                <h4 className="font-extrabold text-sm text-text-primary">Registrar Químico</h4>
+                <p className="text-2xs text-text-secondary mt-1">Incorporar sustancia con clase ONU, pictogramas SGA y matriz de mezclas.</p>
+              </div>
+
+              <div
+                onClick={handleExportExcel}
+                className="p-4 rounded-2xl bg-surface-primary border border-border-medium hover:border-emerald-500/50 hover:shadow-md transition-all cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <h4 className="font-extrabold text-sm text-text-primary">Matriz Químicos (Excel)</h4>
+                <p className="text-2xs text-text-secondary mt-1">Descargar inventario consolidado, ubicación en bodega y personal expuesto.</p>
+              </div>
+
+              <div
+                onClick={handleGenerate}
+                className="p-4 rounded-2xl bg-surface-primary border border-border-medium hover:border-amber-500/50 hover:shadow-md transition-all cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <h4 className="font-extrabold text-sm text-text-primary">Auditoría IA de Químicos</h4>
+                <p className="text-2xs text-text-secondary mt-1">Generar dictamen pericial sobre almacenamiento seguro y compatibilidades SGA.</p>
+              </div>
+            </div>
+
+            {/* Sustancias con Alertas de FDS o Rótulo */}
+            {chemicalsWithAlerts.length > 0 && (
+              <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="w-4 h-4" />
+                    <h4 className="font-extrabold text-xs uppercase tracking-wider">Sustancias con Alertas Documentales / Rótulo ({chemicalsWithAlerts.length})</h4>
+                  </div>
+                  <span className="text-2xs font-semibold text-text-secondary">Resolución 773 de 2021</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {chemicalsWithAlerts.map(prod => (
+                    <div
+                      key={prod.id}
+                      onClick={() => setSelectedProduct(prod)}
+                      className="p-3 bg-surface-primary rounded-xl border border-amber-500/20 hover:border-amber-500 transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-text-primary truncate">{prod.nombre}</span>
+                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-red-500 text-white shrink-0">
+                          Pendiente
+                        </span>
+                      </div>
+                      <div className="mt-2 space-y-1 text-2xs text-text-secondary">
+                        <p>Fabricante: <strong className="text-text-primary">{prod.fabricante || 'Sin registrar'}</strong></p>
+                        <p>FDS: {prod.tieneFds === 'Sí' ? '✅ Disponible' : '❌ Faltante'} • Rótulo: {prod.tieneRotuloSga === 'Sí' ? '✅ Conforme' : '❌ Inconforme'}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Peligros Químicos en Bodega */}
+            <div className="p-5 rounded-2xl bg-surface-secondary/40 border border-border-light dark:border-white/5 space-y-3">
+              <h4 className="font-extrabold text-xs uppercase tracking-wider text-text-primary flex items-center gap-2">
+                <Flame className="w-4 h-4 text-orange-500" /> Clasificación de Peligros SGA en las Instalaciones
+              </h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3 bg-surface-primary rounded-xl border border-border-medium flex flex-col justify-between">
+                  <span className="text-2xs text-text-secondary font-bold">Inflamables</span>
+                  <span className="text-xl font-black text-orange-500 mt-1">{hazardStats.inflamables}</span>
+                </div>
+                <div className="p-3 bg-surface-primary rounded-xl border border-border-medium flex flex-col justify-between">
+                  <span className="text-2xs text-text-secondary font-bold">Corrosivos</span>
+                  <span className="text-xl font-black text-amber-500 mt-1">{hazardStats.corrosivos}</span>
+                </div>
+                <div className="p-3 bg-surface-primary rounded-xl border border-border-medium flex flex-col justify-between">
+                  <span className="text-2xs text-text-secondary font-bold">Toxicidad Aguda</span>
+                  <span className="text-xl font-black text-red-500 mt-1">{hazardStats.toxicos}</span>
+                </div>
+                <div className="p-3 bg-surface-primary rounded-xl border border-border-medium flex flex-col justify-between">
+                  <span className="text-2xs text-text-secondary font-bold">Peligro para Salud</span>
+                  <span className="text-xl font-black text-purple-500 mt-1">{hazardStats.salud}</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

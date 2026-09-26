@@ -23,7 +23,12 @@ import {
   X, 
   ShieldAlert, 
   Loader2, 
-  ArrowLeft 
+  ArrowLeft,
+  ShieldCheck,
+  Sparkles,
+  Gauge,
+  Truck,
+  ArrowRight
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { SignaturePad } from './SignaturePad';
@@ -71,6 +76,44 @@ interface SocioWorker {
   nombre: string;
   identificacion: string;
   cargo: string;
+}
+
+function getDaysUntil(dateStr?: string): { days: number | null; status: 'ok' | 'warning' | 'expired' | 'none'; text: string } {
+  if (!dateStr) return { days: null, status: 'none', text: 'No registrado' };
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(dateStr + (dateStr.length === 10 ? 'T12:00:00' : ''));
+    if (isNaN(target.getTime())) return { days: null, status: 'none', text: dateStr };
+    const diffTime = target.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) {
+      return { days: diffDays, status: 'expired', text: `Vencido hace ${Math.abs(diffDays)}d` };
+    }
+    if (diffDays <= 30) {
+      return { days: diffDays, status: 'warning', text: `Vence en ${diffDays}d` };
+    }
+    return { days: diffDays, status: 'ok', text: `${diffDays}d vigentes` };
+  } catch (e) {
+    return { days: null, status: 'none', text: dateStr };
+  }
+}
+
+function ColombianPlateBadge({ placa, className }: { placa: string; className?: string }) {
+  const cleanPlaca = (placa || '').toUpperCase().trim();
+  return (
+    <div className={cn(
+      "inline-flex flex-col items-center justify-center px-2 py-0.5 rounded-lg bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 text-slate-950 border-2 border-slate-900 shadow-2xs shrink-0 select-none",
+      className
+    )}>
+      <div className="flex items-center gap-1 font-mono font-black text-xs tracking-wider leading-none">
+        <span>{cleanPlaca}</span>
+      </div>
+      <span className="text-[6.5px] font-sans font-extrabold uppercase tracking-widest text-slate-900 leading-none mt-0.5">
+        COLOMBIA
+      </span>
+    </div>
+  );
 }
 
 export default function VehiclesWorkspace() {
@@ -583,6 +626,25 @@ export default function VehiclesWorkspace() {
     return count;
   }, [vehicles]);
 
+  const vehiclesWithAlerts = useMemo(() => {
+    return vehicles.map(v => {
+      const soat = getDaysUntil(v.soatVencimiento);
+      const tecno = getDaysUntil(v.tecnomecanicaVencimiento);
+      const hasAlert = soat.status === 'expired' || soat.status === 'warning' || tecno.status === 'expired' || tecno.status === 'warning';
+      return { vehicle: v, soat, tecno, hasAlert };
+    }).filter(x => x.hasAlert);
+  }, [vehicles]);
+
+  const recentInspections = useMemo(() => {
+    const all: Array<{ vehicle: VehicleDoc; inspection: InspeccionVehicular }> = [];
+    vehicles.forEach(v => {
+      (v.inspecciones || []).forEach(i => {
+        all.push({ vehicle: v, inspection: i });
+      });
+    });
+    return all.sort((a, b) => (b.inspection.fecha || '').localeCompare(a.inspection.fecha || '')).slice(0, 5);
+  }, [vehicles]);
+
   const filteredVehicles = vehicles.filter(v => 
     (v.placa || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (v.conductorNombre || '').toLowerCase().includes(searchQuery.toLowerCase())
@@ -758,9 +820,13 @@ export default function VehiclesWorkspace() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {filteredVehicles.map(v => {
             const isSelected = selectedVehicle?.placa === v.placa;
+            const soatInfo = getDaysUntil(v.soatVencimiento);
+            const tecInfo = getDaysUntil(v.tecnomecanicaVencimiento);
+            const hasAlert = soatInfo.status === 'expired' || soatInfo.status === 'warning' || tecInfo.status === 'expired' || tecInfo.status === 'warning';
+
             return (
               <button
                 key={v.placa}
@@ -772,20 +838,39 @@ export default function VehiclesWorkspace() {
                   setConversationId(null);
                   setReportMessageId(null);
                 }}
-                className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all hover:scale-[1.01] ${
+                className={cn(
+                  "w-full flex flex-col p-3 rounded-2xl border text-left transition-all hover:scale-[1.01] cursor-pointer space-y-2",
                   isSelected 
-                    ? 'bg-teal-500/10 border-teal-500 text-teal-400' 
-                    : 'bg-surface-primary border-border-light dark:border-white/5 text-text-primary hover:bg-surface-secondary'
-                }`}
+                    ? "bg-teal-500/10 border-teal-500 shadow-sm shadow-teal-500/10" 
+                    : "bg-surface-primary border-border-light dark:border-white/5 text-text-primary hover:bg-surface-secondary/70 hover:border-teal-500/30"
+                )}
               >
-                <div className="flex items-center gap-3 truncate">
-                  <div className={`p-2 rounded-lg shrink-0 ${isSelected ? 'bg-teal-500/20 text-teal-400' : 'bg-surface-secondary text-text-secondary'}`}>
-                    <Car className="w-4 h-4" />
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <ColombianPlateBadge placa={v.placa} />
+                    <div className="truncate">
+                      <p className="font-bold text-xs text-text-primary truncate">{v.marca} {v.modelo}</p>
+                      <p className="text-[10px] text-text-secondary truncate">{v.tipo || 'Automotor'}</p>
+                    </div>
                   </div>
-                  <div className="truncate">
-                    <p className="font-bold text-sm text-text-primary truncate">{v.placa}</p>
-                    <p className="text-xs text-text-secondary truncate mt-0.5">{v.conductorNombre}</p>
-                  </div>
+                  {hasAlert ? (
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center gap-1 shrink-0 animate-pulse">
+                      <AlertTriangle className="w-2.5 h-2.5" /> Alerta
+                    </span>
+                  ) : (
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 shrink-0">
+                      <CheckCircle className="w-2.5 h-2.5" /> Al día
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-2xs text-text-secondary pt-1.5 border-t border-border-light/60 dark:border-white/5">
+                  <span className="flex items-center gap-1 truncate max-w-[170px]">
+                    <User className="w-3 h-3 text-text-tertiary" /> {v.conductorNombre || 'Sin conductor'}
+                  </span>
+                  <span className="font-bold text-teal-600 dark:text-teal-400 shrink-0">
+                    {v.inspecciones?.length || 0} insp.
+                  </span>
                 </div>
               </button>
             );
@@ -798,18 +883,25 @@ export default function VehiclesWorkspace() {
         {selectedVehicle ? (
           <div className="flex-1 min-w-0 flex flex-col overflow-hidden h-full">
             <div className="p-4 md:p-6 border-b border-border-light dark:border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-secondary/20 shrink-0">
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <button
                   onClick={() => setSelectedVehicle(null)}
                   className="md:hidden inline-flex items-center gap-1.5 text-xs font-bold text-teal-600 dark:text-teal-400 mb-1 hover:underline"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" /> Volver a vehículos
                 </button>
-                <h2 className="text-xl font-extrabold text-text-primary">{selectedVehicle.placa}</h2>
-                <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-text-secondary">
-                  <span>{selectedVehicle.marca} {selectedVehicle.modelo}</span>
-                  <span>•</span>
-                  <span>Conductor: <strong className="text-teal-500">{selectedVehicle.conductorNombre}</strong></span>
+                <div className="flex items-center gap-3">
+                  <ColombianPlateBadge placa={selectedVehicle.placa} className="scale-105" />
+                  <div>
+                    <h2 className="text-lg font-black text-text-primary">{selectedVehicle.marca} {selectedVehicle.modelo}</h2>
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-text-secondary mt-0.5">
+                      <span className="px-2 py-0.5 rounded-md bg-surface-secondary border border-border-medium text-text-primary text-2xs">
+                        {selectedVehicle.tipo || 'Automotor'}
+                      </span>
+                      <span>•</span>
+                      <span>Conductor: <strong className="text-teal-600 dark:text-teal-400">{selectedVehicle.conductorNombre || 'Sin asignar'}</strong></span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -835,22 +927,70 @@ export default function VehiclesWorkspace() {
                   <div className="flex items-center gap-2">
                     {isDatesExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                     <Calendar className="w-5 h-5 text-teal-500" />
-                    <span className="font-semibold text-text-primary">Fechas Importantes</span>
+                    <span className="font-semibold text-text-primary">Semáforo Documental y Mantenimiento</span>
                   </div>
                 </button>
                 {isDatesExpanded && (
                   <div className="p-5 border-t border-border-medium bg-surface-primary grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 border border-border-light dark:border-white/5 rounded-xl bg-surface-secondary/20 space-y-1">
-                      <span className="text-3xs uppercase font-bold text-text-secondary">Vencimiento SOAT</span>
-                      <p className="text-sm font-bold text-text-primary">{selectedVehicle.soatVencimiento}</p>
-                    </div>
-                    <div className="p-4 border border-border-light dark:border-white/5 rounded-xl bg-surface-secondary/20 space-y-1">
-                      <span className="text-3xs uppercase font-bold text-text-secondary">Vencimiento Técnico-Mecánica</span>
-                      <p className="text-sm font-bold text-text-primary">{selectedVehicle.tecnomecanicaVencimiento || 'No registrado'}</p>
-                    </div>
-                    <div className="p-4 border border-border-light dark:border-white/5 rounded-xl bg-surface-secondary/20 space-y-1">
-                      <span className="text-3xs uppercase font-bold text-text-secondary">Próximo Mantenimiento</span>
-                      <p className="text-sm font-bold text-text-primary">{selectedVehicle.proximoMantenimiento || 'No registrado'}</p>
+                    {/* SOAT */}
+                    {(() => {
+                      const soat = getDaysUntil(selectedVehicle.soatVencimiento);
+                      return (
+                        <div className={cn(
+                          "p-4 border rounded-2xl space-y-1.5 transition-all shadow-2xs",
+                          soat.status === 'expired' ? "border-red-500/40 bg-red-500/5" :
+                          soat.status === 'warning' ? "border-amber-500/40 bg-amber-500/5" :
+                          "border-emerald-500/30 bg-emerald-500/5"
+                        )}>
+                          <div className="flex items-center justify-between">
+                            <span className="text-3xs uppercase font-extrabold text-text-secondary tracking-wider">Vencimiento SOAT</span>
+                            <span className={cn(
+                              "text-[10px] font-black px-2 py-0.5 rounded-full",
+                              soat.status === 'expired' ? "bg-red-500 text-white" :
+                              soat.status === 'warning' ? "bg-amber-500 text-white" :
+                              "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                            )}>
+                              {soat.text}
+                            </span>
+                          </div>
+                          <p className="text-base font-black text-text-primary">{selectedVehicle.soatVencimiento || 'No registrado'}</p>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Tecno-mecánica */}
+                    {(() => {
+                      const tecno = getDaysUntil(selectedVehicle.tecnomecanicaVencimiento);
+                      return (
+                        <div className={cn(
+                          "p-4 border rounded-2xl space-y-1.5 transition-all shadow-2xs",
+                          tecno.status === 'expired' ? "border-red-500/40 bg-red-500/5" :
+                          tecno.status === 'warning' ? "border-amber-500/40 bg-amber-500/5" :
+                          "border-emerald-500/30 bg-emerald-500/5"
+                        )}>
+                          <div className="flex items-center justify-between">
+                            <span className="text-3xs uppercase font-extrabold text-text-secondary tracking-wider">Técnico-Mecánica (RTM)</span>
+                            <span className={cn(
+                              "text-[10px] font-black px-2 py-0.5 rounded-full",
+                              tecno.status === 'expired' ? "bg-red-500 text-white" :
+                              tecno.status === 'warning' ? "bg-amber-500 text-white" :
+                              "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                            )}>
+                              {tecno.text}
+                            </span>
+                          </div>
+                          <p className="text-base font-black text-text-primary">{selectedVehicle.tecnomecanicaVencimiento || 'No registrado'}</p>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Mantenimiento */}
+                    <div className="p-4 border border-border-light dark:border-white/5 rounded-2xl bg-surface-secondary/30 space-y-1.5 shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-3xs uppercase font-extrabold text-text-secondary tracking-wider">Próximo Mantenimiento</span>
+                        <Wrench className="w-3.5 h-3.5 text-text-tertiary" />
+                      </div>
+                      <p className="text-base font-black text-text-primary">{selectedVehicle.proximoMantenimiento || 'No programado'}</p>
                     </div>
                   </div>
                 )}
@@ -939,9 +1079,153 @@ export default function VehiclesWorkspace() {
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-text-tertiary">
-            <Car className="w-16 h-16 mb-4 text-teal-600 opacity-20" />
-            <p className="text-sm font-semibold">Seleccione un vehículo de la lista o registre uno nuevo para comenzar.</p>
+          <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
+            {/* Banner de Bienvenida y Control PESV */}
+            <div className="p-6 rounded-3xl bg-gradient-to-r from-teal-900/15 via-slate-900/10 to-teal-900/15 border border-teal-500/30 shadow-sm relative overflow-hidden">
+              <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="space-y-1.5 max-w-xl">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/15 text-teal-600 dark:text-teal-300 text-2xs font-extrabold uppercase tracking-wider">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Plan Estratégico de Seguridad Vial
+                  </div>
+                  <h3 className="text-xl font-black text-text-primary">
+                    Centro de Control de Flota y Preoperacionales
+                  </h3>
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    Inspecciones diarias obligatorias antes del primer despacho, trazabilidad de mantenimiento preventivo y control de vigencias de SOAT y RTM (Res. 20223040040595).
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setIsNewVehModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" /> Registrar Automotor
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Accesos Rápidos de Gestión */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div
+                onClick={() => setIsNewVehModalOpen(true)}
+                className="p-4 rounded-2xl bg-surface-primary border border-border-medium hover:border-teal-500/50 hover:shadow-md transition-all cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <Car className="w-5 h-5" />
+                </div>
+                <h4 className="font-extrabold text-sm text-text-primary">Registrar Automotor</h4>
+                <p className="text-2xs text-text-secondary mt-1">Incorporar nuevo vehículo a la flota con vigencia de SOAT y Tecnomecánica.</p>
+              </div>
+
+              <div
+                onClick={handleExportExcel}
+                className="p-4 rounded-2xl bg-surface-primary border border-border-medium hover:border-emerald-500/50 hover:shadow-md transition-all cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <h4 className="font-extrabold text-sm text-text-primary">Matriz PESV (Excel)</h4>
+                <p className="text-2xs text-text-secondary mt-1">Exportar base de datos consolidada de automotores e historial de inspecciones.</p>
+              </div>
+
+              <div
+                onClick={handleGenerate}
+                className="p-4 rounded-2xl bg-surface-primary border border-border-medium hover:border-amber-500/50 hover:shadow-md transition-all cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <h4 className="font-extrabold text-sm text-text-primary">Informe Auditoría IA</h4>
+                <p className="text-2xs text-text-secondary mt-1">Generar auditoría pericial y recomendaciones preventivas para el PESV.</p>
+              </div>
+            </div>
+
+            {/* Vehículos con Alertas Documentales */}
+            {vehiclesWithAlerts.length > 0 && (
+              <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="w-4 h-4" />
+                    <h4 className="font-extrabold text-xs uppercase tracking-wider">Alertas de Vencimiento Documental ({vehiclesWithAlerts.length})</h4>
+                  </div>
+                  <span className="text-2xs font-semibold text-text-secondary">SOAT / Revisión Técnico-Mecánica</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {vehiclesWithAlerts.map(({ vehicle, soat, tecno }) => (
+                    <div
+                      key={vehicle.placa}
+                      onClick={() => setSelectedVehicle(vehicle)}
+                      className="p-3 bg-surface-primary rounded-xl border border-amber-500/20 hover:border-amber-500 transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between">
+                        <ColombianPlateBadge placa={vehicle.placa} />
+                        <span className="text-2xs font-bold text-text-primary">{vehicle.marca}</span>
+                      </div>
+                      <div className="mt-2 space-y-1 text-2xs">
+                        <div className="flex justify-between">
+                          <span className="text-text-secondary">SOAT:</span>
+                          <span className={soat.status === 'expired' ? 'text-red-500 font-bold' : soat.status === 'warning' ? 'text-amber-500 font-bold' : 'text-text-primary'}>
+                            {soat.text}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-text-secondary">Tecno:</span>
+                          <span className={tecno.status === 'expired' ? 'text-red-500 font-bold' : tecno.status === 'warning' ? 'text-amber-500 font-bold' : 'text-text-primary'}>
+                            {tecno.text}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Últimas Inspecciones Realizadas en la Flota */}
+            <div className="rounded-2xl border border-border-medium bg-surface-primary overflow-hidden shadow-xs">
+              <div className="p-4 bg-surface-secondary/40 border-b border-border-light dark:border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4 text-teal-500" />
+                  <h4 className="font-extrabold text-sm text-text-primary">Últimas Inspecciones Registradas en Flota</h4>
+                </div>
+                <span className="text-2xs font-bold text-teal-600 dark:text-teal-400 bg-teal-500/10 px-2.5 py-0.5 rounded-full">
+                  Total {totalInspections}
+                </span>
+              </div>
+              {recentInspections.length > 0 ? (
+                <div className="divide-y divide-border-light dark:divide-white/5">
+                  {recentInspections.map(({ vehicle, inspection }, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => setSelectedVehicle(vehicle)}
+                      className="p-3.5 flex items-center justify-between hover:bg-surface-secondary/40 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3">
+                        <ColombianPlateBadge placa={vehicle.placa} />
+                        <div>
+                          <p className="font-bold text-xs text-text-primary">{vehicle.marca} {vehicle.modelo}</p>
+                          <p className="text-2xs text-text-secondary">Conductor: {vehicle.conductorNombre || 'No asignado'} • {inspection.kilometraje} Km</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xs text-text-secondary">{inspection.fecha}</span>
+                        <span className={cn(
+                          "px-2.5 py-0.5 rounded-full font-bold text-2xs",
+                          inspection.resultado === 'Aprobado' ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"
+                        )}>
+                          {inspection.resultado}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-8 text-center text-text-tertiary text-xs">
+                  Aún no hay inspecciones pre-operacionales registradas. Seleccione un vehículo para registrar la primera.
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

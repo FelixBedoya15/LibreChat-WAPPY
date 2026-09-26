@@ -311,6 +311,20 @@ export default function EPPWorkspace() {
     return count;
   }, [eppDocs]);
 
+  const workersWithExpiredDeliveries = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return workers.filter(w => {
+      const doc = eppDocs.find(d => d.workerId === w.id);
+      if (!doc || !doc.entregas || doc.entregas.length === 0) return false;
+      return doc.entregas.some(e => {
+        if (!e.fechaVencimiento) return false;
+        const v = new Date(e.fechaVencimiento + 'T12:00:00');
+        return v < today;
+      });
+    });
+  }, [workers, eppDocs]);
+
   const getInventoryItemByName = useCallback((name?: string) => {
     if (!name) return null;
     const n = name.toLowerCase().trim();
@@ -1952,10 +1966,249 @@ export default function EPPWorkspace() {
 
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-text-tertiary">
-            <Shield className="w-16 h-16 mb-4 text-teal-500 opacity-20" />
-            <h3 className="text-lg font-extrabold text-text-primary">Módulo de Entrega y Control de EPP</h3>
-            <p className="text-sm text-text-secondary max-w-sm mt-2">Seleccione un trabajador de la lista de la izquierda para comenzar a gestionar el equipamiento de protección personal y controlar las revisiones anuales de alturas.</p>
+          <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
+            {/* Banner de Bienvenida y Control Legal de Dotaciones y EPP */}
+            <div className="p-6 rounded-3xl bg-gradient-to-r from-teal-900/15 via-slate-900/10 to-teal-900/15 border border-teal-500/30 shadow-sm relative overflow-hidden">
+              <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="space-y-1.5 max-w-xl">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/15 text-teal-600 dark:text-teal-300 text-2xs font-extrabold uppercase tracking-wider">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Resolución 2400 de 1979 / Art. 230 C.S.T.
+                  </div>
+                  <h3 className="text-xl font-black text-text-primary">
+                    Centro de Control de Dotaciones y Almacén de EPP
+                  </h3>
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    Gestión integral de entrega de elementos de protección personal, control de reposición periódica (3 entregas legales al año), inspección anual de equipos para alturas y trazabilidad de existencias en almacén.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      if (workers.length > 0) {
+                        setSelectedWorker(workers[0]);
+                        setIsModalOpen(true);
+                      } else {
+                        showToast({ message: 'Primero registre trabajadores en la ficha sociodemográfica.', status: 'info' });
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" /> Registrar Entrega
+                  </button>
+                  <button
+                    onClick={() => setActiveView('inventory')}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Boxes className="w-4 h-4 text-teal-500" /> Ir a Bodega / Stock
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Accesos Rápidos de Gestión */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div
+                onClick={() => {
+                  if (workers.length > 0) {
+                    setSelectedWorker(workers[0]);
+                    setIsModalOpen(true);
+                  } else {
+                    showToast({ message: 'Primero registre trabajadores en la ficha sociodemográfica.', status: 'info' });
+                  }
+                }}
+                className="p-4 rounded-2xl bg-surface-primary border border-border-medium hover:border-teal-500/50 hover:shadow-md transition-all cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <PackageCheck className="w-5 h-5" />
+                </div>
+                <h4 className="font-extrabold text-sm text-text-primary">Registrar Entrega de EPP</h4>
+                <p className="text-2xs text-text-secondary mt-1">Asignar dotación requerida según cargo y peligros IPEVAR con firma de conformidad.</p>
+              </div>
+
+              <div
+                onClick={() => setActiveView('inventory')}
+                className="p-4 rounded-2xl bg-surface-primary border border-border-medium hover:border-emerald-500/50 hover:shadow-md transition-all cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <Boxes className="w-5 h-5" />
+                </div>
+                <h4 className="font-extrabold text-sm text-text-primary">Control de Bodega y Stock</h4>
+                <p className="text-2xs text-text-secondary mt-1">Supervisar existencias físicas, umbrales mínimos, tallas y entradas/salidas de almacén.</p>
+              </div>
+
+              <div
+                onClick={handleGenerate}
+                className="p-4 rounded-2xl bg-surface-primary border border-border-medium hover:border-amber-500/50 hover:shadow-md transition-all cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <h4 className="font-extrabold text-sm text-text-primary">Auditoría IA de Dotación</h4>
+                <p className="text-2xs text-text-secondary mt-1">Evaluar idoneidad técnica de los EPP suministrados según la matriz IPEVAR y normatividad.</p>
+              </div>
+            </div>
+
+            {/* Alertas Críticas de Stock en Bodega */}
+            {(lowStockItems.length > 0 || outOfStockItems.length > 0) && (
+              <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="w-4 h-4" />
+                    <h4 className="font-extrabold text-xs uppercase tracking-wider">
+                      Alertas Críticas de Stock en Bodega ({lowStockItems.length + outOfStockItems.length})
+                    </h4>
+                  </div>
+                  <button
+                    onClick={() => setActiveView('inventory')}
+                    className="text-2xs font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"
+                  >
+                    Ver Bodega Completa <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {[...outOfStockItems, ...lowStockItems].slice(0, 6).map(item => {
+                    const isOut = Number(item.stockActual || 0) === 0;
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => {
+                          setActiveView('inventory');
+                          handleOpenEditInventory(item);
+                        }}
+                        className="p-3 bg-surface-primary rounded-xl border border-amber-500/20 hover:border-amber-500 transition-all cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-text-primary truncate">{item.nombre}</span>
+                          <span className={cn(
+                            "text-[9px] font-black uppercase px-2 py-0.5 rounded-full shrink-0",
+                            isOut ? "bg-red-500 text-white" : "bg-amber-500 text-white"
+                          )}>
+                            {isOut ? 'Agotado' : 'Stock Bajo'}
+                          </span>
+                        </div>
+                        <div className="mt-2 space-y-1 text-2xs text-text-secondary">
+                          <p>Disponible: <strong className={isOut ? "text-red-500 font-bold" : "text-amber-500 font-bold"}>{item.stockActual} {item.unidad || 'uds'}</strong> • Mínimo: {item.stockMinimo || 5}</p>
+                          <p>Ubicación: <strong className="text-text-primary">{item.ubicacionBodega || 'Almacén Principal'}</strong> {item.talla ? `• Talla: ${item.talla}` : ''}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Colaboradores con Dotación Vencida o Pendiente */}
+            {workersWithExpiredDeliveries.length > 0 && (
+              <div className="p-5 rounded-2xl bg-red-500/5 border border-red-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                    <AlertCircle className="w-4 h-4" />
+                    <h4 className="font-extrabold text-xs uppercase tracking-wider">
+                      Colaboradores con Dotación Vencida o Por Reponer ({workersWithExpiredDeliveries.length})
+                    </h4>
+                  </div>
+                  <span className="text-2xs font-semibold text-text-secondary">Art. 230 C.S.T. / Res. 2400</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {workersWithExpiredDeliveries.map(w => {
+                    const doc = eppDocs.find(d => d.workerId === w.id);
+                    const expiredCount = (doc?.entregas || []).filter(e => {
+                      if (!e.fechaVencimiento) return false;
+                      return new Date(e.fechaVencimiento + 'T12:00:00') < new Date();
+                    }).length;
+                    return (
+                      <div
+                        key={w.id}
+                        onClick={() => setSelectedWorker(w)}
+                        className="p-3 bg-surface-primary rounded-xl border border-red-500/20 hover:border-red-500 transition-all cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-text-primary truncate">{w.nombre}</span>
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-red-500 text-white shrink-0">
+                            {expiredCount} Vencido{expiredCount > 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        <div className="mt-2 space-y-1 text-2xs text-text-secondary">
+                          <p>Cargo: <strong className="text-text-primary">{w.cargo || 'Sin cargo'}</strong></p>
+                          <p>C.C. {w.identificacion}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Resumen del Personal y Estado de Entrega */}
+            <div className="p-5 rounded-2xl bg-surface-primary border border-border-medium space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-teal-500" />
+                  <h4 className="font-extrabold text-xs uppercase tracking-wider text-text-primary">
+                    Últimos Colaboradores en Registro ({workers.slice(0, 5).length} de {workers.length})
+                  </h4>
+                </div>
+                <span className="text-2xs text-text-secondary">Haga clic en un colaborador para gestionar su dotación</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-border-light dark:border-white/5 text-2xs font-extrabold text-text-secondary uppercase">
+                      <th className="pb-2">Colaborador</th>
+                      <th className="pb-2">Documento</th>
+                      <th className="pb-2">Cargo</th>
+                      <th className="pb-2 text-center">Entregas</th>
+                      <th className="pb-2 text-right">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-light dark:divide-white/5">
+                    {workers.slice(0, 5).map(w => {
+                      const doc = eppDocs.find(d => d.workerId === w.id);
+                      const cantEntregas = doc?.entregas?.length || 0;
+                      return (
+                        <tr key={w.id} className="hover:bg-surface-secondary/40 transition-colors">
+                          <td className="py-2.5 font-bold text-text-primary">{w.nombre}</td>
+                          <td className="py-2.5 text-text-secondary font-mono text-[11px]">{w.identificacion}</td>
+                          <td className="py-2.5 text-text-secondary">{w.cargo || 'Sin cargo'}</td>
+                          <td className="py-2.5 text-center">
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-full text-[10px] font-bold",
+                              cantEntregas > 0 ? "bg-teal-500/10 text-teal-600 dark:text-teal-400" : "bg-slate-500/10 text-text-tertiary"
+                            )}>
+                              {cantEntregas} entregas
+                            </span>
+                          </td>
+                          <td className="py-2.5 text-right">
+                            <button
+                              onClick={() => setSelectedWorker(w)}
+                              className="px-3 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 font-bold text-2xs transition-colors"
+                            >
+                              Ver Detalle →
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Marco Legal Colombiano: Dotación de Calzado y Vestido de Labor */}
+            <div className="p-4 rounded-2xl bg-surface-secondary/50 border border-border-medium flex items-start gap-3 text-xs text-text-secondary">
+              <Info className="w-5 h-5 text-teal-500 shrink-0 mt-0.5" />
+              <div className="space-y-1 leading-relaxed">
+                <p className="font-extrabold text-text-primary text-xs">
+                  Marco Legal Colombiano para Dotación y Elementos de Protección Personal (EPP):
+                </p>
+                <p className="text-2xs">
+                  • <strong>Art. 230 y 232 C.S.T.:</strong> Todo empleador debe suministrar cada cuatro (4) meses calzado y vestido de labor a los trabajadores que devenguen hasta 2 SMMLV (Fechas límite: 30 de abril, 31 de agosto y 20 de diciembre).
+                </p>
+                <p className="text-2xs">
+                  • <strong>Resolución 2400 de 1979 y Dec. 1072/2015:</strong> Los elementos de protección personal deben ser gratuitos, certificados, adecuados al riesgo evaluado en la matriz IPEVAR y reponerse inmediatamente cuando sufran deterioro o caducidad.
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>
