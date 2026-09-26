@@ -1000,13 +1000,13 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
           calcPos();
           setIsOpen((o) => !o);
         }}
-        className="group flex h-8 min-w-[32px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 text-text-primary shadow-sm outline-none transition-all duration-300 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105"
+        className="group flex h-8 min-w-[32px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 text-text-primary shadow-sm outline-none transition-all duration-300 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105"
       >
         <div className="relative flex flex-shrink-0 items-center justify-center">
           <Download className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
         <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-          <span className="mr-1 text-sm font-bold tracking-wide">Exportar</span>
+          <span className="mr-1 text-xs font-bold tracking-wide">Exportar</span>
           <ChevronDown
             className={`h-4 w-4 text-text-secondary transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
           />

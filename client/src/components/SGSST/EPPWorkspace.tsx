@@ -1571,7 +1571,7 @@ export default function EPPWorkspace() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-md shadow-slate-200/30 dark:shadow-none">
                 <ToolbarButton
                   id="sw-new-delivery"
                   onClick={() => setIsModalOpen(true)}
@@ -1770,7 +1770,7 @@ export default function EPPWorkspace() {
                         <p className="text-xs text-text-secondary max-w-md mx-auto">
                           Sincronice los controles desde la Matriz IPEVAR de Hito 1 o asigne la dotación básica estándar.
                         </p>
-                        <div className="flex items-center justify-center gap-2 pt-1">
+                        <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-md shadow-slate-200/30 dark:shadow-none mt-1">
                           <ToolbarButton
                             id="btn-sync-ipevar"
                             onClick={handleSyncFromIpevar}
@@ -1971,15 +1971,15 @@ export default function EPPWorkspace() {
                         showToast({ message: 'Primero registre trabajadores en la ficha sociodemográfica.', status: 'info' });
                       }
                     }}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
                   >
-                    <Plus className="w-4 h-4" /> Registrar Entrega
+                    <Plus className="w-3.5 h-3.5" /> Registrar Entrega
                   </button>
                   <button
                     onClick={() => setActiveView('inventory')}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
                   >
-                    <Boxes className="w-4 h-4 text-teal-500" /> Ir a Bodega / Stock
+                    <Boxes className="w-3.5 h-3.5 text-teal-500" /> Ir a Bodega / Stock
                   </button>
                 </div>
               </div>
@@ -2161,9 +2161,13 @@ export default function EPPWorkspace() {
                           <td className="py-2.5 text-right">
                             <button
                               onClick={() => setSelectedWorker(w)}
-                              className="px-3 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 font-bold text-2xs transition-colors"
+                              className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95 ml-auto cursor-pointer"
+                              title="Ver ficha y entregas del colaborador"
                             >
-                              Ver Detalle →
+                              <UserCheck className="w-3.5 h-3.5 shrink-0" />
+                              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[90px] group-hover:opacity-100 sm:flex">
+                                <span className="text-[10px] font-bold">Ver Detalle</span>
+                              </div>
                             </button>
                           </td>
                         </tr>
@@ -2212,14 +2216,14 @@ export default function EPPWorkspace() {
           </div>
 
           {/* Botones de Acción Superiores */}
-          <div className="flex items-center gap-1.5">
+          <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-md shadow-slate-200/30 dark:shadow-none">
             <ToolbarButton
               id="bodega-new-epp"
               onClick={() => {
                 resetInventoryForm();
                 setIsInventoryModalOpen(true);
               }}
-              label="Nuevo EPP en Bodega"
+              label="Nuevo EPP"
               icon={Plus}
               title="Registrar nuevo elemento en bodega"
               variant="ai"
@@ -2509,14 +2513,14 @@ export default function EPPWorkspace() {
                     : 'Empieza agregando un elemento o carga el catálogo estándar colombiano de 15 EPPs sugeridos con stock preconfigurado.'}
                 </p>
               </div>
-              <div className="flex items-center justify-center gap-3 pt-2">
+              <div className="flex items-center justify-center gap-2 pt-2">
                 <button
                   type="button"
                   onClick={handleSeedDefaults}
                   disabled={invLoading}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
                 >
-                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                   <span>Cargar Catálogo Estándar (15 EPPs)</span>
                 </button>
                 <button
@@ -2525,9 +2529,9 @@ export default function EPPWorkspace() {
                     resetInventoryForm();
                     setIsInventoryModalOpen(true);
                   }}
-                  className="px-4 py-2.5 rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm text-xs font-bold flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm text-xs font-bold transition-all active:scale-95 cursor-pointer"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3.5 h-3.5" />
                   <span>Crear Primer EPP Manual</span>
                 </button>
               </div>
@@ -2905,20 +2909,21 @@ export default function EPPWorkspace() {
 
             </div>
 
-            <div className="p-6 border-t border-border-light dark:border-white/10 bg-surface-secondary/40 flex justify-end gap-3">
+            <div className="p-4 border-t border-border-light dark:border-white/10 bg-surface-secondary/40 flex justify-end gap-2">
               <button
                 onClick={() => { setIsModalOpen(false); resetForm(); }}
                 disabled={loading}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors active:scale-95"
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all active:scale-95"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSaveEpp}
                 disabled={loading}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-sm transition-all active:scale-95 disabled:opacity-50"
               >
-                Guardar Registro
+                <Save className="w-3.5 h-3.5" />
+                <span>Guardar Registro</span>
               </button>
             </div>
           </div>
@@ -2999,7 +3004,7 @@ export default function EPPWorkspace() {
                     <button
                       type="button"
                       onClick={() => setInvFormTipo('Regular')}
-                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
+                      className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all border ${
                         invFormTipo === 'Regular'
                           ? 'bg-teal-500 text-white border-teal-600 shadow-sm'
                           : 'bg-surface-secondary text-text-secondary border-border-light dark:border-white/10 hover:bg-surface-secondary/80'
@@ -3010,7 +3015,7 @@ export default function EPPWorkspace() {
                     <button
                       type="button"
                       onClick={() => setInvFormTipo('Alturas')}
-                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
+                      className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all border ${
                         invFormTipo === 'Alturas'
                           ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
                           : 'bg-surface-secondary text-text-secondary border-border-light dark:border-white/10 hover:bg-surface-secondary/80'
@@ -3127,21 +3132,21 @@ export default function EPPWorkspace() {
             </div>
 
             {/* Footer */}
-            <div className="p-6 border-t border-border-light dark:border-white/10 bg-surface-secondary/40 flex justify-end gap-3">
+            <div className="p-4 border-t border-border-light dark:border-white/10 bg-surface-secondary/40 flex justify-end gap-2">
               <button
                 onClick={() => { setIsInventoryModalOpen(false); resetInventoryForm(); }}
                 disabled={invLoading}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors active:scale-95"
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all active:scale-95"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSaveInventoryItem}
                 disabled={invLoading}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-sm transition-all active:scale-95 disabled:opacity-50"
               >
-                {invLoading ? <RotateCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Guardar en Almacén
+                {invLoading ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                <span>Guardar en Almacén</span>
               </button>
             </div>
           </div>
@@ -3189,7 +3194,7 @@ export default function EPPWorkspace() {
                   <button
                     type="button"
                     onClick={() => setAdjustDelta(prev => prev > 0 ? -prev : (prev || -1))}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
                       adjustDelta < 0
                         ? 'bg-red-500/10 text-red-600 border-red-500/30'
                         : 'bg-surface-secondary text-text-secondary border-border-light dark:border-white/10'
@@ -3200,7 +3205,7 @@ export default function EPPWorkspace() {
                   <button
                     type="button"
                     onClick={() => setAdjustDelta(prev => Math.abs(prev) || 1)}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
                       adjustDelta >= 0
                         ? 'bg-teal-500/10 text-teal-600 border-teal-500/30'
                         : 'bg-surface-secondary text-text-secondary border-border-light dark:border-white/10'
@@ -3212,7 +3217,7 @@ export default function EPPWorkspace() {
                     type="number"
                     value={adjustDelta}
                     onChange={(e) => setAdjustDelta(parseInt(e.target.value) || 0)}
-                    className="w-24 text-center font-bold text-sm px-2 py-2 bg-surface-secondary border border-border-light dark:border-white/10 rounded-xl focus:border-teal-500 focus:outline-none"
+                    className="w-24 text-center font-bold text-sm px-2 py-1.5 bg-surface-secondary border border-border-light dark:border-white/10 rounded-xl focus:border-teal-500 focus:outline-none"
                   />
                 </div>
                 <div className="mt-2 text-[11px] text-text-secondary">
@@ -3239,7 +3244,7 @@ export default function EPPWorkspace() {
             <div className="p-4 border-t border-border-light dark:border-white/10 bg-surface-secondary/40 flex justify-end gap-2">
               <button
                 onClick={() => { setIsAdjustStockModalOpen(false); setAdjustingItem(null); }}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors active:scale-95"
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all active:scale-95"
               >
                 Cancelar
               </button>
@@ -3253,10 +3258,10 @@ export default function EPPWorkspace() {
                   setIsAdjustStockModalOpen(false);
                   setAdjustingItem(null);
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-sm transition-all active:scale-95"
               >
-                <Check className="w-4 h-4" />
-                Aplicar Movimiento
+                <Check className="w-3.5 h-3.5" />
+                <span>Aplicar Movimiento</span>
               </button>
             </div>
           </div>

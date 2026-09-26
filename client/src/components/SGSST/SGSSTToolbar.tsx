@@ -180,7 +180,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
         ) : !exportContent && !onExportExcel && (onSave || effectivePersistence.length > 0) ? (
           <button
             disabled
-            className="group flex h-8 min-w-[32px] shrink-0 cursor-not-allowed items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 text-text-tertiary opacity-30 shadow-sm sm:h-10 sm:min-w-[40px] sm:px-2.5"
+            className="group flex h-8 min-w-[32px] shrink-0 cursor-not-allowed items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 text-text-tertiary opacity-30 shadow-sm sm:h-9 sm:min-w-[36px] sm:px-2"
           >
             <Download className="h-4 w-4 sm:h-5 sm:w-5" />
             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 group-hover:ml-2 group-hover:max-w-xs group-hover:opacity-100 sm:flex">
@@ -302,7 +302,7 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
       title={title}
       aria-label={title}
       className={cn(
-        'group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 shadow-sm outline-none transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105',
+        'group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 shadow-sm outline-none transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105',
         variantStyles[variant],
       )}
     >
@@ -327,7 +327,7 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
 
       {label && (
         <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[340px] group-hover:opacity-100 sm:flex">
-          <span className="text-sm font-bold tracking-wide">{label}</span>
+          <span className="text-xs font-bold tracking-wide">{label}</span>
         </div>
       )}
     </motion.button>
