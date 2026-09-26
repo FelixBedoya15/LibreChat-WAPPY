@@ -20,13 +20,39 @@ const MonthDataSchema = new mongoose.Schema({
     events: [{
         id: String,
         fecha: String,
-        tipo: String, // 'AT', 'EL', 'Ausentismo'
+        fechaFin: String,
+        tipo: String, // 'AT', 'EL', 'EG_EPS', 'ACC_COMUN', 'CITA_MED', 'LIC_MAT', 'LIC_PAT', 'LUTO', 'CALAMIDAD', 'SUFRAGIO', 'LEY_2174', 'SINDICAL', 'LIC_NO_REM', 'SANCION_DISC', 'PERM_REM', 'NO_JUSTIF', 'Ausentismo'
         causaInmediata: String,
         peligro: String,
         consecuencia: String,
         diasIncapacidad: Number,
+        horasAusencia: Number,
         diasCargados: Number,
         parteCuerpo: String,
+        esProrroga: Boolean,
+        colaborador: {
+            nombre: String,
+            cedula: String,
+            cargo: String,
+            area: String,
+            ibcMensual: Number,
+        },
+        diagnosticoCIE10: String,
+        porcentajeEmpresa: Number,
+        requirioReemplazo: Boolean,
+        costoReemplazo: Number,
+        estadoRecobro: String, // 'PENDIENTE', 'RADICADO', 'COBRADO', 'GLOSADO', 'NO_APLICA'
+        montoRecobrado: Number,
+        financiero: {
+            costoDirectoSalario: Number,
+            costoSeguridadSocial: Number,
+            costoPrestacional: Number,
+            costoReemplazo: Number,
+            costoIndirectoIceberg: Number,
+            costoTotalBruto: Number,
+            montoRecobrado: Number,
+            perdidaNetaEmpresa: Number,
+        }
     }]
 }, { _id: false });
 

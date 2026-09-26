@@ -120,7 +120,7 @@ const ALL_TELEMETRY_DEFINITIONS = [
     { id: 'analisis_ats', name: 'Análisis de Trabajo Seguro (ATS)', tag: 'H3', category: 'Operación', desc: 'Procedimientos paso a paso para tareas no rutinarias', unit: 'formatos ATS' },
     { id: 'reportes_actos', name: 'Reportes de Actos & Condiciones', tag: 'H3', category: 'Operación', desc: 'Tarjetas de observación preventiva en campo', unit: 'tarjetas de campo' },
     { id: 'percepcion_miedo', name: 'Percepción & Miedo (Voz IPEVAR)', tag: 'H3', category: 'Operación', desc: 'Voz del trabajador y riesgo percibido en campo', unit: 'percepciones recogidas' },
-    { id: 'estadisticas_atel', name: 'Estadísticas ATEL (Res. 0312)', tag: 'H4', category: 'Forense', desc: 'Siniestralidad, severidad, frecuencia e ILI', unit: 'eventos registrados' },
+    { id: 'estadisticas_atel', name: 'Gestión de Ausentismo & ATEL (Res. 0312)', tag: 'H4', category: 'Forense', desc: 'Ausentismo laboral, siniestralidad, severidad, frecuencia y costos', unit: 'eventos registrados' },
     { id: 'investigaciones_atel', name: 'Investigación Forense (Res. 1401)', tag: 'H4', category: 'Forense', desc: 'Árbol de causas, modelo GEMA y lecciones', unit: 'árboles de causas' },
     { id: 'matriz_legal', name: 'Matriz Legal & Cumplimiento', tag: 'SG', category: 'Gestión', desc: 'Normatividad colombiana y evaluación de requisitos', unit: 'artículos normativos' },
     { id: 'programa_capacitaciones', name: 'Programa de Capacitaciones', tag: 'SG', category: 'Gestión', desc: 'Cronograma anual y cobertura de inducciones', unit: 'temas programados' },

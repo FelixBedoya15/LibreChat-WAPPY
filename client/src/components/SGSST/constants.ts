@@ -162,8 +162,8 @@ export const PHASE_CATEGORIES = {
     // ─── HITO 06: AUDITORÍA, CAUSALIDAD Y MEJORA CONTINUA ───
     hito6: [
         { 
-            id: 'estadisticas', title: 'Estadísticas ATEL', icon: 'BarChart',
-            bioRationale: 'Indicadores normativos de frecuencia, severidad, mortalidad y ausentismo para visibilizar el balance sistémico.', 
+            id: 'estadisticas', title: 'Gestión Integral de Ausentismo & ATEL', icon: 'BarChart',
+            bioRationale: 'Control de ausentismo médico y laboral, indicadores ATEL (Res. 0312 Art. 30), y balance financiero de pérdidas por IBC y recobros.', 
             normativity: 'Hito 6: Auditoría, Causalidad y Mejora Continua' 
         },
         { 

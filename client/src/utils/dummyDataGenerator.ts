@@ -1719,10 +1719,10 @@ export const generateDummyData = {
         return stats;
     },
 
-    // 4b. Estadisticas ATEL — estructura que usa EstadisticasATEL.tsx (MonthData)
+    // 4b. Gestión de Ausentismo & ATEL — estructura MonthData enriquecida
     estadisticasATEL: () => ({
         numTrabajadores: 52,
-        diasProgramados: 22,
+        diasProgramados: 24,
         events: [
             {
                 id: crypto.randomUUID(),
@@ -1731,19 +1731,57 @@ export const generateDummyData = {
                 peligro: 'Locativo – piso resbaloso',
                 causaInmediata: 'Mancha de aceite no señalizada en zona de despachos',
                 consecuencia: 'Trauma contuso en rodilla derecha y esguince muñeca',
-                diasIncapacidad: 3,
-                diasCargados: 3,
+                diasIncapacidad: 4,
+                diasCargados: 4,
                 parteCuerpo: 'Rodilla derecha',
+                diagnosticoCIE10: 'S83.6',
+                colaborador: {
+                    nombre: 'Carlos Mario Benítez',
+                    cedula: '1020304050',
+                    cargo: 'Auxiliar de Bodega',
+                    area: 'Logística & Despachos',
+                    ibcMensual: 1850000
+                },
+                costoReemplazo: 95000,
+                estadoRecobro: 'RADICADO' as const
             },
             {
                 id: crypto.randomUUID(),
-                tipo: 'Ausentismo' as const,
+                tipo: 'EG_EPS' as const,
                 fecha: new Date().toISOString().split('T')[0],
-                peligro: 'Biológico',
-                causaInmediata: 'Enfermedad general – infección respiratoria aguda',
-                consecuencia: 'Incapacidad por gripe con complicaciones',
+                peligro: 'Ergonómico / Biomecánico',
+                causaInmediata: 'Espasmo muscular severo y lumbalgia aguda',
+                consecuencia: 'Incapacidad médica por lumbago',
+                diasIncapacidad: 6,
+                diasCargados: 0,
+                diagnosticoCIE10: 'M54.5',
+                colaborador: {
+                    nombre: 'Sandra Milena Osorio',
+                    cedula: '1098765432',
+                    cargo: 'Operaria de Producción',
+                    area: 'Planta de Ensamble',
+                    ibcMensual: 1600000
+                },
+                costoReemplazo: 120000,
+                estadoRecobro: 'PENDIENTE' as const
+            },
+            {
+                id: crypto.randomUUID(),
+                tipo: 'LUTO' as const,
+                fecha: new Date().toISOString().split('T')[0],
+                causaInmediata: 'Fallecimiento de familiar en 1er grado de consanguinidad',
+                consecuencia: 'Licencia por luto remunerada (Ley 1280/2009)',
                 diasIncapacidad: 5,
                 diasCargados: 0,
+                colaborador: {
+                    nombre: 'Javier Andrés Gómez',
+                    cedula: '71234567',
+                    cargo: 'Analista de Calidad',
+                    area: 'Control Calidad',
+                    ibcMensual: 2400000
+                },
+                costoReemplazo: 0,
+                estadoRecobro: 'NO_APLICA' as const
             }
         ]
     }),

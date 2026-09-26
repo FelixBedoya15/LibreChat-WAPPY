@@ -1108,7 +1108,7 @@ const InvestigacionATEL = () => {
                 
                 {investigaciones.length === 0 ? (
                     <div className="text-center py-6 text-text-secondary text-sm border-2 border-dashed border-border-medium/50 rounded-xl">
-                        No hay investigaciones registradas. Registre un accidente en Estadísticas ATEL o haga clic en "Nueva Investigación".
+                        No hay investigaciones registradas. Registre un accidente en Gestión Integral de Ausentismo & ATEL o haga clic en "Nueva Investigación".
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

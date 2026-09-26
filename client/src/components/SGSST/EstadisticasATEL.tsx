@@ -1,4 +1,4 @@
-import React, {  useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { UpgradeWall } from './UpgradeWall';
 import { useTranslation } from 'react-i18next';
 import {
@@ -16,6 +16,16 @@ import {
     Database,
     Download,
     Building2,
+    Activity,
+    DollarSign,
+    ShieldAlert,
+    TrendingDown,
+    PieChart,
+    FileText,
+    CheckCircle2,
+    AlertTriangle,
+    Layers,
+    Coins,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -24,25 +34,25 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
-import EventLogger, { ATELContext } from './EventLogger';
+import EventLogger, { ATELContext, calculateEventFinancials } from './EventLogger';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import CollapsibleReportBox from './CollapsibleReportBox';
-import { FileText } from 'lucide-react';
 
 interface MonthData {
     numTrabajadores: number | '';
     diasProgramados: number | '';
     events: ATELContext[];
-    // Cached totals (optional, can be calculated on fly)
 }
 
 const MONTHS = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
+
+type SubTab = 'novedades' | 'indicadores' | 'financiero';
 
 const EstadisticasATEL = () => {
     const { t } = useTranslation();
@@ -54,6 +64,8 @@ const EstadisticasATEL = () => {
     // Annual State: 0-11 index
     const [year, setYear] = useState(new Date().getFullYear());
     const [currentMonthIndex, setCurrentMonthIndex] = useState(new Date().getMonth());
+    const [activeTab, setActiveTab] = useState<SubTab>('novedades');
+
     const [annualData, setAnnualData] = useState<Record<number, MonthData>>(() => {
         const initial: Record<number, MonthData> = {};
         MONTHS.forEach((_, i) => {
@@ -72,8 +84,8 @@ const EstadisticasATEL = () => {
 
     // UI State
     const [isGenerating, setIsGenerating] = useState(false);
-    const [isSavingData, setIsSavingData] = useState(false); // New persistence state
-    const [isLoadingData, setIsLoadingData] = useState(false); // New persistence state
+    const [isSavingData, setIsSavingData] = useState(false);
+    const [isLoadingData, setIsLoadingData] = useState(false);
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
     const editorContentRef = useRef<string>('');
     const liveEditorRef = useRef<LiveEditorHandle>(null);
@@ -124,7 +136,7 @@ const EstadisticasATEL = () => {
             .catch(() => {});
     }, [token, refreshTrigger]);
 
-    // Load Data Effect (Reset to clean slate per year to prevent cross-year leakage)
+    // Load Data Effect
     useEffect(() => {
         const loadData = async () => {
             if (!token) return;
@@ -134,7 +146,6 @@ const EstadisticasATEL = () => {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
-                // Initialize clean annual structure
                 const freshAnnual: Record<number, MonthData> = {};
                 MONTHS.forEach((_, i) => {
                     freshAnnual[i] = { numTrabajadores: '', diasProgramados: '', events: [] };
@@ -171,7 +182,6 @@ const EstadisticasATEL = () => {
         return Object.values(annualData).reduce((sum, m) => sum + (m.events?.length || 0), 0);
     }, [annualData]);
 
-    // Helpers to update current month data
     const updateMonthData = (field: keyof MonthData, value: any) => {
         setAnnualData(prev => ({
             ...prev,
@@ -187,25 +197,112 @@ const EstadisticasATEL = () => {
                 ...prev[currentMonthIndex],
                 numTrabajadores: dummy.numTrabajadores,
                 diasProgramados: dummy.diasProgramados,
-                events: dummy.events
+                events: dummy.events as any
             }
         }));
-        showToast({ message: 'Datos estadísticos de prueba generados exitosamente.', status: 'success', severity: 'success' });
+        showToast({ message: 'Datos estadísticos y financieros de prueba cargados.', status: 'success', severity: 'success' });
     };
 
-    // Calculate totals for current month based on events
     const currentData = annualData[currentMonthIndex];
+
+    // Rich Stats Memo
     const stats = useMemo(() => {
         const events = currentData.events || [];
+        const workers = Number(currentData.numTrabajadores) || 1;
+        const progDays = Number(currentData.diasProgramados) || 0;
+
+        const atEvents = events.filter(e => e.tipo === 'AT');
+        const numAT = atEvents.length;
+        const diasIncapacidadAT = atEvents.reduce((sum, e) => sum + (Number(e.diasIncapacidad) || 0), 0);
+        const diasCargados = atEvents.reduce((sum, e) => sum + (Number(e.diasCargados) || 0), 0);
+        const numMortales = atEvents.filter(e => (Number(e.diasCargados) >= 4500) || (e.consecuencia && e.consecuencia.toLowerCase().includes('mortal'))).length;
+
+        const elEvents = events.filter(e => e.tipo === 'EL');
+        const casosNuevosEL = elEvents.length;
+        const diasIncapacidadEL = elEvents.reduce((sum, e) => sum + (Number(e.diasIncapacidad) || 0), 0);
+
+        const medComunEvents = events.filter(e => ['EG_EPS', 'ACC_COMUN', 'Ausentismo', 'CITA_MED'].includes(e.tipo));
+        const diasMedComun = medComunEvents.reduce((sum, e) => sum + (Number(e.diasIncapacidad) || 0), 0);
+
+        const licEvents = events.filter(e => ['LIC_MAT', 'LIC_PAT', 'LUTO', 'CALAMIDAD', 'SUFRAGIO', 'LEY_2174'].includes(e.tipo));
+        const diasLic = licEvents.reduce((sum, e) => sum + (Number(e.diasIncapacidad) || 0), 0);
+
+        const permisosEvents = events.filter(e => ['LIC_NO_REM', 'SANCION_DISC', 'SINDICAL', 'PERM_REM'].includes(e.tipo));
+        const diasPermisos = permisosEvents.reduce((sum, e) => sum + (Number(e.diasIncapacidad) || 0), 0);
+
+        const noJustifEvents = events.filter(e => e.tipo === 'NO_JUSTIF');
+        const diasNoJustif = noJustifEvents.reduce((sum, e) => sum + (Number(e.diasIncapacidad) || 0), 0);
+
+        const diasMedicosTotal = diasIncapacidadAT + diasIncapacidadEL + diasMedComun;
+        const diasTotal = diasMedicosTotal + diasLic + diasPermisos + diasNoJustif;
+
+        // Res. 0312
+        const if_accidentalidad = ((numAT / workers) * 100).toFixed(2);
+        const is_severidad = (((diasIncapacidadAT + diasCargados) / workers) * 100).toFixed(2);
+        const mortalidad = numAT > 0 ? ((numMortales / numAT) * 100).toFixed(2) : '0.00';
+        const prevalenciaEL = ((casosNuevosEL / workers) * 100000).toFixed(2);
+        const incidenciaEL = ((casosNuevosEL / workers) * 100000).toFixed(2);
+        const ausentismoMedicoPct = progDays > 0 ? ((diasMedicosTotal / progDays) * 100).toFixed(2) : '0.00';
+        const ausentismoTotalPct = progDays > 0 ? ((diasTotal / progDays) * 100).toFixed(2) : '0.00';
+
+        // Financieros Mes
+        let totalPerdidaNeta = 0;
+        let totalRecobroEPS = 0;
+        let totalRecobroARL = 0;
+        let totalSeguridadSocialEmpresa = 0;
+        let totalSeguridadSocialARL = 0;
+        let totalPrestaciones = 0;
+        let totalReemplazo = 0;
+        let totalIndirectos = 0;
+
+        events.forEach(e => {
+            const fin = e.financiero || calculateEventFinancials(e);
+            totalPerdidaNeta += (fin.perdidaNetaEmpresa || 0);
+            totalRecobroEPS += (fin.montoRecobroEPS || 0);
+            totalRecobroARL += (fin.montoRecobroARL || 0);
+            totalSeguridadSocialEmpresa += (fin.costoSeguridadSocial || 0);
+            totalSeguridadSocialARL += (fin.costoSeguridadSocialCubiertoARL || 0);
+            totalPrestaciones += (fin.costoPrestacional || 0);
+            totalReemplazo += (fin.costoReemplazo || 0);
+            totalIndirectos += (fin.costoIndirectoIceberg || 0);
+        });
+
         return {
-            numAT: events.filter(e => e.tipo === 'AT').length,
-            diasIncapacidadAT: events.filter(e => e.tipo === 'AT').reduce((sum, e) => sum + (e.diasIncapacidad || 0), 0),
-            diasCargados: events.filter(e => e.tipo === 'AT').reduce((sum, e) => sum + (e.diasCargados || 0), 0),
-            casosNuevosEL: events.filter(e => e.tipo === 'EL').length,
-            casosAntiguosEL: 0,
-            diasAusencia: events.filter(e => e.tipo === 'Ausentismo').reduce((sum, e) => sum + (e.diasIncapacidad || 0), 0),
+            numAT,
+            diasIncapacidadAT,
+            diasCargados,
+            numMortales,
+            casosNuevosEL,
+            diasIncapacidadEL,
+            numEventosMedicosComunes: medComunEvents.length,
+            diasMedComun,
+            numLicencias: licEvents.length,
+            diasLic,
+            numPermisos: permisosEvents.length,
+            diasPermisos,
+            numNoJustif: noJustifEvents.length,
+            diasNoJustif,
+            diasMedicosTotal,
+            diasTotal,
+            // Indicadores
+            if_accidentalidad,
+            is_severidad,
+            mortalidad,
+            prevalenciaEL,
+            incidenciaEL,
+            ausentismoMedicoPct,
+            ausentismoTotalPct,
+            // Finanzas
+            totalPerdidaNeta,
+            totalRecobroEPS,
+            totalRecobroARL,
+            totalSeguridadSocialEmpresa,
+            totalSeguridadSocialARL,
+            totalPrestaciones,
+            totalReemplazo,
+            totalIndirectos
         };
-    }, [currentData.events]); // Use specific dependency to avoid loop
+    }, [currentData.events, currentData.numTrabajadores, currentData.diasProgramados]);
 
     // Save Logic (Persistence)
     const handleSaveData = async () => {
@@ -240,24 +337,21 @@ const EstadisticasATEL = () => {
     const handleGenerate = useCallback(async (scope: 'MONTH' | 'ANNUAL') => {
         const currentMonthData = annualData[currentMonthIndex];
 
-        // Basic validation
         if (scope === 'MONTH' && !currentMonthData.numTrabajadores) {
             showToast({ message: 'Ingrese el N° de trabajadores para este mes', status: 'warning' });
             return;
         }
 
-        // Auto-save data before generating to ensure consistency
         handleSaveData();
 
         setIsGenerating(true);
         try {
-            // Prepare payload
             const payload = {
                 scope,
                 year,
                 targetMonthIndex: currentMonthIndex,
                 monthName: MONTHS[currentMonthIndex],
-                annualData, // Send all months
+                annualData,
                 modelName: selectedModel,
                 userName: user?.name,
             };
@@ -280,15 +374,11 @@ const EstadisticasATEL = () => {
             setGeneratedReport(data.report);
             editorContentRef.current = data.report;
             liveEditorRef.current?.setHTML(data.report);
-            setConversationId(null);
+            setConversationId('new');
             setReportMessageId(null);
             setIsFormExpanded(false);
 
-            // Reset context for new save
-            setConversationId('new');
-            setReportMessageId(null);
-
-            showToast({ message: `Informe ${scope === 'ANNUAL' ? 'Anual' : 'Mensual'} generado exitosamente`, status: 'success', severity: 'success' });
+            showToast({ message: `Informe ${scope === 'ANNUAL' ? 'Anual' : 'Mensual'} de Ausentismo & Pérdidas generado`, status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('Statistics generation error:', error);
             showToast({ message: error.message || 'Error al generar el informe', status: 'error' });
@@ -308,7 +398,6 @@ const EstadisticasATEL = () => {
             return;
         }
 
-        
         const isNew = !conversationId || conversationId === 'new';
         if (!isPro && isNew) {
             try {
@@ -324,13 +413,12 @@ const EstadisticasATEL = () => {
         }
         
         try {
-            const isNew = !conversationId || conversationId === 'new';
             const method = isNew ? 'POST' : 'PUT';
 
             const body = {
                 content: contentToSave,
                 ...(isNew ? {
-                    title: `Estadísticas ATEL (Informe) - ${MONTHS[currentMonthIndex]} ${year}`,
+                    title: `Gestión de Ausentismo & Pérdidas Financieras - ${MONTHS[currentMonthIndex]} ${year}`,
                     tags: ['sgsst-estadisticas-atel']
                 } : {
                     conversationId,
@@ -350,10 +438,9 @@ const EstadisticasATEL = () => {
                     setConversationId(data.conversationId);
                     setReportMessageId(data.messageId);
                 }
-                // Synchronize state
                 setGeneratedReport(contentToSave);
                 editorContentRef.current = contentToSave;
-            liveEditorRef.current?.setHTML(contentToSave);
+                liveEditorRef.current?.setHTML(contentToSave);
 
                 setRefreshTrigger(prev => prev + 1);
                 showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
@@ -364,7 +451,7 @@ const EstadisticasATEL = () => {
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
         }
-    }, [editorContentRef.current, generatedReport, conversationId, reportMessageId, token, showToast, t, currentMonthIndex, year]);
+    }, [editorContentRef.current, generatedReport, conversationId, reportMessageId, token, showToast, t, currentMonthIndex, year, isPro]);
 
     const handleSelectReport = async (reportOrId: any) => {
         let content = '';
@@ -374,17 +461,12 @@ const EstadisticasATEL = () => {
         if (typeof reportOrId === 'string') {
             convId = reportOrId;
             try {
-                // Fetch messages for this conversation
                 const res = await fetch(`/api/messages/${convId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 if (res.ok) {
                     const messages = await res.json();
-
-                    // Logic to find the correct message with content
-                    // Usually the last assistant message is the report
-                    // Or filter by sender 'SGSST Diagnóstico'
                     const reportMsg = messages.reverse().find((m: any) =>
                         m.sender === 'SGSST Diagnóstico' ||
                         (m.isCreatedByUser === false && m.text && m.text.includes('<html')) ||
@@ -395,8 +477,7 @@ const EstadisticasATEL = () => {
                         content = reportMsg.text;
                         msgId = reportMsg.messageId;
                     } else {
-                        // Fallback: try taking the very last message text
-                        const last = messages[0]; // reversed
+                        const last = messages[0];
                         if (last) {
                             content = last.text;
                             msgId = last.messageId;
@@ -427,7 +508,6 @@ const EstadisticasATEL = () => {
         }
     };
 
-
     useAutoLoadReport({
         token,
         tags: ['sgsst-estadisticas-atel'],
@@ -438,13 +518,15 @@ const EstadisticasATEL = () => {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header / Toolbar */}
-            <div className="flex flex-col items-start justify-center gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
+            <div className="flex flex-col items-start justify-center gap-4 p-4 rounded-2xl bg-surface-secondary border border-border-medium shadow-sm">
                 <div className="flex flex-wrap items-center gap-3 w-full">
-                    <div className="p-2 rounded-xl bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                    <div className="p-2.5 rounded-2xl bg-teal-100 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-800">
                         <BarChart className="h-6 w-6" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-text-primary">Gestión de Indicadores ATEL</h2>
+                        <h2 className="text-lg font-black text-text-primary flex items-center gap-2">
+                            Gestión Integral de Ausentismo, ATEL & Costos Laborales
+                        </h2>
                         <div className="flex items-center gap-2 flex-wrap mt-0.5">
                             <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg border border-border-medium bg-surface-primary shadow-xs">
                                 <button
@@ -467,7 +549,7 @@ const EstadisticasATEL = () => {
                                     <ChevronRight className="w-3.5 h-3.5" />
                                 </button>
                             </div>
-                            <span className="text-xs text-text-secondary">| Res. 0312 Art. 30</span>
+                            <span className="text-xs text-text-secondary">| Res. 0312 Art. 30 · NTC 3793 · Factor Financiero IBC</span>
                             {activeCompanyInfo?.name && (
                                 <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-700 dark:text-teal-300 bg-teal-500/10 dark:bg-teal-500/20 px-2.5 py-0.5 rounded-full border border-teal-500/20 shadow-xs">
                                     <Building2 className="w-3 h-3 text-teal-500" />
@@ -478,30 +560,30 @@ const EstadisticasATEL = () => {
                     </div>
                 </div>
 
-            <SGSSTToolbar
-                onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                isHistoryOpen={isHistoryOpen}
-                aiButtons={[
-                    {
-                        id: 'generate-annual',
-                        onClick: () => handleGenerate('ANNUAL'),
-                        disabled: isGenerating,
-                        title: `Generar Informe Anual ${year}`,
-                        label: "Generar Informe Anual",
-                        icon: "sparkles",
-                        variant: "ai",
-                        isLoading: isGenerating
-                    }
-                ]}
-                selectedModel={selectedModel}
-                onSelectModel={setSelectedModel}
-                onSaveLocal={handleSaveData}
-                isSavingLocal={isSavingData}
-                hasContent={!!(editorContentRef.current || generatedReport)}
-                exportContent={editorContentRef.current || generatedReport || ''}
-                exportFileName={`Estadisticas_ATEL_${MONTHS[currentMonthIndex]}`}
-                onDummy={handleDummyData}
-            />
+                <SGSSTToolbar
+                    onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                    isHistoryOpen={isHistoryOpen}
+                    aiButtons={[
+                        {
+                            id: 'generate-annual',
+                            onClick: () => handleGenerate('ANNUAL'),
+                            disabled: isGenerating,
+                            title: `Generar Informe Anual de Ausentismo & Costos ${year}`,
+                            label: "Generar Informe Anual",
+                            icon: "sparkles",
+                            variant: "ai",
+                            isLoading: isGenerating
+                        }
+                    ]}
+                    selectedModel={selectedModel}
+                    onSelectModel={setSelectedModel}
+                    onSaveLocal={handleSaveData}
+                    isSavingLocal={isSavingData}
+                    hasContent={!!(editorContentRef.current || generatedReport)}
+                    exportContent={editorContentRef.current || generatedReport || ''}
+                    exportFileName={`Informe_Ausentismo_ATEL_${MONTHS[currentMonthIndex]}_${year}`}
+                    onDummy={handleDummyData}
+                />
             </div>
 
             {/* History Panel */}
@@ -526,18 +608,17 @@ const EstadisticasATEL = () => {
                     <div className="flex flex-wrap items-center gap-2 w-full">
                         {isFormExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
                         <CalendarDays className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-                        <span className="font-semibold text-text-primary">
-                            Registro Mensual de Eventos ({year})
+                        <span className="font-bold text-text-primary">
+                            Consolidado de Ausentismo, ATEL & Finanzas ({year})
                         </span>
                         {isLoadingData && <span className="text-xs text-text-secondary animate-pulse ml-2">(Cargando datos...)</span>}
                     </div>
                 </button>
 
                 {isFormExpanded && (
-                    <div className="flex flex-col md:flex-row min-h-[500px] overflow-hidden">
-                        {/* Month Selector Sidebar (Desktop) or Scroll (Mobile) */}
+                    <div className="flex flex-col md:flex-row min-h-[550px] overflow-hidden">
+                        {/* Month Selector Sidebar */}
                         <div className="w-full md:w-52 bg-surface-tertiary/20 border-b md:border-b-0 md:border-r border-border-medium flex md:flex-col overflow-x-auto md:overflow-visible">
-                            {/* Year Selector Control in Sidebar */}
                             <div className="p-3 bg-surface-primary/80 border-b border-border-medium flex flex-col gap-2 shrink-0">
                                 <span className="text-[10px] font-black uppercase tracking-wider text-text-tertiary flex items-center gap-1.5">
                                     <Calendar className="w-3.5 h-3.5 text-teal-500" />
@@ -588,99 +669,342 @@ const EstadisticasATEL = () => {
                                         key={month}
                                         onClick={() => setCurrentMonthIndex(index)}
                                         className={`flex-shrink-0 flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors border-l-4 ${currentMonthIndex === index
-                                            ? 'bg-surface-primary border-teal-500 text-teal-600 dark:text-teal-400 shadow-sm'
+                                            ? 'bg-surface-primary border-teal-500 text-teal-600 dark:text-teal-400 shadow-sm font-bold'
                                             : 'border-transparent text-text-secondary hover:bg-surface-tertiary hover:text-text-primary'
                                             }`}
                                     >
                                         <span>{month}</span>
-                                        {hasData && <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>}
+                                        {hasData && <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>}
                                     </button>
                                 );
                             })}
                         </div>
 
-                        {/* Content Area */}
-                        <div className="flex-1 p-4 md:p-6 space-y-6 bg-surface-primary/10 overflow-auto">
-                            {/* 1. Basic Stats Inputs */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-text-secondary">N° Trabajadores (Promedio) <span className="text-red-500">*</span></label>
-                                    <input
-                                        type="number"
-                                        value={currentData?.numTrabajadores || ''}
-                                        onChange={(e) => updateMonthData('numTrabajadores', Number(e.target.value))}
-                                        placeholder="Ej: 50"
-                                        className="w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-teal-500 transition-colors"
-                                    />
+                        {/* Content Area with Sub-Tabs */}
+                        <div className="flex-1 p-4 md:p-6 space-y-5 bg-surface-primary/10 overflow-auto">
+                            {/* Navegación por Sub-Tabs (WAPPY Design System) */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-medium pb-3">
+                                <div className="inline-flex items-center gap-1.5 p-1 rounded-2xl bg-surface-tertiary border border-border-medium shadow-xs">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('novedades')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                                            activeTab === 'novedades'
+                                                ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs'
+                                                : 'text-text-secondary hover:text-text-primary'
+                                        }`}
+                                    >
+                                        <Layers className="w-3.5 h-3.5" />
+                                        <span>1. Novedades & Ausencias</span>
+                                        {currentData.events?.length > 0 && (
+                                            <span className="bg-teal-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                                                {currentData.events.length}
+                                            </span>
+                                        )}
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('indicadores')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                                            activeTab === 'indicadores'
+                                                ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs'
+                                                : 'text-text-secondary hover:text-text-primary'
+                                        }`}
+                                    >
+                                        <Activity className="w-3.5 h-3.5" />
+                                        <span>2. Indicadores ATEL (Res. 0312)</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('financiero')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                                            activeTab === 'financiero'
+                                                ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-2xs'
+                                                : 'text-text-secondary hover:text-text-primary'
+                                        }`}
+                                    >
+                                        <DollarSign className="w-3.5 h-3.5" />
+                                        <span>3. Balance Financiero & Pérdidas por IBC</span>
+                                    </button>
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-text-secondary">N° Días Programados (Trabajo)</label>
-                                    <input
-                                        type="number"
-                                        value={currentData?.diasProgramados || ''}
-                                        onChange={(e) => updateMonthData('diasProgramados', Number(e.target.value))}
-                                        placeholder="Ej: 24"
-                                        className="w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-teal-500 transition-colors"
-                                    />
+
+                                <div className="text-xs font-semibold text-text-secondary">
+                                    Periodo activo: <span className="text-teal-600 dark:text-teal-400 font-bold">{MONTHS[currentMonthIndex]} {year}</span>
                                 </div>
                             </div>
 
-                            {/* 2. Event Logger */}
-                            <EventLogger
-                                events={currentData?.events || []}
-                                onChange={(events) => updateMonthData('events', events)}
-                                monthName={MONTHS[currentMonthIndex]}
-                            />
+                            {/* TAB 1: NOVEDADES & CAPTURA */}
+                            {activeTab === 'novedades' && (
+                                <div className="space-y-5 animate-in fade-in duration-200">
+                                    {/* Inputs de nómina mensual */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-surface-primary/60 p-4 rounded-2xl border border-border-medium shadow-xs">
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                                                <span>N° Trabajadores Promedio en el Mes</span>
+                                                <span className="text-red-500">*</span>
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={currentData?.numTrabajadores || ''}
+                                                onChange={(e) => updateMonthData('numTrabajadores', Number(e.target.value))}
+                                                placeholder="Ej: 52"
+                                                className="w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary font-bold focus:border-teal-500 transition-colors"
+                                            />
+                                            <span className="text-[10px] text-text-tertiary">Muestra poblacional para tasas de frecuencia e incidencia.</span>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-text-primary">
+                                                N° Días Laborales Programados en el Mes
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="31"
+                                                value={currentData?.diasProgramados || ''}
+                                                onChange={(e) => updateMonthData('diasProgramados', Number(e.target.value))}
+                                                placeholder="Ej: 24"
+                                                className="w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary font-bold focus:border-teal-500 transition-colors"
+                                            />
+                                            <span className="text-[10px] text-text-tertiary">Jornadas hábiles estándar para el cálculo del índice de ausentismo.</span>
+                                        </div>
+                                    </div>
 
-                            {/* 3. Auto-calculated Summary Badge */}
-                            <div className="flex flex-col md:flex-row gap-4">
-                                <div className="flex-1 flex flex-wrap gap-2 text-xs text-text-secondary p-3 bg-surface-tertiary rounded-xl border border-border-medium">
-                                    <span className="font-semibold text-text-primary">Resumen Mes:</span>
-                                    <span>AT: <strong className="text-teal-600">{stats.numAT}</strong></span> •
-                                    <span>EL: <strong className="text-green-600">{stats.casosNuevosEL}</strong></span> •
-                                    <span>Incap: <strong className="text-amber-600">{stats.diasIncapacidadAT + stats.diasAusencia}</strong> días</span>
+                                    {/* Event Logger Mejorado */}
+                                    <EventLogger
+                                        events={currentData?.events || []}
+                                        onChange={(events) => updateMonthData('events', events)}
+                                        monthName={MONTHS[currentMonthIndex]}
+                                    />
                                 </div>
-                                <div className="flex-1 bg-teal-50 dark:bg-teal-900/20 p-3 rounded-xl border border-teal-100 dark:border-teal-800/30 shadow-sm transition-all duration-300">
-                                    <h4 className="text-xs text-teal-800 dark:text-teal-300 mb-1 font-bold flex items-center gap-2">
-                                        <Sparkles className="h-4 w-4 animate-pulse text-teal-500" />
-                                        Generación Inteligente
-                                    </h4>
-                                    <p className="text-[10px] sm:text-xs text-text-secondary leading-relaxed">
-                                        La IA redactará el informe cruzando su accidentabilidad y hallazgos. Se tomará por defecto la <strong>Resolución 1401 de 2007</strong>, el <strong>Decreto 1072 de 2015</strong> y la <strong>Resolución 0312 de 2019</strong> si no especifica otra.
-                                    </p>
-                                </div>
-                            </div>
+                            )}
 
-                            {/* 4. Action Buttons */}
-                            <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-border-medium/50">
-                                <button
-                                    onClick={() => handleGenerate('MONTH')}
-                                    disabled={isGenerating || !currentData.numTrabajadores}
-                                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {isGenerating ? (
-                                        <Loader2 className="h-5 w-5 animate-spin" />
-                                    ) : (
-                                        <Calendar className="h-5 w-5" />
-                                    )}
-                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                                        Informe Mensual ({MONTHS[currentMonthIndex]})
-                                    </span>
-                                </button>
-                                <button
-                                    onClick={() => handleGenerate('ANNUAL')}
-                                    disabled={isGenerating || !currentData.numTrabajadores}
-                                    className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm hover:shadow-md font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {isGenerating ? (
-                                        <Loader2 className="h-5 w-5 animate-spin" />
-                                    ) : (
-                                        <AnimatedIcon name="sparkles" size={20} />
-                                    )}
-                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                                        Informe Anual Acumulado {year}
-                                    </span>
-                                </button>
+                            {/* TAB 2: INDICADORES ATEL (RES. 0312 ART. 30) */}
+                            {activeTab === 'indicadores' && (
+                                <div className="space-y-4 animate-in fade-in duration-200">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                                        {/* 1. Frecuencia */}
+                                        <div className="p-4 rounded-2xl bg-surface-primary border border-border-medium shadow-xs space-y-1.5">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[11px] font-bold text-text-secondary uppercase">Frecuencia de AT (IF)</span>
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 font-bold border border-teal-200">Mensual</span>
+                                            </div>
+                                            <div className="text-2xl font-black text-teal-600 dark:text-teal-400 font-mono">
+                                                {stats.if_accidentalidad}
+                                            </div>
+                                            <p className="text-[11px] text-text-secondary">
+                                                Fórmula: (N° AT / N° Trabajadores) × 100.
+                                                <br />
+                                                <strong>{stats.numAT}</strong> accidentes sobre <strong>{currentData.numTrabajadores || 1}</strong> trabajadores.
+                                            </p>
+                                        </div>
+
+                                        {/* 2. Severidad */}
+                                        <div className="p-4 rounded-2xl bg-surface-primary border border-border-medium shadow-xs space-y-1.5">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[11px] font-bold text-text-secondary uppercase">Severidad de AT (IS)</span>
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 font-bold border border-teal-200">Mensual</span>
+                                            </div>
+                                            <div className="text-2xl font-black text-amber-600 dark:text-amber-400 font-mono">
+                                                {stats.is_severidad}
+                                            </div>
+                                            <p className="text-[11px] text-text-secondary">
+                                                Fórmula: ((Días Incap AT + Cargados) / N° Trab.) × 100.
+                                                <br />
+                                                <strong>{stats.diasIncapacidadAT + stats.diasCargados}</strong> días perdidos + cargados.
+                                            </p>
+                                        </div>
+
+                                        {/* 3. Mortalidad */}
+                                        <div className="p-4 rounded-2xl bg-surface-primary border border-border-medium shadow-xs space-y-1.5">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[11px] font-bold text-text-secondary uppercase">Mortalidad de AT</span>
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-bold border border-slate-300">Anual</span>
+                                            </div>
+                                            <div className="text-2xl font-black text-text-primary font-mono">
+                                                {stats.mortalidad}%
+                                            </div>
+                                            <p className="text-[11px] text-text-secondary">
+                                                Fórmula: (AT Mortales / Total AT) × 100.
+                                                <br />
+                                                Meta legal: <strong>0.00%</strong>.
+                                            </p>
+                                        </div>
+
+                                        {/* 4. Prevalencia EL */}
+                                        <div className="p-4 rounded-2xl bg-surface-primary border border-border-medium shadow-xs space-y-1.5">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[11px] font-bold text-text-secondary uppercase">Prevalencia Enf. Laboral</span>
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-bold border border-slate-300">Anual</span>
+                                            </div>
+                                            <div className="text-2xl font-black text-text-primary font-mono">
+                                                {stats.prevalenciaEL}
+                                            </div>
+                                            <p className="text-[11px] text-text-secondary">
+                                                Por cada 100.000 trabajadores. Casos activos: <strong>{stats.casosNuevosEL}</strong>.
+                                            </p>
+                                        </div>
+
+                                        {/* 5. Incidencia EL */}
+                                        <div className="p-4 rounded-2xl bg-surface-primary border border-border-medium shadow-xs space-y-1.5">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[11px] font-bold text-text-secondary uppercase">Incidencia Enf. Laboral</span>
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-bold border border-slate-300">Anual</span>
+                                            </div>
+                                            <div className="text-2xl font-black text-text-primary font-mono">
+                                                {stats.incidenciaEL}
+                                            </div>
+                                            <p className="text-[11px] text-text-secondary">
+                                                Por cada 100.000 trabajadores. Casos nuevos diagnosticados: <strong>{stats.casosNuevosEL}</strong>.
+                                            </p>
+                                        </div>
+
+                                        {/* 6. Ausentismo Médico Res. 0312 */}
+                                        <div className="p-4 rounded-2xl bg-surface-primary border border-border-medium shadow-xs space-y-1.5">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[11px] font-bold text-text-secondary uppercase">Ausentismo por Causa Médica</span>
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 font-bold border border-teal-200">Mensual</span>
+                                            </div>
+                                            <div className="text-2xl font-black text-rose-600 dark:text-rose-400 font-mono">
+                                                {stats.ausentismoMedicoPct}%
+                                            </div>
+                                            <p className="text-[11px] text-text-secondary">
+                                                Fórmula: (Días Ausencia Médica / Días Programados) × 100.
+                                                <br />
+                                                Total días incapacidad médica: <strong>{stats.diasMedicosTotal}</strong>.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* TAB 3: BALANCE FINANCIERO & PÉRDIDAS POR IBC */}
+                            {activeTab === 'financiero' && (
+                                <div className="space-y-5 animate-in fade-in duration-200">
+                                    {/* Tarjetas Principales de Balance Financiero */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                                        <div className="p-4 rounded-2xl bg-gradient-to-br from-red-500/10 via-surface-primary to-surface-primary border border-red-500/30 shadow-xs space-y-1">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                                                <DollarSign className="w-4 h-4" /> Pérdida Neta Empresa
+                                            </span>
+                                            <div className="text-2xl font-black font-mono text-red-600 dark:text-red-400">
+                                                ${stats.totalPerdidaNeta.toLocaleString('es-CO')}
+                                            </div>
+                                            <p className="text-[10px] text-text-secondary">
+                                                Costo directo no recuperable asumido por la compañía en el mes.
+                                            </p>
+                                        </div>
+
+                                        <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-surface-primary to-surface-primary border border-emerald-500/30 shadow-xs space-y-1">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                                                <Coins className="w-4 h-4" /> Subsidios Radicados / Recobro
+                                            </span>
+                                            <div className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">
+                                                ${(stats.totalRecobroEPS + stats.totalRecobroARL).toLocaleString('es-CO')}
+                                            </div>
+                                            <p className="text-[10px] text-text-secondary">
+                                                EPS: ${stats.totalRecobroEPS.toLocaleString('es-CO')} · ARL: ${stats.totalRecobroARL.toLocaleString('es-CO')}
+                                            </p>
+                                        </div>
+
+                                        <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 via-surface-primary to-surface-primary border border-amber-500/30 shadow-xs space-y-1">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                                                <ShieldAlert className="w-4 h-4" /> Seg. Social Patronal
+                                            </span>
+                                            <div className="text-2xl font-black font-mono text-amber-600 dark:text-amber-400">
+                                                ${stats.totalSeguridadSocialEmpresa.toLocaleString('es-CO')}
+                                            </div>
+                                            <p className="text-[10px] text-text-secondary">
+                                                Aportes patronales EPS/LNR. En ARL: $0 (Ley 776/02 cubre 100%).
+                                            </p>
+                                        </div>
+
+                                        <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 via-surface-primary to-surface-primary border border-purple-500/30 shadow-xs space-y-1">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
+                                                <PieChart className="w-4 h-4" /> Pasivo Prestacional
+                                            </span>
+                                            <div className="text-2xl font-black font-mono text-purple-600 dark:text-purple-400">
+                                                ${stats.totalPrestaciones.toLocaleString('es-CO')}
+                                            </div>
+                                            <p className="text-[10px] text-text-secondary">
+                                                Cesantías, prima, intereses y vacaciones causadas en ausencia.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Cuadro Educativo: EPS vs ARL */}
+                                    <div className="p-4 rounded-2xl bg-surface-primary border border-border-medium space-y-3">
+                                        <h4 className="text-xs font-bold text-text-primary flex items-center gap-2">
+                                            <Building2 className="w-4 h-4 text-teal-500" />
+                                            Manejo Diferenciado de Incapacidades en Colombia (EPS vs. ARL)
+                                        </h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                            <div className="p-3 rounded-xl bg-surface-secondary border border-border-medium space-y-1.5">
+                                                <div className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                                                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                                                    Incapacidad Común (EPS / Decreto 2943/2013)
+                                                </div>
+                                                <ul className="text-text-secondary space-y-1 list-disc list-inside text-[11px] leading-relaxed">
+                                                    <li><strong>Días 1 y 2:</strong> 100% asumidos por la empresa (CST Art. 227).</li>
+                                                    <li><strong>Día 3+:</strong> EPS reconoce el 66.67% (piso 1 SMMLV diario).</li>
+                                                    <li><strong>Aportes a Pensión (12%):</strong> A cargo exclusivo de la empresa.</li>
+                                                    <li><strong>Plazo de giro:</strong> 15 días hábiles tras radicación completa.</li>
+                                                </ul>
+                                            </div>
+
+                                            <div className="p-3 rounded-xl bg-surface-secondary border border-border-medium space-y-1.5">
+                                                <div className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                                                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                    Incapacidad Laboral (ARL / Ley 776 de 2002 Art. 3)
+                                                </div>
+                                                <ul className="text-text-secondary space-y-1 list-disc list-inside text-[11px] leading-relaxed">
+                                                    <li><strong>Subsidio al 100%:</strong> La ARL cubre el 100% del IBC desde el día 1 posterior.</li>
+                                                    <li><strong>Seguridad Social:</strong> ¡La ARL asume el 100% de aportes a Salud y Pensión!</li>
+                                                    <li><strong>Costo de nómina para la empresa:</strong> $0 COP (la empresa solo financia nómina y recobra).</li>
+                                                    <li><strong>Requisito legal:</strong> Radicar FURAT dentro de las 48 horas hábiles.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Generación Inteligente y Botones de Acción */}
+                            <div className="pt-4 border-t border-border-medium/60 flex flex-col sm:flex-row justify-between items-center gap-3">
+                                <div className="text-xs text-text-secondary flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-teal-500 animate-pulse" />
+                                    <span>Genera un informe con balanza de pérdidas en COP ($) y las 6 fórmulas normativas.</span>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => handleGenerate('MONTH')}
+                                        disabled={isGenerating || !currentData.numTrabajadores}
+                                        className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-xl transition-all duration-300 shadow-xs font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isGenerating ? (
+                                            <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                                        ) : (
+                                            <Calendar className="h-4 w-4 mr-1.5 text-teal-600" />
+                                        )}
+                                        <span>Informe Mensual ({MONTHS[currentMonthIndex]})</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => handleGenerate('ANNUAL')}
+                                        disabled={isGenerating || !currentData.numTrabajadores}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isGenerating ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Sparkles className="h-4 w-4" />
+                                        )}
+                                        <span>Informe Anual {year}</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -689,29 +1013,30 @@ const EstadisticasATEL = () => {
 
             {/* Generated Report - LiveEditor */}
             <div className="mt-4">
-                    <CollapsibleReportBox onSave={handleSaveReport}
-                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                        isHistoryOpen={isHistoryOpen}
-                        title={`Estadísticas ATEL — ${MONTHS[currentMonthIndex]}`}
-                        icon={<BarChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
-                        actions={
+                <CollapsibleReportBox
+                    onSave={handleSaveReport}
+                    onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                    isHistoryOpen={isHistoryOpen}
+                    title={`Informe de Gestión de Ausentismo & Pérdidas Financieras — ${MONTHS[currentMonthIndex]} ${year}`}
+                    icon={<BarChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
+                    actions={
                         <ExportDropdown
                             content={editorContentRef.current || generatedReport || ''}
-                            fileName="Informe_EstadisticasATEL"
+                            fileName={`Informe_Ausentismo_ATEL_${MONTHS[currentMonthIndex]}_${year}`}
                             reportType="general"
                         />
                     }
-                    >
-                        <div className="w-full min-w-0">
-                            <LiveEditor
-                                ref={liveEditorRef}
-                                paperMode={true}
-                                initialContent={generatedReport}
-                                onUpdate={(html) => { editorContentRef.current = html; }}
-                                reportSourceData={annualData}
-                            />
-                        </div>
-                    </CollapsibleReportBox>
+                >
+                    <div className="w-full min-w-0">
+                        <LiveEditor
+                            ref={liveEditorRef}
+                            paperMode={true}
+                            initialContent={generatedReport}
+                            onUpdate={(html) => { editorContentRef.current = html; }}
+                            reportSourceData={annualData}
+                        />
+                    </div>
+                </CollapsibleReportBox>
             </div>
         
             {/* Upgrade Modal (Freemium Teaser) */}
