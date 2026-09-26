@@ -519,6 +519,7 @@ const PerfilesCargo = () => {
     const { user, token } = useAuthContext();
 
     const [perfiles, setPerfiles] = useState<PerfilCargoData[]>([]);
+    const [isLoadingPerfiles, setIsLoadingPerfiles] = useState(true);
     const [activePerfilId, setActivePerfilId] = useState<string | null>(null);
     const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
     const [formData, setFormData] = useState<PerfilCargoData>(createInitialPerfil());
@@ -666,6 +667,7 @@ const PerfilesCargo = () => {
     // ─── Load saved profiles ────────────────────────────────────────────────
     useEffect(() => {
         if (!token) return;
+        setIsLoadingPerfiles(true);
         fetch('/api/sgsst/perfiles-cargo/data', {
             headers: { Authorization: `Bearer ${token}` },
         })
@@ -686,7 +688,8 @@ const PerfilesCargo = () => {
                     setFormData(initial);
                 }
             })
-            .catch(err => console.error('[PerfilesCargo] Error loading data:', err));
+            .catch(err => console.error('[PerfilesCargo] Error loading data:', err))
+            .finally(() => setIsLoadingPerfiles(false));
     }, [token]);
 
     // ─── Matriz IPEVAR Oficial Integration ────────────────────────────────────
@@ -1712,7 +1715,18 @@ const PerfilesCargo = () => {
                     </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {perfiles.map((p, index) => {
+                    {isLoadingPerfiles ? (
+                        <>
+                            {[...Array(4)].map((_, i) => (
+                                <div key={i} className="animate-pulse rounded-2xl border border-border-medium/40 bg-surface-secondary p-4 space-y-3">
+                                    <div className="h-4 bg-surface-tertiary rounded-lg w-3/4" />
+                                    <div className="h-3 bg-surface-tertiary rounded-lg w-1/2" />
+                                    <div className="h-3 bg-surface-tertiary rounded-lg w-2/3" />
+                                    <div className="h-7 bg-surface-tertiary rounded-xl w-full mt-2" />
+                                </div>
+                            ))}
+                        </>
+                    ) : perfiles.map((p, index) => {
                         const isActive = activePerfilId === p.id;
                         const isDragging = draggedPerfilIndex === index;
                         const isDragOver = dragOverPerfilIndex === index && draggedPerfilIndex !== index;

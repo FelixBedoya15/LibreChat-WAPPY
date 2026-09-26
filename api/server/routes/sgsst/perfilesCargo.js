@@ -122,6 +122,31 @@ async function ensurePerfilExists(userId, companyId, cargoName, contextInfo = {}
       modified = true;
     }
 
+    // Actualizar controles en la Fuente (medida_ingenieria)
+    if (contextInfo.medida_ingenieria &&
+        contextInfo.medida_ingenieria !== 'Ninguno' &&
+        contextInfo.medida_ingenieria !== 'No aplica') {
+      const currentFuente = new Set(Array.isArray(existing.controlesFuenteSeleccionados) ? existing.controlesFuenteSeleccionados : []);
+      const prevFuenteCount = currentFuente.size;
+      currentFuente.add(contextInfo.medida_ingenieria);
+      if (currentFuente.size !== prevFuenteCount) {
+        existing.controlesFuenteSeleccionados = Array.from(currentFuente);
+        modified = true;
+      }
+    }
+
+    // Actualizar controles en el Individuo (medida_individuo o medida_administrativa como fallback)
+    const ctrlIndividuo = contextInfo.medida_individuo || contextInfo.medida_administrativa;
+    if (ctrlIndividuo && ctrlIndividuo !== 'Ninguno' && ctrlIndividuo !== 'No aplica') {
+      const currentMedio = new Set(Array.isArray(existing.controlesMedioSeleccionados) ? existing.controlesMedioSeleccionados : []);
+      const prevMedioCount = currentMedio.size;
+      currentMedio.add(ctrlIndividuo);
+      if (currentMedio.size !== prevMedioCount) {
+        existing.controlesMedioSeleccionados = Array.from(currentMedio);
+        modified = true;
+      }
+    }
+
     if (modified) {
       await PerfilCargoData.updateOne(
         { _id: doc._id },

@@ -1334,12 +1334,22 @@ Responde ÚNICAMENTE con un JSON array válido de objetos con este formato exact
     logger.info(`[GTC45Workspace /auto-assign-cargos] Persisted ${updatedRows.length} rows to session ${targetConvoId}`);
 
     // Asegurar que todos los cargos asignados queden creados y persistidos en Perfiles de Cargo (PerfilCargoData)
+    // Deduplicar por nombre de cargo para evitar race condition que crea duplicados
     if (typeof ensurePerfilExists === 'function') {
       try {
+        // Agrupar filas por nombre de cargo único (case-insensitive)
+        const uniqueCargoMap = new Map();
         for (const r of updatedRows) {
           if (r.cargo && r.cargo.trim()) {
-            await ensurePerfilExists(userId, companyId, r.cargo, r);
+            const key = r.cargo.trim().toLowerCase();
+            if (!uniqueCargoMap.has(key)) {
+              uniqueCargoMap.set(key, r);
+            }
           }
+        }
+        // Procesar secuencialmente para evitar race conditions (un cargo a la vez)
+        for (const [, r] of uniqueCargoMap) {
+          await ensurePerfilExists(userId, companyId, r.cargo, r);
         }
       } catch (e) {
         logger.warn('[GTC45Workspace /auto-assign-cargos] Error asegurando perfiles:', e.message);

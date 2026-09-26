@@ -448,6 +448,8 @@ const CellAIBubble = ({
   const [instruction, setInstruction] = useState('');
   const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
 
   const isCargo = fieldLabel.toLowerCase().includes('cargo');
   const isZona = fieldLabel.toLowerCase().includes('zona');
@@ -504,11 +506,28 @@ const CellAIBubble = ({
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      const panelEl = document.getElementById('cell-ai-portal-panel');
+      if (
+        (ref.current && ref.current.contains(target)) ||
+        (panelEl && panelEl.contains(target))
+      ) return;
+      setOpen(false);
     };
     if (open) document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [open]);
+
+  const handleToggle = () => {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setMenuPos({
+        top: rect.bottom + window.scrollY + 4,
+        right: window.innerWidth - rect.right - window.scrollX,
+      });
+    }
+    setOpen((o) => !o);
+  };
 
   const apply = async (customInst?: string) => {
     const textToRun = (customInst !== undefined ? customInst : instruction).trim();
@@ -545,15 +564,26 @@ const CellAIBubble = ({
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen((o) => !o)}
+        ref={btnRef}
+        onClick={handleToggle}
         className="absolute bottom-0 right-3.5 flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-bold text-teal-600 dark:text-teal-400 bg-surface-primary/90 backdrop-blur-xs border border-teal-500/20 shadow-xs opacity-0 transition-opacity hover:bg-teal-500/10 hover:text-teal-700 group-hover/cell:opacity-100 group-focus-within/cell:opacity-100 z-20 cursor-pointer"
         type="button"
         title={`Editar ${fieldLabel} con IA`}
       >
         <Sparkles className="h-2.5 w-2.5" /> IA
       </button>
-      {open && (
-        <div className="absolute right-0 top-full z-[150] mt-1 w-72 space-y-2 rounded-xl border border-border-medium bg-surface-primary p-3 shadow-2xl dark:bg-surface-secondary text-left">
+      {open && menuPos && ReactDOM.createPortal(
+        <div
+          id="cell-ai-portal-panel"
+          style={{
+            position: 'fixed',
+            top: menuPos.top - window.scrollY,
+            right: menuPos.right + window.scrollX,
+            zIndex: 9999,
+            width: '288px',
+          }}
+          className="space-y-2 rounded-xl border border-border-medium bg-surface-primary p-3 shadow-2xl dark:bg-surface-secondary text-left"
+        >
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 flex items-center gap-1">
               <Sparkles className="h-3 w-3" /> IA · {fieldLabel}
@@ -600,7 +630,8 @@ const CellAIBubble = ({
               {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Aplicar'}
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
