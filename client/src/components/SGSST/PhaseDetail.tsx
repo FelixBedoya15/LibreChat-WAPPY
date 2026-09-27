@@ -6,7 +6,8 @@ import {
     ArrowLeft, Upload, MessageSquare, File, Trash2, Loader2, ChevronDown, ChevronRight, FolderOpen,
     FileText, Target, Stethoscope, Scale, Users, UserCircle, BarChart, Activity, AlertTriangle, ShieldAlert,
     ClipboardCheck, Briefcase, GitMerge, UserCheck, BrainCircuit, Blocks, Heart, GraduationCap, Shield, Eye,
-    Car, Wrench, FlaskConical, Trello, Search, Lock, Hammer
+    Car, Wrench, FlaskConical, Trello, Search, Lock, Hammer,
+    Award, HeartHandshake
 } from 'lucide-react';
 import { cn } from '~/utils';
 
@@ -53,6 +54,8 @@ import VehiclesWorkspace from './VehiclesWorkspace';
 import HeightsWorkspace from './HeightsWorkspace';
 import ChemicalsWorkspace from './ChemicalsWorkspace';
 import MatrizIPEVARWorkspace from './MatrizIPEVARWorkspace';
+import CopasstWorkspace from './CopasstWorkspace';
+import ConvivenciaWorkspace from './ConvivenciaWorkspace';
 
 // Manual Icon Map to avoid dynamic import issues
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -61,7 +64,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
     AlertTriangle, ShieldAlert, ClipboardCheck,
     Briefcase, GitMerge, FolderOpen, UserCheck,
     BrainCircuit, Blocks, Heart, Shield,
-    Car, Wrench, FlaskConical, Trello, Search
+    Car, Wrench, FlaskConical, Trello, Search,
+    Award, HeartHandshake
 };
 
 
@@ -496,6 +500,20 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                     </div>
                                                 )}
 
+                                                {/* Show CopasstWorkspace for copasst category */}
+                                                {category.id === 'copasst' && (
+                                                    <div className="mb-6">
+                                                        <CopasstWorkspace />
+                                                    </div>
+                                                )}
+
+                                                {/* Show ConvivenciaWorkspace for cocolab / convivencia category */}
+                                                {(category.id === 'cocolab' || category.id === 'convivencia') && (
+                                                    <div className="mb-6">
+                                                        <ConvivenciaWorkspace />
+                                                    </div>
+                                                )}
+
                                                 {/* Show ObjetivosSST for objetivos category */}
                                                 {category.id === 'objetivos' && (
                                                     <div className="mb-6">
@@ -751,7 +769,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                 )}
 
                 {/* Interactive HTML Sandbox Apps Collapsible Card */}
-                {['planear', 'hacer', 'verificar', 'actuar', 'fase1', 'fase2', 'hito1', 'hito2', 'hito3', 'hito4', 'hito5', 'hito6', 'hito7'].includes(phase.id) && (() => {
+                {['planear', 'hacer', 'verificar', 'actuar', 'fase1', 'fase2', 'hito1', 'hito2', 'hito3', 'hito4', 'hito5', 'hito6', 'hito7', 'hito8'].includes(phase.id) && (() => {
                     const isSandboxDisabled = disabledApps.includes('custom_html_sandbox');
                     const isExpanded = expandedCategories.includes('custom_html_sandbox');
 

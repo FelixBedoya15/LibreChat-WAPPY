@@ -539,61 +539,72 @@ export default function TenshiChat() {
               bio_motor: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
               hito2: { route: '/sgsst?hito=hito2', sgsstModule: 'perfil_cargo' },
 
-              // Hito 3: Evaluación Dinámica de Riesgos
-              peligros: { route: '/sgsst?hito=hito3&module=peligros', sgsstModule: 'peligros' },
-              ipevar: { route: '/sgsst?hito=hito3&module=peligros', sgsstModule: 'peligros' },
-              matriz_gtc45: { route: '/sgsst?hito=hito3&module=peligros', sgsstModule: 'peligros' },
-              gtc45: { route: '/sgsst?hito=hito3&module=peligros', sgsstModule: 'peligros' },
-              animo: { route: '/sgsst?hito=hito3&module=animo', sgsstModule: 'animo' },
-              psicosocial: { route: '/sgsst?hito=hito3&module=animo', sgsstModule: 'animo' },
-              clima: { route: '/sgsst?hito=hito3&module=animo', sgsstModule: 'animo' },
-              hito3: { route: '/sgsst?hito=hito3', sgsstModule: 'peligros' },
+              // Hito 3: Gobernanza Paritaria & Convivencia Biocéntrica
+              copasst: { route: '/sgsst?hito=hito3&module=copasst', sgsstModule: 'copasst' },
+              vigia: { route: '/sgsst?hito=hito3&module=copasst', sgsstModule: 'copasst' },
+              cocolab: { route: '/sgsst?hito=hito3&module=cocolab', sgsstModule: 'cocolab' },
+              convivencia: { route: '/sgsst?hito=hito3&module=cocolab', sgsstModule: 'cocolab' },
+              comites: { route: '/sgsst?hito=hito3&module=copasst', sgsstModule: 'copasst' },
+              comite_convivencia: { route: '/sgsst?hito=hito3&module=cocolab', sgsstModule: 'cocolab' },
+              hito3: { route: '/sgsst?hito=hito3', sgsstModule: 'copasst' },
 
-              // Hito 4: Dinámica Operativa y Terreno
-              vehicles_pesv: { route: '/sgsst?hito=hito4&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
-              pesv: { route: '/sgsst?hito=hito4&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
-              vial: { route: '/sgsst?hito=hito4&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
-              chemical_registry: { route: '/sgsst?hito=hito4&module=chemical_registry', sgsstModule: 'chemical_registry' },
-              quimicos: { route: '/sgsst?hito=hito4&module=chemical_registry', sgsstModule: 'chemical_registry' },
-              sga: { route: '/sgsst?hito=hito4&module=chemical_registry', sgsstModule: 'chemical_registry' },
-              permiso_alturas: { route: '/sgsst?hito=hito4&module=permiso_alturas', sgsstModule: 'permiso_alturas' },
-              alturas: { route: '/sgsst?hito=hito4&module=permiso_alturas', sgsstModule: 'permiso_alturas' },
-              analisis_trabajo_seguro: { route: '/sgsst?hito=hito4&module=analisis_trabajo_seguro', sgsstModule: 'analisis_trabajo_seguro' },
-              ats: { route: '/sgsst?hito=hito4&module=analisis_trabajo_seguro', sgsstModule: 'analisis_trabajo_seguro' },
+              // Hito 4: Evaluación Dinámica de Riesgos
+              animo: { route: '/sgsst?hito=hito4&module=animo', sgsstModule: 'animo' },
+              psicosocial: { route: '/sgsst?hito=hito4&module=animo', sgsstModule: 'animo' },
+              clima: { route: '/sgsst?hito=hito4&module=animo', sgsstModule: 'animo' },
               metodo_owas: { route: '/sgsst?hito=hito4&module=metodo_owas', sgsstModule: 'metodo_owas' },
               owas: { route: '/sgsst?hito=hito4&module=metodo_owas', sgsstModule: 'metodo_owas' },
               ergonomia: { route: '/sgsst?hito=hito4&module=metodo_owas', sgsstModule: 'metodo_owas' },
-              epp_delivery: { route: '/sgsst?hito=hito4&module=epp_delivery', sgsstModule: 'epp_delivery' },
-              epp: { route: '/sgsst?hito=hito4&module=epp_delivery', sgsstModule: 'epp_delivery' },
-              heights_lifecycle: { route: '/sgsst?hito=hito4&module=heights_lifecycle', sgsstModule: 'heights_lifecycle' },
-              hito4: { route: '/sgsst?hito=hito4', sgsstModule: 'vehicles_pesv' },
+              estudio_puesto: { route: '/sgsst?hito=hito4&module=estudio_puesto', sgsstModule: 'estudio_puesto' },
+              ept: { route: '/sgsst?hito=hito4&module=estudio_puesto', sgsstModule: 'estudio_puesto' },
+              peligros: { route: '/sgsst?hito=hito4&module=peligros', sgsstModule: 'peligros' },
+              ipevar: { route: '/sgsst?hito=hito4&module=peligros', sgsstModule: 'peligros' },
+              matriz_gtc45: { route: '/sgsst?hito=hito4&module=peligros', sgsstModule: 'peligros' },
+              gtc45: { route: '/sgsst?hito=hito4&module=peligros', sgsstModule: 'peligros' },
+              hito4: { route: '/sgsst?hito=hito4', sgsstModule: 'peligros' },
 
-              // Hito 5: Cultura, Escuela e Innovación
-              capacitaciones: { route: '/sgsst?hito=hito5&module=capacitaciones', sgsstModule: 'capacitaciones' },
-              ruta_aprendizaje: { route: '/sgsst?hito=hito5&module=ruta_aprendizaje', sgsstModule: 'ruta_aprendizaje' },
-              reporte_actos: { route: '/sgsst?hito=hito5&module=reporte_actos', sgsstModule: 'reporte_actos' },
-              actos: { route: '/sgsst?hito=hito5&module=reporte_actos', sgsstModule: 'reporte_actos' },
-              app_builder: { route: '/sgsst?hito=hito5&module=app_builder', sgsstModule: 'app_builder' },
-              hito5: { route: '/sgsst?hito=hito5', sgsstModule: 'capacitaciones' },
+              // Hito 5: Dinámica Operativa y Terreno
+              vehicles_pesv: { route: '/sgsst?hito=hito5&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
+              pesv: { route: '/sgsst?hito=hito5&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
+              vial: { route: '/sgsst?hito=hito5&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
+              chemical_registry: { route: '/sgsst?hito=hito5&module=chemical_registry', sgsstModule: 'chemical_registry' },
+              quimicos: { route: '/sgsst?hito=hito5&module=chemical_registry', sgsstModule: 'chemical_registry' },
+              sga: { route: '/sgsst?hito=hito5&module=chemical_registry', sgsstModule: 'chemical_registry' },
+              permiso_alturas: { route: '/sgsst?hito=hito5&module=permiso_alturas', sgsstModule: 'permiso_alturas' },
+              alturas: { route: '/sgsst?hito=hito5&module=permiso_alturas', sgsstModule: 'permiso_alturas' },
+              analisis_trabajo_seguro: { route: '/sgsst?hito=hito5&module=analisis_trabajo_seguro', sgsstModule: 'analisis_trabajo_seguro' },
+              ats: { route: '/sgsst?hito=hito5&module=analisis_trabajo_seguro', sgsstModule: 'analisis_trabajo_seguro' },
+              epp_delivery: { route: '/sgsst?hito=hito5&module=epp_delivery', sgsstModule: 'epp_delivery' },
+              epp: { route: '/sgsst?hito=hito5&module=epp_delivery', sgsstModule: 'epp_delivery' },
+              heights_lifecycle: { route: '/sgsst?hito=hito5&module=heights_lifecycle', sgsstModule: 'heights_lifecycle' },
+              hito5: { route: '/sgsst?hito=hito5', sgsstModule: 'vehicles_pesv' },
 
-              // Hito 6: Auditoría, Causalidad & Cierre de Ciclo
-              estadisticas: { route: '/sgsst?hito=hito6&module=estadisticas', sgsstModule: 'estadisticas' },
-              atel: { route: '/sgsst?hito=hito6&module=estadisticas', sgsstModule: 'estadisticas' },
-              investigacion_atel: { route: '/sgsst?hito=hito6&module=investigacion_atel', sgsstModule: 'investigacion_atel' },
-              accidentes: { route: '/sgsst?hito=hito6&module=investigacion_atel', sgsstModule: 'investigacion_atel' },
-              control_acpm: { route: '/sgsst?hito=hito6&module=control_acpm', sgsstModule: 'control_acpm' },
-              acpm: { route: '/sgsst?hito=hito6&module=control_acpm', sgsstModule: 'control_acpm' },
-              auditoria: { route: '/sgsst?hito=hito6&module=auditoria', sgsstModule: 'auditoria' },
-              alta_direccion: { route: '/sgsst?hito=hito6&module=alta_direccion', sgsstModule: 'alta_direccion' },
-              investigacion_profunda: { route: '/sgsst?hito=hito6&module=investigacion_profunda', sgsstModule: 'investigacion_profunda' },
-              hito6: { route: '/sgsst?hito=hito6', sgsstModule: 'estadisticas' },
+              // Hito 6: Cultura, Escuela e Innovación
+              capacitaciones: { route: '/sgsst?hito=hito6&module=capacitaciones', sgsstModule: 'capacitaciones' },
+              ruta_aprendizaje: { route: '/sgsst?hito=hito6&module=ruta_aprendizaje', sgsstModule: 'ruta_aprendizaje' },
+              reporte_actos: { route: '/sgsst?hito=hito6&module=reporte_actos', sgsstModule: 'reporte_actos' },
+              actos: { route: '/sgsst?hito=hito6&module=reporte_actos', sgsstModule: 'reporte_actos' },
+              app_builder: { route: '/sgsst?hito=hito6&module=app_builder', sgsstModule: 'app_builder' },
+              hito6: { route: '/sgsst?hito=hito6', sgsstModule: 'capacitaciones' },
 
-              // Hito 7: Inteligencia Artificial & Oráculo Predictivo
-              predictivo: { route: '/sgsst?hito=hito7&module=predictivo', sgsstModule: 'predictivo' },
-              oraculo: { route: '/sgsst?hito=hito7&module=predictivo', sgsstModule: 'predictivo' },
-              oraculo_predictivo: { route: '/sgsst?hito=hito7&module=predictivo', sgsstModule: 'predictivo' },
-              siniestralidad: { route: '/sgsst?hito=hito7&module=predictivo', sgsstModule: 'predictivo' },
-              hito7: { route: '/sgsst?hito=hito7', sgsstModule: 'predictivo' },
+              // Hito 7: Auditoría, Causalidad & Cierre de Ciclo
+              estadisticas: { route: '/sgsst?hito=hito7&module=estadisticas', sgsstModule: 'estadisticas' },
+              atel: { route: '/sgsst?hito=hito7&module=estadisticas', sgsstModule: 'estadisticas' },
+              investigacion_atel: { route: '/sgsst?hito=hito7&module=investigacion_atel', sgsstModule: 'investigacion_atel' },
+              accidentes: { route: '/sgsst?hito=hito7&module=investigacion_atel', sgsstModule: 'investigacion_atel' },
+              control_acpm: { route: '/sgsst?hito=hito7&module=control_acpm', sgsstModule: 'control_acpm' },
+              acpm: { route: '/sgsst?hito=hito7&module=control_acpm', sgsstModule: 'control_acpm' },
+              auditoria: { route: '/sgsst?hito=hito7&module=auditoria', sgsstModule: 'auditoria' },
+              alta_direccion: { route: '/sgsst?hito=hito7&module=alta_direccion', sgsstModule: 'alta_direccion' },
+              investigacion_profunda: { route: '/sgsst?hito=hito7&module=investigacion_profunda', sgsstModule: 'investigacion_profunda' },
+              hito7: { route: '/sgsst?hito=hito7', sgsstModule: 'estadisticas' },
+
+              // Hito 8: Inteligencia Artificial & Oráculo Predictivo
+              predictivo: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
+              oraculo: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
+              oraculo_predictivo: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
+              siniestralidad: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
+              hito8: { route: '/sgsst?hito=hito8', sgsstModule: 'predictivo' },
 
               // Módulos y Aplicativos Generales de WAPPY
               planes: { route: '/planes' },
@@ -759,7 +770,8 @@ export default function TenshiChat() {
 
             // Si no estamos en el módulo correspondiente, navegar hacia él
             if (!window.location.pathname.includes('/sgsst') || !window.location.search.includes(rawModulo)) {
-              navigate(`/sgsst?hito=hito6&module=${rawModulo}`);
+              const targetRoute = HITO_MAP[rawModulo]?.route || `/sgsst?hito=hito7&module=${rawModulo}`;
+              navigate(targetRoute);
             }
 
             // Emitir evento para que el componente del formulario capture los datos

@@ -312,6 +312,8 @@ const startServer = async () => {
   app.use('/api/sgsst/subusers', routes.sgsst.subusers);
   app.use('/api/sgsst/estudio-puesto', routes.sgsst.estudioPuestoTrabajo);
   app.use('/api/sgsst/animo', routes.sgsst.animo);
+  app.use('/api/sgsst/copasst', routes.sgsst.copasst);
+  app.use('/api/sgsst/convivencia', routes.sgsst.convivencia);
   app.use('/api/live-editor', routes.sgsst.liveEditor);
   app.use('/api/live-analysis', routes.sgsst.liveEditor);
   app.use('/api/training', routes.training);

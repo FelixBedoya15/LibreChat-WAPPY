@@ -2544,6 +2544,131 @@ router.post('/convivencia/:companyId', async (req, res) => {
   }
 });
 
+// ─── GET /api/public-sgsst/elecciones/:companyId ─────────────────────────────
+// Consulta procesos electorales activos (COPASST y Convivencia) para los colaboradores
+router.get('/elecciones/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const company = await resolveActiveCompany(companyId);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const { SgsstEleccion } = require('../../models/SgsstCopasst');
+    const elecciones = await SgsstEleccion.find({
+      companyId: company._id,
+      estado: 'activa',
+    }).select('-totalVotosEmitidos -votosEnBlanco').sort({ createdAt: -1 });
+
+    res.json({ success: true, elecciones });
+  } catch (error) {
+    logger.error('[Public SGSST] GET /elecciones error:', error);
+    res.status(500).json({ error: 'Error al consultar elecciones activas' });
+  }
+});
+
+// ─── GET /api/public-sgsst/estado-voto/:companyId/:eleccionId/:cedula ─────────
+// Verifica si el colaborador ya ejerció su derecho al voto en una elección específica
+router.get('/estado-voto/:companyId/:eleccionId/:cedula', async (req, res) => {
+  try {
+    const { companyId, eleccionId, cedula } = req.params;
+    const cleanCedula = String(cedula || '').trim();
+    if (!cleanCedula) return res.status(400).json({ error: 'Cédula requerida' });
+
+    const { SgsstPadronVotante } = require('../../models/SgsstVotacion');
+    const yaVoto = await SgsstPadronVotante.findOne({
+      eleccionId,
+      trabajadorCedula: cleanCedula,
+    });
+
+    res.json({ yaVoto: !!yaVoto });
+  } catch (error) {
+    logger.error('[Public SGSST] GET /estado-voto error:', error);
+    res.status(500).json({ error: 'Error al verificar estado de votación' });
+  }
+});
+
+// ─── POST /api/public-sgsst/votar/:companyId ─────────────────────────────────
+// Emisión de voto secreto con desacoplamiento total de la identidad y la preferencia
+router.post('/votar/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const { eleccionId, trabajadorCedula, trabajadorNombre, candidatoId, tipoComite } = req.body;
+
+    const cleanCedula = String(trabajadorCedula || '').trim();
+    if (!cleanCedula || !eleccionId || !candidatoId) {
+      return res.status(400).json({ error: 'Elección, cédula y candidato requeridos' });
+    }
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const { SgsstEleccion } = require('../../models/SgsstCopasst');
+    const eleccion = await SgsstEleccion.findOne({ _id: eleccionId, companyId: company._id, estado: 'activa' });
+    if (!eleccion) {
+      return res.status(400).json({ error: 'Este proceso electoral no está activo o ha cerrado.' });
+    }
+
+    const { SgsstPadronVotante, SgsstVotoAnonimo } = require('../../models/SgsstVotacion');
+
+    // 1. Verificar si ya votó
+    const registroExistente = await SgsstPadronVotante.findOne({
+      eleccionId: eleccion._id,
+      trabajadorCedula: cleanCedula,
+    });
+
+    if (registroExistente) {
+      return res.status(400).json({ error: 'Ya has registrado tu voto en este proceso electoral.' });
+    }
+
+    // 2. Registrar en el Padrón Electoral (Solo cédula y confirmación de que votó, SIN el candidato)
+    const nuevoPadron = new SgsstPadronVotante({
+      companyId: company._id,
+      eleccionId: eleccion._id,
+      trabajadorCedula: cleanCedula,
+      trabajadorNombre: trabajadorNombre || '',
+      yaVoto: true,
+      fechaVoto: new Date(),
+    });
+    await nuevoPadron.save();
+
+    // 3. Registrar el Voto Anónimo (Solo el candidato, SIN la cédula ni identidad del trabajador)
+    const nuevoVoto = new SgsstVotoAnonimo({
+      companyId: company._id,
+      eleccionId: eleccion._id,
+      tipoComite: tipoComite || eleccion.tipoComite,
+      candidatoId: String(candidatoId).trim(),
+      fechaVoto: new Date(),
+    });
+    await nuevoVoto.save();
+
+    // 4. Actualizar total acumulado de votos emitidos en la elección
+    await SgsstEleccion.updateOne({ _id: eleccion._id }, { $inc: { totalVotosEmitidos: 1 } });
+
+    // 5. Otorgar puntos de gamificación al colaborador (+20 pts)
+    setImmediate(async () => {
+      try {
+        const worker = await SgsstWorker.findOne({ companyId: company._id, cedula: cleanCedula });
+        if (worker) {
+          worker.puntosGamificacion = (worker.puntosGamificacion || 0) + 20;
+          await worker.save();
+        }
+      } catch (err) {
+        logger.warn('[Public Votacion] Gamification points error:', err.message);
+      }
+    });
+
+    res.json({
+      success: true,
+      message: '¡Tu voto ha sido registrado con éxito de forma 100% anónima, secreta y protegida por la ley!',
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ error: 'Ya registraste tu voto en este proceso electoral.' });
+    }
+    logger.error('[Public SGSST] POST /votar error:', error);
+    res.status(500).json({ error: 'Error al emitir el voto secreto' });
+  }
+});
+
 module.exports = router;
 module.exports.releaseWorkerSession = releaseWorkerSession;
 module.exports.getActiveWorkerSession = getActiveWorkerSession;

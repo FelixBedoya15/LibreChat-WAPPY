@@ -20,14 +20,16 @@ import {
     Scale,
     GraduationCap,
     Hammer,
-    Lock
+    Award,
+    HeartHandshake,
+    Users
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import { useToastContext } from '@librechat/client';
 import type { ContextType } from '~/common';
 
-import { PHASE_CATEGORIES } from './constants';
+import { PHASE_CATEGORIES, SGSST_MODULE_PHASE_MAP } from './constants';
 import PhaseDetail from './PhaseDetail';
 import CompanyInfoModal from './CompanyInfoModal';
 import DashboardPredictivo from './DashboardPredictivo';
@@ -39,7 +41,7 @@ const REQUIRED_FIELDS = [
     'sector', 'responsibleSST', 'generalActivities',
 ] as const;
 
-// ─── 6 Hitos Unificados de Somos SST ──────────────────────────────────────────
+// ─── 8 Hitos Unificados de Somos SST ──────────────────────────────────────────
 const getUnifiedHitos = (): Array<{
     id: string;
     title: string;
@@ -56,7 +58,7 @@ const getUnifiedHitos = (): Array<{
         id: 'hito1',
         title: 'Gobernanza y Cimiento Legal',
         subtitle: 'El Marco Institucional (PHVA)',
-        description: 'Diagnóstico Inicial, Responsable SG-SST, Políticas, Objetivos, Matriz Legal, Reglamentos y Emergencias.',
+        description: 'Diagnóstico Inicial, Matriz IPEVAR (GTC 45), Participación IPEVAR, Responsable SG-SST, Política, Objetivos, Matriz Legal, Reglamentos (RHS/RIT) y Análisis de Vulnerabilidad.',
         extendedPhilosophy: 'El cimiento estructural y normativo que sostiene la vida colectiva en la empresa. Define la ética de protección y las normas claras que garantizan la coexistencia segura y el cumplimiento de los estándares legales de prevención.',
         accent: 'text-[#0d9488]',
         bgGlow: 'bg-[#0d9488]/5',
@@ -68,7 +70,7 @@ const getUnifiedHitos = (): Array<{
         id: 'hito2',
         title: 'Huella Biocéntrica',
         subtitle: 'Línea Base del Ser Humano',
-        description: 'Perfiles de Cargo, Perfil Sociodemográfico, Condiciones de Salud y Dictamen de Compatibilidad.',
+        description: 'Perfiles de Cargo (Roles), Perfil Sociodemográfico, Informe de Condiciones de Salud y Dictamen de Compatibilidad Cargo-Persona.',
         extendedPhilosophy: 'El viaje preventivo comienza reconociendo que cada individuo posee variaciones biológicas, psicológicas y sociales únicas. No podemos prevenir daños si no conocemos el estado de salud y las capacidades del ser humano.',
         accent: 'text-[#10b981]',
         bgGlow: 'bg-[#10b981]/5',
@@ -78,63 +80,75 @@ const getUnifiedHitos = (): Array<{
     },
     {
         id: 'hito3',
-        title: 'Evaluación Dinámica de Riesgos',
-        subtitle: 'Peligros y Percepción',
-        description: 'Matriz Bio-IPEVAR, Termómetro Psicosocial en Tiempo Real y Participación IPEVAR Comunitaria.',
-        extendedPhilosophy: 'Hub centralizado de consciencia del riesgo. Evalúa la interacción viva entre los peligros del puesto, la percepción directa del colaborador y su salud mental cotidiana.',
-        accent: 'text-[#059669]',
-        bgGlow: 'bg-[#059669]/5',
-        borderHover: 'hover:border-[#059669]',
-        icon: <ShieldAlert className="w-8 h-8 text-[#059669] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+        title: 'Gobernanza Paritaria & Convivencia Biocéntrica',
+        subtitle: 'Democracia Laboral y Protección de Clima',
+        description: 'COPASST / Vigía de SST (Conformación, Votaciones, Actas Mensuales e Inspecciones) y Comité de Convivencia Laboral (Res. 3461/2025, Gestión 65 días y Ruta Ley 2365).',
+        extendedPhilosophy: 'La seguridad no es una imposición jerárquica sino un pacto participativo y democrático. Empodera a los comités paritarios para auditar las condiciones de trabajo, erradicar el acoso laboral y garantizar espacios laborales dignos y seguros.',
+        accent: 'text-[#0d9488]',
+        bgGlow: 'bg-[#0d9488]/5',
+        borderHover: 'hover:border-[#0d9488]',
+        icon: <Award className="w-8 h-8 text-[#0d9488] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
         label: 'HITO 03'
     },
     {
         id: 'hito4',
+        title: 'Evaluación Dinámica de Riesgos',
+        subtitle: 'Peligros, Ergonomía y Biocentría',
+        description: 'Termómetro Psicosocial en Tiempo Real, Método OWAS (Ergonomía), Estudio de Puesto de Trabajo (EPT con IA) y Matriz Bio-IPEVAR.',
+        extendedPhilosophy: 'Hub centralizado de consciencia del riesgo. Cruza la evaluación osteomuscular y biomecánica con el bienestar psicológico y la percepción comunitaria, culminando en la Matriz Bio-IPEVAR como síntesis bio-individual.',
+        accent: 'text-[#059669]',
+        bgGlow: 'bg-[#059669]/5',
+        borderHover: 'hover:border-[#059669]',
+        icon: <ShieldAlert className="w-8 h-8 text-[#059669] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+        label: 'HITO 04'
+    },
+    {
+        id: 'hito5',
         title: 'Dinámica Operativa y Terreno',
         subtitle: 'Controles y Tareas Críticas',
-        description: 'Permisos de Alturas, ATS, Ergonomía OWAS, EPP, Seguridad Vial (PESV), Equipos de Alturas y Químicos SGA.',
+        description: 'Permisos de Alturas, Análisis de Trabajo Seguro (ATS), Control de EPP, Inspección PESV, Hojas de Vida Equipos de Alturas y Registro Químico SGA.',
         extendedPhilosophy: 'El riesgo se materializa en la jornada diaria. Este hito implementa las barreras duras de ingeniería, permisos de alto riesgo y control de activos críticos para proteger la vida en el terreno.',
         accent: 'text-[#0284c7]',
         bgGlow: 'bg-[#0284c7]/5',
         borderHover: 'hover:border-[#0284c7]',
         icon: <Activity className="w-8 h-8 text-[#0284c7] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
-        label: 'HITO 04'
+        label: 'HITO 05'
     },
     {
-        id: 'hito5',
+        id: 'hito6',
         title: 'Cultura, Escuela e Innovación',
         subtitle: 'Capacitación y Micro-Apps',
-        description: 'Reporte de Actos y Condiciones, Programa de Capacitación, Rutas de Aprendizaje LMS y App Builder.',
+        description: 'Reporte de Actos y Condiciones, Programa de Capacitación SG-SST, Rutas de Aprendizaje LMS y Creador de Aplicativos (App Builder).',
         extendedPhilosophy: 'Empodera la inteligencia colectiva y conductual de la organización mediante la formación continua adaptativa y herramientas no-code para digitalizar inspecciones en campo.',
         accent: 'text-[#f59e0b]',
         bgGlow: 'bg-[#f59e0b]/5',
         borderHover: 'hover:border-[#f59e0b]',
         icon: <GraduationCap className="w-8 h-8 text-[#f59e0b] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
-        label: 'HITO 05'
+        label: 'HITO 06'
     },
     {
-        id: 'hito6',
+        id: 'hito7',
         title: 'Auditoría, Causalidad & Cierre de Ciclo',
         subtitle: 'Verificación, Forense y Dirección',
-        description: 'Gestión Integral de Ausentismo & ATEL, Investigación Forense de Causalidad SG-SST, Tablero Kanban ACPM, Auditoría y Alta Dirección.',
+        description: 'Gestión Integral de Ausentismo & ATEL, Investigación Forense ATEL, Tablero Kanban ACPM, Informe de Auditoría SG-SST, Revisión por la Alta Dirección e Investigación Profunda.',
         extendedPhilosophy: 'Cierra el ciclo sistémico de mejora continua: aprende con rigor forense de los accidentes, audita el cumplimiento de los estándares legales, rinde cuentas gerenciales y gestiona acciones correctivas para blindar la organización.',
         accent: 'text-[#6366f1]',
         bgGlow: 'bg-[#6366f1]/5',
         borderHover: 'hover:border-[#6366f1]',
         icon: <ClipboardCheck className="w-8 h-8 text-[#6366f1] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
-        label: 'HITO 06'
+        label: 'HITO 07'
     },
     {
-        id: 'hito7',
+        id: 'hito8',
         title: 'Inteligencia Artificial & Oráculo Predictivo',
         subtitle: 'El Pináculo: Gemelo Digital y Prescripción',
-        description: 'Modelos predictivos de siniestralidad, Radar de los 9 Dominios Bioindividuales, simulador estocástico y prescripción con IA.',
+        description: 'Centro de Inteligencia Predictiva: modelos estocásticos de siniestralidad, Radar de los 9 Dominios Bioindividuales y prescripción autónoma de controles.',
         extendedPhilosophy: 'El pináculo y destino final de Somos SST. Aquí convergen todos los datos biocéntricos, operativos y forenses para alimentar el oráculo de IA: anticipa siniestros antes de que ocurran, simula escenarios futuros y prescribe controles autónomos para salvar vidas.',
         accent: 'text-[#ec4899]',
         bgGlow: 'bg-[#ec4899]/5',
         borderHover: 'hover:border-[#ec4899]',
         icon: <BrainCircuit className="w-8 h-8 text-[#ec4899] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
-        label: 'HITO 07'
+        label: 'HITO 08'
     }
 ];
 
@@ -143,59 +157,6 @@ const OrganicBlob = () => (
         <path fill="#ffffff" d="M47.7,-67.2C61.4,-57.1,71.5,-41.8,78.2,-24.5C84.9,-7.2,88.2,12.1,81.3,28.8C74.4,45.5,57.3,59.6,39.6,68.4C21.9,77.2,3.6,80.7,-14.2,78.7C-32,76.7,-49.3,69.2,-64.1,56.5C-78.9,43.8,-91.2,25.9,-93.8,6.8C-96.4,-12.3,-89.3,-32.6,-76.3,-48.1C-63.3,-63.6,-44.4,-74.3,-26.8,-76.6C-9.2,-78.9,7.1,-72.8,22.8,-71.8C38.5,-70.8,34,-77.3,47.7,-67.2Z" transform="translate(100 100)" />
     </svg>
 );
-
-const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
-    // Hito 1: Gobernanza y Legal
-    diagnostico: 'hito1',
-    participacion_ipevar: 'hito1',
-    matriz_ipevar_oficial: 'hito1',
-    responsable: 'hito1',
-    politica: 'hito1',
-    objetivos: 'hito1',
-    legal: 'hito1',
-    rhs: 'hito1',
-    rit: 'hito1',
-    vulnerabilidad: 'hito1',
-
-    // Hito 2: Huella Biocéntrica
-    perfil_socio: 'hito2',
-    perfil_sociodemografico: 'hito2',
-    condiciones_salud: 'hito2',
-    perfil_cargo: 'hito2',
-    oraculo_predictivo: 'hito2',
-
-    // Hito 3: Evaluación Dinámica de Riesgos
-    peligros: 'hito3',
-    animo: 'hito3',
-
-    // Hito 4: Dinámica Operativa y Terreno
-    permiso_alturas: 'hito4',
-    analisis_trabajo_seguro: 'hito4',
-    metodo_owas: 'hito4',
-    epp_delivery: 'hito4',
-    vehicles_pesv: 'hito4',
-    heights_lifecycle: 'hito4',
-    chemical_registry: 'hito4',
-
-    // Hito 5: Cultura, Escuela e Innovación
-    reporte_actos: 'hito5',
-    capacitaciones: 'hito5',
-    ruta_aprendizaje: 'hito5',
-    app_builder: 'hito5',
-    custom_html_sandbox: 'hito5',
-
-    // Hito 6: Auditoría, Causalidad & Cierre de Ciclo
-    estadisticas: 'hito6',
-    investigacion_atel: 'hito6',
-    control_acpm: 'hito6',
-    acpm: 'hito6',
-    auditoria: 'hito6',
-    alta_direccion: 'hito6',
-    investigacion_profunda: 'hito6',
-
-    // Hito 7: Inteligencia Artificial & Oráculo Predictivo
-    predictivo: 'hito7',
-};
 
 export default function SGSSTDashboard() {
     const navigate = useNavigate();
@@ -340,7 +301,7 @@ export default function SGSSTDashboard() {
 
         // Mapeo retrocompatible
         if (rawHito === 'fase1') targetId = 'hito1';
-        if (rawHito === 'fase2') targetId = 'hito6';
+        if (rawHito === 'fase2') targetId = 'hito7';
 
         if (targetId) {
             const found = unifiedHitos.find(h => h.id === targetId);
@@ -398,7 +359,7 @@ export default function SGSSTDashboard() {
                         </div>
                         <div>
                             <h1 className="text-3xl font-bold text-text-primary tracking-tight">SOMOS SST</h1>
-                            <p className="text-text-secondary mt-1 text-sm font-medium">Suite Integral de Seguridad y Salud en el Trabajo &bull; 6 Hitos Estratégicos</p>
+                            <p className="text-text-secondary mt-1 text-sm font-medium">Suite Integral de Seguridad y Salud en el Trabajo &bull; 8 Hitos Estratégicos</p>
                         </div>
                     </div>
                 </div>
@@ -451,7 +412,7 @@ export default function SGSSTDashboard() {
                                 Ruta Integral de Prevención y Liderazgo
                             </h2>
                             <p className="text-sm md:text-base text-text-secondary font-medium mt-2 max-w-2xl mx-auto">
-                                Recorra los 7 hitos estratégicos: desde la gobernanza legal y la huella del bio-individuo, hasta los controles de terreno, la auditoría y la analítica predictiva de inteligencia artificial.
+                                Recorra los 8 hitos estratégicos: desde la gobernanza legal, la huella biocéntrica y la participación paritaria, hasta la evaluación dinámica, controles de terreno, auditoría y el oráculo predictivo de IA.
                             </p>
                         </div>
                     </div>

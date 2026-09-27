@@ -36,6 +36,7 @@ const PublicEstudioPuesto = lazy(() => import('~/components/SGSST/PublicEstudioP
 const PublicColaboradorHub = lazy(() => import('~/components/SGSST/PublicColaboradorHub'));
 const PublicComites = lazy(() => import('~/components/SGSST/PublicComites'));
 const PublicConvivencia = lazy(() => import('~/components/SGSST/PublicConvivencia'));
+const PublicVotaciones = lazy(() => import('~/components/SGSST/PublicVotaciones'));
 const MoodAnalyticsDashboard = lazy(() => import('~/components/SGSST/MoodAnalyticsDashboard'));
 const PrivacyPolicyPage = lazy(() => import('~/components/Auth/PrivacyPolicyPage'));
 const TermsOfServicePage = lazy(() => import('~/components/Auth/TermsOfServicePage'));
@@ -184,6 +185,11 @@ export const router = createBrowserRouter(
     {
       path: 'sgsst-public/convivencia/:companyId',
       element: withSuspense(<PublicConvivencia />),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'sgsst-public/votaciones/:companyId',
+      element: withSuspense(<PublicVotaciones />),
       errorElement: <RouteErrorBoundary />,
     },
     {

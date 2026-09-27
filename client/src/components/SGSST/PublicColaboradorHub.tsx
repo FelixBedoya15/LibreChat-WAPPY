@@ -27,6 +27,7 @@ import {
   Stethoscope,
   Briefcase,
   RefreshCw,
+  Vote,
 } from 'lucide-react';
 import PublicWorkerHeader from './PublicWorkerHeader';
 
@@ -406,6 +407,14 @@ export default function PublicColaboradorHub() {
       icon: Lock,
       path: `/sgsst-public/convivencia/${companyId}`,
       color: 'from-violet-500 to-purple-700',
+    },
+    {
+      title: 'Elecciones Paritarias (Voto Secreto)',
+      desc: 'Elige tus representantes COPASST y Convivencia',
+      points: '+20 pts',
+      icon: Vote,
+      path: `/sgsst-public/votaciones/${companyId}`,
+      color: 'from-teal-600 to-emerald-700',
     },
     {
       title: 'Actualizar mis Datos',

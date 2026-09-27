@@ -80,5 +80,7 @@ module.exports = {
     subusers: require('./subusers'),
     estudioPuestoTrabajo: require('./estudioPuestoTrabajo'),
     animo: require('./animo'),
+    copasst: require('./copasst'),
+    convivencia: require('./convivencia'),
 };
 

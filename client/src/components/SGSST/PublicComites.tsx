@@ -172,7 +172,7 @@ export default function PublicComites() {
     cocolab: {
       name: 'COCOLAB',
       fullName: 'Comité de Convivencia Laboral',
-      norm: 'Res. 652/2012 • Ley 1010/2006 • Ley 2365/2024',
+      norm: 'Res. 3461/2025 • Ley 1010/2006 • Ley 2365/2024',
       icon: HeartHandshake,
       color: 'from-indigo-600 to-violet-600',
       pts: '+25 pts',

@@ -15,6 +15,7 @@ import {
   Sparkles,
   MessageSquare,
   LayoutGrid,
+  Vote,
 } from 'lucide-react';
 
 interface PublicWorkerHeaderProps {
@@ -140,6 +141,15 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
       path: `/sgsst-public/convivencia/${companyId}`,
       color: 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/40 border-violet-200 dark:border-violet-800',
       badge: 'Seguro',
+    },
+    {
+      id: 'votaciones',
+      name: 'Votaciones Paritarias (Voto Secreto)',
+      desc: 'Elige tus representantes COPASST y Convivencia',
+      icon: Vote,
+      path: `/sgsst-public/votaciones/${companyId}`,
+      color: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800',
+      badge: '+20 pts',
     },
     {
       id: 'perfil_update',
