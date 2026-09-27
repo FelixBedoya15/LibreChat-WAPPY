@@ -347,28 +347,21 @@ async function syncWorkerWithOraculoH1(worker, userId) {
                     String(t.identificacion || t.documento || '').trim() === String(worker.documento || '').trim()
                 );
                 if (liveSocioWorker) {
-                    // Self-healing: if score is missing or default (100) but has clinical conditions, force recalculate
-                    const hasClinicalText = [
-                        liveSocioWorker.limitacionesBiomecanicas, liveSocioWorker.recomendacionesMedicas,
-                        liveSocioWorker.diagnosticoMedico, liveSocioWorker.enfermedades,
-                        liveSocioWorker.alergiasQuimicas, liveSocioWorker.medicamentos
-                    ].some(v => v && String(v).trim().length > 2 && !String(v).toLowerCase().includes('ninguna') && !String(v).toLowerCase().includes('ninguno'));
-
-                    if (liveSocioWorker.biocentricScore === undefined || liveSocioWorker.biocentricScore === null || (liveSocioWorker.biocentricScore === 100 && hasClinicalText)) {
-                        const getRecalculateHelper = () => {
-                            const router = require('./perfilSociodemografico');
-                            return router.recalculateAndSyncAllWorkers;
-                        };
-                        const recalculateAndSyncAllWorkers = getRecalculateHelper();
-                        if (typeof recalculateAndSyncAllWorkers === 'function') {
-                            const updatedList = await recalculateAndSyncAllWorkers(userId, worker.companyId, socioDoc.trabajadores);
-                            socioDoc.trabajadores = updatedList;
-                            socioDoc.updatedAt = Date.now();
-                            await socioDoc.save();
-                            // Refresh local pointer
-                            liveSocioWorker = socioDoc.trabajadores.find(t => 
-                                String(t.identificacion || t.documento || '').trim() === String(worker.documento || '').trim()
-                            ) || liveSocioWorker;
+                    // Fast in-memory bio-fit score calculation if missing
+                    if (liveSocioWorker.biocentricScore === undefined || liveSocioWorker.biocentricScore === null) {
+                        try {
+                            const socioRouter = require('./perfilSociodemografico');
+                            if (typeof socioRouter.calculateBiocentricFitBackend === 'function') {
+                                const PerfilesCargo = mongoose.models.PerfilCargoData;
+                                const cargoDoc = PerfilesCargo ? await PerfilesCargo.findOne({ user: userId, companyId: worker.companyId }).lean() : null;
+                                const perfilesList = cargoDoc?.perfilesList || [];
+                                const fitResult = socioRouter.calculateBiocentricFitBackend(liveSocioWorker, perfilesList);
+                                liveSocioWorker.biocentricScore = fitResult.score;
+                                liveSocioWorker.biocentricAlerts = fitResult.alerts;
+                                liveSocioWorker.biocentricIsLethal = fitResult.isLethal;
+                            }
+                        } catch (calcErr) {
+                            logger.warn('[SGSST Workers] Fast bio-fit calculation notice:', calcErr.message);
                         }
                     }
 

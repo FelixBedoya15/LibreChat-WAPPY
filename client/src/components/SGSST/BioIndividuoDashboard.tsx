@@ -174,12 +174,14 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
   const fetchWorker = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await fetch(`/api/sgsst/workers/worker/${workerId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const socioRes = await fetch('/api/sgsst/perfil-sociodemografico/data', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const [res, socioRes] = await Promise.all([
+        fetch(`/api/sgsst/workers/worker/${workerId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch('/api/sgsst/perfil-sociodemografico/data', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
 
       if (res.ok) {
         const data = await res.json();
@@ -424,7 +426,7 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
                   Metodología Bio-Individual WAPPY · Fórmula: NS × NE × (1 - Factor percepción)
                 </p>
               </div>
-              <BioMatrizIPEVAR workerId={workerId} />
+              <BioMatrizIPEVAR workerId={workerId} initialWorker={worker} />
             </>
           )}
 

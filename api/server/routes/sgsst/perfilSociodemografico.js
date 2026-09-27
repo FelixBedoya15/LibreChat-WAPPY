@@ -2461,5 +2461,6 @@ async function recalculateAndSyncAllWorkers(userId, companyId, trabajadoresList)
 }
 
 router.recalculateAndSyncAllWorkers = recalculateAndSyncAllWorkers;
+router.calculateBiocentricFitBackend = calculateBiocentricFitBackend;
 
 module.exports = router;

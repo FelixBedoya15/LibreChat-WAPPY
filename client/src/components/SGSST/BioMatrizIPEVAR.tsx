@@ -275,16 +275,22 @@ const TextCell = ({ value, onChange, className = '' }: {
 // ─── Componente Principal ──────────────────────────────────────────────────────
 interface BioMatrizIPEVARProps {
   workerId: string;
+  initialWorker?: any;
 }
 
-export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
+export default function BioMatrizIPEVAR({ workerId, initialWorker }: BioMatrizIPEVARProps) {
   const { token } = useAuthContext();
   const { showToast } = useToastContext();
-  const [rows, setRows] = useState<BioRiskRow[]>([]);
-  const [percepcionPts, setPercepcionPts] = useState(0);
-  const [fitScore, setFitScore] = useState(0);
-  const [conclusions, setConclusions] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [rows, setRows] = useState<BioRiskRow[]>(() => {
+    if (initialWorker?.riesgosBioIndividual && Array.isArray(initialWorker.riesgosBioIndividual)) {
+      return initialWorker.riesgosBioIndividual.filter((r: any) => r && r.dominio_bio !== 'Seguridad');
+    }
+    return [];
+  });
+  const [percepcionPts, setPercepcionPts] = useState<number>(() => initialWorker?.percepcionRiesgoScore || 0);
+  const [fitScore, setFitScore] = useState<number>(() => initialWorker?.fitScore || 0);
+  const [conclusions, setConclusions] = useState<Record<string, string>>(() => initialWorker?.bioChartConclusions || {});
+  const [isLoading, setIsLoading] = useState(!initialWorker);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -303,20 +309,33 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
       });
       if (!res.ok) throw new Error('Error al cargar');
       const data = await res.json();
-      const rawRows: BioRiskRow[] = worker?.riesgosBioIndividual || [];
-      const cleanRows = rawRows.filter(r => r.dominio_bio !== 'Seguridad');
+      const worker = data.worker || data || {};
+      const rawRows: BioRiskRow[] = Array.isArray(worker?.riesgosBioIndividual) ? worker.riesgosBioIndividual : [];
+      const cleanRows = rawRows.filter(r => r && r.dominio_bio !== 'Seguridad');
       setRows(cleanRows);
       setPercepcionPts(worker?.percepcionRiesgoScore || 0);
       setFitScore(worker?.fitScore || 0);
       setConclusions(worker?.bioChartConclusions || {});
     } catch (e) {
+      console.error('[BioMatrizIPEVAR] Error loading data:', e);
       showToast({ message: 'Error cargando la matriz bio-individual', status: 'error' });
     } finally {
       setIsLoading(false);
     }
-  }, [workerId, token]);
+  }, [workerId, token, showToast]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    if (initialWorker) {
+      const rawRows: BioRiskRow[] = Array.isArray(initialWorker.riesgosBioIndividual) ? initialWorker.riesgosBioIndividual : [];
+      setRows(rawRows.filter((r: any) => r && r.dominio_bio !== 'Seguridad'));
+      setPercepcionPts(initialWorker.percepcionRiesgoScore || 0);
+      setFitScore(initialWorker.fitScore || 0);
+      setConclusions(initialWorker.bioChartConclusions || {});
+      setIsLoading(false);
+    } else {
+      fetchData();
+    }
+  }, [workerId, initialWorker, fetchData]);
 
   const handleExportExcel = async () => {
     try {
