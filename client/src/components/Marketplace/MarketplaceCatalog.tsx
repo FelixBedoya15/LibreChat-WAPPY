@@ -88,20 +88,16 @@ const MarketplaceCatalog: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Hero Banner with Value Proposition */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-teal-900 via-teal-800 to-slate-900 p-6 sm:p-10 text-white shadow-xl">
-        <div className="relative z-10 max-w-2xl space-y-3">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-teal-900 via-teal-800 to-slate-900 p-6 sm:p-8 text-white shadow-xl">
+        <div className="relative z-10 max-w-2xl space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[11px] font-bold text-teal-200">
             <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-            <span>Marketplace Oficial de Salud Ocupacional & SG-SST</span>
+            <span>Marketplace Oficial</span>
           </div>
 
-          <h1 className="text-2xl sm:text-4xl font-black leading-tight tracking-tight">
-            Contrata Servicios SST Certificados en Minutos
+          <h1 className="text-2xl sm:text-3xl font-black leading-tight tracking-tight">
+            Productos y Servicios Wappy IA
           </h1>
-
-          <p className="text-xs sm:text-sm text-teal-100/90 leading-relaxed max-w-xl">
-            Exámenes médicos ocupacionales, baterías de riesgo psicosocial, matrices IPEVAR y planes PESV con entrega formal, firmas de especialistas con licencia y acompañamiento integral.
-          </p>
 
           <div className="pt-2 flex flex-wrap gap-4 text-xs font-semibold text-teal-200">
             <div className="flex items-center gap-1.5">

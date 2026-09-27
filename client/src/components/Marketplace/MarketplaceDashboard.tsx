@@ -12,6 +12,9 @@ import {
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { MarketplaceProvider, useMarketplace } from './MarketplaceContext';
+import { useOutletContext } from 'react-router-dom';
+import type { ContextType } from '~/common';
+import { OpenSidebar } from '~/components/Chat/Menus';
 import MarketplaceCatalog from './MarketplaceCatalog';
 import MarketplaceOrdersView from './MarketplaceOrdersView';
 import MarketplaceAdminDashboard from './MarketplaceAdminDashboard';
@@ -22,6 +25,10 @@ import MarketplaceOrderConfirmation from './MarketplaceOrderConfirmation';
 
 const MarketplaceContent: React.FC = () => {
   const { user } = useAuthContext();
+  const outletContext = useOutletContext<ContextType>();
+  const navVisible = outletContext?.navVisible ?? true;
+  const setNavVisible = outletContext?.setNavVisible ?? (() => {});
+
   const {
     totalItems,
     setIsCartOpen,
@@ -45,18 +52,39 @@ const MarketplaceContent: React.FC = () => {
     setActiveTab('catalog');
   };
 
+  if (!isAdmin) {
+    return (
+      <div className="flex h-full w-full items-center justify-center p-8 bg-slate-50/50 dark:bg-zinc-950">
+        <div className="text-center max-w-md space-y-3 p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
+          <ShieldCheck className="h-10 w-10 text-teal-600 mx-auto" />
+          <h2 className="text-lg font-bold text-slate-800 dark:text-zinc-100">
+            Marketplace en fase privada
+          </h2>
+          <p className="text-xs text-slate-500">
+            Este módulo se encuentra en fase de configuración exclusiva para administradores.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="relative min-h-screen bg-slate-50/50 dark:bg-zinc-950 px-4 py-6 sm:px-8 sm:py-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="flex h-full w-full flex-col overflow-y-auto bg-slate-50/50 dark:bg-zinc-950 px-4 py-6 sm:px-8 sm:py-8 pb-28 scroll-smooth">
+      <div className="max-w-7xl mx-auto w-full space-y-6">
         {/* Top Header & Floating Capsule Toolbar (WAPPY SGSSTToolbar standard) */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
+            {!navVisible && (
+              <div className="hidden md:block mr-1">
+                <OpenSidebar setNavVisible={setNavVisible} />
+              </div>
+            )}
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-teal-600 to-teal-500 text-white flex items-center justify-center shadow-md shadow-teal-600/30">
               <ShoppingBag className="h-5 w-5" />
             </div>
             <div>
               <h1 className="text-xl font-black text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-                <span>Marketplace SST</span>
+                <span>Marketplace</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300">
                   WAPPY Store
                 </span>

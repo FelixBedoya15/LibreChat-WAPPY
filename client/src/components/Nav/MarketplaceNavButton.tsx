@@ -20,7 +20,21 @@ const MarketplaceNavButton = ({
   const location = useLocation();
   const isActive = location.pathname.startsWith('/marketplace');
 
+  const [hasVisited, setHasVisited] = React.useState<boolean>(() => {
+    try {
+      return localStorage.getItem('wappy_marketplace_visited') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const handleClick = () => {
+    try {
+      localStorage.setItem('wappy_marketplace_visited', 'true');
+      setHasVisited(true);
+    } catch {
+      // ignore
+    }
     navigate('/marketplace');
     if (isSmallScreen && toggleNav) {
       toggleNav();
@@ -30,7 +44,7 @@ const MarketplaceNavButton = ({
   if (isCollapsed) {
     return (
       <TooltipAnchor
-        description="Marketplace SST"
+        description="Marketplace"
         side="right"
         render={
           <motion.button
@@ -62,10 +76,12 @@ const MarketplaceNavButton = ({
       )}
     >
       <ShoppingBag className="h-4 w-4 shrink-0" />
-      <span className="font-semibold text-text-primary text-[13px]">Marketplace SST</span>
-      <span className="ml-auto rounded-full bg-teal-100 dark:bg-teal-950/60 px-1.5 py-0.5 text-[9px] font-bold text-teal-700 dark:text-teal-300">
-        Nuevo
-      </span>
+      <span className="font-semibold text-text-primary text-[13px]">Marketplace</span>
+      {!hasVisited && !isActive && (
+        <span className="ml-auto rounded-full bg-teal-100 dark:bg-teal-950/60 px-1.5 py-0.5 text-[9px] font-bold text-teal-700 dark:text-teal-300">
+          Nuevo
+        </span>
+      )}
     </motion.button>
   );
 };

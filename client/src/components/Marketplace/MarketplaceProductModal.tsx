@@ -56,7 +56,7 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
 
   const handleWhatsAppInquiry = () => {
     const text = encodeURIComponent(
-      `Hola equipo WAPPY, estoy interesado en el servicio "${product.title}" del Marketplace SST. Quisiera más información sobre la cotización y fechas.`
+      `Hola equipo WAPPY, estoy interesado en el servicio "${product.title}" del Marketplace. Quisiera más información sobre la cotización y fechas.`
     );
     window.open(`https://wa.me/573105000000?text=${text}`, '_blank');
   };

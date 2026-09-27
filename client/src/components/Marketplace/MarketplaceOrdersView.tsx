@@ -104,7 +104,7 @@ const MarketplaceOrdersView: React.FC = () => {
 
           const handleWhatsApp = () => {
             const text = encodeURIComponent(
-              `Hola equipo WAPPY, consulto por el avance de mi orden ${ord.orderNumber} contratada en el Marketplace SST.`
+              `Hola equipo WAPPY, consulto por el avance de mi orden ${ord.orderNumber} contratada en el Marketplace.`
             );
             window.open(`https://wa.me/573105000000?text=${text}`, '_blank');
           };

@@ -108,6 +108,7 @@ const Nav = memo(
 
     // Subscription Plans: only for regular account owners
     const hasAccessToPlans = !isSubUser;
+    const isAdmin = user?.role === 'ADMIN' || user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
 
     const search = useRecoilValue(store.search);
 
@@ -311,10 +312,12 @@ const Nav = memo(
                             <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
-                        {/* Marketplace SST */}
-                        <Suspense fallback={null}>
-                          <MarketplaceNavButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        </Suspense>
+                        {/* Marketplace (Solo ADMIN por el momento) */}
+                        {isAdmin && (
+                          <Suspense fallback={null}>
+                            <MarketplaceNavButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          </Suspense>
+                        )}
                         {/* Bookmarks icon */}
                         {hasAccessToBookmarks && (
                           <Suspense fallback={null}>
@@ -384,10 +387,12 @@ const Nav = memo(
                                   </Suspense>
                                 )}
 
-                                {/* 5. Marketplace SST (Servicios en Salud Ocupacional) */}
-                                <Suspense fallback={null}>
-                                  <MarketplaceNavButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                </Suspense>
+                                {/* 5. Marketplace (Solo ADMIN por el momento) */}
+                                {isAdmin && (
+                                  <Suspense fallback={null}>
+                                    <MarketplaceNavButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
 
                                 {/* 5. Marcadores */}
                                 {hasAccessToBookmarks && (
