@@ -1679,6 +1679,7 @@ export default function MatrizIPEVARTable({
               medida_administrativa: getValueByKeys(r, ['controlesadministrativossenalizacionadvertencia', 'medidasdeintervencioncontrolesadministrativossenalizacionadvertencia', 'administrativos']) || 'Ninguno',
               medida_eppu: getValueByKeys(r, ['equiposelementosdeproteccionpersonalepp', 'equipoelementosdeproteccionpersonal', 'medidasdeintervencionequiposelementosdeproteccionpersonal', 'epp', 'equiposepp']) || 'Ninguno',
               factores_reduccion: getValueByKeys(r, ['factoresdereduccion', 'factoresreduccionanexoe', 'factoresreduccion']) || 'No aplica',
+              origen_reporte: getValueByKeys(r, ['origenreporte', 'origen', 'aportecolaborador', 'participacion', 'trazabilidad']) || 'Matriz Base SG-SST',
               nd_cualitativo: null,
               id: Date.now().toString() + Math.random().toString(36).substring(7),
             };
@@ -1801,7 +1802,19 @@ export default function MatrizIPEVARTable({
           });
           if (res.ok) {
             const data = await res.json();
-            if (data?.matrixRows) setMatrixRows(data.matrixRows);
+            if (data?.matrixRows) {
+              const sanitized = data.matrixRows.map((r: MatrixRow) => {
+                if (r.factores_reduccion && r.factores_reduccion.startsWith('Aporte participativo de') && !r.origen_reporte) {
+                  return {
+                    ...r,
+                    origen_reporte: r.factores_reduccion,
+                    factores_reduccion: 'Técnicamente viable y altamente costo-efectiva según Anexo E de la GTC-45. La implementación de medidas en fuente/medio reduce el nivel de deficiencia y la probabilidad del riesgo.',
+                  };
+                }
+                return r;
+              });
+              setMatrixRows(sanitized);
+            }
             if (data?.chartConclusions) setChartConclusions(data.chartConclusions);
           }
           return;
@@ -1828,7 +1841,19 @@ export default function MatrizIPEVARTable({
         });
         if (res.status === 404) return;
         const data = await res.json();
-        if (data?.matrixRows) setMatrixRows(data.matrixRows);
+        if (data?.matrixRows) {
+          const sanitized = data.matrixRows.map((r: MatrixRow) => {
+            if (r.factores_reduccion && r.factores_reduccion.startsWith('Aporte participativo de') && !r.origen_reporte) {
+              return {
+                ...r,
+                origen_reporte: r.factores_reduccion,
+                factores_reduccion: 'Técnicamente viable y altamente costo-efectiva según Anexo E de la GTC-45. La implementación de medidas en fuente/medio reduce el nivel de deficiencia y la probabilidad del riesgo.',
+              };
+            }
+            return r;
+          });
+          setMatrixRows(sanitized);
+        }
         if (data?.chartConclusions) setChartConclusions(data.chartConclusions);
 
         // Verificar si este chat es la matriz oficial del sistema
@@ -2179,7 +2204,8 @@ export default function MatrizIPEVARTable({
       medida_ingenieria: 'Ninguno',
       medida_administrativa: 'Ninguno',
       medida_eppu: 'Ninguno',
-      factores_reduccion: 'No aplica',
+      factores_reduccion: 'Técnicamente viable según Anexo E GTC-45',
+      origen_reporte: 'Identificación Técnica SG-SST',
       nd_cualitativo: null,
       interpretacion_np: '',
       nro_expuestos: 1,
@@ -2467,6 +2493,7 @@ export default function MatrizIPEVARTable({
           row.peligro_clasificacion,
           row.peligro_descripcion,
           row.efectos_posibles,
+          row.origen_reporte,
         ].some((f) => f?.toLowerCase().includes(q)),
       );
     }
@@ -3630,6 +3657,10 @@ export default function MatrizIPEVARTable({
                   <th className="min-w-[420px] border-l-2 border-purple-400/30 bg-purple-50/50 px-4 py-3 text-left text-purple-700 dark:bg-purple-900/10 dark:text-purple-400">
                     FACTORES REDUCCIÓN (Anexo E)
                   </th>
+                  {/* Origen / Aporte Colaborador */}
+                  <th className="min-w-[340px] border-l-2 border-teal-500/20 bg-teal-50/40 px-4 py-3 text-left text-teal-800 dark:bg-teal-950/20 dark:text-teal-300">
+                    ORIGEN / APORTE COLABORADOR
+                  </th>
                   {/* Acciones */}
                   <th className="sticky right-0 z-[200] min-w-[100px] border-l border-border-light bg-surface-secondary px-4 py-3 text-center shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.06)]">
                     ACCIONES
@@ -4270,6 +4301,32 @@ export default function MatrizIPEVARTable({
                         displayIdx={displayIdx}
                         field="factores_reduccion"
                         value={row.factores_reduccion || ''}
+                        onStartDrag={handleFillStart}
+                        onDoubleClick={handleFillDoubleClick}
+                        totalFiltered={displayRows.length}
+                      />
+                    </td>
+
+                    {/* Origen / Aporte Colaborador */}
+                    <td
+                      data-display-idx={displayIdx}
+                      data-display-field="origen_reporte"
+                      onMouseEnter={() => handleCellMouseEnter(displayIdx, 'origen_reporte')}
+                      className={`group/cell relative border-l-2 border-teal-500/20 bg-teal-50/30 px-4 py-3 dark:bg-teal-950/10 transition-colors ${getDragCellStyles(displayIdx, 'origen_reporte')}`}
+                    >
+                      <AITextarea
+                        value={row.origen_reporte || ''}
+                        onChange={(v) => handleCellChange(idx, 'origen_reporte', v)}
+                        minW="320px"
+                        fieldLabel="Origen / Aporte Colaborador"
+                        row={row}
+                        token={token}
+                        selectedModel={selectedModel}
+                      />
+                      <FillHandle
+                        displayIdx={displayIdx}
+                        field="origen_reporte"
+                        value={row.origen_reporte || ''}
                         onStartDrag={handleFillStart}
                         onDoubleClick={handleFillDoubleClick}
                         totalFiltered={displayRows.length}

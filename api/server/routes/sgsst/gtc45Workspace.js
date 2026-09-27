@@ -71,10 +71,28 @@ router.get('/official', requireJwtAuth, async (req, res) => {
       });
     }
 
+    let matrixRows = session.matrixRows || [];
+    let updatedInDb = false;
+    matrixRows = matrixRows.map((r) => {
+      if (r.factores_reduccion && r.factores_reduccion.startsWith('Aporte participativo de') && !r.origen_reporte) {
+        updatedInDb = true;
+        return {
+          ...r,
+          origen_reporte: r.factores_reduccion,
+          factores_reduccion: 'Técnicamente viable y altamente costo-efectiva según Anexo E de la GTC-45. La implementación de medidas en fuente/medio reduce el nivel de deficiencia y la probabilidad del riesgo.',
+        };
+      }
+      return r;
+    });
+    if (updatedInDb) {
+      session.matrixRows = matrixRows;
+      session.save().catch((err) => logger.warn('[GTC45Workspace GET /official] Error saving sanitized rows:', err));
+    }
+
     res.json({
       hasOfficial: true,
       conversationId: session.conversationId,
-      matrixRows: session.matrixRows || [],
+      matrixRows,
       chartConclusions: session.chartConclusions || {},
       officialTitle: session.officialTitle ? session.officialTitle.replace(/\bOficial\s*/gi, '').trim() : 'Matriz IPEVAR SG-SST',
       sourceConversationId: session.sourceConversationId || null,
@@ -347,7 +365,25 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
       return res.json({ matrixRows: [], chartConclusions: {} });
     }
 
-    res.json({ matrixRows: session.matrixRows, chartConclusions: session.chartConclusions || {} });
+    let matrixRows = session.matrixRows || [];
+    let updatedInDb = false;
+    matrixRows = matrixRows.map((r) => {
+      if (r.factores_reduccion && r.factores_reduccion.startsWith('Aporte participativo de') && !r.origen_reporte) {
+        updatedInDb = true;
+        return {
+          ...r,
+          origen_reporte: r.factores_reduccion,
+          factores_reduccion: 'Técnicamente viable y altamente costo-efectiva según Anexo E de la GTC-45. La implementación de medidas en fuente/medio reduce el nivel de deficiencia y la probabilidad del riesgo.',
+        };
+      }
+      return r;
+    });
+    if (updatedInDb) {
+      session.matrixRows = matrixRows;
+      session.save().catch((err) => logger.warn('[GTC45Workspace GET /matrix] Error saving sanitized rows:', err));
+    }
+
+    res.json({ matrixRows, chartConclusions: session.chartConclusions || {} });
   } catch (error) {
     logger.error('[GTC45Workspace] Error fetching matrix:', error);
     res.status(500).json({ error: 'Failed to fetch matrix' });
@@ -1418,7 +1454,12 @@ router.post('/sync-controles-anexo-e', requireJwtAuth, async (req, res) => {
         (typeof row.aceptabilidad === 'string' && (row.aceptabilidad.includes('I') || row.aceptabilidad.toLowerCase().includes('no aceptable')));
       const isHigh = (row.nr >= 150) || (typeof row.interpretacion_nr === 'string' && row.interpretacion_nr === 'II');
 
+      let rowOrigen = row.origen_reporte;
       let newFactores = row.factores_reduccion || '';
+      if (newFactores.startsWith('Aporte participativo de')) {
+        if (!rowOrigen) rowOrigen = newFactores;
+        newFactores = '';
+      }
       const needsAnexoE = !newFactores || newFactores.trim() === '' || newFactores.toLowerCase().includes('no aplica');
 
       if (controls.length > 0 || isCritical || isHigh) {
@@ -1451,6 +1492,7 @@ router.post('/sync-controles-anexo-e', requireJwtAuth, async (req, res) => {
       return {
         ...row,
         factores_reduccion: newFactores || row.factores_reduccion || 'No aplica',
+        origen_reporte: rowOrigen || row.origen_reporte || 'Identificación Técnica SG-SST',
       };
     });
 
@@ -1508,7 +1550,7 @@ router.post('/sync-controles-anexo-e', requireJwtAuth, async (req, res) => {
 • Nivel de Riesgo: ${row.interpretacion_nr ? `Nivel ${row.interpretacion_nr}` : 'Evaluado'} (NR: ${row.nr || 'N/A'}) - ${row.aceptabilidad || ''}
 • Cargo Expuesto: ${row.cargo || 'Personal'} (Expuestos: ${row.nro_expuestos || 1})
 • Control Óptimo (Costo/Beneficio): [${bestControl.category}] ${bestControl.text}
-${otherControls.length > 0 ? `• Controles Complementarios: ${otherControls.map((c) => `[${c.category}] ${c.text}`).join(' | ')}\n` : ''}• Factores de Reducción (Anexo E): ${anexoE}`;
+${otherControls.length > 0 ? `• Controles Complementarios: ${otherControls.map((c) => `[${c.category}] ${c.text}`).join(' | ')}\n` : ''}• Factores de Reducción (Anexo E): ${anexoE}${row.origen_reporte ? `\n• Origen / Trazabilidad: ${row.origen_reporte}` : ''}`;
 
           const referenceId = `ipevar-control-${rowId}`;
           const referenceName = `Matriz IPEVAR (${row.peligro_clasificacion || 'GTC-45'})`;

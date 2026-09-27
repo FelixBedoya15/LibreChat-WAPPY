@@ -31,7 +31,8 @@ export interface MatrixRow {
   medida_administrativa: string;
   medida_eppu: string;
   // Nuevos campos
-  factores_reduccion?: string;  // Anexo E GTC-45
+  factores_reduccion?: string;  // Anexo E GTC-45 (Viabilidad y Factores de Reducción Costo/Beneficio)
+  origen_reporte?: string;      // Trazabilidad / Origen del reporte (Participación Trabajadores SST)
   nd_cualitativo?: number | null; // Anexo C GTC-45 (10|6|2|0)
   psicosocial_dominio?: string; // Batería Riesgo Psicosocial MPS 2010 — Dominio
   psicosocial_dimension?: string; // Batería Riesgo Psicosocial MPS 2010 — Dimensión

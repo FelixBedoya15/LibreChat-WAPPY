@@ -81,7 +81,8 @@ router.get('/official-matrix-rows', requireJwtAuth, async (req, res) => {
             peligro_descripcion: r.peligro_descripcion || '',
             interpretacion_nr: r.interpretacion_nr || '',
             nr: r.nr || 0,
-            aceptabilidad: r.aceptabilidad || ''
+            aceptabilidad: r.aceptabilidad || '',
+            origen_reporte: r.origen_reporte || ''
         }));
 
         res.json({
@@ -167,6 +168,10 @@ router.post('/apply-to-matrix', requireJwtAuth, async (req, res) => {
             if (matrixData.efectosPosibles && !row.efectos_posibles?.includes(matrixData.efectosPosibles)) {
                 row.efectos_posibles = row.efectos_posibles ? `${row.efectos_posibles} | ${matrixData.efectosPosibles}` : matrixData.efectosPosibles;
             }
+            if (matrixData.trabajadorNombre) {
+                const workerTag = `Aporte participativo de ${matrixData.trabajadorNombre}${matrixData.cargo ? ` (${matrixData.cargo})` : ''}: ${matrixData.peligros || 'Actualización de controles'}`;
+                row.origen_reporte = row.origen_reporte ? `${row.origen_reporte} | ${workerTag}` : workerTag;
+            }
 
             session.matrixRows[rowIndex] = row;
         } else {
@@ -216,7 +221,8 @@ router.post('/apply-to-matrix', requireJwtAuth, async (req, res) => {
                 medida_ingenieria: matrixData.sugeridoIngenieria || '',
                 medida_administrativa: matrixData.sugeridoAdministrativo || '',
                 medida_eppu: matrixData.sugeridoEPP || '',
-                factores_reduccion: `Aporte participativo de ${matrixData.trabajadorNombre || 'colaborador'}: control con impacto directo en fuente/medio para prevenir ${matrixData.efectosPosibles || 'accidentes o enfermedades'}.`,
+                factores_reduccion: 'Técnicamente viable y altamente costo-efectiva según Anexo E de la GTC-45. La implementación de medidas en fuente/medio reduce el nivel de deficiencia y la probabilidad del riesgo.',
+                origen_reporte: `Aporte participativo de ${matrixData.trabajadorNombre || 'Colaborador'}${matrixData.cargo ? ` (${matrixData.cargo})` : ''}${matrixData.trabajadorCedula ? ` [CC ${matrixData.trabajadorCedula}]` : ''}: reporte en fuente/medio para prevenir ${matrixData.efectosPosibles || 'accidentes o enfermedades'}.`,
                 nro_expuestos: 1,
                 peor_consecuencia: matrixData.efectosPosibles || 'Accidente de trabajo con incapacidad',
                 requisito_legal: 'Sí'

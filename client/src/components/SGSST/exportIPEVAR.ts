@@ -214,7 +214,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   // Activar Filtros Automáticos sin usar addTable para no perder control del color de cabecera
   wsMatriz.autoFilter = {
     from: { row: 1, column: 1 },
-    to: { row: totalRows, column: 29 }
+    to: { row: totalRows, column: 30 }
   };
 
   wsMatriz.columns = [
@@ -247,6 +247,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     { header: 'Ctrl. Administrativos', key: 'medida_administrativa', width: 30 },
     { header: 'Equipos/EPP', key: 'medida_eppu', width: 30 },
     { header: 'Factores de Reducción', key: 'factores_reduccion', width: 65 }, // Mucho más ancho
+    { header: 'Origen / Aporte Colaborador', key: 'origen_reporte', width: 45 },
   ];
 
   wsMatriz.getRow(1).eachCell((cell) => {
@@ -291,6 +292,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
       medida_administrativa: row.medida_administrativa,
       medida_eppu: row.medida_eppu,
       factores_reduccion: row.factores_reduccion,
+      origen_reporte: row.origen_reporte || 'Matriz Base SG-SST',
     });
 
     addedRow.height = 40; // Fila muy alta para respirar (Card style)
