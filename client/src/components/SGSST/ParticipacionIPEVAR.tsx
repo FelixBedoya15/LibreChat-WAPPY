@@ -1043,17 +1043,37 @@ const ParticipacionIPEVAR = () => {
                             </span>
                         ) : (
                             <button
+                                type="button"
                                 onClick={() => handleOpenApplyModal(activeParticipacion)}
-                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95"
+                                title="Aprobar e Integrar a Matriz IPEVAR"
+                                aria-label="Aprobar e Integrar a Matriz IPEVAR"
+                                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-2 shadow-sm outline-none transition-all duration-300 hover:scale-105 active:scale-95 sm:h-9 sm:min-w-[36px] sm:px-2.5"
                             >
-                                <Sparkles className="h-3.5 w-3.5" /> Aprobar e Integrar a Matriz IPEVAR
+                                <div className="relative flex shrink-0 items-center justify-center">
+                                    <Sparkles className="h-4 w-4 text-white" />
+                                </div>
+                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+                                    <span className="text-xs font-bold tracking-wide">
+                                        Aprobar e Integrar a Matriz IPEVAR
+                                    </span>
+                                </div>
                             </button>
                         )}
                         <button
+                            type="button"
                             onClick={handleAddParticipacion}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 rounded-xl text-xs font-bold border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition-colors shadow-sm"
+                            title="Nueva Participación"
+                            aria-label="Nueva Participación"
+                            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/50 px-2 shadow-sm outline-none transition-all duration-300 hover:scale-105 active:scale-95 sm:h-9 sm:min-w-[36px] sm:px-2.5"
                         >
-                            <Plus className="h-3.5 w-3.5" /> Nueva Participación
+                            <div className="relative flex shrink-0 items-center justify-center">
+                                <Plus className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                            </div>
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[180px] group-hover:opacity-100 sm:flex">
+                                <span className="text-xs font-bold tracking-wide">
+                                    Nueva Participación
+                                </span>
+                            </div>
                         </button>
                     </div>
                 </div>
@@ -1526,8 +1546,15 @@ const ParticipacionIPEVAR = () => {
                                             <p className="text-sm font-semibold text-text-primary">Sube evidencia dinámica en video</p>
                                             <p className="text-xs text-text-secondary mt-1">Permite a la IA validar comportamientos y condiciones en tiempo real</p>
                                         </div>
-                                        <label className="cursor-pointer bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all shadow-md active:scale-95">
-                                            {isVideoUploading ? 'Procesando...' : 'Seleccionar Video'}
+                                        <label className="group flex h-9 min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-3 shadow-md outline-none transition-all duration-300 hover:scale-105 active:scale-95">
+                                            <div className="relative flex shrink-0 items-center justify-center">
+                                                {isVideoUploading ? <Loader2 className="h-4 w-4 animate-spin text-white" /> : <Video className="h-4 w-4 text-white" />}
+                                            </div>
+                                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[180px] group-hover:opacity-100 sm:flex">
+                                                <span className="text-xs font-bold tracking-wide">
+                                                    {isVideoUploading ? 'Procesando...' : 'Seleccionar Video'}
+                                                </span>
+                                            </div>
                                             <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={isVideoUploading} />
                                         </label>
                                     </div>
@@ -1554,14 +1581,25 @@ const ParticipacionIPEVAR = () => {
                                     <AlertTriangle className="h-4 w-4 text-teal-600" /> Notas adicionales del Analista (Opcional)
                                 </h4>
                                 <button
+                                    type="button"
                                     onClick={handleVoiceInput}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow border flex items-center gap-2 ${isListening ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-surface-secondary hover:bg-surface-hover text-text-primary border-border-light'}`}
+                                    title={isListening ? 'Escuchando dictado...' : 'Activar Micrófono'}
+                                    aria-label={isListening ? 'Escuchando dictado...' : 'Activar Micrófono'}
+                                    className={`group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 shadow-sm outline-none transition-all duration-300 hover:scale-105 active:scale-95 sm:h-9 sm:min-w-[36px] sm:px-2.5 ${
+                                        isListening
+                                            ? 'bg-red-50 text-red-600 border-red-200 animate-pulse'
+                                            : 'bg-surface-secondary hover:bg-surface-hover text-text-primary border-border-light'
+                                    }`}
                                 >
-                                    <span className="relative flex h-3 w-3">
+                                    <span className="relative flex h-3 w-3 shrink-0 items-center justify-center">
                                         {isListening && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>}
-                                        <span className={`relative inline-flex rounded-full h-3 w-3 ${isListening ? 'bg-red-500' : 'bg-teal-600'}`}></span>
+                                        <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isListening ? 'bg-red-500' : 'bg-teal-600'}`}></span>
                                     </span>
-                                    {isListening ? 'Escuchando...' : 'Activar Micrófono'}
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[160px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-xs font-bold tracking-wide">
+                                            {isListening ? 'Escuchando...' : 'Activar Micrófono'}
+                                        </span>
+                                    </div>
                                 </button>
                             </div>
                             <textarea
@@ -1580,16 +1618,25 @@ const ParticipacionIPEVAR = () => {
                         {/* Bottom generate button */}
                         <div className="flex justify-center pt-4 gap-4">
                             <button
+                                type="button"
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
-                                className="group flex items-center px-4 py-2.5 bg-teal-600 hover:bg-teal-700 border border-teal-600 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                                title="Generar Análisis IA"
+                                aria-label="Generar Análisis IA"
+                                className="group flex h-9 min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-3 shadow-md shadow-orange-500/20 outline-none transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {isGenerating ? (
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                ) : (
-                                    <Sparkles className="h-5 w-5" />
-                                )}
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Análisis IA</span>
+                                <div className="relative flex shrink-0 items-center justify-center">
+                                    {isGenerating ? (
+                                        <Loader2 className="h-4 w-4 animate-spin text-white" />
+                                    ) : (
+                                        <Sparkles className="h-4 w-4 text-white" />
+                                    )}
+                                </div>
+                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                                    <span className="text-xs font-bold tracking-wide">
+                                        {isGenerating ? 'Generando...' : 'Generar Análisis IA'}
+                                    </span>
+                                </div>
                             </button>
                         </div>
                     </div>
