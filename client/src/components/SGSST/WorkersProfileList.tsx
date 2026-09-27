@@ -227,7 +227,7 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
                                 )}
 
                                 <div className="mt-4 flex items-center justify-between text-teal-600 dark:text-teal-400 font-bold text-[11px] uppercase tracking-wider">
-                                    <span>{isOpening ? 'Abriendo...' : 'Ver Matriz IPEVAR'}</span>
+                                    <span>{isOpening ? 'Abriendo...' : 'Ver Matriz IPEVR'}</span>
                                     <ChevronRight className="h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
                                 </div>
                             </div>

@@ -384,7 +384,7 @@ class STTService {
 
       REGLAS DE ORO:
       1. MANTÉN ESTRICTAMENTE EL TEXTO EN ESPAÑOL. Está absolutamente prohibido traducir cualquier palabra al inglés o cambiar su idioma.
-      2. Reconoce y respeta siglas y términos de SST/PESV/Química como: "SST", "EPP", "IPEVAR", "PESV", "COPASST", "Decreto 1072", "Resolución 0312", "Resolución 20223040040595", "SGA", "NFPA", "fuero de salud", "estabilidad laboral reforzada", "RULA", "REBA", "GTC 45", "ISO 45001", "LOTO", "línea de vida", "arnés", "dieléctrico", "hoja de seguridad", "FDS", etc. (Ejemplo: si la transcripción dice "e pp", corrígelo a "EPP"; si dice "ipe var", corrígelo a "IPEVAR").
+      2. Reconoce y respeta siglas y términos de SST/PESV/Química como: "SST", "EPP", "IPEVR", "PESV", "COPASST", "Decreto 1072", "Resolución 0312", "Resolución 20223040040595", "SGA", "NFPA", "fuero de salud", "estabilidad laboral reforzada", "RULA", "REBA", "GTC 45", "ISO 45001", "LOTO", "línea de vida", "arnés", "dieléctrico", "hoja de seguridad", "FDS", etc. (Ejemplo: si la transcripción dice "e pp", corrígelo a "EPP"; si dice "ipe var", "ipe ver" o "ipe vr", corrígelo a "IPEVR").
       3. Si la transcripción es ininteligible o muy corta (ej: "hola"), devuélvela exactamente igual.
       4. Si el texto original está en español correcto, devuélvelo tal cual sin inventar nada.
       5. DEVUELVE ÚNICA Y EXCLUSIVAMENTE EL TEXTO CORREGIDO. Sin explicaciones, introducciones ni despedidas.

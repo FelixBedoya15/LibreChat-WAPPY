@@ -700,7 +700,7 @@ export default function CommercialProposalGenerator({
     const cleanPhone = (advisorPhone || '').replace(/[^0-9]/g, '');
     const plansSummary = proposal.investmentPlans.map(p => `• *${p.planName}*: $${p.finalPrice.toLocaleString('es-CO')} COP (${p.discountPercentage > 0 ? `${p.discountPercentage}% OFF` : 'Precio Estándar'})`).join('\n');
     
-    const waText = `Hola *${proposal.companyName}* 👋\n\nTe comparto la *Propuesta Comercial Oficial de WAPPY IA* para la automatización de su Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST, PESV y Matrices IPEVAR).\n\n📄 *Código:* ${proposal.proposalCode}\n💼 *Sector:* ${proposal.sector}\n\n💰 *Opciones de Inversión:*\n${plansSummary}\n\nPuedes revisar todos los módulos incluidos y activar su cuenta corporativa directamente aquí 👇\n${referralLink}\n\nQuedo a su disposición para coordinar una breve demostración en vivo.\n*${advisorName}* - Consultor Líder WAPPY IA`;
+    const waText = `Hola *${proposal.companyName}* 👋\n\nTe comparto la *Propuesta Comercial Oficial de WAPPY IA* para la automatización de su Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST, PESV y Matrices IPEVR).\n\n📄 *Código:* ${proposal.proposalCode}\n💼 *Sector:* ${proposal.sector}\n\n💰 *Opciones de Inversión:*\n${plansSummary}\n\nPuedes revisar todos los módulos incluidos y activar su cuenta corporativa directamente aquí 👇\n${referralLink}\n\nQuedo a su disposición para coordinar una breve demostración en vivo.\n*${advisorName}* - Consultor Líder WAPPY IA`;
 
     const waUrl = cleanPhone
       ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(waText)}`
@@ -1060,7 +1060,7 @@ export default function CommercialProposalGenerator({
               <textarea
                 value={customObservations}
                 onChange={(e) => setCustomObservations(e.target.value)}
-                placeholder="Ej. La empresa requiere actualizar urgente su Matriz IPEVAR y el Plan Estratégico de Seguridad Vial (PESV) para auditoría ARL en 30 días."
+                placeholder="Ej. La empresa requiere actualizar urgente su Matriz IPEVR y el Plan Estratégico de Seguridad Vial (PESV) para auditoría ARL en 30 días."
                 rows={2}
                 className="w-full bg-surface-primary border border-border-medium/40 rounded-xl px-3 py-2 text-xs outline-none focus:border-teal-500 text-text-primary resize-none"
               />

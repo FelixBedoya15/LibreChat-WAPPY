@@ -144,7 +144,7 @@ async function exportIPEVARToExcel(matrixRows) {
   
   wsDash.mergeCells('A1:E4');
   const heroCell = wsDash.getCell('A1');
-  heroCell.value = '   ⚡ DASHBOARD INTERACTIVO — IPEVAR GTC-45';
+  heroCell.value = '   ⚡ DASHBOARD INTERACTIVO — IPEVR GTC-45';
   heroCell.font = { size: 28, bold: true, color: { argb: 'FFFFFFFF' }, name: 'Book Antiqua' };
   heroCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } };
   heroCell.alignment = { vertical: 'middle', horizontal: 'left' };
@@ -199,10 +199,10 @@ async function exportIPEVARToExcel(matrixRows) {
     valueCell.border = { bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } }, left: { style: 'thin', color: { argb: 'FFCBD5E1' } }, right: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
   });
 
-  wsDash.getCell('B9').value = { formula: `IF($C$6="TODOS", COUNTA('Matriz IPEVAR'!A2:A${totalRows}), COUNTIF('Matriz IPEVAR'!A2:A${totalRows}, $C$6))` };
+  wsDash.getCell('B9').value = { formula: `IF($C$6="TODOS", COUNTA('Matriz IPEVR'!A2:A${totalRows}), COUNTIF('Matriz IPEVR'!A2:A${totalRows}, $C$6))` };
   wsDash.getCell('B9').font = { size: 24, bold: true, color: { argb: 'FF0F172A' }, name: 'Book Antiqua' };
 
-  wsDash.getCell('C9').value = { formula: `IF($C$6="TODOS", COUNTIF('Matriz IPEVAR'!S2:S${totalRows}, "No Aceptable"), COUNTIFS('Matriz IPEVAR'!S2:S${totalRows}, "No Aceptable", 'Matriz IPEVAR'!A2:A${totalRows}, $C$6))` };
+  wsDash.getCell('C9').value = { formula: `IF($C$6="TODOS", COUNTIF('Matriz IPEVR'!S2:S${totalRows}, "No Aceptable"), COUNTIFS('Matriz IPEVR'!S2:S${totalRows}, "No Aceptable", 'Matriz IPEVR'!A2:A${totalRows}, $C$6))` };
   wsDash.getCell('C9').font = { size: 24, bold: true, color: { argb: 'FFEF4444' }, name: 'Book Antiqua' };
 
   wsDash.getCell('D9').value = { formula: `IF(B9=0, 0, C9/B9)` };
@@ -211,7 +211,7 @@ async function exportIPEVARToExcel(matrixRows) {
   wsDash.getRow(9).height = 40;
 
   const getInteractiveFormula = (colTarget, valTarget) => {
-    return `IF($C$6="TODOS", COUNTIF('Matriz IPEVAR'!${colTarget}2:${colTarget}${totalRows}, "${valTarget}"), COUNTIFS('Matriz IPEVAR'!${colTarget}2:${colTarget}${totalRows}, "${valTarget}", 'Matriz IPEVAR'!A2:A${totalRows}, $C$6))`;
+    return `IF($C$6="TODOS", COUNTIF('Matriz IPEVR'!${colTarget}2:${colTarget}${totalRows}, "${valTarget}"), COUNTIFS('Matriz IPEVR'!${colTarget}2:${colTarget}${totalRows}, "${valTarget}", 'Matriz IPEVR'!A2:A${totalRows}, $C$6))`;
   };
 
   const createCardHeader = (row, title) => {
@@ -306,7 +306,7 @@ async function exportIPEVARToExcel(matrixRows) {
   });
 
   // 2. HOJA DE MATRIZ DATOS
-  const wsMatriz = wb.addWorksheet('Matriz IPEVAR', {
+  const wsMatriz = wb.addWorksheet('Matriz IPEVR', {
     views: [{ state: 'frozen', ySplit: 1, xSplit: 2, showGridLines: false }]
   });
 

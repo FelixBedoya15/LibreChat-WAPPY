@@ -434,15 +434,15 @@ router.post('/participacion-ipevar/:companyId', async (req, res) => {
       await Notification.create({
         user: new mongoose.Types.ObjectId(company.user),
         type: 'sgsst_participacion_ipevar',
-        title: 'Nueva Participación IPEVAR Recibida',
-        body: `${workerFound.nombre} (${company.companyName || 'Empresa'}) ha enviado su identificación de peligros y participación IPEVAR.`,
+        title: 'Nueva Participación IPEVR Recibida',
+        body: `${workerFound.nombre} (${company.companyName || 'Empresa'}) ha enviado su identificación de peligros y participación IPEVR.`,
         metadata: { module: 'participacion_ipevar', reportId: newInboxItem.id, companyId: company._id },
       });
     } catch (notifErr) {
       logger.warn('[Public SGSST] Could not create notification:', notifErr.message);
     }
 
-    // ─── Gamificación Pasaporte SST: +150 Puntos por reporte IPEVAR ───
+    // ─── Gamificación Pasaporte SST: +150 Puntos por reporte IPEVR ───
     if (company.user && (workerFound?.identificacion || cedula)) {
       try {
         const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
@@ -450,7 +450,7 @@ router.post('/participacion-ipevar/:companyId', async (req, res) => {
           company.user,
           String(workerFound?.identificacion || cedula).trim(),
           'participacion_ipevar',
-          'Identificación y reporte de peligro IPEVAR (GTC-45)',
+          'Identificación y reporte de peligro IPEVR (GTC-45)',
           150,
           newInboxItem.id
         );

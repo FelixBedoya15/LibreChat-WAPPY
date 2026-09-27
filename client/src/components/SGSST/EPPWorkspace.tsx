@@ -1586,7 +1586,7 @@ export default function EPPWorkspace() {
             {/* Contenido principal */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               
-              {/* EPP Sugeridos del Cargo y Matriz IPEVAR */}
+              {/* EPP Sugeridos del Cargo y Matriz IPEVR */}
               <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
                 <div className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-surface-tertiary gap-3">
                   <button 
@@ -1601,7 +1601,7 @@ export default function EPPWorkspace() {
                         {matchingIpevarRows.length > 0 && (
                           <span className="text-[11px] px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 font-semibold border border-teal-500/20 flex items-center gap-1">
                             <Zap className="w-3 h-3 text-teal-500" />
-                            {matchingIpevarRows.length} Peligros IPEVAR
+                            {matchingIpevarRows.length} Peligros IPEVR
                           </span>
                         )}
                         {recommendedEpps.length > 0 && (
@@ -1617,9 +1617,9 @@ export default function EPPWorkspace() {
                     <ToolbarButton
                       id="rec-sync-ipevar"
                       onClick={handleSyncFromIpevar}
-                      label={isSyncingIpevar ? 'Sincronizando...' : 'Sincronizar IPEVAR'}
+                      label={isSyncingIpevar ? 'Sincronizando...' : 'Sincronizar IPEVR'}
                       icon={RefreshCw}
-                      title="Sincronizar EPPs del cargo con la Matriz de Peligros IPEVAR (Hito 1)"
+                      title="Sincronizar EPPs del cargo con la Matriz de Peligros IPEVR (Hito 1)"
                       variant="default"
                       isLoading={isSyncingIpevar}
                     />
@@ -1695,7 +1695,7 @@ export default function EPPWorkspace() {
                                 {/* Source badge */}
                                 {fromIpevar && (
                                   <span className="text-[10px] px-1.5 py-0.2 rounded bg-teal-500/10 text-teal-600 dark:text-teal-400 font-mono font-medium">
-                                    IPEVAR
+                                    IPEVR
                                   </span>
                                 )}
 
@@ -1719,7 +1719,7 @@ export default function EPPWorkspace() {
                           })}
                         </div>
 
-                        {/* Botón para desplegar peligros IPEVAR vinculados */}
+                        {/* Botón para desplegar peligros IPEVR vinculados */}
                         {matchingIpevarRows.length > 0 && (
                           <div className="pt-2">
                             <button
@@ -1728,7 +1728,7 @@ export default function EPPWorkspace() {
                               className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 flex items-center gap-1.5 transition-colors"
                             >
                               {isIpevarHazardsExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                              <span>{isIpevarHazardsExpanded ? 'Ocultar matriz de peligros del cargo' : `Ver ${matchingIpevarRows.length} peligros identificados en Matriz IPEVAR (Hito 1)`}</span>
+                              <span>{isIpevarHazardsExpanded ? 'Ocultar matriz de peligros del cargo' : `Ver ${matchingIpevarRows.length} peligros identificados en Matriz IPEVR (Hito 1)`}</span>
                             </button>
 
                             {isIpevarHazardsExpanded && (
@@ -1768,7 +1768,7 @@ export default function EPPWorkspace() {
                     ) : (
                       <div className="p-4 bg-surface-secondary/40 rounded-2xl border border-dashed border-border-medium text-center space-y-3">
                         <p className="text-xs text-text-secondary max-w-md mx-auto">
-                          Sincronice los controles desde la Matriz IPEVAR de Hito 1 o asigne la dotación básica estándar.
+                          Sincronice los controles desde la Matriz IPEVR de Hito 1 o asigne la dotación básica estándar.
                         </p>
                         <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-md shadow-slate-200/30 dark:shadow-none mt-1">
                           <ToolbarButton
@@ -1776,9 +1776,9 @@ export default function EPPWorkspace() {
                             onClick={handleSyncFromIpevar}
                             disabled={isSyncingIpevar}
                             isLoading={isSyncingIpevar}
-                            label="Escanear Matriz IPEVAR"
+                            label="Escanear Matriz IPEVR"
                             icon={Zap}
-                            title="Escanear Matriz IPEVAR (Hito 1) para detectar EPPs sugeridos"
+                            title="Escanear Matriz IPEVR (Hito 1) para detectar EPPs sugeridos"
                             variant="ai"
                           />
                           <ToolbarButton
@@ -2003,7 +2003,7 @@ export default function EPPWorkspace() {
                   <PackageCheck className="w-5 h-5" />
                 </div>
                 <h4 className="font-extrabold text-sm text-text-primary">Registrar Entrega de EPP</h4>
-                <p className="text-2xs text-text-secondary mt-1">Asignar dotación requerida según cargo y peligros IPEVAR con firma de conformidad.</p>
+                <p className="text-2xs text-text-secondary mt-1">Asignar dotación requerida según cargo y peligros IPEVR con firma de conformidad.</p>
               </div>
 
               <div
@@ -2025,7 +2025,7 @@ export default function EPPWorkspace() {
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <h4 className="font-extrabold text-sm text-text-primary">Auditoría IA de Dotación</h4>
-                <p className="text-2xs text-text-secondary mt-1">Evaluar idoneidad técnica de los EPP suministrados según la matriz IPEVAR y normatividad.</p>
+                <p className="text-2xs text-text-secondary mt-1">Evaluar idoneidad técnica de los EPP suministrados según la matriz IPEVR y normatividad.</p>
               </div>
             </div>
 
@@ -2190,7 +2190,7 @@ export default function EPPWorkspace() {
                   • <strong>Art. 230 y 232 C.S.T.:</strong> Todo empleador debe suministrar cada cuatro (4) meses calzado y vestido de labor a los trabajadores que devenguen hasta 2 SMMLV (Fechas límite: 30 de abril, 31 de agosto y 20 de diciembre).
                 </p>
                 <p className="text-2xs">
-                  • <strong>Resolución 2400 de 1979 y Dec. 1072/2015:</strong> Los elementos de protección personal deben ser gratuitos, certificados, adecuados al riesgo evaluado en la matriz IPEVAR y reponerse inmediatamente cuando sufran deterioro o caducidad.
+                  • <strong>Resolución 2400 de 1979 y Dec. 1072/2015:</strong> Los elementos de protección personal deben ser gratuitos, certificados, adecuados al riesgo evaluado en la matriz IPEVR y reponerse inmediatamente cuando sufran deterioro o caducidad.
                 </p>
               </div>
             </div>

@@ -424,7 +424,7 @@ const InvestigacionATEL = () => {
             });
             items.push({
                 id: 'atel-3',
-                title: `Actualización de Matriz IPEVAR GTC 45 post-evento`,
+                title: `Actualización de Matriz IPEVR GTC 45 post-evento`,
                 description: `Reevaluar la probabilidad y consecuencia del peligro asociado en la matriz de riesgos tras el evento laboral.`,
                 responsible: 'Coordinador SST',
                 dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],

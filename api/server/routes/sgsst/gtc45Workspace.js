@@ -66,7 +66,7 @@ router.get('/official', requireJwtAuth, async (req, res) => {
         conversationId: officialConvoId,
         matrixRows: [],
         chartConclusions: {},
-        officialTitle: 'Matriz IPEVAR SG-SST',
+        officialTitle: 'Matriz IPEVR SG-SST',
         sourceConversationId: null,
       });
     }
@@ -94,7 +94,7 @@ router.get('/official', requireJwtAuth, async (req, res) => {
       conversationId: session.conversationId,
       matrixRows,
       chartConclusions: session.chartConclusions || {},
-      officialTitle: session.officialTitle ? session.officialTitle.replace(/\bOficial\s*/gi, '').trim() : 'Matriz IPEVAR SG-SST',
+      officialTitle: session.officialTitle ? session.officialTitle.replace(/\bOficial\s*/gi, '').trim() : 'Matriz IPEVR SG-SST',
       sourceConversationId: session.sourceConversationId || null,
       promotedAt: session.promotedAt || session.updatedAt,
       updatedAt: session.updatedAt,
@@ -165,7 +165,7 @@ router.post('/set-official', requireJwtAuth, async (req, res) => {
           matrixRows: normalizedRows,
           chartConclusions: conclusionsToSave || {},
           isOfficial: true,
-          officialTitle: (sourceTitle ? sourceTitle.replace(/\bOficial\s*/gi, '').trim() : '') || 'Matriz IPEVAR SG-SST',
+          officialTitle: (sourceTitle ? sourceTitle.replace(/\bOficial\s*/gi, '').trim() : '') || 'Matriz IPEVR SG-SST',
           sourceConversationId: sourceConversationId || null,
           promotedAt: new Date(),
         },
@@ -549,7 +549,7 @@ Condiciones de Salud / Limitaciones Previas: ${worker.condicionesSalud || 'Ningu
 
     const prompt = `Eres un experto certificado en Seguridad y Salud en el Trabajo y en la metodología GTC-45:2012 colombiana.
 ${workerContext}
-Tienes esta fila de Matriz IPEVAR:
+Tienes esta fila de Matriz IPEVR:
 
 ═══ DATOS DE LA ACTIVIDAD Y PELIGRO ═══
 PROCESO: ${row.proceso || 'No especificado'}
@@ -784,7 +784,7 @@ function buildIpevarChartsHtml(matrixRows) {
   let html = `
     <div style="margin: 25px 0; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; background-color: #f8fafc; page-break-inside: avoid;">
       <h3 style="color:#0f766e; font-size:16px; margin-top:0; border-bottom:2px solid #0f766e; padding-bottom:8px; margin-bottom:20px; text-transform:uppercase;">
-          ANALÍTICA IPEVAR — RESUMEN EJECUTIVO (Gráficas)
+          ANALÍTICA IPEVR — RESUMEN EJECUTIVO (Gráficas)
       </h3>
       <div style="display:flex; flex-direction:column; gap:20px;">
         <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
@@ -1076,7 +1076,7 @@ Has sido encomendado para redactar el DICTAMEN TÉCNICO BIOCÉNTRICO Y PERFIL FI
 MARCO METODOLÓGICO Y VOCABULARIO OBLIGATORIO:
 ════════════════════════════════════════════════════════════════════════════════════════
 ATENCIÓN CRÍTICA: NO ESTÁS REALIZANDO UNA MATRIZ GTC-45 CONVENCIONAL DE PLANTA (HITO 1).
-- En la Matriz IPEVAR convencional (Hito 1), se auditan centros de trabajo, procesos e instalaciones mediante la fórmula genérica GTC-45:2012 (ND × NE × NC = NR), tratando a la fuerza laboral como un colectivo homogéneo y asumiendo un "trabajador estándar".
+- En la Matriz IPEVR convencional (Hito 1), se auditan centros de trabajo, procesos e instalaciones mediante la fórmula genérica GTC-45:2012 (ND × NE × NC = NR), tratando a la fuerza laboral como un colectivo homogéneo y asumiendo un "trabajador estándar".
 - En la METODOLOGÍA BIO-INDIVIDUAL WAPPY (Hito 3 / Este Dictamen), la unidad de análisis es el BIO-INDIVIDUO HUMANO ÚNICO. Se fundamenta en los artículos de Medicina Preventiva y del Trabajo del Decreto 1072 de 2015, evaluando la interacción biológica, biomecánica y clínica entre las condiciones de salud del colaborador y sus tareas laborales.
 
 CONCEPTOS Y FÓRMULAS PROPIAS QUE DEBES EMPLEAR:
@@ -1156,7 +1156,7 @@ router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
     const currentDate = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
     const isBio = !!(workerId || isBioIndividual);
 
-    let reportTitle = 'INFORME EJECUTIVO DE RIESGOS IPEVAR - GTC-45';
+    let reportTitle = 'INFORME EJECUTIVO DE RIESGOS IPEVR - GTC-45';
     let norm = 'GTC-45:2012 / Decreto 1072 de 2015';
     let prompt = '';
     let chartsHTML = '';
@@ -1185,7 +1185,7 @@ router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
         instruction,
       });
     } else {
-      // Flujo institucional IPEVAR General GTC-45 (Hito 1)
+      // Flujo institucional IPEVR General GTC-45 (Hito 1)
       chartsHTML = buildIpevarChartsHtml(matrixRows);
       const matrixSummary = matrixRows.map((r, i) => {
         const proc = r.proceso || 'General';
@@ -1199,7 +1199,7 @@ router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
       }).join('\n');
 
       prompt = `Eres un auditor experto en Seguridad y Salud en el Trabajo bajo la metodología GTC-45:2012 en Colombia.
-Analiza esta Matriz IPEVAR completa y emite un Informe Técnico y Ejecutivo integral MUY EXTENSO, sumamente detallado y analítico.
+Analiza esta Matriz IPEVR completa y emite un Informe Técnico y Ejecutivo integral MUY EXTENSO, sumamente detallado y analítico.
 
 **INSTRUCCIONES DE FORMATO HTML:**
 - Responde EXCLUSIVAMENTE en HTML limpio, listo para inyectarse en el DOM. NO uses \`\`\`html.
@@ -1282,7 +1282,7 @@ router.post('/ai-chart-conclusion', requireJwtAuth, async (req, res) => {
 
     const prompt = `Eres un profesional experto en Seguridad y Salud en el Trabajo (SST/HSE) especializado en análisis de riesgos GTC-45.
 
-Con base en los siguientes datos del gráfico de "${chartDescriptions[chartType] || chartType}" de una Matriz IPEVAR GTC-45:
+Con base en los siguientes datos del gráfico de "${chartDescriptions[chartType] || chartType}" de una Matriz IPEVR GTC-45:
 
 ESTADÍSTICAS DEL GRÁFICO:
 ${JSON.stringify(chartStats || {}, null, 2)}
@@ -1395,7 +1395,7 @@ router.post('/ai-parse-matrix', requireJwtAuth, async (req, res) => {
 
       const prompt = `Eres un experto certificado en Seguridad y Salud en el Trabajo y en la metodología GTC-45:2012 colombiana.
 Te hemos proporcionado una lista de filas extraídas de una matriz o archivo Excel.
-Tu tarea es mapear y adaptar con máxima fidelidad la información existente de cada fila al formato estándar de Wappy (GTC-45 IPEVAR), ASIGNANDO ADEMÁS EL CARGO CORRESPONDIENTE COMPARANDO LA ACTIVIDAD CON LOS PERFILES DE LA EMPRESA.
+Tu tarea es mapear y adaptar con máxima fidelidad la información existente de cada fila al formato estándar de Wappy (GTC-45 IPEVR), ASIGNANDO ADEMÁS EL CARGO CORRESPONDIENTE COMPARANDO LA ACTIVIDAD CON LOS PERFILES DE LA EMPRESA.
 
 CATÁLOGO DE PERFILES DE CARGO REGISTRADOS EN LA EMPRESA (CON SU DESCRIPCIÓN):
 ${perfilesFormatText}
@@ -1632,7 +1632,7 @@ router.post('/auto-assign-cargos', requireJwtAuth, async (req, res) => {
       cargoActual: r.cargo || '',
     }));
 
-    const prompt = `Eres un Director Senior de Seguridad y Salud en el Trabajo (SG-SST) y Recursos Humanos experto en perfiles de cargo, profesiogramas y matrices de peligros IPEVAR (GTC-45:2012).
+    const prompt = `Eres un Director Senior de Seguridad y Salud en el Trabajo (SG-SST) y Recursos Humanos experto en perfiles de cargo, profesiogramas y matrices de peligros IPEVR (GTC-45:2012).
 Tu misión es ASIGNAR con la máxima precisión el CARGO o puesto de trabajo correspondiente a cada fila de la matriz de riesgos.
 
 CONTEXTO EMPRESARIAL:
@@ -1898,7 +1898,7 @@ router.post('/sync-controles-anexo-e', requireJwtAuth, async (req, res) => {
 ${otherControls.length > 0 ? `• Controles Complementarios: ${otherControls.map((c) => `[${c.category}] ${c.text}`).join(' | ')}\n` : ''}• Factores de Reducción (Anexo E): ${anexoE}${row.origen_reporte ? `\n• Origen / Trazabilidad: ${row.origen_reporte}` : ''}`;
 
           const referenceId = `ipevar-control-${rowId}`;
-          const referenceName = `Matriz IPEVAR (${row.peligro_clasificacion || 'GTC-45'})`;
+          const referenceName = `Matriz IPEVR (${row.peligro_clasificacion || 'GTC-45'})`;
 
           activeIpevarRefs.add(referenceId);
           activeIpevarRefs.add(`ipevar-${rowId}`);

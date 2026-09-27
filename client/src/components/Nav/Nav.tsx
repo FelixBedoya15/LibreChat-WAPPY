@@ -27,6 +27,7 @@ const PlansButton = lazy(() => import('./PlansButton'));
 const AccountSettings = lazy(() => import('./AccountSettings'));
 const SGSSTButton = lazy(() => import('./SGSSTButton'));
 const AulaEstudioButton = lazy(() => import('./AulaEstudioButton'));
+const MarketplaceNavButton = lazy(() => import('./MarketplaceNavButton'));
 const RutaAprendizajeButton = lazy(() => import('./RutaAprendizajeButton'));
 const BlogButton = lazy(() => import('./BlogButton'));
 const AuditoriaButton = lazy(() => import('./AuditoriaButton'));
@@ -310,6 +311,10 @@ const Nav = memo(
                             <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
+                        {/* Marketplace SST */}
+                        <Suspense fallback={null}>
+                          <MarketplaceNavButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                        </Suspense>
                         {/* Bookmarks icon */}
                         {hasAccessToBookmarks && (
                           <Suspense fallback={null}>
@@ -378,6 +383,11 @@ const Nav = memo(
                                     <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
+
+                                {/* 5. Marketplace SST (Servicios en Salud Ocupacional) */}
+                                <Suspense fallback={null}>
+                                  <MarketplaceNavButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                </Suspense>
 
                                 {/* 5. Marcadores */}
                                 {hasAccessToBookmarks && (

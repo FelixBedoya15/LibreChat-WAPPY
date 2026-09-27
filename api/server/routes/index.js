@@ -50,6 +50,7 @@ const referrals = require('./referrals');
 const comunidad = require('./comunidad');
 const rutaAprendizaje = require('./rutaAprendizaje');
 const events = require('./events');
+const marketplace = require('./marketplace');
 
 module.exports = {
   auth,
@@ -105,5 +106,6 @@ module.exports = {
   rutaAprendizaje,
   events,
   chatSST: require('./chatSST'),
+  marketplace,
 };
 

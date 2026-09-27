@@ -135,7 +135,7 @@ export const AVAILABLE_PERMISSIONS: PermissionOption[] = [
     },
     {
         id: 'sgsst:participacion_ipevar',
-        label: 'Participación IPEVAR / Peligros',
+        label: 'Participación IPEVR / Peligros',
         description: 'Reportar riesgos y participar en la identificación continua de peligros.',
         category: 'Somos SST Operativo'
     },
@@ -167,7 +167,7 @@ export const AVAILABLE_PERMISSIONS: PermissionOption[] = [
     // ─── 3. Matrices & Legal ─────────────────────────────────────────────
     {
         id: 'sgsst:matriz_peligros',
-        label: 'Matriz de Peligros GTC-45 / IPEVAR',
+        label: 'Matriz de Peligros GTC-45 / IPEVR',
         description: 'Acceso de consulta y edición a la matriz de riesgos general de la empresa.',
         category: 'Matrices & Legal'
     },

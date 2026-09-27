@@ -608,7 +608,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                         <Shield className="h-5 w-5" />
                                         <div>
                                             <p className="font-bold text-sm">Esta empresa NO es la activa</p>
-                                            <p className="text-xs opacity-90">Debes activarla para que el sistema y los agentes de IA comiencen a trabajar con su Matriz IPEVAR, Hitos y Documentos.</p>
+                                            <p className="text-xs opacity-90">Debes activarla para que el sistema y los agentes de IA comiencen a trabajar con su Matriz IPEVR, Hitos y Documentos.</p>
                                         </div>
                                     </div>
                                     <button 

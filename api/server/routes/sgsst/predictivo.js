@@ -121,8 +121,8 @@ async function getFullSSTContext(userId, companyId) {
             } else fullContext += `Sin registros de trabajadores en Huella Biocéntrica H1.\n`;
         }
 
-        // ─── HITO 2: NÚCLEO BIO-EVALUATIVO (9 DOMINIOS BIOINDIVIDUALES & IPEVAR) ───
-        fullContext += `\n[HITO 2 - NÚCLEO BIO-EVALUATIVO: 9 DOMINIOS VITALES & MATRIZ BIO-IPEVAR OFICIAL]\n`;
+        // ─── HITO 2: NÚCLEO BIO-EVALUATIVO (9 DOMINIOS BIOINDIVIDUALES & IPEVR) ───
+        fullContext += `\n[HITO 2 - NÚCLEO BIO-EVALUATIVO: 9 DOMINIOS VITALES & MATRIZ BIO-IPEVR OFICIAL]\n`;
         const GTC45WorkspaceSession = mongoose.models.GTC45WorkspaceSession || require('~/models/GTC45WorkspaceSession');
         let officialIpevarSession = null;
         if (GTC45WorkspaceSession) {
@@ -194,12 +194,12 @@ async function getFullSSTContext(userId, companyId) {
             }
         }
 
-        // Participación IPEVAR
+        // Participación IPEVR
         const ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData;
         if (ParticipacionIpevarData) {
             const pip = await ParticipacionIpevarData.find({ user: userId, companyId }).lean();
             if (pip?.length) {
-                fullContext += `  • Participación IPEVAR (Voz del Trabajador):\n`;
+                fullContext += `  • Participación IPEVR (Voz del Trabajador):\n`;
                 pip.slice(0, 8).forEach(p => {
                     fullContext += `    - "${p.workerName || 'N/A'}" | Peligro Percibido: "${p.peligro || 'N/A'}" | Nivel Miedo: ${p.miedoScore ?? 'N/A'}/10 | Propuesta: "${p.propuestaMejora || 'N/A'}"\n`;
                 });
@@ -1265,7 +1265,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         const telemetrySources = [
             { id: 'huella_biocentrica', name: 'Huella Biocéntrica 360°', category: 'Humano', count: totalWorkers, unit: 'colaboradores', status: 'connected' },
             { id: 'perfiles_cargo', name: 'Perfiles de Cargo & Profesiograma', category: 'Humano', count: countPerfilesCargo, unit: 'cargos parametrizados', status: 'connected' },
-            { id: 'matriz_ipevar', name: 'Matriz Bio-IPEVAR (GTC-45)', category: 'Riesgos', count: totalHazards, unit: 'peligros evaluados', status: 'connected' },
+            { id: 'matriz_ipevar', name: 'Matriz Bio-IPEVR (GTC-45)', category: 'Riesgos', count: totalHazards, unit: 'peligros evaluados', status: 'connected' },
             { id: 'analisis_vulnerabilidad', name: 'Plan de Emergencias & Vulnerabilidad', category: 'Riesgos', count: countAmenazas, unit: 'amenazas analizadas', status: 'connected' },
             { id: 'ergonomia_owas', name: 'Ergonomía OWAS & LIVA', category: 'Operación', count: totalOwas, unit: 'posturas evaluadas', status: 'connected' },
             { id: 'permisos_alturas', name: 'Permisos de Alto Riesgo (Alturas/Caliente)', category: 'Operación', count: totalAlturasActive, unit: 'permisos tramitados', status: 'connected' },
@@ -1274,7 +1274,7 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             { id: 'control_epp', name: 'Dotación & Control de EPP', category: 'Operación', count: countEppDocs, unit: 'registros de dotación', status: 'connected' },
             { id: 'analisis_ats', name: 'Análisis de Trabajo Seguro (ATS)', category: 'Operación', count: countAts, unit: 'formatos ATS', status: 'connected' },
             { id: 'reportes_actos', name: 'Reportes de Actos & Condiciones', category: 'Operación', count: totalActsConds, unit: 'tarjetas de campo', status: 'connected' },
-            { id: 'percepcion_miedo', name: 'Percepción & Miedo (Voz IPEVAR)', category: 'Operación', count: totalMiedo, unit: 'percepciones recogidas', status: 'connected' },
+            { id: 'percepcion_miedo', name: 'Percepción & Miedo (Voz IPEVR)', category: 'Operación', count: totalMiedo, unit: 'percepciones recogidas', status: 'connected' },
             { id: 'estadisticas_atel', name: 'Estadísticas ATEL (Resolución 0312)', category: 'Forense', count: totalATEL, unit: 'eventos registrados', status: 'connected' },
             { id: 'investigaciones_atel', name: 'Investigación Forense (Res. 1401 GEMA)', category: 'Forense', count: countInvestigations, unit: 'árboles de causas', status: 'connected' },
             { id: 'matriz_legal', name: 'Matriz Legal & Cumplimiento', category: 'Gestión', count: countNormas, unit: 'artículos normativos', status: 'connected' },

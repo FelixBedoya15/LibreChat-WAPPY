@@ -334,6 +334,7 @@ const startServer = async () => {
   app.use('/api/ruta-aprendizaje', routes.rutaAprendizaje);
   app.use('/api/chat-sst', routes.chatSST);
   app.use('/api/events', routes.events);
+  app.use('/api/marketplace', routes.marketplace);
 
 
 

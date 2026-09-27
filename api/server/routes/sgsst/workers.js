@@ -856,7 +856,7 @@ router.put('/:id/ipevar', requireJwtAuth, async (req, res) => {
         res.json({ success: true, worker });
     } catch (error) {
         logger.error('[SGSST Workers] Update IPEVAR error:', error);
-        res.status(500).json({ error: 'Error al actualizar matriz IPEVAR' });
+        res.status(500).json({ error: 'Error al actualizar matriz IPEVR' });
     }
 });
 
@@ -1049,7 +1049,7 @@ REGLAS OBLIGATORIAS PARA CONTROLES PROPUESTOS (JERARQUÍA DE CONTROLES):
 METODOLOGÍA BIO-INDIVIDUAL + JERARQUÍA DE CONTROLES:
 1. Analiza las Condiciones de Salud y el Cargo.
 2. Identifica el peligro bio-individual y asígnalo a uno de los 8 DOMINIOS FISIOLÓGICOS (Sensorial, Respiratorio, Osteomuscular, Psicoemocional, Inmunológico, Cardiovascular, Metabólico, Neurológico).
-   NOTA NORMATIVA: Los peligros de Condiciones de Seguridad (mecánico, eléctrico, locativo, alturas, etc.) se gestionan exclusivamente en la Matriz IPEVAR por Procesos (Hito 1). Esta matriz es 100% BIO-INDIVIDUAL y debe enfocarse en la vulnerabilidad clínica, fisiológica y psicosocial del colaborador. NUNCA generes el dominio "Seguridad".
+   NOTA NORMATIVA: Los peligros de Condiciones de Seguridad (mecánico, eléctrico, locativo, alturas, etc.) se gestionan exclusivamente en la Matriz IPEVR por Procesos (Hito 1). Esta matriz es 100% BIO-INDIVIDUAL y debe enfocarse en la vulnerabilidad clínica, fisiológica y psicosocial del colaborador. NUNCA generes el dominio "Seguridad".
 3. Asígnalo a una DIMENSIÓN exacta de la GTC-45. DEBES utilizar EXACTAMENTE una de las opciones válidas para el dominio seleccionado, de la siguiente lista:
    - Sensorial: 'Ruido (impacto, intermitente, continuo)', 'Iluminación (exceso o deficiencia)', 'Radiaciones no ionizantes', 'Radiaciones ionizantes', 'Afectación táctil/olfativa'
    - Respiratorio: 'Polvos orgánicos/inorgánicos', 'Fibras', 'Gases y vapores', 'Humos metálicos/no metálicos', 'Material particulado'
@@ -1275,7 +1275,7 @@ ${individuoListStr}
 =========================================`;
 
         const prompt = `Eres un experto en SST y jerarquía de controles biocéntricos.
-Se te proporciona una fila de una Matriz IPEVAR Bio-Individual.
+Se te proporciona una fila de una Matriz IPEVR Bio-Individual.
 Tu tarea es analizar el peligro y generar una recomendación MEJORADA para todos los campos de controles propuestos, controles existentes, efectos y clasificación. NO modifiques el Dominio, Dimensión, u Origen.
 ${instruction ? `\nINSTRUCCIONES ESPECÍFICAS DEL USUARIO:\n"${instruction}"\n` : ''}
 
@@ -1589,7 +1589,7 @@ router.post('/worker/:id/generate-risks', requireJwtAuth, async (req, res) => {
         } catch (e) { /* ignore if cargo not found */ }
 
         const prompt = `Eres un experto en Seguridad y Salud en el Trabajo, especializado en la metodología GTC 45 de Colombia.
-Genera una matriz IPEVAR bio-individual personalizada para el siguiente trabajador.
+Genera una matriz IPEVR bio-individual personalizada para el siguiente trabajador.
 
 DATOS DEL TRABAJADOR:
 - Nombre: ${worker.nombre}
@@ -1598,7 +1598,7 @@ DATOS DEL TRABAJADOR:
 - Condiciones de Salud Previas: ${worker.condicionesSalud || 'Ninguna registrada'}
 ${cargoContext}
 
-Genera EXACTAMENTE 5 riesgos IPEVAR personalizados en formato JSON. Cada riesgo debe ser un objeto con estos campos EXACTOS:
+Genera EXACTAMENTE 5 riesgos IPEVR personalizados en formato JSON. Cada riesgo debe ser un objeto con estos campos EXACTOS:
 {
   "proceso": string,
   "zona": string,

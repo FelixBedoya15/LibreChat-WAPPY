@@ -755,7 +755,7 @@ const PerfilesCargo = () => {
                     if (createdPerfiles.length > 0) {
                         setPerfiles(prev => [...prev, ...createdPerfiles]);
                         showToast({
-                            message: `Se sincronizaron automáticamente ${createdPerfiles.length} nuevos perfiles de cargo desde la Matriz IPEVAR.`,
+                            message: `Se sincronizaron automáticamente ${createdPerfiles.length} nuevos perfiles de cargo desde la Matriz IPEVR.`,
                             severity: NotificationSeverity.SUCCESS,
                         });
                     }
@@ -774,7 +774,7 @@ const PerfilesCargo = () => {
             const rows = data?.matrixRows || [];
             if (rows.length === 0) {
                 showToast({
-                    message: 'No hay filas en la Matriz IPEVAR para sincronizar.',
+                    message: 'No hay filas en la Matriz IPEVR para sincronizar.',
                     severity: NotificationSeverity.INFO,
                 });
                 return;
@@ -797,7 +797,7 @@ const PerfilesCargo = () => {
             const missing = Array.from(uniqueMissingRowsMap.values());
             if (missing.length === 0) {
                 showToast({
-                    message: 'Todos los cargos de la Matriz IPEVAR ya están presentes en Perfiles de Cargo.',
+                    message: 'Todos los cargos de la Matriz IPEVR ya están presentes en Perfiles de Cargo.',
                     severity: NotificationSeverity.INFO,
                 });
                 return;
@@ -826,7 +826,7 @@ const PerfilesCargo = () => {
             if (createdPerfiles.length > 0) {
                 setPerfiles(prev => [...prev, ...createdPerfiles]);
                 showToast({
-                    message: `¡Se sincronizaron exitosamente ${createdPerfiles.length} nuevos perfiles de cargo desde la Matriz IPEVAR!`,
+                    message: `¡Se sincronizaron exitosamente ${createdPerfiles.length} nuevos perfiles de cargo desde la Matriz IPEVR!`,
                     severity: NotificationSeverity.SUCCESS,
                 });
             } else {
@@ -838,7 +838,7 @@ const PerfilesCargo = () => {
         } catch (e: any) {
             console.error('[PerfilesCargo] Sync error:', e);
             showToast({
-                message: 'Error al sincronizar con la Matriz IPEVAR.',
+                message: 'Error al sincronizar con la Matriz IPEVR.',
                 severity: NotificationSeverity.ERROR,
             });
         }
@@ -861,7 +861,7 @@ const PerfilesCargo = () => {
     const handleSyncFromIpevar = () => {
         if (matchingIpevarRows.length === 0) {
             showToast({
-                message: `No se encontraron peligros en la Matriz IPEVAR para el cargo "${formData.nombreCargo}". Asigna este cargo en la matriz primero.`,
+                message: `No se encontraron peligros en la Matriz IPEVR para el cargo "${formData.nombreCargo}". Asigna este cargo en la matriz primero.`,
                 severity: NotificationSeverity.WARNING,
             });
             return;
@@ -911,7 +911,7 @@ const PerfilesCargo = () => {
         }));
 
         showToast({
-            message: `¡Controles, EPPs y capacitaciones sincronizados desde ${matchingIpevarRows.length} peligros de la Matriz IPEVAR!`,
+            message: `¡Controles, EPPs y capacitaciones sincronizados desde ${matchingIpevarRows.length} peligros de la Matriz IPEVR!`,
             severity: NotificationSeverity.SUCCESS,
         });
     };
@@ -1700,7 +1700,7 @@ const PerfilesCargo = () => {
                             type="button"
                             onClick={handleSyncAllFromMatrix}
                             className="flex items-center gap-1.5 px-3.5 py-2 bg-surface-primary text-text-primary rounded-2xl text-xs font-semibold border border-border-medium hover:bg-surface-secondary hover:border-teal-500/40 hover:text-teal-600 transition-all shadow-sm cursor-pointer hover:scale-105 active:scale-95 transform duration-200"
-                            title="Sincronizar cargos faltantes creados en la Matriz IPEVAR"
+                            title="Sincronizar cargos faltantes creados en la Matriz IPEVR"
                         >
                             <RefreshCw className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
                             <span>Sincronizar Matriz</span>
@@ -1858,7 +1858,7 @@ const PerfilesCargo = () => {
                             </div>
                         </div>
                     ))}
-                    {/* ── CARD: Articulación Parametrizada con Matriz IPEVAR ── */}
+                    {/* ── CARD: Articulación Parametrizada con Matriz IPEVR ── */}
                     <div className="bg-gradient-to-r from-teal-500/10 via-cyan-500/5 to-emerald-500/10 dark:from-teal-950/30 dark:via-cyan-950/20 dark:to-emerald-950/30 p-5 rounded-3xl border border-teal-500/30 shadow-lg relative transition-all duration-300">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div className="flex items-center gap-3">
@@ -1868,7 +1868,7 @@ const PerfilesCargo = () => {
                                 <div>
                                     <div className="flex items-center gap-2">
                                         <h4 className="font-extrabold text-sm text-text-primary">
-                                            Articulación con Matriz de Peligros IPEVAR (GTC-45)
+                                            Articulación con Matriz de Peligros IPEVR (GTC-45)
                                         </h4>
                                         {matchingIpevarRows.length > 0 ? (
                                             <span className="rounded-full bg-teal-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-sm">
@@ -1882,7 +1882,7 @@ const PerfilesCargo = () => {
                                     </div>
                                     <p className="text-xs text-text-secondary mt-0.5">
                                         {matchingIpevarRows.length > 0
-                                            ? `Riesgos vinculados en la Matriz IPEVAR para "${formData.nombreCargo || 'este cargo'}". Sincroniza controles y EPPs sin escribir nada a mano.`
+                                            ? `Riesgos vinculados en la Matriz IPEVR para "${formData.nombreCargo || 'este cargo'}". Sincroniza controles y EPPs sin escribir nada a mano.`
                                             : `Asigna el cargo "${formData.nombreCargo || 'este cargo'}" en la Matriz de Peligros para sincronizar EPPs y controles automáticamente.`}
                                     </p>
                                 </div>
@@ -1904,17 +1904,17 @@ const PerfilesCargo = () => {
                                         className="flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border border-teal-500 bg-teal-600 px-3.5 text-xs font-bold text-white shadow-md transition-all hover:bg-teal-700 hover:shadow-lg active:scale-95"
                                     >
                                         <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                                        <span>⚡ Sincronizar desde IPEVAR</span>
+                                        <span>⚡ Sincronizar desde IPEVR</span>
                                     </button>
                                 </div>
                             )}
                         </div>
 
-                        {/* Listado desplegable de los peligros IPEVAR para este cargo */}
+                        {/* Listado desplegable de los peligros IPEVR para este cargo */}
                         {isIpevarHazardsExpanded && matchingIpevarRows.length > 0 && (
                             <div className="mt-4 pt-3 border-t border-teal-500/20 space-y-2">
                                 <div className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
-                                    Peligros identificados en la Matriz IPEVAR para este puesto:
+                                    Peligros identificados en la Matriz IPEVR para este puesto:
                                 </div>
                                 <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
                                     {matchingIpevarRows.map((r, i) => (
@@ -2110,7 +2110,7 @@ const PerfilesCargo = () => {
                                     </div>
                                     <div className="text-center">
                                         <p className="text-sm font-extrabold text-text-primary uppercase tracking-wide">Sube un video corto de la labor</p>
-                                        <p className="text-xs text-text-secondary mt-1">Suministra contexto dinámico para autocompletar la Matriz IPEVAR</p>
+                                        <p className="text-xs text-text-secondary mt-1">Suministra contexto dinámico para autocompletar la Matriz IPEVR</p>
                                     </div>
                                     <label className="cursor-pointer bg-gradient-to-r from-teal-500 via-teal-600 to-cyan-600 hover:scale-105 active:scale-95 text-white px-6 py-2.5 rounded-2xl text-xs font-black transition-all shadow-lg duration-300">
                                         {isVideoUploading ? 'Procesando...' : 'Seleccionar Video'}

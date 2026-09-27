@@ -600,7 +600,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     diagnostico_finding: { label: 'Diagnóstico Inicial', color: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-600' },
     alta_direccion_finding: { label: 'Alta Dirección', color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-600' },
     unsafe_act_finding: { label: 'Actos y Condiciones', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-600' },
-    ipevar_finding: { label: 'Controles IPEVAR (GTC 45)', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-600' },
+    ipevar_finding: { label: 'Controles IPEVR (GTC 45)', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-600' },
     atel_finding: { label: 'Investigación ATEL', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-600' },
     ats_finding: { label: 'Análisis Trabajo Seguro', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-600' },
     alturas_finding: { label: 'Trabajo en Alturas', color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-600' },

@@ -62,6 +62,7 @@ const EventsMeetAdminDashboard = lazy(() => import('~/components/EventsMeet/Even
 const AuditoriaDashboard = lazy(() => import('~/components/Auditoria/AuditoriaDashboard'));
 const CentroControlSST = lazy(() => import('~/components/SGSST/CentroControlSST'));
 const AcademiaDashboard = lazy(() => import('~/components/Academia/AcademiaDashboard'));
+const MarketplaceDashboard = lazy(() => import('~/components/Marketplace/MarketplaceDashboard'));
 const PlansPage = lazy(() => import('~/components/Plans/PlansPage'));
 const ContactPage = lazy(() => import('~/components/Plans/ContactPage'));
 const AmbassadorDashboard = lazy(() => import('~/components/Ambassadors/AmbassadorDashboard'));
@@ -451,6 +452,18 @@ export const router = createBrowserRouter(
             {
               path: 'academia',
               element: withSuspense(<AcademiaDashboard />),
+            },
+            {
+              path: 'marketplace',
+              element: withSuspense(<MarketplaceDashboard />),
+            },
+            {
+              path: 'marketplace/admin',
+              element: withSuspense(<MarketplaceDashboard />),
+            },
+            {
+              path: 'marketplace/pedido/:orderNumber',
+              element: withSuspense(<MarketplaceDashboard />),
             },
             {
               path: 'training',

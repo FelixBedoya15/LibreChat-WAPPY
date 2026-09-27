@@ -35,8 +35,8 @@ const defaultSeedItems: RoadmapItem[] = [
   },
   {
     _id: 'seed-8',
-    title: 'Agente Experto IPEVAR y Automatización RIT 2026',
-    description: 'Tu equipo de seguridad se potencia con el nuevo Agente Experto IPEVAR, capaz de procesar y estructurar matrices de peligros (GTC-45) de alta complejidad con exportación de informes ejecutivos. Además, lanzamos la automatización total para generar tu Reglamento Interno de Trabajo (RIT) adaptado a las reformas laborales de 2026.',
+    title: 'Agente Experto IPEVR y Automatización RIT 2026',
+    description: 'Tu equipo de seguridad se potencia con el nuevo Agente Experto IPEVR, capaz de procesar y estructurar matrices de peligros (GTC-45) de alta complejidad con exportación de informes ejecutivos. Además, lanzamos la automatización total para generar tu Reglamento Interno de Trabajo (RIT) adaptado a las reformas laborales de 2026.',
     version: 'V2.7.0',
     date: new Date(Date.now() - 86400000 * 1).toISOString(),
     type: 'Nuevo',

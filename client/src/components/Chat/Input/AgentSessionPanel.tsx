@@ -225,7 +225,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
         calculator: 'Calculadora',
         memory: 'Memoria',
         somos_sst: 'Somos SST',
-        matriz_ipevar: 'Matriz IPEVAR',
+        matriz_ipevar: 'Matriz IPEVR',
         matriz_pesv: 'Matriz PESV',
         matriz_compatibilidad: 'Compatibilidad Química',
         editor_live: 'Editor Live',

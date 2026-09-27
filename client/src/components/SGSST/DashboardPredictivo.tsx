@@ -110,7 +110,7 @@ interface ForecastData {
 const ALL_TELEMETRY_DEFINITIONS = [
     { id: 'huella_biocentrica', name: 'Huella Biocéntrica 360°', tag: 'H1', category: 'Humano', desc: 'FIT Score, perfil sociodemográfico y salud', unit: 'colaboradores' },
     { id: 'perfiles_cargo', name: 'Perfiles de Cargo & Profesiograma', tag: 'H1', category: 'Humano', desc: 'Exigencias físicas, biomecánicas y psicosociales', unit: 'cargos parametrizados' },
-    { id: 'matriz_ipevar', name: 'Matriz Bio-IPEVAR (GTC-45)', tag: 'H2', category: 'Riesgos', desc: '9 dominios de peligros y evaluación bio-física', unit: 'peligros evaluados' },
+    { id: 'matriz_ipevar', name: 'Matriz Bio-IPEVR (GTC-45)', tag: 'H2', category: 'Riesgos', desc: '9 dominios de peligros y evaluación bio-física', unit: 'peligros evaluados' },
     { id: 'analisis_vulnerabilidad', name: 'Plan de Emergencias & Vulnerabilidad', tag: 'H2', category: 'Riesgos', desc: 'Análisis de amenazas naturales y técnicas', unit: 'amenazas analizadas' },
     { id: 'ergonomia_owas', name: 'Ergonomía OWAS & LIVA', tag: 'H3', category: 'Operación', desc: 'Sobrecarga postural, carga física y biomecánica', unit: 'posturas evaluadas' },
     { id: 'permisos_alturas', name: 'Permisos de Alto Riesgo', tag: 'H3', category: 'Operación', desc: 'Alturas, caliente, confinados y energías peligrosas', unit: 'permisos tramitados' },
@@ -119,7 +119,7 @@ const ALL_TELEMETRY_DEFINITIONS = [
     { id: 'control_epp', name: 'Dotación & Control de EPP', tag: 'H3', category: 'Operación', desc: 'Inspección de equipos y reposición de dotación', unit: 'registros de dotación' },
     { id: 'analisis_ats', name: 'Análisis de Trabajo Seguro (ATS)', tag: 'H3', category: 'Operación', desc: 'Procedimientos paso a paso para tareas no rutinarias', unit: 'formatos ATS' },
     { id: 'reportes_actos', name: 'Reportes de Actos & Condiciones', tag: 'H3', category: 'Operación', desc: 'Tarjetas de observación preventiva en campo', unit: 'tarjetas de campo' },
-    { id: 'percepcion_miedo', name: 'Percepción & Miedo (Voz IPEVAR)', tag: 'H3', category: 'Operación', desc: 'Voz del trabajador y riesgo percibido en campo', unit: 'percepciones recogidas' },
+    { id: 'percepcion_miedo', name: 'Percepción & Miedo (Voz IPEVR)', tag: 'H3', category: 'Operación', desc: 'Voz del trabajador y riesgo percibido en campo', unit: 'percepciones recogidas' },
     { id: 'estadisticas_atel', name: 'Gestión de Ausentismo & ATEL (Res. 0312)', tag: 'H4', category: 'Forense', desc: 'Ausentismo laboral, siniestralidad, severidad, frecuencia y costos', unit: 'eventos registrados' },
     { id: 'investigaciones_atel', name: 'Investigación Forense (Res. 1401)', tag: 'H4', category: 'Forense', desc: 'Árbol de causas, modelo GEMA y lecciones', unit: 'árboles de causas' },
     { id: 'matriz_legal', name: 'Matriz Legal & Cumplimiento', tag: 'SG', category: 'Gestión', desc: 'Normatividad colombiana y evaluación de requisitos', unit: 'artículos normativos' },
@@ -895,7 +895,7 @@ const DashboardPredictivo = () => {
         },
         { 
             label: 'Exposición Operacional', 
-            subtitle: 'Severidad IPEVAR y tareas de alto riesgo en puestos de trabajo (Hito 2 / H3)',
+            subtitle: 'Severidad IPEVR y tareas de alto riesgo en puestos de trabajo (Hito 2 / H3)',
             value: forecast?.indicators?.safetyRisk || 0, 
             color: (forecast?.indicators?.safetyRisk || 0) <= 25 ? '#3b82f6' : (forecast?.indicators?.safetyRisk || 0) <= 50 ? '#f59e0b' : '#ef4444',
             icon: 'shield',

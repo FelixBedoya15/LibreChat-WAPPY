@@ -405,33 +405,6 @@ export default function ConvivenciaWorkspace() {
             badge: config?.eleccionActiva ? '!' : undefined,
           },
         ]}
-        customSections={[
-          <div key="convivencia-actions-bar" className="flex items-center gap-1.5">
-            <ToolbarButton
-              id="tb-nueva-acta-convivencia"
-              onClick={() => handleOpenNewActa(1)}
-              label="Nueva Acta Trimestral"
-              icon={Plus}
-              title="Registrar acta trimestral ordinaria o extraordinaria"
-              variant="ai"
-            />
-            <ToolbarButton
-              id="tb-convocar-eleccion-convivencia"
-              onClick={() => {
-                setEleccionForm({
-                  titulo: `Elecciones Comité de Convivencia ${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
-                  periodo: `${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
-                  candidatos: [],
-                });
-                setShowEleccionModal(true);
-              }}
-              label="Convocar Elección"
-              icon={Vote}
-              title="Abrir nuevo proceso electoral confidencial para el Comité de Convivencia"
-              variant="dummy"
-            />
-          </div>,
-        ]}
       />
 
       {/* ═══ TAB 1: BANDEJA CONFIDENCIAL & CONTADOR 65 DÍAS ═══ */}
@@ -526,7 +499,7 @@ export default function ConvivenciaWorkspace() {
                               setSelectedCaso(caso);
                               setShowMedidasModal(true);
                             }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 text-white text-xs font-bold shadow-md hover:from-rose-700 active:scale-95"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-bold shadow-md shadow-rose-600/20 active:scale-95 transition-all"
                           >
                             <ShieldAlert className="w-3.5 h-3.5" />
                             Medidas Cautelares
@@ -538,9 +511,9 @@ export default function ConvivenciaWorkspace() {
                             setSelectedCaso(caso);
                             setShowCasoModal(true);
                           }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-bold hover:bg-teal-50 hover:text-teal-600 transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-700 shadow-2xs active:scale-95 transition-all"
                         >
-                          <MessageSquare className="w-3.5 h-3.5" />
+                          <MessageSquare className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                           Expediente ({caso.actuaciones?.length || 0})
                         </button>
                       </div>
@@ -587,7 +560,7 @@ export default function ConvivenciaWorkspace() {
 
             <button
               onClick={() => handleOpenNewActa(1)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-teal-600/20 transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
             >
               <Plus className="w-4 h-4" />
               Nueva Acta Trimestral
@@ -694,7 +667,7 @@ export default function ConvivenciaWorkspace() {
 
             <button
               onClick={() => setActiveTab('elecciones')}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
             >
               <Vote className="w-4 h-4" />
               Convocar Votación Secreta
@@ -810,7 +783,7 @@ export default function ConvivenciaWorkspace() {
                 });
                 setShowEleccionModal(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
             >
               <Vote className="w-4 h-4" />
               Nueva Convocatoria
@@ -852,7 +825,7 @@ export default function ConvivenciaWorkspace() {
                           <>
                             <button
                               onClick={() => setQrModalUrl(votingUrl)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-50"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 shadow-2xs active:scale-95 transition-all"
                             >
                               <QrCode className="w-4 h-4 text-indigo-600" /> QR Urna
                             </button>
@@ -862,7 +835,7 @@ export default function ConvivenciaWorkspace() {
                                 navigator.clipboard.writeText(votingUrl);
                                 showToast({ message: 'Enlace de votación copiado al portapapeles', status: 'success' });
                               }}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-bold hover:bg-slate-100"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-700 shadow-2xs active:scale-95 transition-all"
                             >
                               <Share2 className="w-4 h-4 text-indigo-600" />
                               Copiar Link
@@ -870,7 +843,7 @@ export default function ConvivenciaWorkspace() {
 
                             <button
                               onClick={() => handleEscrutinio(e._id)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold shadow-sm hover:from-orange-600 active:scale-95"
+                              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-sm shadow-orange-500/20 active:scale-95 transition-all"
                             >
                               <CheckCircle2 className="w-4 h-4" />
                               Cerrar & Escrutar
@@ -932,6 +905,14 @@ export default function ConvivenciaWorkspace() {
                   </p>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setShowCasoModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                title="Cerrar modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Hechos y Denunciante */}
@@ -1014,15 +995,17 @@ export default function ConvivenciaWorkspace() {
               <button
                 type="button"
                 onClick={() => setShowCasoModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shadow-sm bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 active:scale-95 transition-all"
               >
+                <X className="w-4 h-4" />
                 Cerrar
               </button>
               <button
                 type="button"
                 onClick={handleAddActuacion}
-                className="px-5 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-md active:scale-95"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-teal-600/20 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white active:scale-95 transition-all"
               >
+                <CheckCircle2 className="w-4 h-4" />
                 Guardar Actuación
               </button>
             </div>
@@ -1034,18 +1017,28 @@ export default function ConvivenciaWorkspace() {
       {showMedidasModal && selectedCaso && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-3xl border border-rose-500/40 p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-2xl bg-rose-500/10 text-rose-600">
-                <AlertOctagon className="w-6 h-6" />
+            <div className="flex items-center justify-between pb-3 border-b border-rose-500/20">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-rose-500/10 text-rose-600">
+                  <AlertOctagon className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-rose-700 dark:text-rose-400">
+                    Activación Inmediata de Medidas Cautelares
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">
+                    Ley 2365 de 2024: Protección inmediata e integral a la víctima de acoso sexual
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-black text-rose-700 dark:text-rose-400">
-                  Activación Inmediata de Medidas Cautelares
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Ley 2365 de 2024: Protección inmediata e integral a la víctima de acoso sexual
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowMedidasModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                title="Cerrar modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
             <div className="space-y-3 text-xs">
@@ -1094,15 +1087,17 @@ export default function ConvivenciaWorkspace() {
               <button
                 type="button"
                 onClick={() => setShowMedidasModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shadow-sm bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 active:scale-95 transition-all"
               >
+                <X className="w-4 h-4" />
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleApplyMedidas}
-                className="px-5 py-2.5 rounded-xl font-bold text-xs bg-rose-600 text-white shadow-md hover:bg-rose-700 active:scale-95"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-rose-600/20 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white active:scale-95 transition-all"
               >
+                <AlertOctagon className="w-4 h-4" />
                 Activar Medidas Urgentes
               </button>
             </div>
@@ -1129,14 +1124,26 @@ export default function ConvivenciaWorkspace() {
                 </div>
               </div>
 
-              <button
-                onClick={handleGenerateActaIA}
-                disabled={isGeneratingIA}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white disabled:opacity-50"
-              >
-                {isGeneratingIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                Redactar con Tenshi IA
-              </button>
+              {/* Botón IA Tenshi + Botón Cerrar */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleGenerateActaIA}
+                  disabled={isGeneratingIA}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white disabled:opacity-50"
+                >
+                  {isGeneratingIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  Redactar con Tenshi IA
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowActaModal(false)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                  title="Cerrar modal"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Metadatos del Acta */}
@@ -1214,7 +1221,7 @@ export default function ConvivenciaWorkspace() {
                       ],
                     });
                   }}
-                  className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-all active:scale-95 shadow-2xs"
                 >
                   <Plus className="w-3.5 h-3.5" /> Agregar Asistente
                 </button>
@@ -1372,7 +1379,7 @@ export default function ConvivenciaWorkspace() {
                       ],
                     })
                   }
-                  className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-all active:scale-95 shadow-2xs"
                 >
                   <Plus className="w-3.5 h-3.5" /> Agregar Compromiso
                 </button>
@@ -1428,18 +1435,19 @@ export default function ConvivenciaWorkspace() {
               ))}
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-zinc-800">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-zinc-800">
               <button
                 type="button"
                 onClick={() => setShowActaModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shadow-sm bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 active:scale-95 transition-all"
               >
+                <X className="w-4 h-4" />
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleSaveActa}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-teal-600/20 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white active:scale-95 transition-all"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 Guardar Acta Trimestral
@@ -1453,18 +1461,28 @@ export default function ConvivenciaWorkspace() {
       {showEleccionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-xl bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-2xl bg-indigo-500/10 text-indigo-600">
-                <Vote className="w-6 h-6" />
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-zinc-800">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-indigo-500/10 text-indigo-600">
+                  <Vote className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 dark:text-zinc-100">
+                    Nueva Convocatoria Electoral — Convivencia
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">
+                    Abre la urna digital anónima para que todos los trabajadores elijan a sus representantes
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-800 dark:text-zinc-100">
-                  Nueva Convocatoria Electoral — Convivencia
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400">
-                  Abre la urna digital anónima para que todos los trabajadores elijan a sus representantes
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowEleccionModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                title="Cerrar modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
             <div className="space-y-3">
@@ -1505,7 +1523,7 @@ export default function ConvivenciaWorkspace() {
                           const updated = eleccionForm.candidatos.filter((_: any, i: number) => i !== idx);
                           setEleccionForm({ ...eleccionForm, candidatos: updated });
                         }}
-                        className="text-slate-400 hover:text-red-500"
+                        className="text-slate-400 hover:text-red-500 p-1"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -1549,9 +1567,9 @@ export default function ConvivenciaWorkspace() {
                       });
                       setNewCandidato({ nombre: '', cargo: '', cedula: '' });
                     }}
-                    className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-bold"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs bg-teal-600 hover:bg-teal-700 text-white shadow-sm active:scale-95 transition-all"
                   >
-                    +
+                    <Plus className="w-3.5 h-3.5" /> Agregar
                   </button>
                 </div>
               </div>
@@ -1561,15 +1579,17 @@ export default function ConvivenciaWorkspace() {
               <button
                 type="button"
                 onClick={() => setShowEleccionModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shadow-sm bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 active:scale-95 transition-all"
               >
+                <X className="w-4 h-4" />
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleCreateEleccion}
-                className="px-5 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-md active:scale-95"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-teal-600/20 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white active:scale-95 transition-all"
               >
+                <Vote className="w-4 h-4" />
                 Publicar Convocatoria
               </button>
             </div>
@@ -1580,7 +1600,14 @@ export default function ConvivenciaWorkspace() {
       {/* ═══ MODAL QR VOTACIÓN ═══ */}
       {qrModalUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 text-center space-y-4 shadow-2xl">
+          <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 text-center space-y-4 shadow-2xl relative">
+            <button
+              onClick={() => setQrModalUrl(null)}
+              className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              title="Cerrar modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
             <h3 className="text-base font-black text-slate-800 dark:text-zinc-100">
               Código QR de Votación Secreta
             </h3>
@@ -1593,8 +1620,9 @@ export default function ConvivenciaWorkspace() {
             <div className="flex items-center justify-center gap-2 pt-2">
               <button
                 onClick={() => setQrModalUrl(null)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shadow-sm bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 active:scale-95 transition-all"
               >
+                <X className="w-4 h-4" />
                 Cerrar
               </button>
             </div>

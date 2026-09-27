@@ -7,12 +7,12 @@ export const PHASE_CATEGORIES = {
             normativity: 'Hito 1: Gobernanza y Cimiento Legal' 
         },
         { 
-            id: 'participacion_ipevar', title: 'Participación IPEVAR Comunitaria', icon: 'Users',
-            bioRationale: 'Empodera la voz del colaborador sobre los peligros que percibe en su cotidianidad vital para alimentar y actualizar la Matriz IPEVAR.', 
+            id: 'participacion_ipevar', title: 'Participación IPEVR Comunitaria', icon: 'Users',
+            bioRationale: 'Empodera la voz del colaborador sobre los peligros que percibe en su cotidianidad vital para alimentar y actualizar la Matriz IPEVR.', 
             normativity: 'Hito 1: Gobernanza y Cimiento Legal' 
         },
         { 
-            id: 'matriz_ipevar_oficial', title: 'Matriz IPEVAR (GTC 45)', icon: 'AlertTriangle',
+            id: 'matriz_ipevar_oficial', title: 'Matriz IPEVR (GTC 45)', icon: 'AlertTriangle',
             bioRationale: 'Columna vertebral preventiva del SG-SST. Identifica peligros, evalúa y valora riesgos bajo GTC 45:2012 para proteger la integridad de los colaboradores.', 
             normativity: 'Hito 1: Gobernanza y Cimiento Legal (GTC 45:2012 / Dec. 1072 / Res. 0312)' 
         },
@@ -109,7 +109,7 @@ export const PHASE_CATEGORIES = {
             normativity: 'Hito 4: Evaluación Dinámica de Riesgos (Res. 2400 / ISO 11226)' 
         },
         { 
-            id: 'peligros', title: 'Matriz Bio-IPEVAR', icon: 'AlertTriangle',
+            id: 'peligros', title: 'Matriz Bio-IPEVR', icon: 'AlertTriangle',
             bioRationale: 'Hub centralizado de consciencia bio-individual. Síntesis y culminación evaluativa: cruza los peligros del puesto con la anatomía y percepción del trabajador.', 
             normativity: 'Hito 4: Evaluación Dinámica de Riesgos' 
         }

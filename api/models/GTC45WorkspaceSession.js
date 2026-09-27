@@ -37,7 +37,7 @@ const gtc45WorkspaceSessionSchema = new mongoose.Schema(
     },
     officialTitle: {
       type: String,
-      default: 'Matriz IPEVAR Oficial',
+      default: 'Matriz IPEVR Oficial',
     },
     sourceConversationId: {
       type: String,

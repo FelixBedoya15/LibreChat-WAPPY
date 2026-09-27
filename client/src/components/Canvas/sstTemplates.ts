@@ -38476,7 +38476,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
   <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
     <li>Procurar el cuidado integral de la salud de los trabajadores y los ambientes de trabajo.</li>
     <li>Afiliar obligatoriamente a todos los trabajadores a la ARL, EPS y Fondo de Pensiones, asumiendo su costo conforme a la ley.</li>
-    <li>Identificar peligros, evaluar y valorar los riesgos (Matriz IPEVAR) y establecer los controles para mitigarlos.</li>
+    <li>Identificar peligros, evaluar y valorar los riesgos (Matriz IPEVR) y establecer los controles para mitigarlos.</li>
     <li>Suministrar y reponer oportunamente todos los Elementos de Protección Personal (EPP) y ropa de trabajo.</li>
     <li>Garantizar las inducciones y reinducciones en materia de prevención de riesgos.</li>
     <li>Diseñar y ensayar los planes de emergencia y brigadas.</li>
@@ -38496,7 +38496,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
   <p>El incumplimiento de estas normas se califica como falta grave y puede ser justa causa de terminación del contrato.</p>
 
   <h3>Art. 42° Elementos de Protección Personal (EPP)</h3>
-  <p>La empresa hará entrega sin costo alguno para el trabajador de todos los Elementos de Protección Personal de acuerdo con la labor a realizar y la Matriz IPEVAR del cargo. el trabajador deberá utilizarlos obligatoriamente en todas las zonas o actividades de riesgo, mantenerlos aseados, no sacarlos del recinto laboral injustificadamente, solicitar su reemplazo por daño o desgaste natural, y devolverlos a la terminación del contrato.</p>
+  <p>La empresa hará entrega sin costo alguno para el trabajador de todos los Elementos de Protección Personal de acuerdo con la labor a realizar y la Matriz IPEVR del cargo. el trabajador deberá utilizarlos obligatoriamente en todas las zonas o actividades de riesgo, mantenerlos aseados, no sacarlos del recinto laboral injustificadamente, solicitar su reemplazo por daño o desgaste natural, y devolverlos a la terminación del contrato.</p>
 
   <h3>Art. 43° Indicaciones para evitar riesgos profesionales</h3>
   <p>los trabajadores deben evitar acciones temerarias como operar equipos para los cuales no estén capacitados ni autorizados, retirar guardas de seguridad, hacer mantenimiento a máquinas en movimiento, correr por escaleras o pasillos, obstruir salidas de emergencia, realizar maniobras eléctricas sin autorización o laborar bajo influjo del alcohol o medicamentos sedantes sin informar. Ante el riesgo inminente, el trabajador tiene el derecho y deber de detener la labor y notificar a el empleador.</p>
@@ -39181,7 +39181,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
   <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
     <li>Procurar el cuidado integral de la salud de los colaboradores y los ambientes de trabajo.</li>
     <li>Afiliar obligatoriamente a todos los colaboradores a la ARL, EPS y Fondo de Pensiones, asumiendo su costo conforme a la ley.</li>
-    <li>Identificar peligros, evaluar y valorar los riesgos (Matriz IPEVAR) y establecer los controles para mitigarlos.</li>
+    <li>Identificar peligros, evaluar y valorar los riesgos (Matriz IPEVR) y establecer los controles para mitigarlos.</li>
     <li>Suministrar y reponer oportunamente todos los Elementos de Protección Personal (EPP) y ropa de trabajo.</li>
     <li>Garantizar las inducciones y reinducciones en materia de prevención de riesgos.</li>
     <li>Diseñar y ensayar los planes de emergencia y brigadas.</li>
@@ -39201,7 +39201,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
   <p>El desconocimiento de estas normas de cuidado colectivo puede derivar en un proceso de gestión del comportamiento y, según su gravedad, en la terminación del vínculo laboral.</p>
 
   <h3>Art. 42° Elementos de Protección Personal (EPP)</h3>
-  <p>La organización, con absoluta responsabilidad y sin costo para el colaborador, suministrará todos los Elementos de Protección Personal de acuerdo con la labor a realizar y la Matriz IPEVAR del cargo. el colaborador (bioindividuo) deberá utilizarlos obligatoriamente en todas las zonas o actividades de riesgo, mantenerlos aseados, no sacarlos del recinto laboral injustificadamente, solicitar su reemplazo por daño o desgaste natural, y devolverlos a la terminación del contrato.</p>
+  <p>La organización, con absoluta responsabilidad y sin costo para el colaborador, suministrará todos los Elementos de Protección Personal de acuerdo con la labor a realizar y la Matriz IPEVR del cargo. el colaborador (bioindividuo) deberá utilizarlos obligatoriamente en todas las zonas o actividades de riesgo, mantenerlos aseados, no sacarlos del recinto laboral injustificadamente, solicitar su reemplazo por daño o desgaste natural, y devolverlos a la terminación del contrato.</p>
 
   <h3>Art. 43° Indicaciones para evitar riesgos profesionales</h3>
   <p>El autocuidado es un valor que vivimos a diario. Cada colaborador evita situaciones de riesgo innecesarias, como operar equipos sin capacitación o trabajar bajo efectos de sustancias, retirar guardas de seguridad, hacer mantenimiento a máquinas en movimiento, correr por escaleras o pasillos, obstruir salidas de emergencia, realizar maniobras eléctricas sin autorización o laborar bajo influjo del alcohol o medicamentos sedantes sin informar. Ante el riesgo inminente, el colaborador (bioindividuo) tiene el derecho y deber de detener la labor y notificar a la organización.</p>
