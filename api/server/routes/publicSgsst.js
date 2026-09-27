@@ -2331,6 +2331,10 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
       : score >= 100 ? 'Colaborador Comprometido'
       : 'Alerta Conductual';
 
+    const termometroList = (worker?.termometro_animo && worker.termometro_animo.length > 0)
+      ? worker.termometro_animo
+      : (worker?.percepcionRiesgoHistorial || []).filter(h => h.modulo === 'termometro_animo');
+
     res.json({
       success: true,
       company: {
@@ -2342,6 +2346,24 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
         nombre: effectiveNombre,
         documento: cleanCedula,
         cargo: effectiveCargo,
+        area: perfilWorker?.area || perfilWorker?.proceso || worker?.area || 'Operaciones / Planta',
+        sede: perfilWorker?.sede || worker?.sede || 'Principal',
+        genero: perfilWorker?.genero || worker?.genero || '',
+        edad: perfilWorker?.edad || worker?.edad || '',
+        fechaNacimiento: perfilWorker?.fechaNacimiento || worker?.fechaNacimiento || null,
+        fechaIngreso: perfilWorker?.fechaIngreso || worker?.fechaIngreso || null,
+        eps: perfilWorker?.eps || worker?.eps || '',
+        arl: perfilWorker?.arl || worker?.arl || '',
+        rh: perfilWorker?.rh || perfilWorker?.grupoSanguineo || '',
+        diagnosticoMedico: perfilWorker?.diagnosticoMedico || '',
+        recomendacionesMedicas: perfilWorker?.recomendacionesMedicas || '',
+        enfermedades: perfilWorker?.enfermedades || '',
+        medicamentos: perfilWorker?.medicamentos || '',
+        limitacionesBiomecanicas: perfilWorker?.limitacionesBiomecanicas || '',
+        alergiasQuimicas: perfilWorker?.alergiasQuimicas || '',
+        fuma: perfilWorker?.fuma || '',
+        alcohol: perfilWorker?.alcohol || '',
+        condicionesSalud: worker?.condicionesSalud || perfilWorker?.condicionesSalud || '',
         fitScore: effectiveFitScore,
         fitAlerts: effectiveAlerts,
         percepcionRiesgoScore: score,
@@ -2349,6 +2371,12 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
         factorReduccion,
         porcentajeReduccion: Math.round(factorReduccion * 100),
         historial: (worker?.percepcionRiesgoHistorial || []).slice(-15).reverse(),
+        atel: worker?.atel || [],
+        actos_inseguros: worker?.actos_inseguros || [],
+        participaciones_ipevar: worker?.participaciones_ipevar || [],
+        capacitaciones: worker?.capacitaciones || [],
+        termometro_animo: termometroList,
+        riesgosBioIndividual: worker?.riesgosBioIndividual || [],
         riesgosCount: (worker?.riesgosBioIndividual || []).length,
       },
     });

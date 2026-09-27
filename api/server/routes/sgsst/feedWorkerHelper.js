@@ -150,6 +150,8 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
             update.$push = { capacitaciones: { nombre: descripcion, fecha: new Date() } };
         } else if (tipo_modulo === 'ats') {
             update.$push = { ats: { fecha: new Date(), descripcion } };
+        } else if (tipo_modulo === 'termometro_animo') {
+            update.$push = { termometro_animo: { fecha: new Date(), descripcion, puntos: pts } };
         }
 
         // Integrar alertas médicas dinámicas

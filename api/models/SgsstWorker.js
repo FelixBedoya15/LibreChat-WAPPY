@@ -51,7 +51,7 @@ const PercepcionHistorialSchema = new mongoose.Schema({
   fecha: { type: Date, default: Date.now },
   accion: String,
   puntos: Number,
-  modulo: { type: String, enum: ['actos', 'participacion_ipevar', 'atel', 'capacitacion', 'ats'] },
+  modulo: { type: String },
   referencia: String, // ID del registro origen
 }, { _id: false });
 
@@ -121,6 +121,7 @@ const SgsstWorkerSchema = new mongoose.Schema({
   participaciones_ipevar: { type: [ParticipacionSchema], default: [] },
   capacitaciones: { type: [CapacitacionSchema], default: [] },
   ats: { type: [ATSSchema], default: [] },
+  termometro_animo: { type: Array, default: [] },
 
   bioChartConclusions: { type: Object, default: {} },
 

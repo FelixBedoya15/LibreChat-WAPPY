@@ -1522,6 +1522,8 @@ router.post('/feed-hoja-vida', requireJwtAuth, async (req, res) => {
             update.$push = { capacitaciones: { nombre: descripcion, fecha: new Date() } };
         } else if (tipo_modulo === 'ats') {
             update.$push = { ats: { fecha: new Date(), descripcion } };
+        } else if (tipo_modulo === 'termometro_animo') {
+            update.$push = { termometro_animo: { fecha: new Date(), descripcion, puntos: pts } };
         }
 
         if (pts !== 0) {

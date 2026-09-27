@@ -444,6 +444,9 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
   const participaciones: any[] = worker.participaciones_ipevar || [];
   const capacitaciones: any[] = worker.capacitaciones || [];
   const ats: any[] = worker.ats || [];
+  const termometroAnimo: any[] = (worker.termometro_animo && worker.termometro_animo.length > 0)
+    ? worker.termometro_animo
+    : (worker.percepcionRiesgoHistorial || []).filter((h: any) => h.modulo === 'termometro_animo');
   const riesgosBio: any[] = worker.riesgosBioIndividual || [];
   const riesgosCriticos = riesgosBio.filter(r => r.clasificacion_bio === 'Crítico').length;
   const riesgosAltos = riesgosBio.filter(r => r.clasificacion_bio === 'Alto').length;
@@ -641,7 +644,7 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
             { title: 'Actos / Condiciones', subtitle: 'Reportes en terreno', icon: '⚠️', items: actos, emptyMsg: 'Sin reportes' },
             { title: 'IPEVAR', subtitle: 'Participación activa', icon: '🎯', items: participaciones, emptyMsg: 'Sin registros' },
             { title: 'Capacitaciones', subtitle: 'Formación SST', icon: '📚', items: capacitaciones, emptyMsg: 'Sin cursos' },
-            { title: 'ATS', subtitle: 'Análisis de Trabajo Seguro', icon: '🛡️', items: ats, emptyMsg: 'Sin registros' },
+            { title: 'Termómetro Psicosocial', subtitle: 'Bienestar & Clima', icon: '❤️', items: termometroAnimo, emptyMsg: 'Sin check-ins' },
           ].map(({ title, subtitle, icon, items, emptyMsg }) => {
             const hasItems = items.length > 0;
             return (

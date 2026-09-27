@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -16,14 +16,226 @@ import {
   ArrowRight,
   History,
   CheckCircle,
+  CheckCircle2,
   Loader2,
   Search,
   Zap,
   Dna,
   Calendar,
   MessageSquare,
+  FileText,
+  Stethoscope,
+  Briefcase,
+  RefreshCw,
 } from 'lucide-react';
 import PublicWorkerHeader from './PublicWorkerHeader';
+
+const calculateAge = (dob: any) => {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  if (isNaN(birth.getTime())) return null;
+  const diff = Date.now() - birth.getTime();
+  const ageDt = new Date(diff);
+  return Math.abs(ageDt.getUTCFullYear() - 1970);
+};
+
+const FitGauge = ({ score, alerts }: { score: number; alerts: string[] }) => {
+  const isOptimal = score >= 80;
+  const isModerate = score >= 60;
+  const color = isOptimal ? '#10b981' : isModerate ? '#f59e0b' : '#ef4444';
+  const label = isOptimal ? 'ÓPTIMO' : isModerate ? 'MODERADO' : 'CRÍTICO';
+
+  return (
+    <div className="flex flex-col items-center justify-between h-full">
+      <div className="text-center mb-2">
+        <h3 className="font-bold text-xs text-teal-600 dark:text-teal-400 uppercase tracking-widest flex items-center justify-center gap-1.5">
+          <Activity className="h-3.5 w-3.5" /> Índice Biocéntrico Integral
+        </h3>
+        <p className="text-[10px] text-text-tertiary">Compatibilidad clínica vs perfil de riesgo del cargo</p>
+      </div>
+
+      <div className="relative w-28 h-28 my-2 flex items-center justify-center">
+        <svg className="w-28 h-28 -rotate-90" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r={48} fill="none" stroke="currentColor" strokeWidth="8" className="text-surface-hover/60 dark:text-white/5" />
+          <circle
+            cx="60"
+            cy="60"
+            r={48}
+            fill="none"
+            strokeWidth="8"
+            style={{
+              stroke: color,
+              strokeDasharray: `${(score / 100) * 2 * Math.PI * 48} ${2 * Math.PI * 48}`,
+              strokeLinecap: 'round',
+              transition: 'stroke-dasharray 1s ease',
+            }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+          <span className="text-2xl font-black tracking-tight" style={{ color }}>{score}%</span>
+          <span className="text-[8px] font-bold text-text-secondary uppercase tracking-wider">FIT SCORE</span>
+          <span
+            className="text-[8px] font-black px-1.5 py-0.5 rounded-full mt-0.5 uppercase tracking-wider text-white"
+            style={{ backgroundColor: color }}
+          >
+            {label}
+          </span>
+        </div>
+      </div>
+
+      <div className="w-full space-y-1 mt-2">
+        {alerts.length === 0 ? (
+          <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold shadow-2xs">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+            <span className="truncate">Aptitud Operativa Óptima</span>
+          </div>
+        ) : (
+          alerts.slice(0, 2).map((a, i) => (
+            <div key={i} className="flex items-center gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-900 dark:text-amber-200 text-[11px] font-bold shadow-2xs">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="truncate">{a}</span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+const PercepcionScore = ({ score }: { score: number }) => {
+  const factorReduccion = Math.min(score / 500, 0.40);
+  const level = score >= 500 ? { label: 'Líder Biocéntrico 360°', color: 'text-emerald-600 dark:text-emerald-400', barColor: '#10b981' }
+    : score >= 300 ? { label: 'Guardián de la Vida', color: 'text-teal-600 dark:text-teal-400', barColor: '#0d9488' }
+    : score >= 100 ? { label: 'Colaborador Comprometido', color: 'text-amber-600 dark:text-amber-400', barColor: '#f59e0b' }
+    : { label: 'Nivel Inicial / Sin Eventos', color: 'text-rose-600 dark:text-rose-400', barColor: '#f43f5e' };
+
+  return (
+    <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+          <Award className="h-4 w-4 text-teal-600" /> Percepción del Riesgo
+        </span>
+        <span className={`text-xl font-black ${level.color}`}>{score} pts</span>
+      </div>
+      <div className="w-full bg-surface-secondary dark:bg-slate-800 rounded-full h-2 mb-2 overflow-hidden border border-border-light/60">
+        <div
+          className="h-2 rounded-full transition-all duration-700"
+          style={{ width: `${Math.min((score / 500) * 100, 100)}%`, backgroundColor: level.barColor }}
+        />
+      </div>
+      <div className="flex items-center justify-between text-[11px] text-text-tertiary">
+        <span>Estado: <strong className="text-text-primary">{level.label}</strong></span>
+        {score > 0 ? (
+          <span className="font-bold text-teal-600 dark:text-teal-400">
+            Reducción IPEVAR: -{(factorReduccion * 100).toFixed(0)}%
+          </span>
+        ) : (
+          <span className="italic">Modulador activo al reportar</span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const parseHealthProfile = (worker: any) => {
+  const socio = worker || {};
+  const rawStr = worker?.condicionesSalud || '';
+  const parsedMap: Record<string, string> = {};
+
+  if (rawStr) {
+    rawStr.split(';').forEach((chunk: string) => {
+      const idx = chunk.indexOf(':');
+      if (idx !== -1) {
+        const k = chunk.slice(0, idx).trim().toLowerCase();
+        const v = chunk.slice(idx + 1).trim();
+        parsedMap[k] = v;
+      }
+    });
+  }
+
+  const isNeg = (val?: string) => {
+    if (!val) return true;
+    const v = val.trim().toLowerCase();
+    const negs = [
+      'ninguno', 'ninguna', 'ninguna conocida', 'ninguna reportada', 'no',
+      'niega', 'sin hallazgos', 'normal', 'no aplica', 'n/a', 'sano', 'sin patologías', 'sin patologias', 'sin antecedentes'
+    ];
+    return negs.includes(v) || v.startsWith('ningun');
+  };
+
+  const getField = (directVal?: string, mapKeys: string[] = []) => {
+    if (directVal && !isNeg(directVal)) return directVal;
+    for (const k of mapKeys) {
+      const v = parsedMap[k];
+      if (v && !isNeg(v)) return v;
+    }
+    return '';
+  };
+
+  const diag = socio.diagnosticoMedico || parsedMap['diagnóstico médico'] || parsedMap['diagnostico medico'] || '';
+  const recs = getField(socio.recomendacionesMedicas, ['recomendaciones médicas', 'recomendaciones medicas']);
+  const lims = getField(socio.limitacionesBiomecanicas, ['limitaciones biomecánicas', 'limitaciones biomecanicas']);
+  const enfs = getField(socio.enfermedades, ['enfermedades/antecedentes', 'enfermedades', 'antecedentes']);
+  const fuma = (socio.fuma || parsedMap['fuma'] || '').trim().toLowerCase();
+  const alcohol = (socio.alcohol || parsedMap['alcohol'] || '').trim().toLowerCase();
+
+  let aptitud = 'Apto para el Cargo';
+  let aptitudBadge = 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/80';
+  let aptitudIcon = CheckCircle2;
+
+  const lowDiag = diag.toLowerCase();
+  if (lowDiag.includes('no apto')) {
+    aptitud = 'No Apto para el Cargo';
+    aptitudBadge = 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800/80';
+    aptitudIcon = AlertTriangle;
+  } else if (lowDiag.includes('restricci') || lims) {
+    aptitud = 'Apto con Restricciones Laborales';
+    aptitudBadge = 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/80';
+    aptitudIcon = AlertTriangle;
+  } else if (lowDiag.includes('recomendaci') || recs) {
+    aptitud = 'Apto con Recomendaciones Preventivas';
+    aptitudBadge = 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800/80';
+    aptitudIcon = CheckCircle2;
+  }
+
+  const findings: { label: string; text: string; icon: any; colorClass: string }[] = [];
+  if (recs) {
+    findings.push({
+      label: 'Recomendación Preventiva',
+      text: recs,
+      icon: Activity,
+      colorClass: 'bg-blue-50/80 dark:bg-blue-950/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800/60',
+    });
+  }
+  if (lims) {
+    findings.push({
+      label: 'Limitación Biomecánica',
+      text: lims,
+      icon: AlertTriangle,
+      colorClass: 'bg-amber-50/80 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800/60',
+    });
+  }
+  if (enfs) {
+    findings.push({
+      label: 'Patología / Antecedente',
+      text: enfs,
+      icon: Heart,
+      colorClass: 'bg-rose-50/80 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800/60',
+    });
+  }
+
+  const isHealthyHabits = fuma === 'no' || alcohol === 'no' || fuma === 'no fumador';
+
+  return {
+    aptitud,
+    aptitudBadge,
+    aptitudIcon,
+    findings,
+    isHealthyHabits,
+    fuma,
+    alcohol,
+  };
+};
 
 export default function PublicColaboradorHub() {
   const { companyId, cedula: paramCedula } = useParams<{ companyId: string; cedula?: string }>();
@@ -49,6 +261,15 @@ export default function PublicColaboradorHub() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any>(null);
+
+  const healthProfile = useMemo(() => parseHealthProfile(data?.worker), [data?.worker]);
+  const workerAge = useMemo(() => calculateAge(data?.worker?.fechaNacimiento) || data?.worker?.edad, [data?.worker]);
+  const riesgosBio = data?.worker?.riesgosBioIndividual || [];
+  const riesgosCriticos = riesgosBio.filter((r: any) => r.clasificacion_bio === 'Crítico').length;
+  const riesgosAltos = riesgosBio.filter((r: any) => r.clasificacion_bio === 'Alto').length;
+  const termometroAnimo = (data?.worker?.termometro_animo && data?.worker?.termometro_animo.length > 0)
+    ? data.worker.termometro_animo
+    : (data?.worker?.historial || []).filter((h: any) => h.modulo === 'termometro_animo');
 
   const fetchWorkerInfo = async (ced: string) => {
     if (!ced.trim() || !companyId) return;
@@ -223,7 +444,7 @@ export default function PublicColaboradorHub() {
         workerCedula={activeCedula || undefined}
       />
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-6 space-y-6">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
         {/* Formulario de Consulta de Cédula si no hay colaborador cargado */}
         {!data && (
           <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-3xl p-6 sm:p-8 shadow-xl max-w-lg mx-auto text-center space-y-5 animate-in fade-in zoom-in-95 duration-200">
@@ -277,12 +498,11 @@ export default function PublicColaboradorHub() {
         {/* Dashboard Bio-Individual si el trabajador está cargado */}
         {data && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            {/* Carnet Digital 360 */}
-            <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
-              {/* Fondo decorativo */}
+            {/* Carnet Digital 360 Header */}
+            <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-3xl p-6 sm:p-7 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-bl from-teal-500/10 via-emerald-500/5 to-transparent rounded-bl-full pointer-events-none" />
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-medium/60 pb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center text-xl font-black shadow-md shrink-0">
                     {getInitials(data.worker.nombre)}
@@ -302,63 +522,207 @@ export default function PublicColaboradorHub() {
                     </p>
                   </div>
                 </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => activeCedula && fetchWorkerInfo(activeCedula)}
+                    title="Actualizar datos"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-surface-secondary dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 shadow-2xs transition-all active:scale-95"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    <span>Actualizar</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── FIT + Ficha Técnica + Percepción ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              {/* FIT Gauge (Columna Izquierda: 3 cols) */}
+              <div className="lg:col-span-3 bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+                <FitGauge score={data.worker.fitScore || 0} alerts={data.worker.fitAlerts || []} />
               </div>
 
-              {/* Estadísticas Clave: Puntos + Reducción de Riesgo + FIT */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6">
-                {/* Puntos Acumulados */}
-                <div className="bg-surface-secondary/50 dark:bg-slate-800/50 border border-border-medium/70 rounded-2xl p-4 flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-text-secondary uppercase tracking-wide flex items-center gap-1.5">
-                      <Award className="w-4 h-4 text-teal-500" /> Puntos SST
-                    </span>
-                    <span className="text-2xl font-black text-teal-600 dark:text-teal-400">
-                      {data.worker.percepcionRiesgoScore} <span className="text-xs font-bold text-text-secondary">pts</span>
-                    </span>
+              {/* Datos Laborales & Salud Ocupacional (Columna Central: 6 cols) */}
+              <div className="lg:col-span-6 flex flex-col gap-3">
+                {/* Card 1: Datos Laborales & Operativos */}
+                <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between mb-3 border-b border-border-light dark:border-white/5 pb-2">
+                    <h3 className="font-bold text-xs text-text-secondary uppercase tracking-widest flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 text-teal-600" /> Datos Laborales & Puesto de Trabajo
+                    </h3>
+                    {data.worker.cargo && (
+                      <span className="text-[11px] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded-lg border border-teal-200 dark:border-teal-800/80">
+                        {data.worker.cargo}
+                      </span>
+                    )}
                   </div>
-                  <div className="mt-3 space-y-1">
-                    <div className="w-full bg-surface-tertiary rounded-full h-2 overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-700 ${getNivelStyle(data.worker.nivel).barColor}`}
-                        style={{ width: `${Math.min((data.worker.percepcionRiesgoScore / 500) * 100, 100)}%` }}
-                      />
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                    <div>
+                      <span className="text-text-tertiary block font-semibold text-[10px] uppercase">Identificación</span>
+                      <span className="text-text-primary font-medium">{data.worker.documento}</span>
                     </div>
-                    <div className="flex justify-between text-[10px] text-text-tertiary font-semibold">
-                      <span>0 pts</span>
-                      <span>Meta: 500 pts</span>
+                    <div>
+                      <span className="text-text-tertiary block font-semibold text-[10px] uppercase">Área / Proceso</span>
+                      <span className="text-text-primary font-medium">{data.worker.area || 'Operaciones / Planta'}</span>
+                    </div>
+                    <div>
+                      <span className="text-text-tertiary block font-semibold text-[10px] uppercase">Sede de Trabajo</span>
+                      <span className="text-text-primary font-medium">{data.worker.sede || 'Principal'}</span>
+                    </div>
+                    <div>
+                      <span className="text-text-tertiary block font-semibold text-[10px] uppercase">Género & Edad</span>
+                      <span className="text-text-primary font-medium">
+                        {data.worker.genero || '—'}{workerAge ? ` · ${workerAge} años` : ''}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-text-tertiary block font-semibold text-[10px] uppercase">Fecha de Ingreso</span>
+                      <span className="text-text-primary font-medium">
+                        {data.worker.fechaIngreso ? new Date(data.worker.fechaIngreso).toLocaleDateString('es-CO') : '—'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-text-tertiary block font-semibold text-[10px] uppercase">Seguridad Social</span>
+                      <span className="text-text-primary font-medium truncate block">
+                        {data.worker.eps || data.worker.arl ? `${data.worker.eps ? `EPS: ${data.worker.eps}` : ''}${data.worker.arl ? ` · ARL: ${data.worker.arl}` : ''}` : 'EPS / ARL al día'}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Factor de Reducción en Matriz */}
-                <div className="bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/60 rounded-2xl p-4 flex flex-col justify-between">
+                {/* Card 2: Concepto de Salud Ocupacional & Hallazgos */}
+                <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-2xl p-4 shadow-sm flex flex-col gap-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-teal-900 dark:text-teal-200 uppercase tracking-wide flex items-center gap-1.5">
-                      <TrendingDown className="w-4 h-4 text-teal-600" /> Reducción Bio-Riesgo
-                    </span>
-                    <span className="text-2xl font-black text-teal-700 dark:text-teal-300">
-                      -{data.worker.porcentajeReduccion}%
-                    </span>
+                    <h3 className="font-bold text-xs text-text-secondary uppercase tracking-widest flex items-center gap-1.5">
+                      <Stethoscope className="h-3.5 w-3.5 text-teal-600" /> Salud Ocupacional & Hallazgos
+                    </h3>
+                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${healthProfile.aptitudBadge}`}>
+                      <healthProfile.aptitudIcon className="w-3.5 h-3.5 shrink-0" />
+                      <span>{healthProfile.aptitud}</span>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-teal-800 dark:text-teal-300/80 mt-2 leading-tight">
-                    Tu cultura preventiva reduce hasta un <strong>40%</strong> la probabilidad de materialización de peligros de tu labor.
-                  </p>
-                </div>
 
-                {/* FIT Score / Huella Biocéntrica */}
-                <div className="bg-surface-secondary/50 dark:bg-slate-800/50 border border-border-medium/70 rounded-2xl p-4 flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-text-secondary uppercase tracking-wide flex items-center gap-1.5">
-                      <Dna className="w-4 h-4 text-cyan-500" /> FIT Score
-                    </span>
-                    <span className={`text-2xl font-black ${data.worker.fitScore >= 80 ? 'text-emerald-500' : data.worker.fitScore >= 60 ? 'text-amber-500' : 'text-rose-500'}`}>
-                      {data.worker.fitScore}%
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-text-secondary mt-2 leading-tight">
-                    Índice de aptitud y bienestar integral sin siniestralidad reciente.
-                  </p>
+                  {/* Hallazgos Relevantes */}
+                  {healthProfile.findings.length > 0 ? (
+                    <div className="space-y-1.5 mt-1">
+                      {healthProfile.findings.map((f, idx) => (
+                        <div key={idx} className={`p-2.5 rounded-xl border text-xs ${f.colorClass} flex items-start gap-2.5 shadow-2xs`}>
+                          <f.icon className="w-4 h-4 shrink-0 mt-0.5 opacity-90" />
+                          <div className="flex-1 min-w-0">
+                            <span className="font-bold text-[10px] uppercase tracking-wider block opacity-80">{f.label}</span>
+                            <p className="font-semibold text-xs leading-snug mt-0.5">{f.text}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 dark:text-emerald-300 text-xs font-semibold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>Examen Ocupacional Vigente: Sin antecedentes patológicos ni restricciones laborales activas.</span>
+                    </div>
+                  )}
+
+                  {/* Hábitos de Vida */}
+                  {healthProfile.isHealthyHabits && (
+                    <div className="flex items-center gap-2 text-[11px] text-text-tertiary pt-1 border-t border-border-light dark:border-white/5">
+                      <span className="font-bold text-text-secondary">Hábitos:</span>
+                      {healthProfile.fuma && <span className="bg-surface-secondary dark:bg-slate-800 px-2 py-0.5 rounded-md border border-border-light dark:border-white/10">🚭 No fumador</span>}
+                      {healthProfile.alcohol && <span className="bg-surface-secondary dark:bg-slate-800 px-2 py-0.5 rounded-md border border-border-light dark:border-white/10">🍷 Hábitos saludables</span>}
+                    </div>
+                  )}
                 </div>
+              </div>
+
+              {/* Percepción Score + Resumen Bio-Riesgos (Columna Derecha: 3 cols) */}
+              <div className="lg:col-span-3 flex flex-col gap-3 justify-between">
+                <PercepcionScore score={data.worker.percepcionRiesgoScore || 0} />
+
+                {/* Resumen Bio-Riesgos */}
+                <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-2xl p-4 shadow-sm">
+                  <p className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    <Shield className="h-3.5 w-3.5 text-teal-600" /> Resumen Bio-Riesgos
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
+                      <p className="text-2xl font-black text-red-600 dark:text-red-400">{riesgosCriticos}</p>
+                      <p className="text-[10px] font-bold text-red-700 dark:text-red-300 uppercase">Críticos</p>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                      <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{riesgosAltos}</p>
+                      <p className="text-[10px] font-bold text-amber-700 dark:text-amber-300 uppercase">Altos</p>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-teal-500/10 border border-teal-500/20">
+                      <p className="text-2xl font-black text-teal-600 dark:text-teal-300">{riesgosBio.length}</p>
+                      <p className="text-[10px] font-bold text-teal-700 dark:text-teal-300 uppercase">Total</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Hoja de Vida Preventiva 360° — Trazabilidad de Módulos ── */}
+            <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-2xl p-5 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-4">
+                <h3 className="font-bold text-sm text-text-primary uppercase tracking-wider flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-amber-500" /> Hoja de Vida Preventiva 360° — Trazabilidad de Módulos
+                </h3>
+                <span className="text-[11px] font-medium text-text-tertiary">
+                  Conexión en tiempo real con reportes, inspecciones y formación
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                {[
+                  { title: 'ATEL', subtitle: 'Accidentes / Enfermedades', icon: '🚨', items: data.worker.atel || [], emptyMsg: 'Sin eventos ATEL' },
+                  { title: 'Actos / Condiciones', subtitle: 'Reportes en terreno', icon: '⚠️', items: data.worker.actos_inseguros || [], emptyMsg: 'Sin reportes' },
+                  { title: 'IPEVAR', subtitle: 'Participación activa', icon: '🎯', items: data.worker.participaciones_ipevar || [], emptyMsg: 'Sin registros' },
+                  { title: 'Capacitaciones', subtitle: 'Formación SST', icon: '📚', items: data.worker.capacitaciones || [], emptyMsg: 'Sin cursos' },
+                  { title: 'Termómetro Psicosocial', subtitle: 'Bienestar & Clima', icon: '❤️', items: termometroAnimo, emptyMsg: 'Sin check-ins' },
+                ].map(({ title, subtitle, icon, items, emptyMsg }) => {
+                  const hasItems = items.length > 0;
+                  return (
+                    <div
+                      key={title}
+                      className="bg-surface-secondary/60 dark:bg-slate-800/50 border border-border-light dark:border-white/5 rounded-2xl p-3 flex flex-col justify-between shadow-2xs hover:shadow-sm transition-all"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="text-base">{icon}</span>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                            hasItems
+                              ? 'bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-300 border border-teal-200 dark:border-teal-800'
+                              : 'bg-surface-primary dark:bg-slate-900 text-text-tertiary border border-border-light dark:border-white/10'
+                          }`}>
+                            {items.length}
+                          </span>
+                        </div>
+                        <p className="text-xs font-bold text-text-primary leading-tight">{title}</p>
+                        <p className="text-[10px] text-text-tertiary truncate">{subtitle}</p>
+                      </div>
+
+                      <div className="mt-3 pt-2.5 border-t border-border-light dark:border-white/5 min-h-[50px] flex flex-col justify-center">
+                        {!hasItems ? (
+                          <p className="text-[11px] text-text-tertiary italic text-center py-1">{emptyMsg}</p>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {items.slice(-2).reverse().map((item: any, idx: number) => (
+                              <div key={idx} className="text-[11px] bg-surface-primary dark:bg-slate-900 rounded-lg p-1.5 border border-border-light dark:border-white/5">
+                                <p className="font-semibold text-text-secondary truncate" title={item.descripcion || item.nombre || item.tipo || item.accion}>
+                                  {item.descripcion || item.nombre || item.tipo || item.accion || 'Evento registrado'}
+                                </p>
+                                {item.fecha && (
+                                  <span className="text-[9px] font-medium text-text-tertiary block mt-0.5">
+                                    {new Date(item.fecha).toLocaleDateString('es-CO')}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
