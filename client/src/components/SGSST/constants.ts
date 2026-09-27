@@ -80,14 +80,14 @@ export const PHASE_CATEGORIES = {
     // ─── HITO 03: COMITÉS PARITARIOS & CONVIVENCIA LABORAL ───
     hito3: [
         { 
-            id: 'copasst', title: 'COPASST / Vigía SST (Gestor Paritario y Actas)', icon: 'Award',
-            bioRationale: 'Órgano paritario de vigilancia, inspección y consulta elegido por la comunidad trabajadora para la protección de la vida (Res. 2013/86, Dec. 1072/15).', 
-            normativity: 'Hito 3: Comités Paritarios (Res. 2013/86 / Dec. 1072 / Res. 0312)' 
+            id: 'copasst', title: 'COPASST / Vigía de SST', icon: 'Award',
+            bioRationale: 'Órgano paritario de promoción, vigilancia y consulta para la protección de la salud y seguridad de los trabajadores.', 
+            normativity: 'Hito 3: Comités Paritarios (Res. 2013/1986 • Dec. 1072/2015)' 
         },
         { 
-            id: 'cocolab', title: 'Comité de Convivencia Laboral (Res. 3461 / Ley 2365)', icon: 'HeartHandshake',
-            bioRationale: 'Protección del clima psicosocial, prevención del acoso laboral (término 65 días) y ruta prioritaria no conciliable contra el acoso sexual (Ley 2365/2024).', 
-            normativity: 'Hito 3: Convivencia Laboral (Res. 3461/2025 / Ley 2365/2024 / Ley 1010/2006)' 
+            id: 'cocolab', title: 'Comité de Convivencia Laboral', icon: 'HeartHandshake',
+            bioRationale: 'Prevención del acoso laboral, mediación de conflictos intralaborales y protección del clima psicosocial.', 
+            normativity: 'Hito 3: Convivencia Laboral (Res. 3461/2025 • Ley 2365/2024)' 
         }
     ],
 

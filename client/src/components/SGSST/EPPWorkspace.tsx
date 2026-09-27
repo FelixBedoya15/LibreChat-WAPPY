@@ -893,7 +893,7 @@ export default function EPPWorkspace() {
     setFormCantidad(1);
     setFormFechaEntrega(new Date().toISOString().substring(0, 10));
     setFormVencimientoInterval('6');
-    setFormObservaciones(`Dotación requerida según ${activeCargoProfile?.eppSeleccionados?.includes(eppName) ? 'Perfil de Cargo' : 'Matriz IPEVAR Hito 1'}`);
+    setFormObservaciones(`Dotación requerida según ${activeCargoProfile?.eppSeleccionados?.includes(eppName) ? 'Perfil de Cargo' : 'Matriz IPEVR Hito 1'}`);
     setIsModalOpen(true);
   };
 
@@ -934,7 +934,7 @@ export default function EPPWorkspace() {
         cantidad: 1,
         estado: 'Entregado',
         firmaTrabajador: selectedWorker.firmaDigital || undefined,
-        observaciones: `Dotación completa requerida según Matriz IPEVAR / Perfil de Cargo (${selectedWorker.cargo})`
+        observaciones: `Dotación completa requerida según Matriz IPEVR / Perfil de Cargo (${selectedWorker.cargo})`
       };
     });
 
@@ -976,7 +976,7 @@ export default function EPPWorkspace() {
     if (!selectedWorker?.cargo) return;
     if (matchingIpevarRows.length === 0) {
       showToast({ 
-        message: `No se encontraron peligros en la Matriz IPEVAR para "${selectedWorker.cargo}". Verifique la matriz en Hito 1.`, 
+        message: `No se encontraron peligros en la Matriz IPEVR para "${selectedWorker.cargo}". Verifique la matriz en Hito 1.`, 
         status: 'warning' 
       });
       return;
@@ -987,7 +987,7 @@ export default function EPPWorkspace() {
       const extracted = extractEppsFromIpevarRows(matchingIpevarRows);
       if (extracted.length === 0) {
         showToast({ 
-          message: 'Los peligros de la Matriz IPEVAR para este cargo no tienen medidas EPP especificadas.', 
+          message: 'Los peligros de la Matriz IPEVR para este cargo no tienen medidas EPP especificadas.', 
           status: 'info' 
         });
         return;
@@ -1009,13 +1009,13 @@ export default function EPPWorkspace() {
         setCargoProfiles(data.perfilesList);
       }
       showToast({ 
-        message: `¡Se sincronizaron ${extracted.length} EPPs desde la Matriz IPEVAR (Hito 1) para "${selectedWorker.cargo}"!`, 
+        message: `¡Se sincronizaron ${extracted.length} EPPs desde la Matriz IPEVR (Hito 1) para "${selectedWorker.cargo}"!`, 
         status: 'success' 
       });
       loadData();
     } catch (err) {
       console.error('[EPP Sync IPEVAR]', err);
-      showToast({ message: 'Error al sincronizar con la Matriz IPEVAR', status: 'error' });
+      showToast({ message: 'Error al sincronizar con la Matriz IPEVR', status: 'error' });
     } finally {
       setIsSyncingIpevar(false);
     }

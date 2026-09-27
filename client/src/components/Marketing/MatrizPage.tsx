@@ -2539,7 +2539,7 @@ export default function MatrizPage() {
                           <Check className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-xs text-text-primary">Skill Canvas, RIT e IPEVAR</h4>
+                          <h4 className="font-bold text-xs text-text-primary">Skill Canvas, RIT e IPEVR</h4>
                           <p className="text-[11px] text-text-secondary mt-0.5 leading-normal">Editores inteligentes para crear matrices y el Reglamento Interno de Trabajo en minutos y exportar a Word/Excel.</p>
                         </div>
                       </div>
@@ -2815,7 +2815,7 @@ export default function MatrizPage() {
                       )
                     ) : actualRequiresPayment ? (
                       <>
-                        Obtendrás el <strong>curso completo, más de 10 aplicativos, 2 clases extras (Matriz IPEVAR y Reglamento RIT) y acceso a WAPPY IA</strong> por solo <strong>${price.toLocaleString('es-CO')} COP</strong> (¡Precio de lanzamiento!).
+                        Obtendrás el <strong>curso completo, más de 10 aplicativos, 2 clases extras (Matriz IPEVR y Reglamento RIT) y acceso a WAPPY IA</strong> por solo <strong>${price.toLocaleString('es-CO')} COP</strong> (¡Precio de lanzamiento!).
                       </>
                     ) : (
                       <>
@@ -3276,7 +3276,7 @@ export default function MatrizPage() {
                             '**Subida de archivos ilimitada**',
                             '**Skill de Canvas (Word, Hojas de Cálculo, Presentaciones, Código Creador de Aplicativos)**',
                             '**Skill Editor RIT**',
-                            '**Skill IPEVAR**',
+                            '**Skill IPEVR**',
                             '**Skill Videollamada con Agente Biomecánico Laboral y visión con exoesqueleto luminoso para medir los grados e higiene postural**',
                             '**Descargas y exportaciones ilimitadas**',
                             '**Aula de estudio**',

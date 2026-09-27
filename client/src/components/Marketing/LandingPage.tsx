@@ -466,7 +466,7 @@ export default function LandingPage() {
                     </div>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    {simStep === 0 && '¡Hola! Acabo de sincronizar los 142 colaboradores en el censo sociodemográfico. Procedo a cruzar peligros con la Matriz Bio-IPEVAR.'}
+                    {simStep === 0 && '¡Hola! Acabo de sincronizar los 142 colaboradores en el censo sociodemográfico. Procedo a cruzar peligros con la Matriz Bio-IPEVR.'}
                     {simStep === 1 && 'He evaluado 18 peligros bajo GTC-45. 2 riesgos mecánicos y biomecánicos se marcaron en prioridad Alta con plan de mejora.'}
                     {simStep === 2 && 'Alerta temprana: 3 actividades del Centro de Control ACPM vencen esta semana. Enviando resumen automático a WhatsApp de gerencia...'}
                     {simStep === 3 && 'Ruta de aprendizaje actualizada: 94% de colaboradores completaron el módulo de autocuidado y descargaron certificado oficial con QR.'}
@@ -498,7 +498,7 @@ export default function LandingPage() {
                   <div className="flex items-center gap-2">
                     <FileSpreadsheet className="w-4 h-4 text-teal-400" />
                     <span className="text-xs font-bold text-slate-200">
-                      Matriz Bio-IPEVAR (GTC-45 en Vivo)
+                      Matriz Bio-IPEVR (GTC-45 en Vivo)
                     </span>
                   </div>
                   <span className="text-[10px] px-2 py-0.5 rounded bg-teal-500/10 text-teal-300 font-mono">
@@ -689,7 +689,7 @@ export default function LandingPage() {
                   <span className="px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-semibold border border-teal-500/30">
                     Termómetro Psicosocial (7 días)
                   </span>
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Matriz Bio-IPEVAR</span>
+                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Matriz Bio-IPEVR</span>
                   <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">GTC-45 en Vivo</span>
                 </div>
               </div>
@@ -822,7 +822,7 @@ export default function LandingPage() {
                   <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-400 flex items-center justify-center mb-4">
                     <FileSpreadsheet className="w-5 h-5" />
                   </div>
-                  <h3 className="text-base font-bold text-white mb-2">Matriz Bio-IPEVAR (GTC 45)</h3>
+                  <h3 className="text-base font-bold text-white mb-2">Matriz Bio-IPEVR (GTC 45)</h3>
                   <p className="text-xs text-slate-400 leading-relaxed mb-4">
                     Inyección de peligros y valoración de riesgos en tiempo real asistida por IA. Visualiza tablas interactivas al lado del chat y expórtalas a Excel listo para ARLs.
                   </p>
@@ -1135,7 +1135,7 @@ export default function LandingPage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                    <span>Skill Editor RIT & Matriz IPEVAR Básica GTC-45</span>
+                    <span>Skill Editor RIT & Matriz IPEVR Básica GTC-45</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
@@ -1180,7 +1180,7 @@ export default function LandingPage() {
                   </li>
                   <li className="flex items-start gap-2 font-semibold text-white">
                     <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                    <span>Matriz IPEVAR Live (GTC 45) con exportación a Excel</span>
+                    <span>Matriz IPEVR Live (GTC 45) con exportación a Excel</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
