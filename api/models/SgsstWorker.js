@@ -129,6 +129,7 @@ const SgsstWorkerSchema = new mongoose.Schema({
   termometro_animo: { type: Array, default: [] },
 
   bioChartConclusions: { type: Object, default: {} },
+  bioReportContent: { type: String, default: '' },
 
   updatedAt: { type: Date, default: Date.now },
 });

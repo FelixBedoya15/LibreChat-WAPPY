@@ -706,20 +706,20 @@ function buildIpevarChartsHtml(matrixRows) {
   
   const mapA = {};
   matrixRows.forEach(r => {
-    const k = (r.peligro_clasificacion || 'Sin clasificar').trim();
+    const k = (r.peligro_clasificacion || r.dominio_bio || 'Sin clasificar').trim();
     if (!mapA[k]) mapA[k] = { count: 0, totalNR: 0 };
     mapA[k].count++;
-    mapA[k].totalNR += Number(r.nr) || 0;
+    mapA[k].totalNR += Number(r.nr || r.indice_bio_riesgo_efectivo) || 0;
   });
   const chartA = Object.entries(mapA).map(([clas, d]) => ({ clas, count: d.count, avg: Math.round(d.totalNR / d.count) })).sort((a,b) => b.avg - a.avg).slice(0, 8);
   const maxA = Math.max(...chartA.map(d => d.avg), 1);
 
   const mapD = {};
   matrixRows.forEach(r => {
-    const k = (r.proceso || 'Sin proceso').trim();
+    const k = (r.proceso || r.dominio_bio || 'Bio-Individual').trim();
     if (!mapD[k]) mapD[k] = { count: 0, totalNR: 0 };
     mapD[k].count++;
-    mapD[k].totalNR += Number(r.nr) || 0;
+    mapD[k].totalNR += Number(r.nr || r.indice_bio_riesgo_efectivo) || 0;
   });
   const chartD = Object.entries(mapD).map(([proc, d]) => ({ proc, count: d.count, avg: Math.round(d.totalNR / d.count) })).sort((a,b) => b.avg - a.avg).slice(0, 8);
   const maxD = Math.max(...chartD.map(d => d.avg), 1);
@@ -727,9 +727,9 @@ function buildIpevarChartsHtml(matrixRows) {
   const empty = (v) => !v || ['ninguno', 'ninguna', 'none', 'no aplica', ''].includes(String(v).toLowerCase().trim());
   let fuente = 0, medio = 0, individuo = 0;
   matrixRows.forEach(r => {
-    if (!empty(r.controles_fuente)) fuente++;
-    if (!empty(r.controles_medio)) medio++;
-    if (!empty(r.controles_individuo)) individuo++;
+    if (!empty(r.controles_fuente || r.medida_eliminacion)) fuente++;
+    if (!empty(r.controles_medio || r.medida_ingenieria)) medio++;
+    if (!empty(r.controles_individuo || r.medida_eppu)) individuo++;
   });
   const total = matrixRows.length || 1;
   const chartB = [
@@ -856,9 +856,17 @@ Toda tu redacción DEBE enfocarse en cómo los riesgos evaluados impactan DIRECT
       responsibleName: req.user?.name,
     });
 
-    const matrixSummary = matrixRows.map((r, i) =>
-      `[${i+1}] Proceso: ${r.proceso} | Actividad: ${r.actividad} | Clasificación: ${r.peligro_clasificacion} | Peligro: ${r.peligro_descripcion} | NR: ${r.nr} (${r.interpretacion_nr}) | Exp: ${r.efectos_posibles}`
-    ).join('\n');
+    const matrixSummary = matrixRows.map((r, i) => {
+      const proc = r.proceso || r.dominio_bio || 'Bio-Individual';
+      const act = r.actividad || r.actividad_expuesta || r.peligro_cargo || 'Puesto de trabajo';
+      const clas = r.peligro_clasificacion || r.dominio_bio || r.dimension_bio || 'General';
+      const desc = r.peligro_descripcion || `${r.dimension_bio ? r.dimension_bio + ' - ' : ''}${r.peligro_cargo || ''}`;
+      const nr = r.nr || r.indice_bio_riesgo_efectivo || r.indice_bio_riesgo_bruto || 0;
+      const interp = r.interpretacion_nr || r.clasificacion_bio || '';
+      const ef = r.efectos_posibles || '';
+      const factor = r.factor_individual ? ` | Modulador Individual: ${r.factor_individual}` : '';
+      return `[${i+1}] Proceso/Dominio: ${proc} | Actividad: ${act} | Clasificación: ${clas} | Peligro: ${desc} | Nivel de Riesgo: ${nr} (${interp}) | Efectos: ${ef}${factor}`;
+    }).join('\n');
 
     const prompt = `Eres un auditor experto en Seguridad y Salud en el Trabajo bajo la metodología GTC-45:2012 en Colombia.
 Analiza esta Matriz IPEVAR completa y emite un Informe Técnico y Ejecutivo integral MUY EXTENSO, sumamente detallado y analítico.

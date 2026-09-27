@@ -1,15 +1,21 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuthContext } from '~/hooks';
 import {
   ArrowLeft, User, Activity, AlertTriangle, Shield,
   Calendar, FileText, Dna, TrendingUp, TrendingDown,
   Clock, Award, Zap, ChevronDown, ChevronRight, BarChart2,
   CheckCircle2, Heart, Eye, ShieldAlert, Pill, Briefcase,
-  MapPin, Building2, RefreshCw, Stethoscope, Sparkles,
+  MapPin, Building2, RefreshCw, Stethoscope, Sparkles, Loader2, History,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import BioMatrizIPEVAR from './BioMatrizIPEVAR';
 import BioMatrizIPEVARDashboard from './BioMatrizIPEVARDashboard';
+import { ToolbarButton } from './SGSSTToolbar';
+import CollapsibleReportBox from './CollapsibleReportBox';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
+import ReportHistory from '~/components/Liva/ReportHistory';
+import ExportDropdown from './ExportDropdown';
+import ModelSelector from './ModelSelector';
 
 // ─── FIT Gauge ────────────────────────────────────────────────────────────────
 const FitGauge = ({ score, alerts = [] }: { score: number; alerts?: string[] }) => {
@@ -326,7 +332,20 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
   const [worker, setWorker] = useState<any>(null);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'matriz' | 'analytics'>('matriz');
+
+  // ─── Estado del Editor & Informe IA ──────────────────────────────────────────
+  const [reportContent, setReportContent] = useState<string>('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSavingReport, setIsSavingReport] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [reportConversationId, setReportConversationId] = useState<string | null>(null);
+  const [reportMessageId, setReportMessageId] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.8-flash');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const liveEditorRef = useRef<LiveEditorHandle>(null);
+  const reportContentRef = useRef<string>('');
 
   const fetchWorker = useCallback(async () => {
     try {
@@ -392,6 +411,11 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
           w.arl = compData.arl;
         }
 
+        if (w.bioReportContent && !reportContentRef.current) {
+          setReportContent(w.bioReportContent);
+          reportContentRef.current = w.bioReportContent;
+        }
+
         setWorker(w);
       } else {
         const errData = await res.json().catch(() => ({}));
@@ -407,6 +431,200 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
   }, [workerId, token, showToast]);
 
   useEffect(() => { fetchWorker(); }, [fetchWorker]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchWorker();
+    setIsRefreshing(false);
+  };
+
+  const handleAnalyzeBioReport = async () => {
+    if (!token || !worker) return;
+    const rows = worker.riesgosBioIndividual || [];
+    if (!rows.length) {
+      showToast({
+        message: 'No hay riesgos registrados en la matriz Bio-Individual para analizar.',
+        status: 'warning',
+      });
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const mappedRows = rows.map((r: any) => ({
+        proceso: r.dominio_bio || 'Bio-Individual',
+        actividad: r.actividad_expuesta || r.peligro_cargo || 'Puesto de trabajo',
+        peligro_clasificacion: r.dominio_bio || r.dimension_bio || 'Bio-Individual',
+        peligro_descripcion: `${r.dimension_bio ? r.dimension_bio + ' - ' : ''}${r.peligro_cargo || ''}`,
+        efectos_posibles: r.efectos_posibles || '',
+        nr: r.indice_bio_riesgo_efectivo || r.indice_bio_riesgo_bruto || 0,
+        interpretacion_nr: r.clasificacion_bio || '',
+        controles_fuente: r.controles_fuente || r.medida_eliminacion || '',
+        controles_medio: r.controles_medio || r.medida_ingenieria || '',
+        controles_individuo: r.controles_individuo || r.medida_eppu || '',
+        factor_individual: r.factor_individual || '',
+      }));
+
+      const res = await fetch('/api/sgsst/gtc45-workspace/ai-analyze-matrix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          matrixRows: mappedRows,
+          workerId: worker._id,
+          modelName: selectedModel,
+          instruction: `Emitir informe técnico Bio-IPEVAR integral de alta especialización enfocado en el colaborador ${worker.nombre}, cargo ${worker.cargo || 'Operativo'}, analizando sus antecedentes de salud (${worker.condicionesSalud || 'Ninguno registrado'}), la efectividad de los controles y plan de readaptación o prevención específico.`,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.analysis) {
+          setReportContent(data.analysis);
+          reportContentRef.current = data.analysis;
+          liveEditorRef.current?.setHTML(data.analysis);
+
+          // Persistir en el documento del colaborador
+          await fetch(`/api/sgsst/workers/${worker._id}/bio-ipevar`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              riesgosBioIndividual: worker.riesgosBioIndividual,
+              bioChartConclusions: worker.bioChartConclusions,
+              bioReportContent: data.analysis,
+            }),
+          }).catch(() => {});
+
+          showToast({
+            message: '¡Informe Bio-IPEVAR generado con IA exitosamente!',
+            status: 'success',
+          });
+
+          setTimeout(() => {
+            document.getElementById('bio-report-editor')?.scrollIntoView({ behavior: 'smooth' });
+          }, 300);
+        }
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Error al generar informe con IA');
+      }
+    } catch (e: any) {
+      console.error('[BioIndividuo] AI report error:', e);
+      showToast({
+        message: e.message || 'Error al generar informe bio-individual con IA',
+        status: 'error',
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleSaveReport = async () => {
+    const contentToSave = reportContentRef.current || reportContent;
+    if (!contentToSave || !token || !worker) return;
+
+    setIsSavingReport(true);
+    try {
+      const isNew = !reportConversationId || reportConversationId === 'new';
+      const res = await fetch('/api/sgsst/diagnostico/save-report', {
+        method: isNew ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(
+          isNew
+            ? {
+                content: contentToSave,
+                title: `Informe Bio-IPEVAR - ${worker.nombre} - ${new Date().toLocaleDateString('es-CO')}`,
+                tags: ['sgsst-bio-ipevar', `worker-${worker._id}`],
+              }
+            : {
+                conversationId: reportConversationId,
+                messageId: reportMessageId,
+                content: contentToSave,
+              }
+        ),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (isNew) {
+          setReportConversationId(data.conversationId);
+          setReportMessageId(data.messageId);
+        }
+
+        // Actualizar bioReportContent en SgsstWorker
+        await fetch(`/api/sgsst/workers/${worker._id}/bio-ipevar`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            riesgosBioIndividual: worker.riesgosBioIndividual,
+            bioChartConclusions: worker.bioChartConclusions,
+            bioReportContent: contentToSave,
+          }),
+        }).catch(() => {});
+
+        setRefreshTrigger((prev) => prev + 1);
+        setIsHistoryOpen(false);
+        showToast({
+          message: '¡Informe guardado en el historial de SGSST exitosamente!',
+          status: 'success',
+        });
+      } else {
+        throw new Error('Error al guardar el informe');
+      }
+    } catch (e: any) {
+      console.error('[BioIndividuo] Save error:', e);
+      showToast({
+        message: e.message || 'No se pudo guardar el informe.',
+        status: 'error',
+      });
+    } finally {
+      setIsSavingReport(false);
+    }
+  };
+
+  const handleSelectReport = async (reportOrId: any) => {
+    let content = '', convId = '', msgId = '';
+    if (typeof reportOrId === 'string') {
+      convId = reportOrId;
+      try {
+        const res = await fetch(`/api/messages/${convId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const messages = await res.json();
+          const reportMsg = messages
+            .reverse()
+            .find(
+              (m: any) =>
+                m.sender === 'SGSST Diagnóstico' ||
+                (m.isCreatedByUser === false && m.text?.length > 100)
+            );
+          if (reportMsg) {
+            content = reportMsg.text;
+            msgId = reportMsg.messageId;
+          }
+        }
+      } catch (e) {
+        console.error('[BioIndividuo] Load message error:', e);
+      }
+    } else if (reportOrId?.content) {
+      content = reportOrId.content;
+      convId = reportOrId.conversationId;
+      msgId = reportOrId.messageId;
+    }
+
+    if (content) {
+      setReportContent(content);
+      reportContentRef.current = content;
+      setReportConversationId(convId);
+      setReportMessageId(msgId);
+      liveEditorRef.current?.setHTML(content);
+      setIsHistoryOpen(false);
+      showToast({
+        message: 'Informe cargado desde el historial.',
+        status: 'success',
+      });
+    }
+  };
 
   const healthProfile = useMemo(() => parseHealthProfile(worker), [worker]);
   const workerAge = useMemo(() => calculateAge(worker?.fechaNacimiento) || worker?.edad, [worker]);
@@ -432,20 +650,24 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
             No se pudo sincronizar la información del trabajador seleccionado. Verifica que esté registrado en el censo sociodemográfico.
           </p>
         </div>
-        <div className="flex items-center gap-3 mt-2">
-          <button
+        <div className="inline-flex items-center gap-2 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-md">
+          <ToolbarButton
+            id="err-back"
             onClick={onBack}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all active:scale-95"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Volver al Hub
-          </button>
-          <button
-            onClick={fetchWorker}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md transition-all active:scale-95"
-          >
-            Reintentar
-          </button>
+            label="Volver al Hub"
+            icon={ArrowLeft}
+            title="Volver al Hub"
+            variant="default"
+          />
+          <ToolbarButton
+            id="err-retry"
+            onClick={handleRefresh}
+            label="Reintentar"
+            icon={RefreshCw}
+            title="Reintentar conexión"
+            variant="ai"
+            isLoading={isRefreshing}
+          />
         </div>
       </div>
     );
@@ -471,24 +693,37 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
     <div className="w-full space-y-6 animate-in fade-in slide-in-from-right-8 duration-300 overflow-y-auto pb-10">
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border-medium pb-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all active:scale-95 shrink-0"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Volver al Hub</span>
-          </button>
-          <div>
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Botonera Cápsula Estilo WAPPY */}
+          <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-md shadow-slate-200/30 dark:shadow-none shrink-0">
+            <ToolbarButton
+              id="bio-back"
+              onClick={onBack}
+              label="Volver al Hub"
+              icon={ArrowLeft}
+              title="Volver al Hub de Colaboradores"
+              variant="default"
+            />
+            <ToolbarButton
+              id="bio-refresh"
+              onClick={handleRefresh}
+              label="Actualizar"
+              icon={RefreshCw}
+              title="Recargar ficha 360° del colaborador"
+              variant="default"
+              isLoading={isRefreshing}
+            />
+          </div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-black text-text-primary flex items-center gap-2">
-                <Dna className="h-6 w-6 text-teal-600" />
-                {worker.nombre}
+              <h2 className="text-xl font-black text-text-primary flex items-center gap-2 truncate">
+                <Dna className="h-6 w-6 text-teal-600 shrink-0" />
+                <span className="truncate">{worker.nombre}</span>
               </h2>
               {worker.cargo && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
-                  <Briefcase className="w-3 h-3" />
-                  {worker.cargo}
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 truncate">
+                  <Briefcase className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{worker.cargo}</span>
                 </span>
               )}
             </div>
@@ -504,18 +739,6 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
               <span className="text-teal-600 dark:text-teal-400 font-semibold">Perfil 360° Bio-Individual</span>
             </p>
           </div>
-        </div>
-
-        {/* Acciones del Header */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchWorker}
-            title="Recargar datos del colaborador"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 shadow-2xs transition-all active:scale-95"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Actualizar</span>
-          </button>
         </div>
       </div>
 
@@ -795,31 +1018,157 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
           )}
 
           {activeTab === 'analytics' && (
-            <>
-              <div className="mb-4">
-                <h3 className="text-lg font-black text-text-primary flex items-center gap-2">
-                  <BarChart2 className="h-5 w-5 text-teal-500" />
-                  Analítica Bio-IPEVAR
-                </h3>
-                <p className="text-xs text-text-secondary mt-1">
-                  Visualización de cobertura de controles, distribución de riesgos y jerarquía GTC-45.
-                </p>
+            <div className="space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border-light dark:border-white/5 pb-4">
+                <div>
+                  <h3 className="text-lg font-black text-text-primary flex items-center gap-2">
+                    <BarChart2 className="h-5 w-5 text-teal-500" />
+                    Analítica Bio-IPEVAR & Dictamen Técnico
+                  </h3>
+                  <p className="text-xs text-text-secondary mt-1">
+                    Visualización de cobertura de controles, jerarquía GTC-45 y dictamen técnico integral asistido por IA.
+                  </p>
+                </div>
+
+                <div className="inline-flex items-center gap-2 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-md shadow-slate-200/30 dark:shadow-none shrink-0 self-start md:self-auto">
+                  <ModelSelector
+                    selectedModel={selectedModel}
+                    onSelectModel={setSelectedModel}
+                    disabled={isAnalyzing}
+                  />
+                  <ToolbarButton
+                    id="btn-gen-bio-report"
+                    onClick={handleAnalyzeBioReport}
+                    label={isAnalyzing ? 'Generando…' : 'Generar Informe con IA'}
+                    icon={isAnalyzing ? Loader2 : Sparkles}
+                    title="Elaborar informe técnico Bio-IPEVAR con IA"
+                    variant="ai"
+                    isLoading={isAnalyzing}
+                    disabled={isAnalyzing || (!worker?.riesgosBioIndividual?.length)}
+                  />
+                  <ToolbarButton
+                    id="btn-bio-report-history"
+                    onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                    label="Historial"
+                    icon={History}
+                    title="Historial de informes guardados"
+                    variant="history"
+                    active={isHistoryOpen}
+                  />
+                </div>
               </div>
+
+              {/* 5 Gráficas analíticas de Bio-IPEVAR */}
               <BioMatrizIPEVARDashboard
                 rows={worker?.riesgosBioIndividual || []}
                 workerId={workerId}
                 token={token || ''}
+                modelName={selectedModel}
                 conclusions={worker?.bioChartConclusions || {}}
                 onConclusionSaved={fetchWorker}
               />
+
               {(!worker?.riesgosBioIndividual || worker.riesgosBioIndividual.length === 0) && (
-                <div className="text-center py-16 text-text-tertiary text-sm">
-                  <BarChart2 className="h-12 w-12 mx-auto opacity-20 mb-3" />
-                  <p>Sin datos para visualizar.</p>
-                  <p className="text-xs mt-1">Genera la evaluación Bio-Individual primero.</p>
+                <div className="text-center py-12 text-text-tertiary text-sm bg-surface-secondary/40 rounded-2xl border border-dashed border-border-medium">
+                  <BarChart2 className="h-10 w-10 mx-auto opacity-20 mb-2" />
+                  <p className="font-semibold text-text-secondary">Sin matriz de riesgos bio-individuales para graficar.</p>
+                  <p className="text-xs mt-1">Genera primero la evaluación en la pestaña "Evaluación Bio-Individual".</p>
                 </div>
               )}
-            </>
+
+              {/* ── Collapsible Report Box con LiveEditor y ExportDropdown ── */}
+              <div id="bio-report-editor" className="mt-8">
+                <CollapsibleReportBox
+                  onSave={handleSaveReport}
+                  isSaving={isSavingReport}
+                  saveDisabled={isSavingReport || (!reportContent && !reportContentRef.current)}
+                  onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                  isHistoryOpen={isHistoryOpen}
+                  title={`Informe Técnico Bio-Individual — ${worker.nombre}`}
+                  icon={<FileText className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
+                  defaultCollapsed={false}
+                  actions={
+                    <ExportDropdown
+                      content={reportContentRef.current || reportContent || ''}
+                      fileName={`Informe_BioIPEVAR_${worker.documento}_${worker.nombre.replace(/\s+/g, '_')}`}
+                      reportType="general"
+                    />
+                  }
+                >
+                  {isHistoryOpen && (
+                    <div className="mx-2 mb-4 mt-4 overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary shadow-sm">
+                      <ReportHistory
+                        onSelectReport={handleSelectReport}
+                        isOpen={isHistoryOpen}
+                        toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)}
+                        refreshTrigger={refreshTrigger}
+                        tags={['sgsst-bio-ipevar', `worker-${worker._id}`]}
+                      />
+                    </div>
+                  )}
+
+                  <div className="p-2">
+                    {reportContent ? (
+                      <div style={{ minHeight: '520px', width: '100%' }}>
+                        <LiveEditor
+                          ref={liveEditorRef}
+                          paperMode={true}
+                          initialContent={reportContent}
+                          onUpdate={(html: string) => {
+                            reportContentRef.current = html;
+                          }}
+                          reportSourceData={{
+                            worker,
+                            riesgos: worker?.riesgosBioIndividual,
+                            conclusiones: worker?.bioChartConclusions,
+                          }}
+                          onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-4 py-16 text-text-secondary">
+                        <div className="w-14 h-14 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 flex items-center justify-center text-teal-600 shadow-inner">
+                          <FileText className="h-7 w-7 opacity-80" />
+                        </div>
+                        <div className="max-w-md text-center">
+                          <h4 className="text-sm font-bold text-text-primary mb-1">
+                            Informe Técnico Bio-Individual GTC-45
+                          </h4>
+                          <p className="text-xs text-text-secondary leading-relaxed">
+                            Presiona <span className="font-bold text-teal-600">“Generar Informe con IA”</span> para que la IA emita el dictamen técnico integral con análisis de susceptibilidad clínica, jerarquía de controles (Decreto 1072) y recomendaciones laborales específicas para {worker.nombre}.
+                          </p>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+                          <button
+                            type="button"
+                            onClick={handleAnalyzeBioReport}
+                            disabled={isAnalyzing || (!worker?.riesgosBioIndividual?.length)}
+                            title="Generar Informe con IA"
+                            className="group flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 px-5 py-2 text-xs font-bold text-white shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                          >
+                            {isAnalyzing ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-4 w-4" />
+                            )}
+                            <span>{isAnalyzing ? 'Generando informe…' : 'Generar Informe con IA'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsHistoryOpen(true)}
+                            title="Cargar desde Historial"
+                            className="flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-zinc-200 shadow-sm hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all active:scale-95 cursor-pointer"
+                          >
+                            <History className="h-4 w-4" />
+                            <span>Cargar desde Historial</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleReportBox>
+              </div>
+            </div>
           )}
         </div>
       </div>

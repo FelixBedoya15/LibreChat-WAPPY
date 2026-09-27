@@ -867,13 +867,16 @@ router.put('/:id/ipevar', requireJwtAuth, async (req, res) => {
 // PUT: Guardar riesgos Bio-Individuales (nueva metodología)
 router.put('/:id/bio-ipevar', requireJwtAuth, async (req, res) => {
     try {
-        const { riesgosBioIndividual, bioChartConclusions } = req.body;
+        const { riesgosBioIndividual, bioChartConclusions, bioReportContent } = req.body;
         const cleanRiesgos = Array.isArray(riesgosBioIndividual)
             ? riesgosBioIndividual.filter(r => r && r.dominio_bio !== 'Seguridad')
             : [];
         const update = { riesgosBioIndividual: cleanRiesgos, updatedAt: Date.now() };
         if (bioChartConclusions !== undefined) {
             update.bioChartConclusions = bioChartConclusions;
+        }
+        if (bioReportContent !== undefined) {
+            update.bioReportContent = bioReportContent;
         }
         const worker = await SgsstWorker.findOneAndUpdate(
             { _id: req.params.id, user: req.user.id },
