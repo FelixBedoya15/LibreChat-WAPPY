@@ -24,10 +24,16 @@ import {
   ChevronRight,
   ExternalLink,
   Loader2,
+  Shield,
+  PenTool,
+  X,
+  Award,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { QRCodeSVG } from 'qrcode.react';
+import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
+import SignaturePad from './SignaturePad';
 
 export default function ConvivenciaWorkspace() {
   const { token } = useAuthContext();
@@ -62,6 +68,7 @@ export default function ConvivenciaWorkspace() {
 
   // Modal Acta Trimestral State
   const [showActaModal, setShowActaModal] = useState(false);
+  const [selectedActa, setSelectedActa] = useState<any>(null);
   const [actaForm, setActaForm] = useState<any>({
     trimestre: 1,
     anio: new Date().getFullYear(),
@@ -76,6 +83,7 @@ export default function ConvivenciaWorkspace() {
       acuerdosConciliatorios: 0,
       archivadasSinMerito: 0,
       remitidasAltaDireccion: 0,
+      casosAcosoSexualLey2365: 0,
     },
     desarrollo: {
       revisionQuejasTrimestre: '',
@@ -85,6 +93,18 @@ export default function ConvivenciaWorkspace() {
     },
     compromisos: [],
   });
+
+  // Firma digital
+  const [signingAssistantIndex, setSigningAssistantIndex] = useState<number | null>(null);
+
+  // Modal Convocatoria Elecciones
+  const [showEleccionModal, setShowEleccionModal] = useState(false);
+  const [eleccionForm, setEleccionForm] = useState<any>({
+    titulo: `Elecciones Comité de Convivencia ${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
+    periodo: `${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
+    candidatos: [],
+  });
+  const [newCandidato, setNewCandidato] = useState({ nombre: '', cargo: '', cedula: '' });
 
   const [isGeneratingIA, setIsGeneratingIA] = useState(false);
   const [qrModalUrl, setQrModalUrl] = useState<string | null>(null);
@@ -146,19 +166,45 @@ export default function ConvivenciaWorkspace() {
   };
 
   const handleOpenNewActa = (trimestreNum: number = 1) => {
+    const defaultAsistentes: any[] = [];
+    const activeComite = config?.comites?.find((c: any) => c.estado === 'activo') || config?.comites?.[0];
+    if (activeComite) {
+      (activeComite.representantesEmpleador || []).forEach((r: any) => {
+        defaultAsistentes.push({
+          nombre: r.nombre,
+          cedula: r.cedula,
+          cargo: r.cargo,
+          rol: `Empleador (${r.rol})`,
+          asistio: true,
+          firma: null,
+        });
+      });
+      (activeComite.representantesTrabajadores || []).forEach((r: any) => {
+        defaultAsistentes.push({
+          nombre: r.nombre,
+          cedula: r.cedula,
+          cargo: r.cargo,
+          rol: `Trabajadores (${r.rol})`,
+          asistio: true,
+          firma: null,
+        });
+      });
+    }
+
     setActaForm({
       trimestre: trimestreNum,
       anio: new Date().getFullYear(),
       tipo: 'ordinaria_trimestral',
-      centroTrabajo: 'Sede Principal',
+      centroTrabajo: activeComite?.centroTrabajo || 'Sede Principal',
       quorumVerificado: true,
-      asistentes: [],
+      asistentes: defaultAsistentes,
       estadisticasQuejas: {
         quejasRecibidasTrimestre: casos.length,
         enTramite: casos.filter((c) => ['radicado', 'en_tramite'].includes(c.estado)).length,
         acuerdosConciliatorios: casos.filter((c) => c.estado === 'acuerdo_conciliatorio').length,
         archivadasSinMerito: casos.filter((c) => c.estado === 'archivado').length,
         remitidasAltaDireccion: casos.filter((c) => c.estado === 'no_acuerdo_alta_direccion').length,
+        casosAcosoSexualLey2365: casos.filter((c) => c.tipoAcoso === 'sexual_ley_2365').length,
       },
       desarrollo: {
         revisionQuejasTrimestre: 'Se analizaron los radicados confidenciales garantizando la reserva de ley.',
@@ -166,20 +212,75 @@ export default function ConvivenciaWorkspace() {
         climaLaboralPsicosocial: 'Monitoreo preventivo del clima intralaboral y relaciones de mando.',
         proposicionesVarios: 'Coordinación de la próxima sesión ordinaria trimestral.',
       },
-      compromisos: [],
+      compromisos: [
+        {
+          accion: 'Seguimiento a clima psicosocial y acciones preventivas del trimestre',
+          responsable: defaultAsistentes[0]?.nombre || 'Secretario del CCL',
+          fechaLimite: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          estado: 'pendiente',
+        },
+      ],
+    });
+    setSelectedActa(null);
+    setShowActaModal(true);
+  };
+
+  const handleEditActa = (acta: any) => {
+    setSelectedActa(acta);
+    setActaForm({
+      id: acta._id,
+      ...acta,
+      asistentes: acta.asistentes || [],
+      compromisos: acta.compromisos || [],
     });
     setShowActaModal(true);
+  };
+
+  const handleDeleteActa = async (actaId: string) => {
+    if (!window.confirm('¿Está seguro de eliminar esta acta trimestral? Esta acción también cancelará los compromisos vinculados en el Centro de Control.')) return;
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.delete(`/api/sgsst/convivencia/actas/${actaId}`, { headers });
+      showToast({ message: 'Acta eliminada con éxito', status: 'success' });
+      fetchAllData();
+    } catch (err: any) {
+      showToast({ message: 'Error al eliminar acta', status: 'error' });
+    }
   };
 
   const handleSaveActa = async () => {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       await axios.post('/api/sgsst/convivencia/actas', actaForm, { headers });
-      showToast({ message: 'Acta trimestral guardada con éxito', status: 'success' });
+      showToast({ message: 'Acta trimestral guardada con éxito (Compromisos sincronizados con el Centro de Control)', status: 'success' });
       setShowActaModal(false);
       fetchAllData();
     } catch (err: any) {
       showToast({ message: err.response?.data?.error || 'Error al guardar acta', status: 'error' });
+    }
+  };
+
+  const handleCreateEleccion = async () => {
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.post('/api/sgsst/convivencia/elecciones', eleccionForm, { headers });
+      showToast({ message: 'Convocatoria a elecciones creada y activa', status: 'success' });
+      setShowEleccionModal(false);
+      fetchAllData();
+    } catch (err: any) {
+      showToast({ message: err.response?.data?.error || 'Error al crear elección', status: 'error' });
+    }
+  };
+
+  const handleEscrutinio = async (eleccionId: string) => {
+    if (!window.confirm('¿Desea cerrar la votación y generar el acta oficial de escrutinio?')) return;
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.post(`/api/sgsst/convivencia/elecciones/${eleccionId}/escrutinio`, {}, { headers });
+      showToast({ message: 'Escrutinio completado con éxito', status: 'success' });
+      fetchAllData();
+    } catch (err) {
+      showToast({ message: 'Error al realizar escrutinio', status: 'error' });
     }
   };
 
@@ -261,61 +362,77 @@ export default function ConvivenciaWorkspace() {
         </div>
       </div>
 
-      {/* ═══ Botonera Flotante Cápsula / Toolbar ═══ */}
-      <div className="flex justify-center">
-        <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-lg shadow-slate-200/40 dark:shadow-none">
-          <button
-            onClick={() => setActiveTab('casos')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-              activeTab === 'casos'
-                ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 font-bold shadow-2xs'
-                : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800'
-            }`}
-          >
-            <Lock className="w-4 h-4" />
-            Bandeja Confidencial ({casos.length})
-            {casos.some((c) => c.vencido65Dias) && (
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('actas')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-              activeTab === 'actas'
-                ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 font-bold shadow-2xs'
-                : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            Actas Trimestrales ({actas.length})
-          </button>
-
-          <button
-            onClick={() => setActiveTab('comites')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-              activeTab === 'comites'
-                ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 font-bold shadow-2xs'
-                : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800'
-            }`}
-          >
-            <Building2 className="w-4 h-4" />
-            Comités por Sede (Res. 3461)
-          </button>
-
-          <button
-            onClick={() => setActiveTab('elecciones')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-              activeTab === 'elecciones'
-                ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 font-bold shadow-2xs'
-                : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800'
-            }`}
-          >
-            <Vote className="w-4 h-4" />
-            Votación Secreta
-          </button>
-        </div>
-      </div>
+      {/* ═══ Botonera Flotante Cápsula / Toolbar (WAPPY Design System) ═══ */}
+      <SGSSTToolbar
+        historyButtons={[
+          {
+            id: 'tb-convivencia-casos',
+            onClick: () => setActiveTab('casos'),
+            label: `Bandeja Confidencial (${casos.length})`,
+            icon: Lock,
+            title: 'Ver Casos y Quejas con Reserva Legal (Res. 3461/2025)',
+            variant: 'history',
+            active: activeTab === 'casos',
+            badge: casos.some((c) => c.vencido65Dias) ? '!' : casos.length > 0 ? casos.length : undefined,
+          },
+          {
+            id: 'tb-convivencia-actas',
+            onClick: () => setActiveTab('actas'),
+            label: `Actas Trimestrales (${actas.length})`,
+            icon: FileText,
+            title: 'Ver Actas Trimestrales Ordinarias y Extraordinarias',
+            variant: 'history',
+            active: activeTab === 'actas',
+            badge: actas.length > 0 ? actas.length : undefined,
+          },
+          {
+            id: 'tb-convivencia-comites',
+            onClick: () => setActiveTab('comites'),
+            label: 'Comités por Sede',
+            icon: Building2,
+            title: 'Conformación Paritaria y Comités por Centro de Trabajo',
+            variant: 'history',
+            active: activeTab === 'comites',
+          },
+          {
+            id: 'tb-convivencia-elecciones',
+            onClick: () => setActiveTab('elecciones'),
+            label: 'Votación Secreta Digital',
+            icon: Vote,
+            title: 'Procesos de Elección Democrática y Secreta',
+            variant: 'history',
+            active: activeTab === 'elecciones',
+            badge: config?.eleccionActiva ? '!' : undefined,
+          },
+        ]}
+        customSections={[
+          <div key="convivencia-actions-bar" className="flex items-center gap-1.5">
+            <ToolbarButton
+              id="tb-nueva-acta-convivencia"
+              onClick={() => handleOpenNewActa(1)}
+              label="Nueva Acta Trimestral"
+              icon={Plus}
+              title="Registrar acta trimestral ordinaria o extraordinaria"
+              variant="ai"
+            />
+            <ToolbarButton
+              id="tb-convocar-eleccion-convivencia"
+              onClick={() => {
+                setEleccionForm({
+                  titulo: `Elecciones Comité de Convivencia ${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
+                  periodo: `${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
+                  candidatos: [],
+                });
+                setShowEleccionModal(true);
+              }}
+              label="Convocar Elección"
+              icon={Vote}
+              title="Abrir nuevo proceso electoral confidencial para el Comité de Convivencia"
+              variant="dummy"
+            />
+          </div>,
+        ]}
+      />
 
       {/* ═══ TAB 1: BANDEJA CONFIDENCIAL & CONTADOR 65 DÍAS ═══ */}
       {activeTab === 'casos' && (
@@ -520,24 +637,38 @@ export default function ConvivenciaWorkspace() {
 
                   <div className="flex items-center justify-end gap-1.5 mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800">
                     {actaQ ? (
-                      <button
-                        onClick={() => {
-                          setActaForm(actaQ);
-                          setShowActaModal(true);
-                        }}
-                        className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 hover:bg-teal-100"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
-                          <span className="text-[10px] font-bold">Examinar</span>
-                        </div>
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleEditActa(actaQ)}
+                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100"
+                          title="Examinar y Editar Acta"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                            <span className="text-[10px] font-bold">Examinar</span>
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteActa(actaQ._id)}
+                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600"
+                          title="Eliminar Acta"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                            <span className="text-[10px] font-bold">Eliminar</span>
+                          </div>
+                        </button>
+                      </>
                     ) : (
                       <button
                         onClick={() => handleOpenNewActa(q)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 text-[10px] font-bold hover:bg-teal-50 hover:text-teal-600"
+                        className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-2 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 text-teal-600 dark:text-teal-300"
+                        title={`Diligenciar Acta Q${q}`}
                       >
-                        <Plus className="w-3 h-3" /> Diligenciar Q{q}
+                        <Plus className="w-3.5 h-3.5" />
+                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                          <span className="text-[10px] font-bold">Diligenciar Q{q}</span>
+                        </div>
                       </button>
                     )}
                   </div>
@@ -551,22 +682,108 @@ export default function ConvivenciaWorkspace() {
       {/* ═══ TAB 3: COMITÉS POR SEDE / CENTRO DE TRABAJO ═══ */}
       {activeTab === 'comites' && (
         <div className="space-y-6">
-          <div className="rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-black text-slate-800 dark:text-zinc-100">
                 Comités por Centros de Trabajo (Resolución 3461 de 2025)
               </h3>
               <p className="text-xs text-slate-500 dark:text-zinc-400">
-                El nuevo marco normativo permite e incentiva la conformación de comités de convivencia específicos por centro de trabajo o sucursal.
+                El nuevo marco normativo permite e incentiva la conformación de comités de convivencia específicos por sede o centro de trabajo.
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 text-xs text-indigo-900 dark:text-indigo-300 space-y-1">
-              <p className="font-bold flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-indigo-600" /> Sedes y Centros Registrados:
-              </p>
-              <p>• Sede Principal ({config?.company?.companyName || 'Empresa Activa'}) — Comité Central Activo</p>
-            </div>
+            <button
+              onClick={() => setActiveTab('elecciones')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+            >
+              <Vote className="w-4 h-4" />
+              Convocar Votación Secreta
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {(!config?.comites || config.comites.length === 0) ? (
+              <div className="p-8 rounded-3xl border border-dashed border-slate-300 dark:border-zinc-800 text-center text-slate-400">
+                <Building2 className="w-12 h-12 mx-auto mb-2 text-slate-300" />
+                <p className="text-sm font-bold text-slate-700 dark:text-zinc-300">Sin comités de convivencia conformados</p>
+                <p className="text-xs">Convoque a elecciones o registre los representantes para formalizar el comité.</p>
+              </div>
+            ) : (
+              config.comites.map((comite: any, cIdx: number) => (
+                <div key={comite._id || cIdx} className="rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm space-y-6">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-zinc-800 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-2xl bg-indigo-500/10 text-indigo-600">
+                        <Building2 className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="text-base font-black text-slate-800 dark:text-zinc-100">
+                          {comite.centroTrabajo || 'Sede Principal'}
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400">
+                          Periodo: {new Date(comite.periodoInicio).toLocaleDateString('es-CO')} – {new Date(comite.periodoFin).toLocaleDateString('es-CO')}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      {comite.estado?.toUpperCase() || 'ACTIVO'}
+                    </span>
+                  </div>
+
+                  {/* Representantes Empleador */}
+                  <div>
+                    <h5 className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-3 flex items-center gap-1.5">
+                      <Shield className="w-4 h-4" /> Representantes del Empleador (Designados por Gerencia)
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {(comite.representantesEmpleador || []).length === 0 ? (
+                        <div className="p-3 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800 text-xs text-slate-400 italic">
+                          Sin representantes del empleador designados.
+                        </div>
+                      ) : (
+                        comite.representantesEmpleador.map((r: any, idx: number) => (
+                          <div key={idx} className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/50 flex items-center justify-between">
+                            <div>
+                              <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">{r.nombre}</p>
+                              <p className="text-[11px] text-slate-500 dark:text-zinc-400">{r.cargo} • C.C. {r.cedula}</p>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                              {r.rol}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Representantes Trabajadores */}
+                  <div>
+                    <h5 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400 mb-3 flex items-center gap-1.5">
+                      <Users className="w-4 h-4" /> Representantes de los Trabajadores (Elegidos por Votación Libre y Secreta)
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {(comite.representantesTrabajadores || []).length === 0 ? (
+                        <div className="p-3 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800 text-xs text-slate-400 italic">
+                          Sin representantes de los trabajadores electos.
+                        </div>
+                      ) : (
+                        comite.representantesTrabajadores.map((r: any, idx: number) => (
+                          <div key={idx} className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/50 flex items-center justify-between">
+                            <div>
+                              <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">{r.nombre}</p>
+                              <p className="text-[11px] text-slate-500 dark:text-zinc-400">{r.cargo} • C.C. {r.cedula}</p>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+                              {r.rol}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -583,13 +800,29 @@ export default function ConvivenciaWorkspace() {
                 Los colaboradores eligen de forma libre y 100% anónima a sus representantes ante el Comité de Convivencia Laboral.
               </p>
             </div>
+
+            <button
+              onClick={() => {
+                setEleccionForm({
+                  titulo: `Elecciones Comité de Convivencia ${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
+                  periodo: `${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
+                  candidatos: [],
+                });
+                setShowEleccionModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+            >
+              <Vote className="w-4 h-4" />
+              Nueva Convocatoria
+            </button>
           </div>
 
           <div className="space-y-4">
             {elecciones.length === 0 ? (
               <div className="p-8 rounded-3xl border border-dashed border-slate-300 dark:border-zinc-800 text-center text-slate-400">
                 <Vote className="w-12 h-12 mx-auto mb-2 text-slate-300" />
-                <p className="text-sm font-bold">No hay elecciones creadas para Convivencia.</p>
+                <p className="text-sm font-bold text-slate-700 dark:text-zinc-300">No hay elecciones creadas para Convivencia.</p>
+                <p className="text-xs">Haga clic en Nueva Convocatoria para iniciar un proceso electoral.</p>
               </div>
             ) : (
               elecciones.map((e) => {
@@ -597,23 +830,82 @@ export default function ConvivenciaWorkspace() {
 
                 return (
                   <div key={e._id} className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                       <div>
-                        <h4 className="text-base font-black text-slate-800 dark:text-zinc-100">{e.titulo}</h4>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-base font-black text-slate-800 dark:text-zinc-100">{e.titulo}</h4>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            e.estado === 'activa'
+                              ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 animate-pulse'
+                              : 'bg-slate-100 dark:bg-zinc-800 text-slate-500'
+                          }`}>
+                            {e.estado}
+                          </span>
+                        </div>
                         <p className="text-xs text-slate-500 mt-1">
-                          Periodo: {e.periodo} • Habilitados: {e.totalVotantesHabilitados} • Votos: {e.totalVotosEmitidos}
+                          Periodo: {e.periodo} • Habilitados: {e.totalVotantesHabilitados} • Votos Emitidos: {e.totalVotosEmitidos}
                         </p>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setQrModalUrl(votingUrl)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-bold"
-                        >
-                          <QrCode className="w-4 h-4 text-indigo-600" /> QR Votación
-                        </button>
+                        {e.estado === 'activa' && (
+                          <>
+                            <button
+                              onClick={() => setQrModalUrl(votingUrl)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-50"
+                            >
+                              <QrCode className="w-4 h-4 text-indigo-600" /> QR Urna
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(votingUrl);
+                                showToast({ message: 'Enlace de votación copiado al portapapeles', status: 'success' });
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-bold hover:bg-slate-100"
+                            >
+                              <Share2 className="w-4 h-4 text-indigo-600" />
+                              Copiar Link
+                            </button>
+
+                            <button
+                              onClick={() => handleEscrutinio(e._id)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold shadow-sm hover:from-orange-600 active:scale-95"
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                              Cerrar & Escrutar
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
+
+                    {/* Candidatos y Resultados */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
+                      {(e.candidatos || []).map((cand: any) => (
+                        <div key={cand.id || cand.cedula} className="p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-800/40 flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">{cand.nombre}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-zinc-400">{cand.cargo} • CC: {cand.cedula}</p>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-base font-black text-indigo-600 dark:text-indigo-400">
+                              {cand.votos || 0}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block">votos</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {e.actaEscrutinioTexto && (
+                      <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 text-xs text-slate-700 dark:text-zinc-300">
+                        <p className="font-bold text-indigo-700 dark:text-indigo-400 mb-1 flex items-center gap-1">
+                          <CheckCircle2 className="w-4 h-4" /> Acta Oficial de Escrutinio:
+                        </p>
+                        <p>{e.actaEscrutinioTexto}</p>
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -847,7 +1139,142 @@ export default function ConvivenciaWorkspace() {
               </button>
             </div>
 
-            {/* Campos del Acta */}
+            {/* Metadatos del Acta */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/40 border border-slate-100 dark:border-zinc-800">
+              <div>
+                <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Trimestre</label>
+                <select
+                  value={actaForm.trimestre}
+                  onChange={(e) => setActaForm({ ...actaForm, trimestre: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
+                >
+                  <option value={1}>Q1 (Ene - Mar)</option>
+                  <option value={2}>Q2 (Abr - Jun)</option>
+                  <option value={3}>Q3 (Jul - Sep)</option>
+                  <option value={4}>Q4 (Oct - Dic)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Año</label>
+                <input
+                  type="number"
+                  value={actaForm.anio}
+                  onChange={(e) => setActaForm({ ...actaForm, anio: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Consecutivo</label>
+                <input
+                  type="text"
+                  placeholder={`ACTA-COCOLAB-${actaForm.anio}-Q${actaForm.trimestre}`}
+                  value={actaForm.consecutivo || ''}
+                  onChange={(e) => setActaForm({ ...actaForm, consecutivo: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Sede / Centro</label>
+                <input
+                  type="text"
+                  value={actaForm.centroTrabajo || 'Sede Principal'}
+                  onChange={(e) => setActaForm({ ...actaForm, centroTrabajo: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
+                />
+              </div>
+            </div>
+
+            {/* Asistentes y Firmas Digitales */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400 flex items-center gap-1.5">
+                    <Users className="w-4 h-4" /> Asistentes y Firmas Digitales ({actaForm.asistentes?.length || 0})
+                  </h4>
+                  <p className="text-[11px] text-slate-400 dark:text-zinc-400">
+                    Validez jurídica conforme al Dec. 1072/2015 Art. 2.2.4.6.12 para actas oficiales
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nombre = prompt('Nombre completo del asistente:');
+                    if (!nombre) return;
+                    const cedula = prompt('Número de identificación (C.C.):') || '';
+                    const rol = prompt('Rol o estamento (ej: Representante Empleador, Representante Trabajadores, Asesor Externo):') || 'Miembro CCL';
+                    setActaForm({
+                      ...actaForm,
+                      asistentes: [
+                        ...(actaForm.asistentes || []),
+                        { nombre, cedula, rol, asistio: true, firma: null },
+                      ],
+                    });
+                  }}
+                  className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Agregar Asistente
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {(actaForm.asistentes || []).map((asistente: any, aIdx: number) => (
+                  <div key={aIdx} className="p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-800/40 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-800 dark:text-zinc-100 truncate">{asistente.nombre}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-zinc-400">{asistente.rol} • C.C. {asistente.cedula}</p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {asistente.firma ? (
+                        <div className="flex items-center gap-1">
+                          <img src={asistente.firma} alt="Firma" className="h-7 max-w-[70px] border border-teal-500/30 rounded bg-white px-1 object-contain" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = [...actaForm.asistentes];
+                              updated[aIdx].firma = null;
+                              setActaForm({ ...actaForm, asistentes: updated });
+                            }}
+                            className="text-slate-400 hover:text-red-500 p-1"
+                            title="Borrar firma para volver a firmar"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setSigningAssistantIndex(aIdx)}
+                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-2 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 text-[10px] font-bold"
+                          title="Firmar en pantalla táctil / ratón"
+                        >
+                          <PenTool className="w-3 h-3 mr-1" />
+                          <span>Firmar</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = actaForm.asistentes.filter((_: any, idx: number) => idx !== aIdx);
+                          setActaForm({ ...actaForm, asistentes: updated });
+                        }}
+                        className="text-slate-300 hover:text-red-400 p-1"
+                        title="Quitar asistente"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Desarrollo Temático del Acta */}
             <div className="space-y-4">
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
@@ -899,22 +1326,251 @@ export default function ConvivenciaWorkspace() {
                   className="w-full p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-xs"
                 />
               </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                  4. Proposiciones, Varios y Próxima Sesión Ordinaria
+                </label>
+                <textarea
+                  rows={2}
+                  value={actaForm.desarrollo?.proposicionesVarios || ''}
+                  onChange={(e) =>
+                    setActaForm({
+                      ...actaForm,
+                      desarrollo: { ...actaForm.desarrollo, proposicionesVarios: e.target.value },
+                    })
+                  }
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Compromisos del Acta (Sincronizados con Kanban ACPM) */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                    Plan de Acción / Compromisos Asumidos ({actaForm.compromisos?.length || 0})
+                  </h4>
+                  <p className="text-[11px] text-slate-400 dark:text-zinc-400">
+                    Los compromisos se sincronizan automáticamente como tarjetas de acción en el Centro de Control (Kanban ACPM)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActaForm({
+                      ...actaForm,
+                      compromisos: [
+                        ...(actaForm.compromisos || []),
+                        {
+                          accion: '',
+                          responsable: '',
+                          fechaLimite: new Date().toISOString().split('T')[0],
+                          estado: 'pendiente',
+                        },
+                      ],
+                    })
+                  }
+                  className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Agregar Compromiso
+                </button>
+              </div>
+
+              {(actaForm.compromisos || []).map((comp: any, cIdx: number) => (
+                <div key={cIdx} className="grid grid-cols-1 sm:grid-cols-4 gap-2 p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/40">
+                  <input
+                    type="text"
+                    placeholder="Acción preventiva o acuerdo..."
+                    value={comp.accion || ''}
+                    onChange={(e) => {
+                      const updated = [...actaForm.compromisos];
+                      updated[cIdx].accion = e.target.value;
+                      setActaForm({ ...actaForm, compromisos: updated });
+                    }}
+                    className="sm:col-span-2 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-semibold"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Responsable..."
+                    value={comp.responsable || ''}
+                    onChange={(e) => {
+                      const updated = [...actaForm.compromisos];
+                      updated[cIdx].responsable = e.target.value;
+                      setActaForm({ ...actaForm, compromisos: updated });
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-semibold"
+                  />
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="date"
+                      value={comp.fechaLimite || ''}
+                      onChange={(e) => {
+                        const updated = [...actaForm.compromisos];
+                        updated[cIdx].fechaLimite = e.target.value;
+                        setActaForm({ ...actaForm, compromisos: updated });
+                      }}
+                      className="w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-semibold"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = actaForm.compromisos.filter((_: any, idx: number) => idx !== cIdx);
+                        setActaForm({ ...actaForm, compromisos: updated });
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-red-500"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-zinc-800">
               <button
                 type="button"
                 onClick={() => setShowActaModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600"
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleSaveActa}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Guardar Acta Trimestral
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MODAL CONVOCATORIA ELECCIONES CONVIVENCIA ═══ */}
+      {showEleccionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-xl bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-indigo-500/10 text-indigo-600">
+                <Vote className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-800 dark:text-zinc-100">
+                  Nueva Convocatoria Electoral — Convivencia
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                  Abre la urna digital anónima para que todos los trabajadores elijan a sus representantes
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Título de la Convocatoria</label>
+                <input
+                  type="text"
+                  value={eleccionForm.titulo}
+                  onChange={(e) => setEleccionForm({ ...eleccionForm, titulo: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Periodo Constitucional</label>
+                <input
+                  type="text"
+                  value={eleccionForm.periodo}
+                  onChange={(e) => setEleccionForm({ ...eleccionForm, periodo: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">
+                  Candidatos Postulados ({eleccionForm.candidatos?.length || 0})
+                </label>
+                <div className="max-h-40 overflow-y-auto space-y-2 mb-2">
+                  {(eleccionForm.candidatos || []).map((cand: any, idx: number) => (
+                    <div key={idx} className="p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/50 flex items-center justify-between text-xs">
+                      <div>
+                        <p className="font-bold text-slate-800 dark:text-zinc-200">{cand.nombre}</p>
+                        <p className="text-[11px] text-slate-500">{cand.cargo} • CC: {cand.cedula}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = eleccionForm.candidatos.filter((_: any, i: number) => i !== idx);
+                          setEleccionForm({ ...eleccionForm, candidatos: updated });
+                        }}
+                        className="text-slate-400 hover:text-red-500"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Formulario rápido para añadir candidato */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Nombre completo..."
+                    value={newCandidato.nombre}
+                    onChange={(e) => setNewCandidato({ ...newCandidato, nombre: e.target.value })}
+                    className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Cédula..."
+                    value={newCandidato.cedula}
+                    onChange={(e) => setNewCandidato({ ...newCandidato, cedula: e.target.value })}
+                    className="w-28 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Cargo..."
+                    value={newCandidato.cargo}
+                    onChange={(e) => setNewCandidato({ ...newCandidato, cargo: e.target.value })}
+                    className="w-28 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newCandidato.nombre.trim()) return;
+                      setEleccionForm({
+                        ...eleccionForm,
+                        candidatos: [
+                          ...(eleccionForm.candidatos || []),
+                          { ...newCandidato, id: Date.now().toString() },
+                        ],
+                      });
+                      setNewCandidato({ nombre: '', cargo: '', cedula: '' });
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setShowEleccionModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateEleccion}
                 className="px-5 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-md active:scale-95"
               >
-                Guardar Acta Trimestral
+                Publicar Convocatoria
               </button>
             </div>
           </div>
@@ -928,6 +1584,9 @@ export default function ConvivenciaWorkspace() {
             <h3 className="text-base font-black text-slate-800 dark:text-zinc-100">
               Código QR de Votación Secreta
             </h3>
+            <p className="text-xs text-slate-500">
+              Imprime o proyecta este código para que los trabajadores voten de forma anónima desde su celular
+            </p>
             <div className="p-4 bg-white rounded-2xl border border-slate-200 inline-block mx-auto shadow-inner">
               <QRCodeSVG value={qrModalUrl} size={180} level="H" />
             </div>
@@ -942,6 +1601,22 @@ export default function ConvivenciaWorkspace() {
           </div>
         </div>
       )}
+
+      {/* ═══ MODAL LIENZO DE FIRMA DIGITAL ═══ */}
+      <SignaturePad
+        isOpen={signingAssistantIndex !== null}
+        onClose={() => setSigningAssistantIndex(null)}
+        title={`Firma Digital de ${actaForm.asistentes?.[signingAssistantIndex ?? 0]?.nombre || 'Participante'}`}
+        onSave={(b64) => {
+          if (signingAssistantIndex !== null) {
+            const updated = [...actaForm.asistentes];
+            updated[signingAssistantIndex].firma = b64;
+            setActaForm({ ...actaForm, asistentes: updated });
+            setSigningAssistantIndex(null);
+            showToast({ message: 'Firma registrada correctamente', status: 'success' });
+          }
+        }}
+      />
     </div>
   );
 }

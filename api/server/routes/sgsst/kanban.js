@@ -952,6 +952,43 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         { $set: updateData },
         { new: true }
       );
+
+      // Sincronización bidireccional hacia actas de COPASST y Convivencia
+      try {
+        if (updatedTask && (updatedTask.type === 'copasst_finding' || updatedTask.type === 'convivencia_finding')) {
+          const isDone = updatedTask.status === 'done';
+          const newStatus = isDone ? 'cumplido' : 'pendiente';
+
+          if (updatedTask.type === 'copasst_finding' && updatedTask.referenceId) {
+            const parts = updatedTask.referenceId.split('_');
+            if (parts.length >= 3) {
+              const actaId = parts[1];
+              const compIndex = parseInt(parts[2], 10);
+              const { SgsstCopasstActa } = require('../../../models/SgsstCopasst');
+              const acta = await SgsstCopasstActa.findById(actaId);
+              if (acta && Array.isArray(acta.compromisos) && acta.compromisos[compIndex]) {
+                acta.compromisos[compIndex].estado = newStatus;
+                await acta.save();
+              }
+            }
+          } else if (updatedTask.type === 'convivencia_finding' && updatedTask.referenceId) {
+            const parts = updatedTask.referenceId.split('_');
+            if (parts.length >= 3) {
+              const actaId = parts[1];
+              const compIndex = parseInt(parts[2], 10);
+              const { SgsstConvivenciaActa } = require('../../../models/SgsstConvivencia');
+              const acta = await SgsstConvivenciaActa.findById(actaId);
+              if (acta && Array.isArray(acta.compromisos) && acta.compromisos[compIndex]) {
+                acta.compromisos[compIndex].estado = newStatus;
+                await acta.save();
+              }
+            }
+          }
+        }
+      } catch (syncBackErr) {
+        logger.debug('[Kanban] Error syncing back to actas:', syncBackErr.message);
+      }
+
       return res.json(updatedTask);
     } else {
       // Create new manual task

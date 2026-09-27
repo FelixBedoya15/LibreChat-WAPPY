@@ -5,6 +5,8 @@ const CompanyInfo = require('../../../models/CompanyInfo');
 const { SgsstConvivenciaComite, SgsstConvivenciaActa, SgsstConvivenciaCaso } = require('../../../models/SgsstConvivencia');
 const { SgsstEleccion } = require('../../../models/SgsstCopasst');
 const { SgsstPadronVotante, SgsstVotoAnonimo } = require('../../../models/SgsstVotacion');
+const KanbanTask = require('../../../models/KanbanTask');
+const PerfilSociodemograficoData = require('../../../models/PerfilSociodemograficoData');
 const { generateWithKeyRotation } = require('./sgsstGemini');
 const { logger } = require('~/config');
 
@@ -13,6 +15,51 @@ async function getActiveCompany(userId) {
   let active = await CompanyInfo.findOne({ user: userId, isActive: true }).lean();
   if (!active) active = await CompanyInfo.findOne({ user: userId }).lean();
   return active;
+}
+
+// ─── Helper: Sincronizar membresía de comités en Perfil Sociodemográfico ─────
+async function syncCommitteeMembershipToSociodemografico(companyId) {
+  try {
+    const perfilDoc = await PerfilSociodemograficoData.findOne({ companyId });
+    if (!perfilDoc || !Array.isArray(perfilDoc.trabajadores)) return;
+
+    const { SgsstCopasstComite } = require('../../../models/SgsstCopasst');
+    const activeCopasst = await SgsstCopasstComite.findOne({ companyId, estado: 'activo' }).lean()
+      || await SgsstCopasstComite.findOne({ companyId }).sort({ createdAt: -1 }).lean();
+    const activeConvivencias = await SgsstConvivenciaComite.find({ companyId, estado: 'activo' }).lean();
+
+    const copasstCedulas = new Set();
+    if (activeCopasst) {
+      (activeCopasst.representantesEmpleador || []).forEach(r => r.cedula && copasstCedulas.add(String(r.cedula).trim()));
+      (activeCopasst.representantesTrabajadores || []).forEach(r => r.cedula && copasstCedulas.add(String(r.cedula).trim()));
+      if (activeCopasst.vigia?.cedula) copasstCedulas.add(String(activeCopasst.vigia.cedula).trim());
+    }
+
+    const convivenciaCedulas = new Set();
+    for (const conv of activeConvivencias) {
+      (conv.representantesEmpleador || []).forEach(r => r.cedula && convivenciaCedulas.add(String(r.cedula).trim()));
+      (conv.representantesTrabajadores || []).forEach(r => r.cedula && convivenciaCedulas.add(String(r.cedula).trim()));
+    }
+
+    let modified = false;
+    perfilDoc.trabajadores.forEach(w => {
+      const cedula = String(w.identificacion || '').trim();
+      const newCopasst = copasstCedulas.has(cedula) ? 'Sí' : 'No';
+      const newConvivencia = convivenciaCedulas.has(cedula) ? 'Sí' : 'No';
+      if (w.esCopasst !== newCopasst || w.esComiteConvivencia !== newConvivencia) {
+        w.esCopasst = newCopasst;
+        w.esComiteConvivencia = newConvivencia;
+        modified = true;
+      }
+    });
+
+    if (modified) {
+      perfilDoc.markModified('trabajadores');
+      await perfilDoc.save();
+    }
+  } catch (err) {
+    logger.debug('[CONVIVENCIA] syncCommitteeMembershipToSociodemografico error:', err.message);
+  }
 }
 
 // ─── 1. GET /config — Configuración, Comités por Centros y Semáforo de Casos ───
@@ -109,6 +156,7 @@ router.post('/comite', requireJwtAuth, async (req, res) => {
     if (observaciones !== undefined) comite.observaciones = observaciones;
 
     await comite.save();
+    syncCommitteeMembershipToSociodemografico(company._id);
     res.json({ success: true, comite });
   } catch (error) {
     logger.error('[CONVIVENCIA] POST /comite error:', error);
@@ -301,6 +349,49 @@ router.post('/actas', requireJwtAuth, async (req, res) => {
     if (estadoActa) acta.estadoActa = estadoActa;
 
     await acta.save();
+
+    // Sincronizar compromisos con el Centro de Control (KanbanTask / ACPM Hito 07)
+    try {
+      if (Array.isArray(acta.compromisos)) {
+        for (let i = 0; i < acta.compromisos.length; i++) {
+          const comp = acta.compromisos[i];
+          const refId = `convivencia_${acta._id}_${i}`;
+          const isDone = comp.estado === 'cumplido';
+          const dueDate = comp.fechaLimite ? new Date(comp.fechaLimite) : new Date(Date.now() + 15 * 86400000);
+
+          let task = await KanbanTask.findOne({ companyId: String(company._id), referenceId: refId });
+          if (task) {
+            task.title = `[CONVIVENCIA] ${comp.accion}`;
+            task.description = `Compromiso de Acta Trimestral ${acta.consecutivo} (Q${acta.trimestre}/${acta.anio}). Responsable: ${comp.responsable || 'Comité'}`;
+            task.dueDate = isNaN(dueDate.getTime()) ? new Date(Date.now() + 15 * 86400000) : dueDate;
+            task.status = isDone ? 'done' : (task.status === 'done' ? 'todo' : task.status);
+            task.assignedTo = comp.responsable || 'Comité de Convivencia';
+            if (isDone && !task.completedAt) task.completedAt = new Date();
+            await task.save();
+          } else {
+            task = await KanbanTask.create({
+              user: req.user.id,
+              companyId: String(company._id),
+              title: `[CONVIVENCIA] ${comp.accion}`,
+              description: `Compromiso de Acta Trimestral ${acta.consecutivo} (Q${acta.trimestre}/${acta.anio}). Responsable: ${comp.responsable || 'Comité'}`,
+              status: isDone ? 'done' : 'todo',
+              dueDate: isNaN(dueDate.getTime()) ? new Date(Date.now() + 15 * 86400000) : dueDate,
+              type: 'convivencia_finding',
+              priority: 'media',
+              actionType: 'preventiva',
+              sourceModule: 'CONVIVENCIA',
+              assignedTo: comp.responsable || 'Comité de Convivencia',
+              referenceId: refId,
+              referenceName: `Acta Convivencia ${acta.consecutivo}`,
+              completedAt: isDone ? new Date() : undefined,
+            });
+          }
+        }
+      }
+    } catch (kErr) {
+      logger.error('[CONVIVENCIA] Error syncing compromisos to KanbanTask:', kErr);
+    }
+
     res.json({ success: true, acta });
   } catch (error) {
     logger.error('[CONVIVENCIA] POST /actas error:', error);
@@ -315,6 +406,7 @@ router.delete('/actas/:id', requireJwtAuth, async (req, res) => {
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
 
     await SgsstConvivenciaActa.deleteOne({ _id: req.params.id, companyId: company._id });
+    await KanbanTask.deleteMany({ companyId: String(company._id), referenceId: { $regex: `^convivencia_${req.params.id}` } });
     res.json({ success: true, message: 'Acta eliminada correctamente' });
   } catch (error) {
     logger.error('[CONVIVENCIA] DELETE /actas error:', error);
@@ -474,6 +566,29 @@ router.post('/elecciones/:id/escrutinio', requireJwtAuth, async (req, res) => {
     eleccion.actaEscrutinioTexto = `En la ciudad de ${company.city || 'Colombia'}, a los ${fechaHoy}, concluyó el escrutinio de votos anónimos para el Comité de Convivencia Laboral (${eleccion.periodo}) conforme a la Resolución 3461 de 2025. Se contabilizaron ${votos.length} sufragios válidos y secretos.`;
 
     await eleccion.save();
+
+    // Promover automáticamente a los candidatos más votados como representantes de los trabajadores
+    try {
+      const topCandidates = eleccion.candidatos.filter((c) => c.id !== 'voto_en_blanco');
+      if (topCandidates.length > 0) {
+        let comite = await SgsstConvivenciaComite.findOne({ companyId: company._id }).sort({ createdAt: -1 });
+        if (comite) {
+          comite.representantesTrabajadores = topCandidates.map((c, idx) => ({
+            nombre: c.nombre,
+            cedula: c.cedula,
+            cargo: c.cargo || '',
+            rol: idx === 0 ? 'Secretario / Mediador' : 'Vocal',
+            principal: idx === 0,
+            votosRecibidos: c.votos || 0,
+          }));
+          await comite.save();
+        }
+      }
+      syncCommitteeMembershipToSociodemografico(company._id);
+    } catch (promErr) {
+      logger.error('[CONVIVENCIA] Error promoting elected candidates:', promErr);
+    }
+
     res.json({ success: true, eleccion });
   } catch (error) {
     logger.error('[CONVIVENCIA] POST /elecciones/:id/escrutinio error:', error);

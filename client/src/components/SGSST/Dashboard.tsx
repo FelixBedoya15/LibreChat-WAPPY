@@ -80,7 +80,7 @@ const getUnifiedHitos = (): Array<{
     },
     {
         id: 'hito3',
-        title: 'Gobernanza Paritaria & Convivencia Biocéntrica',
+        title: 'Comités Paritarios & Convivencia Laboral',
         subtitle: 'Democracia Laboral y Protección de Clima',
         description: 'COPASST / Vigía de SST (Conformación, Votaciones, Actas Mensuales e Inspecciones) y Comité de Convivencia Laboral (Res. 3461/2025, Gestión 65 días y Ruta Ley 2365).',
         extendedPhilosophy: 'La seguridad no es una imposición jerárquica sino un pacto participativo y democrático. Empodera a los comités paritarios para auditar las condiciones de trabajo, erradicar el acoso laboral y garantizar espacios laborales dignos y seguros.',

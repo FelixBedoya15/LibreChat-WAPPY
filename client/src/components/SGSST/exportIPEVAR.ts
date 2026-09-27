@@ -33,7 +33,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   // Hero Header
   wsDash.mergeCells('A1:E4');
   const heroCell = wsDash.getCell('A1');
-  heroCell.value = '   ⚡ DASHBOARD INTERACTIVO — IPEVAR GTC-45';
+  heroCell.value = '   ⚡ DASHBOARD INTERACTIVO — IPEVR GTC-45';
   heroCell.font = { size: 28, bold: true, color: { argb: 'FFFFFFFF' }, name: 'Book Antiqua' };
   heroCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } }; // Dark Teal (Matches Table Header)
   heroCell.alignment = { vertical: 'middle', horizontal: 'left' };
@@ -92,10 +92,10 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   });
 
   // KPI Formulas (Dynamic with C6)
-  wsDash.getCell('B9').value = { formula: `IF($C$6="TODOS", COUNTA('Matriz IPEVAR'!A2:A${totalRows}), COUNTIF('Matriz IPEVAR'!A2:A${totalRows}, $C$6))` };
+  wsDash.getCell('B9').value = { formula: `IF($C$6="TODOS", COUNTA('Matriz IPEVR'!A2:A${totalRows}), COUNTIF('Matriz IPEVR'!A2:A${totalRows}, $C$6))` };
   wsDash.getCell('B9').font = { size: 24, bold: true, color: { argb: 'FF0F172A' }, name: 'Book Antiqua' }; // Slate 900
 
-  wsDash.getCell('C9').value = { formula: `IF($C$6="TODOS", COUNTIF('Matriz IPEVAR'!T2:T${totalRows}, "No Aceptable"), COUNTIFS('Matriz IPEVAR'!T2:T${totalRows}, "No Aceptable", 'Matriz IPEVAR'!A2:A${totalRows}, $C$6))` };
+  wsDash.getCell('C9').value = { formula: `IF($C$6="TODOS", COUNTIF('Matriz IPEVR'!T2:T${totalRows}, "No Aceptable"), COUNTIFS('Matriz IPEVR'!T2:T${totalRows}, "No Aceptable", 'Matriz IPEVR'!A2:A${totalRows}, $C$6))` };
   wsDash.getCell('C9').font = { size: 24, bold: true, color: { argb: 'FFEF4444' }, name: 'Book Antiqua' }; // Rojo
 
   wsDash.getCell('D9').value = { formula: `IF(B9=0, 0, C9/B9)` };
@@ -106,7 +106,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
 
   // --- DYNAMIC CARD GENERATOR ---
   const getInteractiveFormula = (colTarget: string, valTarget: string) => {
-    return `IF($C$6="TODOS", COUNTIF('Matriz IPEVAR'!${colTarget}2:${colTarget}${totalRows}, "${valTarget}"), COUNTIFS('Matriz IPEVAR'!${colTarget}2:${colTarget}${totalRows}, "${valTarget}", 'Matriz IPEVAR'!A2:A${totalRows}, $C$6))`;
+    return `IF($C$6="TODOS", COUNTIF('Matriz IPEVR'!${colTarget}2:${colTarget}${totalRows}, "${valTarget}"), COUNTIFS('Matriz IPEVR'!${colTarget}2:${colTarget}${totalRows}, "${valTarget}", 'Matriz IPEVR'!A2:A${totalRows}, $C$6))`;
   };
 
   const createCardHeader = (row: number, title: string) => {
@@ -207,7 +207,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   // ============================================================================
   // HOJA 2: MATRIZ GTC-45 (DATOS)
   // ============================================================================
-  const wsMatriz = wb.addWorksheet('Matriz IPEVAR', {
+  const wsMatriz = wb.addWorksheet('Matriz IPEVR', {
     views: [{ state: 'frozen', ySplit: 1, xSplit: 2, showGridLines: false }]
   });
 
@@ -378,5 +378,5 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
 
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  saveAs(blob, `Matriz_IPEVAR_GTC45_PRO_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  saveAs(blob, `Matriz_IPEVR_GTC45_PRO_${new Date().toISOString().slice(0, 10)}.xlsx`);
 };

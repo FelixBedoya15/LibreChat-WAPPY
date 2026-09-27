@@ -5,6 +5,8 @@ const CompanyInfo = require('../../../models/CompanyInfo');
 const { SgsstCopasstComite, SgsstCopasstActa, SgsstEleccion } = require('../../../models/SgsstCopasst');
 const { SgsstPadronVotante, SgsstVotoAnonimo } = require('../../../models/SgsstVotacion');
 const SgsstWorker = require('../../../models/SgsstWorker');
+const KanbanTask = require('../../../models/KanbanTask');
+const PerfilSociodemograficoData = require('../../../models/PerfilSociodemograficoData');
 const { generateWithKeyRotation } = require('./sgsstGemini');
 const { logger } = require('~/config');
 
@@ -13,6 +15,51 @@ async function getActiveCompany(userId) {
   let active = await CompanyInfo.findOne({ user: userId, isActive: true }).lean();
   if (!active) active = await CompanyInfo.findOne({ user: userId }).lean();
   return active;
+}
+
+// ─── Helper: Sincronizar membresía de comités en Perfil Sociodemográfico ─────
+async function syncCommitteeMembershipToSociodemografico(companyId) {
+  try {
+    const perfilDoc = await PerfilSociodemograficoData.findOne({ companyId });
+    if (!perfilDoc || !Array.isArray(perfilDoc.trabajadores)) return;
+
+    const { SgsstConvivenciaComite } = require('../../../models/SgsstConvivencia');
+    const activeCopasst = await SgsstCopasstComite.findOne({ companyId, estado: 'activo' }).lean()
+      || await SgsstCopasstComite.findOne({ companyId }).sort({ createdAt: -1 }).lean();
+    const activeConvivencias = await SgsstConvivenciaComite.find({ companyId, estado: 'activo' }).lean();
+
+    const copasstCedulas = new Set();
+    if (activeCopasst) {
+      (activeCopasst.representantesEmpleador || []).forEach(r => r.cedula && copasstCedulas.add(String(r.cedula).trim()));
+      (activeCopasst.representantesTrabajadores || []).forEach(r => r.cedula && copasstCedulas.add(String(r.cedula).trim()));
+      if (activeCopasst.vigia?.cedula) copasstCedulas.add(String(activeCopasst.vigia.cedula).trim());
+    }
+
+    const convivenciaCedulas = new Set();
+    for (const conv of activeConvivencias) {
+      (conv.representantesEmpleador || []).forEach(r => r.cedula && convivenciaCedulas.add(String(r.cedula).trim()));
+      (conv.representantesTrabajadores || []).forEach(r => r.cedula && convivenciaCedulas.add(String(r.cedula).trim()));
+    }
+
+    let modified = false;
+    perfilDoc.trabajadores.forEach(w => {
+      const cedula = String(w.identificacion || '').trim();
+      const newCopasst = copasstCedulas.has(cedula) ? 'Sí' : 'No';
+      const newConvivencia = convivenciaCedulas.has(cedula) ? 'Sí' : 'No';
+      if (w.esCopasst !== newCopasst || w.esComiteConvivencia !== newConvivencia) {
+        w.esCopasst = newCopasst;
+        w.esComiteConvivencia = newConvivencia;
+        modified = true;
+      }
+    });
+
+    if (modified) {
+      perfilDoc.markModified('trabajadores');
+      await perfilDoc.save();
+    }
+  } catch (err) {
+    logger.debug('[COPASST] syncCommitteeMembershipToSociodemografico error:', err.message);
+  }
 }
 
 // ─── 1. GET /config — Configuración, Estado Paritario y Resumen Anual ─────────
@@ -111,6 +158,7 @@ router.post('/comite', requireJwtAuth, async (req, res) => {
     if (observaciones !== undefined) comite.observaciones = observaciones;
 
     await comite.save();
+    syncCommitteeMembershipToSociodemografico(company._id);
     res.json({ success: true, comite });
   } catch (error) {
     logger.error('[COPASST] POST /comite error:', error);
@@ -214,6 +262,54 @@ router.post('/actas', requireJwtAuth, async (req, res) => {
     if (estadoActa) acta.estadoActa = estadoActa;
 
     await acta.save();
+
+    // Sincronizar compromisos con el Centro de Control (KanbanTask / ACPM Hito 07)
+    try {
+      if (Array.isArray(acta.compromisos)) {
+        for (let i = 0; i < acta.compromisos.length; i++) {
+          const comp = acta.compromisos[i];
+          const refId = `copasst_${acta._id}_${i}`;
+          const isDone = comp.estado === 'cumplido';
+          const dueDate = comp.fechaLimite ? new Date(comp.fechaLimite) : new Date(Date.now() + 15 * 86400000);
+
+          let task = await KanbanTask.findOne({ companyId: String(company._id), referenceId: refId });
+          if (task) {
+            task.title = `[COPASST] ${comp.accion}`;
+            task.description = `Compromiso de Acta Ordinaria ${acta.consecutivo} (${acta.mes}/${acta.anio}). Responsable: ${comp.responsable || 'Comité'}`;
+            task.dueDate = isNaN(dueDate.getTime()) ? new Date(Date.now() + 15 * 86400000) : dueDate;
+            task.status = isDone ? 'done' : (task.status === 'done' ? 'todo' : task.status);
+            task.assignedTo = comp.responsable || 'COPASST';
+            if (isDone && !task.completedAt) task.completedAt = new Date();
+            await task.save();
+            comp.acpmId = task._id;
+            comp.vinculadaAcpm = true;
+          } else {
+            task = await KanbanTask.create({
+              user: req.user.id,
+              companyId: String(company._id),
+              title: `[COPASST] ${comp.accion}`,
+              description: `Compromiso de Acta Ordinaria ${acta.consecutivo} (${acta.mes}/${acta.anio}). Responsable: ${comp.responsable || 'Comité'}`,
+              status: isDone ? 'done' : 'todo',
+              dueDate: isNaN(dueDate.getTime()) ? new Date(Date.now() + 15 * 86400000) : dueDate,
+              type: 'copasst_finding',
+              priority: 'media',
+              actionType: 'correctiva',
+              sourceModule: 'COPASST',
+              assignedTo: comp.responsable || 'COPASST',
+              referenceId: refId,
+              referenceName: `Acta COPASST ${acta.consecutivo}`,
+              completedAt: isDone ? new Date() : undefined,
+            });
+            comp.acpmId = task._id;
+            comp.vinculadaAcpm = true;
+          }
+        }
+        await acta.save();
+      }
+    } catch (kErr) {
+      logger.error('[COPASST] Error syncing compromisos to KanbanTask:', kErr);
+    }
+
     res.json({ success: true, acta });
   } catch (error) {
     logger.error('[COPASST] POST /actas error:', error);
@@ -228,6 +324,7 @@ router.delete('/actas/:id', requireJwtAuth, async (req, res) => {
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
 
     await SgsstCopasstActa.deleteOne({ _id: req.params.id, companyId: company._id });
+    await KanbanTask.deleteMany({ companyId: String(company._id), referenceId: { $regex: `^copasst_${req.params.id}` } });
     res.json({ success: true, message: 'Acta eliminada correctamente' });
   } catch (error) {
     logger.error('[COPASST] DELETE /actas error:', error);
@@ -383,6 +480,29 @@ router.post('/elecciones/:id/escrutinio', requireJwtAuth, async (req, res) => {
     eleccion.actaEscrutinioTexto = `En la ciudad de ${company.city || 'Colombia'}, a los ${fechaHoy}, siendo clausurada la jornada de votación para el COPASST (${eleccion.periodo}), los jurados y la mesa electoral certifican la participación de ${votos.length} sufragantes de un censo de ${eleccion.totalVotantesHabilitados} habilitados. Los votos fueron escrutados de manera anónima e inviolable.`;
 
     await eleccion.save();
+
+    // Promover automáticamente a los candidatos más votados como representantes de los trabajadores
+    try {
+      const topCandidates = eleccion.candidatos.filter((c) => c.id !== 'voto_en_blanco');
+      if (topCandidates.length > 0) {
+        let comite = await SgsstCopasstComite.findOne({ companyId: company._id }).sort({ createdAt: -1 });
+        if (comite) {
+          comite.representantesTrabajadores = topCandidates.map((c, idx) => ({
+            nombre: c.nombre,
+            cedula: c.cedula,
+            cargo: c.cargo || '',
+            rol: idx === 0 ? 'Secretario / Vocal' : 'Vocal',
+            principal: idx === 0,
+            votosRecibidos: c.votos || 0,
+          }));
+          await comite.save();
+        }
+      }
+      syncCommitteeMembershipToSociodemografico(company._id);
+    } catch (promErr) {
+      logger.error('[COPASST] Error promoting elected candidates:', promErr);
+    }
+
     res.json({ success: true, eleccion });
   } catch (error) {
     logger.error('[COPASST] POST /elecciones/:id/escrutinio error:', error);

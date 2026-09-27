@@ -115,7 +115,7 @@ const PercepcionScore = ({ score }: { score: number }) => {
         <span>Estado: <strong className="text-text-primary">{level.label}</strong></span>
         {score > 0 ? (
           <span className="font-bold text-teal-600 dark:text-teal-400">
-            Reducción IPEVAR: -{(factorReduccion * 100).toFixed(0)}%
+            Reducción IPEVR: -{(factorReduccion * 100).toFixed(0)}%
           </span>
         ) : (
           <span className="italic">Modulador activo al reportar</span>
@@ -263,7 +263,7 @@ const calculateAge = (dob: any) => {
 // ─── Historial de eventos ─────────────────────────────────────────────────────
 const MODULO_LABELS: Record<string, { label: string; color: string }> = {
   actos: { label: 'Reporte Actos', color: 'text-orange-500' },
-  participacion_ipevar: { label: 'Participación IPEVAR', color: 'text-teal-500' },
+  participacion_ipevar: { label: 'Participación IPEVR', color: 'text-teal-500' },
   atel: { label: 'ATEL', color: 'text-red-500' },
   capacitacion: { label: 'Capacitación', color: 'text-blue-500' },
   ats: { label: 'ATS', color: 'text-purple-500' },
@@ -566,7 +566,7 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
           isNew
             ? {
                 content: contentToSave,
-                title: `Informe Bio-IPEVAR - ${worker.nombre} - ${new Date().toLocaleDateString('es-CO')}`,
+                title: `Dictamen Bio-IPEVR - ${worker.nombre} - ${new Date().toLocaleDateString('es-CO')}`,
                 tags: ['sgsst-bio-ipevar', `worker-${worker._id}`],
               }
             : {
@@ -950,7 +950,7 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
           {[
             { title: 'ATEL', subtitle: 'Accidentes / Enfermedades', icon: '🚨', items: atel, emptyMsg: 'Sin eventos ATEL' },
             { title: 'Actos / Condiciones', subtitle: 'Reportes en terreno', icon: '⚠️', items: actos, emptyMsg: 'Sin reportes' },
-            { title: 'IPEVAR', subtitle: 'Participación activa', icon: '🎯', items: participaciones, emptyMsg: 'Sin registros' },
+            { title: 'IPEVR', subtitle: 'Participación activa', icon: '🎯', items: participaciones, emptyMsg: 'Sin registros' },
             { title: 'Capacitaciones', subtitle: 'Formación SST', icon: '📚', items: capacitaciones, emptyMsg: 'Sin cursos' },
             { title: 'Termómetro Psicosocial', subtitle: 'Bienestar & Clima', icon: '❤️', items: termometroAnimo, emptyMsg: 'Sin check-ins' },
           ].map(({ title, subtitle, icon, items, emptyMsg }) => {
@@ -1057,7 +1057,7 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
                 <div>
                   <h3 className="text-lg font-black text-text-primary flex items-center gap-2">
                     <BarChart2 className="h-5 w-5 text-teal-500" />
-                    Analítica Bio-IPEVAR & Dictamen Técnico Biocéntrico
+                    Analítica Bio-IPEVR & Dictamen Técnico Biocéntrico
                   </h3>
                   <p className="text-xs text-text-secondary mt-1">
                     Visualización de los 8 dominios bio-fisiológicos, susceptibilidad clínica (NS), exposición (NE), modulador de percepción del riesgo y dictamen biocéntrico con IA.

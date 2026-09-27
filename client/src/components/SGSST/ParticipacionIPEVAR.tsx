@@ -253,7 +253,7 @@ const ParticipacionIPEVAR = () => {
     const [showApplyModal, setShowApplyModal] = useState(false);
     const [itemToApply, setItemToApply] = useState<any>(null);
     const [officialMatrixRows, setOfficialMatrixRows] = useState<any[]>([]);
-    const [officialMatrixTitle, setOfficialMatrixTitle] = useState('Matriz IPEVAR SG-SST');
+    const [officialMatrixTitle, setOfficialMatrixTitle] = useState('Matriz IPEVR SG-SST');
     const [isLoadingOfficialRows, setIsLoadingOfficialRows] = useState(false);
     const [applyAction, setApplyAction] = useState<'create_new' | 'update_existing'>('create_new');
     const [applyTargetRowId, setApplyTargetRowId] = useState('');
@@ -532,7 +532,7 @@ const ParticipacionIPEVAR = () => {
             if (res.ok) {
                 const data = await res.json();
                 showToast({
-                    message: data.message || 'Peligro integrado exitosamente a la Matriz IPEVAR Oficial',
+                    message: data.message || 'Peligro integrado exitosamente a la Matriz IPEVR Oficial',
                     status: 'success',
                     severity: 'success'
                 });
@@ -1039,14 +1039,14 @@ const ParticipacionIPEVAR = () => {
                     <div className="flex items-center gap-2">
                         {activeParticipacion.status === 'applied_to_matrix' ? (
                             <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-xl text-xs font-bold border border-emerald-300 dark:border-emerald-800 shadow-sm">
-                                <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> Integrado en Matriz IPEVAR
+                                <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> Integrado en Matriz IPEVR
                             </span>
                         ) : (
                             <button
                                 type="button"
                                 onClick={() => handleOpenApplyModal(activeParticipacion)}
-                                title="Aprobar e Integrar a Matriz IPEVAR"
-                                aria-label="Aprobar e Integrar a Matriz IPEVAR"
+                                title="Aprobar e Integrar a Matriz IPEVR"
+                                aria-label="Aprobar e Integrar a Matriz IPEVR"
                                 className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-2 shadow-sm outline-none transition-all duration-300 hover:scale-105 active:scale-95 sm:h-9 sm:min-w-[36px] sm:px-2.5"
                             >
                                 <div className="relative flex shrink-0 items-center justify-center">
@@ -1054,7 +1054,7 @@ const ParticipacionIPEVAR = () => {
                                 </div>
                                 <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
                                     <span className="text-xs font-bold tracking-wide">
-                                        Aprobar e Integrar a Matriz IPEVAR
+                                        Aprobar e Integrar a Matriz IPEVR
                                     </span>
                                 </div>
                             </button>
@@ -1191,7 +1191,7 @@ const ParticipacionIPEVAR = () => {
                             </div>
                             <div className="text-left flex-grow">
                                 <h3 className="font-extrabold text-sm text-text-primary tracking-tight">Portal Público SGSST</h3>
-                                <p className="text-[11px] text-text-secondary font-semibold">Participación IPEVAR</p>
+                                <p className="text-[11px] text-text-secondary font-semibold">Participación IPEVR</p>
                             </div>
                             <button
                                 onClick={() => setShowQrModal(false)}
@@ -1209,7 +1209,7 @@ const ParticipacionIPEVAR = () => {
                                     <Info className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                                 </div>
                                 <div className="space-y-0.5">
-                                    <h4 className="text-[11px] font-bold text-indigo-800 dark:text-indigo-300">Portal IPEVAR</h4>
+                                    <h4 className="text-[11px] font-bold text-indigo-800 dark:text-indigo-300">Portal IPEVR</h4>
                                     <p className="text-[10px] text-indigo-600/90 dark:text-indigo-400/90 leading-relaxed font-semibold">
                                         Comparte este código o enlace. Los trabajadores podrán reportar y participar activamente en la identificación de peligros y evaluación de riesgos desde sus celulares.
                                     </p>
@@ -1221,7 +1221,7 @@ const ParticipacionIPEVAR = () => {
                                     <QRCodeSVG value={`${window.location.origin}/sgsst-public/ipevar/${companyInfo?._id || user?.id || (user as any)?._id || ''}`} size={115} className="mx-auto" level="H" includeMargin={false} />
                                 </div>
                                 <button
-                                    onClick={() => downloadQR("Participacion_IPEVAR_SGSST", 'ipevar-portal-qr-container')}
+                                    onClick={() => downloadQR("Participacion_IPEVR_SGSST", 'ipevar-portal-qr-container')}
                                     className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-lg text-[10px] font-bold border border-teal-200 dark:border-teal-900/50 hover:bg-teal-100 transition-colors shadow-sm cursor-pointer shrink-0"
                                 >
                                     <Download className="w-3.5 h-3.5" />
@@ -1269,7 +1269,7 @@ const ParticipacionIPEVAR = () => {
                     <div className="flex items-center gap-2">
                         {isFormExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                         <AlertTriangle className="h-5 w-5 text-teal-600" />
-                        <span className="font-semibold">Datos Participación IPEVAR</span>
+                        <span className="font-semibold">Datos Participación IPEVR</span>
                     </div>
                 </button>
 
@@ -1647,12 +1647,12 @@ const ParticipacionIPEVAR = () => {
                 <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
-                    title="Participación IPEVAR"
+                    title="Participación IPEVR"
                     icon={<AlertTriangle className="h-5 w-5 text-teal-600" />}
                     actions={
                         <ExportDropdown
                             content={editorContentRef.current || generatedReport || ''}
-                            fileName="Informe_ParticipacionIPEVAR"
+                            fileName="Informe_ParticipacionIPEVR"
                             reportType="general"
                         />
                     }
@@ -1708,7 +1708,7 @@ const ParticipacionIPEVAR = () => {
                                 </div>
                                 <div>
                                     <h3 className="font-extrabold text-base text-text-primary">
-                                        Aprobar e Integrar a Matriz IPEVAR Oficial
+                                        Aprobar e Integrar a Matriz IPEVR Oficial
                                     </h3>
                                     <p className="text-xs text-text-secondary">
                                         Colaborador: <span className="font-semibold text-text-primary">{applyFormData.trabajadorNombre || 'Sin nombre'}</span> {applyFormData.trabajadorCedula ? `(CC ${applyFormData.trabajadorCedula})` : ''} {applyFormData.cargo ? <span className="ml-1 text-teal-600 dark:text-teal-400 font-bold">• Cargo: {applyFormData.cargo}</span> : ''}
@@ -1956,7 +1956,7 @@ const ParticipacionIPEVAR = () => {
                             <div className="p-3 bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/60 rounded-2xl flex items-start gap-2.5 text-[11px] text-teal-900 dark:text-teal-200">
                                 <Info className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
                                 <div>
-                                    <span className="font-bold">Efecto Inmediato:</span> Se sincronizará la Matriz IPEVAR Oficial ({officialMatrixTitle}) y los Controles Propuestos se enviarán como tareas al <strong>Centro de Control (Kanban)</strong>. El trabajador recibirá <strong>+150 puntos</strong> en su Hoja de Vida Bio-Individual.
+                                    <span className="font-bold">Efecto Inmediato:</span> Se sincronizará la Matriz IPEVR Oficial ({officialMatrixTitle}) y los Controles Propuestos se enviarán como tareas al <strong>Centro de Control (Kanban)</strong>. El trabajador recibirá <strong>+150 puntos</strong> en su Hoja de Vida Bio-Individual.
                                 </div>
                             </div>
                         </div>
@@ -1983,7 +1983,7 @@ const ParticipacionIPEVAR = () => {
                                     </>
                                 ) : (
                                     <>
-                                        <CheckCircle className="w-4 h-4" /> Aprobar e Integrar a Matriz IPEVAR
+                                        <CheckCircle className="w-4 h-4" /> Aprobar e Integrar a Matriz IPEVR
                                     </>
                                 )}
                             </button>

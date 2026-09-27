@@ -2383,7 +2383,7 @@ export default function MatrizIPEVARTable({
           isNew
             ? {
                 content: contentToSave,
-                title: `Informe IPEVAR GTC-45 - ${new Date().toLocaleDateString('es-CO')}`,
+                title: `Informe IPEVR GTC-45 - ${new Date().toLocaleDateString('es-CO')}`,
                 tags: ['sgsst-matriz-ipevar'],
               }
             : {
@@ -2902,7 +2902,7 @@ export default function MatrizIPEVARTable({
         </div>
         <h3 className="mb-2 text-lg font-semibold text-text-primary">Matriz Inactiva</h3>
         <p className="mb-6 max-w-sm text-sm text-text-secondary">
-          Envía el primer mensaje en el chat para instanciar la matriz IPEVAR. Los riesgos se
+          Envía el primer mensaje en el chat para instanciar la matriz IPEVR. Los riesgos se
           guardarán automáticamente aquí.
         </p>
 
@@ -2990,7 +2990,7 @@ export default function MatrizIPEVARTable({
             onImportExcel={() => fileInputRef.current?.click()}
             onExportExcel={handleExportExcel}
             exportContent={reportContent || ''}
-            exportFileName={`Informe_IPEVAR_GTC45_${new Date().toISOString().slice(0, 10)}`}
+            exportFileName={`Informe_IPEVR_GTC45_${new Date().toISOString().slice(0, 10)}`}
             onDummy={handleDummyData}
           />
 
@@ -3028,7 +3028,7 @@ export default function MatrizIPEVARTable({
                 </div>
                 <div>
                   <span className="text-base font-bold text-text-primary">
-                    Matriz IPEVAR Live (GTC 45:2012)
+                    Matriz IPEVR Live (GTC 45:2012)
                   </span>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
@@ -3144,7 +3144,7 @@ export default function MatrizIPEVARTable({
                 <ShieldAlert className="h-5 w-5" />
               </div>
               <div className="min-w-0 overflow-hidden">
-                <h2 className="truncate text-sm font-semibold text-text-primary">Matriz IPEVAR Live</h2>
+                <h2 className="truncate text-sm font-semibold text-text-primary">Matriz IPEVR Live</h2>
                 <div className="flex items-center gap-1.5 overflow-hidden">
                   <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-green-500" />
                   <span className="truncate text-xs text-text-secondary">Sincronización Activa</span>
@@ -3183,8 +3183,8 @@ export default function MatrizIPEVARTable({
                   type="button"
                   onClick={handleAnalyzeMatrix}
                   disabled={isAnalyzing || matrixRows.length === 0}
-                  title="Análisis IPEVAR con IA"
-                  aria-label="Análisis IPEVAR con IA"
+                  title="Análisis IPEVR con IA"
+                  aria-label="Análisis IPEVR con IA"
                   className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-purple-500/40 bg-surface-primary px-2 sm:px-2.5 text-purple-600 shadow-sm outline-none transition-all duration-300 hover:bg-purple-50 hover:border-purple-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-purple-400 dark:hover:bg-purple-900/20 sm:hover:-rotate-3 sm:hover:scale-105"
                 >
                   {isAnalyzing ? (
@@ -3193,7 +3193,7 @@ export default function MatrizIPEVARTable({
                     <FileTextIcon className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   )}
                   <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-sm font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
-                    {isAnalyzing ? 'Generando…' : 'Análisis IPEVAR'}
+                    {isAnalyzing ? 'Generando…' : 'Análisis IPEVR'}
                   </span>
                 </button>
               )}
@@ -3215,7 +3215,7 @@ export default function MatrizIPEVARTable({
               {/* Exportar — informe (HTML/Word/PDF) + Matriz (Excel) */}
               <ExportDropdown
                 content={reportContent || ''}
-                fileName={`Informe_IPEVAR_GTC45_${new Date().toISOString().slice(0, 10)}`}
+                fileName={`Informe_IPEVR_GTC45_${new Date().toISOString().slice(0, 10)}`}
                 reportType="general"
                 onExportExcel={handleExportExcel}
               />
@@ -3515,7 +3515,7 @@ export default function MatrizIPEVARTable({
           <div className="flex h-48 flex-col items-center justify-center gap-3 text-text-secondary">
             <ShieldAlert className="h-10 w-10 opacity-20" />
             <p className="px-4 text-center text-sm">
-              Aún no hay riesgos en la matriz. Pídele al Experto IPEVAR en el chat que los registre,
+              Aún no hay riesgos en la matriz. Pídele al Experto IPEVR en el chat que los registre,
               o añádelos manualmente.
             </p>
             <button
@@ -4500,12 +4500,12 @@ export default function MatrizIPEVARTable({
               onSave={handleSaveReport}
               onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
               isHistoryOpen={isHistoryOpen}
-              title="Informe Ejecutivo IPEVAR — GTC-45"
+              title="Informe Ejecutivo IPEVR — GTC-45"
               icon={<FileTextIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
               actions={
                 <ExportDropdown
                   content={reportContent || ''}
-                  fileName={`Informe_IPEVAR_GTC45_${new Date().toISOString().slice(0, 10)}`}
+                  fileName={`Informe_IPEVR_GTC45_${new Date().toISOString().slice(0, 10)}`}
                   reportType="general"
                   onExportExcel={handleExportExcel}
                 />
@@ -4584,12 +4584,12 @@ export default function MatrizIPEVARTable({
             onSave={handleSaveReport}
             onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
             isHistoryOpen={isHistoryOpen}
-            title="Informe Ejecutivo IPEVAR — GTC-45"
+            title="Informe Ejecutivo IPEVR — GTC-45"
             icon={<FileTextIcon className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
             actions={
               <ExportDropdown
                 content={reportContent || ''}
-                fileName={`Informe_IPEVAR_GTC45_${new Date().toISOString().slice(0, 10)}`}
+                fileName={`Informe_IPEVR_GTC45_${new Date().toISOString().slice(0, 10)}`}
                 reportType="general"
                 onExportExcel={handleExportExcel}
               />

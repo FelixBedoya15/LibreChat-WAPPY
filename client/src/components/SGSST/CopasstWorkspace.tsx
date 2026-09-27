@@ -24,10 +24,14 @@ import {
   Vote,
   BarChart3,
   Search,
+  PenTool,
+  X,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { QRCodeSVG } from 'qrcode.react';
+import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
+import { SignaturePad } from './SignaturePad';
 
 interface CopasstWorkspaceProps {
   // Optional props
@@ -38,6 +42,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
   const { showToast } = useToastContext();
 
   const [activeTab, setActiveTab] = useState<'actas' | 'conformacion' | 'inspecciones' | 'elecciones'>('actas');
+  const [signingAssistantIndex, setSigningAssistantIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState<any>(null);
   const [actas, setActas] = useState<any[]>([]);
@@ -321,48 +326,66 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
       </div>
 
       {/* ═══ Botonera Flotante Cápsula / Toolbar (WAPPY Design System) ═══ */}
-      <div className="flex justify-center">
-        <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-lg shadow-slate-200/40 dark:shadow-none">
-          <button
-            onClick={() => setActiveTab('actas')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-              activeTab === 'actas'
-                ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 font-bold shadow-2xs'
-                : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            Actas Mensuales ({actas.length})
-          </button>
-
-          <button
-            onClick={() => setActiveTab('conformacion')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-              activeTab === 'conformacion'
-                ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 font-bold shadow-2xs'
-                : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            Conformación & Miembros
-          </button>
-
-          <button
-            onClick={() => setActiveTab('elecciones')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-              activeTab === 'elecciones'
-                ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 font-bold shadow-2xs'
-                : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800'
-            }`}
-          >
-            <Vote className="w-4 h-4" />
-            Votación Secreta Digital
-            {config?.eleccionActiva && (
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            )}
-          </button>
-        </div>
-      </div>
+      <SGSSTToolbar
+        historyButtons={[
+          {
+            id: 'tb-tab-actas',
+            onClick: () => setActiveTab('actas'),
+            label: `Actas Mensuales (${actas.length})`,
+            icon: FileText,
+            title: 'Ver Actas Mensuales Ordinarias del COPASST',
+            variant: 'history',
+            active: activeTab === 'actas',
+            badge: actas.length > 0 ? actas.length : undefined,
+          },
+          {
+            id: 'tb-tab-conformacion',
+            onClick: () => setActiveTab('conformacion'),
+            label: 'Conformación & Miembros',
+            icon: Users,
+            title: 'Estructura Paritaria y Miembros Oficiales',
+            variant: 'history',
+            active: activeTab === 'conformacion',
+          },
+          {
+            id: 'tb-tab-elecciones',
+            onClick: () => setActiveTab('elecciones'),
+            label: 'Votación Secreta Digital',
+            icon: Vote,
+            title: 'Convocatorias y Procesos Electorales',
+            variant: 'history',
+            active: activeTab === 'elecciones',
+            badge: config?.eleccionActiva ? '!' : undefined,
+          },
+        ]}
+        customSections={[
+          <div key="copasst-actions-bar" className="flex items-center gap-1.5">
+            <ToolbarButton
+              id="tb-nueva-acta"
+              onClick={handleOpenNewActa}
+              label="Nueva Acta Mensual"
+              icon={Plus}
+              title="Registrar nueva acta ordinaria o extraordinaria"
+              variant="ai"
+            />
+            <ToolbarButton
+              id="tb-convocar-eleccion"
+              onClick={() => {
+                setEleccionForm({
+                  titulo: `Elecciones COPASST ${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
+                  periodo: `${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
+                  candidatos: [],
+                });
+                setShowEleccionModal(true);
+              }}
+              label="Convocar Elección"
+              icon={Vote}
+              title="Abrir nuevo proceso electoral con votación anónima"
+              variant="dummy"
+            />
+          </div>,
+        ]}
+      />
 
       {/* ═══ TAB 1: ACTAS MENSUALES ═══ */}
       {activeTab === 'actas' && (
@@ -470,6 +493,9 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                           title="Eliminar Acta"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
+                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                            <span className="text-[10px] font-bold">Eliminar</span>
+                          </div>
                         </button>
                       </>
                     ) : (
@@ -478,9 +504,13 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                           setActaForm((prev: any) => ({ ...prev, mes: mesNum }));
                           handleOpenNewActa();
                         }}
-                        className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-2 shadow-sm active:scale-95 bg-slate-100 dark:bg-zinc-800 hover:bg-teal-50 hover:text-teal-600 text-slate-600 dark:text-zinc-300 text-[10px] font-bold"
+                        className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-2 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 text-teal-600 dark:text-teal-300"
+                        title="Diligenciar Acta del Mes"
                       >
-                        <Plus className="w-3 h-3 mr-1" /> Diligenciar
+                        <Plus className="w-3.5 h-3.5" />
+                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                          <span className="text-[10px] font-bold">Diligenciar</span>
+                        </div>
                       </button>
                     )}
                   </div>
@@ -785,6 +815,87 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
               </div>
             </div>
 
+            {/* Asistentes y Firmas Digitales */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400 flex items-center gap-1.5">
+                  <PenTool className="w-3.5 h-3.5" /> Asistentes y Firmas Digitales de los Participantes ({actaForm.asistentes?.length || 0})
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nombre = prompt('Nombre completo del nuevo participante:');
+                    if (!nombre) return;
+                    const cedula = prompt('Número de identificación (Cédula):') || '';
+                    const rol = prompt('Rol o estamento (ej: Invitado, Asesor SST, Vocal):') || 'Participante';
+                    setActaForm({
+                      ...actaForm,
+                      asistentes: [
+                        ...(actaForm.asistentes || []),
+                        { nombre, cedula, rol, asistio: true, firma: null },
+                      ],
+                    });
+                  }}
+                  className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Agregar Asistente
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {(actaForm.asistentes || []).map((asistente: any, aIdx: number) => (
+                  <div key={aIdx} className="p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-800/40 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-800 dark:text-zinc-100 truncate">{asistente.nombre}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-zinc-400">{asistente.rol} • C.C. {asistente.cedula}</p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {asistente.firma ? (
+                        <div className="flex items-center gap-1">
+                          <img src={asistente.firma} alt="Firma" className="h-7 max-w-[70px] border border-teal-500/30 rounded bg-white px-1 object-contain" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = [...actaForm.asistentes];
+                              updated[aIdx].firma = null;
+                              setActaForm({ ...actaForm, asistentes: updated });
+                            }}
+                            className="text-slate-400 hover:text-red-500 p-1"
+                            title="Borrar firma para volver a firmar"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setSigningAssistantIndex(aIdx)}
+                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-2 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 text-[10px] font-bold"
+                          title="Firmar en pantalla táctil / ratón"
+                        >
+                          <PenTool className="w-3 h-3 mr-1" />
+                          <span>Firmar</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = actaForm.asistentes.filter((_: any, idx: number) => idx !== aIdx);
+                          setActaForm({ ...actaForm, asistentes: updated });
+                        }}
+                        className="text-slate-300 hover:text-red-400 p-1"
+                        title="Quitar asistente"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Desarrollo Temático del Acta */}
             <div className="space-y-4">
               <h4 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400">
@@ -1075,6 +1186,22 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
           </div>
         </div>
       )}
+
+      {/* ═══ MODAL LIENZO DE FIRMA DIGITAL ═══ */}
+      <SignaturePad
+        isOpen={signingAssistantIndex !== null}
+        onClose={() => setSigningAssistantIndex(null)}
+        title={`Firma Digital de ${actaForm.asistentes?.[signingAssistantIndex ?? 0]?.nombre || 'Participante'}`}
+        onSave={(b64) => {
+          if (signingAssistantIndex !== null) {
+            const updated = [...actaForm.asistentes];
+            updated[signingAssistantIndex].firma = b64;
+            setActaForm({ ...actaForm, asistentes: updated });
+            setSigningAssistantIndex(null);
+            showToast({ message: 'Firma registrada correctamente', status: 'success' });
+          }
+        }}
+      />
     </div>
   );
 }

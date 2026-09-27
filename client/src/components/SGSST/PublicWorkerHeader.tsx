@@ -90,7 +90,7 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
     },
     {
       id: 'ipevar',
-      name: 'Reportar Peligro (IPEVAR)',
+      name: 'Reportar Peligro (IPEVR)',
       desc: 'Reporta peligros que alimentan la Matriz Oficial',
       icon: Users,
       path: `/sgsst-public/ipevar/${companyId}`,

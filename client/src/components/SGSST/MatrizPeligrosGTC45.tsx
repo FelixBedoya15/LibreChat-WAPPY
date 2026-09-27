@@ -534,7 +534,7 @@ const MatrizPeligrosGTC45 = () => {
     const handleDummyData = () => {
         const dummy = generateDummyData.matrizPeligros();
         setProcesos(prev => [...prev, ...dummy.procesos]);
-        showToast({ message: 'Datos de prueba (IPEVAR Bio-Individual) generados con éxito', status: 'success', severity: 'success' });
+        showToast({ message: 'Datos de prueba (IPEVR Bio-Individual) generados con éxito', status: 'success', severity: 'success' });
     };
 
     const handleCompletePeligro = async (proceso: ProcesoEntry, peligro: PeligroItem) => {
@@ -669,7 +669,7 @@ const MatrizPeligrosGTC45 = () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(isNew ? {
                     content,
-                    title: `IPEVAR Bio-Individual - ${new Date().toLocaleDateString('es-CO')}`,
+                    title: `IPEVR Bio-Individual - ${new Date().toLocaleDateString('es-CO')}`,
                     tags: ['sgsst-matriz-peligros'],
                 } : { conversationId, messageId: reportMessageId, content }),
             });
@@ -745,7 +745,7 @@ const MatrizPeligrosGTC45 = () => {
                         id: 'generate-full',
                         onClick: handleGenerateFull,
                         disabled: isGeneratingFull,
-                        label: "Generar IPEVAR IA",
+                        label: "Generar IPEVR IA",
                         icon: "sparkles",
                         variant: "ai",
                         isLoading: isGeneratingFull
@@ -765,7 +765,7 @@ const MatrizPeligrosGTC45 = () => {
                 onSaveLocal={handleSaveData}
                 hasContent={!!(generatedReport || editorContentRef.current)}
                 exportContent={editorContentRef.current || generatedReport || ''}
-                exportFileName="IPEVAR_Bio_Individual"
+                exportFileName="IPEVR_Bio_Individual"
                 onDummy={handleDummyData}
             />
 
@@ -970,7 +970,7 @@ const MatrizPeligrosGTC45 = () => {
                                         <div className="space-y-3">
                                             <div className="flex items-center justify-between border-b border-border-medium pb-1">
                                                 <h5 className="text-[11px] font-black text-teal-500 uppercase tracking-widest flex items-center gap-2">
-                                                    <Layers className="h-3.5 w-3.5" /> Ficha IPEVAR del Cargo
+                                                    <Layers className="h-3.5 w-3.5" /> Ficha IPEVR del Cargo
                                                 </h5>
                                                 {p.peligros.length === 0 && (
                                                     <span className="text-[10px] text-text-secondary italic">Haz clic en + para agregar un peligro</span>
@@ -1238,7 +1238,7 @@ const MatrizPeligrosGTC45 = () => {
                     <CollapsibleReportBox onSave={handleSaveReport}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
-                        title="Matriz Resumen de Recomendaciones IPEVAR"
+                        title="Matriz Resumen de Recomendaciones IPEVR"
                         icon={<AlertTriangle className="h-5 w-5" />}
                     actions={
                         <ExportDropdown

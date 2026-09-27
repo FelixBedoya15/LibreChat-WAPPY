@@ -244,7 +244,7 @@ export default function BioMatrizIPEVARDashboard({
       <div className="flex items-center gap-2 px-1">
         <BarChart2 className="h-5 w-5 text-teal-500" />
         <h3 className="text-sm font-bold text-text-primary uppercase tracking-wide">
-          Analítica Bio-IPEVAR — Resumen Ejecutivo
+          Analítica Bio-IPEVR — Resumen Ejecutivo
         </h3>
         <span className="text-xs text-text-secondary">({rows.length} riesgo{rows.length !== 1 ? 's' : ''})</span>
       </div>

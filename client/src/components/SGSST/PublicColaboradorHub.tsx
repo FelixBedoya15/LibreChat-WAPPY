@@ -128,7 +128,7 @@ const PercepcionScore = ({ score }: { score: number }) => {
         <span>Estado: <strong className="text-text-primary">{level.label}</strong></span>
         {score > 0 ? (
           <span className="font-bold text-teal-600 dark:text-teal-400">
-            Reducción IPEVAR: -{(factorReduccion * 100).toFixed(0)}%
+            Reducción IPEVR: -{(factorReduccion * 100).toFixed(0)}%
           </span>
         ) : (
           <span className="italic">Modulador activo al reportar</span>
@@ -361,7 +361,7 @@ export default function PublicColaboradorHub() {
 
   const appsGrid = [
     {
-      title: 'Reportar Peligro (IPEVAR)',
+      title: 'Reportar Peligro (IPEVR)',
       desc: 'Alimenta la Matriz Oficial GTC-45',
       points: '+150 pts',
       icon: Users,
@@ -719,7 +719,7 @@ export default function PublicColaboradorHub() {
                 {[
                   { title: 'ATEL', subtitle: 'Accidentes / Enfermedades', icon: '🚨', items: data.worker.atel || [], emptyMsg: 'Sin eventos ATEL' },
                   { title: 'Actos / Condiciones', subtitle: 'Reportes en terreno', icon: '⚠️', items: data.worker.actos_inseguros || [], emptyMsg: 'Sin reportes' },
-                  { title: 'IPEVAR', subtitle: 'Participación activa', icon: '🎯', items: data.worker.participaciones_ipevar || [], emptyMsg: 'Sin registros' },
+                  { title: 'IPEVR', subtitle: 'Participación activa', icon: '🎯', items: data.worker.participaciones_ipevar || [], emptyMsg: 'Sin registros' },
                   { title: 'Capacitaciones', subtitle: 'Formación SST', icon: '📚', items: data.worker.capacitaciones || [], emptyMsg: 'Sin cursos' },
                   { title: 'Termómetro Psicosocial', subtitle: 'Bienestar & Clima', icon: '❤️', items: termometroAnimo, emptyMsg: 'Sin check-ins' },
                 ].map(({ title, subtitle, icon, items, emptyMsg }) => {

@@ -46,7 +46,7 @@ export default function MatrizIPEVARWorkspace() {
     updatedAt: string | null;
   }>({
     hasOfficial: false,
-    officialTitle: 'Matriz IPEVAR SG-SST',
+    officialTitle: 'Matriz IPEVR SG-SST',
     rowCount: 0,
     criticalCount: 0,
     sourceConversationId: null,
@@ -76,7 +76,7 @@ export default function MatrizIPEVARWorkspace() {
         const cleanTitle = data.officialTitle ? data.officialTitle.replace(/\bOficial\s*/gi, '').trim() : '';
         setOfficialInfo({
           hasOfficial: data.hasOfficial || rows.length > 0,
-          officialTitle: cleanTitle || 'Matriz IPEVAR SG-SST',
+          officialTitle: cleanTitle || 'Matriz IPEVR SG-SST',
           rowCount: rows.length,
           criticalCount: critical,
           sourceConversationId: data.sourceConversationId || null,

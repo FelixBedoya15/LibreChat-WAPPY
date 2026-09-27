@@ -50,6 +50,8 @@ const kanbanTaskSchema = new mongoose.Schema(
         'vulnerabilidad_finding',
         'pesv_inspection_finding',
         'heights_inspection_finding',
+        'copasst_finding',
+        'convivencia_finding',
         'other',
       ],
       default: 'manual',

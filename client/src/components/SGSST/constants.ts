@@ -77,17 +77,17 @@ export const PHASE_CATEGORIES = {
         }
     ],
 
-    // ─── HITO 03: GOBERNANZA PARITARIA & CONVIVENCIA BIOCÉNTRICA ───
+    // ─── HITO 03: COMITÉS PARITARIOS & CONVIVENCIA LABORAL ───
     hito3: [
         { 
             id: 'copasst', title: 'COPASST / Vigía SST (Gestor Paritario y Actas)', icon: 'Award',
             bioRationale: 'Órgano paritario de vigilancia, inspección y consulta elegido por la comunidad trabajadora para la protección de la vida (Res. 2013/86, Dec. 1072/15).', 
-            normativity: 'Hito 3: Gobernanza Paritaria (Res. 2013/86 / Dec. 1072 / Res. 0312)' 
+            normativity: 'Hito 3: Comités Paritarios (Res. 2013/86 / Dec. 1072 / Res. 0312)' 
         },
         { 
             id: 'cocolab', title: 'Comité de Convivencia Laboral (Res. 3461 / Ley 2365)', icon: 'HeartHandshake',
             bioRationale: 'Protección del clima psicosocial, prevención del acoso laboral (término 65 días) y ruta prioritaria no conciliable contra el acoso sexual (Ley 2365/2024).', 
-            normativity: 'Hito 3: Gobernanza Paritaria (Res. 3461/2025 / Ley 2365/2024 / Ley 1010/2006)' 
+            normativity: 'Hito 3: Convivencia Laboral (Res. 3461/2025 / Ley 2365/2024 / Ley 1010/2006)' 
         }
     ],
 
@@ -241,7 +241,7 @@ export const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
     perfil_cargo: 'hito2',
     oraculo_predictivo: 'hito2',
 
-    // Hito 3: Gobernanza Paritaria & Convivencia Biocéntrica
+    // Hito 3: Comités Paritarios & Convivencia Laboral
     copasst: 'hito3',
     cocolab: 'hito3',
     convivencia: 'hito3',

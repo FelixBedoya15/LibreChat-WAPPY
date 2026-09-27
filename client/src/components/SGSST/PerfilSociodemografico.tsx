@@ -19,6 +19,10 @@ import {
     UserCheck,
     Info,
     DollarSign,
+    Shield,
+    Plus,
+    Trash2,
+    Check,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
@@ -1582,14 +1586,43 @@ const PerfilSociodemografico = () => {
 
                                                     {/* Comités de Apoyo al SG-SST */}
                                                     <div className="p-4 border border-green-200 bg-green-50/30 dark:bg-green-900/20 rounded-xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                        <h4 className="md:col-span-4 lg:col-span-4 text-green-700 dark:text-green-400 font-bold text-sm uppercase">Comités de Apoyo al SG-SST</h4>
+                                                        <div className="md:col-span-4 lg:col-span-4 flex items-center justify-between flex-wrap gap-2">
+                                                            <h4 className="text-green-700 dark:text-green-400 font-bold text-sm uppercase">Comités de Apoyo al SG-SST</h4>
+                                                            <span className="text-[10px] text-green-700/80 dark:text-green-300/80 bg-green-100 dark:bg-green-950/60 px-2 py-0.5 rounded-full font-medium">
+                                                                COPASST y Convivencia se sincronizan automáticamente con el Hito 03
+                                                            </span>
+                                                        </div>
                                                         <div className="space-y-1 lg:col-span-1">
-                                                            <label className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">COPASST</label>
-                                                            <SingleSelect value={w.esCopasst || 'No'} onChange={val => updateWorkerField(w.id, 'esCopasst', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                                            <label className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">COPASST / Vigía</label>
+                                                            {w.esCopasst === 'Sí' ? (
+                                                                <div className="p-2 rounded-xl bg-teal-100/80 dark:bg-teal-900/40 border border-teal-300 dark:border-teal-700 text-teal-800 dark:text-teal-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                                                                    <Check className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                                                                    <span>Miembro Activo</span>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="p-2 rounded-xl bg-slate-100 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 text-xs font-medium flex items-center gap-1.5">
+                                                                    <span>No pertenece</span>
+                                                                </div>
+                                                            )}
+                                                            <span className="text-[9px] text-text-tertiary block">
+                                                                {w.esCopasst === 'Sí' ? 'Electo o asignado en Hito 03' : 'Automático vía conformación/votación'}
+                                                            </span>
                                                         </div>
                                                         <div className="space-y-1 lg:col-span-1">
                                                             <label className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">Convivencia Laboral</label>
-                                                            <SingleSelect value={w.esComiteConvivencia || 'No'} onChange={val => updateWorkerField(w.id, 'esComiteConvivencia', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                                            {w.esComiteConvivencia === 'Sí' ? (
+                                                                <div className="p-2 rounded-xl bg-indigo-100/80 dark:bg-indigo-900/40 border border-indigo-300 dark:border-indigo-700 text-indigo-800 dark:text-indigo-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                                                                    <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                                                                    <span>Miembro Activo</span>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="p-2 rounded-xl bg-slate-100 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 text-xs font-medium flex items-center gap-1.5">
+                                                                    <span>No pertenece</span>
+                                                                </div>
+                                                            )}
+                                                            <span className="text-[9px] text-text-tertiary block">
+                                                                {w.esComiteConvivencia === 'Sí' ? 'Comité CCL activo en Hito 03' : 'Automático vía comité por sede'}
+                                                            </span>
                                                         </div>
                                                         <div className="space-y-1 lg:col-span-1">
                                                             <label className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">Brigada Emergencias</label>

@@ -476,7 +476,7 @@ export default function BioMatrizIPEVAR({ workerId, initialWorker }: BioMatrizIP
       <div style="font-family: 'Inter', Arial, sans-serif; color: #334155; padding: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #0f766e; padding-bottom: 15px; margin-bottom: 25px;">
           <div>
-            <h1 style="color: #0f766e; margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: -0.5px;">Reporte Técnico IPEVAR</h1>
+            <h1 style="color: #0f766e; margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: -0.5px;">Reporte Técnico IPEVR</h1>
             <h2 style="color: #64748b; margin: 5px 0 0 0; font-size: 14px; font-weight: normal;">Matriz de Riesgos Bio-Individual WAPPY (Centricidad en el Trabajador)</h2>
           </div>
           <div style="text-align: right; color: #64748b; font-size: 12px;">
@@ -616,7 +616,7 @@ export default function BioMatrizIPEVAR({ workerId, initialWorker }: BioMatrizIP
             key="methodology" 
             id="methodology" 
             onClick={() => setShowMethodology(true)} 
-            title="Ver Manual de Procedimiento IPEVAR" 
+            title="Ver Manual de Procedimiento IPEVR" 
             label="Metodología" 
             icon="file-text" 
             variant="default" 
@@ -887,7 +887,7 @@ export default function BioMatrizIPEVAR({ workerId, initialWorker }: BioMatrizIP
                   <Activity className="h-7 w-7" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-text-primary">Guía Metodológica: Matriz Bio-IPEVAR Wappy</h3>
+                  <h3 className="text-xl font-bold text-text-primary">Guía Metodológica: Matriz Bio-IPEVR Wappy</h3>
                   <p className="text-sm text-text-secondary mt-1">Manual de Procedimiento de Identificación de Peligros y Evaluación de Riesgos Bio-Individuales</p>
                 </div>
               </div>
@@ -906,7 +906,7 @@ export default function BioMatrizIPEVAR({ workerId, initialWorker }: BioMatrizIP
               <section className="space-y-3">
                 <h4 className="text-lg font-bold text-text-primary border-b border-border-light pb-2">Introducción y Filosofía</h4>
                 <p className="leading-relaxed text-text-secondary">
-                  La **Matriz Bio-IPEVAR** (Identificación de Peligros, Evaluación y Valoración de Riesgos Bio-Individuales) es un sistema patentado que revoluciona la salud ocupacional. A diferencia de las matrices estáticas tradicionales basadas únicamente en el puesto de trabajo (como la GTC-45 estándar), esta metodología **cruza de forma dinámica el peligro operacional con las condiciones clínicas y la susceptibilidad fisiológica específica de cada trabajador individual**.
+                  La **Matriz Bio-IPEVR** (Identificación de Peligros, Evaluación y Valoración de Riesgos Bio-Individuales) es un sistema patentado que revoluciona la salud ocupacional. A diferencia de las matrices estáticas tradicionales basadas únicamente en el puesto de trabajo (como la GTC-45 estándar), esta metodología **cruza de forma dinámica el peligro operacional con las condiciones clínicas y la susceptibilidad fisiológica específica de cada trabajador individual**.
                 </p>
               </section>
 
@@ -1136,7 +1136,7 @@ export default function BioMatrizIPEVAR({ workerId, initialWorker }: BioMatrizIP
                       Separación Normativa con la Matriz por Procesos (Hito 1)
                     </strong>
                     <p className="text-xs text-text-secondary leading-relaxed">
-                      Los peligros clasificados bajo <strong>Condiciones de Seguridad</strong> (mecánicos, eléctricos, locativos, trabajo en alturas, espacios confinados, tecnológicos y de tránsito) se identifican y evalúan de manera integral en la <strong>Matriz IPEVAR Oficial por Procesos (Hito 1)</strong> conforme a la GTC-45.
+                      Los peligros clasificados bajo <strong>Condiciones de Seguridad</strong> (mecánicos, eléctricos, locativos, trabajo en alturas, espacios confinados, tecnológicos y de tránsito) se identifican y evalúan de manera integral en la <strong>Matriz IPEVR Oficial por Procesos (Hito 1)</strong> conforme a la GTC-45.
                       Esta <strong>Matriz Bio-Individual (Hito 3)</strong> se especializa exclusivamente en los 8 dominios psicofisiológicos y de susceptibilidad individual de cada colaborador.
                     </p>
                   </div>

@@ -539,7 +539,7 @@ export default function TenshiChat() {
               bio_motor: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
               hito2: { route: '/sgsst?hito=hito2', sgsstModule: 'perfil_cargo' },
 
-              // Hito 3: Gobernanza Paritaria & Convivencia Biocéntrica
+              // Hito 3: Comités Paritarios & Convivencia Laboral
               copasst: { route: '/sgsst?hito=hito3&module=copasst', sgsstModule: 'copasst' },
               vigia: { route: '/sgsst?hito=hito3&module=copasst', sgsstModule: 'copasst' },
               cocolab: { route: '/sgsst?hito=hito3&module=cocolab', sgsstModule: 'cocolab' },

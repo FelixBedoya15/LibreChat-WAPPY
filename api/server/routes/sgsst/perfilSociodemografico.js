@@ -1117,6 +1117,40 @@ router.get('/data', requireJwtAuth, async (req, res) => {
         }
       }
 
+      // Dynamic Committee Membership Resolution from Hito 03 (COPASST & Convivencia)
+      try {
+        const { SgsstCopasstComite } = require('~/models/SgsstCopasst');
+        const { SgsstConvivenciaComite } = require('~/models/SgsstConvivencia');
+
+        const activeCopasst = await SgsstCopasstComite.findOne({ companyId, estado: 'activo' }).lean()
+          || await SgsstCopasstComite.findOne({ companyId }).sort({ createdAt: -1 }).lean();
+        const activeConvivencias = await SgsstConvivenciaComite.find({ companyId, estado: 'activo' }).lean();
+
+        const copasstCedulas = new Set();
+        if (activeCopasst) {
+          (activeCopasst.representantesEmpleador || []).forEach(r => r.cedula && copasstCedulas.add(String(r.cedula).trim()));
+          (activeCopasst.representantesTrabajadores || []).forEach(r => r.cedula && copasstCedulas.add(String(r.cedula).trim()));
+          if (activeCopasst.vigia?.cedula) copasstCedulas.add(String(activeCopasst.vigia.cedula).trim());
+        }
+
+        const convivenciaCedulas = new Set();
+        for (const conv of activeConvivencias) {
+          (conv.representantesEmpleador || []).forEach(r => r.cedula && convivenciaCedulas.add(String(r.cedula).trim()));
+          (conv.representantesTrabajadores || []).forEach(r => r.cedula && convivenciaCedulas.add(String(r.cedula).trim()));
+        }
+
+        finalWorkers = finalWorkers.map(w => {
+          const cedula = String(w.identificacion || '').trim();
+          return {
+            ...w,
+            esCopasst: copasstCedulas.has(cedula) ? 'Sí' : 'No',
+            esComiteConvivencia: convivenciaCedulas.has(cedula) ? 'Sí' : 'No',
+          };
+        });
+      } catch (comiteErr) {
+        logger.debug('[SGSST PerfilSociodemografico] Error syncing committees in GET /data:', comiteErr.message);
+      }
+
       // If sub-user only has self permission, filter down to this worker
       if (isSub && !req.user.subUserPermissions?.includes('sgsst:perfil_sociodemografico_all') && req.user.workerDocument) {
         const myDoc = String(req.user.workerDocument).trim();
@@ -1742,6 +1776,40 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
       }
     } catch (eptErr) {
       logger.warn('[PerfilSociodemografico] Error integrating EPT studies into saved workers:', eptErr.message);
+    }
+
+    // Dynamic Committee Membership Resolution from Hito 03 (COPASST & Convivencia)
+    try {
+      const { SgsstCopasstComite } = require('~/models/SgsstCopasst');
+      const { SgsstConvivenciaComite } = require('~/models/SgsstConvivencia');
+
+      const activeCopasst = await SgsstCopasstComite.findOne({ companyId, estado: 'activo' }).lean()
+        || await SgsstCopasstComite.findOne({ companyId }).sort({ createdAt: -1 }).lean();
+      const activeConvivencias = await SgsstConvivenciaComite.find({ companyId, estado: 'activo' }).lean();
+
+      const copasstCedulas = new Set();
+      if (activeCopasst) {
+        (activeCopasst.representantesEmpleador || []).forEach(r => r.cedula && copasstCedulas.add(String(r.cedula).trim()));
+        (activeCopasst.representantesTrabajadores || []).forEach(r => r.cedula && copasstCedulas.add(String(r.cedula).trim()));
+        if (activeCopasst.vigia?.cedula) copasstCedulas.add(String(activeCopasst.vigia.cedula).trim());
+      }
+
+      const convivenciaCedulas = new Set();
+      for (const conv of activeConvivencias) {
+        (conv.representantesEmpleador || []).forEach(r => r.cedula && convivenciaCedulas.add(String(r.cedula).trim()));
+        (conv.representantesTrabajadores || []).forEach(r => r.cedula && convivenciaCedulas.add(String(r.cedula).trim()));
+      }
+
+      workersToSave = workersToSave.map(w => {
+        const cedula = String(w.identificacion || '').trim();
+        return {
+          ...w,
+          esCopasst: copasstCedulas.has(cedula) ? 'Sí' : 'No',
+          esComiteConvivencia: convivenciaCedulas.has(cedula) ? 'Sí' : 'No',
+        };
+      });
+    } catch (comiteErr) {
+      logger.debug('[PerfilSociodemografico] Error syncing committees in POST /save:', comiteErr.message);
     }
 
     // First save the raw data with recalculated bio-fit values

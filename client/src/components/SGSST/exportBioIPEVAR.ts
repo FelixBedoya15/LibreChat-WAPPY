@@ -41,7 +41,7 @@ export const exportBioIPEVARToExcel = async (
   // Hero Header
   wsDash.mergeCells('A1:H4');
   const heroCell = wsDash.getCell('A1');
-  heroCell.value = '   ⚡ DASHBOARD BIO-INDIVIDUAL — IPEVAR GTC-45';
+  heroCell.value = '   ⚡ DASHBOARD BIO-INDIVIDUAL — IPEVR GTC-45';
   heroCell.font = { size: 24, bold: true, color: { argb: 'FFFFFFFF' }, name: 'Book Antiqua' };
   heroCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } }; // Dark Teal
   heroCell.alignment = { vertical: 'middle', horizontal: 'left' };
@@ -80,8 +80,8 @@ export const exportBioIPEVARToExcel = async (
 
   // --- KPI CARDS ---
   const kpis = [
-    { col: 'B', title: 'Riesgos Bio Evaluados', formula: `IF($C$6="TODOS", COUNTA('Matriz Bio-IPEVAR'!A2:A${totalRows}), COUNTIF('Matriz Bio-IPEVAR'!A2:A${totalRows}, $C$6))`, color: 'FF0F172A' },
-    { col: 'C', title: 'Riesgos Críticos / Altos', formula: `IF($C$6="TODOS", COUNTIF('Matriz Bio-IPEVAR'!N2:N${totalRows}, "Crítico")+COUNTIF('Matriz Bio-IPEVAR'!N2:N${totalRows}, "Alto"), COUNTIFS('Matriz Bio-IPEVAR'!N2:N${totalRows}, "Crítico", 'Matriz Bio-IPEVAR'!A2:A${totalRows}, $C$6)+COUNTIFS('Matriz Bio-IPEVAR'!N2:N${totalRows}, "Alto", 'Matriz Bio-IPEVAR'!A2:A${totalRows}, $C$6))`, color: 'FFEF4444' },
+    { col: 'B', title: 'Riesgos Bio Evaluados', formula: `IF($C$6="TODOS", COUNTA('Matriz Bio-IPEVR'!A2:A${totalRows}), COUNTIF('Matriz Bio-IPEVR'!A2:A${totalRows}, $C$6))`, color: 'FF0F172A' },
+    { col: 'C', title: 'Riesgos Críticos / Altos', formula: `IF($C$6="TODOS", COUNTIF('Matriz Bio-IPEVR'!N2:N${totalRows}, "Crítico")+COUNTIF('Matriz Bio-IPEVR'!N2:N${totalRows}, "Alto"), COUNTIFS('Matriz Bio-IPEVR'!N2:N${totalRows}, "Crítico", 'Matriz Bio-IPEVR'!A2:A${totalRows}, $C$6)+COUNTIFS('Matriz Bio-IPEVR'!N2:N${totalRows}, "Alto", 'Matriz Bio-IPEVR'!A2:A${totalRows}, $C$6))`, color: 'FFEF4444' },
     { col: 'D', title: 'Índice de Vulnerabilidad FIT', formula: `${fitScore}%`, color: 'FF8B5CF6' },
   ];
 
@@ -112,7 +112,7 @@ export const exportBioIPEVARToExcel = async (
 
   // --- DYNAMIC CARD GENERATOR FOR SECTIONS ---
   const getInteractiveFormula = (colTarget: string, valTarget: string) => {
-    return `IF($C$6="TODOS", COUNTIF('Matriz Bio-IPEVAR'!${colTarget}2:${colTarget}${totalRows}, "${valTarget}"), COUNTIFS('Matriz Bio-IPEVAR'!${colTarget}2:${colTarget}${totalRows}, "${valTarget}", 'Matriz Bio-IPEVAR'!A2:A${totalRows}, $C$6))`;
+    return `IF($C$6="TODOS", COUNTIF('Matriz Bio-IPEVR'!${colTarget}2:${colTarget}${totalRows}, "${valTarget}"), COUNTIFS('Matriz Bio-IPEVR'!${colTarget}2:${colTarget}${totalRows}, "${valTarget}", 'Matriz Bio-IPEVR'!A2:A${totalRows}, $C$6))`;
   };
 
   const createSection = (startCol: string, valCol: string, trendCol: string, row: number, title: string, headers: string[]) => {
@@ -246,11 +246,11 @@ export const exportBioIPEVARToExcel = async (
   // Note: Cobertura exist tiene formulas basadas en no-vacíos en Columna O, P, Q
   // we count countif of columns NOT equal to 'Ninguno' or empty.
   const emptyCheckFormula = (col: string) => {
-    return `SUMPRODUCT(--('Matriz Bio-IPEVAR'!${col}2:${col}${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVAR'!${col}2:${col}${totalRows}<>"ninguno")*--('Matriz Bio-IPEVAR'!${col}2:${col}${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVAR'!A2:A${totalRows}=$C$6)))`;
+    return `SUMPRODUCT(--('Matriz Bio-IPEVR'!${col}2:${col}${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVR'!${col}2:${col}${totalRows}<>"ninguno")*--('Matriz Bio-IPEVR'!${col}2:${col}${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVR'!A2:A${totalRows}=$C$6)))`;
   };
-  const emptyCheckFuente = `SUMPRODUCT(--('Matriz Bio-IPEVAR'!O2:O${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVAR'!O2:O${totalRows}<>"ninguno")*--('Matriz Bio-IPEVAR'!O2:O${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVAR'!A2:A${totalRows}=$C$6)))`;
-  const emptyCheckMedio = `SUMPRODUCT(--('Matriz Bio-IPEVAR'!P2:P${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVAR'!P2:P${totalRows}<>"ninguno")*--('Matriz Bio-IPEVAR'!P2:P${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVAR'!A2:A${totalRows}=$C$6)))`;
-  const emptyCheckIndividuo = `SUMPRODUCT(--('Matriz Bio-IPEVAR'!Q2:Q${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVAR'!Q2:Q${totalRows}<>"ninguno")*--('Matriz Bio-IPEVAR'!Q2:Q${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVAR'!A2:A${totalRows}=$C$6)))`;
+  const emptyCheckFuente = `SUMPRODUCT(--('Matriz Bio-IPEVR'!O2:O${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVR'!O2:O${totalRows}<>"ninguno")*--('Matriz Bio-IPEVR'!O2:O${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVR'!A2:A${totalRows}=$C$6)))`;
+  const emptyCheckMedio = `SUMPRODUCT(--('Matriz Bio-IPEVR'!P2:P${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVR'!P2:P${totalRows}<>"ninguno")*--('Matriz Bio-IPEVR'!P2:P${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVR'!A2:A${totalRows}=$C$6)))`;
+  const emptyCheckIndividuo = `SUMPRODUCT(--('Matriz Bio-IPEVR'!Q2:Q${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVR'!Q2:Q${totalRows}<>"ninguno")*--('Matriz Bio-IPEVR'!Q2:Q${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVR'!A2:A${totalRows}=$C$6)))`;
 
   addDataRow('B', 'C', 'D', rowL, 'Ctrl. Fuente', emptyCheckFuente, false, 'FF0F766E');
   rowL++;
@@ -269,11 +269,11 @@ export const exportBioIPEVARToExcel = async (
 
   // Derecha: Jerarquía Controles Propuestos
   rowR = createSection('F', 'G', 'H', rowR, 'Jerarquía Medidas Propuestas', ['Medida Control', 'Cantidad', 'Distribución']);
-  const emptyCheckElim = `SUMPRODUCT(--('Matriz Bio-IPEVAR'!R2:R${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVAR'!R2:R${totalRows}<>"ninguno")*--('Matriz Bio-IPEVAR'!R2:R${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVAR'!A2:A${totalRows}=$C$6)))`;
-  const emptyCheckSust = `SUMPRODUCT(--('Matriz Bio-IPEVAR'!S2:S${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVAR'!S2:S${totalRows}<>"ninguno")*--('Matriz Bio-IPEVAR'!S2:S${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVAR'!A2:A${totalRows}=$C$6)))`;
-  const emptyCheckIng = `SUMPRODUCT(--('Matriz Bio-IPEVAR'!T2:T${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVAR'!T2:T${totalRows}<>"ninguno")*--('Matriz Bio-IPEVAR'!T2:T${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVAR'!A2:A${totalRows}=$C$6)))`;
-  const emptyCheckAdm = `SUMPRODUCT(--('Matriz Bio-IPEVAR'!U2:U${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVAR'!U2:U${totalRows}<>"ninguno")*--('Matriz Bio-IPEVAR'!U2:U${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVAR'!A2:A${totalRows}=$C$6)))`;
-  const emptyCheckEPP = `SUMPRODUCT(--('Matriz Bio-IPEVAR'!V2:V${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVAR'!V2:V${totalRows}<>"ninguno")*--('Matriz Bio-IPEVAR'!V2:V${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVAR'!A2:A${totalRows}=$C$6)))`;
+  const emptyCheckElim = `SUMPRODUCT(--('Matriz Bio-IPEVR'!R2:R${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVR'!R2:R${totalRows}<>"ninguno")*--('Matriz Bio-IPEVR'!R2:R${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVR'!A2:A${totalRows}=$C$6)))`;
+  const emptyCheckSust = `SUMPRODUCT(--('Matriz Bio-IPEVR'!S2:S${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVR'!S2:S${totalRows}<>"ninguno")*--('Matriz Bio-IPEVR'!S2:S${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVR'!A2:A${totalRows}=$C$6)))`;
+  const emptyCheckIng = `SUMPRODUCT(--('Matriz Bio-IPEVR'!T2:T${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVR'!T2:T${totalRows}<>"ninguno")*--('Matriz Bio-IPEVR'!T2:T${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVR'!A2:A${totalRows}=$C$6)))`;
+  const emptyCheckAdm = `SUMPRODUCT(--('Matriz Bio-IPEVR'!U2:U${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVR'!U2:U${totalRows}<>"ninguno")*--('Matriz Bio-IPEVR'!U2:U${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVR'!A2:A${totalRows}=$C$6)))`;
+  const emptyCheckEPP = `SUMPRODUCT(--('Matriz Bio-IPEVR'!V2:V${totalRows}<>"Ninguno")*--('Matriz Bio-IPEVR'!V2:V${totalRows}<>"ninguno")*--('Matriz Bio-IPEVR'!V2:V${totalRows}<>"")*IF($C$6="TODOS",1,--('Matriz Bio-IPEVR'!A2:A${totalRows}=$C$6)))`;
 
   addDataRow('F', 'G', 'H', rowR, '1. Eliminación', emptyCheckElim, false, 'FFEF4444');
   rowR++;
@@ -356,7 +356,7 @@ export const exportBioIPEVARToExcel = async (
   // ============================================================================
   // HOJA 2: MATRIZ GTC-45 (DATOS)
   // ============================================================================
-  const wsMatriz = wb.addWorksheet('Matriz Bio-IPEVAR', {
+  const wsMatriz = wb.addWorksheet('Matriz Bio-IPEVR', {
     views: [{ state: 'frozen', ySplit: 1, xSplit: 2, showGridLines: false }]
   });
 
@@ -490,5 +490,5 @@ export const exportBioIPEVARToExcel = async (
 
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  saveAs(blob, `Matriz_BioIPEVAR_Dashboard_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  saveAs(blob, `Matriz_BioIPEVR_Dashboard_${new Date().toISOString().slice(0, 10)}.xlsx`);
 };

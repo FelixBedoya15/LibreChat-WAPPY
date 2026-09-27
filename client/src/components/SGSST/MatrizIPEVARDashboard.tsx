@@ -169,7 +169,7 @@ const MatrizIPEVARDashboard = ({ matrixRows, conversationId, token, savedConclus
       <div className="flex items-center gap-2 px-1">
         <BarChart2 className="h-5 w-5 text-teal-500" />
         <h3 className="text-sm font-bold text-text-primary uppercase tracking-wide">
-          Analítica IPEVAR — Resumen Ejecutivo GTC-45
+          Analítica IPEVR — Resumen Ejecutivo GTC-45
         </h3>
         <span className="text-xs text-text-secondary">({matrixRows.length} riesgos)</span>
       </div>
