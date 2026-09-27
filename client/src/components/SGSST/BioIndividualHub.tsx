@@ -211,17 +211,18 @@ export default function BioIndividualHub() {
         const grouped: PerfilGroup[] = perfilesList
           .map((perfil: Perfil) => ({
             perfil,
-            workers: enrichedWorkers.filter((w: Worker) =>
-              w.perfilId === perfil.id ||
-              ((w as any).cargo && (w as any).cargo.trim().toLowerCase() === perfil.nombreCargo.trim().toLowerCase())
-            ),
+            workers: enrichedWorkers.filter((w: Worker) => {
+              const wCargo = String((w as any)?.cargo || '').trim().toLowerCase();
+              const pCargo = String(perfil?.nombreCargo || '').trim().toLowerCase();
+              return w.perfilId === perfil.id || (wCargo && pCargo && wCargo === pCargo);
+            }),
             isExpanded: true,
           }))
           .filter((g: PerfilGroup) => g.workers.length > 0);
 
         // Si existen colaboradores no vinculados a ningún perfil específico, agruparlos
-        const assignedIds = new Set(grouped.flatMap(g => g.workers.map(w => w._id)));
-        const unassigned = enrichedWorkers.filter((w: Worker) => !assignedIds.has(w._id));
+        const assignedIds = new Set(grouped.flatMap(g => (g.workers || []).map(w => String(w._id))));
+        const unassigned = enrichedWorkers.filter((w: Worker) => w && w._id && !assignedIds.has(String(w._id)));
         if (unassigned.length > 0) {
           grouped.push({
             perfil: { id: 'otros', nombreCargo: 'Otros Colaboradores', area: 'General' },
@@ -239,13 +240,13 @@ export default function BioIndividualHub() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const perfilesData = perfilesRes.ok ? await perfilesRes.json() : {};
-      const perfilesList: Perfil[] = perfilesData.perfilesList || [];
+      const perfilesList: Perfil[] = Array.isArray(perfilesData.perfilesList) ? perfilesData.perfilesList : [];
 
       const socioRes = await fetch('/api/sgsst/perfil-sociodemografico/data', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const socioData = socioRes.ok ? await socioRes.json() : {};
-      const trabajadores = socioData.perfiles || socioData.trabajadores || [];
+      const trabajadores = Array.isArray(socioData.perfiles) ? socioData.perfiles : (Array.isArray(socioData.trabajadores) ? socioData.trabajadores : []);
 
       const workerRes = await Promise.allSettled(
         perfilesList.map(p =>
@@ -279,10 +280,24 @@ export default function BioIndividualHub() {
       const grouped: PerfilGroup[] = perfilesList
         .map(perfil => ({
           perfil,
-          workers: enrichedWorkers.filter(w => w.perfilId === perfil.id),
+          workers: enrichedWorkers.filter(w => {
+            const wCargo = String((w as any)?.cargo || '').trim().toLowerCase();
+            const pCargo = String(perfil?.nombreCargo || '').trim().toLowerCase();
+            return w.perfilId === perfil.id || (wCargo && pCargo && wCargo === pCargo);
+          }),
           isExpanded: true,
         }))
         .filter(g => g.workers.length > 0);
+
+      const assignedIds = new Set(grouped.flatMap(g => (g.workers || []).map(w => String(w._id))));
+      const unassigned = enrichedWorkers.filter((w: Worker) => w && w._id && !assignedIds.has(String(w._id)));
+      if (unassigned.length > 0) {
+        grouped.push({
+          perfil: { id: 'otros', nombreCargo: 'Otros Colaboradores', area: 'General' },
+          workers: unassigned,
+          isExpanded: true,
+        });
+      }
 
       setGroups(grouped);
     } catch (e) {

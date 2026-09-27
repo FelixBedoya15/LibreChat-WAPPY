@@ -17,6 +17,17 @@ const getPerfilSociodemograficoDataModel = () => {
     return mongoose.models.PerfilSociodemograficoData;
 };
 
+const getPerfilCargoDataModel = () => {
+    if (!mongoose.models.PerfilCargoData) {
+        try {
+            require('./perfilesCargo');
+        } catch (e) {
+            logger.warn('[SGSST Workers] Error loading perfilesCargo model:', e.message);
+        }
+    }
+    return mongoose.models.PerfilCargoData;
+};
+
 const router = express.Router();
 
 // Migration: Drop old unique index and restore correct companyId based on PerfilSociodemograficoData
@@ -34,6 +45,12 @@ async function runIndexAndCompanyMigration() {
         if (hasOldIndex) {
             logger.info('[SGSST Workers Migration] Dropping old index: user_1_documento_1');
             await SgsstWorker.collection.dropIndex('user_1_documento_1');
+        }
+
+        const hasTargetIndex = indexes.some(idx => idx.name === 'user_1_companyId_1_documento_1' && idx.unique);
+        if (hasTargetIndex && !hasOldIndex) {
+            logger.debug('[SGSST Workers Migration] Unique index user_1_companyId_1_documento_1 already verified. Skipping startup migration.');
+            return;
         }
 
         // Restore companyId for workers based on PerfilSociodemograficoData mapping (legacy workers without companyId)
@@ -432,20 +449,32 @@ async function syncWorkerWithOraculoH1(worker, userId) {
 router.get('/hub-data', requireJwtAuth, async (req, res) => {
     try {
         const companyId = await getActiveCompanyId(req.user.id);
-        const PerfilCargo = mongoose.models.PerfilCargoData;
+        const PerfilCargoModel = getPerfilCargoDataModel();
         const PerfilSocioModel = getPerfilSociodemograficoDataModel();
 
-        // 1. Fetch cargo profiles and sociodemographic data in parallel
+        // 1. Fetch cargo profiles and sociodemographic data with defensive fallbacks
         const [cargoDoc, socioDoc] = await Promise.all([
-            PerfilCargo ? PerfilCargo.findOne({ user: req.user.id, companyId }).lean() : null,
-            PerfilSocioModel ? PerfilSocioModel.findOne({ user: req.user.id, companyId }).lean() : null,
+            PerfilCargoModel
+                ? (await PerfilCargoModel.findOne(companyId ? { user: req.user.id, companyId } : { user: req.user.id }).lean()
+                    || await PerfilCargoModel.findOne({ user: req.user.id }).lean())
+                : null,
+            PerfilSocioModel
+                ? (await PerfilSocioModel.findOne(companyId ? { user: req.user.id, companyId } : { user: req.user.id }).lean()
+                    || await PerfilSocioModel.findOne({ user: req.user.id }).lean())
+                : null,
         ]);
 
-        const perfilesList = cargoDoc?.perfilesList || [];
-        const trabajadores = socioDoc?.perfiles || socioDoc?.trabajadores || [];
+        const perfilesList = Array.isArray(cargoDoc?.perfilesList) ? cargoDoc.perfilesList : [];
+        const trabajadores = Array.isArray(socioDoc?.trabajadores)
+            ? socioDoc.trabajadores
+            : (Array.isArray(socioDoc?.perfiles) ? socioDoc.perfiles : []);
 
-        // 2. Fetch existing workers
-        let workers = await SgsstWorker.find({ user: req.user.id, companyId }).lean();
+        // 2. Fetch existing workers (matching companyId or fallback to user)
+        let workers = await SgsstWorker.find(
+            companyId
+                ? { user: req.user.id, $or: [{ companyId }, { companyId: null }, { companyId: { $exists: false } }] }
+                : { user: req.user.id }
+        ).lean();
 
         // 3. Fast auto-provision: if workers in sociodemographic do not yet exist in SgsstWorker
         if (trabajadores.length > 0) {
@@ -453,30 +482,44 @@ router.get('/hub-data', requireJwtAuth, async (req, res) => {
             const toInsert = [];
 
             for (const t of trabajadores) {
+                if (!t) continue;
                 const doc = String(t.identificacion || t.documento || '').trim();
                 if (!doc || existingDocs.has(doc)) continue;
 
                 // Match perfilId if cargo matches
-                const matchingCargo = perfilesList.find(p =>
-                    p.nombreCargo && t.cargo && p.nombreCargo.trim().toLowerCase() === t.cargo.trim().toLowerCase()
-                );
+                const tCargo = String(t.cargo || '').trim().toLowerCase();
+                const matchingCargo = perfilesList.find(p => {
+                    const pCargo = String(p?.nombreCargo || '').trim().toLowerCase();
+                    return pCargo && tCargo && pCargo === tCargo;
+                });
                 const perfilId = matchingCargo ? matchingCargo.id : (perfilesList[0]?.id || 'general');
 
                 const conditionsStr = [t.enfermedades, t.diagnosticoMedico, t.limitacionesBiomecanicas]
-                    .filter(Boolean).join('; ');
+                    .filter(Boolean)
+                    .map(s => String(s).trim())
+                    .filter(Boolean)
+                    .join('; ');
+
+                let parsedNacimiento = null;
+                if (t.fechaNacimiento && typeof t.fechaNacimiento === 'string' && t.fechaNacimiento.trim()) {
+                    const d = new Date(t.fechaNacimiento.trim());
+                    if (!isNaN(d.getTime())) parsedNacimiento = d;
+                } else if (t.fechaNacimiento instanceof Date && !isNaN(t.fechaNacimiento.getTime())) {
+                    parsedNacimiento = t.fechaNacimiento;
+                }
 
                 toInsert.push({
                     user: req.user.id,
                     companyId: companyId || null,
                     perfilId,
-                    nombre: t.nombre || 'Colaborador',
+                    nombre: String(t.nombre || 'Colaborador').trim(),
                     documento: doc,
-                    cargo: t.cargo || '',
-                    genero: t.genero || 'No especificado',
-                    fechaNacimiento: t.fechaNacimiento || null,
+                    cargo: String(t.cargo || '').trim(),
+                    genero: String(t.genero || 'No especificado').trim(),
+                    fechaNacimiento: parsedNacimiento,
                     condicionesSalud: conditionsStr,
-                    fitScore: t.biocentricScore ?? 0,
-                    fitAlerts: t.biocentricAlerts ?? [],
+                    fitScore: typeof t.biocentricScore === 'number' ? t.biocentricScore : 0,
+                    fitAlerts: Array.isArray(t.biocentricAlerts) ? t.biocentricAlerts : [],
                     fechaIngreso: new Date(),
                     riesgosBioIndividual: [],
                 });
@@ -486,10 +529,14 @@ router.get('/hub-data', requireJwtAuth, async (req, res) => {
             if (toInsert.length > 0) {
                 try {
                     const inserted = await SgsstWorker.insertMany(toInsert, { ordered: false });
-                    workers = workers.concat(inserted.map(d => d.toObject ? d.toObject() : d));
+                    workers = workers.concat(inserted.map(d => (d.toObject ? d.toObject() : d)));
                 } catch (insErr) {
-                    logger.warn('[SGSST Workers Hub] Batch insert duplicate warning (safe to ignore):', insErr.message);
-                    workers = await SgsstWorker.find({ user: req.user.id, companyId }).lean();
+                    logger.warn('[SGSST Workers Hub] Batch insert notice:', insErr.message);
+                    workers = await SgsstWorker.find(
+                        companyId
+                            ? { user: req.user.id, $or: [{ companyId }, { companyId: null }] }
+                            : { user: req.user.id }
+                    ).lean();
                 }
             }
         }
@@ -547,7 +594,8 @@ router.get('/worker/:id', requireJwtAuth, async (req, res) => {
         if (!worker) {
             const PerfilSocioModel = getPerfilSociodemograficoDataModel();
             if (PerfilSocioModel) {
-                const socioDoc = await PerfilSocioModel.findOne({ user: req.user.id, companyId });
+                const socioDoc = await PerfilSocioModel.findOne({ user: req.user.id, companyId })
+                    || await PerfilSocioModel.findOne({ user: req.user.id });
                 const socioWorkers = socioDoc?.trabajadores || socioDoc?.perfiles || [];
                 const matchedSocio = socioWorkers.find(t => 
                     String(t._id || '') === idParam ||
@@ -556,19 +604,29 @@ router.get('/worker/:id', requireJwtAuth, async (req, res) => {
                 if (matchedSocio) {
                     const cleanDoc = String(matchedSocio.identificacion || matchedSocio.documento || idParam).trim();
                     const conditionsStr = [matchedSocio.enfermedades, matchedSocio.diagnosticoMedico, matchedSocio.limitacionesBiomecanicas]
-                        .filter(Boolean).join('; ');
+                        .filter(Boolean)
+                        .map(s => String(s).trim())
+                        .filter(Boolean)
+                        .join('; ');
+                    
+                    let parsedNacimiento = null;
+                    if (matchedSocio.fechaNacimiento && typeof matchedSocio.fechaNacimiento === 'string' && matchedSocio.fechaNacimiento.trim()) {
+                        const d = new Date(matchedSocio.fechaNacimiento.trim());
+                        if (!isNaN(d.getTime())) parsedNacimiento = d;
+                    }
+
                     worker = new SgsstWorker({
                         user: req.user.id,
                         companyId: companyId || null,
                         perfilId: 'general',
-                        nombre: matchedSocio.nombre || 'Colaborador',
+                        nombre: String(matchedSocio.nombre || 'Colaborador').trim(),
                         documento: cleanDoc,
-                        cargo: matchedSocio.cargo || '',
-                        genero: matchedSocio.genero || 'No especificado',
-                        fechaNacimiento: matchedSocio.fechaNacimiento || null,
+                        cargo: String(matchedSocio.cargo || '').trim(),
+                        genero: String(matchedSocio.genero || 'No especificado').trim(),
+                        fechaNacimiento: parsedNacimiento,
                         condicionesSalud: conditionsStr,
-                        fitScore: matchedSocio.biocentricScore ?? 0,
-                        fitAlerts: matchedSocio.biocentricAlerts ?? [],
+                        fitScore: typeof matchedSocio.biocentricScore === 'number' ? matchedSocio.biocentricScore : 0,
+                        fitAlerts: Array.isArray(matchedSocio.biocentricAlerts) ? matchedSocio.biocentricAlerts : [],
                         fechaIngreso: new Date(),
                         riesgosBioIndividual: [],
                     });
