@@ -1406,7 +1406,7 @@ GRÁFICO ANALIZADO: Cobertura de Controles Existentes (en la Fuente, en el Medio
 DATOS: ${JSON.stringify(chartStats)}
 
 CONCEPTO CLAVE DE INTERPRETACIÓN:
-- GTC-45 y la normativa SST dictan que los controles deben aplicarse prioritariamente en la Fuente (lo ideal) o en el Medio, y dejar el Individuo (EPP, capacitación) como última barrera.
+- El Decreto 1072 de 2015 y la Metodología Bio-Individual WAPPY dictan que los controles deben aplicarse prioritariamente en la Fuente (lo ideal) o en el Medio, y dejar el Individuo (EPP, capacitación) como última barrera.
 - "Sin control existente" representa vulnerabilidad inmediata y alta exposición.
 
 INSTRUCCIONES PARA LA CONCLUSIÓN:
@@ -1456,8 +1456,8 @@ Devuelve ÚNICAMENTE la conclusión en español, sin preámbulos ni markdown.
 `;
         }
 
-        const prompt = `Eres un auditor experto de primer nivel en Seguridad y Salud en el Trabajo (SST) con conocimientos profundos en higiene industrial y ergonomía.
-Analiza la siguiente información de la Matriz Bio-Individual IPEVAR (GTC 45) de un trabajador:
+        const prompt = `Eres un especialista en Medicina del Trabajo y Ergonomía Biocéntrica bajo la Metodología Bio-Individual WAPPY (Centricidad en el Trabajador) y el Decreto 1072 de 2015.
+Analiza la siguiente información analítica de la Matriz Bio-Individual del colaborador:
 
 ${specificPrompt}
 

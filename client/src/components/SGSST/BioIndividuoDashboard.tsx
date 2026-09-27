@@ -452,17 +452,35 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
     setIsAnalyzing(true);
     try {
       const mappedRows = rows.map((r: any) => ({
-        proceso: r.dominio_bio || 'Bio-Individual',
-        actividad: r.actividad_expuesta || r.peligro_cargo || 'Puesto de trabajo',
-        peligro_clasificacion: r.dominio_bio || r.dimension_bio || 'Bio-Individual',
-        peligro_descripcion: `${r.dimension_bio ? r.dimension_bio + ' - ' : ''}${r.peligro_cargo || ''}`,
+        id: r.id,
+        dominio_bio: r.dominio_bio || 'Osteomuscular',
+        dimension_bio: r.dimension_bio || '',
+        origen_riesgo: r.origen_riesgo || 'Inherente a la Tarea',
+        peligro_cargo: r.peligro_cargo || '',
+        actividad_expuesta: r.actividad_expuesta || '',
         efectos_posibles: r.efectos_posibles || '',
-        nr: r.indice_bio_riesgo_efectivo || r.indice_bio_riesgo_bruto || 0,
-        interpretacion_nr: r.clasificacion_bio || '',
-        controles_fuente: r.controles_fuente || r.medida_eliminacion || '',
-        controles_medio: r.controles_medio || r.medida_ingenieria || '',
-        controles_individuo: r.controles_individuo || r.medida_eppu || '',
         factor_individual: r.factor_individual || '',
+        controles_fuente: r.controles_fuente || '',
+        controles_medio: r.controles_medio || '',
+        controles_individuo: r.controles_individuo || '',
+        fit_score: r.fit_score || worker.fitScore || 0,
+        percepcion_riesgo_pts: r.percepcion_riesgo_pts || worker.percepcionRiesgoScore || 0,
+        nivel_susceptibilidad: r.nivel_susceptibilidad || 1,
+        nivel_exposicion: r.nivel_exposicion || 1,
+        indice_bio_riesgo_bruto: r.indice_bio_riesgo_bruto || ((r.nivel_susceptibilidad || 1) * (r.nivel_exposicion || 1)),
+        factor_reduccion_percepcion: r.factor_reduccion_percepcion || 0,
+        indice_bio_riesgo_efectivo: r.indice_bio_riesgo_efectivo || r.indice_bio_riesgo_bruto || 1,
+        clasificacion_bio: r.clasificacion_bio || 'Moderado',
+        intervencion_prioritaria: !!r.intervencion_prioritaria,
+        medida_eliminacion: r.medida_eliminacion || '',
+        medida_sustitucion: r.medida_sustitucion || '',
+        medida_ingenieria: r.medida_ingenieria || '',
+        medida_administrativa: r.medida_administrativa || '',
+        medida_eppu: r.medida_eppu || '',
+        factores_reduccion_texto: r.factores_reduccion_texto || '',
+        plan_accion_bio: r.plan_accion_bio || '',
+        restricciones_laborales: r.restricciones_laborales || '',
+        seguimiento_medico: r.seguimiento_medico || 'Anual',
       }));
 
       const res = await fetch('/api/sgsst/gtc45-workspace/ai-analyze-matrix', {
@@ -471,8 +489,24 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
         body: JSON.stringify({
           matrixRows: mappedRows,
           workerId: worker._id,
+          isBioIndividual: true,
+          workerData: {
+            nombre: worker.nombre,
+            documento: worker.documento,
+            cargo: worker.cargo,
+            fechaNacimiento: worker.fechaNacimiento,
+            genero: worker.genero,
+            fechaIngreso: worker.fechaIngreso,
+            condicionesSalud: worker.condicionesSalud,
+            fitScore: worker.fitScore,
+            fitAlerts: worker.fitAlerts,
+            percepcionRiesgoScore: worker.percepcionRiesgoScore,
+            eps: worker.eps,
+            afp: worker.afp,
+            estadoPila: worker.estadoPila,
+          },
           modelName: selectedModel,
-          instruction: `Emitir informe técnico Bio-IPEVAR integral de alta especialización enfocado en el colaborador ${worker.nombre}, cargo ${worker.cargo || 'Operativo'}, analizando sus antecedentes de salud (${worker.condicionesSalud || 'Ninguno registrado'}), la efectividad de los controles y plan de readaptación o prevención específico.`,
+          instruction: `Emitir dictamen técnico biocéntrico de altísimo nivel pericial bajo la Metodología Bio-Individual WAPPY (Centricidad en el Trabajador), enfocado específicamente en el colaborador ${worker.nombre}, cargo ${worker.cargo || 'Operativo'}, analizando sus antecedentes clínicos (${worker.condicionesSalud || 'Ninguno registrado'}), la amortiguación del modulador activo de percepción del riesgo, los 8 dominios bio-fisiológicos y formulando el plan individualizado de preservación y readaptación ergonómica.`,
         }),
       });
 
@@ -495,7 +529,7 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
           }).catch(() => {});
 
           showToast({
-            message: '¡Informe Bio-IPEVAR generado con IA exitosamente!',
+            message: '¡Dictamen Biocéntrico generado con IA exitosamente!',
             status: 'success',
           });
 
@@ -505,7 +539,7 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
         }
       } else {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Error al generar informe con IA');
+        throw new Error(err.error || 'Error al generar dictamen con IA');
       }
     } catch (e: any) {
       console.error('[BioIndividuo] AI report error:', e);
@@ -1023,10 +1057,10 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
                 <div>
                   <h3 className="text-lg font-black text-text-primary flex items-center gap-2">
                     <BarChart2 className="h-5 w-5 text-teal-500" />
-                    Analítica Bio-IPEVAR & Dictamen Técnico
+                    Analítica Bio-IPEVAR & Dictamen Técnico Biocéntrico
                   </h3>
                   <p className="text-xs text-text-secondary mt-1">
-                    Visualización de cobertura de controles, jerarquía GTC-45 y dictamen técnico integral asistido por IA.
+                    Visualización de los 8 dominios bio-fisiológicos, susceptibilidad clínica (NS), exposición (NE), modulador de percepción del riesgo y dictamen biocéntrico con IA.
                   </p>
                 </div>
 
@@ -1041,7 +1075,7 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
                     onClick={handleAnalyzeBioReport}
                     label={isAnalyzing ? 'Generando…' : 'Generar Informe con IA'}
                     icon={isAnalyzing ? Loader2 : Sparkles}
-                    title="Elaborar informe técnico Bio-IPEVAR con IA"
+                    title="Elaborar dictamen técnico biocéntrico con IA"
                     variant="ai"
                     isLoading={isAnalyzing}
                     disabled={isAnalyzing || (!worker?.riesgosBioIndividual?.length)}
@@ -1084,13 +1118,13 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
                   saveDisabled={isSavingReport || (!reportContent && !reportContentRef.current)}
                   onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                   isHistoryOpen={isHistoryOpen}
-                  title={`Informe Técnico Bio-Individual — ${worker.nombre}`}
+                  title={`Dictamen Técnico Biocéntrico — ${worker.nombre}`}
                   icon={<FileText className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                   defaultCollapsed={false}
                   actions={
                     <ExportDropdown
                       content={reportContentRef.current || reportContent || ''}
-                      fileName={`Informe_BioIPEVAR_${worker.documento}_${worker.nombre.replace(/\s+/g, '_')}`}
+                      fileName={`Dictamen_Biocentrico_${worker.documento}_${worker.nombre.replace(/\s+/g, '_')}`}
                       reportType="general"
                     />
                   }
@@ -1132,10 +1166,10 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
                         </div>
                         <div className="max-w-md text-center">
                           <h4 className="text-sm font-bold text-text-primary mb-1">
-                            Informe Técnico Bio-Individual GTC-45
+                            Dictamen Técnico Biocéntrico WAPPY
                           </h4>
                           <p className="text-xs text-text-secondary leading-relaxed">
-                            Presiona <span className="font-bold text-teal-600">“Generar Informe con IA”</span> para que la IA emita el dictamen técnico integral con análisis de susceptibilidad clínica, jerarquía de controles (Decreto 1072) y recomendaciones laborales específicas para {worker.nombre}.
+                            Presiona <span className="font-bold text-teal-600">“Generar Informe con IA”</span> para que la IA emita el dictamen pericial biocéntrico bajo la Metodología Bio-Individual WAPPY (Centricidad en el Trabajador), analizando los 8 dominios bio-fisiológicos, susceptibilidad clínica (NS), exposición (NE), modulador activo de percepción del riesgo y plan individualizado de readaptación para {worker.nombre}.
                           </p>
                         </div>
                         <div className="mt-2 flex flex-wrap items-center justify-center gap-3">

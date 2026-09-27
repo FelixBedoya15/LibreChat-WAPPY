@@ -477,7 +477,7 @@ export default function BioMatrizIPEVAR({ workerId, initialWorker }: BioMatrizIP
         <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #0f766e; padding-bottom: 15px; margin-bottom: 25px;">
           <div>
             <h1 style="color: #0f766e; margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: -0.5px;">Reporte Técnico IPEVAR</h1>
-            <h2 style="color: #64748b; margin: 5px 0 0 0; font-size: 14px; font-weight: normal;">Matriz de Riesgos Bio-Individual (GTC-45)</h2>
+            <h2 style="color: #64748b; margin: 5px 0 0 0; font-size: 14px; font-weight: normal;">Matriz de Riesgos Bio-Individual WAPPY (Centricidad en el Trabajador)</h2>
           </div>
           <div style="text-align: right; color: #64748b; font-size: 12px;">
             <p style="margin: 0;"><strong>ID Trabajador:</strong> ${workerId}</p>
@@ -559,7 +559,7 @@ export default function BioMatrizIPEVAR({ workerId, initialWorker }: BioMatrizIP
         </table>
         <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #94a3b8;">
           <p style="margin: 0;"><strong>Plataforma WAPPY IA</strong> - Módulo Seguridad y Salud en el Trabajo</p>
-          <p style="margin: 5px 0 0 0;">Metodología Bio-Individual alineada con la GTC-45 y el Decreto 1072</p>
+          <p style="margin: 5px 0 0 0;">Metodología Bio-Individual WAPPY · Centricidad en el Trabajador (Decreto 1072/2015)</p>
         </div>
       </div>
     `;
@@ -1035,7 +1035,7 @@ export default function BioMatrizIPEVAR({ workerId, initialWorker }: BioMatrizIP
 
               {/* Sección Taxonomía de Dominios y Dimensiones */}
               <section className="space-y-4 pt-4 border-t border-border-light">
-                <h4 className="text-lg font-bold text-text-primary mb-2">Estructura Fisiológica Completa: Dominios y Dimensiones (GTC-45)</h4>
+                <h4 className="text-lg font-bold text-text-primary mb-2">Estructura Fisiológica Completa: 8 Dominios Bio-Fisiológicos WAPPY</h4>
                 <p className="text-text-secondary leading-relaxed mb-4">
                   El sistema valida que cada riesgo sea mapeado con exactitud en su dominio fisiológico correspondiente y que use una dimensión estandarizada de peligro de acuerdo con la clasificación oficial colombiana:
                 </p>

@@ -816,28 +816,334 @@ function buildIpevarChartsHtml(matrixRows) {
   return html;
 }
 
+function calculateAge(birthDate) {
+  if (!birthDate) return null;
+  const birth = new Date(birthDate);
+  if (isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
+
+function buildBioIndividualChartsHtml(matrixRows, worker) {
+  if (!matrixRows || matrixRows.length === 0) return '';
+
+  const DOMINIOS_DEFAULT = [
+    'Osteomuscular', 'Cardiovascular', 'Neurológico', 'Psicoemocional',
+    'Metabólico', 'Respiratorio', 'Sensorial', 'Inmunológico'
+  ];
+
+  const domMap = {};
+  DOMINIOS_DEFAULT.forEach(d => {
+    domMap[d] = { count: 0, sumEfectivo: 0, sumNS: 0, sumNE: 0, criticos: 0 };
+  });
+
+  matrixRows.forEach(r => {
+    const k = (r.dominio_bio || r.peligro_clasificacion || 'Osteomuscular').trim();
+    if (!domMap[k]) {
+      domMap[k] = { count: 0, sumEfectivo: 0, sumNS: 0, sumNE: 0, criticos: 0 };
+    }
+    const ns = Number(r.nivel_susceptibilidad) || 1;
+    const ne = Number(r.nivel_exposicion) || 1;
+    const efectivo = Number(r.indice_bio_riesgo_efectivo) || Number(r.nr) || (ns * ne);
+    const clas = r.clasificacion_bio || (efectivo >= 20 ? 'Crítico' : efectivo >= 12 ? 'Alto' : efectivo >= 6 ? 'Moderado' : 'Bajo');
+
+    domMap[k].count++;
+    domMap[k].sumEfectivo += efectivo;
+    domMap[k].sumNS += ns;
+    domMap[k].sumNE += ne;
+    if (clas === 'Crítico' || clas === 'Alto') domMap[k].criticos++;
+  });
+
+  const dominiosEvaluados = Object.entries(domMap)
+    .filter(([_, d]) => d.count > 0)
+    .map(([dominio, d]) => ({
+      dominio,
+      count: d.count,
+      avgEfectivo: Math.round((d.sumEfectivo / d.count) * 10) / 10,
+      avgNS: Math.round((d.sumNS / d.count) * 10) / 10,
+      avgNE: Math.round((d.sumNE / d.count) * 10) / 10,
+      criticos: d.criticos,
+    }))
+    .sort((a, b) => b.avgEfectivo - a.avgEfectivo);
+
+  const percepcionPts = worker?.percepcionRiesgoScore || 0;
+  const factorRed = Math.min(0.40, percepcionPts / 500);
+  const factorPct = Math.round(factorRed * 100);
+
+  const empty = (v) => !v || ['ninguno', 'ninguna', 'none', 'no aplica', ''].includes(String(v).toLowerCase().trim());
+  let elim = 0, sust = 0, ing = 0, adm = 0, epp = 0;
+  matrixRows.forEach(r => {
+    if (!empty(r.medida_eliminacion)) elim++;
+    if (!empty(r.medida_sustitucion)) sust++;
+    if (!empty(r.medida_ingenieria)) ing++;
+    if (!empty(r.medida_administrativa)) adm++;
+    if (!empty(r.medida_eppu || r.controles_individuo)) epp++;
+  });
+  const totalRiesgos = matrixRows.length || 1;
+  const jerarquia = [
+    { label: '1. Eliminación', val: elim, pct: Math.round((elim / totalRiesgos) * 100), col: '#ef4444' },
+    { label: '2. Sustitución', val: sust, pct: Math.round((sust / totalRiesgos) * 100), col: '#f97316' },
+    { label: '3. Ingeniería', val: ing, pct: Math.round((ing / totalRiesgos) * 100), col: '#f59e0b' },
+    { label: '4. Administrativo / Pausas', val: adm, pct: Math.round((adm / totalRiesgos) * 100), col: '#0ea5e9' },
+    { label: '5. EPPU / Protección Bio', val: epp, pct: Math.round((epp / totalRiesgos) * 100), col: '#8b5cf6' },
+  ];
+
+  function renderBioBar(label, value, max, color, suffix = '') {
+    const pct = Math.max(0, Math.min(100, (value / max) * 100));
+    return `
+      <div style="display:flex; align-items:center; margin-bottom:8px;">
+        <div style="width:160px; font-size:11px; color:#475569; font-weight:600; text-align:right; padding-right:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${label}">${label}</div>
+        <div style="flex:1; background-color:#f1f5f9; border-radius:10px; height:18px; position:relative; overflow:hidden;">
+          <div style="background-color:${color}; width:${Math.max(8, pct)}%; height:100%; border-radius:10px; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; color:white; font-size:10px; font-weight:bold;">
+            ${value}${suffix}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function getHexBioColor(val) {
+    if (val >= 20) return '#dc2626';
+    if (val >= 12) return '#ea580c';
+    if (val >= 6) return '#eab308';
+    return '#10b981';
+  }
+
+  const criticosTotales = dominiosEvaluados.reduce((acc, d) => acc + d.criticos, 0);
+  const fitScoreVal = worker?.fitScore !== undefined && worker?.fitScore !== null ? worker.fitScore : 'N/A';
+  const fitColor = typeof fitScoreVal === 'number' ? (fitScoreVal >= 80 ? '#10b981' : fitScoreVal >= 60 ? '#f59e0b' : '#ef4444') : '#0f766e';
+
+  return `
+    <div style="margin: 25px 0; border: 1px solid #ccfbf1; border-radius: 14px; padding: 22px; background-color: #f0fdfa; page-break-inside: avoid; font-family: sans-serif;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #0f766e; padding-bottom:10px; margin-bottom:20px;">
+        <h3 style="color:#0f766e; font-size:15px; margin:0; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">
+          ANALÍTICA BIO-INDIVIDUAL — PERFIL BIOMÉDICO Y FISIOLÓGICO (8 Dominios WAPPY)
+        </h3>
+        <span style="background-color:#0f766e; color:#fff; font-size:10px; font-weight:700; padding:4px 12px; border-radius:12px; text-transform:uppercase;">
+          Centricidad en el Trabajador
+        </span>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap:12px; margin-bottom:20px;">
+        <div style="background:#fff; border:1px solid #ccfbf1; border-radius:10px; padding:12px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+          <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">FIT Score (Compatibilidad)</div>
+          <div style="font-size:22px; font-weight:900; color:${fitColor}; margin-top:2px;">
+            ${typeof fitScoreVal === 'number' ? fitScoreVal + '%' : fitScoreVal}
+          </div>
+          <div style="font-size:9px; color:#94a3b8; margin-top:2px;">Reserva Biocéntrica</div>
+        </div>
+
+        <div style="background:#fff; border:1px solid #ccfbf1; border-radius:10px; padding:12px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+          <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Percepción del Riesgo</div>
+          <div style="font-size:22px; font-weight:900; color:#0f766e; margin-top:2px;">
+            ${percepcionPts} <span style="font-size:12px; font-weight:600;">pts</span>
+          </div>
+          <div style="font-size:9px; color:#0d9488; font-weight:700; margin-top:2px;">
+            Amortiguación Activa: -${factorPct}%
+          </div>
+        </div>
+
+        <div style="background:#fff; border:1px solid #ccfbf1; border-radius:10px; padding:12px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+          <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Peligros Evaluados</div>
+          <div style="font-size:22px; font-weight:900; color:#334155; margin-top:2px;">
+            ${matrixRows.length}
+          </div>
+          <div style="font-size:9px; color:#94a3b8; margin-top:2px;">En ${dominiosEvaluados.length} Dominios Bio</div>
+        </div>
+
+        <div style="background:#fff; border:1px solid #ccfbf1; border-radius:10px; padding:12px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+          <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Atención Prioritaria</div>
+          <div style="font-size:22px; font-weight:900; color:${criticosTotales > 0 ? '#dc2626' : '#10b981'}; margin-top:2px;">
+            ${criticosTotales}
+          </div>
+          <div style="font-size:9px; color:${criticosTotales > 0 ? '#dc2626' : '#10b981'}; font-weight:700; margin-top:2px;">Riesgos Críticos/Altos</div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;">
+            <h4 style="margin:0; color:#0f766e; font-size:12px; text-transform:uppercase; font-weight:700;">
+              1. Índice de Bio-Riesgo Efectivo por Dominio Fisiológico (Escala 1 a 25)
+            </h4>
+            <span style="font-size:9px; color:#64748b;">(Modulado por Percepción: -${factorPct}%)</span>
+          </div>
+          ${dominiosEvaluados.map(d => renderBioBar(d.dominio, d.avgEfectivo, 25, getHexBioColor(d.avgEfectivo), ` / 25 (${d.avgEfectivo >= 20 ? 'Crítico' : d.avgEfectivo >= 12 ? 'Alto' : d.avgEfectivo >= 6 ? 'Moderado' : 'Bajo'})`)).join('')}
+        </div>
+
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;">
+            <h4 style="margin:0; color:#0f766e; font-size:12px; text-transform:uppercase; font-weight:700;">
+              2. Susceptibilidad Biológica Individual (NS: 1-5) vs Demanda Ocupacional (NE: 1-5)
+            </h4>
+            <span style="font-size:9px; color:#64748b;">Interacción Clínica Puesto-Persona</span>
+          </div>
+          <table style="width:100%; border-collapse:collapse; font-size:11px;">
+            <thead>
+              <tr style="border-bottom:1px solid #cbd5e1; text-align:left; color:#475569;">
+                <th style="padding:6px 8px; font-weight:700;">Dominio Bio</th>
+                <th style="padding:6px 8px; font-weight:700; text-align:center;">Susceptibilidad (NS)</th>
+                <th style="padding:6px 8px; font-weight:700; text-align:center;">Exposición (NE)</th>
+                <th style="padding:6px 8px; font-weight:700; text-align:center;">Riesgo Bruto (NS×NE)</th>
+                <th style="padding:6px 8px; font-weight:700; text-align:center;">Foco Clínico</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dominiosEvaluados.map(d => {
+                const bruto = Math.round(d.avgNS * d.avgNE * 10) / 10;
+                const enfoque = d.avgNS > d.avgNE ? 'Fragilidad médica predominante' : d.avgNE > d.avgNS ? 'Sobrecarga de tarea predominante' : 'Carga balanceada';
+                return `
+                  <tr style="border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:6px 8px; font-weight:600; color:#334155;">${d.dominio}</td>
+                    <td style="padding:6px 8px; text-align:center; font-weight:700; color:#ea580c;">${d.avgNS} / 5</td>
+                    <td style="padding:6px 8px; text-align:center; font-weight:700; color:#0284c7;">${d.avgNE} / 5</td>
+                    <td style="padding:6px 8px; text-align:center; font-weight:800; color:#0f766e;">${bruto}</td>
+                    <td style="padding:6px 8px; text-align:center; font-size:10px; color:#64748b;">${enfoque}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;">
+            <h4 style="margin:0; color:#0f766e; font-size:12px; text-transform:uppercase; font-weight:700;">
+              3. Jerarquía de Medidas de Preservación Fisiológica Propuestas (Decreto 1072)
+            </h4>
+            <span style="font-size:9px; color:#64748b;">Cobertura sobre ${totalRiesgos} peligros evaluados</span>
+          </div>
+          ${jerarquia.map(j => renderBioBar(j.label, j.pct, 100, j.col, '%')).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildBioIndividualReportPrompt({ worker, matrixRows, instruction }) {
+  const edad = worker.fechaNacimiento ? calculateAge(worker.fechaNacimiento) : (worker.edad || 'No especificada');
+  const antiguedad = worker.fechaIngreso ? new Date(worker.fechaIngreso).toLocaleDateString('es-CO') : 'No especificada';
+  const condiciones = worker.condicionesSalud || 'Sin antecedentes clínicos o restricciones registradas en la hoja de vida';
+  const fitScore = worker.fitScore !== undefined && worker.fitScore !== null ? `${worker.fitScore}%` : 'No calculado';
+  const fitAlerts = Array.isArray(worker.fitAlerts) && worker.fitAlerts.length ? worker.fitAlerts.join(', ') : 'Sin alertas críticas adicionales';
+  const percepcionPts = worker.percepcionRiesgoScore || 0;
+  const factorRed = Math.min(0.40, percepcionPts / 500);
+  const factorPct = Math.round(factorRed * 100);
+
+  const matrixSummary = matrixRows.map((r, i) => {
+    const dom = r.dominio_bio || r.peligro_clasificacion || 'Osteomuscular';
+    const dim = r.dimension_bio || r.peligro_descripcion || 'Exposición general';
+    const cargoPel = r.peligro_cargo || r.actividad || 'Puesto habitual';
+    const actExp = r.actividad_expuesta || '';
+    const ef = r.efectos_posibles || 'Molestias o fatiga';
+    const factorInd = r.factor_individual ? ` | Factor Individual Agravante: ${r.factor_individual}` : '';
+    const ns = r.nivel_susceptibilidad || 1;
+    const ne = r.nivel_exposicion || 1;
+    const bruto = r.indice_bio_riesgo_bruto || (ns * ne);
+    const efect = r.indice_bio_riesgo_efectivo || bruto;
+    const clas = r.clasificacion_bio || (efect >= 20 ? 'Crítico' : efect >= 12 ? 'Alto' : efect >= 6 ? 'Moderado' : 'Bajo');
+    const prio = r.intervencion_prioritaria ? ' [¡INTERVENCIÓN PRIORITARIA!]' : '';
+    const ctrlExistentes = `Controles Actuales: [Fuente: ${r.controles_fuente || 'Ninguno'}] [Medio: ${r.controles_medio || 'Ninguno'}] [Individuo: ${r.controles_individuo || 'Ninguno'}]`;
+    const ctrlPropuestos = `Medidas Propuestas: [Eliminación: ${r.medida_eliminacion || 'N/A'}] [Sustitución: ${r.medida_sustitucion || 'N/A'}] [Ingeniería: ${r.medida_ingenieria || 'N/A'}] [Admin: ${r.medida_administrativa || 'N/A'}] [EPPU: ${r.medida_eppu || 'N/A'}]`;
+    const plan = r.plan_accion_bio ? ` | Plan Bio: ${r.plan_accion_bio}` : '';
+    const restr = r.restricciones_laborales ? ` | Restricciones: ${r.restricciones_laborales}` : '';
+    const seg = r.seguimiento_medico ? ` | Seguimiento Médico: ${r.seguimiento_medico}` : '';
+
+    return `[Riesgo #${i+1}] Dominio Bio-Fisiológico: ${dom} | Dimensión: ${dim} | Peligro del Cargo: ${cargoPel} | Actividad: ${actExp}
+Efectos en Salud: ${ef}${factorInd}
+Cálculo Bio-Individual: NS=${ns} (Susceptibilidad) × NE=${ne} (Exposición) = Bruto ${bruto} | Reducción Percepción: -${factorPct}% -> Bio-Riesgo Efectivo=${efect} (${clas})${prio}
+${ctrlExistentes}
+${ctrlPropuestos}${plan}${restr}${seg}
+`;
+  }).join('\n---\n');
+
+  return `Eres el Especialista Principal en Medicina del Trabajo, Ergonomía de Sistemas y Director de Epidemiología Ocupacional de WAPPY, coautor de la METODOLOGÍA BIO-INDIVIDUAL WAPPY (CENTRICIDAD EN EL TRABAJADOR).
+Has sido encomendado para redactar el DICTAMEN TÉCNICO BIOCÉNTRICO Y PERFIL FISIOLÓGICO integral del colaborador:
+- Colaborador: ${worker.nombre}
+- Documento: ${worker.documento || 'No registrado'}
+- Cargo: ${worker.cargo || 'Operativo'}
+- Edad: ${edad} años | Género: ${worker.genero || 'No especificado'}
+- Antigüedad: ${antiguedad}
+- EPS: ${worker.eps || 'Afiliado'} | ARL: ${worker.arl || 'ARL Vigente'} | AFP: ${worker.afp || 'AFP Registrada'}
+- Condición Clínica Previa / Antecedentes Médicos: ${condiciones}
+- FIT Score (Índice Biocéntrico Integral): ${fitScore} (Alertas: ${fitAlerts})
+- Modulador Dinámico de Percepción del Riesgo: ${percepcionPts} puntos (Aplica -${factorPct}% de reducción sobre el Bio-Riesgo Bruto)
+
+════════════════════════════════════════════════════════════════════════════════════════
+MARCO METODOLÓGICO Y VOCABULARIO OBLIGATORIO:
+════════════════════════════════════════════════════════════════════════════════════════
+ATENCIÓN CRÍTICA: NO ESTÁS REALIZANDO UNA MATRIZ GTC-45 CONVENCIONAL DE PLANTA (HITO 1).
+- En la Matriz IPEVAR convencional (Hito 1), se auditan centros de trabajo, procesos e instalaciones mediante la fórmula genérica GTC-45:2012 (ND × NE × NC = NR), tratando a la fuerza laboral como un colectivo homogéneo y asumiendo un "trabajador estándar".
+- En la METODOLOGÍA BIO-INDIVIDUAL WAPPY (Hito 3 / Este Dictamen), la unidad de análisis es el BIO-INDIVIDUO HUMANO ÚNICO. Se fundamenta en los artículos de Medicina Preventiva y del Trabajo del Decreto 1072 de 2015, evaluando la interacción biológica, biomecánica y clínica entre las condiciones de salud del colaborador y sus tareas laborales.
+
+CONCEPTOS Y FÓRMULAS PROPIAS QUE DEBES EMPLEAR:
+1. NS (Nivel de Susceptibilidad Biológica: 1 a 5): Vulnerabilidad intrínseca del trabajador basada en su historial médico, diagnósticos clínicos, biotipo, edad y antecedentes traumáticos o crónicos.
+2. NE (Nivel de Exposición Bio-Ocupacional: 1 a 5): Intensidad, frecuencia y exigencia psicofisiológica real impuesta por el puesto de trabajo.
+3. Índice Bio-Riesgo Bruto = NS × NE (Escala 1 a 25): Potencial de deterioro biológico sin mediación conductual.
+4. Modulador Activo de Percepción del Riesgo: Factor de reducción conductual = min(0.40, Puntos / 500). Se nutre de la participación del trabajador en reportes de actos y condiciones inseguras (WAPPY Bot / WhatsApp), el termómetro psicosocial y autorreporte de síntomas. En este caso, el trabajador posee ${percepcionPts} pts, lo que reduce su riesgo en un ${factorPct}%.
+5. Índice Bio-Riesgo Efectivo = Bruto × (1 - Factor Reducción):
+   * Crítico (>= 20) | Alto (12 a 19.9) | Moderado (6 a 11.9) | Bajo (< 6).
+6. Los 8 Dominios Bio-Fisiológicos WAPPY:
+   - 1. Osteomuscular (Biomecánica, columna, miembros superiores/inferiores, manipulación de cargas).
+   - 2. Cardiovascular (Hemodinamia, sobrecarga térmica, sedentarismo, esfuerzo físico).
+   - 3. Neurológico (Vibración segmentaria/cuerpo entero, ciclos circadianos, fatiga del SNC).
+   - 4. Psicoemocional (Estrés, demanda cognitiva, clima psicosocial, termómetro de ánimo).
+   - 5. Metabólico (Gasto calórico, hidratación, nutrición ocupacional, turnicidad).
+   - 6. Respiratorio (Inhalación de aerosoles, vapores, material particulado, espirometría).
+   - 7. Sensorial (Carga visual, ergonomía lumínica, exposición a ruido, fatiga neurosensorial).
+   - 8. Inmunológico (Sensibilizantes dérmicos, riesgos biológicos, alérgenos).
+7. FIT Score (%): Grado de compatibilidad clínico-ergonómica entre la reserva del individuo y el puesto.
+
+════════════════════════════════════════════════════════════════════════════════════════
+ESTRUCTURA DEL DICTAMEN TÉCNICO EXIGIDA (FORMATO HTML LIMPIO, MUY EXTENSO Y PERICIAL):
+════════════════════════════════════════════════════════════════════════════════════════
+Responde EXCLUSIVAMENTE en HTML limpio sin etiquetas \`\`\`html. Utiliza el diseño visual corporativo:
+- Tablas: <table style="width:100%;table-layout:fixed;word-wrap:break-word;border-collapse:separate;border-spacing:0;border:1px solid #ccfbf1;border-radius:8px;margin-bottom:25px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+- Headers tabla (th): <th style="background-color:#0f766e;color:#fff;padding:12px 14px;font-size:13px;font-weight:700;text-transform:uppercase;text-align:left;">
+- Celdas (td): <td style="padding:10px 14px;border-bottom:1px solid #f0fdfa;font-size:13px;color:#334155;vertical-align:top;background-color:#fff;">
+- Headers H3: <h3 style="color:#0f766e; margin-top:30px; border-bottom:1px solid #0d9488; padding-bottom:5px;">
+
+CONTENIDO DE LAS 7 SECCIONES OBLIGATORIAS (CADA UNA DEBE SER SUMAMENTE EXTENSA Y FUNDAMENTADA):
+1. **Fundamentación Biocéntrica y Diferenciación Metodológica:**
+   Argumenta por qué la GTC-45 tradicional es insuficiente para proteger a este individuo particular al ignorar su historia clínica y tratarlo como un agente genérico en un proceso industrial. Explica el marco de la Metodología Bio-Individual WAPPY y su fundamentación en el Decreto 1072/2015 (Medicina Preventiva y del Trabajo, Perfil Sociodemográfico y Morbilidad).
+2. **Perfil Clínico-Fisiológico y Nivel de Compatibilidad (FIT Score):**
+   Analiza a fondo las características biográficas de ${worker.nombre}, su edad (${edad} años), cargo (${worker.cargo}) y especialmente su condición clínica base (${condiciones}). Interpreta el significado clínico del FIT Score de ${fitScore} y las alertas asociadas (${fitAlerts}).
+3. **Evaluación Fisiopatológica de los 8 Dominios Bio-Fisiológicos:**
+   Desarrolla una subtrama exhaustiva analizando cada uno de los dominios identificados en la matriz. Explica la correlación entre las actividades expuestas y los órganos blanco, sustentando cómo el Nivel de Susceptibilidad (NS) y el Nivel de Exposición (NE) determinan el riesgo.
+4. **Dinámica del Modulador Activo de Percepción del Riesgo:**
+   Explica detalladamente cómo el puntaje de percepción de ${percepcionPts} pts reduce matemáticamente el riesgo bruto en un ${factorPct}% (Factor de Reducción = ${factorRed.toFixed(2)}). Destaca el valor del autorreporte preventivo y la participación en WAPPY Bot.
+5. **Diagnóstico de Vulnerabilidad Crítica y Órganos Blanco:**
+   Identifica los peligros con Bio-Riesgo Efectivo más severo (Crítico o Alto). Presenta una tabla resumen: Dominio Bio, Dimensión / Peligro, Susceptibilidad (NS), Exposición (NE), Bio-Riesgo Bruto, Bio-Riesgo Efectivo, Clasificación y Órgano Blanco Comprometido.
+6. **Plan de Preservación Fisiológica, Readaptación y PVE Individual:**
+   Prescribe un plan médico-ocupacional concreto y personalizado para ${worker.nombre}:
+   - Rediseño ergonómico y adecuaciones biomecánicas del puesto.
+   - Pautas de ejercicios compensatorios y pausas activas personalizadas para sus zonas corporales vulnerables.
+   - Controles administrativos individuales (dosificación horaria, límites de carga, descansos).
+   - Especificaciones técnicas de EPP ergonómico acorde a su antropometría y patología.
+   - Programa de Vigilancia Epidemiológica (PVE) Individualizado: periodicidad de exámenes paraclínicos (osteomuscular, audiometría, visiometría, pruebas de estrés o metabólicas) y cronograma de seguimiento médico.
+7. **Dictamen Biocéntrico y Conclusión de Aptitud Ocupacional:**
+   Veredicto pericial sobre la sostenibilidad laboral del colaborador en el puesto y recomendaciones ejecutivas para la gerencia y el médico especialista.
+
+NO incluyas encabezado principal tipo banner ni bloque de firmas al final (el sistema los inyectará automáticamente).
+
+MATRIZ BIO-INDIVIDUAL DEL COLABORADOR (${matrixRows.length} riesgos evaluados):
+${matrixSummary}
+
+INSTRUCCIÓN ESPECÍFICA DE ANÁLISIS:
+${instruction || 'Elaborar dictamen pericial biocéntrico de máxima profundidad médica y ocupacional, personalizando cada acápite según los antecedentes clínicos y los 8 dominios evaluados.'}
+`;
+}
+
 // ─── IA: Analizar toda la matriz (contexto completo) ──────────────────────────
 router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
   try {
-    const { matrixRows, instruction, workerId } = req.body;
+    const { matrixRows, instruction, workerId, isBioIndividual, workerData } = req.body;
     const userId = req.user?.id;
 
     if (!matrixRows || !matrixRows.length) return res.status(400).json({ error: 'La matriz está vacía.' });
-
-    let workerContext = '';
-    let reportTitle = 'INFORME EJECUTIVO DE RIESGOS IPEVAR - GTC-45';
-    if (workerId) {
-        const worker = await SgsstWorker.findOne({ _id: workerId, user: req.user.id });
-        if (worker) {
-            reportTitle = `INFORME IPEVAR BIO-INDIVIDUAL - ${worker.nombre.toUpperCase()}`;
-            workerContext = `
-**[ATENCIÓN: ESTE ES UN INFORME BIO-INDIVIDUAL (CENTRICIDAD EN EL TRABAJADOR)]**
-Estás evaluando específicamente al trabajador: ${worker.nombre}.
-Condiciones de salud y vulnerabilidades clínicas previas: ${worker.condicionesSalud || 'Ninguna registrada'}.
-Toda tu redacción DEBE enfocarse en cómo los riesgos evaluados impactan DIRECTAMENTE a este individuo en particular, considerando su estado clínico base. Adapta las recomendaciones (EPP, exámenes médicos ocupacionales, readaptación de tareas) explícitamente a sus condiciones.
-`;
-        }
-    }
 
     let loadedCompanyInfo = null;
     try {
@@ -848,29 +1154,52 @@ Toda tu redacción DEBE enfocarse en cómo los riesgos evaluados impactan DIRECT
     }
 
     const currentDate = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
-    const headerHTML = buildStandardHeader({
-      title: reportTitle,
-      companyInfo: loadedCompanyInfo,
-      date: currentDate,
-      norm: workerId ? 'Matriz 360° Bio-Individual / GTC-45' : 'GTC-45:2012 / Decreto 1072 de 2015',
-      responsibleName: req.user?.name,
-    });
+    const isBio = !!(workerId || isBioIndividual);
 
-    const matrixSummary = matrixRows.map((r, i) => {
-      const proc = r.proceso || r.dominio_bio || 'Bio-Individual';
-      const act = r.actividad || r.actividad_expuesta || r.peligro_cargo || 'Puesto de trabajo';
-      const clas = r.peligro_clasificacion || r.dominio_bio || r.dimension_bio || 'General';
-      const desc = r.peligro_descripcion || `${r.dimension_bio ? r.dimension_bio + ' - ' : ''}${r.peligro_cargo || ''}`;
-      const nr = r.nr || r.indice_bio_riesgo_efectivo || r.indice_bio_riesgo_bruto || 0;
-      const interp = r.interpretacion_nr || r.clasificacion_bio || '';
-      const ef = r.efectos_posibles || '';
-      const factor = r.factor_individual ? ` | Modulador Individual: ${r.factor_individual}` : '';
-      return `[${i+1}] Proceso/Dominio: ${proc} | Actividad: ${act} | Clasificación: ${clas} | Peligro: ${desc} | Nivel de Riesgo: ${nr} (${interp}) | Efectos: ${ef}${factor}`;
-    }).join('\n');
+    let reportTitle = 'INFORME EJECUTIVO DE RIESGOS IPEVAR - GTC-45';
+    let norm = 'GTC-45:2012 / Decreto 1072 de 2015';
+    let prompt = '';
+    let chartsHTML = '';
+    let workerDoc = null;
 
-    const prompt = `Eres un auditor experto en Seguridad y Salud en el Trabajo bajo la metodología GTC-45:2012 en Colombia.
+    if (isBio) {
+      if (workerId) {
+        try {
+          workerDoc = await SgsstWorker.findOne({ _id: workerId, user: userId }).lean();
+        } catch (e) {
+          logger.warn('[GTC45] Could not load workerDoc', e);
+        }
+      }
+      const combinedWorker = {
+        ...(workerDoc || {}),
+        ...(workerData || {}),
+      };
+      const workerName = (combinedWorker.nombre || 'COLABORADOR').toUpperCase();
+      reportTitle = `DICTAMEN TÉCNICO BIOCÉNTRICO — ${workerName}`;
+      norm = 'Metodología Bio-Individual WAPPY (Centricidad en el Trabajador) · Decreto 1072/2015';
+
+      chartsHTML = buildBioIndividualChartsHtml(matrixRows, combinedWorker);
+      prompt = buildBioIndividualReportPrompt({
+        worker: combinedWorker,
+        matrixRows,
+        instruction,
+      });
+    } else {
+      // Flujo institucional IPEVAR General GTC-45 (Hito 1)
+      chartsHTML = buildIpevarChartsHtml(matrixRows);
+      const matrixSummary = matrixRows.map((r, i) => {
+        const proc = r.proceso || 'General';
+        const act = r.actividad || 'Puesto de trabajo';
+        const clas = r.peligro_clasificacion || 'General';
+        const desc = r.peligro_descripcion || '';
+        const nr = r.nr || 0;
+        const interp = r.interpretacion_nr || '';
+        const ef = r.efectos_posibles || '';
+        return `[${i+1}] Proceso: ${proc} | Actividad: ${act} | Clasificación: ${clas} | Peligro: ${desc} | Nivel de Riesgo: ${nr} (${interp}) | Efectos: ${ef}`;
+      }).join('\n');
+
+      prompt = `Eres un auditor experto en Seguridad y Salud en el Trabajo bajo la metodología GTC-45:2012 en Colombia.
 Analiza esta Matriz IPEVAR completa y emite un Informe Técnico y Ejecutivo integral MUY EXTENSO, sumamente detallado y analítico.
-${workerContext}
 
 **INSTRUCCIONES DE FORMATO HTML:**
 - Responde EXCLUSIVAMENTE en HTML limpio, listo para inyectarse en el DOM. NO uses \`\`\`html.
@@ -901,20 +1230,28 @@ ${matrixSummary}
 **INSTRUCCIÓN ESPECÍFICA (opcional):**
 ${instruction || 'Generar informe ejecutivo de altísimo nivel técnico priorizando muy extensamente cada acápite del análisis de procesos y peligros.'}
 `;
+    }
+
+    const headerHTML = buildStandardHeader({
+      title: reportTitle,
+      companyInfo: loadedCompanyInfo,
+      date: currentDate,
+      norm,
+      responsibleName: req.user?.name,
+      cargo: workerDoc?.cargo || req.body?.workerData?.cargo,
+    });
 
     const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
     const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });
     const analysisRaw = result.response.text();
     const htmlBody = analysisRaw.replace(/```html\n ?/g, '').replace(/```\n?/g, '').trim();
-    
-    const chartsHTML = buildIpevarChartsHtml(matrixRows);
 
     let fullReport = headerHTML + chartsHTML + '<div style="margin-top:20px;">' + htmlBody + '</div>';
     if (loadedCompanyInfo) {
       fullReport += buildSignatureSection(loadedCompanyInfo);
     }
 
-    logger.info(`[GTC45/ai-analyze-matrix] HTML Analysis generated for user ${userId}, ${matrixRows.length} rows`);
+    logger.info(`[GTC45/ai-analyze-matrix] HTML Analysis generated for user ${userId}, isBio=${isBio}, ${matrixRows.length} rows`);
     return res.json({ analysis: fullReport });
 
   } catch (error) {

@@ -341,7 +341,7 @@ export default function BioMatrizIPEVARDashboard({
           </div>
           <div className="mt-3 p-3 rounded-xl bg-surface-primary border border-border-light text-xs text-text-secondary">
             {chartC[0]?.value >= chartC[2]?.value
-              ? '✅ Los controles priorizan la fuente, alineado con la jerarquía GTC-45.'
+              ? '✅ Los controles priorizan la fuente, alineado con el Decreto 1072 y la Metodología Bio-Individual.'
               : '⚠️ Más controles en el individuo que en la fuente. Revisar estrategia de prevención.'}
           </div>
           <ConclusionField chartType="controles_existentes" chartStats={chartC} rows={rows} workerId={workerId} token={token} modelName={modelName} initialValue={conclusions.controles_existentes || ''} onConclusionSaved={onConclusionSaved} />
@@ -377,7 +377,7 @@ export default function BioMatrizIPEVARDashboard({
           )}
           {!jerarquiaInvertida && chartD[0]?.value > 0 && (
             <div className="mt-3 p-3 rounded-xl bg-green-50 dark:bg-green-900/15 border border-green-200 dark:border-green-900/40 text-xs text-green-700 dark:text-green-400">
-              ✅ La jerarquía de controles prioriza la eliminación del riesgo en la fuente — correctamente alineada con GTC-45.
+              ✅ La jerarquía de controles prioriza la eliminación del riesgo en la fuente — correctamente alineada con el Decreto 1072 de 2015.
             </div>
           )}
 
