@@ -32,6 +32,7 @@ import { useToastContext } from '@librechat/client';
 import { QRCodeSVG } from 'qrcode.react';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
 import { SignaturePad } from './SignaturePad';
+import ExpandingButton from './ExpandingButton';
 
 interface CopasstWorkspaceProps {
   // Optional props
@@ -359,6 +360,54 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
             badge: config?.eleccionActiva ? '!' : undefined,
           },
         ]}
+        customSections={[
+          <div key="copasst-actions-bar" className="flex items-center gap-1.5">
+            {activeTab === 'actas' && (
+              <ToolbarButton
+                id="tb-new-acta"
+                onClick={handleOpenNewActa}
+                label="Nueva Acta Mensual"
+                icon={Plus}
+                title="Registrar Nueva Acta Mensual del COPASST"
+                variant="ai"
+              />
+            )}
+            {activeTab === 'conformacion' && (
+              <ToolbarButton
+                id="tb-convocar-eleccion"
+                onClick={() => setActiveTab('elecciones')}
+                label="Convocar Votación Secreta"
+                icon={Vote}
+                title="Abrir Votación Secreta Digital"
+                variant="dummy"
+              />
+            )}
+            {activeTab === 'elecciones' && (
+              <ToolbarButton
+                id="tb-nueva-convocatoria-elecciones"
+                onClick={() => {
+                  setEleccionForm({
+                    titulo: `Elección COPASST ${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
+                    periodo: `${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
+                    candidatos: workers.slice(0, 4).map((w) => ({
+                      id: w.cedula,
+                      nombre: w.nombre,
+                      cedula: w.cedula,
+                      cargo: w.cargo,
+                      propuesta: 'Compromiso por la prevención y el bienestar de todos.',
+                      votos: 0,
+                    })),
+                  });
+                  setShowEleccionModal(true);
+                }}
+                label="Nueva Convocatoria Electoral"
+                icon={Plus}
+                title="Publicar Nueva Convocatoria a Elecciones"
+                variant="dummy"
+              />
+            )}
+          </div>
+        ]}
       />
 
       {/* ═══ TAB 1: ACTAS MENSUALES ═══ */}
@@ -375,13 +424,13 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
+              <ExpandingButton
                 onClick={handleOpenNewActa}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-teal-600/20 transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
-              >
-                <Plus className="w-4 h-4" />
-                Nueva Acta Mensual
-              </button>
+                label="Nueva Acta Mensual"
+                icon={Plus}
+                variant="teal"
+                title="Registrar Nueva Acta Mensual del COPASST"
+              />
             </div>
           </div>
 
@@ -509,13 +558,13 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 </p>
               </div>
 
-              <button
+              <ExpandingButton
                 onClick={() => setActiveTab('elecciones')}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
-              >
-                <Vote className="w-4 h-4" />
-                Convocar Votación Secreta
-              </button>
+                label="Convocar Votación Secreta"
+                icon={Vote}
+                variant="orange"
+                title="Iniciar Convocatoria y Votación Secreta Digital"
+              />
             </div>
 
             {/* Representantes Empleador */}
@@ -593,7 +642,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
               </p>
             </div>
 
-            <button
+            <ExpandingButton
               onClick={() => {
                 setEleccionForm({
                   titulo: `Elección COPASST ${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
@@ -609,11 +658,11 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 });
                 setShowEleccionModal(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
-            >
-              <Plus className="w-4 h-4" />
-              Nueva Convocatoria Electoral
-            </button>
+              label="Nueva Convocatoria Electoral"
+              icon={Plus}
+              variant="orange"
+              title="Publicar Nueva Convocatoria a Elecciones"
+            />
           </div>
 
           <div className="space-y-4">
@@ -652,32 +701,32 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                       <div className="flex items-center gap-2">
                         {e.estado === 'activa' && (
                           <>
-                            <button
+                            <ExpandingButton
                               onClick={() => setQrModalUrl(votingUrl)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-700 shadow-2xs active:scale-95 transition-all"
-                            >
-                              <QrCode className="w-4 h-4 text-teal-600" />
-                              Código QR
-                            </button>
+                              label="Código QR"
+                              icon={QrCode}
+                              variant="secondary"
+                              title="Mostrar Código QR de Votación"
+                            />
 
-                            <button
+                            <ExpandingButton
                               onClick={() => {
                                 navigator.clipboard.writeText(votingUrl);
                                 showToast({ message: 'Enlace de votación copiado al portapapeles', status: 'success' });
                               }}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-700 shadow-2xs active:scale-95 transition-all"
-                            >
-                              <Share2 className="w-4 h-4 text-teal-600" />
-                              Copiar Link
-                            </button>
+                              label="Copiar Link"
+                              icon={Share2}
+                              variant="secondary"
+                              title="Copiar Link de la Urna Digital"
+                            />
 
-                            <button
+                            <ExpandingButton
                               onClick={() => handleEscrutinio(e._id)}
-                              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-sm shadow-orange-500/20 active:scale-95 transition-all"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                              Cerrar & Escrutar
-                            </button>
+                              label="Cerrar & Escrutar"
+                              icon={CheckCircle2}
+                              variant="orange"
+                              title="Finalizar Votación y Generar Acta Oficial de Escrutinio"
+                            />
                           </>
                         )}
                       </div>
@@ -738,15 +787,14 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
 
               {/* Botón IA Tenshi + Botón Cerrar */}
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
+                <ExpandingButton
                   onClick={handleGenerateWithAI}
-                  disabled={isGeneratingIA}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white disabled:opacity-50"
-                >
-                  {isGeneratingIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                  Redactar con Tenshi IA
-                </button>
+                  isLoading={isGeneratingIA}
+                  label={isGeneratingIA ? 'Redactando con Tenshi...' : 'Redactar con Tenshi IA'}
+                  icon={Sparkles}
+                  variant="orange"
+                  title="Redactar borrador del acta con Tenshi IA"
+                />
                 <button
                   type="button"
                   onClick={() => setShowActaModal(false)}
@@ -806,8 +854,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 <h4 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400 flex items-center gap-1.5">
                   <PenTool className="w-3.5 h-3.5" /> Asistentes y Firmas Digitales de los Participantes ({actaForm.asistentes?.length || 0})
                 </h4>
-                <button
-                  type="button"
+                <ExpandingButton
                   onClick={() => {
                     const nombre = prompt('Nombre completo del nuevo participante:');
                     if (!nombre) return;
@@ -821,10 +868,11 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                       ],
                     });
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-all active:scale-95 shadow-2xs"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Agregar Asistente
-                </button>
+                  label="Agregar Asistente"
+                  icon={Plus}
+                  variant="outline-teal"
+                  title="Añadir nuevo participante"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -965,8 +1013,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 <h4 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400">
                   Plan de Acción / Compromisos Asumidos ({actaForm.compromisos?.length || 0})
                 </h4>
-                <button
-                  type="button"
+                <ExpandingButton
                   onClick={() =>
                     setActaForm({
                       ...actaForm,
@@ -981,10 +1028,11 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                       ],
                     })
                   }
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-all active:scale-95 shadow-2xs"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Agregar Compromiso
-                </button>
+                  label="Agregar Compromiso"
+                  icon={Plus}
+                  variant="outline-teal"
+                  title="Añadir nuevo compromiso / tarea al acta"
+                />
               </div>
 
               {(actaForm.compromisos || []).map((comp: any, cIdx: number) => (
@@ -1039,22 +1087,20 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
 
             {/* Footer Modal Buttons */}
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-zinc-800">
-              <button
-                type="button"
+              <ExpandingButton
                 onClick={() => setShowActaModal(false)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shadow-sm bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 active:scale-95 transition-all"
-              >
-                <X className="w-4 h-4" />
-                Cancelar
-              </button>
-              <button
-                type="button"
+                label="Cancelar"
+                icon={X}
+                variant="secondary"
+                title="Descartar cambios y cerrar"
+              />
+              <ExpandingButton
                 onClick={handleSaveActa}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-teal-600/20 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white active:scale-95 transition-all"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Guardar Acta Reglamentaria
-              </button>
+                label="Guardar Acta Reglamentaria"
+                icon={CheckCircle2}
+                variant="teal"
+                title="Guardar acta y registrar compromisos"
+              />
             </div>
           </div>
         </div>
@@ -1157,8 +1203,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                     onChange={(e) => setNewCandidato({ ...newCandidato, cargo: e.target.value })}
                     className="w-28 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
                   />
-                  <button
-                    type="button"
+                  <ExpandingButton
                     onClick={() => {
                       if (!newCandidato.nombre.trim()) return;
                       setEleccionForm({
@@ -1170,31 +1215,30 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                       });
                       setNewCandidato({ nombre: '', cargo: '', cedula: '' });
                     }}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs bg-teal-600 hover:bg-teal-700 text-white shadow-sm active:scale-95 transition-all"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Agregar
-                  </button>
+                    label="Agregar"
+                    icon={Plus}
+                    variant="teal"
+                    title="Añadir candidato a la lista"
+                  />
                 </div>
               </div>
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-zinc-800">
-              <button
-                type="button"
+              <ExpandingButton
                 onClick={() => setShowEleccionModal(false)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shadow-sm bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 active:scale-95 transition-all"
-              >
-                <X className="w-4 h-4" />
-                Cancelar
-              </button>
-              <button
-                type="button"
+                label="Cancelar"
+                icon={X}
+                variant="secondary"
+                title="Cancelar y cerrar convocatoria"
+              />
+              <ExpandingButton
                 onClick={handleCreateEleccion}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-teal-600/20 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white active:scale-95 transition-all"
-              >
-                <Vote className="w-4 h-4" />
-                Abrir Urna Digital
-              </button>
+                label="Abrir Urna Digital"
+                icon={Vote}
+                variant="orange"
+                title="Publicar convocatoria y abrir urna digital"
+              />
             </div>
           </div>
         </div>
@@ -1223,13 +1267,13 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
             </div>
 
             <div className="flex items-center justify-center gap-2 pt-2">
-              <button
+              <ExpandingButton
                 onClick={() => setQrModalUrl(null)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shadow-sm bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 active:scale-95 transition-all"
-              >
-                <X className="w-4 h-4" />
-                Cerrar
-              </button>
+                label="Cerrar"
+                icon={X}
+                variant="secondary"
+                title="Cerrar ventana de QR"
+              />
             </div>
           </div>
         </div>
