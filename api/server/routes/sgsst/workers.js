@@ -428,25 +428,172 @@ async function syncWorkerWithOraculoH1(worker, userId) {
 // Express matching them incorrectly.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// GET: Carga ultrarrápida centralizada para el Hub Bio-Individual
+router.get('/hub-data', requireJwtAuth, async (req, res) => {
+    try {
+        const companyId = await getActiveCompanyId(req.user.id);
+        const PerfilCargo = mongoose.models.PerfilCargoData;
+        const PerfilSocioModel = getPerfilSociodemograficoDataModel();
+
+        // 1. Fetch cargo profiles and sociodemographic data in parallel
+        const [cargoDoc, socioDoc] = await Promise.all([
+            PerfilCargo ? PerfilCargo.findOne({ user: req.user.id, companyId }).lean() : null,
+            PerfilSocioModel ? PerfilSocioModel.findOne({ user: req.user.id, companyId }).lean() : null,
+        ]);
+
+        const perfilesList = cargoDoc?.perfilesList || [];
+        const trabajadores = socioDoc?.perfiles || socioDoc?.trabajadores || [];
+
+        // 2. Fetch existing workers
+        let workers = await SgsstWorker.find({ user: req.user.id, companyId }).lean();
+
+        // 3. Fast auto-provision: if workers in sociodemographic do not yet exist in SgsstWorker
+        if (trabajadores.length > 0) {
+            const existingDocs = new Set(workers.map(w => String(w.documento || '').trim()));
+            const toInsert = [];
+
+            for (const t of trabajadores) {
+                const doc = String(t.identificacion || t.documento || '').trim();
+                if (!doc || existingDocs.has(doc)) continue;
+
+                // Match perfilId if cargo matches
+                const matchingCargo = perfilesList.find(p =>
+                    p.nombreCargo && t.cargo && p.nombreCargo.trim().toLowerCase() === t.cargo.trim().toLowerCase()
+                );
+                const perfilId = matchingCargo ? matchingCargo.id : (perfilesList[0]?.id || 'general');
+
+                const conditionsStr = [t.enfermedades, t.diagnosticoMedico, t.limitacionesBiomecanicas]
+                    .filter(Boolean).join('; ');
+
+                toInsert.push({
+                    user: req.user.id,
+                    companyId: companyId || null,
+                    perfilId,
+                    nombre: t.nombre || 'Colaborador',
+                    documento: doc,
+                    cargo: t.cargo || '',
+                    genero: t.genero || 'No especificado',
+                    fechaNacimiento: t.fechaNacimiento || null,
+                    condicionesSalud: conditionsStr,
+                    fitScore: t.biocentricScore ?? 0,
+                    fitAlerts: t.biocentricAlerts ?? [],
+                    fechaIngreso: new Date(),
+                    riesgosBioIndividual: [],
+                });
+                existingDocs.add(doc);
+            }
+
+            if (toInsert.length > 0) {
+                try {
+                    const inserted = await SgsstWorker.insertMany(toInsert, { ordered: false });
+                    workers = workers.concat(inserted.map(d => d.toObject ? d.toObject() : d));
+                } catch (insErr) {
+                    logger.warn('[SGSST Workers Hub] Batch insert duplicate warning (safe to ignore):', insErr.message);
+                    workers = await SgsstWorker.find({ user: req.user.id, companyId }).lean();
+                }
+            }
+        }
+
+        // 4. Sanitize Seguridad domain in-memory for response
+        const sanitizedWorkers = workers.map(w => ({
+            ...w,
+            riesgosBioIndividual: Array.isArray(w.riesgosBioIndividual)
+                ? w.riesgosBioIndividual.filter(r => r && r.dominio_bio !== 'Seguridad')
+                : []
+        }));
+
+        res.json({
+            perfilesList,
+            trabajadores,
+            workers: sanitizedWorkers,
+        });
+    } catch (error) {
+        logger.error('[SGSST Workers] hub-data error:', error);
+        res.status(500).json({ error: 'Error cargando datos del hub' });
+    }
+});
+
 // GET: Obtener un trabajador por ID (Bio-Individuo 360)
 router.get('/worker/:id', requireJwtAuth, async (req, res) => {
     try {
-        let worker = await SgsstWorker.findOne({
-            _id: req.params.id,
-            user: req.user.id
-        });
+        const idParam = String(req.params.id || '').trim();
+        const companyId = await getActiveCompanyId(req.user.id);
+
+        let query = {};
+        if (mongoose.Types.ObjectId.isValid(idParam)) {
+            query = { _id: idParam, user: req.user.id };
+        } else {
+            query = { documento: idParam, user: req.user.id };
+        }
+
+        let worker = await SgsstWorker.findOne(query);
+
+        // Fallback 1: Buscar por documento si no se encontró por _id
+        if (!worker) {
+            worker = await SgsstWorker.findOne({ documento: idParam, user: req.user.id });
+        }
+
+        // Fallback 2: Buscar con companyId
+        if (!worker && companyId) {
+            if (mongoose.Types.ObjectId.isValid(idParam)) {
+                worker = await SgsstWorker.findOne({ _id: idParam, companyId });
+            }
+            if (!worker) {
+                worker = await SgsstWorker.findOne({ documento: idParam, companyId });
+            }
+        }
+
+        // Fallback 3: Auto-crear si existe en PerfilSociodemograficoData
+        if (!worker) {
+            const PerfilSocioModel = getPerfilSociodemograficoDataModel();
+            if (PerfilSocioModel) {
+                const socioDoc = await PerfilSocioModel.findOne({ user: req.user.id, companyId });
+                const socioWorkers = socioDoc?.trabajadores || socioDoc?.perfiles || [];
+                const matchedSocio = socioWorkers.find(t => 
+                    String(t._id || '') === idParam ||
+                    String(t.identificacion || t.documento || '').trim() === idParam
+                );
+                if (matchedSocio) {
+                    const cleanDoc = String(matchedSocio.identificacion || matchedSocio.documento || idParam).trim();
+                    const conditionsStr = [matchedSocio.enfermedades, matchedSocio.diagnosticoMedico, matchedSocio.limitacionesBiomecanicas]
+                        .filter(Boolean).join('; ');
+                    worker = new SgsstWorker({
+                        user: req.user.id,
+                        companyId: companyId || null,
+                        perfilId: 'general',
+                        nombre: matchedSocio.nombre || 'Colaborador',
+                        documento: cleanDoc,
+                        cargo: matchedSocio.cargo || '',
+                        genero: matchedSocio.genero || 'No especificado',
+                        fechaNacimiento: matchedSocio.fechaNacimiento || null,
+                        condicionesSalud: conditionsStr,
+                        fitScore: matchedSocio.biocentricScore ?? 0,
+                        fitAlerts: matchedSocio.biocentricAlerts ?? [],
+                        fechaIngreso: new Date(),
+                        riesgosBioIndividual: [],
+                    });
+                    await worker.save();
+                }
+            }
+        }
 
         if (!worker) {
             return res.status(404).json({ error: 'Trabajador no encontrado' });
         }
 
-        // Hot-sync with latest Oráculo H1 data
-        worker = await syncWorkerWithOraculoH1(worker, req.user.id);
+        // Hot-sync defensivo sin tumbar la petición en caso de advertencias
+        try {
+            worker = await syncWorkerWithOraculoH1(worker, req.user.id);
+        } catch (syncErr) {
+            logger.warn('[SGSST Workers] Hot-sync warning in GET /worker/:id:', syncErr.message);
+        }
 
         // Sanitize: Eliminar dominio 'Seguridad' ya que se gestiona exclusivamente en la Matriz IPEVAR por Procesos (Hito 1)
-        if (worker.riesgosBioIndividual && worker.riesgosBioIndividual.some(r => r.dominio_bio === 'Seguridad')) {
-            worker.riesgosBioIndividual = worker.riesgosBioIndividual.filter(r => r.dominio_bio !== 'Seguridad');
-            worker.save().catch(err => logger.warn('[SGSST Workers] Error saving sanitized bio risks:', err));
+        if (worker.riesgosBioIndividual && worker.riesgosBioIndividual.some(r => r && r.dominio_bio === 'Seguridad')) {
+            const cleanRiesgos = worker.riesgosBioIndividual.filter(r => r && r.dominio_bio !== 'Seguridad');
+            worker.riesgosBioIndividual = cleanRiesgos;
+            SgsstWorker.updateOne({ _id: worker._id }, { $set: { riesgosBioIndividual: cleanRiesgos } })
+                .catch(err => logger.warn('[SGSST Workers] Error updating sanitized bio risks:', err.message));
         }
 
         res.json({ worker });

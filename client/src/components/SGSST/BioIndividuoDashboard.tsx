@@ -203,27 +203,59 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
         }
 
         setWorker(w);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.error('[BioIndividuoDashboard] Error loading worker:', res.status, errData);
+        showToast({ message: errData.error || 'No se pudo cargar el perfil del trabajador', status: 'error' });
       }
-    } catch {
-      showToast({ message: 'Error cargando datos del trabajador', status: 'error' });
+    } catch (e) {
+      console.error('[BioIndividuoDashboard] Network/Fetch error:', e);
+      showToast({ message: 'Error de conexión al cargar datos del trabajador', status: 'error' });
     } finally {
       setIsLoading(false);
     }
-  }, [workerId, token]);
+  }, [workerId, token, showToast]);
 
   useEffect(() => { fetchWorker(); }, [fetchWorker]);
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center py-20 gap-3 text-text-secondary">
+      <div className="flex flex-col justify-center items-center py-20 gap-3 text-text-secondary">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-500" />
-        <span className="text-sm">Cargando perfil 360°...</span>
+        <span className="text-xs font-semibold text-text-secondary">Cargando perfil bio-individual 360°...</span>
       </div>
     );
   }
 
   if (!worker) {
-    return <div className="p-8 text-center text-red-500 text-sm">Trabajador no encontrado.</div>;
+    return (
+      <div className="p-12 text-center flex flex-col items-center justify-center gap-4 bg-surface-primary border border-border-medium rounded-2xl shadow-sm my-6">
+        <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/40 text-red-500 flex items-center justify-center font-bold text-lg">
+          !
+        </div>
+        <div>
+          <p className="text-text-primary text-sm font-bold">Colaborador no encontrado</p>
+          <p className="text-text-secondary text-xs mt-1 max-w-sm">
+            No se pudo sincronizar la información del trabajador seleccionado. Verifica que esté registrado en el censo sociodemográfico.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 mt-2">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all active:scale-95"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver al Hub
+          </button>
+          <button
+            onClick={fetchWorker}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md transition-all active:scale-95"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const fitAlerts: string[] = worker.fitAlerts || [];

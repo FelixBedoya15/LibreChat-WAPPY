@@ -184,38 +184,84 @@ export default function BioIndividualHub() {
     if (!token) return;
     setIsLoading(true);
     try {
-      // 1. Fetch perfiles de cargo
+      // 1. Fetch todo en una sola petición ultrarrápida centralizada
+      const hubRes = await fetch('/api/sgsst/workers/hub-data', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (hubRes.ok) {
+        const { perfilesList = [], trabajadores = [], workers = [] } = await hubRes.json();
+
+        // Enriquecer datos con diagnósticos en vivo y fitScores
+        const enrichedWorkers = workers.map((w: Worker) => {
+          const socio = trabajadores.find((t: any) =>
+            String(t.identificacion || t.documento || '').trim() === String(w.documento || '').trim()
+          );
+          return {
+            ...w,
+            fitScore: socio?.biocentricScore ?? w.fitScore ?? 0,
+            fitAlerts: socio?.biocentricAlerts ?? w.fitAlerts ?? [],
+            condicionesSalud: w.condicionesSalud || socio?.condicionesSalud || socio?.diagnosticoMedico || '',
+            fechaNacimiento: w.fechaNacimiento || socio?.fechaNacimiento || '',
+            genero: w.genero || socio?.genero || '',
+          };
+        });
+
+        // Agrupar por cargo (matching por perfilId o por nombre de cargo)
+        const grouped: PerfilGroup[] = perfilesList
+          .map((perfil: Perfil) => ({
+            perfil,
+            workers: enrichedWorkers.filter((w: Worker) =>
+              w.perfilId === perfil.id ||
+              ((w as any).cargo && (w as any).cargo.trim().toLowerCase() === perfil.nombreCargo.trim().toLowerCase())
+            ),
+            isExpanded: true,
+          }))
+          .filter((g: PerfilGroup) => g.workers.length > 0);
+
+        // Si existen colaboradores no vinculados a ningún perfil específico, agruparlos
+        const assignedIds = new Set(grouped.flatMap(g => g.workers.map(w => w._id)));
+        const unassigned = enrichedWorkers.filter((w: Worker) => !assignedIds.has(w._id));
+        if (unassigned.length > 0) {
+          grouped.push({
+            perfil: { id: 'otros', nombreCargo: 'Otros Colaboradores', area: 'General' },
+            workers: unassigned,
+            isExpanded: true,
+          });
+        }
+
+        setGroups(grouped);
+        return;
+      }
+
+      // Fallback de contingencia si hub-data no está disponible
       const perfilesRes = await fetch('/api/sgsst/perfiles-cargo/data', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!perfilesRes.ok) throw new Error('Error al cargar perfiles de cargo');
-      const perfilesData = await perfilesRes.json();
+      const perfilesData = perfilesRes.ok ? await perfilesRes.json() : {};
       const perfilesList: Perfil[] = perfilesData.perfilesList || [];
 
-      // 2. Fetch perfil sociodemografico para saber qué cargo tiene cada trabajador
       const socioRes = await fetch('/api/sgsst/perfil-sociodemografico/data', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!socioRes.ok) throw new Error('Error al cargar perfil sociodemográfico');
-      const socioData = await socioRes.json();
+      const socioData = socioRes.ok ? await socioRes.json() : {};
       const trabajadores = socioData.perfiles || socioData.trabajadores || [];
 
-      // 3. Fetch SgsstWorkers (hoja de vida bio-individual)
-      const workersAll: Worker[] = [];
-      for (const perfil of perfilesList) {
-        try {
-          const wRes = await fetch(`/api/sgsst/workers/${perfil.id}?perfilNombre=${encodeURIComponent(perfil.nombreCargo)}`, {
+      const workerRes = await Promise.allSettled(
+        perfilesList.map(p =>
+          fetch(`/api/sgsst/workers/${p.id}?perfilNombre=${encodeURIComponent(p.nombreCargo)}`, {
             headers: { Authorization: `Bearer ${token}` },
-          });
-          if (wRes.ok) {
-            const wData = await wRes.json();
-            const ws = wData.workers || [];
-            workersAll.push(...ws.map((w: any) => ({ ...w, perfilId: perfil.id })));
-          }
-        } catch { /* skip */ }
-      }
+          }).then(r => r.ok ? r.json() : { workers: [] })
+        )
+      );
 
-      // 4. Merge fitScore & fitAlerts from sociodemografico
+      const workersAll: Worker[] = [];
+      workerRes.forEach((res, i) => {
+        if (res.status === 'fulfilled' && res.value?.workers) {
+          workersAll.push(...res.value.workers.map((w: any) => ({ ...w, perfilId: perfilesList[i]?.id })));
+        }
+      });
+
       const enrichedWorkers = workersAll.map(w => {
         const socio = trabajadores.find((t: any) =>
           String(t.identificacion || t.documento || '').trim() === String(w.documento || '').trim()
@@ -230,7 +276,6 @@ export default function BioIndividualHub() {
         };
       });
 
-      // 5. Group by perfilId
       const grouped: PerfilGroup[] = perfilesList
         .map(perfil => ({
           perfil,
