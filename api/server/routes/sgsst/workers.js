@@ -443,6 +443,12 @@ router.get('/worker/:id', requireJwtAuth, async (req, res) => {
         // Hot-sync with latest Oráculo H1 data
         worker = await syncWorkerWithOraculoH1(worker, req.user.id);
 
+        // Sanitize: Eliminar dominio 'Seguridad' ya que se gestiona exclusivamente en la Matriz IPEVAR por Procesos (Hito 1)
+        if (worker.riesgosBioIndividual && worker.riesgosBioIndividual.some(r => r.dominio_bio === 'Seguridad')) {
+            worker.riesgosBioIndividual = worker.riesgosBioIndividual.filter(r => r.dominio_bio !== 'Seguridad');
+            worker.save().catch(err => logger.warn('[SGSST Workers] Error saving sanitized bio risks:', err));
+        }
+
         res.json({ worker });
     } catch (error) {
         logger.error('[SGSST Workers] Load one error:', error);
@@ -654,7 +660,10 @@ router.put('/:id/ipevar', requireJwtAuth, async (req, res) => {
 router.put('/:id/bio-ipevar', requireJwtAuth, async (req, res) => {
     try {
         const { riesgosBioIndividual, bioChartConclusions } = req.body;
-        const update = { riesgosBioIndividual, updatedAt: Date.now() };
+        const cleanRiesgos = Array.isArray(riesgosBioIndividual)
+            ? riesgosBioIndividual.filter(r => r && r.dominio_bio !== 'Seguridad')
+            : [];
+        const update = { riesgosBioIndividual: cleanRiesgos, updatedAt: Date.now() };
         if (bioChartConclusions !== undefined) {
             update.bioChartConclusions = bioChartConclusions;
         }
@@ -828,7 +837,8 @@ REGLAS OBLIGATORIAS PARA CONTROLES PROPUESTOS (JERARQUÍA DE CONTROLES):
 
 METODOLOGÍA BIO-INDIVIDUAL + JERARQUÍA DE CONTROLES:
 1. Analiza las Condiciones de Salud y el Cargo.
-2. Identifica el peligro original y asígnalo a uno de los DOMINIOS FISIOLÓGICOS (Sensorial, Respiratorio, Osteomuscular, Psicoemocional, Inmunológico, Cardiovascular, Metabólico, Neurológico, Seguridad).
+2. Identifica el peligro bio-individual y asígnalo a uno de los 8 DOMINIOS FISIOLÓGICOS (Sensorial, Respiratorio, Osteomuscular, Psicoemocional, Inmunológico, Cardiovascular, Metabólico, Neurológico).
+   NOTA NORMATIVA: Los peligros de Condiciones de Seguridad (mecánico, eléctrico, locativo, alturas, etc.) se gestionan exclusivamente en la Matriz IPEVAR por Procesos (Hito 1). Esta matriz es 100% BIO-INDIVIDUAL y debe enfocarse en la vulnerabilidad clínica, fisiológica y psicosocial del colaborador. NUNCA generes el dominio "Seguridad".
 3. Asígnalo a una DIMENSIÓN exacta de la GTC-45. DEBES utilizar EXACTAMENTE una de las opciones válidas para el dominio seleccionado, de la siguiente lista:
    - Sensorial: 'Ruido (impacto, intermitente, continuo)', 'Iluminación (exceso o deficiencia)', 'Radiaciones no ionizantes', 'Radiaciones ionizantes', 'Afectación táctil/olfativa'
    - Respiratorio: 'Polvos orgánicos/inorgánicos', 'Fibras', 'Gases y vapores', 'Humos metálicos/no metálicos', 'Material particulado'
@@ -838,7 +848,6 @@ METODOLOGÍA BIO-INDIVIDUAL + JERARQUÍA DE CONTROLES:
    - Cardiovascular: 'Temperaturas extremas (calor/frío)', 'Presión atmosférica', 'Exigencia cardiovascular alta', 'Trabajo sedentario prolongado'
    - Metabólico: 'Líquidos (nieblas y rocíos)', 'Alteración nutricional/digestiva', 'Desbalance térmico extremo', 'Sedentarismo metabólico'
    - Neurológico: 'Vibración (cuerpo entero, segmentaria)', 'Fatiga del sistema nervioso', 'Alteración del ciclo circadiano', 'Sobrecarga sensorial'
-   - Seguridad: 'Mecánico (máquinas, herramientas)', 'Eléctrico (alta/baja tensión)', 'Locativo (superficies, caídas)', 'Tecnológico (explosión, incendio)', 'Accidentes de tránsito', 'Públicos (robos, asaltos)', 'Trabajo en alturas', 'Espacios confinados', 'Fenómenos naturales (Sismo, etc.)'
 4. Determina el Origen ('Condición Insegura', 'Acto Inseguro', o 'Inherente a la Tarea').
 4. Calcula el Índice Bio-Riesgo Bruto = nivel_susceptibilidad × nivel_exposicion (escala 1-5 c/u, máx 25).
 5. Factor Reducción = min(percepcion_pts / 500, 0.40).
@@ -850,7 +859,7 @@ Cada objeto DEBE tener estos campos exactos:
 {
   "id": "uuid-nuevo", // Genera un ID único para cada uno de los nuevos riesgos
   "origen_riesgo": "Condición Insegura"|"Acto Inseguro"|"Inherente a la Tarea",
-  "dominio_bio": string, // Usa SOLO uno de estos: Sensorial|Respiratorio|Osteomuscular|Psicoemocional|Inmunológico|Cardiovascular|Metabólico|Neurológico|Seguridad
+  "dominio_bio": string, // Usa SOLO uno de estos 8 dominios: Sensorial|Respiratorio|Osteomuscular|Psicoemocional|Inmunológico|Cardiovascular|Metabólico|Neurológico
   "dimension_bio": string, // OBLIGATORIO: Debe ser EXACTAMENTE una de las opciones válidas listadas arriba para el dominio_bio seleccionado. Copia el texto idéntico.
   "peligro_cargo": string,
   "actividad_expuesta": string,
@@ -933,7 +942,7 @@ Devuelve SOLO el array JSON, sin formato markdown adicional ni bloques delimitad
             };
         });
 
-        const todosLosRiesgos = [...(riesgosActuales || []), ...riesgosBioIndividual];
+        const todosLosRiesgos = [...(riesgosActuales || []), ...riesgosBioIndividual].filter(r => r && r.dominio_bio !== 'Seguridad');
         worker.riesgosBioIndividual = todosLosRiesgos;
         worker.updatedAt = Date.now();
         await worker.save();

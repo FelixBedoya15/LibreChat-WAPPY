@@ -62,11 +62,11 @@ export interface BioRiskRow {
   _isUpdating?: boolean;
 }
 
-// ─── Constantes propias ───────────────────────────────────────────────────────
+// ─── Constantes propias (8 Dominios Bio-Fisiológicos) ────────────────────────
 const DOMINIOS_BIO = [
   'Osteomuscular', 'Cardiovascular', 'Neurológico',
   'Psicoemocional', 'Metabólico', 'Respiratorio', 'Sensorial',
-  'Inmunológico', 'Seguridad'
+  'Inmunológico'
 ];
 
 const DIMENSIONES_POR_DOMINIO: Record<string, string[]> = {
@@ -78,7 +78,6 @@ const DIMENSIONES_POR_DOMINIO: Record<string, string[]> = {
   Cardiovascular: ['Temperaturas extremas (calor/frío)', 'Presión atmosférica', 'Exigencia cardiovascular alta', 'Trabajo sedentario prolongado'],
   Metabólico: ['Líquidos (nieblas y rocíos)', 'Alteración nutricional/digestiva', 'Desbalance térmico extremo', 'Sedentarismo metabólico'],
   Neurológico: ['Vibración (cuerpo entero, segmentaria)', 'Fatiga del sistema nervioso', 'Alteración del ciclo circadiano', 'Sobrecarga sensorial'],
-  Seguridad: ['Mecánico (máquinas, herramientas)', 'Eléctrico (alta/baja tensión)', 'Locativo (superficies, caídas)', 'Tecnológico (explosión, incendio)', 'Accidentes de tránsito', 'Públicos (robos, asaltos)', 'Trabajo en alturas', 'Espacios confinados', 'Fenómenos naturales (Sismo, etc.)'],
 };
 
 const ORIGENES_RIESGO = ['Inherente a la Tarea', 'Condición Insegura', 'Acto Inseguro'];
@@ -94,7 +93,6 @@ const DOMINIO_ICON: Record<string, React.ElementType> = {
   Respiratorio: Activity,
   Sensorial: Activity,
   Inmunológico: ShieldAlert,
-  Seguridad: AlertTriangle,
 };
 
 const DOMINIO_COLOR: Record<string, string> = {
@@ -106,7 +104,6 @@ const DOMINIO_COLOR: Record<string, string> = {
   Respiratorio: 'text-cyan-500',
   Sensorial: 'text-teal-500',
   Inmunológico: 'text-lime-500',
-  Seguridad: 'text-gray-500',
 };
 
 const clasificarBioRiesgo = (efectivo: number): BioRiskRow['clasificacion_bio'] => {
@@ -244,7 +241,7 @@ const AITextarea = ({ value, onChange, minW = '180px', fieldLabel, row, token, s
   value: string; onChange: (v: string) => void; minW?: string;
   fieldLabel: string; row: BioRiskRow; token?: string; selectedModel?: string; className?: string;
 }) => (
-  <div className={`relative group/cell w-full focus-within:z-[100] hover:z-[90] transition-all min-w-[${minW}]`}>
+  <div style={{ minWidth: minW }} className="relative group/cell w-full focus-within:z-[100] hover:z-[90] transition-all">
     <textarea
       rows={2}
       className={`w-full text-xs bg-transparent border-0 outline-none focus:bg-surface-hover/50 rounded px-1 py-0.5 transition-colors resize-none min-h-[28px] ${className}`}
@@ -306,8 +303,9 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
       });
       if (!res.ok) throw new Error('Error al cargar');
       const data = await res.json();
-      const worker = data.worker;
-      setRows(worker?.riesgosBioIndividual || []);
+      const rawRows: BioRiskRow[] = worker?.riesgosBioIndividual || [];
+      const cleanRows = rawRows.filter(r => r.dominio_bio !== 'Seguridad');
+      setRows(cleanRows);
       setPercepcionPts(worker?.percepcionRiesgoScore || 0);
       setFitScore(worker?.fitScore || 0);
       setConclusions(worker?.bioChartConclusions || {});
@@ -391,14 +389,16 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al generar');
-      const generated: BioRiskRow[] = (data.riesgosBioIndividual || []).map((r: any) => {
-        const baseRow = {
-          ...createEmptyRow(),
-          ...r,
-          id: r.id || `bio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        };
-        return calcularRiesgo(baseRow, percepcionPts);
-      });
+      const generated: BioRiskRow[] = (data.riesgosBioIndividual || [])
+        .filter((r: any) => r.dominio_bio !== 'Seguridad')
+        .map((r: any) => {
+          const baseRow = {
+            ...createEmptyRow(),
+            ...r,
+            id: r.id || `bio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          };
+          return calcularRiesgo(baseRow, percepcionPts);
+        });
       const diffCount = generated.length - rows.length;
       setRows(generated);
       setHasUnsaved(false);
@@ -627,9 +627,9 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
               />
             </div>
             <button onClick={generateWithAI} disabled={isGenerating}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white text-xs font-bold rounded-lg hover:from-teal-600 hover:to-cyan-700 transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 ml-1 h-8">
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold rounded-lg transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 ml-1 h-8 shadow-sm">
               {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-              <span className="hidden sm:inline">{isGenerating ? 'Generando...' : 'Generar'}</span>
+              <span className="hidden sm:inline">{isGenerating ? 'Generando...' : 'Generar IA'}</span>
             </button>
           </div>,
           <ToolbarButton 
@@ -746,21 +746,48 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
                         )}
                       </td>
                       <td className="px-2 py-1 text-center">
-                        <button onClick={() => setExpandedRow(isExpanded ? null : row.id)}
-                          className="px-2 py-1 bg-surface-secondary border border-border-medium hover:bg-surface-hover rounded-lg transition-colors text-text-secondary hover:text-teal-600 text-[10px] font-bold flex items-center gap-1 mx-auto">
-                          Controles
-                          <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        <button
+                          onClick={() => setExpandedRow(isExpanded ? null : row.id)}
+                          title="Ver Jerarquía de Controles Propuestos (Dec. 1072)"
+                          className={`group inline-flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 ${
+                            isExpanded
+                              ? 'bg-teal-600 text-white shadow-teal-500/20'
+                              : 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60'
+                          }`}
+                        >
+                          <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                            <span className="text-[10px] font-bold">{isExpanded ? 'Ocultar' : 'Controles'}</span>
+                          </div>
+                          <ChevronDown className={`h-3 w-3 shrink-0 ml-0.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                         </button>
                       </td>
                       <td className="px-2 py-1 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => handleAiUpdateRow(row.id)} title="Mejorar fila con IA"
-                            className="p-1.5 bg-gradient-to-tr from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 rounded-lg text-white transition-transform active:scale-95 shadow-sm">
-                            {isUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                          <button
+                            onClick={() => handleAiUpdateRow(row.id)}
+                            disabled={isUpdating}
+                            title="Optimizar fila con Inteligencia Artificial"
+                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white disabled:opacity-50"
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                            ) : (
+                              <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                            )}
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                              <span className="text-[10px] font-bold">Optimizar IA</span>
+                            </div>
                           </button>
-                          <button onClick={() => removeRow(row.id)} title="Eliminar fila"
-                            className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors text-red-400 hover:text-red-600">
-                            <Trash2 className="h-3.5 w-3.5" />
+                          <button
+                            onClick={() => removeRow(row.id)}
+                            title="Eliminar este riesgo bio-individual"
+                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 shrink-0" />
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                              <span className="text-[10px] font-bold">Eliminar</span>
+                            </div>
                           </button>
                         </div>
                       </td>
@@ -1080,17 +1107,19 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
                       <li>• Sobrecarga sensorial / fatiga cognitiva</li>
                     </ul>
                   </div>
+                </div>
 
-                  {/* Seguridad Integral */}
-                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light">
-                    <strong className="text-gray-600 dark:text-gray-400 block text-sm mb-2">🛡️ SEGURIDAD INTEGRAL (Condiciones de Seguridad)</strong>
-                    <ul className="space-y-1 text-text-tertiary">
-                      <li>• Mecánico (máquinas y herramientas)</li>
-                      <li>• Eléctrico (alta y baja tensión)</li>
-                      <li>• Locativo (superficies de trabajo, caídas)</li>
-                      <li>• Trabajo en alturas y espacios confinados</li>
-                      <li>• Tecnológico, tránsito, públicos e incendios</li>
-                    </ul>
+                {/* Nota de Separación con Matriz por Procesos Hito 1 */}
+                <div className="mt-4 p-4 bg-teal-50/50 dark:bg-teal-950/20 rounded-xl border border-teal-500/30 flex items-start gap-3">
+                  <ShieldAlert className="h-5 w-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="text-teal-800 dark:text-teal-300 block text-xs uppercase tracking-wide mb-1">
+                      Separación Normativa con la Matriz por Procesos (Hito 1)
+                    </strong>
+                    <p className="text-xs text-text-secondary leading-relaxed">
+                      Los peligros clasificados bajo <strong>Condiciones de Seguridad</strong> (mecánicos, eléctricos, locativos, trabajo en alturas, espacios confinados, tecnológicos y de tránsito) se identifican y evalúan de manera integral en la <strong>Matriz IPEVAR Oficial por Procesos (Hito 1)</strong> conforme a la GTC-45.
+                      Esta <strong>Matriz Bio-Individual (Hito 3)</strong> se especializa exclusivamente en los 8 dominios psicofisiológicos y de susceptibilidad individual de cada colaborador.
+                    </p>
                   </div>
                 </div>
               </section>

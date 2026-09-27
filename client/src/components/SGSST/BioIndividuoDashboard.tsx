@@ -243,9 +243,12 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
     <div className="w-full space-y-6 animate-in fade-in slide-in-from-right-8 duration-300 overflow-y-auto pb-10">
       {/* ── Header ── */}
       <div className="flex items-center gap-4 border-b border-border-medium pb-4">
-        <button onClick={onBack}
-          className="p-2 bg-surface-secondary border border-border-medium rounded-xl hover:bg-surface-hover text-text-secondary transition-colors">
-          <ArrowLeft className="h-5 w-5" />
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all active:scale-95 shrink-0"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Volver al Hub</span>
         </button>
         <div>
           <h2 className="text-xl font-black text-text-primary flex items-center gap-2">
@@ -349,30 +352,30 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
       )}
 
       {/* ── Tabs: Matriz | Analytics ── */}
-      <div className="bg-surface-secondary border border-teal-200 dark:border-teal-800/50 rounded-2xl shadow-xl overflow-hidden">
+      <div className="bg-surface-primary border border-border-light dark:border-white/5 rounded-3xl shadow-sm overflow-visible">
         {/* Tab nav */}
-        <div className="flex border-b border-border-medium bg-surface-primary/50">
+        <div className="flex border-b border-border-light dark:border-white/5 bg-surface-secondary/40 rounded-t-3xl p-2 gap-2">
           <button
             onClick={() => setActiveTab('matriz')}
-            className={`flex items-center gap-2 px-5 py-3 text-xs font-bold transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all active:scale-95 ${
               activeTab === 'matriz'
-                ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-500 bg-surface-secondary'
-                : 'text-text-secondary hover:text-text-primary'
+                ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-sm'
+                : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover/50'
             }`}
           >
-            <AlertTriangle className="h-3.5 w-3.5" />
+            <Activity className="h-4 w-4" />
             Evaluación Bio-Individual
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-2 px-5 py-3 text-xs font-bold transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all active:scale-95 ${
               activeTab === 'analytics'
-                ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-500 bg-surface-secondary'
-                : 'text-text-secondary hover:text-text-primary'
+                ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 shadow-sm'
+                : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover/50'
             }`}
           >
-            <BarChart2 className="h-3.5 w-3.5" />
-            Análisis & Conculsiones
+            <BarChart2 className="h-4 w-4" />
+            Análisis & Conclusiones
           </button>
         </div>
 

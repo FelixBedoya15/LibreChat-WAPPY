@@ -4,6 +4,7 @@ import { useToastContext } from '@librechat/client';
 import {
   Users, ChevronDown, ChevronRight, Activity, AlertTriangle,
   Loader2, Dna, TrendingUp, TrendingDown, Shield, Clock,
+  Search, X,
 } from 'lucide-react';
 import BioIndividuoDashboard from './BioIndividuoDashboard';
 
@@ -91,7 +92,7 @@ const WorkerCard = ({ worker, onVerDashboard }: { worker: Worker; onVerDashboard
   const edad = calcularEdad(worker.fechaNacimiento);
   const fitScore = worker.fitScore || 0;
   const percepcionPts = worker.percepcionRiesgoScore || 0;
-  const riesgos = worker.riesgosBioIndividual || [];
+  const riesgos = (worker.riesgosBioIndividual || []).filter(r => r && r.dominio_bio !== 'Seguridad');
   const riesgosCriticos = riesgos.filter(r => r.clasificacion_bio === 'Crítico' || r.clasificacion_bio === 'Alto').length;
 
   // Top clasificación
@@ -161,7 +162,7 @@ const WorkerCard = ({ worker, onVerDashboard }: { worker: Worker; onVerDashboard
       {/* CTA */}
       <button
         onClick={() => onVerDashboard(worker._id)}
-        className="mt-auto w-full py-2 px-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white text-xs font-bold rounded-xl hover:from-teal-600 hover:to-cyan-700 transition-all hover:-translate-y-0.5 active:scale-95 shadow-sm flex items-center justify-center gap-1.5"
+        className="mt-auto w-full py-2 px-3 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white text-xs font-bold rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
       >
         <Activity className="h-3.5 w-3.5" /> Ver 360° Bio-Individual
       </button>
@@ -174,6 +175,7 @@ export default function BioIndividualHub() {
   const { token } = useAuthContext();
   const { showToast } = useToastContext();
   const [groups, setGroups] = useState<PerfilGroup[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState(Date.now());
@@ -277,10 +279,28 @@ export default function BioIndividualHub() {
     );
   }
 
+  const term = searchTerm.toLowerCase().trim();
+  const filteredGroups = groups
+    .map(g => {
+      if (!term) return g;
+      const matchCargo = g.perfil.nombreCargo.toLowerCase().includes(term) || g.perfil.area.toLowerCase().includes(term);
+      const matchedWorkers = g.workers.filter(w =>
+        w.nombre.toLowerCase().includes(term) ||
+        w.documento.toLowerCase().includes(term) ||
+        matchCargo
+      );
+      return {
+        ...g,
+        workers: matchedWorkers,
+        isExpanded: true,
+      };
+    })
+    .filter(g => g.workers.length > 0);
+
   const totalWorkers = groups.reduce((acc, g) => acc + g.workers.length, 0);
   const totalCriticos = groups.reduce((acc, g) =>
     acc + g.workers.reduce((wa, w) =>
-      wa + (w.riesgosBioIndividual || []).filter(r => r.clasificacion_bio === 'Crítico').length, 0), 0);
+      wa + (w.riesgosBioIndividual || []).filter(r => r && r.dominio_bio !== 'Seguridad' && r.clasificacion_bio === 'Crítico').length, 0), 0);
 
   return (
     <div className="flex flex-col gap-6 p-4">
@@ -300,7 +320,30 @@ export default function BioIndividualHub() {
         </div>
       </div>
 
-      {/* ── Sin datos ── */}
+      {/* ── Buscador Rápido ── */}
+      {groups.length > 0 && (
+        <div className="relative w-full">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-tertiary pointer-events-none" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por colaborador, documento, cargo o área..."
+            className="w-full pl-10 pr-9 py-2.5 bg-surface-primary border border-border-medium rounded-xl text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all shadow-2xs"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary p-0.5 rounded-md transition-colors"
+              title="Limpiar búsqueda"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Sin datos generales ── */}
       {groups.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 border-2 border-dashed border-border-medium rounded-2xl text-text-secondary gap-4">
           <Users className="h-12 w-12 opacity-20" />
@@ -313,8 +356,24 @@ export default function BioIndividualHub() {
         </div>
       )}
 
+      {/* ── Sin resultados de búsqueda ── */}
+      {groups.length > 0 && filteredGroups.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 border border-dashed border-border-medium rounded-2xl text-text-secondary gap-3 bg-surface-secondary/30">
+          <Search className="h-8 w-8 opacity-30 text-teal-500" />
+          <p className="text-xs font-semibold text-text-primary">
+            No se encontraron colaboradores ni cargos para <span className="text-teal-600 dark:text-teal-400">"{searchTerm}"</span>
+          </p>
+          <button
+            onClick={() => setSearchTerm('')}
+            className="text-xs text-teal-600 hover:underline font-bold"
+          >
+            Limpiar búsqueda
+          </button>
+        </div>
+      )}
+
       {/* ── Grupos por cargo ── */}
-      {groups.map(({ perfil, workers, isExpanded }) => (
+      {filteredGroups.map(({ perfil, workers, isExpanded }) => (
         <div key={perfil.id} className="border border-border-medium rounded-2xl overflow-hidden">
           {/* Cargo header */}
           <button
