@@ -511,6 +511,9 @@ router.get('/hub-data', requireJwtAuth, async (req, res) => {
                     genero: String(t.genero || 'No especificado').trim(),
                     fechaNacimiento: parsedNacimiento,
                     condicionesSalud: conditionsStr,
+                    eps: String(t.eps || '').trim(),
+                    afp: String(t.afp || '').trim(),
+                    estadoPila: String(t.estadoPila || 'Pendiente de soporte PILA').trim(),
                     fitScore: typeof t.biocentricScore === 'number' ? t.biocentricScore : 0,
                     fitAlerts: Array.isArray(t.biocentricAlerts) ? t.biocentricAlerts : [],
                     fechaIngreso: new Date(),
@@ -618,6 +621,9 @@ router.get('/worker/:id', requireJwtAuth, async (req, res) => {
                         genero: String(matchedSocio.genero || 'No especificado').trim(),
                         fechaNacimiento: parsedNacimiento,
                         condicionesSalud: conditionsStr,
+                        eps: String(matchedSocio.eps || '').trim(),
+                        afp: String(matchedSocio.afp || '').trim(),
+                        estadoPila: String(matchedSocio.estadoPila || 'Pendiente de soporte PILA').trim(),
                         fitScore: typeof matchedSocio.biocentricScore === 'number' ? matchedSocio.biocentricScore : 0,
                         fitAlerts: Array.isArray(matchedSocio.biocentricAlerts) ? matchedSocio.biocentricAlerts : [],
                         fechaIngreso: new Date(),
@@ -790,16 +796,20 @@ router.get('/:perfilId', requireJwtAuth, async (req, res) => {
 // PUT: Actualizar trabajador
 router.put('/:id', requireJwtAuth, async (req, res) => {
     try {
-        const { nombre, documento, fechaNacimiento, genero, fechaIngreso, condicionesSalud, observaciones } = req.body;
+        const { nombre, documento, cargo, fechaNacimiento, genero, fechaIngreso, condicionesSalud, observaciones, eps, afp, estadoPila } = req.body;
         
+        const updateFields = { 
+            nombre, documento, fechaNacimiento, genero, fechaIngreso, 
+            condicionesSalud, observaciones, updatedAt: Date.now() 
+        };
+        if (cargo !== undefined) updateFields.cargo = cargo;
+        if (eps !== undefined) updateFields.eps = eps;
+        if (afp !== undefined) updateFields.afp = afp;
+        if (estadoPila !== undefined) updateFields.estadoPila = estadoPila;
+
         const worker = await SgsstWorker.findOneAndUpdate(
             { _id: req.params.id, user: req.user.id },
-            { 
-                $set: { 
-                    nombre, documento, fechaNacimiento, genero, fechaIngreso, 
-                    condicionesSalud, observaciones, updatedAt: Date.now() 
-                } 
-            },
+            { $set: updateFields },
             { new: true }
         );
         

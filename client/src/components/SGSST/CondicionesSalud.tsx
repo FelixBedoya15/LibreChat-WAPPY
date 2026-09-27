@@ -121,10 +121,50 @@ interface WorkerEntry {
     // Salario / Remuneración
     salario?: string;
 
+    // Seguridad Social & PILA
+    eps?: string;
+    afp?: string;
+    estadoPila?: string;
+
     completedByAI: boolean;
     consentimientoFirmaDigital: string;
     firmaDigital: string | null;
 }
+
+const EPS_OPTIONS = [
+    'Sura',
+    'Sanitas',
+    'Compensar',
+    'Nueva EPS',
+    'Salud Total',
+    'Famisanar',
+    'Savia Salud',
+    'Coosalud',
+    'Mutual Ser',
+    'Capital Salud',
+    'Asmet Salud',
+    'Emssanar',
+    'Aliansalud',
+    'Servicio Occidental de Salud (SOS)',
+    'FOSYGA / ADRES',
+    'Otra',
+];
+
+const AFP_OPTIONS = [
+    'Porvenir',
+    'Protección',
+    'Colfondos',
+    'Skandia',
+    'Colpensiones',
+    'Fondo de Solidaridad Pensional',
+    'Otra',
+];
+
+const PILA_OPTIONS = [
+    'Pendiente de soporte PILA',
+    'Planilla Verificada / Al día',
+    'En mora / Sin cobertura',
+];
 
 const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
     nombre: '', identificacion: '', edad: '', genero: '', estadoCivil: '',
@@ -142,6 +182,7 @@ const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
     formacion: [],
     peso: '', talla: '', imc: '', presionArterial: '', frecuenciaCardiaca: '',
     limitacionesBiomecanicas: '', alergiasQuimicas: '',
+    eps: '', afp: '', estadoPila: 'Pendiente de soporte PILA',
     completedByAI: false, consentimientoFirmaDigital: 'No', firmaDigital: null,
 };
 
@@ -1162,7 +1203,8 @@ const CondicionesSalud = () => {
                                                 licenciaConduccion: 'N° Licencia Conducción', licenciaConduccionVencimiento: 'Venc. Licencia Conducción',
                                                 licenciaSST: 'N° Licencia SST', licenciaVencimiento: 'Venc. Licencia SST',
                                                 curso50h: 'Curso 50h', curso20h: 'Curso 20h', esCopasst: 'COPASST',
-                                                esComiteConvivencia: 'Comité Convivencia', esBrigadista: 'Brigadista', esComiteSeguridadVial: 'Comité Seg. Vial'
+                                                esComiteConvivencia: 'Comité Convivencia', esBrigadista: 'Brigadista', esComiteSeguridadVial: 'Comité Seg. Vial',
+                                                eps: 'Entidad EPS', afp: 'Fondo de Pensiones (AFP)', estadoPila: 'Estado Soporte PILA'
                                             }[k] || k;
                                             return (
                                                 <p key={k} className="leading-tight"><span className="font-semibold text-text-primary">{label}:</span> <span className="text-teal-700 dark:text-teal-400 font-medium">{String(v || '—')}</span></p>
@@ -1591,6 +1633,66 @@ const CondicionesSalud = () => {
                                                         <input type="date" value={w.fechaSeguimiento} onChange={e => updateWorkerField(w.id, 'fechaSeguimiento', e.target.value)}
                                                             className="w-full text-sm py-2 px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary outline-none shadow-inner" />
                                                     </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Seguridad Social & Afiliaciones (PILA) */}
+                                            <div className="p-4 border rounded-2xl bg-surface-primary border-border-medium shadow-sm space-y-3">
+                                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                                    <label className="text-xs font-black text-teal-600 dark:text-teal-400 uppercase tracking-tight flex items-center gap-1.5">
+                                                        <Shield className="w-3.5 h-3.5 text-teal-500" /> Seguridad Social & Afiliaciones (PILA)
+                                                    </label>
+                                                    <span className="text-[10px] text-text-tertiary">
+                                                        ARL Empresarial + Afiliaciones Individuales
+                                                    </span>
+                                                </div>
+
+                                                {/* ARL Patronal Informativa */}
+                                                <div className="p-2.5 rounded-xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/60 dark:border-teal-900/40 flex items-center justify-between gap-3">
+                                                    <div>
+                                                        <span className="text-[10px] font-bold uppercase text-teal-700 dark:text-teal-300 block">ARL de la Empresa (Patronal)</span>
+                                                        <span className="text-xs font-black text-text-primary">
+                                                            {companyInfo?.arl || 'No configurada (ver Datos de la Empresa)'}
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-200 shrink-0">
+                                                        Unificada por NIT
+                                                    </span>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-text-secondary uppercase">Entidad EPS</label>
+                                                        <SingleSelect
+                                                            value={w.eps || ''}
+                                                            onChange={val => updateWorkerField(w.id, 'eps', val)}
+                                                            placeholder="Seleccione EPS..."
+                                                            options={EPS_OPTIONS}
+                                                        />
+                                                    </div>
+
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-text-secondary uppercase">Fondo de Pensiones (AFP)</label>
+                                                        <SingleSelect
+                                                            value={w.afp || ''}
+                                                            onChange={val => updateWorkerField(w.id, 'afp', val)}
+                                                            placeholder="Seleccione AFP..."
+                                                            options={AFP_OPTIONS}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1">
+                                                    <label className="text-xs font-bold text-text-secondary uppercase">Estado Soporte Planilla PILA</label>
+                                                    <SingleSelect
+                                                        value={w.estadoPila || 'Pendiente de soporte PILA'}
+                                                        onChange={val => updateWorkerField(w.id, 'estadoPila', val)}
+                                                        placeholder="Seleccione estado..."
+                                                        options={PILA_OPTIONS}
+                                                    />
+                                                    <span className="text-[10px] text-text-secondary">
+                                                        Solo marcar "Planilla Verificada" si cuenta con el soporte de pago de la planilla del mes en curso.
+                                                    </span>
                                                 </div>
                                             </div>
 

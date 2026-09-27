@@ -69,6 +69,10 @@ const WorkerEntrySchema = new mongoose.Schema({
   licenciaVencimiento: { type: String, default: '' },
   curso50h: { type: String, default: '' },
   curso20h: { type: String, default: '' },
+  // Seguridad Social & PILA
+  eps: { type: String, default: '' },
+  afp: { type: String, default: '' },
+  estadoPila: { type: String, default: 'Pendiente de soporte PILA' },
   // Salario / Remuneración
   salario: { type: String, default: '' },
   // Biomonitoring / Fisiología
@@ -1759,9 +1763,15 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
         { user: targetUserId, companyId, documento: cleanDoc },
         {
           $set: {
+            nombre: w.nombre || 'Colaborador',
+            cargo: w.cargo || '',
+            eps: w.eps || '',
+            afp: w.afp || '',
+            estadoPila: w.estadoPila || 'Pendiente de soporte PILA',
             condicionesSalud: [w.enfermedades, w.diagnosticoMedico, w.limitacionesBiomecanicas].filter(Boolean).join('; ') || '',
             fechaNacimiento: w.fechaNacimiento || null,
-            genero: w.genero || 'No especificado'
+            genero: w.genero || 'No especificado',
+            updatedAt: new Date(),
           }
         }
       );

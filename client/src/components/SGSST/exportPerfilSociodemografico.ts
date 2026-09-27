@@ -63,6 +63,9 @@ export interface ExportWorkerEntry {
   frecuenciaCardiaca?: string;
   limitacionesBiomecanicas?: string;
   alergiasQuimicas?: string;
+  eps?: string;
+  afp?: string;
+  estadoPila?: string;
   consentimientoFirmaDigital?: string;
 }
 
@@ -285,6 +288,9 @@ export const exportPerfilSociodemograficoToExcel = async (
     { header: 'Frecuencia Cardíaca', key: 'frecuenciaCardiaca', width: 20 },
     { header: 'Limitaciones Biomecánicas', key: 'limitacionesBiomecanicas', width: 28 },
     { header: 'Alergias / Sensibilidad Química', key: 'alergiasQuimicas', width: 30 },
+    { header: 'Entidad EPS', key: 'eps', width: 22 },
+    { header: 'Fondo Pensiones (AFP)', key: 'afp', width: 24 },
+    { header: 'Estado Soporte PILA', key: 'estadoPila', width: 24 },
     { header: 'Consentimiento Firma', key: 'consentimientoFirmaDigital', width: 22 }
   ];
 
@@ -383,6 +389,9 @@ export const exportPerfilSociodemograficoToExcel = async (
       frecuenciaCardiaca: w.frecuenciaCardiaca || '',
       limitacionesBiomecanicas: w.limitacionesBiomecanicas || '',
       alergiasQuimicas: w.alergiasQuimicas || '',
+      eps: w.eps || '',
+      afp: w.afp || '',
+      estadoPila: w.estadoPila || 'Pendiente de soporte PILA',
       consentimientoFirmaDigital: w.consentimientoFirmaDigital || 'No'
     });
 

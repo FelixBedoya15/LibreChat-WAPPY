@@ -274,6 +274,11 @@ export function smartMapExcelToWorkers(importedRows: RawRow[], emptyWorkerTempla
     const limitacionesBiomecanicas = findRowValue(row, ['limitacionesbiomecanicas', 'limitacionfisica']);
     const tipoSangre = findRowValue(row, ['tipodesangre', 'gruposanguineo', 'rh', 'sangre']);
 
+    // 10b. Seguridad Social (EPS, AFP y Estado PILA)
+    const eps = findRowValue(row, ['entidadpromotoradesalud', 'entidadeps', 'eps', 'saludeps']);
+    const afp = findRowValue(row, ['fondodepensiones', 'fondopension', 'afp', 'pensiones', 'pension']);
+    const estadoPila = findRowValue(row, ['estadopila', 'soporterpila', 'pila', 'planillapila']) || 'Pendiente de soporte PILA';
+
     // 11. Conducción y Licencias
     const rawLicencia = row['Licencia(s) Conducción'] || row['Licencia Conducción'] || row['Licencia de Conducción'] || row.licenciaConduccion || findRowValue(row, ['licenciaconduccion', 'licencia']) || '';
     const rawVencLicencia = row['Vencimiento(s) Licencia'] || row['Vencimiento Licencia Cond'] || row['Vencimiento Licencia'] || row.licenciaConduccionVencimiento || findRowValue(row, ['vencimientolicenciacond', 'vencimientolicencia']) || '';
@@ -368,6 +373,9 @@ export function smartMapExcelToWorkers(importedRows: RawRow[], emptyWorkerTempla
       recomendacionesMedicas: recomendacionesMedicas || row['Recomendaciones Medicas'] || row.recomendacionesMedicas || '',
       limitacionesBiomecanicas: limitacionesBiomecanicas || row['Limitaciones Biomecánicas'] || row.limitacionesBiomecanicas || '',
       tipoSangre: tipoSangre || row['Tipo de Sangre'] || row.tipoSangre || '',
+      eps: eps || row['EPS'] || row['Entidad EPS'] || row.eps || '',
+      afp: afp || row['AFP'] || row['Fondo de Pensiones'] || row.afp || '',
+      estadoPila: estadoPila || row['Estado PILA'] || row.estadoPila || 'Pendiente de soporte PILA',
       soatVencimiento: soatVencimiento || '',
       tecnicomecanicaVencimiento: tecnicomecanicaVencimiento || '',
       licenciaConduccion: licenciaConduccion || '',

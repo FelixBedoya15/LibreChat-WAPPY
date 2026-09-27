@@ -99,6 +99,11 @@ const SgsstWorkerSchema = new mongoose.Schema({
   condicionesSalud: { type: String, default: '' },
   observaciones: { type: String, default: '' },
 
+  // Seguridad Social & PILA
+  eps: { type: String, default: '' },
+  afp: { type: String, default: '' },
+  estadoPila: { type: String, default: 'Pendiente de soporte PILA' },
+
   // Legado (se mantiene para retrocompatibilidad)
   riesgosIpevar: { type: Array, default: [] },
 

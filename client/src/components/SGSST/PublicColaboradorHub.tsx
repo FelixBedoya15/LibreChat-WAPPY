@@ -557,10 +557,10 @@ export default function PublicColaboradorHub() {
                       </span>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3 text-xs">
                     <div>
                       <span className="text-text-tertiary block font-semibold text-[10px] uppercase">Identificación</span>
-                      <span className="text-text-primary font-medium">{data.worker.documento}</span>
+                      <span className="text-text-primary font-bold">{data.worker.documento}</span>
                     </div>
                     <div>
                       <span className="text-text-tertiary block font-semibold text-[10px] uppercase">Área / Proceso</span>
@@ -583,10 +583,45 @@ export default function PublicColaboradorHub() {
                       </span>
                     </div>
                     <div>
-                      <span className="text-text-tertiary block font-semibold text-[10px] uppercase">Seguridad Social</span>
-                      <span className="text-text-primary font-medium truncate block">
-                        {data.worker.eps || data.worker.arl ? `${data.worker.eps ? `EPS: ${data.worker.eps}` : ''}${data.worker.arl ? ` · ARL: ${data.worker.arl}` : ''}` : 'EPS / ARL al día'}
+                      <span className="text-text-tertiary block font-semibold text-[10px] uppercase">ARL (Empresa)</span>
+                      <span className="text-teal-700 dark:text-teal-300 font-bold flex items-center gap-1 truncate">
+                        <Shield className="w-3 h-3 text-teal-600 shrink-0" />
+                        {data.company?.arl || data.worker?.arl || 'Empresa (General)'}
                       </span>
+                    </div>
+                  </div>
+
+                  {/* Bloque Seguridad Social (EPS, AFP y Estado PILA) */}
+                  <div className="mt-3 pt-3 border-t border-border-light dark:border-white/5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div>
+                        <span className="text-text-tertiary block text-[9px] font-bold uppercase">EPS</span>
+                        <span className="font-semibold text-text-primary">{data.worker.eps || 'Por registrar'}</span>
+                      </div>
+                      <div className="h-6 w-px bg-border-light dark:bg-white/10 hidden sm:block" />
+                      <div>
+                        <span className="text-text-tertiary block text-[9px] font-bold uppercase">Fondo de Pensiones (AFP)</span>
+                        <span className="font-semibold text-text-primary">{data.worker.afp || 'Por registrar'}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-text-tertiary block text-[9px] font-bold uppercase text-right sm:text-left">Soporte PILA</span>
+                      {(() => {
+                        const status = (data.worker.estadoPila || 'Pendiente de soporte PILA').trim();
+                        const isVerified = status.toLowerCase().includes('verificad') || status.toLowerCase().includes('al día') || status.toLowerCase().includes('al dia');
+                        const isMora = status.toLowerCase().includes('mora') || status.toLowerCase().includes('sin cobertura');
+                        const badgeClass = isVerified
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                          : isMora
+                          ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                          : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+                        return (
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${badgeClass}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${isVerified ? 'bg-emerald-500' : isMora ? 'bg-rose-500' : 'bg-amber-500'}`} />
+                            {status}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

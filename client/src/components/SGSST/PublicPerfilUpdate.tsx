@@ -31,7 +31,40 @@ interface WorkerData {
     diagnosticoMedico?: string; limitacionesBiomecanicas?: string; alergiasQuimicas?: string; riesgoCardiovascular?: string;
     fechaExamenMedico?: string; recomendacionesMedicas?: string; fechaSeguimiento?: string;
     fechaCursoAlturasAutorizado?: string; fechaCursoAlturasCoordinador?: string;
+    eps?: string;
+    afp?: string;
+    arl?: string;
+    estadoPila?: string;
 }
+
+const EPS_OPTIONS = [
+    'Sura',
+    'Sanitas',
+    'Compensar',
+    'Nueva EPS',
+    'Salud Total',
+    'Famisanar',
+    'Savia Salud',
+    'Coosalud',
+    'Mutual Ser',
+    'Capital Salud',
+    'Asmet Salud',
+    'Emssanar',
+    'Aliansalud',
+    'Servicio Occidental de Salud (SOS)',
+    'FOSYGA / ADRES',
+    'Otra',
+];
+
+const AFP_OPTIONS = [
+    'Porvenir',
+    'Protección',
+    'Colfondos',
+    'Skandia',
+    'Colpensiones',
+    'Fondo de Solidaridad Pensional',
+    'Otra',
+];
 
 // ─── Section component ─────────────────────────────────────────────
 const SectionTitle = ({ icon: Icon, label }: { icon: React.ElementType; label: string }) => (
@@ -163,7 +196,8 @@ export default function PublicPerfilUpdate() {
                 peso: w.peso, talla: w.talla, imc: initialImc, presionArterial: w.presionArterial, frecuenciaCardiaca: w.frecuenciaCardiaca,
                 diagnosticoMedico: w.diagnosticoMedico, limitacionesBiomecanicas: w.limitacionesBiomecanicas, alergiasQuimicas: w.alergiasQuimicas, riesgoCardiovascular: w.riesgoCardiovascular,
                 fechaExamenMedico: w.fechaExamenMedico, recomendacionesMedicas: w.recomendacionesMedicas, fechaSeguimiento: w.fechaSeguimiento,
-                fechaCursoAlturasAutorizado: w.fechaCursoAlturasAutorizado, fechaCursoAlturasCoordinador: w.fechaCursoAlturasCoordinador
+                fechaCursoAlturasAutorizado: w.fechaCursoAlturasAutorizado, fechaCursoAlturasCoordinador: w.fechaCursoAlturasCoordinador,
+                eps: w.eps || '', afp: w.afp || '', estadoPila: w.estadoPila || 'Pendiente de soporte PILA'
             });
             setStep(2);
         } catch (err: any) {
@@ -366,6 +400,33 @@ export default function PublicPerfilUpdate() {
                             <Field label="Contacto de Emergencia (Nombre y Teléfono)">
                                 <Input value={formData.emergenciaContacto || ''} onChange={e => upd('emergenciaContacto', e.target.value)} placeholder="Ej: Esposa - 3154567890" />
                             </Field>
+
+                            {/* Seguridad Social & Afiliaciones */}
+                            <SectionTitle icon={Shield} label="Seguridad Social & Afiliaciones (PILA)" />
+                            <div className="p-3 bg-teal-50 dark:bg-teal-950/20 rounded-xl border border-teal-100 dark:border-teal-900/40 mb-2">
+                                <p className="text-[11px] text-teal-800 dark:text-teal-300 font-medium">
+                                    <strong className="block text-teal-900 dark:text-teal-200">ARL de la Empresa: {company?.arl || 'Patronal unificada por la empresa'}</strong>
+                                    La afiliación a Riesgos Laborales (ARL) la realiza la empresa. Registra tu EPS y Fondo de Pensiones para validar tus soportes en la Planilla PILA.
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <Field label="Entidad EPS (Salud)">
+                                    <SingleSelect
+                                        value={formData.eps || ''}
+                                        onChange={val => upd('eps', val)}
+                                        placeholder="Seleccionar EPS..."
+                                        options={EPS_OPTIONS}
+                                    />
+                                </Field>
+                                <Field label="Fondo de Pensiones (AFP)">
+                                    <SingleSelect
+                                        value={formData.afp || ''}
+                                        onChange={val => upd('afp', val)}
+                                        placeholder="Seleccionar AFP..."
+                                        options={AFP_OPTIONS}
+                                    />
+                                </Field>
+                            </div>
 
                             {/* Health */}
                             <SectionTitle icon={Activity} label="Salud y Hábitos" />
