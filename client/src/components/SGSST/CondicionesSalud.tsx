@@ -1268,17 +1268,37 @@ const CondicionesSalud = () => {
                                                     <div className="flex flex-col md:flex-row items-center justify-between gap-8 pl-4">
                                                         <div className="flex flex-col md:flex-row items-center gap-6 w-full md:w-auto">
                                                             <div 
-                                                                className="relative group-hover:scale-110 transition-transform duration-500 cursor-pointer"
+                                                                className="relative w-28 h-28 shrink-0 flex items-center justify-center cursor-pointer transition-transform duration-300 hover:scale-105"
                                                                 onClick={() => setActiveAuditWorker(w)}
                                                                 title="Ver Auditoría Detallada"
                                                             >
-                                                                <svg className="w-28 h-28 transform -rotate-90 filter drop-shadow-md">
-                                                                    <circle cx="56" cy="56" r="50" fill="none" stroke="currentColor" strokeWidth="6" className="text-border-light dark:text-white/5" />
-                                                                    <circle cx="56" cy="56" r="50" fill="none" stroke="currentColor" strokeWidth="6" strokeDasharray="314.159" strokeDashoffset={314.159 - (effectiveScore / 100) * 314.159} className={`transition-all duration-1000 ease-out ${scoreColor}`} strokeLinecap="round" />
+                                                                <svg className="w-28 h-28 -rotate-90" viewBox="0 0 120 120">
+                                                                    <circle cx="60" cy="60" r={48} fill="none" stroke="currentColor" strokeWidth="8" className="text-surface-hover/60 dark:text-white/5" />
+                                                                    <circle
+                                                                        cx="60"
+                                                                        cy="60"
+                                                                        r={48}
+                                                                        fill="none"
+                                                                        strokeWidth="8"
+                                                                        style={{
+                                                                            stroke: effectiveScore >= 70 ? '#10b981' : effectiveScore >= 40 ? '#f59e0b' : '#ef4444',
+                                                                            strokeDasharray: `${(effectiveScore / 100) * 2 * Math.PI * 48} ${2 * Math.PI * 48}`,
+                                                                            strokeLinecap: 'round',
+                                                                            transition: 'stroke-dasharray 1s ease',
+                                                                        }}
+                                                                    />
                                                                 </svg>
-                                                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                                                    <span className={`text-3xl font-black tracking-tighter ${scoreColor}`}>{effectiveScore}%</span>
-                                                                    <span className="text-[9px] uppercase font-bold tracking-widest text-text-secondary">FIT</span>
+                                                                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                                                    <span className="text-2xl font-black tracking-tight" style={{ color: effectiveScore >= 70 ? '#10b981' : effectiveScore >= 40 ? '#f59e0b' : '#ef4444' }}>
+                                                                        {effectiveScore}%
+                                                                    </span>
+                                                                    <span className="text-[8px] font-bold text-text-secondary uppercase tracking-wider">FIT SCORE</span>
+                                                                    <span
+                                                                        className="text-[8px] font-black px-1.5 py-0.5 rounded-full mt-0.5 uppercase tracking-wider text-white"
+                                                                        style={{ backgroundColor: effectiveScore >= 70 ? '#10b981' : effectiveScore >= 40 ? '#f59e0b' : '#ef4444' }}
+                                                                    >
+                                                                        {effectiveScore >= 70 ? 'ÓPTIMO' : effectiveScore >= 40 ? 'MODERADO' : 'CRÍTICO'}
+                                                                    </span>
                                                                 </div>
                                                             </div>
 
@@ -1290,16 +1310,70 @@ const CondicionesSalud = () => {
                                                             </div>
                                                         </div>
 
-                                                        <div className="flex flex-col gap-2.5 w-full md:flex-1 md:max-w-md">
+                                                        <div className="flex flex-col gap-2 w-full md:flex-1 md:max-w-md">
                                                             {fitData.alerts.length === 0 ? (
-                                                                <div className="flex items-center gap-3 text-sm font-bold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 p-4 rounded-2xl shadow-sm">
-                                                                    <div className="p-2 bg-green-100 dark:bg-green-800/50 rounded-full"><CheckCircle className="w-5 h-5"/></div>
-                                                                    Aptitud Operativa Óptima.
+                                                                <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-bold shadow-2xs">
+                                                                    <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
+                                                                    <div>
+                                                                        <p className="font-bold">Aptitud Operativa Óptima</p>
+                                                                        <p className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 font-normal">Sin restricciones clínicas o incompatibilidades detectadas con el cargo.</p>
+                                                                    </div>
                                                                 </div>
+                                                            ) : fitData.auditItems && fitData.auditItems.length > 0 ? (
+                                                                <>
+                                                                    {fitData.auditItems.slice(0, 3).map((item, idx) => {
+                                                                        const isCrit = item.severity === 'critical';
+                                                                        const isWarn = item.severity === 'warning';
+                                                                        const pillClass = isCrit
+                                                                            ? 'bg-red-500/10 border-red-500/25 text-red-900 dark:text-red-200'
+                                                                            : isWarn
+                                                                            ? 'bg-amber-500/10 border-amber-500/25 text-amber-900 dark:text-amber-200'
+                                                                            : 'bg-blue-500/10 border-blue-500/25 text-blue-900 dark:text-blue-200';
+                                                                        const badgeColor = isCrit ? 'bg-red-500 text-white' : isWarn ? 'bg-amber-500 text-white' : 'bg-blue-500 text-white';
+
+                                                                        return (
+                                                                            <div
+                                                                                key={idx}
+                                                                                onClick={() => setActiveAuditWorker(w)}
+                                                                                className={`flex items-start gap-2.5 p-2.5 rounded-2xl border ${pillClass} shadow-2xs transition-all hover:scale-[1.01] cursor-pointer`}
+                                                                                title="Clic para ver auditoría completa"
+                                                                            >
+                                                                                <div className="shrink-0 mt-0.5">
+                                                                                    <AlertTriangle className={`w-4 h-4 ${isCrit ? 'text-red-500' : isWarn ? 'text-amber-600 dark:text-amber-400' : 'text-blue-500'}`} />
+                                                                                </div>
+                                                                                <div className="min-w-0 flex-1">
+                                                                                    <div className="flex items-center justify-between gap-1">
+                                                                                        <p className="text-xs font-bold leading-tight truncate">{item.title}</p>
+                                                                                        {item.pointsDeducted > 0 && (
+                                                                                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${badgeColor} shrink-0`}>
+                                                                                                -{item.pointsDeducted} pts
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    {item.description && (
+                                                                                        <p className="text-[10px] text-text-secondary leading-snug mt-0.5 line-clamp-1">{item.description}</p>
+                                                                                    )}
+                                                                                    <span className="inline-block mt-0.5 text-[9px] font-bold uppercase tracking-wider text-text-tertiary">
+                                                                                        {item.category}
+                                                                                    </span>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                    {fitData.auditItems.length > 3 && (
+                                                                        <button
+                                                                            onClick={() => setActiveAuditWorker(w)}
+                                                                            className="text-[10px] font-bold text-teal-600 hover:text-teal-700 dark:text-teal-400 text-center py-1 rounded-xl bg-teal-500/5 hover:bg-teal-500/10 border border-teal-500/20 transition-colors"
+                                                                        >
+                                                                            +{fitData.auditItems.length - 3} alertas más · Ver auditoría detallada
+                                                                        </button>
+                                                                    )}
+                                                                </>
                                                             ) : (
                                                                 fitData.alerts.map((alert, idx) => (
-                                                                    <div key={idx} className={`flex text-xs font-bold px-4 py-3 rounded-2xl gap-3 items-center border transition-all duration-300 hover:-translate-x-1 ${alert.includes('BLOQUEO') ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-lg animate-[pulse_2s_ease-in-out_infinite] border-red-400' : 'text-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800/50'}`}>
-                                                                         <AlertTriangle className="w-5 h-5 flex-shrink-0 opacity-90"/> <span className="leading-tight">{alert}</span>
+                                                                    <div key={idx} className="flex items-center gap-2.5 p-2.5 rounded-2xl border bg-amber-500/10 border-amber-500/25 text-amber-900 dark:text-amber-200 shadow-2xs">
+                                                                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                                                                        <span className="text-xs font-bold leading-tight">{alert}</span>
                                                                     </div>
                                                                 ))
                                                             )}
@@ -1321,21 +1395,55 @@ const CondicionesSalud = () => {
                                                     <h4 className="font-black text-xs text-text-primary uppercase tracking-wider">Fisiología & Biometría</h4>
                                                 </div>
 
-                                                <div className="flex flex-col sm:flex-row items-center gap-6 p-5 rounded-2xl bg-surface-secondary/50 border border-border-light">
+                                                <div className="flex flex-col sm:flex-row items-center gap-6 p-5 rounded-2xl bg-surface-secondary/60 border border-border-light shadow-2xs backdrop-blur-xs">
                                                     {/* Dial Circular de Score Biomédico Centralizado */}
-                                                    <div className="relative shrink-0 w-24 h-24 flex items-center justify-center">
-                                                        <svg className="absolute inset-0 w-full h-full transform -rotate-90">
-                                                            <circle cx="48" cy="48" r="42" fill="none" stroke="currentColor" strokeWidth="5" className="text-border-light dark:text-white/5" />
-                                                            <circle cx="48" cy="48" r="42" fill="none" stroke="currentColor" strokeWidth="5" strokeDasharray="263.89" strokeDashoffset={263.89 - (fitData.score / 100) * 263.89} className={`transition-all duration-1000 ease-out ${scoreColor}`} strokeLinecap="round" />
+                                                    <div
+                                                        className="relative shrink-0 w-24 h-24 flex items-center justify-center cursor-pointer transition-transform hover:scale-105"
+                                                        onClick={() => setActiveAuditWorker(w)}
+                                                        title="Ver Auditoría Detallada"
+                                                    >
+                                                        <svg className="w-24 h-24 -rotate-90" viewBox="0 0 120 120">
+                                                            <circle cx="60" cy="60" r={48} fill="none" stroke="currentColor" strokeWidth="8" className="text-surface-hover/60 dark:text-white/5" />
+                                                            <circle
+                                                                cx="60"
+                                                                cy="60"
+                                                                r={48}
+                                                                fill="none"
+                                                                strokeWidth="8"
+                                                                style={{
+                                                                    stroke: effectiveScore >= 70 ? '#10b981' : effectiveScore >= 40 ? '#f59e0b' : '#ef4444',
+                                                                    strokeDasharray: `${(effectiveScore / 100) * 2 * Math.PI * 48} ${2 * Math.PI * 48}`,
+                                                                    strokeLinecap: 'round',
+                                                                    transition: 'stroke-dasharray 1s ease',
+                                                                }}
+                                                            />
                                                         </svg>
-                                                        <div className="flex flex-col items-center justify-center">
-                                                            <span className={`text-2xl font-black tracking-tighter ${scoreColor}`}>{fitData.score}%</span>
-                                                            <span className="text-[8px] uppercase font-bold tracking-widest text-text-secondary">FIT</span>
+                                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                                            <span className="text-xl font-black tracking-tight" style={{ color: effectiveScore >= 70 ? '#10b981' : effectiveScore >= 40 ? '#f59e0b' : '#ef4444' }}>
+                                                                {effectiveScore}%
+                                                            </span>
+                                                            <span className="text-[7px] font-bold text-text-secondary uppercase tracking-wider">FIT SCORE</span>
+                                                            <span
+                                                                className="text-[7px] font-black px-1.5 py-0.2 rounded-full mt-0.5 uppercase tracking-wider text-white"
+                                                                style={{ backgroundColor: effectiveScore >= 70 ? '#10b981' : effectiveScore >= 40 ? '#f59e0b' : '#ef4444' }}
+                                                            >
+                                                                {effectiveScore >= 70 ? 'ÓPTIMO' : effectiveScore >= 40 ? 'MODERADO' : 'CRÍTICO'}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                     <div className="text-center sm:text-left space-y-1">
-                                                        <h5 className="font-bold text-sm text-text-primary">Aptitud Clínica</h5>
-                                                        <p className="text-xs text-text-secondary leading-relaxed">Monitoreo dinámico del estado fisiológico del trabajador frente a sus funciones asignadas.</p>
+                                                        <div className="flex items-center justify-center sm:justify-start gap-2">
+                                                            <h5 className="font-bold text-sm text-text-primary">Aptitud Clínica</h5>
+                                                            <span
+                                                                className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider text-white"
+                                                                style={{ backgroundColor: effectiveScore >= 70 ? '#10b981' : effectiveScore >= 40 ? '#f59e0b' : '#ef4444' }}
+                                                            >
+                                                                {effectiveScore >= 70 ? 'Apto sin restricciones' : effectiveScore >= 40 ? 'Apto con observaciones' : 'Requiere valoración'}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-text-secondary leading-relaxed">
+                                                            Monitoreo dinámico del estado fisiológico del trabajador frente a sus funciones asignadas en <span className="font-bold text-text-primary">{w.cargo || 'su cargo'}</span>.
+                                                        </p>
                                                     </div>
                                                 </div>
 

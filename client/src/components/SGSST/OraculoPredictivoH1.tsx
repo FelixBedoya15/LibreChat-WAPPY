@@ -557,31 +557,75 @@ export default function OraculoPredictivoH1() {
                                         <HeartPulse className="w-4 h-4 text-teal-500" />
                                         <span className="text-xs font-black uppercase tracking-wider text-text-secondary">Índice Biocéntrico · Salud</span>
                                     </div>
-                                    <div className="flex items-start gap-5">
-                                        {/* Score ring */}
-                                        <div className="shrink-0 flex flex-col items-center">
-                                            <div className={`w-20 h-20 rounded-full border-4 flex items-center justify-center ${sc.ring} ${sc.text} shadow-lg`}>
-                                                <span className="text-xl font-black">{score}%</span>
+                                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                                        {/* Score SVG Gauge */}
+                                        <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
+                                            <svg className="w-28 h-28 -rotate-90" viewBox="0 0 120 120">
+                                                <circle cx="60" cy="60" r={48} fill="none" stroke="currentColor" strokeWidth="8" className="text-surface-hover/60 dark:text-white/5" />
+                                                <circle
+                                                    cx="60"
+                                                    cy="60"
+                                                    r={48}
+                                                    fill="none"
+                                                    strokeWidth="8"
+                                                    style={{
+                                                        stroke: score >= 70 ? '#10b981' : score >= 40 ? '#f59e0b' : '#ef4444',
+                                                        strokeDasharray: `${(score / 100) * 2 * Math.PI * 48} ${2 * Math.PI * 48}`,
+                                                        strokeLinecap: 'round',
+                                                        transition: 'stroke-dasharray 1s ease',
+                                                    }}
+                                                />
+                                            </svg>
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                                <span className="text-2xl font-black tracking-tight" style={{ color: score >= 70 ? '#10b981' : score >= 40 ? '#f59e0b' : '#ef4444' }}>
+                                                    {score}%
+                                                </span>
+                                                <span className="text-[8px] font-bold text-text-secondary uppercase tracking-wider">FIT SCORE</span>
+                                                <span
+                                                    className="text-[8px] font-black px-1.5 py-0.5 rounded-full mt-0.5 uppercase tracking-wider text-white"
+                                                    style={{ backgroundColor: score >= 70 ? '#10b981' : score >= 40 ? '#f59e0b' : '#ef4444' }}
+                                                >
+                                                    {score >= 70 ? 'ÓPTIMO' : score >= 40 ? 'MODERADO' : 'CRÍTICO'}
+                                                </span>
                                             </div>
-                                            <span className="text-[10px] text-text-secondary font-bold mt-1.5 uppercase">Score</span>
                                         </div>
+
                                         {/* Audit Items */}
-                                        <div className="flex-1 space-y-2">
+                                        <div className="flex-1 space-y-2 w-full">
                                             {displayAlerts.length === 0 ? (
-                                                <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
-                                                    <CheckCircle className="w-4 h-4" /> Aptitud clínica óptima
+                                                <div className="flex items-center gap-2 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-bold shadow-2xs">
+                                                    <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                                                    <span>Aptitud clínica y ocupacional óptima</span>
                                                 </div>
                                             ) : (
                                                 displayAlerts.map((item: any, i: number) => {
-                                                    const s = SEV_STYLES[item.severity] || SEV_STYLES.info;
+                                                    const isCrit = item.severity === 'critical';
+                                                    const isWarn = item.severity === 'warning';
+                                                    const pillClass = isCrit
+                                                        ? 'bg-red-500/10 border-red-500/25 text-red-900 dark:text-red-200'
+                                                        : isWarn
+                                                        ? 'bg-amber-500/10 border-amber-500/25 text-amber-900 dark:text-amber-200'
+                                                        : 'bg-blue-500/10 border-blue-500/25 text-blue-900 dark:text-blue-200';
+                                                    const badgeColor = isCrit ? 'bg-red-500 text-white' : isWarn ? 'bg-amber-500 text-white' : 'bg-blue-500 text-white';
+
                                                     return (
-                                                        <div key={i} className={`flex items-start gap-3 p-2.5 rounded-xl border ${s.border} bg-surface-primary`}>
-                                                            <div className={`text-xs font-black w-7 shrink-0 text-right mt-0.5 ${s.pts}`}>-{Math.abs(item.pts)}</div>
-                                                            <div className="shrink-0 mt-0.5">{s.icon}</div>
+                                                        <div key={i} className={`flex items-start gap-2.5 p-2.5 rounded-2xl border ${pillClass} shadow-2xs transition-all hover:scale-[1.01]`}>
+                                                            <div className="shrink-0 mt-0.5">
+                                                                <AlertTriangle className={`w-4 h-4 ${isCrit ? 'text-red-500' : isWarn ? 'text-amber-600 dark:text-amber-400' : 'text-blue-500'}`} />
+                                                            </div>
                                                             <div className="min-w-0 flex-1">
-                                                                <p className="text-xs font-bold text-text-primary">{item.title}</p>
-                                                                <p className="text-[10px] text-text-secondary leading-tight mt-0.5 line-clamp-2">{item.description}</p>
-                                                                <span className={`inline-block mt-1 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full ${s.pts} bg-current/10`} style={{opacity: 0.85}}>{item.category}</span>
+                                                                <div className="flex items-center justify-between gap-1">
+                                                                    <p className="text-xs font-bold leading-tight">{item.title}</p>
+                                                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${badgeColor} shrink-0`}>
+                                                                        -{Math.abs(item.pts)} pts
+                                                                    </span>
+                                                                </div>
+                                                                {item.description && (
+                                                                    <p className="text-[10px] text-text-secondary leading-snug mt-0.5 line-clamp-2">{item.description}</p>
+                                                                )}
+                                                                <span className="inline-block mt-0.5 text-[9px] font-bold uppercase tracking-wider text-text-tertiary">
+                                                                    {item.category}
+                                                                </span>
                                                             </div>
                                                         </div>
                                                     );
@@ -591,7 +635,7 @@ export default function OraculoPredictivoH1() {
                                                 <button
                                                     onClick={() => handleForceIAEval(worker.id)}
                                                     disabled={evaluatingIAId === worker.id}
-                                                    className="mt-2 w-full text-[10px] font-bold text-teal-600 hover:text-teal-800 flex items-center justify-center gap-1 py-1.5 rounded-lg border border-teal-200 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
+                                                    className="mt-2 w-full text-[10px] font-bold text-teal-600 hover:text-teal-800 flex items-center justify-center gap-1 py-1.5 rounded-xl border border-teal-200 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors shadow-2xs"
                                                 >
                                                     {evaluatingIAId === worker.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                                                     {evaluatingIAId === worker.id ? 'Analizando con IA...' : 'Forzar análisis IA'}
