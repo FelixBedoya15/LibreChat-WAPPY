@@ -140,8 +140,14 @@ router.post('/apply-to-matrix', requireJwtAuth, async (req, res) => {
             }
             const row = session.matrixRows[rowIndex];
 
+            if (matrixData.cargo && !row.cargo) {
+                row.cargo = matrixData.cargo;
+            }
+            if (matrixData.actividad && !row.actividad) {
+                row.actividad = matrixData.actividad;
+            }
             if (matrixData.peligros) {
-                const workerAporte = `[Aporte de Colaborador ${matrixData.trabajadorNombre || ''}]: ${matrixData.peligros}`;
+                const workerAporte = `[Aporte de Colaborador ${matrixData.trabajadorNombre || ''}${matrixData.cargo ? ` - Cargo: ${matrixData.cargo}` : ''}]: ${matrixData.peligros}`;
                 if (!row.peligro_descripcion?.includes(matrixData.peligros)) {
                     row.peligro_descripcion = row.peligro_descripcion ? `${row.peligro_descripcion}\n${workerAporte}` : workerAporte;
                 }
@@ -345,7 +351,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
         const { formData, trabajadoresList, responsablesList, images, video, modelName } = req.body;
 
-        const trabajadoresStr = trabajadoresList?.map(t => `${t.nombre || 'Sin nombre'} (CC: ${t.cedula || 'N/A'})`).join(', ') || '[PENDIENTE]';
+        const trabajadoresStr = trabajadoresList?.map(t => `${t.nombre || 'Sin nombre'} (CC: ${t.cedula || 'N/A'}${t.cargo ? ` - Cargo: ${t.cargo}` : ''})`).join(', ') || '[PENDIENTE]';
         const responsablesStr = responsablesList?.map(r => `${r.nombre || 'Sin nombre'} - ${r.rol || 'Sin Rol'} (CC: ${r.cedula || 'N/A'})`).join(', ') || '[PENDIENTE]';
 
         let resolvedApiKey = null;
@@ -406,9 +412,13 @@ Eres un Experto Técnico Senior en Seguridad y Salud en el Trabajo (SST).
 Tu objetivo es analizar el reporte de participación e identificación de peligros (IPEVAR) presentado por un trabajador, y generar un **Documento de Análisis Técnico para Pre-Matriz**.
 
 **INFORMACIÓN SUMINISTRADA POR FORMULARIO:**
-- Trabajador(es) expuesto(s): ${trabajadoresStr}
+- Trabajador(es) expuesto(s) y Cargo: ${trabajadoresStr}
 - Responsable(s) de área: ${responsablesStr}
+- Proceso: ${formData?.proceso || 'Operativo / Obra Civil'}
+- Zona / Lugar: ${formData?.zona || 'Área de trabajo'}
+- Actividad: ${formData?.actividad || 'Labor general'}
 - Labor o Tarea Evaluada: ${formData?.tarea || 'N/A'}
+- ¿Rutinaria?: ${formData?.rutinaria || 'Sí'}
 - Peligros Identificados: ${formData?.peligros || 'N/A'}
 - Controles Existentes observados: ${formData?.controlesExistentes || 'Ninguno'}
 - ¿El trabajador considera suficientes los controles?: ${formData?.suficientes ? 'Sí' : 'No'}

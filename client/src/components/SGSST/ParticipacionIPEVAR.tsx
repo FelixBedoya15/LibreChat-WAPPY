@@ -1711,7 +1711,7 @@ const ParticipacionIPEVAR = () => {
                                         Aprobar e Integrar a Matriz IPEVAR Oficial
                                     </h3>
                                     <p className="text-xs text-text-secondary">
-                                        Colaborador: <span className="font-semibold text-text-primary">{applyFormData.trabajadorNombre || 'Sin nombre'}</span> {applyFormData.trabajadorCedula ? `(CC ${applyFormData.trabajadorCedula})` : ''}
+                                        Colaborador: <span className="font-semibold text-text-primary">{applyFormData.trabajadorNombre || 'Sin nombre'}</span> {applyFormData.trabajadorCedula ? `(CC ${applyFormData.trabajadorCedula})` : ''} {applyFormData.cargo ? <span className="ml-1 text-teal-600 dark:text-teal-400 font-bold">• Cargo: {applyFormData.cargo}</span> : ''}
                                     </p>
                                 </div>
                             </div>
@@ -1773,7 +1773,7 @@ const ParticipacionIPEVAR = () => {
                                         >
                                             {officialMatrixRows.map(row => (
                                                 <option key={row.id} value={row.id}>
-                                                    [{row.proceso || 'Proc.'} - {row.zona || 'Zona'}] {row.peligro_clasificacion || 'Peligro'}: {row.peligro_descripcion ? row.peligro_descripcion.substring(0, 60) + '...' : row.tarea} (NR: {row.interpretacion_nr || row.nr || 'N/A'})
+                                                    [{row.proceso || 'Proc.'} - {row.cargo ? `${row.cargo} - ` : ''}{row.zona || 'Zona'}] {row.peligro_clasificacion || 'Peligro'}: {row.peligro_descripcion ? row.peligro_descripcion.substring(0, 60) + '...' : row.tarea} (NR: {row.interpretacion_nr || row.nr || 'N/A'})
                                                 </option>
                                             ))}
                                         </select>
@@ -1797,11 +1797,34 @@ const ParticipacionIPEVAR = () => {
                                         />
                                     </div>
                                     <div>
+                                        <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Cargo / Puesto de Trabajo</label>
+                                        <input
+                                            type="text"
+                                            value={applyFormData.cargo}
+                                            onChange={e => setApplyFormData({ ...applyFormData, cargo: e.target.value })}
+                                            placeholder="Ej. Ayudante de Obra, Operario..."
+                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
                                         <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Zona / Lugar</label>
                                         <input
                                             type="text"
                                             value={applyFormData.zona}
                                             onChange={e => setApplyFormData({ ...applyFormData, zona: e.target.value })}
+                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Actividad</label>
+                                        <input
+                                            type="text"
+                                            value={applyFormData.actividad}
+                                            onChange={e => setApplyFormData({ ...applyFormData, actividad: e.target.value })}
+                                            placeholder="Ej. Transporte y vaciado de mezclas..."
                                             className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary"
                                         />
                                     </div>
