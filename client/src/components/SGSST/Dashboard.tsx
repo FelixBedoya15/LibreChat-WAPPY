@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useOutletContext, useSearchParams } from 'react-router-dom';
+import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { useAuthContext } from '~/hooks';
 import { 
     FileText, 
@@ -144,7 +144,61 @@ const OrganicBlob = () => (
     </svg>
 );
 
+const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
+    // Hito 1: Gobernanza y Legal
+    diagnostico: 'hito1',
+    participacion_ipevar: 'hito1',
+    matriz_ipevar_oficial: 'hito1',
+    responsable: 'hito1',
+    politica: 'hito1',
+    objetivos: 'hito1',
+    legal: 'hito1',
+    rhs: 'hito1',
+    rit: 'hito1',
+    vulnerabilidad: 'hito1',
+
+    // Hito 2: Huella Biocéntrica
+    perfil_socio: 'hito2',
+    perfil_sociodemografico: 'hito2',
+    condiciones_salud: 'hito2',
+    perfil_cargo: 'hito2',
+    oraculo_predictivo: 'hito2',
+
+    // Hito 3: Evaluación Dinámica de Riesgos
+    peligros: 'hito3',
+    animo: 'hito3',
+
+    // Hito 4: Dinámica Operativa y Terreno
+    permiso_alturas: 'hito4',
+    analisis_trabajo_seguro: 'hito4',
+    metodo_owas: 'hito4',
+    epp_delivery: 'hito4',
+    vehicles_pesv: 'hito4',
+    heights_lifecycle: 'hito4',
+    chemical_registry: 'hito4',
+
+    // Hito 5: Cultura, Escuela e Innovación
+    reporte_actos: 'hito5',
+    capacitaciones: 'hito5',
+    ruta_aprendizaje: 'hito5',
+    app_builder: 'hito5',
+    custom_html_sandbox: 'hito5',
+
+    // Hito 6: Auditoría, Causalidad & Cierre de Ciclo
+    estadisticas: 'hito6',
+    investigacion_atel: 'hito6',
+    control_acpm: 'hito6',
+    acpm: 'hito6',
+    auditoria: 'hito6',
+    alta_direccion: 'hito6',
+    investigacion_profunda: 'hito6',
+
+    // Hito 7: Inteligencia Artificial & Oráculo Predictivo
+    predictivo: 'hito7',
+};
+
 export default function SGSSTDashboard() {
+    const navigate = useNavigate();
     const { user, token } = useAuthContext();
     const { navVisible, setNavVisible } = useOutletContext<ContextType>();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -250,58 +304,6 @@ export default function SGSSTDashboard() {
 
     // ─── handle navigate-sgsst event (from notification panel / tenshi) ───
     useEffect(() => {
-        const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
-            // Hito 1: Gobernanza y Legal
-            diagnostico: 'hito1',
-            participacion_ipevar: 'hito1',
-            matriz_ipevar_oficial: 'hito1',
-            responsable: 'hito1',
-            politica: 'hito1',
-            objetivos: 'hito1',
-            legal: 'hito1',
-            rhs: 'hito1',
-            rit: 'hito1',
-            vulnerabilidad: 'hito1',
-
-            // Hito 2: Huella Biocéntrica
-            perfil_socio: 'hito2',
-            perfil_sociodemografico: 'hito2',
-            condiciones_salud: 'hito2',
-            perfil_cargo: 'hito2',
-            oraculo_predictivo: 'hito2',
-
-            // Hito 3: Evaluación Dinámica de Riesgos
-            peligros: 'hito3',
-            animo: 'hito3',
-
-            // Hito 4: Dinámica Operativa y Terreno
-            permiso_alturas: 'hito4',
-            analisis_trabajo_seguro: 'hito4',
-            metodo_owas: 'hito4',
-            epp_delivery: 'hito4',
-            vehicles_pesv: 'hito4',
-            heights_lifecycle: 'hito4',
-            chemical_registry: 'hito4',
-
-            // Hito 5: Cultura, Escuela e Innovación
-            reporte_actos: 'hito5',
-            capacitaciones: 'hito5',
-            ruta_aprendizaje: 'hito5',
-            app_builder: 'hito5',
-            custom_html_sandbox: 'hito5',
-
-            // Hito 6: Auditoría, Causalidad & Cierre de Ciclo
-            estadisticas: 'hito6',
-            investigacion_atel: 'hito6',
-            control_acpm: 'hito6',
-            acpm: 'hito6',
-            auditoria: 'hito6',
-            alta_direccion: 'hito6',
-            investigacion_profunda: 'hito6',
-
-            // Hito 7: Inteligencia Artificial & Oráculo Predictivo
-            predictivo: 'hito7',
-        };
         const handler = (e: Event) => {
             const { module } = (e as CustomEvent).detail || {};
             if (!module) return;
@@ -312,10 +314,29 @@ export default function SGSSTDashboard() {
         return () => window.removeEventListener('navigate-sgsst', handler);
     }, [setSearchParams]);
 
-    // ─── URL Sync ──────────────────────────────────────────────────────────
+    // ─── URL Sync & Defensive Parameter Routing ─────────────────────────────
     useEffect(() => {
+        const tabParam = searchParams.get('tab');
+
+        // Redirección directa hacia el Centro de Control SST
+        if (tabParam === 'acpm' || tabParam === 'kanban' || tabParam === 'control') {
+            navigate('/sgsst/control?tab=acpm', { replace: true });
+            return;
+        }
+        if (tabParam === 'automatizaciones' || tabParam === 'ia' || tabParam === 'agentes') {
+            navigate('/sgsst/control?tab=automatizaciones', { replace: true });
+            return;
+        }
+
         const rawHito = searchParams.get('hito') || searchParams.get('sub');
         let targetId = rawHito;
+
+        // Si se envió un tab correspondiente a un módulo de SGSST (ej. desde Kanban "Ver en origen")
+        if (!targetId && tabParam && SGSST_MODULE_PHASE_MAP[tabParam]) {
+            targetId = SGSST_MODULE_PHASE_MAP[tabParam];
+            setSearchParams({ hito: targetId, module: tabParam }, { replace: true });
+            return;
+        }
 
         // Mapeo retrocompatible
         if (rawHito === 'fase1') targetId = 'hito1';
@@ -327,7 +348,7 @@ export default function SGSSTDashboard() {
         } else {
             setSelectedHito(null);
         }
-    }, [searchParams]);
+    }, [searchParams, navigate, setSearchParams, unifiedHitos]);
 
     const handlePhaseSelect = (phase: any) => {
         if (missingFields.length > 0) {

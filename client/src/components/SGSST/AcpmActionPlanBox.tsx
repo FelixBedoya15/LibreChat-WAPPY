@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { 
   Trello, 
@@ -489,8 +490,8 @@ export default function AcpmActionPlanBox({
                   </div>
                 </button>
 
-                <a
-                  href="/sgsst?tab=acpm"
+                <Link
+                  to="/sgsst/control?tab=acpm"
                   title="Abrir Centro de Control"
                   aria-label="Abrir Centro de Control"
                   className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/30 bg-surface-secondary px-2 text-teal-600 shadow-xs outline-none transition-all duration-300 hover:scale-105 hover:bg-teal-50/50 hover:border-teal-500/50 dark:text-teal-400 dark:hover:bg-teal-950/30 sm:h-9 sm:min-w-[36px] sm:px-2.5"
@@ -501,7 +502,7 @@ export default function AcpmActionPlanBox({
                   <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[180px] group-hover:opacity-100 sm:flex">
                     <span className="text-xs font-bold tracking-wide">Abrir Centro de Control</span>
                   </div>
-                </a>
+                </Link>
               </div>
             </div>
           )}
@@ -512,12 +513,12 @@ export default function AcpmActionPlanBox({
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 Las acciones han sido integradas al tablero Kanban del Centro de Control (ACPM).
               </span>
-              <a
-                href="/sgsst?tab=acpm"
+              <Link
+                to="/sgsst/control?tab=acpm"
                 className="font-bold underline flex items-center gap-1 hover:text-emerald-900 dark:hover:text-emerald-200"
               >
                 Ver en Kanban <ExternalLink className="w-3 h-3" />
-              </a>
+              </Link>
             </div>
           )}
         </div>

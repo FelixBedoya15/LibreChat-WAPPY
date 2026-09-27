@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { UpgradeWall } from './UpgradeWall';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -1136,8 +1137,8 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             </div>
           </button>
 
-          <a
-            href="/sgsst?tab=acpm"
+          <Link
+            to="/sgsst/control?tab=acpm"
             title="Ver Plan ACPM en Centro de Control"
             aria-label="Ver Plan ACPM"
             className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-cyan-200 bg-surface-primary px-2 text-cyan-600 shadow-sm outline-none transition-all duration-300 hover:scale-105 hover:bg-cyan-50 hover:border-cyan-300 dark:border-cyan-800 dark:text-cyan-400 dark:hover:bg-cyan-950/40 sm:h-9 sm:min-w-[36px] sm:px-2.5"
@@ -1148,7 +1149,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[160px] group-hover:opacity-100 sm:flex">
               <span className="text-xs font-bold tracking-wide">Ver Plan ACPM</span>
             </div>
-          </a>
+          </Link>
         </div>
       </div>
 

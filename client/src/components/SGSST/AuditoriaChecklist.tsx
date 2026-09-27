@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { UpgradeWall } from './UpgradeWall';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -1060,8 +1061,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
             </div>
           </button>
 
-          <a
-            href="/sgsst?tab=acpm"
+          <Link
+            to="/sgsst/control?tab=acpm"
             title="Ver Plan ACPM en Centro de Control"
             aria-label="Ver Plan ACPM"
             className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-purple-200 bg-surface-primary px-2 text-purple-600 shadow-sm outline-none transition-all duration-300 hover:scale-105 hover:bg-purple-50 hover:border-purple-300 dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-950/40 sm:h-9 sm:min-w-[36px] sm:px-2.5"
@@ -1072,7 +1073,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[160px] group-hover:opacity-100 sm:flex">
               <span className="text-xs font-bold tracking-wide">Ver Plan ACPM</span>
             </div>
-          </a>
+          </Link>
         </div>
       </div>
 
