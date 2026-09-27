@@ -21,7 +21,8 @@ import {
     Briefcase,
     AlertOctagon,
     ThumbsUp,
-    Lightbulb
+    Lightbulb,
+    ArrowRight
 } from 'lucide-react';
 import axios from 'axios';
 import PublicWorkerHeader from './PublicWorkerHeader';
