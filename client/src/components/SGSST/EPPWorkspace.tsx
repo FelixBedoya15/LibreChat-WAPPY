@@ -1951,9 +1951,6 @@ export default function EPPWorkspace() {
             <div className="p-6 rounded-3xl bg-gradient-to-r from-teal-900/15 via-slate-900/10 to-teal-900/15 border border-teal-500/30 shadow-sm relative overflow-hidden">
               <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="space-y-1.5 max-w-xl">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/15 text-teal-600 dark:text-teal-300 text-2xs font-extrabold uppercase tracking-wider">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Resolución 2400 de 1979 / Art. 230 C.S.T.
-                  </div>
                   <h3 className="text-xl font-black text-text-primary">
                     Centro de Control de Dotaciones y Almacén de EPP
                   </h3>
@@ -1961,8 +1958,9 @@ export default function EPPWorkspace() {
                     Gestión integral de entrega de elementos de protección personal, control de reposición periódica (3 entregas legales al año), inspección anual de equipos para alturas y trazabilidad de existencias en almacén.
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
-                  <button
+                <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-md shadow-slate-200/30 dark:shadow-none shrink-0">
+                  <ToolbarButton
+                    id="banner-new-delivery"
                     onClick={() => {
                       if (workers.length > 0) {
                         setSelectedWorker(workers[0]);
@@ -1971,16 +1969,19 @@ export default function EPPWorkspace() {
                         showToast({ message: 'Primero registre trabajadores en la ficha sociodemográfica.', status: 'info' });
                       }
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Registrar Entrega
-                  </button>
-                  <button
+                    label="Registrar Entrega"
+                    icon={Plus}
+                    title="Registrar nueva entrega de EPP"
+                    variant="ai"
+                  />
+                  <ToolbarButton
+                    id="banner-go-inventory"
                     onClick={() => setActiveView('inventory')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
-                  >
-                    <Boxes className="w-3.5 h-3.5 text-teal-500" /> Ir a Bodega / Stock
-                  </button>
+                    label="Ir a Bodega / Stock"
+                    icon={Boxes}
+                    title="Ir al Control de Bodega y Stock de EPP"
+                    variant="dummy"
+                  />
                 </div>
               </div>
             </div>
@@ -2513,27 +2514,30 @@ export default function EPPWorkspace() {
                     : 'Empieza agregando un elemento o carga el catálogo estándar colombiano de 15 EPPs sugeridos con stock preconfigurado.'}
                 </p>
               </div>
-              <div className="flex items-center justify-center gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={handleSeedDefaults}
-                  disabled={invLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Cargar Catálogo Estándar (15 EPPs)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetInventoryForm();
-                    setIsInventoryModalOpen(true);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm text-xs font-bold transition-all active:scale-95 cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Crear Primer EPP Manual</span>
-                </button>
+              <div className="flex items-center justify-center pt-2">
+                <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-md shadow-slate-200/30 dark:shadow-none">
+                  <ToolbarButton
+                    id="empty-seed-defaults"
+                    onClick={handleSeedDefaults}
+                    disabled={invLoading}
+                    isLoading={invLoading}
+                    label="Cargar Catálogo Estándar (15 EPPs)"
+                    icon={Sparkles}
+                    title="Cargar catálogo estándar sugerido de 15 EPPs con stock preconfigurado"
+                    variant="dummy"
+                  />
+                  <ToolbarButton
+                    id="empty-create-manual"
+                    onClick={() => {
+                      resetInventoryForm();
+                      setIsInventoryModalOpen(true);
+                    }}
+                    label="Crear EPP Manual"
+                    icon={Plus}
+                    title="Crear primer elemento de EPP manual"
+                    variant="ai"
+                  />
+                </div>
               </div>
             </div>
           )}
