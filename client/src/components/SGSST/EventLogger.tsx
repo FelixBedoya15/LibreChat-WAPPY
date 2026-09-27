@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Trash2, Activity, Calendar, DollarSign, User, ShieldAlert, FileText, CheckCircle2, AlertCircle, Clock, ChevronDown, ChevronUp, Eye, Search } from 'lucide-react';
+import { Plus, Trash2, Activity, Calendar, DollarSign, User, ShieldAlert, FileText, CheckCircle2, AlertCircle, Clock, ChevronDown, ChevronUp, Eye, Search, X } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { cn } from '~/utils';
+import ExpandingButton from './ExpandingButton';
 
 export type AbsenceCategory = 'SALUD' | 'LICENCIA_LEY' | 'PERMISOS' | 'DISRUPCION';
 
@@ -625,21 +626,18 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                     </div>
 
                     <div className="flex justify-end gap-2.5 pt-2">
-                        <button
-                            type="button"
-                            onClick={() => setIsAdding(false)}
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all active:scale-95"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleAdd}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md transition-all active:scale-95"
-                        >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            Guardar Novedad
-                        </button>
+                        <ExpandingButton
+                          variant="secondary"
+                          icon={<X className="w-4 h-4" />}
+                          label="Cancelar"
+                          onClick={() => setIsAdding(false)}
+                        />
+                        <ExpandingButton
+                          variant="teal"
+                          icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                          label="Guardar Novedad"
+                          onClick={handleAdd}
+                        />
                     </div>
                 </div>
             )}

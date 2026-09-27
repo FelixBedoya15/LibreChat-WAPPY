@@ -34,6 +34,7 @@ import { useToastContext } from '@librechat/client';
 import { QRCodeSVG } from 'qrcode.react';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
 import SignaturePad from './SignaturePad';
+import ExpandingButton from './ExpandingButton';
 
 export default function ConvivenciaWorkspace() {
   const { token } = useAuthContext();
@@ -405,6 +406,60 @@ export default function ConvivenciaWorkspace() {
             badge: config?.eleccionActiva ? '!' : undefined,
           },
         ]}
+        customSections={[
+          <div key="ccl-actions-bar" className="flex items-center gap-1.5">
+            {activeTab === 'casos' && (
+              <ToolbarButton
+                id="tb-nuevo-caso"
+                onClick={() => {
+                  resetCasoForm();
+                  setShowCasoModal(true);
+                }}
+                label="Registrar Nueva Queja"
+                icon={Plus}
+                title="Registrar Queja Confidencial de Acoso Laboral"
+                variant="save"
+              />
+            )}
+            {activeTab === 'actas' && (
+              <ToolbarButton
+                id="tb-nueva-acta"
+                onClick={() => handleOpenNewActa(1)}
+                label="Nueva Acta Trimestral"
+                icon={Plus}
+                title="Registrar Acta Trimestral Ordinaria del CCL"
+                variant="ai"
+              />
+            )}
+            {activeTab === 'comites' && (
+              <ToolbarButton
+                id="tb-convocar-ccl"
+                onClick={() => setActiveTab('elecciones')}
+                label="Convocar Votación Secreta"
+                icon={Vote}
+                title="Iniciar Convocatoria Electoral del CCL"
+                variant="dummy"
+              />
+            )}
+            {activeTab === 'elecciones' && (
+              <ToolbarButton
+                id="tb-convocatoria-electoral"
+                onClick={() => {
+                  setEleccionForm({
+                    titulo: `Elecciones Comité de Convivencia ${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
+                    periodo: `${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
+                    candidatos: [],
+                  });
+                  setShowEleccionModal(true);
+                }}
+                label="Nueva Convocatoria Electoral"
+                icon={Plus}
+                title="Crear Nueva Convocatoria a Elecciones"
+                variant="dummy"
+              />
+            )}
+          </div>
+        ]}
       />
 
       {/* ═══ TAB 1: BANDEJA CONFIDENCIAL & CONTADOR 65 DÍAS ═══ */}
@@ -420,6 +475,17 @@ export default function ConvivenciaWorkspace() {
                 Resolución 3461 de 2025: Máximo <strong>65 días calendario</strong> no prorrogables para conciliar, archivar o remitir a la Alta Dirección.
               </p>
             </div>
+
+            <ExpandingButton
+              onClick={() => {
+                resetCasoForm();
+                setShowCasoModal(true);
+              }}
+              label="Registrar Nueva Queja"
+              icon={Plus}
+              variant="teal"
+              title="Registrar Queja Confidencial de Acoso Laboral"
+            />
           </div>
 
           <div className="space-y-4">
@@ -494,28 +560,28 @@ export default function ConvivenciaWorkspace() {
 
                         {/* Botón de medidas urgentes si es acoso sexual */}
                         {isAcosoSexual && (
-                          <button
+                          <ExpandingButton
                             onClick={() => {
                               setSelectedCaso(caso);
                               setShowMedidasModal(true);
                             }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-bold shadow-md shadow-rose-600/20 active:scale-95 transition-all"
-                          >
-                            <ShieldAlert className="w-3.5 h-3.5" />
-                            Medidas Cautelares
-                          </button>
+                            label="Medidas Cautelares"
+                            icon={ShieldAlert}
+                            variant="rose"
+                            title="Gestionar Medidas Cautelares Urgentes Ley 2365"
+                          />
                         )}
 
-                        <button
+                        <ExpandingButton
                           onClick={() => {
                             setSelectedCaso(caso);
                             setShowCasoModal(true);
                           }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-700 shadow-2xs active:scale-95 transition-all"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                          Expediente ({caso.actuaciones?.length || 0})
-                        </button>
+                          label={`Expediente (${caso.actuaciones?.length || 0})`}
+                          icon={MessageSquare}
+                          variant="secondary"
+                          title="Ver Expediente Confidencial y Actuaciones"
+                        />
                       </div>
                     </div>
 
@@ -558,13 +624,13 @@ export default function ConvivenciaWorkspace() {
               </p>
             </div>
 
-            <button
+            <ExpandingButton
               onClick={() => handleOpenNewActa(1)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-teal-600/20 transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
-            >
-              <Plus className="w-4 h-4" />
-              Nueva Acta Trimestral
-            </button>
+              label="Nueva Acta Trimestral"
+              icon={Plus}
+              variant="teal"
+              title="Registrar Nueva Acta Trimestral del CCL"
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -665,13 +731,13 @@ export default function ConvivenciaWorkspace() {
               </p>
             </div>
 
-            <button
+            <ExpandingButton
               onClick={() => setActiveTab('elecciones')}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
-            >
-              <Vote className="w-4 h-4" />
-              Convocar Votación Secreta
-            </button>
+              label="Convocar Votación Secreta"
+              icon={Vote}
+              variant="orange"
+              title="Iniciar Convocatoria y Votación Secreta Digital"
+            />
           </div>
 
           <div className="space-y-4">
@@ -774,7 +840,7 @@ export default function ConvivenciaWorkspace() {
               </p>
             </div>
 
-            <button
+            <ExpandingButton
               onClick={() => {
                 setEleccionForm({
                   titulo: `Elecciones Comité de Convivencia ${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
@@ -783,11 +849,11 @@ export default function ConvivenciaWorkspace() {
                 });
                 setShowEleccionModal(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
-            >
-              <Vote className="w-4 h-4" />
-              Nueva Convocatoria
-            </button>
+              label="Nueva Convocatoria Electoral"
+              icon={Plus}
+              variant="orange"
+              title="Publicar Nueva Convocatoria a Elecciones"
+            />
           </div>
 
           <div className="space-y-4">
@@ -823,31 +889,32 @@ export default function ConvivenciaWorkspace() {
                       <div className="flex items-center gap-2">
                         {e.estado === 'activa' && (
                           <>
-                            <button
+                            <ExpandingButton
                               onClick={() => setQrModalUrl(votingUrl)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 shadow-2xs active:scale-95 transition-all"
-                            >
-                              <QrCode className="w-4 h-4 text-indigo-600" /> QR Urna
-                            </button>
+                              label="QR Urna"
+                              icon={QrCode}
+                              variant="secondary"
+                              title="Mostrar Código QR de Votación"
+                            />
 
-                            <button
+                            <ExpandingButton
                               onClick={() => {
                                 navigator.clipboard.writeText(votingUrl);
                                 showToast({ message: 'Enlace de votación copiado al portapapeles', status: 'success' });
                               }}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-700 shadow-2xs active:scale-95 transition-all"
-                            >
-                              <Share2 className="w-4 h-4 text-indigo-600" />
-                              Copiar Link
-                            </button>
+                              label="Copiar Link"
+                              icon={Share2}
+                              variant="secondary"
+                              title="Copiar Link de la Urna Digital"
+                            />
 
-                            <button
+                            <ExpandingButton
                               onClick={() => handleEscrutinio(e._id)}
-                              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-sm shadow-orange-500/20 active:scale-95 transition-all"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                              Cerrar & Escrutar
-                            </button>
+                              label="Cerrar & Escrutar"
+                              icon={CheckCircle2}
+                              variant="orange"
+                              title="Finalizar Votación y Generar Acta de Escrutinio"
+                            />
                           </>
                         )}
                       </div>
@@ -992,22 +1059,18 @@ export default function ConvivenciaWorkspace() {
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-zinc-800">
-              <button
-                type="button"
+              <ExpandingButton
+                variant="secondary"
+                icon={<X className="w-4 h-4" />}
+                label="Cerrar"
                 onClick={() => setShowCasoModal(false)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shadow-sm bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 active:scale-95 transition-all"
-              >
-                <X className="w-4 h-4" />
-                Cerrar
-              </button>
-              <button
-                type="button"
+              />
+              <ExpandingButton
+                variant="teal"
+                icon={<CheckCircle2 className="w-4 h-4" />}
+                label="Guardar Actuación"
                 onClick={handleAddActuacion}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-teal-600/20 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white active:scale-95 transition-all"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Guardar Actuación
-              </button>
+              />
             </div>
           </div>
         </div>
@@ -1084,22 +1147,18 @@ export default function ConvivenciaWorkspace() {
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-zinc-800">
-              <button
-                type="button"
+              <ExpandingButton
+                variant="secondary"
+                icon={<X className="w-4 h-4" />}
+                label="Cancelar"
                 onClick={() => setShowMedidasModal(false)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shadow-sm bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 active:scale-95 transition-all"
-              >
-                <X className="w-4 h-4" />
-                Cancelar
-              </button>
-              <button
-                type="button"
+              />
+              <ExpandingButton
+                variant="rose"
+                icon={<AlertOctagon className="w-4 h-4" />}
+                label="Activar Medidas Urgentes"
                 onClick={handleApplyMedidas}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-rose-600/20 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white active:scale-95 transition-all"
-              >
-                <AlertOctagon className="w-4 h-4" />
-                Activar Medidas Urgentes
-              </button>
+              />
             </div>
           </div>
         </div>
@@ -1126,15 +1185,14 @@ export default function ConvivenciaWorkspace() {
 
               {/* Botón IA Tenshi + Botón Cerrar */}
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
+                <ExpandingButton
+                  variant="orange"
+                  icon={<Sparkles className="w-4 h-4" />}
+                  label="Redactar con Tenshi IA"
                   onClick={handleGenerateActaIA}
                   disabled={isGeneratingIA}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white disabled:opacity-50"
-                >
-                  {isGeneratingIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                  Redactar con Tenshi IA
-                </button>
+                  isLoading={isGeneratingIA}
+                />
                 <button
                   type="button"
                   onClick={() => setShowActaModal(false)}
@@ -1206,8 +1264,10 @@ export default function ConvivenciaWorkspace() {
                   </p>
                 </div>
 
-                <button
-                  type="button"
+                <ExpandingButton
+                  variant="outline-teal"
+                  icon={<Plus className="w-3.5 h-3.5" />}
+                  label="Agregar Asistente"
                   onClick={() => {
                     const nombre = prompt('Nombre completo del asistente:');
                     if (!nombre) return;
@@ -1221,10 +1281,7 @@ export default function ConvivenciaWorkspace() {
                       ],
                     });
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-all active:scale-95 shadow-2xs"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Agregar Asistente
-                </button>
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1363,8 +1420,10 @@ export default function ConvivenciaWorkspace() {
                     Los compromisos se sincronizan automáticamente como tarjetas de acción en el Centro de Control (Kanban ACPM)
                   </p>
                 </div>
-                <button
-                  type="button"
+                <ExpandingButton
+                  variant="outline-teal"
+                  icon={<Plus className="w-3.5 h-3.5" />}
+                  label="Agregar Compromiso"
                   onClick={() =>
                     setActaForm({
                       ...actaForm,
@@ -1379,10 +1438,7 @@ export default function ConvivenciaWorkspace() {
                       ],
                     })
                   }
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-all active:scale-95 shadow-2xs"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Agregar Compromiso
-                </button>
+                />
               </div>
 
               {(actaForm.compromisos || []).map((comp: any, cIdx: number) => (
@@ -1436,22 +1492,18 @@ export default function ConvivenciaWorkspace() {
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-zinc-800">
-              <button
-                type="button"
+              <ExpandingButton
+                variant="secondary"
+                icon={<X className="w-4 h-4" />}
+                label="Cancelar"
                 onClick={() => setShowActaModal(false)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shadow-sm bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 active:scale-95 transition-all"
-              >
-                <X className="w-4 h-4" />
-                Cancelar
-              </button>
-              <button
-                type="button"
+              />
+              <ExpandingButton
+                variant="teal"
+                icon={<CheckCircle2 className="w-4 h-4" />}
+                label="Guardar Acta Trimestral"
                 onClick={handleSaveActa}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-teal-600/20 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white active:scale-95 transition-all"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Guardar Acta Trimestral
-              </button>
+              />
             </div>
           </div>
         </div>
@@ -1554,8 +1606,10 @@ export default function ConvivenciaWorkspace() {
                     onChange={(e) => setNewCandidato({ ...newCandidato, cargo: e.target.value })}
                     className="w-28 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
                   />
-                  <button
-                    type="button"
+                  <ExpandingButton
+                    variant="teal"
+                    icon={<Plus className="w-3.5 h-3.5" />}
+                    label="Agregar"
                     onClick={() => {
                       if (!newCandidato.nombre.trim()) return;
                       setEleccionForm({
@@ -1567,31 +1621,24 @@ export default function ConvivenciaWorkspace() {
                       });
                       setNewCandidato({ nombre: '', cargo: '', cedula: '' });
                     }}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs bg-teal-600 hover:bg-teal-700 text-white shadow-sm active:scale-95 transition-all"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Agregar
-                  </button>
+                  />
                 </div>
               </div>
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-zinc-800">
-              <button
-                type="button"
+              <ExpandingButton
+                variant="secondary"
+                icon={<X className="w-4 h-4" />}
+                label="Cancelar"
                 onClick={() => setShowEleccionModal(false)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shadow-sm bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 active:scale-95 transition-all"
-              >
-                <X className="w-4 h-4" />
-                Cancelar
-              </button>
-              <button
-                type="button"
+              />
+              <ExpandingButton
+                variant="teal"
+                icon={<Vote className="w-4 h-4" />}
+                label="Publicar Convocatoria"
                 onClick={handleCreateEleccion}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-teal-600/20 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white active:scale-95 transition-all"
-              >
-                <Vote className="w-4 h-4" />
-                Publicar Convocatoria
-              </button>
+              />
             </div>
           </div>
         </div>
@@ -1618,13 +1665,12 @@ export default function ConvivenciaWorkspace() {
               <QRCodeSVG value={qrModalUrl} size={180} level="H" />
             </div>
             <div className="flex items-center justify-center gap-2 pt-2">
-              <button
+              <ExpandingButton
+                variant="secondary"
+                icon={<X className="w-4 h-4" />}
+                label="Cerrar"
                 onClick={() => setQrModalUrl(null)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shadow-sm bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 active:scale-95 transition-all"
-              >
-                <X className="w-4 h-4" />
-                Cerrar
-              </button>
+              />
             </div>
           </div>
         </div>
