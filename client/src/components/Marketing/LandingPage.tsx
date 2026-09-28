@@ -34,13 +34,20 @@ import {
   Moon,
   Compass,
   Briefcase,
-  Play
+  Play,
+  Database,
+  Code2,
+  QrCode,
+  HeartPulse,
+  Scale,
+  Video,
+  FileBadge
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuthContext();
+  const { isAuthenticated } = useAuthContext();
 
   // Dark/Light Theme local state
   const [isDark, setIsDark] = useState<boolean>(() => {
@@ -73,22 +80,16 @@ export default function LandingPage() {
   // Mobile menu toggle
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Somos SST Track Selector: 'bio' (Trabajador) vs 'org' (Empresa)
+  // Track Selector: 'bio' (Motor Bio-Individual) vs 'org' (Salud Organizacional)
   const [activeTrack, setActiveTrack] = useState<'bio' | 'org'>('bio');
 
   // Agent category filter
   const [activeAgentCategory, setActiveAgentCategory] = useState<string>('todos');
 
-  // Interactive Live Simulation Step
-  const [simStep, setSimStep] = useState<number>(0);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSimStep((prev) => (prev + 1) % 4);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
+  // Video Demo Modal
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
 
-  // Agent data list
+  // Agents Roster
   const agentsList = [
     {
       id: 'tenshi',
@@ -113,12 +114,12 @@ export default function LandingPage() {
     },
     {
       id: 'abogado_laboral',
-      name: 'Abogado Laboral SST',
+      name: 'Abogado Laboral RIT',
       category: 'legal',
       categoryLabel: 'Legal & Normativo',
       avatar: '/images/abogado_laboral.png',
-      badge: 'Blindaje Jurídico',
-      desc: 'Asesoría en litigios laborales, descargos, redacción de RIT con jornada de 42 horas y respuesta a requerimientos del MinTrabajo.',
+      badge: 'Jornada 42 Horas',
+      desc: 'Asesoría en litigios laborales, descargos, redacción de RIT con reformas vigentes y respuesta a requerimientos del MinTrabajo.',
       prompt: '"Revisa la cláusula de desconexión laboral y las obligaciones del RIT bajo Ley 2191..."',
     },
     {
@@ -128,7 +129,7 @@ export default function LandingPage() {
       categoryLabel: 'Seguridad Vial',
       avatar: '/images/riesgo_vial.png',
       badge: 'Res. 20223040040595',
-      desc: 'Diagnóstico de flota vehicular, análisis de rutas críticas, matriz de riesgos viales y planes de acción PESV.',
+      desc: 'Diagnóstico de flota vehicular, análisis de rutas críticas, matriz de riesgos viales (NP+NE+NC) y planes de acción PESV.',
       prompt: '"Evalúa el nivel de diseño de nuestro PESV para una empresa de transporte intermunicipal..."',
     },
     {
@@ -168,8 +169,8 @@ export default function LandingPage() {
       categoryLabel: 'Ergonomía & Salud',
       avatar: '/images/fisioterapeuta.png',
       badge: 'Métodos OWAS / ROSA',
-      desc: 'Evaluación de posturas forzadas, manipulación manual de cargas, pausas activas personalizadas y rediseño de puestos.',
-      prompt: '"Evalúa una postura con flexión de tronco a 45° y carga de 15 kg bajo el método OWAS..."',
+      desc: 'Autoevaluaciones de puesto de trabajo en vivo, evaluación postural, manipulación manual de cargas y rediseño de puestos.',
+      prompt: '"Inicia la autoevaluación postural guiada EPT para el operario de empaque en turno nocturno..."',
     },
     {
       id: 'medico_laboral',
@@ -189,78 +190,73 @@ export default function LandingPage() {
       : agentsList.filter((a) => a.category === activeAgentCategory || a.category === 'orquestador');
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 dark:bg-slate-950 dark:text-slate-100 selection:bg-teal-500 selection:text-white font-sans antialiased overflow-x-hidden">
-      {/* Dynamic Ambient Background Lights */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-gradient-to-b from-teal-500/15 via-emerald-500/10 to-transparent blur-[120px] rounded-full" />
-        <div className="absolute top-[40%] -right-40 w-[500px] h-[500px] bg-cyan-500/10 blur-[130px] rounded-full" />
-        <div className="absolute top-[75%] -left-40 w-[600px] h-[600px] bg-emerald-600/10 blur-[140px] rounded-full" />
+    <div className="min-h-screen bg-white text-slate-900 dark:bg-[#090A0F] dark:text-slate-100 selection:bg-teal-500 selection:text-white font-sans antialiased transition-colors duration-300">
+      {/* Background Subtle Grid / Dots */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-60 dark:opacity-40" />
       </div>
 
-      {/* STICKY NAVBAR */}
-      <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-slate-950/80 border-b border-slate-800/80 transition-all duration-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          {/* Brand Logo */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <div className="relative flex items-center justify-center">
-              <div className="absolute inset-0 bg-teal-500/30 blur-md rounded-xl" />
-              <img
-                src="/assets/logo.png"
-                alt="WAPPY IA"
-                className="h-10 sm:h-12 w-auto relative z-10 object-contain drop-shadow-sm"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
+      {/* TOP NAVIGATION BAR (Exact Figma SaaS Style) */}
+      <header className="sticky top-0 z-50 w-full bg-white/90 dark:bg-[#090A0F]/90 backdrop-blur-md border-b border-slate-200/80 dark:border-zinc-800/80 transition-all duration-300">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 sm:h-20 flex items-center justify-between">
+          {/* Logo & Brand: Squircle + Bold Name */}
+          <div
+            className="flex items-center gap-3 cursor-pointer group"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          >
+            <div className="w-10 h-10 rounded-xl bg-slate-900 dark:bg-white flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+              <div className="w-5 h-5 rounded-md border-2 border-white dark:border-slate-900 flex items-center justify-center font-black text-white dark:text-slate-900 text-[10px]">
+                W
+              </div>
             </div>
             <div className="flex flex-col">
-              <span className="font-extrabold text-lg sm:text-xl tracking-tight bg-gradient-to-r from-teal-400 via-emerald-300 to-cyan-300 bg-clip-text text-transparent">
-                WAPPY IA
+              <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white">
+                WAPPY
               </span>
-              <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-                Ecosistema SST Colombia
+              <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 dark:text-zinc-500">
+                SST & PESV Colombia
               </span>
             </div>
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-7 text-xs font-semibold text-slate-300">
-            <a href="#somossst" className="hover:text-teal-400 transition-colors">
-              Metodología Somos SST
+          <nav className="hidden lg:flex items-center gap-7 text-xs font-semibold text-slate-600 dark:text-slate-300">
+            <a href="#metodologia" className="hover:text-slate-900 dark:hover:text-white transition-colors">
+              Metodología
             </a>
-            <a href="#herramientas" className="hover:text-teal-400 transition-colors">
+            <a href="#herramientas" className="hover:text-slate-900 dark:hover:text-white transition-colors">
               Herramientas
             </a>
-            <a href="#agentes" className="hover:text-teal-400 transition-colors">
+            <a href="#agentes" className="hover:text-slate-900 dark:hover:text-white transition-colors">
               Agentes IA
             </a>
-            <a href="#formacion" className="hover:text-teal-400 transition-colors">
+            <a href="#academia" className="hover:text-slate-900 dark:hover:text-white transition-colors">
               Academia LMS
             </a>
-            <a href="#planes" className="hover:text-teal-400 transition-colors">
-              Planes & Precios
+            <a href="#planes" className="hover:text-slate-900 dark:hover:text-white transition-colors">
+              Planes
             </a>
-            <a href="#creador" className="hover:text-teal-400 transition-colors">
+            <a href="#creador" className="hover:text-slate-900 dark:hover:text-white transition-colors">
               El Creador
             </a>
           </nav>
 
-          {/* Right Action Buttons */}
+          {/* Action CTAs */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Theme Toggle Button */}
+            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="w-9 h-9 rounded-xl border border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-teal-400 hover:border-teal-500/50 flex items-center justify-center transition-all shadow-sm active:scale-95"
+              className="w-9 h-9 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-slate-600 dark:text-slate-300 hover:border-slate-400 dark:hover:border-zinc-600 flex items-center justify-center transition-all active:scale-95"
               title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
               aria-label="Toggle theme"
             >
-              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-cyan-400" />}
+              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
             </button>
 
             {isAuthenticated ? (
               <button
                 onClick={() => navigate('/c/new')}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md shadow-teal-700/30 transition-all active:scale-95"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 shadow-sm transition-all active:scale-95"
               >
                 <span>Ir al Chat</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -269,17 +265,16 @@ export default function LandingPage() {
               <>
                 <button
                   onClick={() => navigate('/login')}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs text-slate-200 hover:text-white bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-slate-600 transition-all shadow-sm active:scale-95"
+                  className="px-3.5 py-2 rounded-xl font-semibold text-xs text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-colors"
                 >
-                  <UserCheck className="w-3.5 h-3.5 text-teal-400" />
-                  <span>Ingresar</span>
+                  Ingresar
                 </button>
                 <button
-                  onClick={() => navigate('/register')}
-                  className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md shadow-teal-700/30 transition-all active:scale-95"
+                  onClick={() => navigate('/login')}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 shadow-sm transition-all active:scale-95"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-teal-200" />
-                  <span>Registrarse</span>
+                  <span>Comenzar Ahora</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </>
             )}
@@ -287,78 +282,69 @@ export default function LandingPage() {
             {/* Mobile menu trigger */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden w-9 h-9 rounded-xl border border-slate-800 bg-slate-900 text-slate-300 flex items-center justify-center transition-all"
-              aria-label="Toggle Mobile Menu"
+              className="lg:hidden w-9 h-9 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all"
+              aria-label="Toggle Menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Dropdown Menu */}
+        {/* Mobile dropdown */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-b border-slate-800 bg-slate-950/95 backdrop-blur-2xl px-4 py-5 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="lg:hidden border-b border-slate-200 dark:border-zinc-800 bg-white/95 dark:bg-[#090A0F]/95 backdrop-blur-2xl px-4 py-5 space-y-3">
             <a
-              href="#somossst"
+              href="#metodologia"
               onClick={() => setMobileMenuOpen(false)}
-              className="block text-sm font-semibold text-slate-300 hover:text-teal-400 py-1.5"
+              className="block text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 py-1"
             >
               Metodología Somos SST
             </a>
             <a
               href="#herramientas"
               onClick={() => setMobileMenuOpen(false)}
-              className="block text-sm font-semibold text-slate-300 hover:text-teal-400 py-1.5"
+              className="block text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 py-1"
             >
-              Herramientas
+              Herramientas & Canva
             </a>
             <a
               href="#agentes"
               onClick={() => setMobileMenuOpen(false)}
-              className="block text-sm font-semibold text-slate-300 hover:text-teal-400 py-1.5"
+              className="block text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 py-1"
             >
               Agentes IA
             </a>
             <a
-              href="#formacion"
+              href="#academia"
               onClick={() => setMobileMenuOpen(false)}
-              className="block text-sm font-semibold text-slate-300 hover:text-teal-400 py-1.5"
+              className="block text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 py-1"
             >
               Academia LMS
             </a>
             <a
               href="#planes"
               onClick={() => setMobileMenuOpen(false)}
-              className="block text-sm font-semibold text-slate-300 hover:text-teal-400 py-1.5"
+              className="block text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 py-1"
             >
               Planes & Precios
             </a>
             <a
               href="#creador"
               onClick={() => setMobileMenuOpen(false)}
-              className="block text-sm font-semibold text-slate-300 hover:text-teal-400 py-1.5"
+              className="block text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 py-1"
             >
               El Creador
             </a>
 
-            <div className="pt-3 border-t border-slate-800/80 flex flex-col gap-2">
+            <div className="pt-3 border-t border-slate-200 dark:border-zinc-800 flex flex-col gap-2">
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
                   navigate('/login');
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs bg-slate-900 border border-slate-700 text-slate-200"
+                className="w-full py-2.5 rounded-xl font-bold text-xs bg-slate-900 text-white dark:bg-white dark:text-slate-900"
               >
                 Ingresar a la Plataforma
-              </button>
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  navigate('/register');
-                }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 text-white"
-              >
-                Registrarse Gratis
               </button>
             </div>
           </div>
@@ -366,960 +352,1051 @@ export default function LandingPage() {
       </header>
 
       <main className="relative z-10">
-        {/* HERO SECTION */}
-        <section className="relative pt-12 pb-20 md:pt-20 md:pb-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        {/* HERO SECTION (100% Faithful to Figma "Design System SaaS" Layout) */}
+        <section className="relative pt-12 pb-20 md:pt-20 md:pb-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden">
           <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
-            {/* Pill Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-teal-500/30 bg-teal-500/10 text-teal-300 text-xs font-semibold mb-6 shadow-sm shadow-teal-900/20 backdrop-blur-md">
-              <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
-              <span>El 1er Copiloto de Inteligencia Artificial para SG-SST en Colombia</span>
+            {/* Pill Capsule Badge */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-slate-200 dark:border-zinc-800 bg-slate-100/90 dark:bg-zinc-900/90 text-slate-800 dark:text-slate-200 text-xs font-medium mb-8 shadow-xs">
+              <span className="text-amber-500">✨</span>
+              <span>Nuevo: Ecosistema Inteligente de SST Bio-Individual</span>
             </div>
 
-            {/* Main Headline */}
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.12] mb-6">
-              Automatiza tu Gestión de{' '}
-              <span className="bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                Seguridad y Salud
-              </span>
-              . Menos Papeleo, Más Prevención.
+            {/* Figma-Inspired Headline with Two-Tone Styling */}
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[70px] font-black tracking-tight text-slate-900 dark:text-white leading-[1.08] mb-6">
+              Automatiza tu gestión SST{' '}
+              <span className="text-slate-400 dark:text-zinc-500 font-extrabold">a escala</span>
             </h1>
 
-            {/* Subhead */}
-            <p className="text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto mb-9 font-normal leading-relaxed">
-              El ecosistema inteligente especializado en la normatividad colombiana (Decreto 1072, Res. 0312 y PESV 40595).
-              Estructura matrices GTC-45 en minutos, audita posturas por visión artificial, delega alertas a automatizaciones
-              autónomas y certifica a tu personal con un LMS integrado.
+            {/* Core Value Proposition */}
+            <p className="text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto mb-9 font-normal leading-relaxed">
+              Haz en <strong>20 minutos</strong> el trabajo documental que antes tomaba <strong>3 días</strong>.
+              Crea matrices GTC-45 en tiempo real, proyecta aplicativos interactivos con base de datos en Google Sheets,
+              audita puestos con visión artificial y escala tus asesorías con inteligencia artificial adaptada a Colombia.
             </p>
 
-            {/* CTA Button Group */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto mb-10">
+            {/* Figma Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 w-full sm:w-auto mb-16">
               <button
                 onClick={() => navigate('/login')}
-                className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-xl shadow-teal-800/30 transition-all hover:scale-[1.02] active:scale-95"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl font-bold text-sm bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 shadow-md transition-all active:scale-95"
               >
-                <span>Ingresar al Ecosistema</span>
+                <span>Ingresar a WAPPY</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
-              <a
-                href="#somossst"
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold text-sm bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700/80 hover:border-slate-600 transition-all active:scale-95"
+              <button
+                onClick={() => setVideoModalOpen(true)}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-zinc-700 shadow-xs transition-all active:scale-95"
               >
-                <Compass className="w-4 h-4 text-teal-400" />
-                <span>Explorar Metodología</span>
-              </a>
-            </div>
-
-            {/* Trust Badges */}
-            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-[11px] text-slate-400 font-medium">
-              <span className="px-3 py-1 rounded-lg bg-slate-900/60 border border-slate-800/80 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-teal-400" />
-                Estándares Res. 0312 / Dec. 1072
-              </span>
-              <span className="px-3 py-1 rounded-lg bg-slate-900/60 border border-slate-800/80 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-teal-400" />
-                PESV Res. 20223040040595
-              </span>
-              <span className="px-3 py-1 rounded-lg bg-slate-900/60 border border-slate-800/80 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-teal-400" />
-                Químicos SGA Dec. 1496/2018
-              </span>
-              <span className="px-3 py-1 rounded-lg bg-slate-900/60 border border-slate-800/80 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-teal-400" />
-                +15 Agentes de IA Especializados
-              </span>
+                <Play className="w-4 h-4 text-slate-900 dark:text-white fill-slate-900 dark:fill-white" />
+                <span>Ver Demostración</span>
+              </button>
             </div>
           </div>
 
-          {/* PRODUCT-AS-DEMO SIMULATION COMPONENT */}
-          <div className="mt-14 max-w-5xl mx-auto rounded-2xl border border-slate-800/90 bg-slate-900/70 backdrop-blur-xl shadow-2xl shadow-teal-950/40 overflow-hidden">
-            {/* Window Topbar */}
-            <div className="px-4 py-3 bg-slate-950/80 border-b border-slate-800/80 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-red-500/80 inline-block" />
-                <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block" />
-                <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
-                <span className="ml-2 text-xs font-semibold text-slate-400">
-                  WAPPY Copilot • Tenshi IA v3.5 & Somos SST
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-[11px] text-teal-400 font-mono font-medium">
-                <span className="w-2 h-2 rounded-full bg-teal-400 animate-ping inline-block" />
-                <span>Base de Datos Conectada</span>
+          {/* EXACT FIGMA DESIGN SYSTEM HERO CONSTELLATION GRAPHIC */}
+          {/* Desktop Interactive Constellation */}
+          <div className="hidden md:block relative w-full max-w-5xl mx-auto h-[580px] my-6 select-none">
+            {/* SVG Connector Lines Radiating from Center (500, 290) */}
+            <svg
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              viewBox="0 0 1000 580"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              {/* Radiating connector lines */}
+              <line x1="500" y1="290" x2="190" y2="90" stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1.5" />
+              <line x1="500" y1="290" x2="140" y2="260" stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1.5" />
+              <line x1="500" y1="290" x2="180" y2="460" stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1.5" />
+              <line x1="500" y1="290" x2="500" y2="490" stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1.5" />
+              <line x1="500" y1="290" x2="680" y2="85" stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1.5" />
+              <line x1="500" y1="290" x2="840" y2="170" stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1.5" />
+              <line x1="500" y1="290" x2="850" y2="340" stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1.5" />
+              <line x1="500" y1="290" x2="790" y2="470" stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1.5" />
+
+              {/* Scattered subtle plus signs and dots matching Figma */}
+              <circle cx="120" cy="160" r="1.5" className="fill-slate-300 dark:fill-zinc-700" />
+              <circle cx="340" cy="70" r="2" className="fill-slate-300 dark:fill-zinc-700" />
+              <circle cx="400" cy="210" r="1.5" className="fill-slate-300 dark:fill-zinc-700" />
+              <circle cx="280" cy="380" r="2" className="fill-slate-300 dark:fill-zinc-700" />
+              <circle cx="620" cy="150" r="1.5" className="fill-slate-300 dark:fill-zinc-700" />
+              <circle cx="640" cy="390" r="2" className="fill-slate-300 dark:fill-zinc-700" />
+              <circle cx="820" cy="70" r="1.5" className="fill-slate-300 dark:fill-zinc-700" />
+              <circle cx="910" cy="260" r="2" className="fill-slate-300 dark:fill-zinc-700" />
+              <circle cx="730" cy="550" r="1.5" className="fill-slate-300 dark:fill-zinc-700" />
+              <circle cx="380" cy="530" r="2" className="fill-slate-300 dark:fill-zinc-700" />
+
+              {/* Little '+' markers */}
+              <path d="M420 120V126M417 123H423" stroke="currentColor" className="text-slate-300 dark:text-zinc-700" strokeWidth="1" />
+              <path d="M590 230V236M587 233H593" stroke="currentColor" className="text-slate-300 dark:text-zinc-700" strokeWidth="1" />
+              <path d="M880 430V436M877 433H883" stroke="currentColor" className="text-slate-300 dark:text-zinc-700" strokeWidth="1" />
+            </svg>
+
+            {/* Central Dark Squircle Logo (Figma Style) */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+              <div className="w-20 h-20 rounded-3xl bg-slate-900 dark:bg-zinc-900 border border-slate-700/80 dark:border-zinc-700 shadow-2xl flex items-center justify-center transition-transform hover:scale-105">
+                <div className="w-9 h-9 rounded-xl border-[3.5px] border-white flex items-center justify-center font-black text-white text-base">
+                  W
+                </div>
               </div>
             </div>
 
-            {/* Interactive Inner Demo Grid */}
-            <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-              {/* Left Column: Tenshi Conversational Feed */}
-              <div className="lg:col-span-5 flex flex-col gap-3">
-                <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800/90">
-                  <div className="flex items-center gap-2.5 mb-2">
-                    <img
-                      src="/assets/tenshi.png"
-                      alt="Tenshi IA"
-                      className="w-7 h-7 rounded-full border border-teal-500 object-cover"
-                    />
-                    <div>
-                      <h4 className="text-xs font-bold text-white">Tenshi IA</h4>
-                      <p className="text-[10px] text-teal-400">Orquestador de Somos SST</p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    {simStep === 0 && '¡Hola! Acabo de sincronizar los 142 colaboradores en el censo sociodemográfico. Procedo a cruzar peligros con la Matriz Bio-IPEVR.'}
-                    {simStep === 1 && 'He evaluado 18 peligros bajo GTC-45. 2 riesgos mecánicos y biomecánicos se marcaron en prioridad Alta con plan de mejora.'}
-                    {simStep === 2 && 'Alerta temprana: 3 actividades del Centro de Control ACPM vencen esta semana. Enviando resumen automático a WhatsApp de gerencia...'}
-                    {simStep === 3 && 'Ruta de aprendizaje actualizada: 94% de colaboradores completaron el módulo de autocuidado y descargaron certificado oficial con QR.'}
-                  </p>
-                </div>
+            {/* NODE 1: "Button" (Top-Left) */}
+            <div className="absolute top-[6%] left-[10%] z-10 w-44 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/90 dark:border-zinc-800 shadow-xl shadow-slate-200/40 dark:shadow-none hover:border-slate-400 dark:hover:border-zinc-600 transition-all">
+              <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-400 block mb-2.5">
+                Button
+              </span>
+              <div className="h-6 w-32 bg-slate-900 dark:bg-white rounded-full flex items-center justify-center text-[10px] font-bold text-white dark:text-slate-900 px-3">
+                Reportar Peligro
+              </div>
+              <div className="h-2 w-16 bg-slate-200 dark:bg-zinc-700 rounded-full mt-2.5" />
+            </div>
 
-                {/* Micro Action Pills */}
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <div className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <div>
-                      <div className="font-bold text-white">Fit Score H1</div>
-                      <div className="text-[10px] text-emerald-400 font-semibold">91.4% Óptimo</div>
-                    </div>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                    <div>
-                      <div className="font-bold text-white">Res. 0312</div>
-                      <div className="text-[10px] text-cyan-400 font-semibold">100% Estándares</div>
-                    </div>
-                  </div>
+            {/* NODE 2: "Docs" (Middle-Left) */}
+            <div className="absolute top-[34%] left-[4%] z-10 w-48 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/90 dark:border-zinc-800 shadow-xl shadow-slate-200/40 dark:shadow-none hover:border-slate-400 dark:hover:border-zinc-600 transition-all">
+              <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-400 block mb-2.5">
+                Docs
+              </span>
+              <div className="h-2.5 w-24 bg-slate-300 dark:bg-zinc-600 rounded-full mb-2" />
+              <div className="h-2 w-36 bg-slate-100 dark:bg-zinc-800 rounded-full mb-1.5" />
+              <div className="h-2 w-28 bg-slate-100 dark:bg-zinc-800 rounded-full mb-1.5" />
+              <div className="h-2 w-32 bg-slate-100 dark:bg-zinc-800 rounded-full" />
+            </div>
+
+            {/* NODE 3: "Typography" (Bottom-Left) */}
+            <div className="absolute top-[70%] left-[8%] z-10 w-48 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/90 dark:border-zinc-800 shadow-xl shadow-slate-200/40 dark:shadow-none hover:border-slate-400 dark:hover:border-zinc-600 transition-all">
+              <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-400 block mb-2.5">
+                Typography
+              </span>
+              <div className="h-4 w-32 bg-slate-900 dark:bg-white rounded-sm mb-2" />
+              <div className="h-2.5 w-36 bg-slate-300 dark:bg-zinc-600 rounded-full mb-1.5" />
+              <div className="h-2 w-24 bg-slate-200 dark:bg-zinc-700 rounded-full" />
+            </div>
+
+            {/* NODE 4: "Icons" (Bottom-Center) */}
+            <div className="absolute top-[76%] left-1/2 -translate-x-1/2 z-10 w-48 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/90 dark:border-zinc-800 shadow-xl shadow-slate-200/40 dark:shadow-none hover:border-slate-400 dark:hover:border-zinc-600 transition-all">
+              <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-400 block mb-2.5">
+                Icons
+              </span>
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-teal-100 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center text-[10px] font-bold">
+                  T
+                </div>
+                <div className="w-6 h-6 rounded-md bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center text-[10px] font-bold">
+                  M
+                </div>
+                <div className="w-6 h-6 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center text-[10px] font-bold">
+                  V
+                </div>
+                <div className="w-6 h-6 rounded-md bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center text-[10px] font-bold">
+                  Q
                 </div>
               </div>
+            </div>
 
-              {/* Right Column: Live Data Table Simulation */}
-              <div className="lg:col-span-7 bg-slate-950/90 rounded-xl border border-slate-800/90 p-4 overflow-hidden">
-                <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
-                  <div className="flex items-center gap-2">
-                    <FileSpreadsheet className="w-4 h-4 text-teal-400" />
-                    <span className="text-xs font-bold text-slate-200">
-                      Matriz Bio-IPEVR (GTC-45 en Vivo)
-                    </span>
-                  </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-teal-500/10 text-teal-300 font-mono">
-                    Auto-sincronizada
-                  </span>
+            {/* NODE 5: "Versions" (Top-Center-Right) */}
+            <div className="absolute top-[4%] right-[22%] z-10 w-44 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/90 dark:border-zinc-800 shadow-xl shadow-slate-200/40 dark:shadow-none hover:border-slate-400 dark:hover:border-zinc-600 transition-all">
+              <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-400 block mb-2.5">
+                Versions
+              </span>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span>v2.1.0 (Dec. 1072)</span>
                 </div>
-
-                <div className="space-y-2 text-xs">
-                  <div className="p-2 rounded bg-slate-900/80 border border-slate-800/80 flex items-center justify-between">
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">Área Operativa • Taller 1</span>
-                      <strong className="text-white">Movimiento repetitivo en ensamblaje</strong>
-                    </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                      Riesgo Medio (III)
-                    </span>
-                  </div>
-
-                  <div className="p-2 rounded bg-slate-900/80 border border-slate-800/80 flex items-center justify-between">
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">Logística • Bodega Central</span>
-                      <strong className="text-white">Trabajo en alturas en estanterías &gt; 2.5m</strong>
-                    </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">
-                      Riesgo Alto (I)
-                    </span>
-                  </div>
-
-                  <div className="p-2 rounded bg-slate-900/80 border border-slate-800/80 flex items-center justify-between">
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">Transporte • Ruta Medellín-Bogotá</span>
-                      <strong className="text-white">Factor PESV Vial: Jornada prolongada</strong>
-                    </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">
-                      Controlado (IV)
-                    </span>
-                  </div>
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span>v2.0.5 (Res. 0312)</span>
                 </div>
+              </div>
+            </div>
 
-                <div className="mt-3 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Exportación directa a Excel / PDF</span>
-                  <span className="text-teal-400 font-semibold cursor-pointer hover:underline flex items-center gap-1">
-                    Ver matriz completa <ChevronRight className="w-3 h-3" />
-                  </span>
+            {/* NODE 6: "Spacing" (Top-Right-Outer) */}
+            <div className="absolute top-[20%] right-[4%] z-10 w-44 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/90 dark:border-zinc-800 shadow-xl shadow-slate-200/40 dark:shadow-none hover:border-slate-400 dark:hover:border-zinc-600 transition-all">
+              <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-400 block mb-2.5">
+                Spacing
+              </span>
+              <div className="space-y-1.5">
+                <div className="h-2 w-28 bg-slate-900 dark:bg-white rounded-full" />
+                <div className="h-2 w-20 bg-slate-300 dark:bg-zinc-600 rounded-full" />
+                <div className="h-2 w-14 bg-slate-200 dark:bg-zinc-700 rounded-full" />
+              </div>
+            </div>
+
+            {/* NODE 7: "Colors" (Middle-Right) */}
+            <div className="absolute top-[50%] right-[4%] z-10 w-44 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/90 dark:border-zinc-800 shadow-xl shadow-slate-200/40 dark:shadow-none hover:border-slate-400 dark:hover:border-zinc-600 transition-all">
+              <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-400 block mb-2.5">
+                Colors
+              </span>
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-md bg-slate-900 dark:bg-white" />
+                <div className="w-5 h-5 rounded-md bg-red-500" />
+                <div className="w-5 h-5 rounded-md bg-orange-500" />
+                <div className="w-5 h-5 rounded-md bg-teal-600" />
+                <div className="w-5 h-5 rounded-md bg-blue-600" />
+              </div>
+            </div>
+
+            {/* NODE 8: "Components" (Bottom-Right) */}
+            <div className="absolute top-[72%] right-[12%] z-10 w-48 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/90 dark:border-zinc-800 shadow-xl shadow-slate-200/40 dark:shadow-none hover:border-slate-400 dark:hover:border-zinc-600 transition-all">
+              <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-400 block mb-2.5">
+                Components
+              </span>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-3.5 h-3.5 rounded-sm bg-slate-900 dark:bg-white flex items-center justify-center">
+                    <CheckCircle2 className="w-2.5 h-2.5 text-white dark:text-slate-900" />
+                  </div>
+                  <div className="h-2 w-24 bg-slate-300 dark:bg-zinc-600 rounded-full" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3.5 h-3.5 rounded-sm border border-slate-300 dark:border-zinc-700" />
+                  <div className="h-2 w-28 bg-slate-200 dark:bg-zinc-700 rounded-full" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3.5 h-3.5 rounded-sm border border-slate-300 dark:border-zinc-700" />
+                  <div className="h-2 w-18 bg-slate-200 dark:bg-zinc-700 rounded-full" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Fallback: Clean Structured Grid */}
+          <div className="block md:hidden mt-8 max-w-md mx-auto space-y-4">
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 rounded-2xl bg-slate-900 dark:bg-zinc-900 border border-slate-700 flex items-center justify-center shadow-xl">
+                <div className="w-7 h-7 rounded-lg border-2 border-white flex items-center justify-center font-black text-white text-xs">
+                  W
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-left">
+              <div className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
+                <span className="text-[10px] text-slate-400 font-bold block mb-1">Button</span>
+                <div className="h-5 w-20 bg-slate-900 dark:bg-white rounded-full text-[9px] text-white dark:text-slate-900 flex items-center justify-center font-bold">
+                  Peligro
+                </div>
+              </div>
+              <div className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
+                <span className="text-[10px] text-slate-400 font-bold block mb-1">Versions</span>
+                <span className="text-[11px] font-semibold text-emerald-600 block">● Dec. 1072</span>
+                <span className="text-[11px] font-semibold text-amber-600 block">● Res. 0312</span>
+              </div>
+              <div className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
+                <span className="text-[10px] text-slate-400 font-bold block mb-1">Docs</span>
+                <div className="h-2 w-16 bg-slate-300 dark:bg-zinc-600 rounded-full mb-1" />
+                <div className="h-1.5 w-24 bg-slate-200 dark:bg-zinc-700 rounded-full" />
+              </div>
+              <div className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
+                <span className="text-[10px] text-slate-400 font-bold block mb-1">Colors</span>
+                <div className="flex gap-1.5 mt-1">
+                  <div className="w-3.5 h-3.5 rounded bg-slate-900 dark:bg-white" />
+                  <div className="w-3.5 h-3.5 rounded bg-red-500" />
+                  <div className="w-3.5 h-3.5 rounded bg-teal-600" />
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* EL DOLOR OCULTO DEL PREVENCIONISTA */}
-        <section className="py-20 bg-slate-900/40 border-y border-slate-800/60 px-4 sm:px-6 lg:px-8">
+        {/* METRICS & PROOF BAR */}
+        <section className="py-12 border-y border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-900/30 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500">
+                Ecosistema validado en Colombia
+              </p>
+              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
+                Diseñado para Asesores, Consultores y Responsables SST
+              </h3>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-8 text-slate-700 dark:text-slate-300">
+              <div className="flex flex-col">
+                <span className="text-2xl font-black text-slate-900 dark:text-white">+85</span>
+                <span className="text-[11px] font-semibold text-slate-500">Empresas Asesoradas</span>
+              </div>
+              <div className="w-px h-8 bg-slate-200 dark:bg-zinc-800 hidden sm:block" />
+              <div className="flex flex-col">
+                <span className="text-2xl font-black text-slate-900 dark:text-white">99.2%</span>
+                <span className="text-[11px] font-semibold text-slate-500">Cumplimiento Res. 0312</span>
+              </div>
+              <div className="w-px h-8 bg-slate-200 dark:bg-zinc-800 hidden sm:block" />
+              <div className="flex flex-col">
+                <span className="text-2xl font-black text-slate-900 dark:text-white">10x</span>
+                <span className="text-[11px] font-semibold text-slate-500">Velocidad en Matrices</span>
+              </div>
+              <div className="w-px h-8 bg-slate-200 dark:bg-zinc-800 hidden sm:block" />
+              <div className="flex flex-col">
+                <span className="text-2xl font-black text-slate-900 dark:text-white">100%</span>
+                <span className="text-[11px] font-semibold text-slate-500">Normativa Vigente</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION: EL DOLOR OCULTO DEL PREVENCIONISTA (Clean 3-Card Design) */}
+        <section className="py-24 bg-white dark:bg-[#090A0F] px-4 sm:px-6 lg:px-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <span className="text-xs uppercase tracking-widest font-extrabold text-slate-500 dark:text-zinc-400 mb-2 block">
+                El Panorama Real de la SST
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">
+                El Dolor Oculto del Asesor y Consultor SST
+              </h2>
+              <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
+                Pasamos más del 80% de nuestra jornada laboral peleando con celdas de Excel y armando carpetas que los gerentes consideran un gasto obligatorio, en vez de una inversión estratégica.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+              <div className="p-8 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm hover:border-slate-400 dark:hover:border-zinc-600 transition-all text-left">
+                <div className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white mb-3">10h+</div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white mb-2">
+                  Por Matriz de Riesgo Manual
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                  Redactar descripciones, consecuencias, niveles de deficiencia y controles sugeridos fila por fila en hojas de cálculo inertes que quedan obsoletas al mes siguiente.
+                </p>
+              </div>
+
+              <div className="p-8 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm hover:border-slate-400 dark:hover:border-zinc-600 transition-all text-left">
+                <div className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white mb-3">80%</div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white mb-2">
+                  Burocracia Documental
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                  El consultor se convierte en un redactor de actas, políticas y formatos para pasar la auditoría, perdiendo el tiempo valioso que debería dedicar a la intervención directa en campo.
+                </p>
+              </div>
+
+              <div className="p-8 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm hover:border-slate-400 dark:hover:border-zinc-600 transition-all text-left">
+                <div className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white mb-3">0%</div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white mb-2">
+                  Personalización Individual
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                  Las matrices tradicionales evalúan cargos promedio abstractos. No saben si el soldador tiene escoliosis o si el conductor lleva 12 horas sin dormir. WAPPY cambia esto con SST Bio-Individual.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION: METODOLOGÍA SOMOS SST (Interactive Track Selector) */}
+        <section id="metodologia" className="py-24 bg-slate-50 dark:bg-zinc-900/40 border-t border-slate-200 dark:border-zinc-800 px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="text-center max-w-3xl mx-auto mb-14">
-              <span className="text-xs uppercase tracking-widest font-extrabold text-teal-400 mb-2 block">
-                El Panorama de la SST en Colombia
+              <span className="text-xs uppercase tracking-widest font-extrabold text-slate-500 dark:text-zinc-400 mb-2 block">
+                Nuestra Metodología
               </span>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-                El Dolor Oculto del <span className="bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">Prevencionista</span>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">
+                La Metodología Somos SST: De la Biología a la Organización
               </h2>
-              <p className="text-slate-300 text-sm sm:text-base">
-                Más del 80% de la jornada laboral de los consultores y líderes de SST se esfuma redactando y actualizando
-                archivos repetitivos en Word y Excel, en lugar de estar en campo salvando vidas.
+              <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
+                WAPPY no es un repositorio de PDFs. Es el motor operativo de la metodología <strong>Somos SST</strong>, estructurada en dos pistas complementarias:
               </p>
             </div>
 
-            {/* Metrics Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-              <div className="p-7 rounded-2xl bg-slate-950/70 border border-slate-800/80 hover:border-teal-500/40 transition-all duration-300 shadow-lg">
-                <div className="text-4xl sm:text-5xl font-extrabold text-teal-400 mb-2">10h+</div>
-                <h3 className="text-base font-bold text-white mb-2">Matriz de Riesgos Manual</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Tiempo promedio que un especialista invierte en estructurar, investigar y valorar una sola matriz GTC 45 para una mediana empresa.
-                </p>
-              </div>
-
-              <div className="p-7 rounded-2xl bg-slate-950/70 border border-slate-800/80 hover:border-cyan-500/40 transition-all duration-300 shadow-lg">
-                <div className="text-4xl sm:text-5xl font-extrabold text-cyan-400 mb-2">80%</div>
-                <h3 className="text-base font-bold text-white mb-2">Carga Administrativa</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  De las horas laborales consumidas en redactar reglamentos de trabajo, actas, formatos y preparar carpetas para ARLs o auditorías.
-                </p>
-              </div>
-
-              <div className="p-7 rounded-2xl bg-slate-950/70 border border-slate-800/80 hover:border-emerald-500/40 transition-all duration-300 shadow-lg">
-                <div className="text-4xl sm:text-5xl font-extrabold text-emerald-400 mb-2">0%</div>
-                <h3 className="text-base font-bold text-white mb-2">Prevención Activa Real</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  La frustrante realidad cuando el prevencionista pasa el día atrapado entre carpetas archivadas y no puede inspeccionar el campo de trabajo.
-                </p>
-              </div>
-            </div>
-
-            {/* Motivational Banner */}
-            <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-teal-950/40 via-slate-900 to-cyan-950/30 border border-teal-500/30 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
-              <div className="w-12 h-12 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center flex-shrink-0">
-                <Zap className="w-6 h-6" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-white mb-1">
-                  La Inteligencia Artificial no te va a reemplazar. El prevencionista que use WAPPY IA, sí.
-                </h4>
-                <p className="text-xs text-slate-300">
-                  El mercado laboral y las empresas recompensan la agilidad. WAPPY te entrega las herramientas para realizar el trabajo de toda una semana en apenas unas horas.
-                </p>
+            {/* Track Switcher (Pill Style) */}
+            <div className="flex justify-center mb-12">
+              <div className="inline-flex p-1.5 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
+                <button
+                  onClick={() => setActiveTrack('bio')}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all ${
+                    activeTrack === 'bio'
+                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Activity className="w-4 h-4" />
+                  <span>Pista 1: Motor Bio-Individual (5 Hitos)</span>
+                </button>
+                <button
+                  onClick={() => setActiveTrack('org')}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all ${
+                    activeTrack === 'org'
+                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Building2 className="w-4 h-4" />
+                  <span>Pista 2: Salud Organizacional & Clima</span>
+                </button>
               </div>
             </div>
+
+            {/* Track 1: 5 Hitos Bio-Individuales */}
+            {activeTrack === 'bio' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
+                <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xs hover:border-slate-400 dark:hover:border-zinc-600 transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-black text-xs">
+                      01
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Entrada
+                    </span>
+                  </div>
+                  <h4 className="font-extrabold text-base text-slate-900 dark:text-white mb-2">
+                    Diagnóstico Clínico Individual
+                  </h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                    Captura diagnósticos CIE-10, conceptos médicos de aptitud, antecedentes osteomusculares y condiciones de vulnerabilidad por trabajador en expedientes encriptados.
+                  </p>
+                </div>
+
+                <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xs hover:border-slate-400 dark:hover:border-zinc-600 transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-black text-xs">
+                      02
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Evaluación
+                    </span>
+                  </div>
+                  <h4 className="font-extrabold text-base text-slate-900 dark:text-white mb-2">
+                    Autoevaluación EPT con IA
+                  </h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                    El trabajador realiza una autoevaluación interactiva guiada por el <em>Fisioterapeuta IA</em>. Tests de movilidad, ángulo de visión y posturas críticas clasificadas con método OWAS/ROSA.
+                  </p>
+                </div>
+
+                <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xs hover:border-slate-400 dark:hover:border-zinc-600 transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-black text-xs">
+                      03
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Cálculo
+                    </span>
+                  </div>
+                  <h4 className="font-extrabold text-base text-slate-900 dark:text-white mb-2">
+                    Matriz Bio-IPEVAR GTC-45
+                  </h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                    Cruza el peligro del entorno con la patología del trabajador. Si el puesto tiene vibración pero el colaborador tiene discopatía lumbar, el nivel de riesgo se recalcula automáticamente.
+                  </p>
+                </div>
+
+                <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xs hover:border-slate-400 dark:hover:border-zinc-600 transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-black text-xs">
+                      04
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Intervención
+                    </span>
+                  </div>
+                  <h4 className="font-extrabold text-base text-slate-900 dark:text-white mb-2">
+                    Plan de Manejo & Adaptación
+                  </h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                    Generación inmediata de recomendaciones de ingeniería, controles administrativos, pausas osteomusculares dirigidas y rediseño de puesto de trabajo.
+                  </p>
+                </div>
+
+                <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xs hover:border-slate-400 dark:hover:border-zinc-600 transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-black text-xs">
+                      05
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Control
+                    </span>
+                  </div>
+                  <h4 className="font-extrabold text-base text-slate-900 dark:text-white mb-2">
+                    Seguimiento Continuo & Alertas
+                  </h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                    Cronogramas automáticos con alertas a WhatsApp para reevaluaciones médicas periódicas y verificación de efectividad de las medidas correctivas.
+                  </p>
+                </div>
+
+                <div className="p-6 rounded-2xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 block mb-2">
+                      Resultado Clave
+                    </span>
+                    <h4 className="font-black text-lg mb-2">
+                      Cero Papeleo Muerto
+                    </h4>
+                    <p className="text-xs opacity-90 leading-relaxed">
+                      El SG-SST deja de ser una carpeta empolvada para convertirse en un expediente vivo que protege legalmente a la empresa y previene enfermedades laborales reales.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="mt-6 flex items-center gap-2 text-xs font-bold underline hover:opacity-80"
+                  >
+                    <span>Comenzar a implementar</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Track 2: Salud Organizacional */}
+            {activeTrack === 'org' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xs">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-bold mb-4">
+                    <HeartPulse className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-extrabold text-base text-slate-900 dark:text-white mb-2">
+                    Termómetro Emocional & Psicosocial
+                  </h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                    Pulsos anónimos periódicos de estado de ánimo y estrés laboral. El sistema analiza tendencias por área, alerta sobre riesgos de burnout y vincula planes de acción a la Batería de Riesgo Psicosocial.
+                  </p>
+                  <div className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                    Ciclo de 7 días • Reportes gerenciales automáticos
+                  </div>
+                </div>
+
+                <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xs">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-bold mb-4">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-extrabold text-base text-slate-900 dark:text-white mb-2">
+                    Centro de Control ACPM
+                  </h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                    Tablero centralizado de Acciones Correctivas, Preventivas y de Mejora con semáforo de vencimientos, responsables asignados y notificaciones automáticas vía WhatsApp y correo.
+                  </p>
+                  <div className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                    Evidencias fotográficas • Cierre de ciclo PHVA
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
-        {/* METODOLOGÍA SOMOS SST */}
-        <section id="somossst" className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-12">
-            <span className="text-xs uppercase tracking-widest font-extrabold text-teal-400 mb-2 block">
-              Metodología Exclusiva
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-              Somos SST y su <span className="bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">Estructura Integral</span>
-            </h2>
-            <p className="text-slate-300 text-sm sm:text-base">
-              A diferencia del enfoque tradicional que trata al personal como estadísticas homogéneas, Somos SST divide la gestión en dos pistas articuladas: el trabajador individual y la gobernanza empresarial.
-            </p>
-          </div>
-
-          {/* Track Switcher Buttons */}
-          <div className="flex items-center justify-center gap-3 mb-10">
-            <button
-              onClick={() => setActiveTrack('bio')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all ${
-                activeTrack === 'bio'
-                  ? 'bg-teal-500/20 border-teal-500 text-teal-300 border shadow-md'
-                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 border'
-              }`}
-            >
-              <Brain className="w-4 h-4 text-teal-400" />
-              <span>🧬 Pista 1: Motor Bio-Individual (Trabajador)</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTrack('org')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all ${
-                activeTrack === 'org'
-                  ? 'bg-teal-500/20 border-teal-500 text-teal-300 border shadow-md'
-                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 border'
-              }`}
-            >
-              <Building2 className="w-4 h-4 text-cyan-400" />
-              <span>🏢 Pista 2: Salud Organizacional (Empresa)</span>
-            </button>
-          </div>
-
-          {/* TRACK 1: MOTOR BIO-INDIVIDUAL (5 HITOS) */}
-          {activeTrack === 'bio' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-300">
-              {/* Hito 1 */}
-              <div className="p-6 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-teal-500/40 transition-all flex flex-col justify-between">
-                <div>
-                  <div className="w-8 h-8 rounded-lg bg-teal-500/20 text-teal-300 font-extrabold text-xs flex items-center justify-center mb-3">
-                    01
-                  </div>
-                  <h3 className="text-base font-bold text-white mb-2">Hito 1: Huella Biocéntrica</h3>
-                  <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                    Identifica y consolida las exigencias y aptitudes fisiológicas, biomecánicas y clínicas específicas de cada colaborador.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-1.5 text-[10px]">
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Perfiles de Cargo</span>
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Censo Sociodemográfico</span>
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Condiciones de Salud</span>
-                  <span className="px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-semibold border border-teal-500/30">
-                    Fit Score H1
-                  </span>
-                </div>
-              </div>
-
-              {/* Hito 2 */}
-              <div className="p-6 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-teal-500/40 transition-all flex flex-col justify-between">
-                <div>
-                  <div className="w-8 h-8 rounded-lg bg-teal-500/20 text-teal-300 font-extrabold text-xs flex items-center justify-center mb-3">
-                    02
-                  </div>
-                  <h3 className="text-base font-bold text-white mb-2">Hito 2: Núcleo Bio-Evaluativo</h3>
-                  <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                    Evalúa el estado anímico y estrés psicosocial semanal en tiempo real, junto con la interacción directa de los peligros en el puesto.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-1.5 text-[10px]">
-                  <span className="px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-semibold border border-teal-500/30">
-                    Termómetro Psicosocial (7 días)
-                  </span>
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Matriz Bio-IPEVR</span>
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">GTC-45 en Vivo</span>
-                </div>
-              </div>
-
-              {/* Hito 3 */}
-              <div className="p-6 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-teal-500/40 transition-all flex flex-col justify-between">
-                <div>
-                  <div className="w-8 h-8 rounded-lg bg-teal-500/20 text-teal-300 font-extrabold text-xs flex items-center justify-center mb-3">
-                    03
-                  </div>
-                  <h3 className="text-base font-bold text-white mb-2">Hito 3: Dinámica de Exposición</h3>
-                  <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                    Operación diaria de prevención en campo: reporte de actos inseguros con gamificación, permisos de alturas y análisis de posturas.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-1.5 text-[10px]">
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Reporte Móvil de Actos</span>
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Permisos Alturas Digitales</span>
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">ATS</span>
-                  <span className="px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-semibold border border-teal-500/30">
-                    Método OWAS / ROSA
-                  </span>
-                </div>
-              </div>
-
-              {/* Hito 4 */}
-              <div className="p-6 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-teal-500/40 transition-all flex flex-col justify-between">
-                <div>
-                  <div className="w-8 h-8 rounded-lg bg-teal-500/20 text-teal-300 font-extrabold text-xs flex items-center justify-center mb-3">
-                    04
-                  </div>
-                  <h3 className="text-base font-bold text-white mb-2">Hito 4: Traumatismo y Curación</h3>
-                  <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                    Investigación forense de causa raíz e indicadores estadísticos automáticos para corregir fallas después del daño.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-1.5 text-[10px]">
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Investigación FURAT / FUREL</span>
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Árbol de Causas</span>
-                  <span className="px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-semibold border border-teal-500/30">
-                    Estadísticas ATEL (TA, IF, IS, ILI)
-                  </span>
-                </div>
-              </div>
-
-              {/* Hito 5 */}
-              <div className="p-6 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-teal-500/40 transition-all flex flex-col justify-between md:col-span-2 lg:col-span-2">
-                <div>
-                  <div className="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-300 font-extrabold text-xs flex items-center justify-center mb-3">
-                    05
-                  </div>
-                  <h3 className="text-base font-bold text-white mb-2">Hito 5: Centro de Inteligencia Predictiva</h3>
-                  <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                    Cruce inteligente con IA que correlaciona las esferas de vida del colaborador para adelantarse a los accidentes antes de que ocurran. Mapeo anatómico 3D treemap y proyección de incapacidades.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-1.5 text-[10px]">
-                  <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30">
-                    Análisis Anatómico 3D
-                  </span>
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Comparativa de Plantas</span>
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Modelos Predictivos</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TRACK 2: SALUD ORGANIZACIONAL (EMPRESA) */}
-          {activeTrack === 'org' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in duration-300">
-              {/* Fase 1 */}
-              <div className="p-7 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-teal-500/40 transition-all">
-                <div className="w-8 h-8 rounded-lg bg-teal-500/20 text-teal-300 font-extrabold text-xs flex items-center justify-center mb-3">
-                  01
-                </div>
-                <h3 className="text-lg font-bold text-white mb-2">Cimiento del Cuidado</h3>
-                <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                  Estructuración legal y diagnósticos iniciales. Monitoreo continuo de vencimientos y asignación de responsabilidades corporativas.
-                </p>
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <span className="p-2 rounded bg-slate-800/80 text-slate-300">✓ Diagnóstico Res. 0312</span>
-                  <span className="p-2 rounded bg-teal-500/10 text-teal-300 font-semibold">⚡ Centro ACPM con Alertas</span>
-                  <span className="p-2 rounded bg-slate-800/80 text-slate-300">✓ Matriz Legal en Vivo</span>
-                  <span className="p-2 rounded bg-slate-800/80 text-slate-300">✓ Análisis de Vulnerabilidad</span>
-                  <span className="p-2 rounded bg-slate-800/80 text-slate-300">✓ Reglamento RIT 42 Horas</span>
-                  <span className="p-2 rounded bg-teal-500/10 text-teal-300 font-semibold">⚡ App Builder No-Code</span>
-                </div>
-              </div>
-
-              {/* Fase 2 */}
-              <div className="p-7 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-teal-500/40 transition-all">
-                <div className="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-300 font-extrabold text-xs flex items-center justify-center mb-3">
-                  02
-                </div>
-                <h3 className="text-lg font-bold text-white mb-2">Liderazgo Consciente</h3>
-                <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                  Evaluaciones periódicas del diseño del sistema, rendición de cuentas de la gerencia sobre la salud laboral y auditoría interna.
-                </p>
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <span className="p-2 rounded bg-slate-800/80 text-slate-300">✓ Informe de Gestión Anual</span>
-                  <span className="p-2 rounded bg-cyan-500/10 text-cyan-300 font-semibold">⚡ Revisión Alta Dirección</span>
-                  <span className="p-2 rounded bg-slate-800/80 text-slate-300">✓ Auditoría ISO 45001</span>
-                  <span className="p-2 rounded bg-slate-800/80 text-slate-300">✓ Tablero de Indicadores</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* BENTO GRID: HERRAMIENTAS Y SUPERPODERES */}
-        <section id="herramientas" className="py-24 bg-slate-900/50 border-t border-slate-800/80 px-4 sm:px-6 lg:px-8">
+        {/* SECTION: BENTO GRID DE HERRAMIENTAS REALES DE WAPPY */}
+        <section id="herramientas" className="py-24 bg-white dark:bg-[#090A0F] px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="text-center max-w-3xl mx-auto mb-16">
-              <span className="text-xs uppercase tracking-widest font-extrabold text-teal-400 mb-2 block">
-                Capacidades de Vanguardia
+              <span className="text-xs uppercase tracking-widest font-extrabold text-slate-500 dark:text-zinc-400 mb-2 block">
+                Tecnología & Capacidad Real
               </span>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-                Herramientas Avanzadas en <span className="bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">WAPPY IA</span>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">
+                Herramientas Construidas para Resolver el Día a Día
               </h2>
-              <p className="text-slate-300 text-sm sm:text-base">
-                Nuestros agentes no se limitan a chatear; ejecutan herramientas especializadas en tiempo real que modifican datos, generan tablas interactivas y emiten alertas.
+              <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
+                Cada módulo de WAPPY está probado y optimizado para los requerimientos legales vigentes en Colombia.
               </p>
             </div>
 
-            {/* Bento Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Tool 1: IPEVAR */}
-              <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-teal-500/50 transition-all flex flex-col justify-between">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
+              {/* Tool 1: Canva + Google Sheets */}
+              <div className="p-7 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm hover:border-slate-400 dark:hover:border-zinc-600 transition-all flex flex-col justify-between">
                 <div>
-                  <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-400 flex items-center justify-center mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-bold mb-4">
+                    <Code2 className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-extrabold text-lg text-slate-900 dark:text-white mb-2">
+                    Apps en Canva + Google Sheets
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                    WAPPY no solo redacta textos. Es capaz de <strong>programar y desplegar aplicaciones interactivas en vivo</strong> dentro del chat, usando Google Sheets como base de datos en tiempo real.
+                  </p>
+                </div>
+                <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] font-bold text-slate-500">
+                  <span>HTML5 / JS / Tailwind en vivo</span>
+                  <span>Sin servidor extra</span>
+                </div>
+              </div>
+
+              {/* Tool 2: Matriz Bio-IPEVAR */}
+              <div className="p-7 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm hover:border-slate-400 dark:hover:border-zinc-600 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-bold mb-4">
                     <FileSpreadsheet className="w-5 h-5" />
                   </div>
-                  <h3 className="text-base font-bold text-white mb-2">Matriz Bio-IPEVR (GTC 45)</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                    Inyección de peligros y valoración de riesgos en tiempo real asistida por IA. Visualiza tablas interactivas al lado del chat y expórtalas a Excel listo para ARLs.
+                  <h3 className="font-extrabold text-lg text-slate-900 dark:text-white mb-2">
+                    Matriz Bio-IPEVAR GTC-45
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                    Identificación de peligros, valoración de riesgos y determinación de controles conforme a la <strong>Guía Técnica Colombiana GTC-45</strong>. Recálculo automático ante condiciones osteomusculares individuales.
                   </p>
                 </div>
-                <span className="text-[11px] font-semibold text-teal-400 flex items-center gap-1">
-                  Exportación Excel Nativa <ChevronRight className="w-3.5 h-3.5" />
-                </span>
+                <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] font-bold text-slate-500">
+                  <span>Exportación a Excel / PDF</span>
+                  <span>Alineado a Res. 0312</span>
+                </div>
               </div>
 
-              {/* Tool 2: PESV */}
-              <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-teal-500/50 transition-all flex flex-col justify-between">
+              {/* Tool 3: Autoevaluación EPT */}
+              <div className="p-7 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm hover:border-slate-400 dark:hover:border-zinc-600 transition-all flex flex-col justify-between">
                 <div>
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mb-4">
-                    <Shield className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-bold mb-4">
+                    <Activity className="w-5 h-5" />
                   </div>
-                  <h3 className="text-base font-bold text-white mb-2">Matriz PESV Vial</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                    Estructurada bajo la Resolución 20223040040595 del Ministerio de Transporte. Clasifica flotas de vehículos, conductores y rutas críticas automáticamente.
+                  <h3 className="font-extrabold text-lg text-slate-900 dark:text-white mb-2">
+                    Autoevaluación EPT con IA
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                    El colaborador responde una serie de preguntas guiadas e ilustradas desde su móvil. El <strong>Fisioterapeuta IA</strong> calcula el nivel de riesgo postural y sugiere adecuaciones inmediatas.
                   </p>
                 </div>
-                <span className="text-[11px] font-semibold text-cyan-400 flex items-center gap-1">
-                  Planes de Seguridad Vial <ChevronRight className="w-3.5 h-3.5" />
-                </span>
+                <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] font-bold text-slate-500">
+                  <span>Ergonomía participativa</span>
+                  <span>Informe técnico automático</span>
+                </div>
               </div>
 
-              {/* Tool 3: Compatibilidad Química */}
-              <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-teal-500/50 transition-all flex flex-col justify-between">
+              {/* Tool 4: PESV & SGA */}
+              <div className="p-7 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm hover:border-slate-400 dark:hover:border-zinc-600 transition-all flex flex-col justify-between">
                 <div>
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center mb-4">
-                    <Flame className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-bold mb-4">
+                    <Scale className="w-5 h-5" />
                   </div>
-                  <h3 className="text-base font-bold text-white mb-2">Matriz Química SGA</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                    Gestión de inventarios químicos bajo el Sistema Globalmente Armonizado (Dec. 1496/2018). Genera semáforos de almacenamiento seguro (Verde/Amarillo/Rojo).
+                  <h3 className="font-extrabold text-lg text-slate-900 dark:text-white mb-2">
+                    PESV & SGA Especializados
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                    Módulos específicos para el <strong>Plan Estratégico de Seguridad Vial (Res. 40595 de 2022)</strong> y la matriz de compatibilidad de sustancias químicas bajo el <strong>SGA (Dec. 1496 de 2018)</strong>.
                   </p>
                 </div>
-                <span className="text-[11px] font-semibold text-amber-400 flex items-center gap-1">
-                  SGA & Pictogramas ONU <ChevronRight className="w-3.5 h-3.5" />
-                </span>
+                <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] font-bold text-slate-500">
+                  <span>Matrices de segregación</span>
+                  <span>Evaluación de flota y conductores</span>
+                </div>
               </div>
 
-              {/* Tool 4: Automatizaciones Autónomas */}
-              <div className="p-6 rounded-2xl bg-slate-950/80 border border-teal-500/30 hover:border-teal-500/60 transition-all flex flex-col justify-between relative overflow-hidden">
-                <div className="absolute top-0 right-0 px-3 py-1 bg-teal-500/20 text-teal-300 font-bold text-[9px] uppercase tracking-wider rounded-bl-xl border-l border-b border-teal-500/30">
-                  ⚡ 24/7 Autónomo
-                </div>
+              {/* Tool 5: Automatizaciones Autónomas */}
+              <div className="p-7 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm hover:border-slate-400 dark:hover:border-zinc-600 transition-all flex flex-col justify-between">
                 <div>
-                  <div className="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-300 flex items-center justify-center mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-bold mb-4">
                     <Zap className="w-5 h-5" />
                   </div>
-                  <h3 className="text-base font-bold text-white mb-2">Automatizaciones Autónomas</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                    Delega tareas repetitivas a tus agentes: reportes semanales a gerencia, alertas de vencimiento normativo a WhatsApp/correo y recordatorios sin tocar el teclado.
+                  <h3 className="font-extrabold text-lg text-slate-900 dark:text-white mb-2">
+                    Automatizaciones 24/7
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                    Programa a tus agentes para que trabajen mientras duermes: cierres mensuales de incidentes, recordatorios de capacitaciones, auditorías de tareas vencidas y resúmenes ejecutivos.
                   </p>
                 </div>
-                <span className="text-[11px] font-semibold text-teal-300 flex items-center gap-1">
-                  Cron Jobs & Notificaciones <ChevronRight className="w-3.5 h-3.5" />
-                </span>
+                <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] font-bold text-slate-500">
+                  <span>Disparadores cron</span>
+                  <span>Alertas automáticas vía WhatsApp</span>
+                </div>
               </div>
 
-              {/* Tool 5: Visión Computacional */}
-              <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-cyan-500/50 transition-all flex flex-col justify-between">
+              {/* Tool 6: Portales Públicos QR */}
+              <div className="p-7 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm hover:border-slate-400 dark:hover:border-zinc-600 transition-all flex flex-col justify-between">
                 <div>
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mb-4">
-                    <Camera className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-bold mb-4">
+                    <QrCode className="w-5 h-5" />
                   </div>
-                  <h3 className="text-base font-bold text-white mb-2">Cámara IA & Visión en Campo</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                    Abre la cámara de tu móvil en campo: evalúa posturas bajo método OWAS/ROSA, mide ángulos corporales y detecta uso de EPPs obligatorios (casco, chaleco, arnés).
+                  <h3 className="font-extrabold text-lg text-slate-900 dark:text-white mb-2">
+                    Portales Públicos QR
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                    Genera códigos QR para colocar en planta o vehículos. Los trabajadores reportan condiciones inseguras o incidentes desde su celular <strong>sin necesidad de crear usuario ni contraseña</strong>.
                   </p>
                 </div>
-                <span className="text-[11px] font-semibold text-cyan-400 flex items-center gap-1">
-                  Inspección Visual en Vivo <ChevronRight className="w-3.5 h-3.5" />
-                </span>
-              </div>
-
-              {/* Tool 6: Portales Públicos sin Login */}
-              <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-emerald-500/50 transition-all flex flex-col justify-between">
-                <div>
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-4">
-                    <Users className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-base font-bold text-white mb-2">Portales Públicos Móviles (QR)</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                    Tus colaboradores reportan actos inseguros, responden el termómetro anónimo y actualizan su ficha sin registrarse: solo escaneando un código QR o ingresando su cédula.
-                  </p>
+                <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] font-bold text-slate-500">
+                  <span>Acceso directo sin fricción</span>
+                  <span>Sincronización instantánea</span>
                 </div>
-                <span className="text-[11px] font-semibold text-emerald-400 flex items-center gap-1">
-                  Ferozmente Fácil para Empleados <ChevronRight className="w-3.5 h-3.5" />
-                </span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* MERCADO DE +15 AGENTES ESPECIALIZADOS */}
-        <section id="agentes" className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-12">
-            <span className="text-xs uppercase tracking-widest font-extrabold text-teal-400 mb-2 block">
-              Mercado de Expertos
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-              Más de 15 <span className="bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">Agentes Especializados</span>
-            </h2>
-            <p className="text-slate-300 text-sm sm:text-base">
-              Cada área crítica de la SST cuenta con un agente pre-entrenado en la normatividad colombiana y metodologías de ingeniería de prevención.
-            </p>
-          </div>
-
-          {/* Filter Bar */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
-            {[
-              { id: 'todos', label: 'Todos los Agentes' },
-              { id: 'legal', label: 'Abogados & Legal' },
-              { id: 'salud', label: 'Salud & Ergonomía' },
-              { id: 'prevencion', label: 'Técnicos & Operativos' },
-              { id: 'auditoria', label: 'Auditoría & Calidad' },
-            ].map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveAgentCategory(cat.id)}
-                className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all ${
-                  activeAgentCategory === cat.id
-                    ? 'bg-teal-500 text-slate-950 shadow-md font-extrabold'
-                    : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Tenshi IA Star Banner */}
-          <div className="mb-10 p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-teal-950/40 via-slate-900/90 to-cyan-950/40 border border-teal-500/30 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
-            <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 text-[11px] font-bold uppercase tracking-wider mb-3">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>IA Estrella & Orquestador Nativo</span>
-              </div>
-              <h3 className="text-2xl font-extrabold text-white mb-2">Tenshi: Tu Asistente Virtual 24/7</h3>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
-                Tenshi conecta y coordina todo el ecosistema WAPPY IA. Es la asistente nativa que navega por Somos SST, actualiza expedientes de trabajadores, vigila las alertas ACPM y conversa con tono cercano, profesional y proactivo.
-              </p>
-              <div className="flex flex-wrap gap-2 text-[11px]">
-                <span className="px-2.5 py-1 rounded bg-teal-500/10 border border-teal-500/30 text-teal-300 font-semibold">
-                  Automatización Integral
-                </span>
-                <span className="px-2.5 py-1 rounded bg-slate-800 text-slate-300">
-                  Acceso en Vivo a Base de Datos
-                </span>
-                <span className="px-2.5 py-1 rounded bg-slate-800 text-slate-300">
-                  Generación de Reportes PDF
-                </span>
-              </div>
-            </div>
-
-            <div className="flex-shrink-0 text-center">
-              <div className="relative inline-block">
-                <div className="absolute inset-0 bg-teal-500/30 blur-xl rounded-full" />
-                <img
-                  src="/assets/tenshi.png"
-                  alt="Tenshi IA"
-                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-teal-400 object-cover relative z-10 shadow-lg"
-                />
-              </div>
-              <h4 className="font-bold text-white text-sm mt-2">Tenshi IA</h4>
-              <p className="text-[11px] text-teal-400">En línea en toda la plataforma</p>
-            </div>
-          </div>
-
-          {/* Agents Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAgents
-              .filter((a) => !a.isStar)
-              .map((agent) => (
-                <div
-                  key={agent.id}
-                  className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-teal-500/40 transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-center gap-3 mb-3">
-                      <img
-                        src={agent.avatar}
-                        alt={agent.name}
-                        className="w-12 h-12 rounded-xl object-cover border border-slate-700 bg-slate-800"
-                        onError={(e) => {
-                          e.currentTarget.src = '/assets/avatars/Avatar1.png';
-                        }}
-                      />
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-teal-400">
-                          {agent.categoryLabel}
-                        </span>
-                        <h4 className="text-sm font-bold text-white">{agent.name}</h4>
-                      </div>
-                    </div>
-                    <p className="text-xs text-slate-400 leading-relaxed mb-3">{agent.desc}</p>
-                  </div>
-
-                  <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80 text-[11px] text-slate-300 font-mono italic">
-                    {agent.prompt}
-                  </div>
-                </div>
-              ))}
-          </div>
-        </section>
-
-        {/* ECOSISTEMA DE FORMACIÓN Y LMS */}
-        <section id="formacion" className="py-24 bg-slate-900/40 border-t border-slate-800/80 px-4 sm:px-6 lg:px-8">
+        {/* SECTION: ECOSISTEMA DE +15 AGENTES IA */}
+        <section id="agentes" className="py-24 bg-slate-50 dark:bg-zinc-900/40 border-t border-slate-200 dark:border-zinc-800 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
-            <div className="text-center max-w-3xl mx-auto mb-16">
-              <span className="text-xs uppercase tracking-widest font-extrabold text-teal-400 mb-2 block">
-                Capacitación Continua
+            <div className="text-center max-w-3xl mx-auto mb-14">
+              <span className="text-xs uppercase tracking-widest font-extrabold text-slate-500 dark:text-zinc-400 mb-2 block">
+                Tu Equipo Especializado
               </span>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-                Academia WAPPY: <span className="bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">LMS & Certificaciones</span>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">
+                Más de 15 Agentes de IA Especializados a tu Servicio
               </h2>
-              <p className="text-slate-300 text-sm sm:text-base">
-                Cumple con el programa de capacitación anual obligatorio del SG-SST sin desgaste administrativo.
+              <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
+                Cada agente fue entrenado con la jurisprudencia, normas técnicas y guías prácticas de Colombia. No son chatbots generales: son especialistas con criterio técnico.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-teal-500/40 transition-all flex flex-col justify-between">
-                <div>
-                  <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-400 flex items-center justify-center mb-4">
-                    <GraduationCap className="w-5 h-5" />
+            {/* Filter Pills */}
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-12">
+              {[
+                { id: 'todos', label: 'Todos los Agentes' },
+                { id: 'orquestador', label: 'Orquestador Nativo' },
+                { id: 'prevencion', label: 'Prevención & Riesgos' },
+                { id: 'salud', label: 'Salud & Ergonomía' },
+                { id: 'legal', label: 'Legal & Auditoría' },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveAgentCategory(cat.id)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    activeAgentCategory === cat.id
+                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                      : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-zinc-800 hover:border-slate-400'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Spotlight Tenshi */}
+            <div className="p-8 rounded-3xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 mb-10 shadow-xl">
+              <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
+                <div className="flex items-center gap-5 text-left">
+                  <div className="w-16 h-16 rounded-2xl bg-teal-500 text-white flex items-center justify-center font-black text-2xl shadow-lg shrink-0">
+                    T
                   </div>
-                  <h3 className="text-base font-bold text-white mb-2">🎓 Aula de Estudio</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                    Plataforma tipo streaming con cursos y masterclasses en video para prevencionistas. Aprende a aplicar IA práctica en la gestión de riesgos laborales.
-                  </p>
-                </div>
-                <span className="text-[11px] font-semibold text-teal-400">Acceso a Clases y Recursos</span>
-              </div>
-
-              <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-cyan-500/40 transition-all flex flex-col justify-between">
-                <div>
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mb-4">
-                    <Compass className="w-5 h-5" />
+                  <div>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-500/20 text-teal-400 dark:text-teal-700 mb-2">
+                      Motor Estrella de WAPPY
+                    </div>
+                    <h3 className="text-2xl font-black">Tenshi IA • Orquestador General</h3>
+                    <p className="text-xs sm:text-sm opacity-80 max-w-2xl mt-1">
+                      Tenshi conecta todos tus expedientes, lee bases de datos en tiempo real, genera reportes gerenciales y delega tareas a los agentes especialistas automáticamente.
+                    </p>
                   </div>
-                  <h3 className="text-base font-bold text-white mb-2">🚀 Rutas de Aprendizaje por Empresa</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                    Genera rutas de formación automáticas para cada una de tus empresas registradas: lecciones guiadas, evaluaciones interactivas y trazabilidad de notas.
-                  </p>
                 </div>
-                <span className="text-[11px] font-semibold text-cyan-400">Seguimiento de Asistencia</span>
-              </div>
-
-              <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-emerald-500/40 transition-all flex flex-col justify-between">
-                <div>
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-4">
-                    <Award className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-base font-bold text-white mb-2">📜 Certificados con Código QR</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                    Al aprobar cada evaluación, los trabajadores descargan de inmediato su certificado PDF oficial con código QR verificable ante inspectores y ARLs.
-                  </p>
-                </div>
-                <span className="text-[11px] font-semibold text-emerald-400">Válido en Auditorías</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* COMPARATIVA DE PLANES Y PRECIOS */}
-        <section id="planes" className="py-24 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-xs uppercase tracking-widest font-extrabold text-teal-400 mb-2 block">
-              Inversión Transparente
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-              Elige tu Nivel de <span className="bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">Productividad</span>
-            </h2>
-            <p className="text-slate-300 text-sm sm:text-base">
-              Soluciones diseñadas para consultores independientes, líderes de SST y firmas asesoras en Colombia.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
-            {/* PLAN 1: WAPPY VITAL */}
-            <div className="p-8 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col justify-between hover:border-teal-500/40 transition-all">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Para Consultores</span>
-                <h3 className="text-2xl font-extrabold text-white mt-1 mb-2">Wappy Vital</h3>
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-4xl font-extrabold text-white">$350.000</span>
-                  <span className="text-xs font-bold text-teal-400 uppercase">COP / Pago Único</span>
-                </div>
-                <div className="text-xs text-teal-300 font-semibold mb-6">
-                  Acceso de por vida • Sin mensualidades
-                </div>
-
-                <ul className="space-y-3 text-xs text-slate-300 mb-8">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                    <span>Hasta 20 chats diarios con Agentes Especializados</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                    <span>Más de 15 Agentes Expertos de IA (Legal, Médico, Prevención)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                    <span>Subida de archivos ilimitada para análisis de documentos</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                    <span>Skill de Canvas Documental (Word, Hojas de cálculo y Slides)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                    <span>Skill Editor RIT & Matriz IPEVR Básica GTC-45</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                    <span>Videollamada con Agente Biomecánico IA por visión artificial</span>
-                  </li>
-                </ul>
-              </div>
-
-              <button
-                onClick={() => navigate('/planes')}
-                className="w-full py-3 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition-all active:scale-95"
-              >
-                Adquirir Wappy Vital
-              </button>
-            </div>
-
-            {/* PLAN 2: WAPPY PRO */}
-            <div className="p-8 rounded-2xl bg-gradient-to-b from-teal-950/40 via-slate-900/90 to-slate-900/90 border-2 border-teal-500/60 flex flex-col justify-between shadow-2xl shadow-teal-950/40 relative">
-              <div className="absolute -top-3.5 right-6 px-3 py-1 rounded-full bg-teal-500 text-slate-950 font-extrabold text-[10px] uppercase tracking-wider shadow-md">
-                Más Recomendado
-              </div>
-
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-teal-400">Ecosistema Completo</span>
-                <h3 className="text-2xl font-extrabold text-white mt-1 mb-2">Wappy Pro</h3>
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-4xl font-extrabold text-white">$1.200.000</span>
-                  <span className="text-xs font-bold text-teal-400 uppercase">COP / Año</span>
-                </div>
-                <div className="text-xs text-teal-300 font-semibold mb-6">
-                  Desde $100.000 COP/mes (Opción semestral, trimestral y mensual)
-                </div>
-
-                <ul className="space-y-3 text-xs text-slate-300 mb-8">
-                  <li className="flex items-start gap-2 font-semibold text-white">
-                    <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                    <span>Todo lo de Wappy Vital con chats 100% ilimitados</span>
-                  </li>
-                  <li className="flex items-start gap-2 font-semibold text-white">
-                    <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                    <span>Somos SST Completo (Motor Bio-Individual + Salud Organizacional)</span>
-                  </li>
-                  <li className="flex items-start gap-2 font-semibold text-white">
-                    <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                    <span>Matriz IPEVR Live (GTC 45) con exportación a Excel</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                    <span>Coordinador PESV Vial & Matriz Química SGA</span>
-                  </li>
-                  <li className="flex items-start gap-2 font-semibold text-teal-300">
-                    <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                    <span>1 Automatización Autónoma IA incluida (cron jobs sin supervisión)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                    <span>Aula de Estudio LMS & Certificaciones Oficiales para trabajadores</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                    <span>Crea y personaliza tus propios Agentes IA & Soporte VIP</span>
-                  </li>
-                </ul>
-              </div>
-
-              <button
-                onClick={() => navigate('/planes')}
-                className="w-full py-3.5 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-xl shadow-teal-800/40 transition-all hover:scale-[1.02] active:scale-95"
-              >
-                Adquirir Wappy Pro
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* EL CREADOR (FELIX BEDOYA) */}
-        <section id="creador" className="py-24 bg-slate-900/40 border-t border-slate-800/80 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-10 lg:gap-14">
-            <div className="flex-shrink-0 text-center">
-              <div className="relative inline-block">
-                <div className="absolute inset-0 bg-teal-500/25 blur-2xl rounded-full" />
-                <img
-                  src="/assets/avatars/Avatar1.png"
-                  alt="Felix Bedoya"
-                  className="w-36 h-36 sm:w-44 sm:h-44 rounded-full border-4 border-teal-500/80 object-cover relative z-10 shadow-2xl"
-                  onError={(e) => {
-                    e.currentTarget.src = 'https://api.dicebear.com/7.x/bottts/svg?seed=Felix1';
-                  }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <span className="text-xs uppercase tracking-widest font-extrabold text-teal-400 mb-2 block">
-                Detrás de WAPPY
-              </span>
-              <h2 className="text-3xl font-extrabold text-white tracking-tight mb-3">
-                Mucho gusto, soy <span className="bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">Felix Bedoya</span>
-              </h2>
-
-              <div className="flex flex-wrap gap-2 mb-4 text-xs font-semibold">
-                <span className="px-2.5 py-1 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30">
-                  Psicólogo Especialista en SST
-                </span>
-                <span className="px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  Desarrollador Senior
-                </span>
-                <span className="px-2.5 py-1 rounded bg-slate-800 text-slate-300">
-                  +8 Años de Experiencia
-                </span>
-                <span className="px-2.5 py-1 rounded bg-slate-800 text-slate-300">
-                  Fundador de WAPPY
-                </span>
-              </div>
-
-              <blockquote className="text-xs sm:text-sm text-slate-300 italic border-l-2 border-teal-500 pl-4 py-1 mb-4 leading-relaxed bg-slate-950/40 rounded-r-lg">
-                "Al unir la tecnología y la inteligencia artificial con la SST, automaticé el papeleo repetitivo de semanas a horas. Esto me permitió asegurar mayor calidad técnica y escalar drásticamente mi consultoría."
-              </blockquote>
-
-              <p className="text-xs text-slate-400 leading-relaxed mb-6">
-                Como especialista en Seguridad y Salud en el Trabajo en Colombia, viví en carne propia la frustración de pasar fines de semana enteros armando matrices de riesgos y reglamentos para cumplir con la ley y los estándares de las ARLs. Por eso programé WAPPY: el copiloto que utilizo a diario para generar informes con rigor técnico en minutos, ganando libertad y rentabilidad.
-              </p>
-
-              <a
-                href="https://wa.me/573102913651?text=Hola%20Felix,%20quiero%20conocer%20más%20sobre%20WAPPY%20IA"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-700/30 transition-all active:scale-95"
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span>Contactar por WhatsApp</span>
-              </a>
-            </div>
-          </div>
-        </section>
-
-        {/* CALL TO ACTION FINAL */}
-        <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-          <div className="p-8 sm:p-14 rounded-3xl bg-gradient-to-r from-teal-950/60 via-slate-900 to-cyan-950/60 border border-teal-500/40 text-center relative overflow-hidden shadow-2xl shadow-teal-950/60">
-            <div className="relative z-10 max-w-2xl mx-auto">
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-                Únete a la Revolución de la <span className="bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">SST en Colombia</span>
-              </h2>
-              <p className="text-slate-300 text-sm sm:text-base mb-8 leading-relaxed">
-                Multiplica tu productividad, blindate ante requerimientos de las autoridades laborales y entrega reportes de alta calidad en minutos.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
                   onClick={() => navigate('/login')}
-                  className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-xl shadow-teal-800/40 transition-all hover:scale-[1.02] active:scale-95"
+                  className="shrink-0 px-6 py-3 rounded-xl font-bold text-xs bg-teal-500 hover:bg-teal-600 text-white shadow-md transition-all active:scale-95"
                 >
-                  Ingresar a WAPPY
-                </button>
-                <button
-                  onClick={() => navigate('/register')}
-                  className="w-full sm:w-auto px-7 py-3.5 rounded-xl font-bold text-xs bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700 transition-all active:scale-95"
-                >
-                  Crear Cuenta Gratis
+                  Hablar con Tenshi
                 </button>
               </div>
+            </div>
+
+            {/* Grid of Other Agents */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
+              {filteredAgents
+                .filter((a) => a.id !== 'tenshi')
+                .map((agent) => (
+                  <div
+                    key={agent.id}
+                    className="p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xs hover:border-slate-400 dark:hover:border-zinc-600 transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                          {agent.categoryLabel}
+                        </span>
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300">
+                          {agent.badge}
+                        </span>
+                      </div>
+                      <h4 className="font-extrabold text-base text-slate-900 dark:text-white mb-2">
+                        {agent.name}
+                      </h4>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                        {agent.desc}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-slate-400 italic">
+                      {agent.prompt}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION: ACADEMIA WAPPY (LMS & STREAMING) */}
+        <section id="academia" className="py-24 bg-white dark:bg-[#090A0F] px-4 sm:px-6 lg:px-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <span className="text-xs uppercase tracking-widest font-extrabold text-slate-500 dark:text-zinc-400 mb-2 block">
+                Capacitación Continua
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">
+                Academia WAPPY: Formación, Streaming y Certificación
+              </h2>
+              <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
+                Cumple con el estándar de capacitación anual del SG-SST sin contratar plataformas externas. Un LMS completo integrado en el mismo lugar.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left mb-12">
+              <div className="p-7 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-bold mb-4">
+                  <Video className="w-5 h-5" />
+                </div>
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white mb-2">
+                  Aula de Estudio en Vivo
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  Transmisión de clases en streaming con chat interactivo en vivo, toma de asistencia automática y registro directo en el expediente del trabajador.
+                </p>
+              </div>
+
+              <div className="p-7 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-bold mb-4">
+                  <GraduationCap className="w-5 h-5" />
+                </div>
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white mb-2">
+                  Rutas de Aprendizaje
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  Crea cursos a medida por cargo o empresa: inducción general, manipulación de cargas, primeros auxilios, brigadas y manejo defensivo PESV.
+                </p>
+              </div>
+
+              <div className="p-7 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-bold mb-4">
+                  <FileBadge className="w-5 h-5" />
+                </div>
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white mb-2">
+                  Certificados con Verificación QR
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  Al completar los cuestionarios interactivos, el sistema expide automáticamente certificados digitales con código QR único antifraude para auditorías.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION: PLANES & PRECIOS */}
+        <section id="planes" className="py-24 bg-slate-50 dark:bg-zinc-900/40 border-t border-slate-200 dark:border-zinc-800 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <span className="text-xs uppercase tracking-widest font-extrabold text-slate-500 dark:text-zinc-400 mb-2 block">
+                Precios Transparentes
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">
+                Elige el Plan que Escala tu Consultoría
+              </h2>
+              <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
+                Sin sorpresas. Acceso completo a los modelos de inteligencia artificial y herramientas especializadas.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+              {/* Plan Vital */}
+              <div className="p-8 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-md hover:border-slate-400 dark:hover:border-zinc-600 transition-all flex flex-col justify-between">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 block mb-2">
+                    Para Consultores Independientes
+                  </span>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">
+                    WAPPY Vital
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
+                    Ideal para comenzar a automatizar tus matrices y asesorar tus primeras empresas.
+                  </p>
+                  <div className="flex items-baseline gap-2 mb-6">
+                    <span className="text-4xl font-black text-slate-900 dark:text-white">$350.000</span>
+                    <span className="text-xs text-slate-500">COP / Pago Único</span>
+                  </div>
+
+                  <ul className="space-y-3 text-xs text-slate-700 dark:text-slate-300 mb-8">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      <span>Acceso vitalicio al ecosistema WAPPY</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      <span>Estructuración de Matrices GTC-45 y PESV</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      <span>Agentes especializados SST y Legal Laboral</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      <span>Actualizaciones normativas incluidas</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <button
+                  onClick={() => navigate('/login')}
+                  className="w-full py-3.5 rounded-xl font-bold text-xs bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 transition-all active:scale-95"
+                >
+                  Adquirir WAPPY Vital
+                </button>
+              </div>
+
+              {/* Plan Pro */}
+              <div className="p-8 rounded-3xl bg-slate-900 text-white dark:bg-zinc-800 border border-slate-700 dark:border-zinc-700 shadow-xl flex flex-col justify-between relative overflow-hidden">
+                <div className="absolute top-5 right-5">
+                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-500 text-white">
+                    Más Popular
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-400 block mb-2">
+                    Para Firmas de Consultoría & Empresas
+                  </span>
+                  <h3 className="text-2xl font-black mb-2">
+                    WAPPY Pro Anual
+                  </h3>
+                  <p className="text-xs text-slate-400 mb-6">
+                    Potencia total, automatizaciones 24/7 y aplicaciones ilimitadas en Canva.
+                  </p>
+                  <div className="flex items-baseline gap-2 mb-6">
+                    <span className="text-4xl font-black">$1.200.000</span>
+                    <span className="text-xs text-slate-400">COP / Año</span>
+                  </div>
+
+                  <ul className="space-y-3 text-xs text-slate-200 mb-8">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-teal-400" />
+                      <span>Todo lo del Plan Vital</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-teal-400" />
+                      <span>Apps interactivas en Canva + Google Sheets ilimitadas</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-teal-400" />
+                      <span>Automatizaciones 24/7 con disparadores autónomos</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-teal-400" />
+                      <span>Academia LMS con emisión de certificados QR</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-teal-400" />
+                      <span>Soporte prioritario y sesiones 1 a 1 con Felix Bedoya</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <button
+                  onClick={() => navigate('/login')}
+                  className="w-full py-3.5 rounded-xl font-bold text-xs bg-teal-500 hover:bg-teal-600 text-white shadow-lg transition-all active:scale-95"
+                >
+                  Suscribirme a WAPPY Pro
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION: EL CREADOR (Felix Bedoya) */}
+        <section id="creador" className="py-24 bg-white dark:bg-[#090A0F] px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="p-8 sm:p-12 rounded-3xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 text-left flex flex-col md:flex-row items-center gap-8">
+              <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-3xl shadow-lg shrink-0">
+                FB
+              </div>
+              <div>
+                <span className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 block mb-1">
+                  Fundador & Especialista SST
+                </span>
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-3">
+                  Felix Bedoya • Creador de Somos SST & WAPPY
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+                  «Creamos WAPPY porque nos cansamos de ver a colegas brillantes atrapados en la trampa del papeleo. La Seguridad y Salud en el Trabajo debe salvar vidas y cuidar la productividad, no limitarse a cumplir requisitos cosméticos. WAPPY es la herramienta que te devuelve el tiempo para hacer verdadera prevención.»
+                </p>
+                <div className="flex flex-wrap items-center gap-4">
+                  <a
+                    href="https://wa.me/573105001234?text=Hola%20Felix,%20quiero%20conocer%20m%C3%A1s%20sobre%20WAPPY%20y%20la%20metodolog%C3%ADa%20Somos%20SST"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Contactar por WhatsApp</span>
+                  </a>
+                  <button
+                    onClick={() => setVideoModalOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs border border-slate-300 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-slate-300 transition-all"
+                  >
+                    <Play className="w-3.5 h-3.5" />
+                    <span>Ver Masterclass</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* FINAL CTA BANNER */}
+        <section className="py-20 bg-slate-900 text-white dark:bg-zinc-900 border-t border-slate-800 px-4 sm:px-6 lg:px-8 text-center">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-4">
+              Construye tu SG-SST Inteligente Hoy
+            </h2>
+            <p className="text-slate-400 text-sm sm:text-base leading-relaxed mb-8">
+              Únete a los consultores y empresas líderes en Colombia que ya transformaron sus horas de papeleo en prevención real con WAPPY.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button
+                onClick={() => navigate('/login')}
+                className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-sm bg-white text-slate-900 hover:bg-slate-100 shadow-md transition-all active:scale-95"
+              >
+                Comenzar Ahora
+              </button>
+              <button
+                onClick={() => navigate('/login')}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-xl font-semibold text-sm border border-slate-700 hover:border-slate-500 text-slate-200 transition-all active:scale-95"
+              >
+                Ya tengo cuenta • Ingresar
+              </button>
             </div>
           </div>
         </section>
       </main>
 
-      {/* FOOTER */}
-      <footer className="border-t border-slate-800 bg-slate-950 text-slate-400 py-12 px-4 sm:px-6 lg:px-8 text-xs">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+      {/* FOOTER (Clean Figma Style) */}
+      <footer className="py-12 bg-white dark:bg-[#090A0F] border-t border-slate-200 dark:border-zinc-800 text-xs text-slate-500 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
-            <img src="/assets/logo.png" alt="WAPPY Logo" className="h-7 w-auto object-contain" />
-            <span className="font-bold text-white">WAPPY IA</span>
-            <span className="text-slate-500">•</span>
-            <span>© {new Date().getFullYear()} Todos los derechos reservados.</span>
+            <div className="w-6 h-6 rounded-md bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center font-bold text-[10px]">
+              W
+            </div>
+            <span className="font-bold text-slate-900 dark:text-white">WAPPY IA</span>
+            <span>• Ecosistema de Seguridad y Salud en el Trabajo</span>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-6">
-            <a href="#somossst" className="hover:text-teal-400 transition-colors">Somos SST</a>
-            <a href="#herramientas" className="hover:text-teal-400 transition-colors">Herramientas</a>
-            <a href="#planes" className="hover:text-teal-400 transition-colors">Planes</a>
-            <a href="/terms" className="hover:text-teal-400 transition-colors">Términos de Servicio</a>
-            <a href="/privacy" className="hover:text-teal-400 transition-colors">Privacidad</a>
+          <div className="flex items-center gap-6">
+            <a href="#metodologia" className="hover:text-slate-900 dark:hover:text-white">Metodología</a>
+            <a href="#herramientas" className="hover:text-slate-900 dark:hover:text-white">Herramientas</a>
+            <a href="#planes" className="hover:text-slate-900 dark:hover:text-white">Precios</a>
+            <button onClick={() => navigate('/privacy')} className="hover:text-slate-900 dark:hover:text-white">
+              Privacidad
+            </button>
+            <button onClick={() => navigate('/terms')} className="hover:text-slate-900 dark:hover:text-white">
+              Términos
+            </button>
           </div>
         </div>
       </footer>
+
+      {/* VIDEO DEMO MODAL */}
+      {videoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="relative w-full max-w-4xl bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-zinc-800">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                Demostración de WAPPY & Metodología Somos SST
+              </h3>
+              <button
+                onClick={() => setVideoModalOpen(false)}
+                className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="aspect-video w-full bg-black">
+              <iframe
+                className="w-full h-full"
+                src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1"
+                title="WAPPY Demo"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

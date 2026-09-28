@@ -28,6 +28,10 @@ import {
   PenTool,
   X,
   Award,
+  Printer,
+  RefreshCw,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
@@ -247,6 +251,74 @@ export default function ConvivenciaWorkspace() {
     } catch (err: any) {
       showToast({ message: 'Error al eliminar acta', status: 'error' });
     }
+  };
+
+  const handleOpenOfficialReport = async (actaId: string) => {
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await axios.post(`/api/sgsst/convivencia/actas/${actaId}/reporte-oficial`, {}, { headers });
+      if (res.data?.url) {
+        window.open(res.data.url, '_blank');
+      }
+    } catch (err: any) {
+      console.error('Error opening official convivencia acta report:', err);
+      showToast({ message: err.response?.data?.error || 'Error al generar el acta oficial con firmas', status: 'error' });
+    }
+  };
+
+  const handleCopySigningLink = () => {
+    const link = `${window.location.origin}/sgsst-public/comites/${config?.company?.id || ''}`;
+    navigator.clipboard.writeText(link);
+    showToast({ message: 'Enlace copiado. Compártelo con los miembros del comité para firmar desde su dispositivo.', status: 'success' });
+  };
+
+  const handleSyncCommitteeMembersToActa = () => {
+    const list: any[] = [];
+    if (config?.comite) {
+      (config.comite.representantesEmpleador || []).forEach((r: any) => {
+        list.push({
+          nombre: r.nombre,
+          cedula: r.cedula,
+          cargo: r.cargo,
+          rol: `Empleador (${r.rol || 'Principal'})`,
+          asistio: true,
+          firma: null,
+        });
+      });
+      (config.comite.representantesTrabajadores || []).forEach((r: any) => {
+        list.push({
+          nombre: r.nombre,
+          cedula: r.cedula,
+          cargo: r.cargo,
+          rol: `Trabajadores (${r.rol || 'Principal'})`,
+          asistio: true,
+          firma: null,
+        });
+      });
+    }
+    if (list.length === 0) {
+      showToast({ message: 'No hay miembros registrados en la conformación oficial del Comité de Convivencia. Registra primero los representantes o abre votaciones.', status: 'warning' });
+      return;
+    }
+    const existingCedulas = new Set((actaForm.asistentes || []).map((a: any) => String(a.cedula).trim()));
+    const nuevos = list.filter((m) => !existingCedulas.has(String(m.cedula).trim()));
+    if (nuevos.length === 0) {
+      showToast({ message: 'Todos los miembros oficiales del Comité de Convivencia ya están convocados en el acta.', status: 'info' });
+      return;
+    }
+    setActaForm({
+      ...actaForm,
+      asistentes: [...(actaForm.asistentes || []), ...nuevos],
+    });
+    showToast({ message: `Se convocaron ${nuevos.length} miembros oficiales del Comité de Convivencia para firmar`, status: 'success' });
+  };
+
+  const handleCopyWorkerSignLink = (cedula: string) => {
+    const origin = window.location.origin;
+    const companyId = config?.company?.id || '';
+    const url = `${origin}/sgsst-public/comites/${companyId}?cedula=${encodeURIComponent(cedula)}`;
+    navigator.clipboard.writeText(url);
+    showToast({ message: 'Enlace de firma copiado. Puedes enviarlo por WhatsApp al trabajador.', status: 'success' });
   };
 
   const handleSaveActa = async () => {
@@ -666,9 +738,28 @@ export default function ConvivenciaWorkspace() {
                     </h4>
 
                     {actaQ ? (
-                      <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2 truncate font-semibold">
-                        {actaQ.consecutivo}
-                      </p>
+                      <div>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2 truncate font-semibold">
+                          {actaQ.consecutivo}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-2">
+                          {(() => {
+                            const totalAsist = actaQ.asistentes?.length || 0;
+                            const totalFirmas = actaQ.asistentes?.filter((a: any) => a.firma || a.firmadoEn)?.length || 0;
+                            const allSigned = totalAsist > 0 && totalFirmas === totalAsist;
+                            return (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                allSigned
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                              }`}>
+                                <PenTool className="w-2.5 h-2.5" />
+                                Firmas: {totalFirmas}/{totalAsist} {allSigned ? '✓' : ''}
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      </div>
                     ) : (
                       <p className="text-xs text-slate-400 mt-2 italic">Sin acta registrada aún.</p>
                     )}
@@ -678,8 +769,30 @@ export default function ConvivenciaWorkspace() {
                     {actaQ ? (
                       <>
                         <button
-                          onClick={() => handleEditActa(actaQ)}
+                          onClick={() => handleOpenOfficialReport(actaQ._id)}
                           className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100"
+                          title="Generar Acta Oficial con Firmas Digitales"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                            <span className="text-[10px] font-bold">Acta Oficial</span>
+                          </div>
+                        </button>
+
+                        <button
+                          onClick={handleCopySigningLink}
+                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100"
+                          title="Copiar Enlace de Firma para Miembros"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                            <span className="text-[10px] font-bold">Copiar Link</span>
+                          </div>
+                        </button>
+
+                        <button
+                          onClick={() => handleEditActa(actaQ)}
+                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700"
                           title="Examinar y Editar Acta"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -1064,12 +1177,14 @@ export default function ConvivenciaWorkspace() {
                 icon={<X className="w-4 h-4" />}
                 label="Cerrar"
                 onClick={() => setShowCasoModal(false)}
+                alwaysShowLabel={true}
               />
               <ExpandingButton
                 variant="teal"
                 icon={<CheckCircle2 className="w-4 h-4" />}
                 label="Guardar Actuación"
                 onClick={handleAddActuacion}
+                alwaysShowLabel={true}
               />
             </div>
           </div>
@@ -1152,12 +1267,14 @@ export default function ConvivenciaWorkspace() {
                 icon={<X className="w-4 h-4" />}
                 label="Cancelar"
                 onClick={() => setShowMedidasModal(false)}
+                alwaysShowLabel={true}
               />
               <ExpandingButton
                 variant="rose"
                 icon={<AlertOctagon className="w-4 h-4" />}
                 label="Activar Medidas Urgentes"
                 onClick={handleApplyMedidas}
+                alwaysShowLabel={true}
               />
             </div>
           </div>
@@ -1183,15 +1300,37 @@ export default function ConvivenciaWorkspace() {
                 </div>
               </div>
 
-              {/* Botón IA Tenshi + Botón Cerrar */}
+              {/* Botón IA Tenshi + Botones de Firma + Botón Cerrar */}
               <div className="flex items-center gap-2">
+                {selectedActa && (
+                  <>
+                    <ExpandingButton
+                      onClick={() => handleOpenOfficialReport(selectedActa._id)}
+                      label="Acta Oficial (Firmas)"
+                      icon={Printer}
+                      variant="teal"
+                      title="Ver o imprimir el acta oficial con firmas digitales de los participantes"
+                      alwaysShowLabel={true}
+                    />
+                    <ExpandingButton
+                      onClick={handleCopySigningLink}
+                      label="Link de Firma"
+                      icon={Share2}
+                      variant="outline-teal"
+                      title="Copiar enlace para que los miembros firmen desde su portal"
+                      alwaysShowLabel={true}
+                    />
+                  </>
+                )}
                 <ExpandingButton
                   variant="orange"
-                  icon={<Sparkles className="w-4 h-4" />}
-                  label="Redactar con Tenshi IA"
+                  icon={Sparkles}
+                  label={isGeneratingIA ? 'Redactando con Tenshi...' : 'Redactar con Tenshi IA'}
                   onClick={handleGenerateActaIA}
                   disabled={isGeneratingIA}
                   isLoading={isGeneratingIA}
+                  title="Redactar borrador del acta con Tenshi IA"
+                  alwaysShowLabel={true}
                 />
                 <button
                   type="button"
@@ -1254,34 +1393,47 @@ export default function ConvivenciaWorkspace() {
 
             {/* Asistentes y Firmas Digitales */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <div>
                   <h4 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400 flex items-center gap-1.5">
                     <Users className="w-4 h-4" /> Asistentes y Firmas Digitales ({actaForm.asistentes?.length || 0})
                   </h4>
                   <p className="text-[11px] text-slate-400 dark:text-zinc-400">
-                    Validez jurídica conforme al Dec. 1072/2015 Art. 2.2.4.6.12 para actas oficiales
+                    Los miembros del comité pueden firmar en esta pantalla o directamente desde su portal de colaborador
                   </p>
                 </div>
 
-                <ExpandingButton
-                  variant="outline-teal"
-                  icon={<Plus className="w-3.5 h-3.5" />}
-                  label="Agregar Asistente"
-                  onClick={() => {
-                    const nombre = prompt('Nombre completo del asistente:');
-                    if (!nombre) return;
-                    const cedula = prompt('Número de identificación (C.C.):') || '';
-                    const rol = prompt('Rol o estamento (ej: Representante Empleador, Representante Trabajadores, Asesor Externo):') || 'Miembro CCL';
-                    setActaForm({
-                      ...actaForm,
-                      asistentes: [
-                        ...(actaForm.asistentes || []),
-                        { nombre, cedula, rol, asistio: true, firma: null },
-                      ],
-                    });
-                  }}
-                />
+                <div className="flex items-center gap-2">
+                  <ExpandingButton
+                    variant="secondary"
+                    icon={<RefreshCw className="w-3.5 h-3.5" />}
+                    label="Sincronizar Miembros"
+                    size="sm"
+                    alwaysShowLabel={true}
+                    onClick={handleSyncCommitteeMembersToActa}
+                    title="Convocatoria obligatoria a todos los miembros oficiales del CCL"
+                  />
+                  <ExpandingButton
+                    variant="outline-teal"
+                    icon={<Plus className="w-3.5 h-3.5" />}
+                    label="Agregar Asistente"
+                    size="sm"
+                    alwaysShowLabel={true}
+                    onClick={() => {
+                      const nombre = prompt('Nombre completo del asistente:');
+                      if (!nombre) return;
+                      const cedula = prompt('Número de identificación (C.C.):') || '';
+                      const rol = prompt('Rol o estamento (ej: Representante Empleador, Representante Trabajadores, Asesor Externo):') || 'Miembro CCL';
+                      setActaForm({
+                        ...actaForm,
+                        asistentes: [
+                          ...(actaForm.asistentes || []),
+                          { nombre, cedula, rol, asistio: true, firma: null },
+                        ],
+                      });
+                    }}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1294,8 +1446,11 @@ export default function ConvivenciaWorkspace() {
 
                     <div className="flex items-center gap-1.5 shrink-0">
                       {asistente.firma ? (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
                           <img src={asistente.firma} alt="Firma" className="h-7 max-w-[70px] border border-teal-500/30 rounded bg-white px-1 object-contain" />
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            {asistente.firmadoDesde === 'portal_trabajador' ? 'Portal' : 'Firmado'}
+                          </span>
                           <button
                             type="button"
                             onClick={() => {
@@ -1310,15 +1465,26 @@ export default function ConvivenciaWorkspace() {
                           </button>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => setSigningAssistantIndex(aIdx)}
-                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-2 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 text-[10px] font-bold"
-                          title="Firmar en pantalla táctil / ratón"
-                        >
-                          <PenTool className="w-3 h-3 mr-1" />
-                          <span>Firmar</span>
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyWorkerSignLink(asistente.cedula)}
+                            className="flex h-7 items-center justify-center rounded-lg px-2 shadow-xs active:scale-95 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 text-[10px] font-bold border border-amber-200/80 dark:border-amber-800/80"
+                            title="Copiar enlace para enviar por WhatsApp o correo al trabajador"
+                          >
+                            <Share2 className="w-3 h-3 mr-1" />
+                            <span>Link</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSigningAssistantIndex(aIdx)}
+                            className="flex h-7 items-center justify-center rounded-lg px-2 shadow-xs active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 text-[10px] font-bold border border-teal-200/80 dark:border-teal-800/80"
+                            title="Firmar en pantalla táctil / ratón en vivo"
+                          >
+                            <PenTool className="w-3 h-3 mr-1" />
+                            <span>Firmar</span>
+                          </button>
+                        </div>
                       )}
 
                       <button
@@ -1497,12 +1663,14 @@ export default function ConvivenciaWorkspace() {
                 icon={<X className="w-4 h-4" />}
                 label="Cancelar"
                 onClick={() => setShowActaModal(false)}
+                alwaysShowLabel={true}
               />
               <ExpandingButton
                 variant="teal"
                 icon={<CheckCircle2 className="w-4 h-4" />}
                 label="Guardar Acta Trimestral"
                 onClick={handleSaveActa}
+                alwaysShowLabel={true}
               />
             </div>
           </div>
@@ -1632,12 +1800,14 @@ export default function ConvivenciaWorkspace() {
                 icon={<X className="w-4 h-4" />}
                 label="Cancelar"
                 onClick={() => setShowEleccionModal(false)}
+                alwaysShowLabel={true}
               />
               <ExpandingButton
                 variant="teal"
                 icon={<Vote className="w-4 h-4" />}
                 label="Publicar Convocatoria"
                 onClick={handleCreateEleccion}
+                alwaysShowLabel={true}
               />
             </div>
           </div>
@@ -1670,6 +1840,7 @@ export default function ConvivenciaWorkspace() {
                 icon={<X className="w-4 h-4" />}
                 label="Cerrar"
                 onClick={() => setQrModalUrl(null)}
+                alwaysShowLabel={true}
               />
             </div>
           </div>

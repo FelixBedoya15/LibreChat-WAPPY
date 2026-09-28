@@ -2668,7 +2668,276 @@ router.post('/votar/:companyId', async (req, res) => {
     res.status(500).json({ error: 'Error al emitir el voto secreto' });
   }
 });
+// ─── GET /api/public-sgsst/actas-pendientes/:companyId ─────────────────────────
+// Consulta actas de COPASST y Convivencia convocadas al trabajador para firma
+router.get('/actas-pendientes/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const { cedula } = req.query;
+
+    if (!cedula || !String(cedula).trim()) {
+      return res.json({ actas: [], actasPendientes: [], actasFirmadas: [] });
+    }
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const cleanCedula = String(cedula).trim();
+    const digitsOnly = cleanCedula.replace(/\D/g, '');
+    const matchCedula = (c1, c2) => {
+      const s1 = String(c1 || '').trim().toLowerCase();
+      const s2 = String(c2 || '').trim().toLowerCase();
+      if (s1 === s2) return true;
+      const d1 = s1.replace(/\D/g, '');
+      const d2 = s2.replace(/\D/g, '');
+      return d1 && d2 && d1 === d2;
+    };
+
+    const { SgsstCopasstActa } = require('~/models/SgsstCopasst');
+    const { SgsstConvivenciaActa } = require('~/models/SgsstConvivencia');
+
+    // 1. Buscar actas de COPASST donde el colaborador esté registrado como asistente
+    const copasstActas = await SgsstCopasstActa.find({
+      companyId: company._id,
+      estadoActa: { $ne: 'archivada' },
+      $or: [
+        { 'asistentes.cedula': cleanCedula },
+        ...(digitsOnly ? [{ 'asistentes.cedula': digitsOnly }] : []),
+      ],
+    }).sort({ anio: -1, mes: -1, createdAt: -1 }).lean();
+
+    // 2. Buscar actas de Convivencia donde el colaborador esté registrado como asistente
+    const convivenciaActas = await SgsstConvivenciaActa.find({
+      companyId: company._id,
+      estadoActa: { $ne: 'archivada' },
+      $or: [
+        { 'asistentes.cedula': cleanCedula },
+        ...(digitsOnly ? [{ 'asistentes.cedula': digitsOnly }] : []),
+      ],
+    }).sort({ anio: -1, trimestre: -1, createdAt: -1 }).lean();
+
+    const todasActas = [];
+
+    // Mapear COPASST
+    for (const acta of copasstActas) {
+      const miAsistente = (acta.asistentes || []).find((a) => matchCedula(a.cedula, cleanCedula));
+      if (miAsistente) {
+        const haFirmado = Boolean(miAsistente.firma);
+        todasActas.push({
+          _id: acta._id,
+          tipoComite: 'copasst',
+          tituloComite: 'Comité Paritario de Seguridad y Salud en el Trabajo (COPASST)',
+          consecutivo: acta.consecutivo,
+          periodo: `Mes ${acta.mes} de ${acta.anio}`,
+          tipo: acta.tipo === 'extraordinaria' ? 'Sesión Extraordinaria' : 'Sesión Ordinaria Mensual',
+          fecha: acta.fecha,
+          lugar: acta.lugar,
+          hora: `${acta.horaInicio || '08:00'} - ${acta.horaFin || '10:00'}`,
+          miRol: miAsistente.rol || 'Miembro COPASST',
+          miNombre: miAsistente.nombre,
+          miCargo: miAsistente.cargo || '',
+          haFirmado,
+          miFirma: miAsistente.firma || null,
+          firmadoEn: miAsistente.firmadoEn || null,
+          ordenDelDia: acta.ordenDelDia || [],
+          desarrollo: acta.desarrollo || {},
+          temasTratados: [
+            acta.desarrollo?.analisisAccidentalidad,
+            acta.desarrollo?.inspeccionesSeguridad,
+            acta.desarrollo?.capacitacionesYCampanas,
+            acta.desarrollo?.proposicionesVarios,
+          ].filter(Boolean),
+          compromisos: (acta.compromisos || []).map((c) => ({
+            accion: c.accion,
+            responsable: c.responsable,
+            fechaLimite: c.fechaLimite,
+            estado: c.estado || 'pendiente',
+          })),
+          totalAsistentes: acta.asistentes?.length || 0,
+          firmasCompletadas: (acta.asistentes || []).filter((a) => !!a.firma).length,
+          asistentes: (acta.asistentes || []).map((a) => ({
+            nombre: a.nombre,
+            rol: a.rol,
+            cargo: a.cargo,
+            haFirmado: Boolean(a.firma),
+          })),
+        });
+      }
+    }
+
+    // Mapear Convivencia
+    for (const acta of convivenciaActas) {
+      const miAsistente = (acta.asistentes || []).find((a) => matchCedula(a.cedula, cleanCedula));
+      if (miAsistente) {
+        const haFirmado = Boolean(miAsistente.firma);
+        todasActas.push({
+          _id: acta._id,
+          tipoComite: 'convivencia',
+          tituloComite: 'Comité de Convivencia Laboral (COCOLAB)',
+          consecutivo: acta.consecutivo,
+          periodo: `Trimestre Q${acta.trimestre} de ${acta.anio}`,
+          tipo: acta.tipo === 'extraordinaria' ? 'Sesión Extraordinaria' : 'Sesión Ordinaria Trimestral',
+          fecha: acta.fecha,
+          lugar: acta.lugar,
+          hora: `${acta.horaInicio || '09:00'} - ${acta.horaFin || '11:00'}`,
+          miRol: miAsistente.rol || 'Miembro COCOLAB',
+          miNombre: miAsistente.nombre,
+          miCargo: miAsistente.cargo || '',
+          haFirmado,
+          miFirma: miAsistente.firma || null,
+          firmadoEn: miAsistente.firmadoEn || null,
+          ordenDelDia: acta.ordenDelDia || [],
+          desarrollo: acta.desarrollo || {},
+          temasTratados: [
+            acta.desarrollo?.revisionQuejasTrimestre,
+            acta.desarrollo?.campanasPreventivasAcoso,
+            acta.desarrollo?.climaLaboralPsicosocial,
+            acta.desarrollo?.proposicionesVarios,
+          ].filter(Boolean),
+          compromisos: (acta.compromisos || []).map((c) => ({
+            accion: c.accion,
+            responsable: c.responsable,
+            fechaLimite: c.fechaLimite,
+            estado: c.estado || 'pendiente',
+          })),
+          totalAsistentes: acta.asistentes?.length || 0,
+          firmasCompletadas: (acta.asistentes || []).filter((a) => !!a.firma).length,
+          asistentes: (acta.asistentes || []).map((a) => ({
+            nombre: a.nombre,
+            rol: a.rol,
+            cargo: a.cargo,
+            haFirmado: Boolean(a.firma),
+          })),
+        });
+      }
+    }
+
+    const actasPendientes = todasActas.filter((a) => !a.haFirmado);
+    const actasFirmadas = todasActas.filter((a) => a.haFirmado);
+
+    res.json({
+      actas: actasPendientes,
+      actasPendientes,
+      actasFirmadas,
+      totalPendientes: actasPendientes.length,
+      totalFirmadas: actasFirmadas.length,
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] GET /actas-pendientes error:', error);
+    res.status(500).json({ error: 'Error al consultar actas pendientes de firma' });
+  }
+});
+
+// ─── POST /api/public-sgsst/actas/:companyId/firmar & /firmar-acta/:companyId ──
+// Permite al participante firmar digitalmente un acta de su comité desde su portal
+const handleFirmarActa = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const { actaId, tipoComite, cedula, firma } = req.body;
+
+    if (!actaId || !tipoComite || !cedula || !firma) {
+      return res.status(400).json({ error: 'Todos los campos (actaId, tipoComite, cedula, firma) son requeridos' });
+    }
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const cleanCedula = String(cedula).trim();
+    const matchCedula = (c1, c2) => {
+      const s1 = String(c1 || '').trim().toLowerCase();
+      const s2 = String(c2 || '').trim().toLowerCase();
+      if (s1 === s2) return true;
+      const d1 = s1.replace(/\D/g, '');
+      const d2 = s2.replace(/\D/g, '');
+      return d1 && d2 && d1 === d2;
+    };
+
+    const { SgsstCopasstActa } = require('~/models/SgsstCopasst');
+    const { SgsstConvivenciaActa } = require('~/models/SgsstConvivencia');
+
+    let acta = null;
+    const normalizedTipo = String(tipoComite).toLowerCase();
+    if (normalizedTipo === 'copasst') {
+      acta = await SgsstCopasstActa.findOne({ _id: actaId, companyId: company._id });
+    } else if (normalizedTipo === 'convivencia' || normalizedTipo === 'cocolab') {
+      acta = await SgsstConvivenciaActa.findOne({ _id: actaId, companyId: company._id });
+    }
+
+    if (!acta) {
+      return res.status(404).json({ error: 'Acta no encontrada en esta empresa' });
+    }
+
+    const asistenteIdx = (acta.asistentes || []).findIndex((a) => matchCedula(a.cedula, cleanCedula));
+
+    if (asistenteIdx === -1) {
+      return res.status(403).json({ error: 'No figuras en el listado oficial de participantes convocados para esta acta' });
+    }
+
+    // Estampar firma digital con metadatos de trazabilidad jurídica
+    acta.asistentes[asistenteIdx].firma = firma;
+    acta.asistentes[asistenteIdx].firmadoEn = new Date();
+    acta.asistentes[asistenteIdx].firmadoDesde = 'portal_colaborador';
+    acta.asistentes[asistenteIdx].asistio = true;
+
+    // Verificar si ya todos los asistentes convocados firmaron
+    const todosFirmaron = (acta.asistentes || []).every((a) => !!a.firma);
+    if (todosFirmaron) {
+      acta.estadoActa = 'aprobada';
+    } else {
+      acta.estadoActa = 'en_firmas';
+    }
+
+    acta.markModified('asistentes');
+    await acta.save();
+
+    const asistenteNombre = acta.asistentes[asistenteIdx].nombre;
+
+    // Notificar en segundo plano al Coordinador SST y otorgar puntos
+    setImmediate(async () => {
+      try {
+        await Notification.create({
+          user: new mongoose.Types.ObjectId(company.user),
+          type: 'sgsst_firma_acta',
+          title: `Firma Digital de Acta Recibida (${normalizedTipo.toUpperCase()})`,
+          body: `${asistenteNombre} (C.C. ${cleanCedula}) firmó digitalmente el acta ${acta.consecutivo} desde el portal del trabajador.`,
+          metadata: { actaId: acta._id, tipoComite: normalizedTipo, consecutivo: acta.consecutivo },
+        });
+
+        // Gamificación: +50 puntos por cumplimiento de firma legal de acta
+        const SgsstWorker = require('~/models/SgsstWorker');
+        const digitsOnly = cleanCedula.replace(/\D/g, '');
+        const worker = await SgsstWorker.findOne({
+          companyId: company._id,
+          $or: [
+            { cedula: cleanCedula },
+            ...(digitsOnly ? [{ cedula: digitsOnly }] : []),
+          ],
+        });
+        if (worker) {
+          worker.puntosGamificacion = (worker.puntosGamificacion || 0) + 50;
+          await worker.save();
+        }
+      } catch (notifErr) {
+        logger.warn('[Public SGSST] Notification on acta sign error:', notifErr.message);
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `¡Tu firma digital en el acta ${acta.consecutivo} ha sido sellada con éxito con validez jurídica! (+50 pts)`,
+      todosFirmaron,
+      estadoActa: acta.estadoActa,
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] POST /actas/firmar error:', error);
+    res.status(500).json({ error: 'Error al registrar la firma digital del acta' });
+  }
+};
+
+router.post('/actas/:companyId/firmar', handleFirmarActa);
+router.post('/firmar-acta/:companyId', handleFirmarActa);
 
 module.exports = router;
 module.exports.releaseWorkerSession = releaseWorkerSession;
 module.exports.getActiveWorkerSession = getActiveWorkerSession;
+

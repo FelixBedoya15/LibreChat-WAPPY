@@ -596,4 +596,238 @@ router.post('/elecciones/:id/escrutinio', requireJwtAuth, async (req, res) => {
   }
 });
 
+// ─── 10. POST /actas/:id/reporte-oficial — Generar Documento Oficial con Firmas de Participantes ──
+router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const acta = await SgsstConvivenciaActa.findOne({ _id: req.params.id, companyId: company._id });
+    if (!acta) return res.status(404).json({ error: 'Acta no encontrada' });
+
+    const { buildStandardHeader, buildCommitteeSignatureSection } = require('./reportHeader');
+    const PublicReport = require('../../../models/PublicReport');
+    const { v4: uuidv4 } = require('uuid');
+
+    const formattedDate = acta.fecha
+      ? new Date(acta.fecha).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })
+      : new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const headerHtml = buildStandardHeader({
+      title: `ACTA ORDINARIA TRIMESTRAL N° ${acta.consecutivo} - COMITÉ DE CONVIVENCIA LABORAL`,
+      companyInfo: company,
+      date: formattedDate,
+      norm: 'Resolución 3461 de 2025 • Ley 1010 de 2006 • Ley 2365 de 2024',
+      cargo: 'Comité de Convivencia Laboral (COCOLAB)',
+      actividad: `Sesión ${acta.tipo === 'extraordinaria' ? 'Extraordinaria' : 'Ordinaria Trimestral'} - Trimestre Q${acta.trimestre} de ${acta.anio}`,
+    });
+
+    const stats = acta.estadisticasQuejas || {};
+    const estadisticasHtml = `
+      <div style="margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; background-color: #f8fafc; page-break-inside: avoid;">
+        <h3 style="margin: 0 0 10px 0; font-size: 11.5px; font-weight: 800; color: #0f766e; text-transform: uppercase; letter-spacing: 0.5px;">
+          📊 BALANCE ESTADÍSTICO DE CASOS DEL TRIMESTRE (CONFIDENCIALIDAD PROTEGIDA)
+        </h3>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center;">
+          <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px;">
+            <div style="font-size: 16px; font-weight: 900; color: #0f172a;">${stats.quejasRecibidasTrimestre || 0}</div>
+            <div style="font-size: 9.5px; color: #64748b; font-weight: 700; text-transform: uppercase;">Recibidas</div>
+          </div>
+          <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px;">
+            <div style="font-size: 16px; font-weight: 900; color: #0284c7;">${stats.enTramite || 0}</div>
+            <div style="font-size: 9.5px; color: #64748b; font-weight: 700; text-transform: uppercase;">En Trámite</div>
+          </div>
+          <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px;">
+            <div style="font-size: 16px; font-weight: 900; color: #16a34a;">${stats.acuerdosConciliatorios || 0}</div>
+            <div style="font-size: 9.5px; color: #64748b; font-weight: 700; text-transform: uppercase;">Conciliadas</div>
+          </div>
+          <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px;">
+            <div style="font-size: 16px; font-weight: 900; color: #9333ea;">${stats.casosAcosoSexualLey2365 || 0}</div>
+            <div style="font-size: 9.5px; color: #64748b; font-weight: 700; text-transform: uppercase;">Ley 2365 (Sexual)</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const compromisosRows = Array.isArray(acta.compromisos) && acta.compromisos.length > 0
+      ? acta.compromisos
+          .map(
+            (c, idx) => `
+        <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
+          <td style="padding: 8px 10px; font-weight: bold; text-align: center; color: #64748b;">${idx + 1}</td>
+          <td style="padding: 8px 10px; color: #1e293b; font-weight: 600;">${c.accion}</td>
+          <td style="padding: 8px 10px; color: #0f766e; font-weight: bold;">${c.responsable || 'Comité'}</td>
+          <td style="padding: 8px 10px; color: #475569;">${c.fechaLimite || 'Por definir'}</td>
+          <td style="padding: 8px 10px; text-align: center;">
+            <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 9px; font-weight: 800; background-color: ${
+              c.estado === 'cumplido' ? '#dcfce7' : c.estado === 'en_progreso' ? '#e0f2fe' : '#fef3c7'
+            }; color: ${
+              c.estado === 'cumplido' ? '#15803d' : c.estado === 'en_progreso' ? '#0369a1' : '#b45309'
+            }; text-transform: uppercase;">
+              ${c.estado || 'pendiente'}
+            </span>
+          </td>
+        </tr>
+      `
+          )
+          .join('')
+      : `<tr><td colspan="5" style="padding: 12px; text-align: center; color: #94a3b8; font-style: italic; font-size: 11px;">No se registraron compromisos adicionales en esta sesión.</td></tr>`;
+
+    // FIRMAS OBLIGATORIAS: DE LOS PARTICIPANTES DEL COMITÉ (NO LAS GENÉRICAS DE LA EMPRESA)
+    const signaturesHtml = buildCommitteeSignatureSection({
+      asistentes: acta.asistentes,
+      companyInfo: company,
+      tipoComite: 'cocolab',
+    });
+
+    const fullHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 24px; color: #1e293b; background-color: #ffffff; line-height: 1.5;">
+        ${headerHtml}
+
+        <!-- Ficha de la Sesión -->
+        <div style="margin-bottom: 24px; border: 1.5px solid #0f766e; border-radius: 12px; overflow: hidden; page-break-inside: avoid;">
+          <div style="background: linear-gradient(90deg, #0f766e, #0d9488); color: #ffffff; padding: 9px 14px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
+            📌 DATOS GENERALES DE LA SESIÓN ORDINARIA TRIMESTRAL
+          </div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+            <tbody>
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; width: 25%; color: #334155;">Consecutivo Acta:</td>
+                <td style="padding: 8px 12px; font-weight: 700; color: #0f766e; width: 25%;">${acta.consecutivo}</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; width: 25%; color: #334155;">Periodo Evaluado:</td>
+                <td style="padding: 8px 12px; width: 25%;">Trimestre Q${acta.trimestre} de ${acta.anio}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Tipo de Reunión:</td>
+                <td style="padding: 8px 12px; text-transform: capitalize;">${acta.tipo === 'extraordinaria' ? 'Extraordinaria' : 'Ordinaria Trimestral'}</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Horario:</td>
+                <td style="padding: 8px 12px;">${acta.horaInicio || '09:00'} - ${acta.horaFin || '11:00'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Lugar de la Sesión:</td>
+                <td style="padding: 8px 12px;">${acta.lugar || 'Sala Confidencial de Convivencia'}</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Quórum Reglamentario:</td>
+                <td style="padding: 8px 12px; font-weight: bold; color: ${acta.quorumVerificado !== false ? '#15803d' : '#b45309'};">
+                  ${acta.quorumVerificado !== false ? '✓ Quórum Verificado y Válido' : 'Quórum Pendiente'}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        ${estadisticasHtml}
+
+        <!-- Desarrollo Temático -->
+        <div style="margin-bottom: 24px;">
+          <h3 style="margin: 0 0 14px 0; font-size: 13px; font-weight: 800; color: #0f766e; text-transform: uppercase; border-bottom: 2px solid #0f766e; padding-bottom: 6px;">
+            📝 DESARROLLO Y ANÁLISIS DE LA SESIÓN DE CONVIVENCIA
+          </h3>
+
+          ${
+            acta.desarrollo?.revisionQuejasTrimestre
+              ? `
+            <div style="margin-bottom: 14px; page-break-inside: avoid;">
+              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                1. Revisión Periódica de Casos y Trámites Conciliatorios (Sin Nombres Propios)
+              </h4>
+              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
+                ${acta.desarrollo.revisionQuejasTrimestre}
+              </div>
+            </div>
+          `
+              : ''
+          }
+
+          ${
+            acta.desarrollo?.campanasPreventivasAcoso
+              ? `
+            <div style="margin-bottom: 14px; page-break-inside: avoid;">
+              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                2. Campañas Preventivas contra el Acoso Laboral y Acoso Sexual
+              </h4>
+              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
+                ${acta.desarrollo.campanasPreventivasAcoso}
+              </div>
+            </div>
+          `
+              : ''
+          }
+
+          ${
+            acta.desarrollo?.climaLaboralPsicosocial
+              ? `
+            <div style="margin-bottom: 14px; page-break-inside: avoid;">
+              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                3. Monitoreo de Clima Laboral y Riesgo Psicosocial
+              </h4>
+              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
+                ${acta.desarrollo.climaLaboralPsicosocial}
+              </div>
+            </div>
+          `
+              : ''
+          }
+
+          ${
+            acta.desarrollo?.proposicionesVarios
+              ? `
+            <div style="margin-bottom: 14px; page-break-inside: avoid;">
+              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                4. Proposiciones, Varios y Acuerdos
+              </h4>
+              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
+                ${acta.desarrollo.proposicionesVarios}
+              </div>
+            </div>
+          `
+              : ''
+          }
+        </div>
+
+        <!-- Compromisos -->
+        <div style="margin-bottom: 24px; page-break-inside: avoid;">
+          <h3 style="margin: 0 0 10px 0; font-size: 12.5px; font-weight: 800; color: #0f766e; text-transform: uppercase; letter-spacing: 0.5px;">
+            🎯 PLAN DE ACCIÓN Y MEDIDAS CONCERTADAS
+          </h3>
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+            <thead>
+              <tr style="background-color: #f1f5f9; color: #475569; font-size: 10.5px; font-weight: 800; text-transform: uppercase;">
+                <th style="padding: 8px 10px; width: 6%; text-align: center;">#</th>
+                <th style="padding: 8px 10px; width: 44%; text-align: left;">Acción / Compromiso</th>
+                <th style="padding: 8px 10px; width: 22%; text-align: left;">Responsable</th>
+                <th style="padding: 8px 10px; width: 16%; text-align: left;">Fecha Límite</th>
+                <th style="padding: 8px 10px; width: 12%; text-align: center;">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${compromisosRows}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Firmas Oficiales de los Participantes de Convivencia -->
+        ${signaturesHtml}
+      </div>
+    `;
+
+    const reportId = uuidv4();
+    const publicReport = new PublicReport({
+      id: reportId,
+      content: fullHtml,
+      fileName: `Acta-COCOLAB-${acta.consecutivo}`,
+      reportType: 'general',
+    });
+    await publicReport.save();
+
+    res.json({
+      success: true,
+      reportId,
+      url: `/report/${reportId}`,
+    });
+  } catch (error) {
+    logger.error('[CONVIVENCIA] POST /actas/:id/reporte-oficial error:', error);
+    res.status(500).json({ error: 'Error al generar el reporte oficial con firmas' });
+  }
+});
+
 module.exports = router;

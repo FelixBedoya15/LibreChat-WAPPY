@@ -6,13 +6,16 @@ export interface ExpandingButtonProps {
   id?: string;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   label: string;
-  icon: React.ComponentType<{ className?: string }> | React.ReactNode;
+  icon?: React.ComponentType<{ className?: string }> | React.ReactNode;
   variant?: 'teal' | 'orange' | 'secondary' | 'rose' | 'outline-teal';
   disabled?: boolean;
   isLoading?: boolean;
   title?: string;
   type?: 'button' | 'submit' | 'reset';
   className?: string;
+  /** Si es true, el texto siempre está visible (estilo pill WAPPY). Si es false (default), se expande al hover. */
+  alwaysShowLabel?: boolean;
+  size?: 'sm' | 'md';
 }
 
 export const ExpandingButton: React.FC<ExpandingButtonProps> = ({
@@ -26,6 +29,8 @@ export const ExpandingButton: React.FC<ExpandingButtonProps> = ({
   title,
   type = 'button',
   className = '',
+  alwaysShowLabel = false,
+  size = 'md',
 }) => {
   const variantClass = {
     teal: 'bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white border-teal-600/80 shadow-md shadow-teal-600/20',
@@ -34,6 +39,25 @@ export const ExpandingButton: React.FC<ExpandingButtonProps> = ({
     'outline-teal': 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800/80 hover:bg-teal-100 dark:hover:bg-teal-900/40 shadow-sm',
     rose: 'bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white border-rose-600/80 shadow-md shadow-rose-600/20',
   }[variant];
+
+  const sizeClass = size === 'sm'
+    ? 'h-7 min-w-[28px] px-2 text-[11px]'
+    : 'h-9 min-w-[36px] px-3 text-xs';
+
+  const iconSizeClass = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4';
+
+  const renderIcon = () => {
+    if (isLoading) {
+      return <Loader2 className={cn(iconSizeClass, 'animate-spin text-current shrink-0')} />;
+    }
+    if (!Icon) return null;
+    if (React.isValidElement(Icon)) {
+      return Icon;
+    }
+    // Soporta componentes Lucide regulares, forwardRef y memo
+    const Component = Icon as React.ElementType;
+    return <Component className={cn(iconSizeClass, 'shrink-0')} />;
+  };
 
   return (
     <button
@@ -44,28 +68,29 @@ export const ExpandingButton: React.FC<ExpandingButtonProps> = ({
       title={title || label}
       aria-label={title || label}
       className={cn(
-        'group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50',
+        'group flex shrink-0 cursor-pointer items-center justify-center rounded-xl border font-bold shadow-sm outline-none transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50',
+        sizeClass,
         variantClass,
         className,
       )}
     >
       <div className="relative flex shrink-0 items-center justify-center">
-        {isLoading ? (
-          <Loader2 className="h-4 w-4 animate-spin text-current" />
-        ) : React.isValidElement(Icon) ? (
-          Icon
-        ) : typeof Icon === 'function' ? (
-          <Icon className="h-4 w-4" />
-        ) : null}
+        {renderIcon()}
       </div>
 
-      <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[280px] group-hover:opacity-100 sm:flex">
-        <span className="text-xs font-bold tracking-wide">{label}</span>
-      </div>
-
-      <span className="text-xs font-bold sm:hidden ml-1.5">{label}</span>
+      {alwaysShowLabel ? (
+        <span className="ml-1.5 whitespace-nowrap">{label}</span>
+      ) : (
+        <>
+          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[300px] group-hover:opacity-100 sm:flex">
+            <span className="tracking-wide">{label}</span>
+          </div>
+          <span className="sm:hidden ml-1.5 whitespace-nowrap">{label}</span>
+        </>
+      )}
     </button>
   );
 };
 
 export default ExpandingButton;
+

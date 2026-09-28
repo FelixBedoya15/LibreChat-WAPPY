@@ -148,6 +148,8 @@ const convivenciaActaSchema = new mongoose.Schema(
         rol: { type: String, default: 'Miembro' },
         asistio: { type: Boolean, default: true },
         firma: { type: String, default: null },
+        firmadoEn: { type: Date, default: null },
+        firmadoDesde: { type: String, default: null }, // 'portal_trabajador' | 'admin'
       },
     ],
     // Informe estadístico de quejas (completamente anonimizado para preservar la intimidad)

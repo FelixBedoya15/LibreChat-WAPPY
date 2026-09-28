@@ -174,6 +174,8 @@ const copasstActaSchema = new mongoose.Schema(
         rol: { type: String, default: 'Miembro' },
         asistio: { type: Boolean, default: true },
         firma: { type: String, default: null }, // Base64 signature
+        firmadoEn: { type: Date, default: null },
+        firmadoDesde: { type: String, default: null }, // 'portal_trabajador' | 'admin'
       },
     ],
     // Desarrollo temático estructurado
