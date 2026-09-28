@@ -89,45 +89,34 @@ export default function LandingPage() {
       {/* Floating Capsule Navbar */}
       <nav className="mkt-nav" aria-label="Navegación principal">
         <div className={`mkt-nav-inner ${isScrolled ? 'scrolled' : ''}`}>
-          <a className="mkt-nav-logo" aria-label="Wappy SST & PESV" href="/landing">
-            <img src="/marketing/wappy-wordmark.png" alt="Wappy" />
+          <a className="mkt-nav-logo" aria-label="WAPPY IA - Ecosistema SST y PESV" href="/landing">
+            <img src="/marketing/wappy-cat-logo.png" alt="WAPPY Logo" className="mkt-logo-icon" />
+            <div className="mkt-logo-text">
+              <span className="mkt-logo-title">WAPPY<span>IA</span></span>
+              <span className="mkt-logo-sub">SST & PESV</span>
+            </div>
           </a>
 
           <div className="mkt-nav-links">
-            <a href="#modulos">{lang === 'es' ? 'Módulos SST' : 'SST Modules'}</a>
-            <a href="#tenshi">{lang === 'es' ? 'Tenshi IA' : 'Tenshi AI'}</a>
-            <a href="#pesv">{lang === 'es' ? 'PESV & Riesgos' : 'PESV & Risks'}</a>
-            <a href="#movil">{lang === 'es' ? 'App Móvil' : 'Mobile App'}</a>
-            <a href="#pricing">{lang === 'es' ? 'Planes' : 'Pricing'}</a>
-            <a href="#faq">FAQ</a>
+            <a href="#modulos" title="Somos SST: Estructura Integral">Somos SST</a>
+            <a href="#tenshi" title="Ecosistema de Agentes de IA Especializados">Agentes IA</a>
+            <a href="#pesv" title="PESV Res. 20223040040595 & Riesgos">PESV & Riesgos</a>
+            <a href="#movil" title="Visión por Cámara y Bot de WhatsApp">Visión & Móvil</a>
+            <a href="#pricing" title="Planes para Mipymes, Empresas y ARL">Planes</a>
+            <a href="#faq" title="Preguntas Frecuentes">FAQ</a>
           </div>
 
           <div className="mkt-nav-cta">
-            <div className="lang-toggle" role="group" aria-label="Language">
-              <button
-                type="button"
-                className={lang === 'es' ? 'active' : ''}
-                onClick={() => setLang('es')}
-                aria-pressed={lang === 'es'}
-              >
-                ES
-              </button>
-              <button
-                type="button"
-                className={lang === 'en' ? 'active' : ''}
-                onClick={() => setLang('en')}
-                aria-pressed={lang === 'en'}
-              >
-                EN
-              </button>
-            </div>
+            <span className="mkt-country-badge">
+              🇨🇴 Colombia · Res. 0312
+            </span>
 
             <button type="button" className="btn btn-ghost mkt-nav-signin" onClick={handleLogin}>
-              {isAuthenticated ? (lang === 'es' ? 'Ir al Chat' : 'Go to Chat') : (lang === 'es' ? 'Iniciar sesión' : 'Sign in')}
+              {isAuthenticated ? 'Ir al Chat' : 'Iniciar sesión'}
             </button>
 
             <button type="button" className="btn btn-lime btn-sm" onClick={() => setIsDemoModalOpen(true)}>
-              {lang === 'es' ? 'Agendar demo' : 'Book a demo'}
+              Agendar demo
             </button>
           </div>
         </div>
@@ -142,34 +131,21 @@ export default function LandingPage() {
         <div className="wrap hero-inner">
           <span className="trial">
             <span className="tdot"></span>
-            {lang === 'es'
-              ? 'El Primer Ecosistema de IA para SG-SST y PESV en Colombia'
-              : 'The First AI Ecosystem for OHS & Road Safety in Colombia'}
+            El Primer Ecosistema de IA para SG-SST y PESV en Colombia
           </span>
 
           <h1 className="display">
-            {lang === 'es' ? (
-              <>
-                Automatiza tu SG-SST y PESV,<br />
-                <span className="t2">con agentes expertos e IA en tiempo real.</span>
-              </>
-            ) : (
-              <>
-                Automate your OHS & Road Safety,<br />
-                <span className="t2">with expert AI agents in real time.</span>
-              </>
-            )}
+            Automatiza tu SG-SST y PESV,<br />
+            <span className="t2">con agentes expertos e IA en tiempo real.</span>
           </h1>
 
           <p className="sub">
-            {lang === 'es'
-              ? 'WAPPY unifica comités (COPASST, Convivencia), matrices GTC 45, PESV (Res. 20223040040595), química SGA, ergonomía EPT y academia LMS en una plataforma autónoma conectada a WhatsApp.'
-              : 'WAPPY unifies safety committees, risk matrices, road safety plans, chemical SGA, ergonomics, and LMS academy in one autonomous platform connected to WhatsApp.'}
+            WAPPY unifica comités (COPASST, Convivencia), matrices GTC 45, PESV (Res. 20223040040595), química SGA, ergonomía EPT y academia LMS en una plataforma autónoma conectada a WhatsApp.
           </p>
 
           <div className="hero-cta">
             <button className="btn btn-primary" onClick={handleStartTrial}>
-              {lang === 'es' ? 'Comenzar prueba gratis' : 'Start free trial'}
+              Comenzar prueba gratis
               <span className="pip">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -178,7 +154,7 @@ export default function LandingPage() {
               </span>
             </button>
             <button className="btn btn-glass" onClick={() => setIsDemoModalOpen(true)}>
-              {lang === 'es' ? 'Ver demo en vivo' : 'Watch live demo'}
+              Ver demo en vivo
             </button>
           </div>
 
@@ -204,63 +180,119 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Floating Interactive Stage */}
+        {/* Floating Interactive Stage (6 Tarjetas Flotantes en Vivo) */}
         <div className="wrap">
           <div className="hero-stage">
             {/* Float Card 1: COPASST Digital */}
-            <div className="float" style={{ top: 0, left: '2%', width: 310, padding: 14 }}>
+            <div className="float" style={{ top: 0, left: '1%', width: 295, padding: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <span style={{ width: 36, height: 36, borderRadius: 9999, background: '#E8EAFF', color: '#4852ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
                   CP
                 </span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>Acta Mensual COPASST</div>
-                  <div style={{ fontSize: 11, color: '#9A9AA8' }}>Res. 0312 · {lang === 'es' ? 'Firmada con QR' : 'Signed via QR'}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>Acta Mensual COPASST</div>
+                  <div style={{ fontSize: 11, color: '#64748B' }}>Res. 0312 · Firmada con QR</div>
                 </div>
-                <span style={{ background: '#C7F303', color: '#0E1300', fontSize: 10, fontWeight: 700, borderRadius: 9999, padding: '2px 8px' }}>
-                  {lang === 'es' ? 'APROBADA' : 'APPROVED'}
+                <span style={{ background: '#DCFCE7', color: '#15803D', fontSize: 10, fontWeight: 700, borderRadius: 9999, padding: '3px 8px' }}>
+                  APROBADA
                 </span>
               </div>
-              <div style={{ background: '#F2F3F5', borderRadius: '4px 12px 12px 12px', padding: '8px 11px', fontSize: 12.5, lineHeight: 1.4 }}>
-                {lang === 'es'
-                  ? 'Se aprueba inspección a bodega norte y cronograma de simulacro de evacuación.'
-                  : 'North warehouse inspection approved along with evacuation drill schedule.'}
+              <div style={{ background: '#F8FAFC', borderRadius: '4px 12px 12px 12px', padding: '9px 11px', fontSize: 12, lineHeight: 1.45, color: '#334155' }}>
+                Se aprueba inspección a bodega norte y cronograma de simulacro con quórum 100%.
               </div>
             </div>
 
             {/* Float Card 2: Tenshi Orquestador */}
-            <div className="float" style={{ top: 120, right: '2%', width: 300, padding: 14, animationDelay: '1.4s' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 9 }}>
-                <span style={{ width: 24, height: 24, borderRadius: 7, background: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2">
+            <div className="float" style={{ top: 15, right: '1%', width: 310, padding: 14, animationDelay: '1.2s' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
+                <span style={{ width: 26, height: 26, borderRadius: 8, background: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2.2">
                     <path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"></path>
                   </svg>
                 </span>
-                <span style={{ fontSize: 12.5, fontWeight: 700 }}>Tenshi IA</span>
-                <span style={{ fontSize: 11, color: '#9A9AA8' }}>{lang === 'es' ? 'auditoría en vivo' : 'live audit'}</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: '#0F172A' }}>Tenshi IA</span>
+                <span style={{ fontSize: 10.5, color: '#64748B' }}>auditoría autónoma</span>
+                <span style={{ marginLeft: 'auto', background: '#FEF08A', color: '#854D0E', fontSize: 9.5, fontWeight: 700, borderRadius: 9999, padding: '2px 7px' }}>
+                  EN VIVO
+                </span>
               </div>
-              <div style={{ background: '#C7F303', borderRadius: 12, padding: '9px 12px', fontSize: 12, fontWeight: 500, color: '#0E1300', lineHeight: 1.4 }}>
-                {lang === 'es'
-                  ? 'Matriz PESV actualizada según Res. 20223040040595: 14 inspecciones preoperacionales sin no conformidades críticas 💚'
-                  : 'PESV matrix updated per Res. 20223040040595: 14 pre-trip inspections passed with 0 critical findings 💚'}
+              <div style={{ background: '#C7F303', borderRadius: 12, padding: '10px 12px', fontSize: 12, fontWeight: 600, color: '#0E1300', lineHeight: 1.45 }}>
+                Matriz PESV actualizada según Res. 20223040040595: 14 inspecciones preoperacionales sin no conformidades críticas 💚
               </div>
             </div>
 
-            {/* Float Card 3: Cumplimiento Normativo */}
-            <div className="float" style={{ bottom: 0, left: '32%', width: 240, padding: 16, animationDelay: '0.7s' }}>
-              <div style={{ fontSize: 11, color: '#9A9AA8', fontWeight: 600 }}>
-                {lang === 'es' ? 'Estándares Res. 0312' : 'Standards Res. 0312'}
+            {/* Float Card 3: Cumplimiento Normativo Res. 0312 */}
+            <div className="float" style={{ top: 155, left: '37%', width: 235, padding: 16, animationDelay: '0.6s' }}>
+              <div style={{ fontSize: 11, color: '#64748B', fontWeight: 700 }}>
+                Estándares Res. 0312 · ARL
               </div>
-              <div className="display" style={{ fontWeight: 600, fontSize: 34, letterSpacing: '-0.03em', color: '#40AD5A' }}>
+              <div className="display" style={{ fontWeight: 800, fontSize: 34, letterSpacing: '-0.03em', color: '#16A34A', marginTop: 2 }}>
                 98.5%
               </div>
-              <div style={{ display: 'flex', gap: 3, marginTop: 6 }}>
-                <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#40AD5A' }}></span>
-                <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#40AD5A' }}></span>
-                <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#40AD5A' }}></span>
+              <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+                <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#16A34A' }}></span>
+                <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#16A34A' }}></span>
+                <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#16A34A' }}></span>
               </div>
-              <div style={{ fontSize: 10, color: '#0A5818', fontWeight: 700, marginTop: 6 }}>
-                {lang === 'es' ? 'NIVEL ACEPTABLE (VIGENTE)' : 'ACCEPTABLE LEVEL (ACTIVE)'}
+              <div style={{ fontSize: 10, color: '#15803D', fontWeight: 800, marginTop: 7, letterSpacing: '0.02em' }}>
+                NIVEL ACEPTABLE (VIGENTE)
+              </div>
+            </div>
+
+            {/* Float Card 4: Visión por Cámara · Ergonomía Postural OWAS */}
+            <div className="float" style={{ top: 175, left: '0%', width: 300, padding: 14, animationDelay: '2.1s' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 9 }}>
+                <span style={{ width: 30, height: 30, borderRadius: 9999, background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
+                  📹
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>Visión IA · Ergonomía Postural</div>
+                  <div style={{ fontSize: 10.5, color: '#64748B' }}>Cámara en tiempo real</div>
+                </div>
+                <span style={{ background: '#FFEDD5', color: '#C2410C', fontSize: 10, fontWeight: 700, borderRadius: 9999, padding: '3px 8px' }}>
+                  OWAS Nivel 2
+                </span>
+              </div>
+              <div style={{ background: '#F8FAFC', borderRadius: '4px 12px 12px 12px', padding: '9px 11px', fontSize: 11.5, lineHeight: 1.45, color: '#334155' }}>
+                Ángulo de tronco: 38° detectado en puesto de empaque. Alerta de pausa activa y estiramiento despachada.
+              </div>
+            </div>
+
+            {/* Float Card 5: Química SGA & Incompatibilidad */}
+            <div className="float" style={{ top: 195, right: '0%', width: 305, padding: 14, animationDelay: '1.6s' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 9 }}>
+                <span style={{ width: 30, height: 30, borderRadius: 9999, background: '#FEE2E2', color: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
+                  ⚗️
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>Matriz SGA · Riesgo Químico</div>
+                  <div style={{ fontSize: 10.5, color: '#64748B' }}>Sustancias Peligrosas</div>
+                </div>
+                <span style={{ background: '#FEE2E2', color: '#B91C1C', fontSize: 10, fontWeight: 800, borderRadius: 9999, padding: '3px 8px' }}>
+                  INCOMPATIBLE ⛔
+                </span>
+              </div>
+              <div style={{ background: '#FFF1F2', border: '1px solid #FFE4E6', borderRadius: '4px 12px 12px 12px', padding: '9px 11px', fontSize: 11.5, lineHeight: 1.45, color: '#9F1239' }}>
+                Ácido Nítrico + Solvente Orgánico: Riesgo de reacción exotérmica. Segregación física obligatoria en Bodega 2.
+              </div>
+            </div>
+
+            {/* Float Card 6: WhatsApp Bot · Inspección Preoperacional PESV */}
+            <div className="float" style={{ top: 335, left: '26%', width: 350, padding: 14, animationDelay: '2.7s' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: '#25D366', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>
+                  💬
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>WhatsApp Bot · Flota PESV</div>
+                  <div style={{ fontSize: 10.5, color: '#64748B' }}>Furgón WPY-482 · Conductor Carlos M.</div>
+                </div>
+                <span style={{ background: '#DCFCE7', color: '#15803D', fontSize: 10, fontWeight: 800, borderRadius: 9999, padding: '3px 8px' }}>
+                  CONFORME ✓
+                </span>
+              </div>
+              <div style={{ background: '#F0FDF4', border: '1px solid #DCFCE7', borderRadius: '4px 12px 12px 12px', padding: '8px 12px', fontSize: 11.5, lineHeight: 1.4, color: '#166534' }}>
+                Inspección de frenos, llantas y kit de carretera validada con foto y GPS a las 06:15 a.m. sin alertas críticas.
               </div>
             </div>
           </div>
@@ -1353,7 +1385,10 @@ export default function LandingPage() {
 
         <div className="wrap">
           <div className="foot-cta">
-            <img src="/marketing/wappy-wordmark.png" alt="Wappy" />
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 }}>
+              <img src="/marketing/wappy-cat-logo.png" alt="WAPPY Logo" style={{ height: 44, width: 44, objectFit: 'contain' }} />
+              <span style={{ fontFamily: 'var(--display)', fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>WAPPY<span style={{ color: '#16a34a' }}>IA</span></span>
+            </div>
             <h3 className="display">{lang === 'es' ? 'La seguridad de tu equipo es primero.' : 'Your team’s safety comes first.'}</h3>
             <p>
               {lang === 'es'
@@ -1378,7 +1413,10 @@ export default function LandingPage() {
 
           <div className="foot-top">
             <div className="foot-brand">
-              <img src="/marketing/wappy-wordmark.png" alt="Wappy" />
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
+                <img src="/marketing/wappy-cat-logo.png" alt="WAPPY Logo" style={{ height: 36, width: 36, objectFit: 'contain' }} />
+                <span style={{ fontFamily: 'var(--display)', fontSize: 21, fontWeight: 800, color: 'var(--ink)' }}>WAPPY<span style={{ color: '#16a34a' }}>IA</span></span>
+              </div>
               <p>
                 {lang === 'es'
                   ? 'El primer ecosistema de inteligencia artificial para SG-SST y PESV en Colombia.'
