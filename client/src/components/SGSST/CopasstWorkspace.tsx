@@ -36,6 +36,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
 import { SignaturePad } from './SignaturePad';
 import ExpandingButton from './ExpandingButton';
+import WorkerAutocomplete from './WorkerAutocomplete';
 
 interface CopasstWorkspaceProps {
   // Optional props
@@ -102,7 +103,32 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
 
       setConfig(resConfig.data);
       setActas(resActas.data.actas || []);
-      setWorkers(resWorkers.data.workers || []);
+      let loadedWorkers = resWorkers.data.workers || [];
+
+      // Fallback a perfil sociodemográfico si workers viene vacío o con pocos registros
+      try {
+        const resSocio = await axios.get('/api/sgsst/perfil-sociodemografico/data', { headers });
+        if (resSocio.data?.trabajadores?.length) {
+          const cedulas = new Set(loadedWorkers.map((w: any) => String(w.cedula || w.identificacion || '').trim()));
+          resSocio.data.trabajadores.forEach((tw: any) => {
+            const c = String(tw.identificacion || '').trim();
+            if (c && !cedulas.has(c)) {
+              cedulas.add(c);
+              loadedWorkers.push({
+                nombre: tw.nombre,
+                cedula: c,
+                identificacion: c,
+                cargo: tw.cargo || '',
+                area: tw.area || '',
+              });
+            }
+          });
+        }
+      } catch (e) {
+        // Ignorar si no hay perfil
+      }
+
+      setWorkers(loadedWorkers);
       setElecciones(resElecciones.data.elecciones || []);
     } catch (err) {
       console.error('Error fetching copasst data:', err);
@@ -1356,28 +1382,35 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                   ))}
                 </div>
 
-                {/* Formulario rápido para añadir candidato */}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Nombre completo..."
+                {/* Formulario con Autocompletado de Trabajadores para Postulación */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <WorkerAutocomplete
                     value={newCandidato.nombre}
-                    onChange={(e) => setNewCandidato({ ...newCandidato, nombre: e.target.value })}
-                    className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
+                    onChange={(val) => setNewCandidato({ ...newCandidato, nombre: val })}
+                    onSelect={(w) => {
+                      setNewCandidato({
+                        nombre: w.nombre,
+                        cedula: w.identificacion || w.cedula || '',
+                        cargo: w.cargo || '',
+                      });
+                    }}
+                    data={workers}
+                    placeholder="Buscar o escribir trabajador..."
+                    wrapperClassName="flex-1"
                   />
                   <input
                     type="text"
                     placeholder="Cédula..."
                     value={newCandidato.cedula}
                     onChange={(e) => setNewCandidato({ ...newCandidato, cedula: e.target.value })}
-                    className="w-28 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
+                    className="w-full sm:w-28 px-2.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
                   />
                   <input
                     type="text"
                     placeholder="Cargo..."
                     value={newCandidato.cargo}
                     onChange={(e) => setNewCandidato({ ...newCandidato, cargo: e.target.value })}
-                    className="w-28 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
+                    className="w-full sm:w-28 px-2.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
                   />
                   <ExpandingButton
                     onClick={() => {
@@ -1391,7 +1424,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                       });
                       setNewCandidato({ nombre: '', cargo: '', cedula: '' });
                     }}
-                    label="Agregar"
+                    label="Añadir Candidato"
                     icon={Plus}
                     variant="teal"
                     title="Añadir candidato a la lista"
@@ -1407,7 +1440,6 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 icon={X}
                 variant="secondary"
                 title="Cancelar y cerrar convocatoria"
-                alwaysShowLabel={true}
               />
               <ExpandingButton
                 onClick={handleCreateEleccion}
@@ -1415,7 +1447,6 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 icon={Vote}
                 variant="orange"
                 title="Publicar convocatoria y abrir urna digital"
-                alwaysShowLabel={true}
               />
             </div>
           </div>

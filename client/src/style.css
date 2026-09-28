@@ -340,6 +340,73 @@ html {
   background-color: rgba(6, 95, 70, 0.1) !important;
 }
 
+.saas {
+  --brand-purple: #0f172a;
+  --presentation: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-secondary-alt: #64748b;
+  --text-tertiary: #94a3b8;
+  --text-warning: #f59e0b;
+  --ring-primary: #0f172a;
+  --header-primary: #ffffff;
+  --header-hover: #f8fafc;
+  --header-button-hover: #f1f5f9;
+  --surface-active: #f1f5f9;
+  --surface-active-alt: #e2e8f0;
+  --surface-hover: #f8fafc;
+  --surface-hover-alt: #f1f5f9;
+  --surface-primary: #ffffff;
+  --surface-primary-alt: #f8fafc;
+  --surface-primary-contrast: #f1f5f9;
+  --surface-secondary: #f8fafc;
+  --surface-secondary-alt: #f1f5f9;
+  --surface-tertiary: #f1f5f9;
+  --surface-tertiary-alt: #ffffff;
+  --surface-dialog: #ffffff;
+  --surface-submit: #0f172a;
+  --surface-submit-hover: #1e293b;
+  --surface-destructive: #ef4444;
+  --surface-destructive-hover: #dc2626;
+  --surface-chat: #ffffff;
+  --border-light: #f1f5f9;
+  --border-medium-alt: #e2e8f0;
+  --border-medium: #e2e8f0;
+  --border-heavy: #cbd5e1;
+  --border-xheavy: #94a3b8;
+
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --primary: 222 47% 11%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 222 47% 11%;
+}
+
+.saas .bg-chat-input {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.03) !important;
+  border-radius: 1rem !important;
+}
+
+.saas .conversation-layout,
+.saas main {
+  background-image: radial-gradient(#e2e8f0 1px, transparent 1px) !important;
+  background-size: 24px 24px !important;
+}
+
 .bg-surface-primary {
   background-color: var(--surface-primary);
 }

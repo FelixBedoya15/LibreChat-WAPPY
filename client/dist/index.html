@@ -40,19 +40,25 @@
     }
   </style>
   <script>
-    const theme = localStorage.getItem('color-theme');
+    const theme = localStorage.getItem('color-theme') || 'saas';
+    const isSaasDefaultSet = localStorage.getItem('wappy_saas_default_v1');
+    const effectiveTheme = !isSaasDefaultSet ? 'saas' : theme;
     const loadingContainerStyle = document.createElement('style');
-    let backgroundColor;
+    let backgroundColor = '#ffffff';
 
-    if (theme === 'dark') {
+    if (effectiveTheme === 'dark') {
       backgroundColor = '#0d0d0d';
-    } else if (theme === 'light') {
-      backgroundColor = '#ffffff';
-    } else if (theme === 'system') {
+    } else if (effectiveTheme === 'green') {
+      backgroundColor = '#064e3b';
+    } else if (effectiveTheme === 'system') {
       const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
       backgroundColor = prefersDarkScheme ? '#0d0d0d' : '#ffffff';
     } else {
       backgroundColor = '#ffffff';
+    }
+
+    if (effectiveTheme === 'saas') {
+      document.documentElement.classList.add('saas', 'light');
     }
 
     loadingContainerStyle.innerHTML = `
@@ -81,7 +87,7 @@
   <script type="module" crossorigin src="./assets/math-katex.D41sMH58.js"></script>
   <script type="module" crossorigin src="./assets/vendor.Bnzh2baz.js"></script>
   <script type="module" crossorigin src="./assets/i18n.BogZSpC_.js"></script>
-  <script type="module" crossorigin src="./assets/locales.DpJeI0Bg.js"></script>
+  <script type="module" crossorigin src="./assets/locales.NFC5-YvC.js"></script>
   <script type="module" crossorigin src="./assets/routing.Ca3SnIpM.js"></script>
   <script type="module" crossorigin src="./assets/radix-ui.DmYc3HPj.js"></script>
   <script type="module" crossorigin src="./assets/utilities.BjsdvwEO.js"></script>
@@ -100,21 +106,21 @@
   <script type="module" crossorigin src="./assets/plans-module.BfD8pUsW.js"></script>
   <script type="module" crossorigin src="./assets/security-ui.mlaqinE8.js"></script>
   <script type="module" crossorigin src="./assets/markdown-processing.Dey_ru0B.js"></script>
-  <script type="module" crossorigin src="./assets/blog-modules.BJFaLmw2.js"></script>
+  <script type="module" crossorigin src="./assets/blog-modules.CvflFv-u.js"></script>
   <script type="module" crossorigin src="./assets/sgsst-assets.KdMSUpxn.js"></script>
-  <script type="module" crossorigin src="./assets/kanban-module.B9nGLDIG.js"></script>
-  <script type="module" crossorigin src="./assets/events-modules.Dee5r29l.js"></script>
-  <script type="module" crossorigin src="./assets/lms-modules.BZ9JMH6j.js"></script>
-  <script type="module" crossorigin src="./assets/sgsst-modules.r6Bj2BlE.js"></script>
+  <script type="module" crossorigin src="./assets/kanban-module.V2rTkA_s.js"></script>
+  <script type="module" crossorigin src="./assets/events-modules.Cy3QIBXK.js"></script>
+  <script type="module" crossorigin src="./assets/lms-modules.Cl6C9beW.js"></script>
+  <script type="module" crossorigin src="./assets/sgsst-modules.DOj-v6Du.js"></script>
   <script type="module" crossorigin src="./assets/codemirror-state.1WAhZPVj.js"></script>
   <script type="module" crossorigin src="./assets/codemirror-view.flzQ51V_.js"></script>
   <script type="module" crossorigin src="./assets/codemirror-language.DCbFGYCs.js"></script>
   <script type="module" crossorigin src="./assets/codemirror-core.L5dB7MSM.js"></script>
   <script type="module" crossorigin src="./assets/sandpack.D8HPOeiG.js"></script>
   <script type="module" crossorigin src="./assets/canvas-templates.CbZA7wTs.js"></script>
-  <script type="module" crossorigin src="./assets/index.BdEJntWH.js"></script>
+  <script type="module" crossorigin src="./assets/index.DvtouH-Y.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/math-katex.sdXCKFqw.css">
-  <link rel="stylesheet" crossorigin href="./assets/index.4gz7y4TG.css">
+  <link rel="stylesheet" crossorigin href="./assets/index.Cvn1n-Mk.css">
 <link rel="manifest" href="./manifest.webmanifest" crossorigin="use-credentials"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
 
 <body>

@@ -40,19 +40,25 @@
     }
   </style>
   <script>
-    const theme = localStorage.getItem('color-theme');
+    const theme = localStorage.getItem('color-theme') || 'saas';
+    const isSaasDefaultSet = localStorage.getItem('wappy_saas_default_v1');
+    const effectiveTheme = !isSaasDefaultSet ? 'saas' : theme;
     const loadingContainerStyle = document.createElement('style');
-    let backgroundColor;
+    let backgroundColor = '#ffffff';
 
-    if (theme === 'dark') {
+    if (effectiveTheme === 'dark') {
       backgroundColor = '#0d0d0d';
-    } else if (theme === 'light') {
-      backgroundColor = '#ffffff';
-    } else if (theme === 'system') {
+    } else if (effectiveTheme === 'green') {
+      backgroundColor = '#064e3b';
+    } else if (effectiveTheme === 'system') {
       const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
       backgroundColor = prefersDarkScheme ? '#0d0d0d' : '#ffffff';
     } else {
       backgroundColor = '#ffffff';
+    }
+
+    if (effectiveTheme === 'saas') {
+      document.documentElement.classList.add('saas', 'light');
     }
 
     loadingContainerStyle.innerHTML = `

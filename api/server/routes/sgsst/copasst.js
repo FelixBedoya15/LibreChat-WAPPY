@@ -172,12 +172,33 @@ router.get('/trabajadores', requireJwtAuth, async (req, res) => {
     const company = await getActiveCompany(req.user.id);
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
 
-    const workers = await SgsstWorker.find({ companyId: company._id, estado: { $ne: 'retirado' } })
+    let workers = await SgsstWorker.find({ companyId: company._id, estado: { $ne: 'retirado' } })
       .select('nombre cedula cargo area email telefono')
       .sort({ nombre: 1 })
       .lean();
 
-    res.json({ workers });
+    const perfilDoc = await PerfilSociodemograficoData.findOne({ companyId: company._id }).lean()
+      || await PerfilSociodemograficoData.findOne({ user: req.user.id }).lean();
+
+    if (perfilDoc && Array.isArray(perfilDoc.trabajadores)) {
+      const existingCedulas = new Set((workers || []).map(w => String(w.cedula || '').trim()));
+      perfilDoc.trabajadores.forEach(w => {
+        const c = String(w.identificacion || '').trim();
+        if (c && !existingCedulas.has(c)) {
+          existingCedulas.add(c);
+          workers.push({
+            nombre: w.nombre,
+            cedula: c,
+            cargo: w.cargo || '',
+            area: w.area || '',
+            email: w.email || '',
+            telefono: w.telefono || '',
+          });
+        }
+      });
+    }
+
+    res.json({ workers: workers || [] });
   } catch (error) {
     logger.error('[COPASST] GET /trabajadores error:', error);
     res.status(500).json({ error: 'Error al listar trabajadores' });
