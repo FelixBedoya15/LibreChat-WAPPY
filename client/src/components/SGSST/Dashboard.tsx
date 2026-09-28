@@ -58,7 +58,7 @@ const getUnifiedHitos = (): Array<{
         id: 'hito1',
         title: 'Gobernanza y Cimiento Legal',
         subtitle: 'El Marco Institucional (PHVA)',
-        description: 'Diagnóstico Inicial, Matriz IPEVR (GTC 45), Participación IPEVR, Responsable SG-SST, Política, Objetivos, Matriz Legal, Reglamentos (RHS/RIT) y Análisis de Vulnerabilidad.',
+        description: 'Diagnóstico Inicial, Matriz IPEVR (GTC 45), Análisis de Vulnerabilidad, Participación IPEVR, Responsable SG-SST, Política, Objetivos, Matriz Legal y Reglamentos (RHS/RIT).',
         extendedPhilosophy: 'El cimiento estructural y normativo que sostiene la vida colectiva en la empresa. Define la ética de protección y las normas claras que garantizan la coexistencia segura y el cumplimiento de los estándares legales de prevención.',
         accent: 'text-[#0d9488]',
         bgGlow: 'bg-[#0d9488]/5',
