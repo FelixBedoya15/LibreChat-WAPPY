@@ -33,8 +33,6 @@ const SGSST_FALLBACK_MODELS = [
   'gemini-3.6-flash',
   'gemini-3.7-flash',
   'gemini-3.8-flash',
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
 ];
 
 // Live-only models for VoiceSession / LiveAnalysis rotation
@@ -311,14 +309,10 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         }
 
         if (is503 || is404) {
-          const pauseMs = is503 ? (800 + Math.floor(Math.random() * 600)) : 0;
           logger.warn(
-            `[SGSST Gemini] Modelo "${currentModel}" falló (${is503 ? `503 Sobrecargado - pausa ${pauseMs}ms` : '404 No Encontrado'}). ` +
+            `[SGSST Gemini] Modelo "${currentModel}" falló (${is503 ? '503 Sobrecargado' : '404 No Encontrado'}). ` +
             `Rotando a modelo de respaldo...`
           );
-          if (pauseMs > 0) {
-            await new Promise((resolve) => setTimeout(resolve, pauseMs));
-          }
           break; // break inner for → outer for advances modelIdx
         }
 

@@ -1631,14 +1631,14 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         logger.info(`[WAPPY Brain Router] Modelo explícito del usuario: "${primaryAgentModel}"`);
       } else if (isCanvasTask) {
         // Arquitectura de Dos Modelos: Agente orquestador rápido + CanvasTool potente
-        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.8-flash'];
         primaryAgentModel = 'gemini-3.5-flash-lite';
         rawFallbacks = operationalModels;
         logger.info(`[WAPPY Brain Router] [DOS MODELOS] Tarea de Aplicativo/Canvas detectada. Orquestador: "${primaryAgentModel}" (500 RPD, baja latencia). CanvasTool delegará la síntesis de código.`);
       } else if (isComplexTask) {
         // Matrices Especializadas (IPEVAR, PESV, Química) y Redacción Documental:
         // Priorizar gemini-3.5-flash-lite por su consistencia sin sobrecargas 503, seguido de gemini-3.5-flash
-        const matrixModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+        const matrixModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.8-flash'];
         if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe') || primaryAgentModel.includes('gemini-2.5')) {
           primaryAgentModel = 'gemini-3.5-flash-lite';
         }
@@ -1647,8 +1647,8 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       } else {
         // Tarea Operativa / Rápida:
         // Herramientas: Google Sheets (CRUD), Docs, Slides, Gmail, Calendar, Drive, Automatizaciones, Analíticas, Consultas Normativas, Chat General.
-        // Prioridad: gemini-3.5-flash-lite (500 RPD por llave, ultra rápido) -> gemini-3.5-flash -> 3.6 -> 3.7 -> 3.8 -> 2.5
-        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+        // Prioridad: gemini-3.5-flash-lite (500 RPD por llave, ultra rápido) -> gemini-3.5-flash -> 3.6 -> 3.7 -> 3.8
+        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.8-flash'];
         primaryAgentModel = 'gemini-3.5-flash-lite';
         rawFallbacks = operationalModels;
         logger.info(`[WAPPY Brain Router] [OPERATIVA / RÁPIDA] Tarea Sheets/Docs/Consultas detectada. Modelo prioritario: "${primaryAgentModel}" (500 RPD, baja latencia)`);
@@ -1935,8 +1935,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
                 ? '503 Service Unavailable'
                 : 'Failed to parse stream (stream unparseable/overload)';
               overloadedModelCooldowns.set(currentModel, Date.now() + OVERLOAD_COOLDOWN_MS);
-              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing high demand (${reason}). Rotating to next fallback model...`);
-              await sleep(800 + Math.floor(Math.random() * 500), abortController?.signal);
+              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing high demand (${reason}). Rotating immediately to next fallback model...`);
               rotateToNextModel = true;
               break;
             } else if (isNotFound && i < prioritizedKeys.length - 1) {
