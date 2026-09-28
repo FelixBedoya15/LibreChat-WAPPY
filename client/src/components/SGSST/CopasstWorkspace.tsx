@@ -1314,7 +1314,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
 
       {/* ═══ MODAL CONVOCATORIA ELECCIONES ═══ */}
       {showEleccionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-xl bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-zinc-800">
               <div className="flex items-center gap-3">
@@ -1459,7 +1459,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
 
       {/* ═══ MODAL QR VOTACIÓN ═══ */}
       {qrModalUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 text-center space-y-4 shadow-2xl relative">
             <button
               onClick={() => setQrModalUrl(null)}

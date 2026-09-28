@@ -1234,7 +1234,7 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
 
       {/* Modal: Confirm Delete Single Record */}
       {recordToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
           <div className="bg-surface-primary border border-border-medium rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl">
             <div className="flex items-center gap-3 text-red-500">
               <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50">
@@ -1268,7 +1268,7 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
 
       {/* Modal: Confirm Clear All Records */}
       {showClearAllModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
           <div className="bg-surface-primary border border-border-medium rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl">
             <div className="flex items-center gap-3 text-red-500">
               <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50">
