@@ -20,7 +20,7 @@ export default function LandingPage() {
   const [demoName, setDemoName] = useState('');
   const [demoEmail, setDemoEmail] = useState('');
   const [demoCompany, setDemoCompany] = useState('');
-  const [demoTeamSize, setDemoTeamSize] = useState('1–5');
+  const [demoTeamSize, setDemoTeamSize] = useState('1–25 trabajadores');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -56,7 +56,11 @@ export default function LandingPage() {
   const handleDemoSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsDemoModalOpen(false);
-    showToast(lang === 'es' ? '¡Solicitud recibida! Te contactaremos en minutos.' : 'Demo request received! We will reach out shortly.');
+    showToast(
+      lang === 'es'
+        ? '¡Solicitud recibida! Un especialista SST te contactará hoy mismo para tu demo personalizada.'
+        : 'Demo request received! An SST specialist will contact you today.'
+    );
     setDemoName('');
     setDemoEmail('');
     setDemoCompany('');
@@ -79,15 +83,17 @@ export default function LandingPage() {
       {/* Floating Navbar */}
       <nav className="nav">
         <div className={`nav-inner ${isScrolled ? 'scrolled' : ''}`}>
-          <a className="nav-logo" aria-label="Wappy" href="/landing">
+          <a className="nav-logo" aria-label="Wappy SST & PESV" href="/landing">
             <img src="/marketing/wappy-wordmark.png" alt="Wappy" />
           </a>
 
           <div className="nav-links">
-            <a href="#features">{lang === 'es' ? 'Producto' : 'Product'}</a>
-            <a href="#pricing">{lang === 'es' ? 'Precios' : 'Pricing'}</a>
+            <a href="#modulos">{lang === 'es' ? 'Módulos SST' : 'SST Modules'}</a>
+            <a href="#tenshi">{lang === 'es' ? 'Tenshi IA' : 'Tenshi AI'}</a>
+            <a href="#pesv">{lang === 'es' ? 'PESV & Riesgos' : 'PESV & Risks'}</a>
+            <a href="#movil">{lang === 'es' ? 'App Móvil' : 'Mobile App'}</a>
+            <a href="#pricing">{lang === 'es' ? 'Planes' : 'Pricing'}</a>
             <a href="#faq">FAQ</a>
-            <a href="#app">{lang === 'es' ? 'Móvil' : 'Mobile'}</a>
           </div>
 
           <div className="nav-cta">
@@ -130,32 +136,34 @@ export default function LandingPage() {
         <div className="wrap hero-inner">
           <span className="trial">
             <span className="tdot"></span>
-            {lang === 'es' ? 'Prueba gratis de 7 días · sin tarjeta' : '7-day free trial · no credit card required'}
+            {lang === 'es'
+              ? 'El Primer Ecosistema de IA para SG-SST y PESV en Colombia'
+              : 'The First AI Ecosystem for OHS & Road Safety in Colombia'}
           </span>
 
           <h1 className="display">
             {lang === 'es' ? (
               <>
-                Habla con cada cliente,<br />
-                <span className="t2">desde una sola bandeja veloz.</span>
+                Automatiza tu SG-SST y PESV,<br />
+                <span className="t2">con agentes expertos e IA en tiempo real.</span>
               </>
             ) : (
               <>
-                Talk to every customer,<br />
-                <span className="t2">from one fast shared inbox.</span>
+                Automate your OHS & Road Safety,<br />
+                <span className="t2">with expert AI agents in real time.</span>
               </>
             )}
           </h1>
 
           <p className="sub">
             {lang === 'es'
-              ? 'Wappy unifica WhatsApp, Instagram, email y chat web en una sola bandeja — con IA, automatizaciones y un centro de ayuda integrado.'
-              : 'Wappy brings WhatsApp, Instagram, email, and live web chat into a single inbox — with AI, automations, and an integrated help center.'}
+              ? 'WAPPY unifica comités (COPASST, Convivencia), matrices GTC 45, PESV (Res. 20223040040595), química SGA, ergonomía EPT y academia LMS en una plataforma autónoma conectada a WhatsApp.'
+              : 'WAPPY unifies safety committees, risk matrices, road safety plans, chemical SGA, ergonomics, and LMS academy in one autonomous platform connected to WhatsApp.'}
           </p>
 
           <div className="hero-cta">
             <button className="btn btn-primary" onClick={handleStartTrial}>
-              {lang === 'es' ? 'Empezar prueba de 7 días' : 'Start 7-day free trial'}
+              {lang === 'es' ? 'Comenzar prueba gratis' : 'Start free trial'}
               <span className="pip">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -164,27 +172,27 @@ export default function LandingPage() {
               </span>
             </button>
             <button className="btn btn-glass" onClick={() => setIsDemoModalOpen(true)}>
-              {lang === 'es' ? 'Agendar demo' : 'Book a demo'}
+              {lang === 'es' ? 'Ver demo en vivo' : 'Watch live demo'}
             </button>
           </div>
 
           <div className="hero-badges">
-            <a className="store-badge" href="#app">
+            <a className="store-badge" href="#movil">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff">
                 <path d="M16 1.6c.06.9-.3 1.8-.86 2.43-.6.66-1.55 1.17-2.48 1.1-.07-.88.35-1.8.88-2.36C14.08 2.1 15.1 1.64 16 1.6zM18.9 8.5c-.8.5-1.3 1.4-1.3 2.4 0 1.2.7 2.2 1.7 2.6-.2.6-.5 1.3-.9 1.9-.6.9-1.2 1.8-2.1 1.8-.9 0-1.2-.5-2.2-.5s-1.4.5-2.2.5c-.9 0-1.6-1-2.2-1.9-1.3-1.9-2.3-5.3-1-7.6.7-1.2 1.8-1.9 3-1.9.9 0 1.7.6 2.2.6.5 0 1.5-.7 2.6-.6.5 0 1.8.2 2.7 1.2z"></path>
               </svg>
               <div>
-                <div className="s1">Download on the</div>
-                <div className="s2">App Store</div>
+                <div className="s1">Disponible para</div>
+                <div className="s2">iOS · iPhone</div>
               </div>
             </a>
-            <a className="store-badge" href="#app">
+            <a className="store-badge" href="#movil">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff">
                 <path d="M3.6 2.4 13 12 3.6 21.6c-.3-.3-.5-.7-.5-1.3V3.7c0-.6.2-1 .5-1.3zM14.3 13.3l2.5 2.5-9.6 5.5 7.1-8zM17.9 9.8l3 1.7c.9.5.9 1.5 0 2l-3 1.7-2.7-2.7 2.7-2.7zM7.2 2.7l9.6 5.5-2.5 2.5-7.1-8z"></path>
               </svg>
               <div>
-                <div className="s1">Get it on</div>
-                <div className="s2">Google Play</div>
+                <div className="s1">Disponible para</div>
+                <div className="s2">Android & Web</div>
               </div>
             </a>
           </div>
@@ -193,78 +201,94 @@ export default function LandingPage() {
         {/* Floating Interactive Stage */}
         <div className="wrap">
           <div className="hero-stage">
-            {/* Float Card 1: WhatsApp Inquiry */}
-            <div className="float" style={{ top: 0, left: '2%', width: 300, padding: 14 }}>
+            {/* Float Card 1: COPASST Digital */}
+            <div className="float" style={{ top: 0, left: '2%', width: 310, padding: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <span style={{ width: 36, height: 36, borderRadius: 9999, background: '#E8EAFF', color: '#4852ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
-                  AW
+                  CP
                 </span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>Amelia Wright</div>
-                  <div style={{ fontSize: 11, color: '#9A9AA8' }}>WhatsApp · {lang === 'es' ? 'Abierto' : 'Open'}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>Acta Mensual COPASST</div>
+                  <div style={{ fontSize: 11, color: '#9A9AA8' }}>Res. 0312 · {lang === 'es' ? 'Firmada con QR' : 'Signed via QR'}</div>
                 </div>
-                <span style={{ background: '#C7F303', color: '#0E1300', fontSize: 11, fontWeight: 700, borderRadius: 9999, padding: '2px 7px' }}>
-                  2
+                <span style={{ background: '#C7F303', color: '#0E1300', fontSize: 10, fontWeight: 700, borderRadius: 9999, padding: '2px 8px' }}>
+                  {lang === 'es' ? 'APROBADA' : 'APPROVED'}
                 </span>
               </div>
-              <div style={{ background: '#F2F3F5', borderRadius: '4px 12px 12px 12px', padding: '8px 11px', fontSize: 12.5 }}>
-                {lang === 'es' ? 'Mi pago con tarjeta se rechazó dos veces hoy…' : 'My card payment got declined twice today…'}
+              <div style={{ background: '#F2F3F5', borderRadius: '4px 12px 12px 12px', padding: '8px 11px', fontSize: 12.5, lineHeight: 1.4 }}>
+                {lang === 'es'
+                  ? 'Se aprueba inspección a bodega norte y cronograma de simulacro de evacuación.'
+                  : 'North warehouse inspection approved along with evacuation drill schedule.'}
               </div>
             </div>
 
-            {/* Float Card 2: Copilot AI Suggestion */}
-            <div className="float" style={{ top: 120, right: '3%', width: 280, padding: 14, animationDelay: '1.4s' }}>
+            {/* Float Card 2: Tenshi Orquestador */}
+            <div className="float" style={{ top: 120, right: '2%', width: 300, padding: 14, animationDelay: '1.4s' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 9 }}>
                 <span style={{ width: 24, height: 24, borderRadius: 7, background: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2">
                     <path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"></path>
                   </svg>
                 </span>
-                <span style={{ fontSize: 12.5, fontWeight: 700 }}>Copilot</span>
-                <span style={{ fontSize: 11, color: '#9A9AA8' }}>{lang === 'es' ? 'sugerido' : 'suggested'}</span>
+                <span style={{ fontSize: 12.5, fontWeight: 700 }}>Tenshi IA</span>
+                <span style={{ fontSize: 11, color: '#9A9AA8' }}>{lang === 'es' ? 'auditoría en vivo' : 'live audit'}</span>
               </div>
-              <div style={{ background: '#C7F303', borderRadius: 12, padding: '9px 12px', fontSize: 12.5, fontWeight: 500, color: '#0E1300' }}>
-                {lang === 'es' ? 'Subí el límite que lo bloqueaba — inténtalo de nuevo 💚' : 'I raised the threshold that was blocking it — try again 💚'}
+              <div style={{ background: '#C7F303', borderRadius: 12, padding: '9px 12px', fontSize: 12, fontWeight: 500, color: '#0E1300', lineHeight: 1.4 }}>
+                {lang === 'es'
+                  ? 'Matriz PESV actualizada según Res. 20223040040595: 14 inspecciones preoperacionales sin no conformidades críticas 💚'
+                  : 'PESV matrix updated per Res. 20223040040595: 14 pre-trip inspections passed with 0 critical findings 💚'}
               </div>
             </div>
 
-            {/* Float Card 3: CSAT */}
-            <div className="float" style={{ bottom: 0, left: '32%', width: 230, padding: 16, animationDelay: '0.7s' }}>
+            {/* Float Card 3: Cumplimiento Normativo */}
+            <div className="float" style={{ bottom: 0, left: '32%', width: 240, padding: 16, animationDelay: '0.7s' }}>
               <div style={{ fontSize: 11, color: '#9A9AA8', fontWeight: 600 }}>
-                {lang === 'es' ? 'CSAT esta semana' : 'CSAT this week'}
+                {lang === 'es' ? 'Estándares Res. 0312' : 'Standards Res. 0312'}
               </div>
               <div className="display" style={{ fontWeight: 600, fontSize: 34, letterSpacing: '-0.03em', color: '#40AD5A' }}>
-                97%
+                98.5%
               </div>
               <div style={{ display: 'flex', gap: 3, marginTop: 6 }}>
                 <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#40AD5A' }}></span>
                 <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#40AD5A' }}></span>
-                <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#D6F4DF' }}></span>
+                <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#40AD5A' }}></span>
+              </div>
+              <div style={{ fontSize: 10, color: '#0A5818', fontWeight: 700, marginTop: 6 }}>
+                {lang === 'es' ? 'NIVEL ACEPTABLE (VIGENTE)' : 'ACCEPTABLE LEVEL (ACTIVE)'}
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Bento Grid: Soporte que escala contigo */}
-      <section className="band">
+      {/* Bento Grid: Gestión SST que escala contigo */}
+      <section id="modulos" className="band">
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot"></span>
-              {lang === 'es' ? 'Por qué cambian los equipos' : 'Why teams switch'}
+              {lang === 'es' ? 'Módulos Especializados' : 'Specialized Modules'}
             </span>
-            <h2 className="display">{lang === 'es' ? 'Soporte que escala contigo' : 'Support that scales with you'}</h2>
+            <h2 className="display">
+              {lang === 'es' ? 'Gestión SST & PESV que escala con tu empresa' : 'OHS & Road Safety that scales with you'}
+            </h2>
+            <p>
+              {lang === 'es'
+                ? 'Conecta cada proceso de seguridad laboral y vial en una sola suite colaborativa.'
+                : 'Connect every safety and compliance workflow in a unified collaborative suite.'}
+            </p>
           </div>
 
           <div className="bento">
             <div className="cell big">
               <div>
                 <div style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: '.06em', opacity: 0.5 }}>
-                  {lang === 'es' ? 'Omnicanal' : 'Omnichannel'}
+                  {lang === 'es' ? 'Ecosistema Integral' : 'Integrated Ecosystem'}
                 </div>
-                <div className="display" style={{ fontSize: 30, marginTop: 8, lineHeight: 1.08 }}>
-                  {lang === 'es' ? 'Conecta cada canal que tus clientes ya usan.' : 'Connect every channel your customers already use.'}
+                <div className="display" style={{ fontSize: 28, marginTop: 8, lineHeight: 1.1 }}>
+                  {lang === 'es'
+                    ? 'Todo lo que exige el Decreto 1072 y la Res. 0312, automatizado.'
+                    : 'Everything required by Colombian Decree 1072 and Res. 0312, automated.'}
                 </div>
               </div>
 
@@ -276,20 +300,20 @@ export default function LandingPage() {
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">WhatsApp</div>
-                    <div className="cs">{lang === 'es' ? 'Conectado' : 'Connected'}</div>
+                    <div className="cn">COPASST & Convivencia</div>
+                    <div className="cs">{lang === 'es' ? 'Votación QR & Actas' : 'QR Voting & Minutes'}</div>
                   </div>
                 </div>
 
                 <div className="chan-card">
                   <span className="cdot" style={{ background: '#0A7CFF' }}>
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="#fff">
-                      <path d="M12 2C6.5 2 2 6.1 2 11.2c0 2.9 1.4 5.5 3.7 7.2V22l3.4-1.9c.9.3 1.9.4 2.9.4 5.5 0 10-4.1 10-9.3S17.5 2 12 2zm1 12.5-2.5-2.7-4.9 2.7 5.4-5.7 2.6 2.7 4.8-2.7-5.4 5.7z"></path>
+                      <path d="M18.9 8.5c-.8.5-1.3 1.4-1.3 2.4 0 1.2.7 2.2 1.7 2.6-.2.6-.5 1.3-.9 1.9-.6.9-1.2 1.8-2.1 1.8-.9 0-1.2-.5-2.2-.5s-1.4.5-2.2.5c-.9 0-1.6-1-2.2-1.9-1.3-1.9-2.3-5.3-1-7.6.7-1.2 1.8-1.9 3-1.9.9 0 1.7.6 2.2.6.5 0 1.5-.7 2.6-.6.5 0 1.8.2 2.7 1.2z"></path>
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">Messenger</div>
-                    <div className="cs">{lang === 'es' ? 'Conectado' : 'Connected'}</div>
+                    <div className="cn">PESV Vial (Res. 40595)</div>
+                    <div className="cs">{lang === 'es' ? 'Flota & Preoperacional' : 'Fleet & Pre-trip'}</div>
                   </div>
                 </div>
 
@@ -302,8 +326,8 @@ export default function LandingPage() {
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">Instagram</div>
-                    <div className="cs">{lang === 'es' ? 'Conectar' : 'Connect'}</div>
+                    <div className="cn">Matriz GTC 45</div>
+                    <div className="cs">{lang === 'es' ? 'Peligros & Controles' : 'Hazards & Controls'}</div>
                   </div>
                 </div>
 
@@ -315,8 +339,8 @@ export default function LandingPage() {
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">Email</div>
-                    <div className="cs">{lang === 'es' ? 'Conectado' : 'Connected'}</div>
+                    <div className="cn">Matriz Química SGA</div>
+                    <div className="cs">{lang === 'es' ? 'ONU & Almacenamiento' : 'UN & Storage'}</div>
                   </div>
                 </div>
 
@@ -328,57 +352,57 @@ export default function LandingPage() {
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">{lang === 'es' ? 'Widget web' : 'Web widget'}</div>
-                    <div className="cs">{lang === 'es' ? 'Conectado' : 'Connected'}</div>
+                    <div className="cn">Academia LMS & Quizzes</div>
+                    <div className="cs">{lang === 'es' ? 'Carnets & Certificados' : 'Badges & Certificates'}</div>
                   </div>
                 </div>
 
                 <div className="chan-card" style={{ alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed' }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>
-                    {lang === 'es' ? '+ Más canales' : '+ More channels'}
+                    {lang === 'es' ? '+ Ergo EPT & Auditoría' : '+ Ergonomics & Audits'}
                   </span>
                 </div>
               </div>
             </div>
 
             <div className="cell lime">
-              <div className="stat-n">2m 14s</div>
-              <div className="stat-l">{lang === 'es' ? 'Primera respuesta mediana' : 'Median first response'}</div>
+              <div className="stat-n">90%</div>
+              <div className="stat-l">{lang === 'es' ? 'Menos tiempo redactando actas y matrices' : 'Less time drafting minutes and matrices'}</div>
             </div>
 
             <div className="cell">
-              <div className="stat-n">120+</div>
-              <div className="stat-l">{lang === 'es' ? 'Integraciones' : 'Integrations'}</div>
+              <div className="stat-n">60+</div>
+              <div className="stat-l">{lang === 'es' ? 'Estándares auditados (Res. 0312)' : 'Standards audited (Res. 0312)'}</div>
             </div>
 
             <div className="cell">
-              <div className="stat-n">520k</div>
-              <div className="stat-l">{lang === 'es' ? 'Mensajes / mes' : 'Messages / mo'}</div>
+              <div className="stat-n">12+</div>
+              <div className="stat-l">{lang === 'es' ? 'Agentes especializados SST entrenados' : 'Trained specialized OHS AI agents'}</div>
             </div>
 
             <div className="cell">
-              <div className="stat-n">20+</div>
-              <div className="stat-l">{lang === 'es' ? 'Países' : 'Countries'}</div>
+              <div className="stat-n">100%</div>
+              <div className="stat-l">{lang === 'es' ? 'Conforme a normativa colombiana' : 'Compliant with Colombian law'}</div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Feature Spotlights */}
-      <section id="features" className="band" style={{ paddingTop: 30 }}>
+      <section id="tenshi" className="band" style={{ paddingTop: 30 }}>
         <div className="wrap">
-          {/* Feature 1: Bandeja */}
+          {/* Feature 1: Comités */}
           <div className="feat">
             <div className="feat-copy">
               <span className="eyebrow">
                 <span className="dot"></span>
-                {lang === 'es' ? 'Bandeja' : 'Inbox'}
+                {lang === 'es' ? 'Comités & Actas Digitales' : 'Committees & Digital Minutes'}
               </span>
-              <h3>{lang === 'es' ? 'Cada conversación, perfectamente organizada.' : 'Every conversation, perfectly organized.'}</h3>
+              <h3>{lang === 'es' ? 'COPASST y Convivencia sin papeleo ni fricciones.' : 'Safety committees without paperwork or friction.'}</h3>
               <p>
                 {lang === 'es'
-                  ? 'Asigna, pospón, etiqueta y resuelve con escritura en vivo y temporizadores SLA. Rápida con el teclado, hecha para equipos que responden en segundos.'
-                  : 'Assign, snooze, tag, and resolve with live typing indicators and SLA timers. Built for teams that move fast.'}
+                  ? 'Elecciones con código QR, votación secreta con verificación de cédula, quórum automático y actas ejecutivas firmadas digitalmente en minutos.'
+                  : 'QR code elections, private voting verified by worker ID, automatic quorum checks, and digital legally compliant minutes in minutes.'}
               </p>
               <ul className="feat-list">
                 <li>
@@ -387,7 +411,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Respuestas guardadas y macros' : 'Saved replies and macros'}
+                  {lang === 'es' ? 'Autocompletado de candidatos desde la nómina' : 'Candidate autocomplete from employee database'}
                 </li>
                 <li>
                   <span className="ck">
@@ -395,7 +419,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Bandeja de equipo y asignación rápida' : 'Team inboxes and smart assignment'}
+                  {lang === 'es' ? 'Escrutinio con porcentaje de participación en vivo' : 'Live participation percentage and ballot tally'}
                 </li>
                 <li>
                   <span className="ck">
@@ -403,7 +427,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Temporizadores SLA y estados visuales' : 'SLA timers and visual states'}
+                  {lang === 'es' ? 'Exportación a PDF y Word con validez legal' : 'Legally valid PDF and Word exports'}
                 </li>
               </ul>
             </div>
@@ -411,51 +435,51 @@ export default function LandingPage() {
             <div className="feat-art tint-sky">
               <div style={{ width: '100%', maxWidth: 360, background: '#fff', borderRadius: 18, boxShadow: '0 16px 40px rgba(20,40,80,0.14)', overflow: 'hidden' }}>
                 <div style={{ padding: '14px 16px', borderBottom: '1px solid #EEF0F3', fontWeight: 700, fontFamily: 'var(--display)' }}>
-                  {lang === 'es' ? 'Bandeja de Entrada' : 'Inbox'}
+                  {lang === 'es' ? 'Panel de Comités (COPASST 2026)' : 'Committee Dashboard (COPASST 2026)'}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 16px', borderBottom: '1px solid #F2F3F5' }}>
                   <span style={{ width: 38, height: 38, borderRadius: 9999, background: '#E8EAFF', color: '#4852ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
-                    AW
+                    PR
                   </span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>Amelia Wright</div>
-                    <div style={{ fontSize: 12, color: '#9A9AA8' }}>WhatsApp · {lang === 'es' ? 'Abierto' : 'Open'}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>Presidente COPASST</div>
+                    <div style={{ fontSize: 12, color: '#9A9AA8' }}>Representante Empleador · {lang === 'es' ? 'Firmado' : 'Signed'}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 16px', borderBottom: '1px solid #F2F3F5' }}>
                   <span style={{ width: 38, height: 38, borderRadius: 9999, background: '#D6F4DF', color: '#0A5818', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
-                    MR
+                    SC
                   </span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>Marco Rossi</div>
-                    <div style={{ fontSize: 12, color: '#9A9AA8' }}>Email · {lang === 'es' ? 'Resuelto' : 'Resolved'}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>Secretario del Comité</div>
+                    <div style={{ fontSize: 12, color: '#9A9AA8' }}>Representante Trabajadores · {lang === 'es' ? 'Firmado' : 'Signed'}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 16px' }}>
                   <span style={{ width: 38, height: 38, borderRadius: 9999, background: '#FEF0DC', color: '#F09030', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
-                    SP
+                    QR
                   </span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>Sofia Petrova</div>
-                    <div style={{ fontSize: 12, color: '#9A9AA8' }}>WhatsApp · {lang === 'es' ? 'Pospuesto' : 'Snoozed'}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>Acta Registrada con Token</div>
+                    <div style={{ fontSize: 12, color: '#9A9AA8' }}>SHA-256 · {lang === 'es' ? 'Auditada' : 'Audited'}</div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Feature 2: Copilot con IA */}
+          {/* Feature 2: Tenshi Orquestador */}
           <div className="feat rev">
             <div className="feat-copy">
               <span className="eyebrow">
                 <span className="dot"></span>
-                {lang === 'es' ? 'Copilot con IA' : 'AI Copilot'}
+                {lang === 'es' ? 'Tenshi IA · Orquestador Autónomo' : 'Tenshi AI · Autonomous Orchestrator'}
               </span>
-              <h3>{lang === 'es' ? 'Responde en segundos, no en minutos.' : 'Reply in seconds, not minutes.'}</h3>
+              <h3>{lang === 'es' ? 'Tu equipo de especialistas SST trabajando 24/7.' : 'Your team of OHS specialists working 24/7.'}</h3>
               <p>
                 {lang === 'es'
-                  ? 'Copilot redacta respuestas con tu tono a partir de la conversación, resume hilos largos y ajusta el tono — para que cada agente suene como el mejor.'
-                  : 'Copilot drafts replies matching your voice, summarizes long conversation threads, and polishes tone — empowering every agent to sound like your best.'}
+                  ? 'Tenshi no es un simple chat: está conectado a tu base de datos de sedes, empleados y vehículos. Redacta informes ejecutivos, proyecta planes de trabajo y te alerta antes de una visita de la ARL o del MinTrabajo.'
+                  : 'Tenshi is connected to your employee and facility records. It drafts management reports, schedules compliance milestones, and prepares you for audits.'}
               </p>
               <ul className="feat-list">
                 <li>
@@ -464,7 +488,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Respuestas sugeridas en tiempo real' : 'Real-time suggested replies'}
+                  {lang === 'es' ? 'Diagnóstico en tiempo real de estándares mínimos' : 'Real-time diagnosis of legal safety standards'}
                 </li>
                 <li>
                   <span className="ck">
@@ -472,7 +496,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Resúmenes inteligentes de conversación' : 'Smart thread summaries'}
+                  {lang === 'es' ? 'Matriz GTC 45 con cálculo automático de deficiencia' : 'GTC 45 matrix with automated deficiency scores'}
                 </li>
                 <li>
                   <span className="ck">
@@ -480,7 +504,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Ajuste y reescritura de tono' : 'Tone rewriting and polish'}
+                  {lang === 'es' ? 'Respuestas citadas con normatividad vigente exacta' : 'Answers cited with exact Colombian legislation'}
                 </li>
               </ul>
             </div>
@@ -493,16 +517,16 @@ export default function LandingPage() {
                       <path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"></path>
                     </svg>
                   </span>
-                  <span style={{ fontWeight: 700 }}>Copilot</span>
+                  <span style={{ fontWeight: 700 }}>Tenshi IA</span>
                 </div>
-                <div style={{ background: '#F2F3F5', borderRadius: 12, padding: 12, fontSize: 13.5, lineHeight: 1.5, marginBottom: 12 }}>
+                <div style={{ background: '#F2F3F5', borderRadius: 12, padding: 12, fontSize: 13, lineHeight: 1.5, marginBottom: 12 }}>
                   {lang === 'es'
-                    ? '¡Lamento el pago rechazado! Revisé tu cuenta y subí el límite que lo bloqueaba — inténtalo de nuevo.'
-                    : 'Sorry about the payment issue! I checked your account and updated the threshold that blocked it — please try again.'}
+                    ? 'Revisé la matriz de riesgos de la Sede Principal. Detecté 2 peligros biológicos sin control de ingeniería y 1 extintor próximo a vencer el 15 de octubre.'
+                    : 'Audited Main Facility risk matrix. Found 2 biological hazards lacking engineering controls and 1 fire extinguisher expiring October 15.'}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <span style={{ flex: 1, height: 38, borderRadius: 9999, background: '#C7F303', color: '#0E1300', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                    {lang === 'es' ? 'Usar respuesta' : 'Use response'}
+                  <span style={{ flex: 1, height: 38, borderRadius: 9999, background: '#C7F303', color: '#0E1300', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>
+                    {lang === 'es' ? 'Generar Plan de Acción' : 'Generate Action Plan'}
                   </span>
                   <span style={{ width: 38, height: 38, borderRadius: 9999, border: '1px solid #E7EAEE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                     ↻
@@ -512,18 +536,18 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Feature 3: Widget y Centro de ayuda */}
-          <div className="feat">
+          {/* Feature 3: PESV & Química */}
+          <div id="pesv" className="feat">
             <div className="feat-copy">
               <span className="eyebrow">
                 <span className="dot"></span>
-                {lang === 'es' ? 'Widget y Centro de ayuda' : 'Widget & Help Center'}
+                {lang === 'es' ? 'PESV Vial & Compatibilidad Química' : 'Road Safety PESV & Chemical SGA'}
               </span>
-              <h3>{lang === 'es' ? 'Un widget de dos líneas que tus clientes aman.' : 'A two-line widget that your visitors love.'}</h3>
+              <h3>{lang === 'es' ? 'Cálculos de riesgo exactos y normatividad blindada.' : 'Exact risk math and airtight compliance.'}</h3>
               <p>
                 {lang === 'es'
-                  ? 'Agrega un lanzador de chat de menos de 30KB a cualquier sitio, con un centro de ayuda buscable incluido. Los clientes se autoatienden; los agentes hacen el resto.'
-                  : 'Drop an ultra-lightweight launcher onto any site with a searchable help center built-in. Self-serve first, live agents when needed.'}
+                  ? 'Evalúa flotas de vehículos y rutas críticas con la metodología oficial del PESV (Res. 20223040040595) y organiza tu bodega de químicos con la matriz de compatibilidad SGA (Decreto 1496).'
+                  : 'Evaluate vehicle fleets and critical routes with official road safety scoring (NP x NE x NC) and store chemicals safely using UN SGA compatibility matrices.'}
               </p>
               <ul className="feat-list">
                 <li>
@@ -532,7 +556,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Menos de 30KB, carga ultrarrápida asíncrona' : 'Under 30KB, async zero-latency load'}
+                  {lang === 'es' ? 'Fórmula matemática NP × NE × NC para nivel de riesgo vial' : 'Official NP × NE × NC mathematical formula for road risk'}
                 </li>
                 <li>
                   <span className="ck">
@@ -540,7 +564,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Artículos de ayuda integrados en el widget' : 'Integrated in-widget knowledge base'}
+                  {lang === 'es' ? 'Matriz semaforizada verde/amarillo/rojo de sustancias químicas' : 'Color-coded chemical segregation matrix'}
                 </li>
                 <li>
                   <span className="ck">
@@ -548,28 +572,35 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? '100% personalizable a tu marca' : 'Fully custom brand styling'}
+                  {lang === 'es' ? 'Autoevaluación postural ergonómica (EPT) guiada' : 'Guided ergonomic postural self-assessment (EPT)'}
                 </li>
               </ul>
             </div>
 
             <div className="feat-art tint-mint">
-              <div style={{ width: 280, background: 'linear-gradient(160deg, #C7F303, #A8D400)', borderRadius: 20, boxShadow: '0 16px 40px rgba(20,40,80,0.16)', padding: 18 }}>
-                <div style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 22, color: '#0E1300' }}>
-                  {lang === 'es' ? 'Hola 👋' : 'Hello 👋'}
+              <div style={{ width: 290, background: 'linear-gradient(160deg, #C7F303, #A8D400)', borderRadius: 20, boxShadow: '0 16px 40px rgba(20,40,80,0.16)', padding: 18 }}>
+                <div style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 20, color: '#0E1300' }}>
+                  {lang === 'es' ? 'PESV Nivel Avanzado' : 'PESV Advanced Level'}
                 </div>
-                <div style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 22, color: 'rgba(14,19,0,0.45)', marginBottom: 14 }}>
-                  {lang === 'es' ? '¿Cómo podemos ayudar?' : 'How can we help?'}
+                <div style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 13, color: 'rgba(14,19,0,0.6)', marginBottom: 12 }}>
+                  Res. 20223040040595
                 </div>
-                <div style={{ background: '#fff', borderRadius: 14, padding: '13px 15px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 4px 14px rgba(0,0,0,0.08)' }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#0E1300', flex: 1 }}>
-                    {lang === 'es' ? 'Envíanos un mensaje' : 'Send us a message'}
+                <div style={{ background: '#fff', borderRadius: 14, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0E1300' }}>24 Vehículos</div>
+                    <div style={{ fontSize: 11, color: '#6A6A6E' }}>{lang === 'es' ? 'Preoperacionales al día' : 'Inspections up to date'}</div>
+                  </div>
+                  <span style={{ width: 28, height: 28, borderRadius: 9999, background: '#D6F4DF', color: '#0A5818', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>
+                    ✓
                   </span>
-                  <span style={{ width: 34, height: 34, borderRadius: 9999, background: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="22" y1="2" x2="11" y2="13"></line>
-                      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                    </svg>
+                </div>
+                <div style={{ background: '#fff', borderRadius: 14, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0E1300' }}>Riesgo Vial: Bajo</div>
+                    <div style={{ fontSize: 11, color: '#6A6A6E' }}>NP 2 · NE 2 · NC 10 = NR 40</div>
+                  </div>
+                  <span style={{ width: 28, height: 28, borderRadius: 9999, background: '#C7F303', color: '#0E1300', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>
+                    ★
                   </span>
                 </div>
               </div>
@@ -579,53 +610,32 @@ export default function LandingPage() {
       </section>
 
       {/* Mobile Apps Showcase */}
-      <section id="app" className="band" style={{ background: 'var(--sky)', overflow: 'hidden', position: 'relative' }}>
+      <section id="movil" className="band" style={{ background: 'var(--sky)', overflow: 'hidden', position: 'relative' }}>
         <div className="cloud" style={{ top: 40, left: -40, width: 240, height: 100 }}></div>
         <div className="cloud" style={{ bottom: 40, right: -30, width: 220, height: 90 }}></div>
 
         <div className="wrap" style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
           <span className="eyebrow">
             <span className="dot"></span>
-            iOS & Android
+            {lang === 'es' ? 'Reportes desde Campo y WhatsApp' : 'Field Reports & WhatsApp'}
           </span>
           <h2 className="display" style={{ fontSize: 'clamp(30px,4.6vw,48px)', margin: '14px 0 0' }}>
-            {lang === 'es' ? 'Soporte desde tu bolsillo' : 'Customer support from your pocket'}
+            {lang === 'es' ? 'Seguridad y Salud en tu bolsillo' : 'Safety and Health in your pocket'}
           </h2>
-          <p style={{ fontSize: 17, color: 'rgba(14,19,0,0.62)', maxWidth: 480, margin: '14px auto 0' }}>
+          <p style={{ fontSize: 17, color: 'rgba(14,19,0,0.62)', maxWidth: 520, margin: '14px auto 0' }}>
             {lang === 'es'
-              ? 'Responde, asigna y resuelve donde estés. Apps nativas para iPhone y Android, con acciones deslizables, Copilot y notificaciones push instantáneas.'
-              : 'Reply, assign, and resolve on the go. Native iPhone and Android apps with swipe actions, Copilot, and real-time push alerts.'}
+              ? 'Tus brigadistas, inspectores y trabajadores reportan actos inseguros, realizan preoperacionales de vehículos y consultan su carnet SST desde cualquier teléfono móvil.'
+              : 'Inspectors, drivers, and workers log unsafe conditions, perform pre-trip inspections, and check training badges directly from mobile.'}
           </p>
 
-          <div className="hero-badges" style={{ marginTop: 24 }}>
-            <div className="store-badge">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff">
-                <path d="M16 1.6c.06.9-.3 1.8-.86 2.43-.6.66-1.55 1.17-2.48 1.1-.07-.88.35-1.8.88-2.36C14.08 2.1 15.1 1.64 16 1.6zM18.9 8.5c-.8.5-1.3 1.4-1.3 2.4 0 1.2.7 2.2 1.7 2.6-.2.6-.5 1.3-.9 1.9-.6.9-1.2 1.8-2.1 1.8-.9 0-1.2-.5-2.2-.5s-1.4.5-2.2.5c-.9 0-1.6-1-2.2-1.9-1.3-1.9-2.3-5.3-1-7.6.7-1.2 1.8-1.9 3-1.9.9 0 1.7.6 2.2.6.5 0 1.5-.7 2.6-.6.5 0 1.8.2 2.7 1.2z"></path>
-              </svg>
-              <div>
-                <div className="s1">Download on the</div>
-                <div className="s2">App Store</div>
-              </div>
-            </div>
-            <div className="store-badge">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff">
-                <path d="M3.6 2.4 13 12 3.6 21.6c-.3-.3-.5-.7-.5-1.3V3.7c0-.6.2-1 .5-1.3zM14.3 13.3l2.5 2.5-9.6 5.5 7.1-8zM17.9 9.8l3 1.7c.9.5.9 1.5 0 2l-3 1.7-2.7-2.7 2.7-2.7zM7.2 2.7l9.6 5.5-2.5 2.5-7.1-8z"></path>
-              </svg>
-              <div>
-                <div className="s1">Get it on</div>
-                <div className="s2">Google Play</div>
-              </div>
-            </div>
-          </div>
-
           <div className="app-phones">
-            {/* Phone 1: iOS */}
+            {/* Phone 1: iOS Preoperacional */}
             <div className="phone-wrap">
               <div className="phone-label">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="#0E1300">
                   <path d="M16 1.6c.06.9-.3 1.8-.86 2.43-.6.66-1.55 1.17-2.48 1.1-.07-.88.35-1.8.88-2.36C14.08 2.1 15.1 1.64 16 1.6zM18.9 8.5c-.8.5-1.3 1.4-1.3 2.4 0 1.2.7 2.2 1.7 2.6-.2.6-.5 1.3-.9 1.9-.6.9-1.2 1.8-2.1 1.8-.9 0-1.2-.5-2.2-.5s-1.4.5-2.2.5c-.9 0-1.6-1-2.2-1.9-1.3-1.9-2.3-5.3-1-7.6.7-1.2 1.8-1.9 3-1.9.9 0 1.7.6 2.2.6.5 0 1.5-.7 2.6-.6.5 0 1.8.2 2.7 1.2z"></path>
                 </svg>
-                iOS · iPhone
+                WAPPY Móvil · Inspecciones
               </div>
               <div className="phone">
                 <div className="phone-screen">
@@ -633,98 +643,63 @@ export default function LandingPage() {
                     <span></span>
                   </div>
                   <div style={{ padding: '6px 16px 10px', textAlign: 'left', background: '#fff' }}>
-                    <div style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 24, color: '#0E1300' }}>
-                      {lang === 'es' ? 'Bandeja' : 'Inbox'}
+                    <div style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 22, color: '#0E1300' }}>
+                      {lang === 'es' ? 'Inspecciones' : 'Inspections'}
                     </div>
                     <div style={{ display: 'flex', gap: 6, background: '#E9E9EE', borderRadius: 9, padding: 3, marginTop: 8 }}>
                       <span style={{ flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 600, padding: '6px 0', background: '#fff', borderRadius: 7 }}>
-                        {lang === 'es' ? 'Tú' : 'You'}
+                        {lang === 'es' ? 'Preoperacional' : 'Pre-trip'}
                       </span>
                       <span style={{ flex: 1, textAlign: 'center', fontSize: 11, color: '#6A6A6E', padding: '6px 0' }}>
-                        {lang === 'es' ? 'Todos' : 'All'}
+                        {lang === 'es' ? 'Peligros' : 'Hazards'}
                       </span>
                     </div>
                   </div>
 
                   <div style={{ background: '#F2F3F7', padding: 6, textAlign: 'left' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: '#fff', borderRadius: 14, marginBottom: 6 }}>
-                      <span style={{ width: 38, height: 38, borderRadius: 9999, background: '#E8EAFF', color: '#4852ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, position: 'relative', flex: 'none' }}>
-                        AW
-                        <span style={{ position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: 9999, background: '#25D366', border: '2px solid #fff' }}></span>
+                      <span style={{ width: 36, height: 36, borderRadius: 9999, background: '#D6F4DF', color: '#0A5818', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>
+                        VH
                       </span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>Amelia Wright</div>
-                        <div style={{ fontSize: 11, color: '#9A9AA8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          Pago con tarjeta rechazado…
-                        </div>
-                        <span style={{ display: 'inline-block', marginTop: 3, fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 9999, background: '#E8EAFF', color: '#4852ED' }}>
-                          {lang === 'es' ? 'Abierto' : 'Open'}
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>Camión FTR Placa WPY-789</div>
+                        <div style={{ fontSize: 11, color: '#9A9AA8' }}>Frenos, luces y llantas: 100% OK</div>
+                        <span style={{ display: 'inline-block', marginTop: 3, fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 9999, background: '#D6F4DF', color: '#0A5818' }}>
+                          {lang === 'es' ? 'Aprobado' : 'Passed'}
                         </span>
                       </div>
-                      <span style={{ width: 18, height: 18, borderRadius: 9999, background: '#C7F303', color: '#0E1300', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-                        2
-                      </span>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: '#fff', borderRadius: 14, marginBottom: 6 }}>
-                      <span style={{ width: 38, height: 38, borderRadius: 9999, background: '#D6F4DF', color: '#0A5818', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, position: 'relative', flex: 'none' }}>
-                        MR
-                        <span style={{ position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: 9999, background: '#5B6B7B', border: '2px solid #fff' }}></span>
+                      <span style={{ width: 36, height: 36, borderRadius: 9999, background: '#FEF0DC', color: '#F09030', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>
+                        EXT
                       </span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>Marco Rossi</div>
-                        <div style={{ fontSize: 11, color: '#9A9AA8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          ¡Gracias, funcionó!
-                        </div>
-                        <span style={{ display: 'inline-block', marginTop: 3, fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 9999, background: '#D6F4DF', color: '#0A5818' }}>
-                          {lang === 'es' ? 'Resuelto' : 'Resolved'}
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>Extintor Pasillo Bodega 3</div>
+                        <div style={{ fontSize: 11, color: '#9A9AA8' }}>Manómetro en zona de recarga</div>
+                        <span style={{ display: 'inline-block', marginTop: 3, fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 9999, background: '#FEF0DC', color: '#F09030' }}>
+                          {lang === 'es' ? 'Requiere Mantenimiento' : 'Needs Service'}
                         </span>
                       </div>
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 4px' }}>
-                      <span style={{ height: 38, padding: '0 16px', borderRadius: 9999, background: '#C7F303', color: '#0E1300', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700 }}>
-                        + Redactar
+                      <span style={{ height: 36, padding: '0 16px', borderRadius: 9999, background: '#C7F303', color: '#0E1300', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700 }}>
+                        + Nueva Inspección
                       </span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', background: '#fff', borderTop: '1px solid #EEF0F3', padding: '8px 0 14px' }}>
-                    <div style={{ flex: 1, textAlign: 'center' }}>
-                      <div style={{ width: 54, height: 28, margin: '0 auto', borderRadius: 9999, background: '#E8EAFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3B40B5" strokeWidth="2">
-                          <path d="M22 12h-6l-2 3h-4l-2-3H2"></path>
-                          <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
-                        </svg>
-                      </div>
-                      <div style={{ fontSize: 9, fontWeight: 600, marginTop: 2 }}>{lang === 'es' ? 'Bandeja' : 'Inbox'}</div>
-                    </div>
-                    <div style={{ flex: 1, textAlign: 'center', color: '#9A9AA8', paddingTop: 5 }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9A9AA8" strokeWidth="1.8" style={{ margin: '0 auto' }}>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                      </svg>
-                      <div style={{ fontSize: 9, marginTop: 2 }}>{lang === 'es' ? 'Equipo' : 'Team'}</div>
-                    </div>
-                    <div style={{ flex: 1, textAlign: 'center', color: '#9A9AA8', paddingTop: 5 }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9A9AA8" strokeWidth="1.8" style={{ margin: '0 auto' }}>
-                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"></path>
-                      </svg>
-                      <div style={{ fontSize: 9, marginTop: 2 }}>{lang === 'es' ? 'Ayuda' : 'Help'}</div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Phone 2: Android */}
+            {/* Phone 2: Android Carnet SST */}
             <div className="phone-wrap">
               <div className="phone-label">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="#0E1300">
                   <path d="M3.6 2.4 13 12 3.6 21.6c-.3-.3-.5-.7-.5-1.3V3.7c0-.6.2-1 .5-1.3zM14.3 13.3l2.5 2.5-9.6 5.5 7.1-8zM17.9 9.8l3 1.7c.9.5.9 1.5 0 2l-3 1.7-2.7-2.7 2.7-2.7zM7.2 2.7l9.6 5.5-2.5 2.5-7.1-8z"></path>
                 </svg>
-                Android
+                Android · Carnet Digital SST
               </div>
               <div className="phone">
                 <div className="phone-screen">
@@ -734,34 +709,31 @@ export default function LandingPage() {
                   <div style={{ background: 'linear-gradient(160deg, #5BB8F5, #86CCF6)', height: 54 }}></div>
                   <div style={{ padding: '14px 16px', textAlign: 'left', background: '#F2F3F7', marginTop: -30 }}>
                     <div style={{ textAlign: 'center', marginBottom: 12 }}>
-                      <span style={{ width: 64, height: 64, borderRadius: 9999, background: '#C7F303', color: '#0E1300', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 22, border: '3px solid #F2F3F7' }}>
-                        YO
+                      <span style={{ width: 64, height: 64, borderRadius: 9999, background: '#C7F303', color: '#0E1300', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 20, border: '3px solid #F2F3F7' }}>
+                        FB
                       </span>
-                      <div style={{ fontSize: 17, fontWeight: 600, marginTop: 6 }}>{lang === 'es' ? 'Tú' : 'You'}</div>
-                      <div style={{ fontSize: 11, color: '#9A9AA8' }}>{lang === 'es' ? 'Agente de soporte' : 'Support Agent'}</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, marginTop: 6 }}>Félix Bedoya</div>
+                      <div style={{ fontSize: 11, color: '#9A9AA8' }}>Operario de Almacén · CC. 102045...</div>
                     </div>
 
-                    <div style={{ fontSize: 10, fontWeight: 600, color: '#3B40B5', marginBottom: 6 }}>
-                      {lang === 'es' ? 'DISPONIBILIDAD' : 'AVAILABILITY'}
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#3B40B5', marginBottom: 6 }}>
+                      ESTADO DE APTITUD MÉDICA
                     </div>
-                    <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-                      <span style={{ flex: 1, height: 36, borderRadius: 9999, background: '#E8EAFF', color: '#3B40B5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 11, fontWeight: 600 }}>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+                      <span style={{ flex: 1, height: 34, borderRadius: 9999, background: '#E8EAFF', color: '#3B40B5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 11, fontWeight: 700 }}>
                         <span style={{ width: 7, height: 7, borderRadius: 9999, background: '#1E8E3E' }}></span>
-                        {lang === 'es' ? 'En línea' : 'Online'}
-                      </span>
-                      <span style={{ flex: 1, height: 36, borderRadius: 9999, border: '1px solid #E2E4E8', color: '#9A9AA8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
-                        {lang === 'es' ? 'Ausente' : 'Away'}
+                        {lang === 'es' ? 'Apto sin restricciones' : 'Fit for duty'}
                       </span>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <div style={{ background: '#fff', borderRadius: 16, padding: 12 }}>
-                        <div style={{ fontSize: 20, fontWeight: 600, fontFamily: 'var(--display)' }}>1,284</div>
-                        <div style={{ fontSize: 10, color: '#9A9AA8' }}>{lang === 'es' ? 'Conversaciones' : 'Conversations'}</div>
+                      <div style={{ background: '#fff', borderRadius: 16, padding: 10 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#1E8E3E' }}>Alturas 50h</div>
+                        <div style={{ fontSize: 10, color: '#9A9AA8' }}>Certificado Vigente</div>
                       </div>
-                      <div style={{ background: '#fff', borderRadius: 16, padding: 12 }}>
-                        <div style={{ fontSize: 20, fontWeight: 600, fontFamily: 'var(--display)', color: '#1E8E3E' }}>97%</div>
-                        <div style={{ fontSize: 10, color: '#9A9AA8' }}>CSAT</div>
+                      <div style={{ background: '#fff', borderRadius: 16, padding: 10 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#4852ED' }}>COPASST</div>
+                        <div style={{ fontSize: 10, color: '#9A9AA8' }}>Miembro Activo</div>
                       </div>
                     </div>
                   </div>
@@ -778,20 +750,20 @@ export default function LandingPage() {
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot"></span>
-              {lang === 'es' ? 'Míralo en acción' : 'Watch it in action'}
+              {lang === 'es' ? 'WAPPY en acción' : 'WAPPY in action'}
             </span>
-            <h2 className="display">{lang === 'es' ? 'Wappy, en movimiento' : 'Wappy in motion'}</h2>
+            <h2 className="display">{lang === 'es' ? 'La revolución de la IA en SST' : 'The AI revolution in OHS'}</h2>
             <p>
               {lang === 'es'
-                ? 'Del primer mensaje de un cliente a una conversación resuelta — mira todo el flujo.'
-                : 'From the first customer message to full resolution — see the whole flow.'}
+                ? 'Mira cómo Tenshi analiza una inspección en campo, calcula los índices de frecuencia y genera el informe de estándares mínimos en segundos.'
+                : 'Watch Tenshi audit safety records, score road safety risks, and generate management reports.'}
             </p>
           </div>
 
           <div className="vid-shell">
             <span className="vid-tag eyebrow">
               <span className="dot"></span>
-              {lang === 'es' ? 'Tour del producto' : 'Product tour'}
+              {lang === 'es' ? 'Demostración de la plataforma' : 'Platform demo'}
             </span>
             <video
               ref={videoRef}
@@ -804,7 +776,7 @@ export default function LandingPage() {
             />
             <button
               className={`vid-play ${isVideoPlaying ? 'hide' : ''}`}
-              aria-label="Play product tour"
+              aria-label="Play tour"
               onClick={toggleVideo}
             >
               <span className="pbtn">
@@ -823,73 +795,69 @@ export default function LandingPage() {
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot"></span>
-              {lang === 'es' ? 'Integraciones' : 'Integrations'}
+              {lang === 'es' ? 'Interoperabilidad & Conectividad' : 'Integrations & Interoperability'}
             </span>
-            <h2 className="display">{lang === 'es' ? 'Conecta todo tu stack' : 'Connect your entire stack'}</h2>
+            <h2 className="display">{lang === 'es' ? 'Conectado a tus herramientas empresariales' : 'Connected to your enterprise tools'}</h2>
             <p>
               {lang === 'es'
-                ? 'Slack, Shopify, Stripe y más de 120 plataformas — además de webhooks abiertos para cualquier desarrollo a medida.'
-                : 'Slack, Shopify, Stripe, and 120+ platforms — plus open webhooks for custom integrations.'}
+                ? 'WhatsApp Cloud API oficial, exportación a Excel y Word sin fórmulas rotas, Google Drive, OneDrive y bases de datos SQL.'
+                : 'WhatsApp Cloud API, export to Excel and Word, cloud storage sync, and enterprise webhooks.'}
             </p>
           </div>
 
           <div className="intg">
             <div className="i">
-              <span className="g" style={{ background: '#F4F4F6' }}>
-                <svg viewBox="0 0 24 24">
-                  <path d="M5.04 15.17a2.52 2.52 0 1 1-2.52-2.52h2.52zM6.3 15.17a2.52 2.52 0 0 1 5.04 0v6.3a2.52 2.52 0 0 1-5.04 0z" fill="#E01E5A"></path>
-                  <path d="M8.82 5.04A2.52 2.52 0 1 1 11.34 2.52v2.52zM8.82 6.3a2.52 2.52 0 0 1 0 5.04h-6.3a2.52 2.52 0 0 1 0-5.04z" fill="#36C5F0"></path>
-                  <path d="M18.96 8.83a2.52 2.52 0 1 1 2.52 2.52h-2.52zM17.7 8.83a2.52 2.52 0 0 1-5.04 0v-6.3a2.52 2.52 0 0 1 5.04 0z" fill="#2EB67D"></path>
-                  <path d="M15.18 18.96a2.52 2.52 0 1 1-2.52 2.52v-2.52zM15.18 17.7a2.52 2.52 0 0 1 0-5.04h6.3a2.52 2.52 0 0 1 0 5.04z" fill="#ECB22E"></path>
-                </svg>
-              </span>
-              Slack
-            </div>
-
-            <div className="i">
-              <span className="g" style={{ background: '#F4F4F6' }}>
-                <svg viewBox="0 0 24 24" fill="#2684FF">
-                  <path d="M11.53 11.4 6.77 6.64a.6.6 0 0 0-.85 0l-3.9 3.9a.6.6 0 0 0 0 .85l9.5 9.5a.6.6 0 0 0 .86 0l3.9-3.9-4.75-4.75z"></path>
-                  <path d="M12.47 12.6l4.76 4.76a.6.6 0 0 0 .85 0l3.9-3.9a.6.6 0 0 0 0-.85l-9.5-9.5a.6.6 0 0 0-.85 0l-3.9 3.9 4.74 4.75z" opacity=".55"></path>
-                </svg>
-              </span>
-              Jira
-            </div>
-
-            <div className="i">
-              <span className="g" style={{ background: '#95BF47' }}>
+              <span className="g" style={{ background: '#25D366' }}>
                 <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M16.3 5.3c-.1 0-1.7.1-1.7.1s-1.1-1.1-1.3-1.2c-.1-.1-.3 0-.4 0l-.5.2c-.3-.9-.9-1.4-1.8-1.4-.6-.4-1.4.2-1.9 1-.5-.2-.9 0-1 .3-.4.1-.7.2-.7.2-.4.1-.4.1-.5.5C6.7 5.4 5 18.3 5 18.3l8.6 1.6 4.6-1.1S16.4 5.4 16.3 5.3zM12.6 4.4l-.9.3c0-.6-.1-1.3-.4-1.8.6.1 1 .8 1.3 1.5zm-1.6-1.3c.3.5.4 1.2.4 1.8l-1.6.5c.3-1.2.9-1.9 1.2-2.3zm-.8-.5c.1 0 .2 0 .3.1-.5.2-1 .9-1.3 2.3l-1.3.4c.4-1.2 1.2-2.8 2.3-2.8z"></path>
+                  <path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.3-1.2l-.3-.2-2.9.9.9-2.8-.2-.3A8 8 0 1 1 12 20z"></path>
                 </svg>
               </span>
-              Shopify
+              WhatsApp API
             </div>
 
             <div className="i">
-              <span className="g" style={{ background: '#635BFF' }}>
+              <span className="g" style={{ background: '#107C41' }}>
                 <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M13.5 9.4c0-.6.5-.9 1.3-.9 1.1 0 2.5.4 3.6 1V6.1c-1.2-.5-2.4-.7-3.6-.7-3 0-4.9 1.5-4.9 4 0 3.9 5.4 3.3 5.4 5 0 .6-.6.9-1.4.9-1.2 0-2.8-.5-4-1.2v3.5c1.4.6 2.7.8 4 .8 3 0 5.1-1.5 5.1-4.1 0-4.2-5.5-3.5-5.5-5.1z"></path>
+                  <path d="M21 2H3a1 1 0 0 0-1 1v18a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zm-9 15.5H5.5v-2H12v2zm0-4.5H5.5v-2H12v2zm0-4.5H5.5v-2H12v2zm6.5 9H13.5v-11h5v11z"></path>
                 </svg>
               </span>
-              Stripe
+              Excel Export
             </div>
 
             <div className="i">
-              <span className="g" style={{ background: '#FF4F00' }}>
+              <span className="g" style={{ background: '#2B579A' }}>
                 <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M14.4 12a2.4 2.4 0 0 1-.15.83l3.2 1.85a.3.3 0 0 1 .11.4l-1.1 1.9a.3.3 0 0 1-.4.1l-3.2-1.84a2.4 2.4 0 0 1-1.32.66v3.7a.3.3 0 0 1-.3.3H8.74a.3.3 0 0 1-.3-.3v-3.7a2.4 2.4 0 0 1-1.32-.66l-3.2 1.85a.3.3 0 0 1-.4-.11l-1.1-1.9a.3.3 0 0 1 .1-.4l3.2-1.85a2.4 2.4 0 0 1 0-1.66l-3.2-1.85a.3.3 0 0 1-.1-.4l1.1-1.9a.3.3 0 0 1 .4-.11l3.2 1.85a2.4 2.4 0 0 1 1.32-.66v-3.7a.3.3 0 0 1 .3-.3h2.5a.3.3 0 0 1 .3.3v3.7a2.4 2.4 0 0 1 1.32.66l3.2-1.85a.3.3 0 0 1 .4.11l1.1 1.9a.3.3 0 0 1-.11.4l-3.2 1.85c.1.27.16.55.15.83z"></path>
+                  <path d="M21 2H3a1 1 0 0 0-1 1v18a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zm-6.2 14.8-2.3-7.5h-1.6l-2.3 7.5h-1.8l-1.3-9.6h2.2l.8 6.4 2.1-6.4h1.7l2.1 6.4.8-6.4h2.2l-1.3 9.6h-1.2z"></path>
                 </svg>
               </span>
-              Zapier
+              Word Docs
             </div>
 
             <div className="i">
-              <span className="g" style={{ background: '#FF7A59' }}>
+              <span className="g" style={{ background: '#0F9D58' }}>
                 <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M16.3 8.6V6.4a1.7 1.7 0 0 0 1-1.5V4.8a1.7 1.7 0 0 0-1.7-1.7h-.05a1.7 1.7 0 0 0-1.7 1.7v.05a1.7 1.7 0 0 0 1 1.5v2.2a4.8 4.8 0 0 0-2.3 1l-6-4.7a1.9 1.9 0 1 0-1 1.3l5.9 4.6a4.8 4.8 0 0 0 .07 5.4l-1.8 1.8a1.6 1.6 0 0 0-.45-.07 1.55 1.55 0 1 0 1.55 1.55c0-.16-.03-.3-.07-.45l1.78-1.78a4.85 4.85 0 1 0 3.77-8.6zm-.8 7.3a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"></path>
+                  <path d="M7.7 2h8.6l5.7 10-4.3 7.5-8.6-15zm-5.7 10 4.3-7.5 8.6 15H6.3L2 12zm13.4 7.5H6.8L11.1 12h8.6l-4.3 7.5z"></path>
                 </svg>
               </span>
-              HubSpot
+              Google Drive
+            </div>
+
+            <div className="i">
+              <span className="g" style={{ background: '#0078D4' }}>
+                <svg viewBox="0 0 24 24" fill="#fff">
+                  <path d="M19.4 10.1C18.6 6.6 15.5 4 11.8 4 9.1 4 6.7 5.4 5.3 7.5 2.3 8 0 10.6 0 13.8c0 3.4 2.8 6.2 6.2 6.2h13.1c2.6 0 4.7-2.1 4.7-4.7 0-2.4-1.8-4.4-4.6-5.2z"></path>
+                </svg>
+              </span>
+              OneDrive
+            </div>
+
+            <div className="i">
+              <span className="g" style={{ background: '#336791' }}>
+                <svg viewBox="0 0 24 24" fill="#fff">
+                  <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm1 14.9V13h-2v3.9H9.5v-5.4h5v5.4H13zm2.5-7.4h-7V8h7v1.5z"></path>
+                </svg>
+              </span>
+              PostgreSQL
             </div>
 
             <div className="i">
@@ -898,44 +866,43 @@ export default function LandingPage() {
                   <path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"></path>
                 </svg>
               </span>
-              GitHub
+              GitHub Sync
             </div>
 
             <div className="i">
-              <span className="g" style={{ background: '#F4F4F6' }}>
-                <svg viewBox="0 0 24 24" fill="#00A1E0">
-                  <path d="M10.2 6.4a3.5 3.5 0 0 1 5.5-.9 4.2 4.2 0 0 1 6.1 3.8 4 4 0 0 1-2 3.5 4 4 0 0 1-5.3 4.8 4.5 4.5 0 0 1-8.2-.4 3.8 3.8 0 0 1-.8.08A3.7 3.7 0 0 1 4 13.9a3.6 3.6 0 0 1 1.9-6.7 4 4 0 0 1 4.3-.8z"></path>
-                </svg>
-              </span>
-              Salesforce
-            </div>
-
-            <div className="i">
-              <span className="g" style={{ background: '#F4F4F6' }}>
-                <svg viewBox="0 0 24 24" fill="#000">
-                  <path d="M4.5 3.8 14 4.9c.8.07 1 .1 1.5.46l2 1.6c.3.24.4.3.4.55v12.7c0 .43-.16.68-.7.72l-11 .66c-.4.02-.6-.04-.82-.3l-2.4-3.1c-.24-.32-.34-.56-.34-.85V4.9c0-.5.22-.92 1.16-1.1z"></path>
-                  <path d="M14.3 5.8c.08-.42-.2-.5-.46-.5l-8.7.5 1.9 1.6c.2.16.4.16.7.14l6.56-.4z" fill="#fff"></path>
-                </svg>
-              </span>
-              Notion
-            </div>
-
-            <div className="i">
-              <span className="g" style={{ background: '#5E6AD2' }}>
+              <span className="g" style={{ background: '#4A154B' }}>
                 <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M3 13.5 10.5 21A9 9 0 0 1 3 13.5zM3.05 11.2 12.8 21a9 9 0 0 0 2.2-.5L3.55 9a9 9 0 0 0-.5 2.2zM4.3 7.3 16.7 19.7a9 9 0 0 0 1.5-1.1L5.4 5.8A9 9 0 0 0 4.3 7.3zM6.6 4.6 19.4 17.4A9 9 0 0 0 6.6 4.6z"></path>
+                  <path d="M5.04 15.17a2.52 2.52 0 1 1-2.52-2.52h2.52zM6.3 15.17a2.52 2.52 0 0 1 5.04 0v6.3a2.52 2.52 0 0 1-5.04 0z"></path>
                 </svg>
               </span>
-              Linear
+              Slack Alertas
             </div>
 
             <div className="i">
-              <span className="g" style={{ background: '#1F8DED' }}>
+              <span className="g" style={{ background: '#E65100' }}>
                 <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4 13.4c0 .3-.2.5-.5.5-.3 0-2-1.4-3.5-1.4S9 15.9 8.5 15.9c-.3 0-.5-.2-.5-.5V8.6c0-.3.2-.5.5-.5s.5.2.5.5v6c.6-.4 1.9-1 3-1s2.4.6 3 1v-6c0-.3.2-.5.5-.5s.5.2.5.5z"></path>
+                  <path d="M3 11h8V3H3v8zm2-6h4v4H5V5zm8-2v8h8V3h-8zm6 6h-4V5h4v4zM3 21h8v-8H3v8zm2-6h4v4H5v-4zm13-2h-2v2h2v-2zm-4 4h2v2h-2v-2zm2 2h2v2h-2v-2zm2-2h2v2h-2v-2zm0 4h2v2h-2v-2zm-4 0h2v2h-2v-2z"></path>
                 </svg>
               </span>
-              Intercom
+              Código QR
+            </div>
+
+            <div className="i">
+              <span className="g" style={{ background: '#1976D2' }}>
+                <svg viewBox="0 0 24 24" fill="#fff">
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"></path>
+                </svg>
+              </span>
+              Firma Digital
+            </div>
+
+            <div className="i">
+              <span className="g" style={{ background: '#5E35B1' }}>
+                <svg viewBox="0 0 24 24" fill="#fff">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"></path>
+                </svg>
+              </span>
+              MinTrabajo
             </div>
 
             <div className="i">
@@ -945,7 +912,7 @@ export default function LandingPage() {
                   <polyline points="16 7 21 12 16 17"></polyline>
                 </svg>
               </span>
-              Webhooks
+              Webhooks API
             </div>
           </div>
         </div>
@@ -957,9 +924,9 @@ export default function LandingPage() {
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot"></span>
-              {lang === 'es' ? 'Amado por los equipos' : 'Loved by teams'}
+              {lang === 'es' ? 'Validado en el Sector Real' : 'Validated in Real Industry'}
             </span>
-            <h2 className="display">{lang === 'es' ? 'No solo lo decimos nosotros' : 'Don’t just take our word for it'}</h2>
+            <h2 className="display">{lang === 'es' ? 'Lo que dicen los líderes SST' : 'What OHS leaders say'}</h2>
           </div>
 
           <div className="tgrid">
@@ -967,14 +934,14 @@ export default function LandingPage() {
               <div className="stars">★★★★★</div>
               <p>
                 {lang === 'es'
-                  ? '“Wappy redujo a la mitad nuestro tiempo de primera respuesta. Las sugerencias de Copilot son increíblemente buenas.”'
-                  : '“Wappy cut our first response time in half. The Copilot suggestions are ridiculously accurate.”'}
+                  ? '“Redujimos el 80% del tiempo transcribiendo actas de COPASST y actualizando matrices GTC 45. Tenshi es el mejor asistente que un líder SST puede tener.”'
+                  : '“We cut 80% of our manual time drafting committee minutes and hazard matrices. Tenshi is a game changer.”'}
               </p>
               <div className="who">
-                <span className="av" style={{ background: '#E8EAFF', color: '#4852ED' }}>AG</span>
+                <span className="av" style={{ background: '#E8EAFF', color: '#4852ED' }}>CM</span>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>Ana García</div>
-                  <div style={{ fontSize: 12.5, color: '#9A9AA8' }}>Head of Support</div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>Claudia Martínez</div>
+                  <div style={{ fontSize: 12.5, color: '#9A9AA8' }}>Gerente SST · Sector Construcción</div>
                 </div>
               </div>
             </div>
@@ -983,14 +950,14 @@ export default function LandingPage() {
               <div className="stars">★★★★★</div>
               <p>
                 {lang === 'es'
-                  ? '“Reemplazamos tres herramientas distintas con Wappy. Una sola bandeja para todo el equipo y mucho menos caos.”'
-                  : '“We replaced three separate tools with Wappy. One single inbox for the whole company, zero chaos.”'}
+                  ? '“El módulo PESV nos permitió pasar la auditoría de la Superintendencia de Transporte con cero no conformidades. El cálculo automático NP+NE+NC es impecable.”'
+                  : '“The road safety module helped us ace our transportation audit with zero non-conformities. Flawless mathematical risk scoring.”'}
               </p>
               <div className="who">
-                <span className="av" style={{ background: '#D6F4DF', color: '#0A5818' }}>MR</span>
+                <span className="av" style={{ background: '#D6F4DF', color: '#0A5818' }}>AR</span>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>Marco Rossi</div>
-                  <div style={{ fontSize: 12.5, color: '#9A9AA8' }}>{lang === 'es' ? 'Fundador' : 'Founder'}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>Andrés Rentería</div>
+                  <div style={{ fontSize: 12.5, color: '#9A9AA8' }}>Director de Flota y Logística</div>
                 </div>
               </div>
             </div>
@@ -999,14 +966,14 @@ export default function LandingPage() {
               <div className="stars">★★★★★</div>
               <p>
                 {lang === 'es'
-                  ? '“Con la app móvil nunca perdemos un ticket urgente — ni siquiera los fines de semana o fuera de oficina.”'
-                  : '“With the mobile app we never miss a critical VIP customer ticket — even on weekends.”'}
+                  ? '“La matriz de compatibilidad química evitó errores graves en nuestro centro de distribución de solventes. Obligatorio para cualquier empresa industrial en Colombia.”'
+                  : '“The chemical compatibility matrix prevented dangerous storage errors in our industrial warehouse. Absolutely essential.”'}
               </p>
               <div className="who">
-                <span className="av" style={{ background: '#FEF0DC', color: '#F09030' }}>SL</span>
+                <span className="av" style={{ background: '#FEF0DC', color: '#F09030' }}>MP</span>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>Sofia Lind</div>
-                  <div style={{ fontSize: 12.5, color: '#9A9AA8' }}>Support Lead</div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>Ing. Marcela Pardo</div>
+                  <div style={{ fontSize: 12.5, color: '#9A9AA8' }}>Consultora Senior Especialista SST</div>
                 </div>
               </div>
             </div>
@@ -1018,37 +985,39 @@ export default function LandingPage() {
       <section className="band" style={{ paddingTop: 0 }}>
         <div className="wrap">
           <div className="life">
-            <img className="bg" src="/marketing/ref-lifestyle-1.png" alt="Lifestyle Customer Support" />
+            <img className="bg" src="/marketing/ref-lifestyle-1.png" alt="Seguridad en el Trabajo" />
             <div className="scrim"></div>
             <div className="life-copy">
               <span className="eyebrow">
                 <span className="dot"></span>
-                {lang === 'es' ? 'Conversaciones reales' : 'Real conversations'}
+                {lang === 'es' ? 'Cultura Preventiva Real' : 'Real Preventive Culture'}
               </span>
-              <h2>{lang === 'es' ? 'Encuentra a tus clientes donde ya están.' : 'Meet your customers right where they are.'}</h2>
+              <h2>{lang === 'es' ? 'Protege la vida de tus trabajadores.' : 'Protect your workforce every single day.'}</h2>
               <p>
                 {lang === 'es'
-                  ? 'Tus clientes están chateando en su teléfono ahora mismo. Wappy te pone en el mismo hilo — rápido, cercano y con tu marca.'
-                  : 'Your customers are messaging on their phones right now. Wappy puts you in the exact same thread — fast, personal, on-brand.'}
+                  ? 'La seguridad no es llenar formularios para evitar multas; es asegurar que cada trabajador regrese sano y salvo a casa. WAPPY te da las herramientas para lograrlo sin burocracia.'
+                  : 'Safety is about making sure every worker returns home safe. WAPPY gives your team the automation to focus on human lives, not paperwork.'}
               </p>
               <div className="hero-cta" style={{ justifyContent: 'flex-start', marginTop: 24 }}>
                 <button className="btn btn-lime" onClick={handleStartTrial}>
-                  {lang === 'es' ? 'Empezar prueba de 7 días' : 'Start 7-day free trial'}
+                  {lang === 'es' ? 'Comenzar prueba gratis de 7 días' : 'Start 7-day free trial'}
                 </button>
               </div>
             </div>
 
-            <div className="life-float" style={{ top: 36, right: 36, width: 250 }}>
+            <div className="life-float" style={{ top: 36, right: 36, width: 260 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 9 }}>
                 <span style={{ width: 24, height: 24, borderRadius: 7, background: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2">
                     <path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"></path>
                   </svg>
                 </span>
-                <span style={{ fontSize: 12.5, fontWeight: 700 }}>Copilot</span>
+                <span style={{ fontSize: 12.5, fontWeight: 700 }}>Tenshi Alerta SST</span>
               </div>
-              <div style={{ background: '#C7F303', borderRadius: 12, padding: '9px 12px', fontSize: 12.5, fontWeight: 500, color: '#0E1300' }}>
-                {lang === 'es' ? '¡Gracias por las fotos! 🔥 Me encanta cómo captaste la luz ✨' : 'Thanks for the photos! 🔥 Love how you captured the lighting ✨'}
+              <div style={{ background: '#C7F303', borderRadius: 12, padding: '9px 12px', fontSize: 12, fontWeight: 500, color: '#0E1300', lineHeight: 1.4 }}>
+                {lang === 'es'
+                  ? '¡Excelente jornada! Hoy registramos cero incidentes y el 100% de preoperacionales completados en campo 👷‍♂️✨'
+                  : 'Zero incidents recorded today and 100% of field pre-trips completed 👷‍♂️✨'}
               </div>
             </div>
           </div>
@@ -1063,62 +1032,62 @@ export default function LandingPage() {
               <span className="dot"></span>
               FAQ
             </span>
-            <h2 className="display">{lang === 'es' ? 'Preguntas, respondidas' : 'Questions, answered'}</h2>
+            <h2 className="display">{lang === 'es' ? 'Preguntas Frecuentes' : 'Frequently Asked Questions'}</h2>
           </div>
 
           <div className="faq">
             <div className={`qa ${openFaq === 0 ? 'open' : ''}`}>
               <button onClick={() => setOpenFaq(openFaq === 0 ? null : 0)} aria-expanded={openFaq === 0}>
-                {lang === 'es' ? '¿En qué se diferencia Wappy de una bandeja compartida?' : 'How does Wappy differ from a standard shared email inbox?'}
+                {lang === 'es' ? '¿WAPPY cumple estrictamente con la legislación colombiana?' : 'Does WAPPY fully comply with Colombian regulations?'}
                 <span className="q-ico">+</span>
               </button>
               <div className="a">
                 <p>
                   {lang === 'es'
-                    ? 'Wappy unifica cada canal — WhatsApp, Instagram, Messenger, email, chat web — en una vista centralizada de hilos, con IA Copilot, automatizaciones avanzadas, centro de ayuda integrado y analíticas en tiempo real que una simple bandeja de correo no puede ofrecer.'
-                    : 'Wappy unifies every single channel — WhatsApp, Instagram, Messenger, email, web chat — into one fast view with AI Copilot, automations, and built-in help center.'}
+                    ? 'Totalmente. WAPPY está programado y auditado con base en la Resolución 0312 de 2019 (Estándares Mínimos), Decreto 1072 de 2015 (SG-SST), Resolución 20223040040595 de 2022 (PESV), Decreto 1496 de 2018 (Sistema Globalmente Armonizado SGA) y la Guía Técnica Colombiana GTC 45.'
+                    : 'Yes. WAPPY is modeled strictly on Colombian regulations: Decree 1072 of 2015, Res. 0312 of 2019, Res. 20223040040595 for Road Safety, and Decree 1496 for SGA.'}
                 </p>
               </div>
             </div>
 
             <div className={`qa ${openFaq === 1 ? 'open' : ''}`}>
               <button onClick={() => setOpenFaq(openFaq === 1 ? null : 1)} aria-expanded={openFaq === 1}>
-                {lang === 'es' ? '¿Qué canales de mensajería soporta?' : 'Which messaging channels does Wappy support?'}
+                {lang === 'es' ? '¿Qué es Tenshi IA y cómo se diferencia de un ChatGPT genérico?' : 'What is Tenshi AI and how is it different from general ChatGPT?'}
                 <span className="q-ico">+</span>
               </button>
               <div className="a">
                 <p>
                   {lang === 'es'
-                    ? 'WhatsApp (Cloud API oficial y WhatsApp Web), Facebook Messenger, Instagram Direct, correo electrónico corporativo y el widget web integrable — con más integraciones en camino. Puedes conectar múltiples cuentas por canal.'
-                    : 'WhatsApp official Cloud API, Facebook Messenger, Instagram Direct, email, and live web chat — with support for multiple accounts per channel.'}
+                    ? 'Tenshi no es un chatbot desconectado: es un orquestador inteligente conectado directamente a la base de datos de tu empresa. Conoce a tus empleados, cargos, sedes, vehículos y expedientes históricos, y está entrenado para redactar actas legales, auditar porcentajes de cumplimiento y generar informes gerenciales con citas exactas a la ley.'
+                    : 'Tenshi is connected directly to your enterprise database. It knows your employees, roles, facilities, and fleet history, and produces legally valid documents with exact statutory citations.'}
                 </p>
               </div>
             </div>
 
             <div className={`qa ${openFaq === 2 ? 'open' : ''}`}>
               <button onClick={() => setOpenFaq(openFaq === 2 ? null : 2)} aria-expanded={openFaq === 2}>
-                {lang === 'es' ? '¿Cuánto cuesta y cómo funciona la prueba?' : 'How much does it cost and how does the trial work?'}
+                {lang === 'es' ? '¿Puedo exportar actas, matrices y reportes a Excel, Word o PDF?' : 'Can I export matrices and minutes to Excel, Word, or PDF?'}
                 <span className="q-ico">+</span>
               </button>
               <div className="a">
                 <p>
                   {lang === 'es'
-                    ? 'Los planes empiezan en $29/mes (Starter) y escalan a Growth ($99/mes) y Scale ($249/mes). Cada plan comienza con una prueba gratis de 7 días completa, sin necesidad de ingresar tarjeta de crédito.'
-                    : 'Plans start at $29/mo (Starter) up to Growth ($99) and Scale ($249). Every plan includes a 7-day unrestricted trial with no credit card required.'}
+                    ? 'Sí. Todos los documentos generados en WAPPY (actas de COPASST, matriz de riesgos GTC 45, matriz PESV, actas de convivencia y carnets de capacitación) pueden exportarse con un clic en formatos editables de Excel y Word o descargarse en PDF listos para firmar con código QR.'
+                    : 'Yes. All generated records (committee minutes, GTC 45 risk matrix, PESV, and training certificates) export with one click to editable Excel/Word and signed PDF files.'}
                 </p>
               </div>
             </div>
 
             <div className={`qa ${openFaq === 3 ? 'open' : ''}`}>
               <button onClick={() => setOpenFaq(openFaq === 3 ? null : 3)} aria-expanded={openFaq === 3}>
-                {lang === 'es' ? '¿Mis datos y conversaciones están seguros?' : 'Is our customer data secure and compliant?'}
+                {lang === 'es' ? '¿Cómo funciona la integración con WhatsApp para reportes de trabajadores?' : 'How does the WhatsApp integration work for worker reports?'}
                 <span className="q-ico">+</span>
               </button>
               <div className="a">
                 <p>
                   {lang === 'es'
-                    ? 'Totalmente. Todos los datos están cifrados tanto en tránsito como en reposo (AES-256 y TLS 1.3), con control granular de acceso por roles, registros detallados de auditoría y copias de seguridad continuas.'
-                    : 'Yes — all communications are encrypted in transit and at rest with role-based permissions and complete audit logging.'}
+                    ? 'WAPPY se conecta a tu línea oficial de WhatsApp. Los trabajadores pueden enviar fotos de condiciones inseguras o realizar la inspección preoperacional de su vehículo chateando de forma natural. Tenshi procesa la información, clasifica el peligro y lo indexa automáticamente en la matriz correspondiente.'
+                    : 'WAPPY integrates with official WhatsApp. Workers report unsafe conditions or pre-trip vehicle checks by messaging naturally; Tenshi indexes and routes the data into the safety matrices.'}
                 </p>
               </div>
             </div>
@@ -1132,23 +1101,23 @@ export default function LandingPage() {
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot"></span>
-              {lang === 'es' ? 'Precios' : 'Pricing'}
+              {lang === 'es' ? 'Planes Transparentes' : 'Transparent Pricing'}
             </span>
-            <h2 className="display">{lang === 'es' ? 'Precios simples y escalables' : 'Simple, scalable pricing'}</h2>
+            <h2 className="display">{lang === 'es' ? 'Planes que se ajustan a tu empresa' : 'Plans tailored to your organization'}</h2>
             <p>
               {lang === 'es'
-                ? 'Cada plan empieza con una prueba gratis de 7 días. Sin tarjeta para comenzar.'
-                : 'Every plan starts with a 7-day free trial. No credit card required.'}
+                ? 'Todos los planes inician con 7 días de prueba gratuita. Sin contratos de permanencia ni cobros ocultos.'
+                : 'All plans include a 7-day free trial. No lock-in, no hidden fees.'}
             </p>
           </div>
 
           <div className="price">
-            {/* Starter */}
+            {/* Starter: Consultor */}
             <div className="pcard">
-              <div className="pn">Starter</div>
+              <div className="pn">{lang === 'es' ? 'Consultor SST' : 'OHS Consultant'}</div>
               <div className="pp">$29<span>{lang === 'es' ? '/mes' : '/mo'}</span></div>
               <div style={{ fontSize: 13, color: '#9A9AA8', marginBottom: 4 }}>
-                {lang === 'es' ? 'Para equipos pequeños' : 'For small teams'}
+                {lang === 'es' ? 'Para profesionales y pymes (hasta 25 trab.)' : 'For independent consultants & small teams'}
               </div>
               <div className="ptrial">
                 <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#1E8E3E', display: 'inline-block' }}></span>
@@ -1161,7 +1130,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? '2 asientos de agente' : '2 agent seats'}
+                  {lang === 'es' ? '1 empresa y hasta 2 sedes' : '1 company and up to 2 locations'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1169,7 +1138,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? '3 canales (WhatsApp, email, web)' : '3 channels (WhatsApp, email, web)'}
+                  {lang === 'es' ? 'Matriz de Riesgos GTC 45 completa' : 'Complete GTC 45 risk matrix'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1177,7 +1146,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? '1.000 conversaciones / mes' : '1,000 conversations / mo'}
+                  {lang === 'es' ? 'Gestor de COPASST digital y actas' : 'Digital COPASST manager and minutes'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1185,7 +1154,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Bandeja compartida y widget web' : 'Shared inbox and web widget'}
+                  {lang === 'es' ? 'Tenshi IA para consultas normativas' : 'Tenshi AI for regulatory questions'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1193,29 +1162,21 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Centro de ayuda (1 colección)' : 'Help Center (1 collection)'}
-                </li>
-                <li>
-                  <span className="pck">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  </span>
-                  {lang === 'es' ? 'Apps iOS y Android' : 'iOS & Android mobile apps'}
+                  {lang === 'es' ? 'Exportación oficial a Excel y PDF' : 'Official export to Excel and PDF'}
                 </li>
               </ul>
               <button className="btn btn-glass btn-sm" style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }} onClick={handleStartTrial}>
-                {lang === 'es' ? 'Empezar prueba gratis' : 'Start free trial'}
+                {lang === 'es' ? 'Comenzar gratis' : 'Start free'}
               </button>
             </div>
 
-            {/* Growth (Featured) */}
+            {/* Growth: Empresarial Pro */}
             <div className="pcard feat-plan">
               <span className="pbadge">{lang === 'es' ? 'Más popular' : 'Most Popular'}</span>
-              <div className="pn">Growth</div>
+              <div className="pn">{lang === 'es' ? 'Empresarial Pro' : 'Enterprise Pro'}</div>
               <div className="pp">$99<span>{lang === 'es' ? '/mes' : '/mo'}</span></div>
               <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>
-                {lang === 'es' ? 'Para equipos en crecimiento' : 'For growing teams'}
+                {lang === 'es' ? 'Para empresas que gestionan SG-SST y PESV' : 'For companies managing OHS & Road Safety'}
               </div>
               <div className="ptrial">
                 <span style={{ width: 6, height: 6, borderRadius: 9999, background: 'var(--lime)', display: 'inline-block' }}></span>
@@ -1228,7 +1189,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  <strong>{lang === 'es' ? 'Todo lo de Starter, más:' : 'Everything in Starter, plus:'}</strong>
+                  <strong>{lang === 'es' ? 'Todo lo del plan Consultor, más:' : 'Everything in Consultant, plus:'}</strong>
                 </li>
                 <li>
                   <span className="pck">
@@ -1236,7 +1197,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? '10 asientos · los 5 canales omnicanal' : '10 seats · all 5 channels'}
+                  {lang === 'es' ? 'Módulo PESV completo (Res. 40595)' : 'Full Road Safety PESV module'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1244,7 +1205,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? '10.000 conversaciones / mes' : '10,000 conversations / mo'}
+                  {lang === 'es' ? 'COPASST, Convivencia y Brigada con QR' : 'Safety, Harassment & Brigade with QR'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1252,7 +1213,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Copilot con IA y automatizaciones' : 'AI Copilot and automations'}
+                  {lang === 'es' ? 'Matriz Química SGA & Almacenamiento' : 'Chemical SGA compatibility matrix'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1260,7 +1221,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Colecciones de ayuda ilimitadas' : 'Unlimited help collections'}
+                  {lang === 'es' ? 'Bot de WhatsApp para reportes de campo' : 'WhatsApp bot for field condition logs'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1268,20 +1229,20 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Bot Builder y analíticas avanzadas' : 'Bot Builder & advanced analytics'}
+                  {lang === 'es' ? 'Academia LMS con carnets y certificados' : 'LMS Academy with badges and certs'}
                 </li>
               </ul>
               <button className="btn btn-lime btn-sm" style={{ marginTop: 'auto', justifyContent: 'center' }} onClick={handleStartTrial}>
-                {lang === 'es' ? 'Empezar prueba gratis' : 'Start free trial'}
+                {lang === 'es' ? 'Comenzar prueba gratis' : 'Start free trial'}
               </button>
             </div>
 
-            {/* Scale */}
+            {/* Scale: Corporativo */}
             <div className="pcard">
-              <div className="pn">Scale</div>
+              <div className="pn">{lang === 'es' ? 'Corporativo / ARL' : 'Enterprise / ARL'}</div>
               <div className="pp">$249<span>{lang === 'es' ? '/mes' : '/mo'}</span></div>
               <div style={{ fontSize: 13, color: '#9A9AA8', marginBottom: 4 }}>
-                {lang === 'es' ? 'Para alto volumen y empresas' : 'For high volume & scale'}
+                {lang === 'es' ? 'Para firmas consultoras y grandes grupos' : 'For consulting firms & large conglomerates'}
               </div>
               <div className="ptrial">
                 <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#1E8E3E', display: 'inline-block' }}></span>
@@ -1294,7 +1255,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  <strong>{lang === 'es' ? 'Todo lo de Growth, más:' : 'Everything in Growth, plus:'}</strong>
+                  <strong>{lang === 'es' ? 'Todo lo de Empresarial, más:' : 'Everything in Enterprise, plus:'}</strong>
                 </li>
                 <li>
                   <span className="pck">
@@ -1302,7 +1263,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Asientos y conversaciones ilimitados' : 'Unlimited seats & conversations'}
+                  {lang === 'es' ? 'Multi-empresa y sedes ilimitadas' : 'Unlimited companies and branches'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1310,7 +1271,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Roles y permisos granulares' : 'Granular roles & permissions'}
+                  {lang === 'es' ? 'Marca blanca con logo y dominio propio' : 'White-label with custom domain'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1318,7 +1279,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Centros de ayuda multi-marca' : 'Multi-brand help centers'}
+                  {lang === 'es' ? 'API abierta y sincronización con ARL' : 'Open API & ARL reporting pipeline'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1326,34 +1287,26 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Reportes programados y SLAs' : 'Scheduled reports & SLAs'}
-                </li>
-                <li>
-                  <span className="pck">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  </span>
-                  {lang === 'es' ? 'Soporte prioritario y onboarding VIP' : 'Dedicated support & onboarding'}
+                  {lang === 'es' ? 'Acompañamiento VIP en auditorías legales' : 'VIP legal audit advisory'}
                 </li>
               </ul>
               <button className="btn btn-glass btn-sm" style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }} onClick={handleStartTrial}>
-                {lang === 'es' ? 'Empezar prueba gratis' : 'Start free trial'}
+                {lang === 'es' ? 'Hablar con ventas' : 'Contact sales'}
               </button>
             </div>
           </div>
 
           <div className="price-note">
             {lang === 'es'
-              ? 'Todos los planes incluyen el widget integrable, el Centro de ayuda y las apps móviles.'
-              : 'All plans include the embeddable widget, help center, and mobile apps.'}{' '}
+              ? 'Todos los planes incluyen actualizaciones normativas automáticas y soporte técnico especializado.'
+              : 'All plans include automatic regulatory updates and specialized technical support.'}{' '}
             <button
               type="button"
               className="legal-link"
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
               onClick={() => setIsCompareModalOpen(true)}
             >
-              {lang === 'es' ? 'Comparar todas las funciones →' : 'Compare all features →'}
+              {lang === 'es' ? 'Ver tabla comparativa detallada →' : 'See detailed comparison table →'}
             </button>
           </div>
         </div>
@@ -1363,13 +1316,13 @@ export default function LandingPage() {
       <section className="final">
         <span className="trial" style={{ marginBottom: 18 }}>
           <span className="tdot"></span>
-          {lang === 'es' ? 'Prueba gratis de 7 días · sin tarjeta' : '7-day free trial · no credit card required'}
+          {lang === 'es' ? 'Auditoría sin estrés garantizada' : 'Stress-free compliance guaranteed'}
         </span>
-        <h2>{lang === 'es' ? 'Empieza gratis en 2 minutos.' : 'Get started in 2 minutes.'}</h2>
+        <h2>{lang === 'es' ? 'Moderniza tu gestión SST hoy mismo.' : 'Modernize your OHS management today.'}</h2>
         <p>
           {lang === 'es'
-            ? 'Trae tus canales, invita a tu equipo y sal en vivo hoy mismo.'
-            : 'Connect your channels, invite your team, and go live today.'}
+            ? 'Configura tu primera empresa en 2 minutos y deja que Tenshi orqueste tu cumplimiento.'
+            : 'Set up your company in 2 minutes and let Tenshi orchestrate your compliance.'}
         </p>
         <div className="hero-cta" style={{ marginTop: 28 }}>
           <button className="btn btn-primary" onClick={handleStartTrial}>
@@ -1382,7 +1335,7 @@ export default function LandingPage() {
             </span>
           </button>
           <button className="btn btn-glass" onClick={() => setIsDemoModalOpen(true)}>
-            {lang === 'es' ? 'Agendar demo' : 'Book a demo'}
+            {lang === 'es' ? 'Agendar demostración' : 'Schedule walkthrough'}
           </button>
         </div>
       </section>
@@ -1395,8 +1348,12 @@ export default function LandingPage() {
         <div className="wrap">
           <div className="foot-cta">
             <img src="/marketing/wappy-wordmark.png" alt="Wappy" />
-            <h3 className="display">{lang === 'es' ? 'Listos cuando tú lo estés.' : 'Ready when you are.'}</h3>
-            <p>{lang === 'es' ? 'Empieza tu prueba gratis de 7 días — sin tarjeta de crédito.' : 'Start your 7-day free trial — no credit card needed.'}</p>
+            <h3 className="display">{lang === 'es' ? 'La seguridad de tu equipo es primero.' : 'Your team’s safety comes first.'}</h3>
+            <p>
+              {lang === 'es'
+                ? 'Empieza hoy tu prueba gratis de 7 días. Sin tarjeta de crédito.'
+                : 'Start your 7-day free trial today. No credit card required.'}
+            </p>
             <div className="hero-cta" style={{ marginTop: 22 }}>
               <button className="btn btn-primary" onClick={handleStartTrial}>
                 {lang === 'es' ? 'Empezar prueba gratis' : 'Start free trial'}
@@ -1411,27 +1368,6 @@ export default function LandingPage() {
                 {isAuthenticated ? (lang === 'es' ? 'Ir al Chat' : 'Go to Chat') : (lang === 'es' ? 'Iniciar sesión' : 'Sign in')}
               </button>
             </div>
-
-            <div className="hero-badges" style={{ marginTop: 18 }}>
-              <a className="store-badge" href="#app">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff">
-                  <path d="M16 1.6c.06.9-.3 1.8-.86 2.43-.6.66-1.55 1.17-2.48 1.1-.07-.88.35-1.8.88-2.36C14.08 2.1 15.1 1.64 16 1.6zM18.9 8.5c-.8.5-1.3 1.4-1.3 2.4 0 1.2.7 2.2 1.7 2.6-.2.6-.5 1.3-.9 1.9-.6.9-1.2 1.8-2.1 1.8-.9 0-1.2-.5-2.2-.5s-1.4.5-2.2.5c-.9 0-1.6-1-2.2-1.9-1.3-1.9-2.3-5.3-1-7.6.7-1.2 1.8-1.9 3-1.9.9 0 1.7.6 2.2.6.5 0 1.5-.7 2.6-.6.5 0 1.8.2 2.7 1.2z"></path>
-                </svg>
-                <div>
-                  <div className="s1">Download on the</div>
-                  <div className="s2">App Store</div>
-                </div>
-              </a>
-              <a className="store-badge" href="#app">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff">
-                  <path d="M3.6 2.4 13 12 3.6 21.6c-.3-.3-.5-.7-.5-1.3V3.7c0-.6.2-1 .5-1.3zM14.3 13.3l2.5 2.5-9.6 5.5 7.1-8zM17.9 9.8l3 1.7c.9.5.9 1.5 0 2l-3 1.7-2.7-2.7 2.7-2.7zM7.2 2.7l9.6 5.5-2.5 2.5-7.1-8z"></path>
-                </svg>
-                <div>
-                  <div className="s1">Get it on</div>
-                  <div className="s2">Google Play</div>
-                </div>
-              </a>
-            </div>
           </div>
 
           <div className="foot-top">
@@ -1439,37 +1375,38 @@ export default function LandingPage() {
               <img src="/marketing/wappy-wordmark.png" alt="Wappy" />
               <p>
                 {lang === 'es'
-                  ? 'Habla con cada cliente, en cada canal, desde una sola bandeja veloz.'
-                  : 'Talk to every customer, on every channel, from one fast inbox.'}
+                  ? 'El primer ecosistema de inteligencia artificial para SG-SST y PESV en Colombia.'
+                  : 'The first AI ecosystem for OHS and Road Safety in Colombia.'}
               </p>
             </div>
 
             <div className="foot-cols">
               <div className="foot-col">
-                <h4>{lang === 'es' ? 'Producto' : 'Product'}</h4>
-                <a href="#features">{lang === 'es' ? 'Bandeja' : 'Inbox'}</a>
-                <a href="#app">{lang === 'es' ? 'App móvil' : 'Mobile app'}</a>
-                <a href="#features">{lang === 'es' ? 'Widget web' : 'Web widget'}</a>
-                <a href="#pricing">{lang === 'es' ? 'Precios' : 'Pricing'}</a>
+                <h4>{lang === 'es' ? 'Módulos' : 'Modules'}</h4>
+                <a href="#tenshi">{lang === 'es' ? 'Tenshi IA' : 'Tenshi AI'}</a>
+                <a href="#modulos">COPASST & Convivencia</a>
+                <a href="#pesv">PESV Res. 40595</a>
+                <a href="#modulos">{lang === 'es' ? 'Matriz GTC 45' : 'GTC 45 Matrix'}</a>
+                <a href="#modulos">{lang === 'es' ? 'Química SGA' : 'Chemical SGA'}</a>
               </div>
               <div className="foot-col">
-                <h4>{lang === 'es' ? 'Empresa' : 'Company'}</h4>
-                <a href="#about">{lang === 'es' ? 'Nosotros' : 'About'}</a>
-                <a href="#careers">{lang === 'es' ? 'Empleo' : 'Careers'}</a>
-                <a href="/blog">{lang === 'es' ? 'Blog' : 'Blog'}</a>
-                <a href="#contact">{lang === 'es' ? 'Contacto' : 'Contact'}</a>
+                <h4>{lang === 'es' ? 'Soluciones' : 'Solutions'}</h4>
+                <a href="#pricing">{lang === 'es' ? 'Para Consultores' : 'For Consultants'}</a>
+                <a href="#pricing">{lang === 'es' ? 'Para Empresas' : 'For Enterprises'}</a>
+                <a href="#pricing">{lang === 'es' ? 'Para ARLs y Grupos' : 'For ARLs'}</a>
+                <a href="/blog">{lang === 'es' ? 'Blog Normativo' : 'Blog'}</a>
               </div>
               <div className="foot-col">
                 <h4>{lang === 'es' ? 'Recursos' : 'Resources'}</h4>
-                <a href="#faq">{lang === 'es' ? 'Centro de ayuda' : 'Help Center'}</a>
-                <a href="#api">{lang === 'es' ? 'Docs de API' : 'API Docs'}</a>
-                <a href="#status">{lang === 'es' ? 'Estado' : 'Status'}</a>
-                <a href="#changelog">Changelog</a>
+                <a href="#faq">{lang === 'es' ? 'Centro de Ayuda' : 'Help Center'}</a>
+                <a href="#modulos">{lang === 'es' ? 'Academia LMS' : 'LMS Academy'}</a>
+                <a href="/c/new">{lang === 'es' ? 'Plataforma Web' : 'Web App'}</a>
+                <a href="#pricing">{lang === 'es' ? 'Precios' : 'Pricing'}</a>
               </div>
               <div className="foot-col">
                 <h4>Legal</h4>
-                <a href="/terms">{lang === 'es' ? 'Términos' : 'Terms'}</a>
-                <a href="/privacy-policy">{lang === 'es' ? 'Privacidad' : 'Privacy'}</a>
+                <a href="/terms">{lang === 'es' ? 'Términos del Servicio' : 'Terms'}</a>
+                <a href="/privacy-policy">{lang === 'es' ? 'Política de Privacidad' : 'Privacy'}</a>
                 <a href="/cookies">Cookies</a>
               </div>
             </div>
@@ -1478,10 +1415,10 @@ export default function LandingPage() {
           <div className="foot-word">WAPPY</div>
 
           <div className="foot-bottom">
-            <span>© 2026 Wappy. {lang === 'es' ? 'Todos los derechos reservados.' : 'All rights reserved.'}</span>
+            <span>© 2026 Wappy. {lang === 'es' ? 'Todos los derechos reservados. Desarrollado en Colombia.' : 'All rights reserved. Developed in Colombia.'}</span>
             <div className="foot-legal">
-              <a href="/terms">{lang === 'es' ? 'Términos y condiciones' : 'Terms of service'}</a>
-              <a href="/privacy-policy">{lang === 'es' ? 'Privacidad' : 'Privacy policy'}</a>
+              <a href="/terms">{lang === 'es' ? 'Términos' : 'Terms'}</a>
+              <a href="/privacy-policy">{lang === 'es' ? 'Privacidad' : 'Privacy'}</a>
               <a href="/cookies">Cookies</a>
             </div>
           </div>
@@ -1495,21 +1432,21 @@ export default function LandingPage() {
 
       {/* Demo Booking Modal */}
       <div className={`mkt-modal-scrim ${isDemoModalOpen ? 'show' : ''}`} aria-hidden={!isDemoModalOpen}>
-        <div className="mkt-modal" role="dialog" aria-modal="true" aria-label="Demo Wappy">
+        <div className="mkt-modal" role="dialog" aria-modal="true" aria-label="Demo WAPPY">
           <button className="mkt-modal-x" onClick={() => setIsDemoModalOpen(false)} aria-label="Close">
             ×
           </button>
           <span className="eyebrow">
             <span className="dot"></span>
-            {lang === 'es' ? 'Agendar demo' : 'Book a demo'}
+            {lang === 'es' ? 'Agendar demostración' : 'Schedule walkthrough'}
           </span>
           <h3 className="display" style={{ fontSize: 28, margin: '14px 0 6px' }}>
-            {lang === 'es' ? 'Mira Wappy en vivo' : 'See Wappy in action'}
+            {lang === 'es' ? 'Mira WAPPY en vivo' : 'See WAPPY in action'}
           </h3>
-          <p style={{ color: '#5a6470', fontSize: 15, margin: '0 0 20px', lineHeight: 1.5 }}>
+          <p style={{ color: '#5a6470', fontSize: 14.5, margin: '0 0 20px', lineHeight: 1.5 }}>
             {lang === 'es'
-              ? 'Elige un horario y le mostramos a tu equipo la bandeja, el Copilot con IA y el widget integrado.'
-              : 'Pick a time and we’ll walk your team through the shared inbox, AI Copilot, and widget.'}
+              ? 'Te mostraremos cómo Tenshi audita tu empresa, genera actas de COPASST y automatiza el PESV.'
+              : 'We will show you how Tenshi audits safety, generates committee minutes, and automates road safety.'}
           </p>
 
           <form onSubmit={handleDemoSubmit}>
@@ -1524,7 +1461,7 @@ export default function LandingPage() {
             <input
               className="fld"
               type="email"
-              placeholder={lang === 'es' ? 'Email de trabajo' : 'Work email'}
+              placeholder={lang === 'es' ? 'Email corporativo' : 'Work email'}
               required
               value={demoEmail}
               onChange={(e) => setDemoEmail(e.target.value)}
@@ -1532,7 +1469,7 @@ export default function LandingPage() {
             <input
               className="fld"
               type="text"
-              placeholder={lang === 'es' ? 'Empresa' : 'Company'}
+              placeholder={lang === 'es' ? 'Empresa u Organización' : 'Company or Organization'}
               value={demoCompany}
               onChange={(e) => setDemoCompany(e.target.value)}
             />
@@ -1541,13 +1478,13 @@ export default function LandingPage() {
               value={demoTeamSize}
               onChange={(e) => setDemoTeamSize(e.target.value)}
             >
-              <option value="1–5">{lang === 'es' ? 'Tamaño del equipo: 1–5' : 'Team size: 1–5'}</option>
-              <option value="6–20">{lang === 'es' ? 'Tamaño del equipo: 6–20' : 'Team size: 6–20'}</option>
-              <option value="21–50">{lang === 'es' ? 'Tamaño del equipo: 21–50' : 'Team size: 21–50'}</option>
-              <option value="50+">{lang === 'es' ? 'Tamaño del equipo: 50+' : 'Team size: 50+'}</option>
+              <option value="1–10">{lang === 'es' ? '1–10 trabajadores (Estándares Mínimos Básicos)' : '1–10 workers'}</option>
+              <option value="11–50">{lang === 'es' ? '11–50 trabajadores (Riesgo I, II, III)' : '11–50 workers'}</option>
+              <option value="50+">{lang === 'es' ? 'Más de 50 trabajadores (Todos los Estándares)' : '50+ workers'}</option>
+              <option value="consultor">{lang === 'es' ? 'Soy Consultor / Asesor SST' : 'I am an OHS Consultant'}</option>
             </select>
             <button className="btn btn-primary" type="submit" style={{ width: '100%', justifyContent: 'center', marginTop: 6 }}>
-              {lang === 'es' ? 'Solicitar demo' : 'Request demo'}
+              {lang === 'es' ? 'Solicitar demo personalizada' : 'Request personalized demo'}
               <span className="pip">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -1557,7 +1494,7 @@ export default function LandingPage() {
             </button>
           </form>
           <p style={{ fontSize: 12, color: '#5a6470', textAlign: 'center', margin: '14px 0 0' }}>
-            {lang === 'es' ? 'O empieza una ' : 'Or start a '}
+            {lang === 'es' ? 'O comienza una ' : 'Or start a '}
             <button
               type="button"
               className="legal-link"
@@ -1575,142 +1512,118 @@ export default function LandingPage() {
 
       {/* Plan Comparison Modal */}
       <div className={`mkt-modal-scrim ${isCompareModalOpen ? 'show' : ''}`} aria-hidden={!isCompareModalOpen}>
-        <div className="mkt-modal mkt-cmp-modal" role="dialog" aria-modal="true" aria-label="Comparación de planes">
+        <div className="mkt-modal mkt-cmp-modal" role="dialog" aria-modal="true" aria-label="Comparación de planes WAPPY">
           <button className="mkt-modal-x" onClick={() => setIsCompareModalOpen(false)} aria-label="Close">
             ×
           </button>
           <span className="eyebrow">
             <span className="dot"></span>
-            {lang === 'es' ? 'Comparación de planes' : 'Plan comparison'}
+            {lang === 'es' ? 'Comparación de Planes' : 'Plan Comparison'}
           </span>
           <h3 className="display" style={{ fontSize: 26, margin: '14px 0 18px' }}>
-            {lang === 'es' ? 'Cada función, lado a lado' : 'Every feature, side by side'}
+            {lang === 'es' ? 'Módulos y funciones incluidas' : 'Modules and included features'}
           </h3>
 
           <div className="mkt-cmp-scroll">
             <table className="mkt-cmp-table">
               <thead>
                 <tr>
-                  <th>{lang === 'es' ? 'Función' : 'Feature'}</th>
-                  <th>Starter<br /><span>$29</span></th>
-                  <th className="hl">Growth<br /><span>$99</span></th>
-                  <th>Scale<br /><span>$249</span></th>
+                  <th>{lang === 'es' ? 'Módulo / Capacidad' : 'Module / Feature'}</th>
+                  <th>Consultor<br /><span>$29/mes</span></th>
+                  <th className="hl">Empresarial<br /><span>$99/mes</span></th>
+                  <th>Corporativo<br /><span>$249/mes</span></th>
                 </tr>
               </thead>
               <tbody>
                 <tr className="grp">
-                  <td colSpan={4}>Core</td>
+                  <td colSpan={4}>Comités & Gestión Paritaria</td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Asientos de agente' : 'Agent seats'}</td>
-                  <td>2</td>
-                  <td className="hl">10</td>
-                  <td>{lang === 'es' ? 'Ilimitados' : 'Unlimited'}</td>
-                </tr>
-                <tr>
-                  <td>{lang === 'es' ? 'Conversaciones / mes' : 'Conversations / mo'}</td>
-                  <td>1.000</td>
-                  <td className="hl">10.000</td>
-                  <td>{lang === 'es' ? 'Ilimitadas' : 'Unlimited'}</td>
-                </tr>
-                <tr>
-                  <td>{lang === 'es' ? 'Canales omnicanal' : 'Omnichannel channels'}</td>
-                  <td>3</td>
-                  <td className="hl">{lang === 'es' ? 'Los 5' : 'All 5'}</td>
-                  <td>{lang === 'es' ? 'Los 5' : 'All 5'}</td>
-                </tr>
-                <tr>
-                  <td>{lang === 'es' ? 'Bandeja compartida y widget web' : 'Shared inbox & widget'}</td>
+                  <td>{lang === 'es' ? 'COPASST (Votación QR & Actas)' : 'COPASST (QR & Minutes)'}</td>
                   <td><span className="cy">✓</span></td>
                   <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Apps iOS y Android' : 'iOS & Android apps'}</td>
-                  <td><span className="cy">✓</span></td>
-                  <td className="hl"><span className="cy">✓</span></td>
-                  <td><span className="cy">✓</span></td>
-                </tr>
-
-                <tr className="grp">
-                  <td colSpan={4}>{lang === 'es' ? 'Centro de ayuda' : 'Help Center'}</td>
-                </tr>
-                <tr>
-                  <td>{lang === 'es' ? 'Colecciones de ayuda' : 'Help collections'}</td>
-                  <td>1</td>
-                  <td className="hl">{lang === 'es' ? 'Ilimitadas' : 'Unlimited'}</td>
-                  <td>{lang === 'es' ? 'Multi-marca' : 'Multi-brand'}</td>
-                </tr>
-                <tr>
-                  <td>{lang === 'es' ? 'Búsqueda en widget' : 'In-widget search'}</td>
-                  <td><span className="cy">✓</span></td>
-                  <td className="hl"><span className="cy">✓</span></td>
-                  <td><span className="cy">✓</span></td>
-                </tr>
-
-                <tr className="grp">
-                  <td colSpan={4}>{lang === 'es' ? 'Productividad e IA' : 'AI & Productivity'}</td>
-                </tr>
-                <tr>
-                  <td>{lang === 'es' ? 'Respuestas guardadas y macros' : 'Saved replies & macros'}</td>
-                  <td><span className="cy">✓</span></td>
-                  <td className="hl"><span className="cy">✓</span></td>
-                  <td><span className="cy">✓</span></td>
-                </tr>
-                <tr>
-                  <td>{lang === 'es' ? 'Copilot IA (respuestas, resumen, tono)' : 'AI Copilot (replies, summary, tone)'}</td>
+                  <td>{lang === 'es' ? 'Comité de Convivencia Laboral (RIT)' : 'Harassment Committee'}</td>
                   <td><span className="cn">–</span></td>
                   <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Automatizaciones (flujos cuando/entonces)' : 'Automations (when/then)'}</td>
-                  <td><span className="cn">–</span></td>
-                  <td className="hl"><span className="cy">✓</span></td>
-                  <td><span className="cy">✓</span></td>
-                </tr>
-                <tr>
-                  <td>{lang === 'es' ? 'Bot Builder y Campañas' : 'Bot Builder & Campaigns'}</td>
+                  <td>{lang === 'es' ? 'Brigada de Emergencias y simulacros' : 'Emergency Brigade'}</td>
                   <td><span className="cn">–</span></td>
                   <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
                 </tr>
 
                 <tr className="grp">
-                  <td colSpan={4}>{lang === 'es' ? 'Insights y Empresa' : 'Insights & Enterprise'}</td>
+                  <td colSpan={4}>Seguridad Vial PESV & Matrices</td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Panel de analíticas' : 'Analytics dashboard'}</td>
+                  <td>{lang === 'es' ? 'Matriz de Riesgos GTC 45' : 'GTC 45 Risk Matrix'}</td>
+                  <td><span className="cy">✓</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
+                  <td><span className="cy">✓</span></td>
+                </tr>
+                <tr>
+                  <td>{lang === 'es' ? 'Plan Estratégico Vial (Res. 40595)' : 'Road Safety PESV'}</td>
                   <td><span className="cn">–</span></td>
                   <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Integraciones y webhooks' : 'Integrations & webhooks'}</td>
+                  <td>{lang === 'es' ? 'Matriz Química SGA (Decreto 1496)' : 'Chemical SGA Matrix'}</td>
                   <td><span className="cn">–</span></td>
                   <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Reportes programados y SLAs' : 'Scheduled reports & SLAs'}</td>
+                  <td>{lang === 'es' ? 'Autoevaluación Ergonómica Postural EPT' : 'Ergonomics EPT'}</td>
                   <td><span className="cn">–</span></td>
-                  <td className="hl"><span className="cn">–</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
+                  <td><span className="cy">✓</span></td>
+                </tr>
+
+                <tr className="grp">
+                  <td colSpan={4}>Inteligencia Artificial Tenshi</td>
+                </tr>
+                <tr>
+                  <td>{lang === 'es' ? 'Consultas legales normativas' : 'Regulatory legal inquiries'}</td>
+                  <td><span className="cy">✓</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Roles y permisos' : 'Roles & permissions'}</td>
+                  <td>{lang === 'es' ? 'Acceso a base de datos empresarial' : 'Live database access'}</td>
                   <td><span className="cn">–</span></td>
-                  <td className="hl"><span className="cn">–</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'SSO y registro de auditoría' : 'SSO & audit logs'}</td>
+                  <td>{lang === 'es' ? 'Alertas de vencimientos y auditorías' : 'Expiration alerts & audits'}</td>
                   <td><span className="cn">–</span></td>
-                  <td className="hl"><span className="cn">–</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
+                  <td><span className="cy">✓</span></td>
+                </tr>
+
+                <tr className="grp">
+                  <td colSpan={4}>Canales & Formación</td>
+                </tr>
+                <tr>
+                  <td>{lang === 'es' ? 'Bot de WhatsApp para reportes' : 'WhatsApp Bot for reports'}</td>
+                  <td><span className="cn">–</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Soporte prioritario y onboarding' : 'Priority support & onboarding'}</td>
+                  <td>{lang === 'es' ? 'Academia LMS y carnets digitales' : 'LMS Academy & digital badges'}</td>
+                  <td><span className="cn">–</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
+                  <td><span className="cy">✓</span></td>
+                </tr>
+                <tr>
+                  <td>{lang === 'es' ? 'Marca blanca y multi-empresa' : 'White-label & multi-company'}</td>
                   <td><span className="cn">–</span></td>
                   <td className="hl"><span className="cn">–</span></td>
                   <td><span className="cy">✓</span></td>
@@ -1721,10 +1634,10 @@ export default function LandingPage() {
 
           <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
             <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', minWidth: 160 }} onClick={() => { setIsCompareModalOpen(false); handleStartTrial(); }}>
-              {lang === 'es' ? 'Empezar prueba de 7 días' : 'Start 7-day trial'}
+              {lang === 'es' ? 'Comenzar prueba gratis' : 'Start free trial'}
             </button>
             <button className="btn btn-glass" style={{ flex: 1, justifyContent: 'center', minWidth: 140, border: '1px solid #e7eaee' }} onClick={() => { setIsCompareModalOpen(false); setIsDemoModalOpen(true); }}>
-              {lang === 'es' ? 'Agendar demo' : 'Book demo'}
+              {lang === 'es' ? 'Agendar demostración' : 'Schedule walkthrough'}
             </button>
           </div>
         </div>
