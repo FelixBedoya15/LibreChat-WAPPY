@@ -24,10 +24,16 @@ export default function LandingPage() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+      const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+      setIsScrolled(scrollY > 20);
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    document.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      document.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   const showToast = (msg: string) => {
@@ -80,14 +86,14 @@ export default function LandingPage() {
 
   return (
     <div className="mkt">
-      {/* Floating Navbar */}
-      <nav className="nav">
-        <div className={`nav-inner ${isScrolled ? 'scrolled' : ''}`}>
-          <a className="nav-logo" aria-label="Wappy SST & PESV" href="/landing">
+      {/* Floating Capsule Navbar */}
+      <nav className="mkt-nav" aria-label="Navegación principal">
+        <div className={`mkt-nav-inner ${isScrolled ? 'scrolled' : ''}`}>
+          <a className="mkt-nav-logo" aria-label="Wappy SST & PESV" href="/landing">
             <img src="/marketing/wappy-wordmark.png" alt="Wappy" />
           </a>
 
-          <div className="nav-links">
+          <div className="mkt-nav-links">
             <a href="#modulos">{lang === 'es' ? 'Módulos SST' : 'SST Modules'}</a>
             <a href="#tenshi">{lang === 'es' ? 'Tenshi IA' : 'Tenshi AI'}</a>
             <a href="#pesv">{lang === 'es' ? 'PESV & Riesgos' : 'PESV & Risks'}</a>
@@ -96,7 +102,7 @@ export default function LandingPage() {
             <a href="#faq">FAQ</a>
           </div>
 
-          <div className="nav-cta">
+          <div className="mkt-nav-cta">
             <div className="lang-toggle" role="group" aria-label="Language">
               <button
                 type="button"
@@ -116,7 +122,7 @@ export default function LandingPage() {
               </button>
             </div>
 
-            <button type="button" className="btn btn-ghost nav-signin" onClick={handleLogin}>
+            <button type="button" className="btn btn-ghost mkt-nav-signin" onClick={handleLogin}>
               {isAuthenticated ? (lang === 'es' ? 'Ir al Chat' : 'Go to Chat') : (lang === 'es' ? 'Iniciar sesión' : 'Sign in')}
             </button>
 

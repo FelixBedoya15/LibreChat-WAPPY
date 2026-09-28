@@ -7,6 +7,11 @@ export const PHASE_CATEGORIES = {
             normativity: 'Hito 1: Gobernanza y Cimiento Legal' 
         },
         { 
+            id: 'participacion_ipevar', title: 'Participación IPEVR Comunitaria', icon: 'Users',
+            bioRationale: 'Empodera la voz del colaborador sobre los peligros que percibe en su cotidianidad vital para alimentar y actualizar la Matriz IPEVR.', 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal' 
+        },
+        { 
             id: 'matriz_ipevar_oficial', title: 'Matriz IPEVR (GTC 45)', icon: 'AlertTriangle',
             bioRationale: 'Columna vertebral preventiva del SG-SST. Identifica peligros, evalúa y valora riesgos bajo GTC 45:2012 para proteger la integridad de los colaboradores.', 
             normativity: 'Hito 1: Gobernanza y Cimiento Legal (GTC 45:2012 / Dec. 1072 / Res. 0312)' 
@@ -14,11 +19,6 @@ export const PHASE_CATEGORIES = {
         { 
             id: 'vulnerabilidad', title: 'Análisis de Vulnerabilidad', icon: 'Target',
             bioRationale: 'Prepara a la comunidad y sus brigadas frente a contingencias o emergencias naturales, tecnológicas y sociales.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal' 
-        },
-        { 
-            id: 'participacion_ipevar', title: 'Participación IPEVR Comunitaria', icon: 'Users',
-            bioRationale: 'Empodera la voz del colaborador sobre los peligros que percibe en su cotidianidad vital para alimentar y actualizar la Matriz IPEVR.', 
             normativity: 'Hito 1: Gobernanza y Cimiento Legal' 
         },
         { 
