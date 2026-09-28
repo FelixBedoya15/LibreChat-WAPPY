@@ -48,10 +48,10 @@ export const ThemeSelector = ({
   const localize = useLocalize();
 
   const themeOptions = [
-    { value: 'saas', label: localize('com_nav_theme_saas') },
+    { value: 'light', label: localize('com_nav_theme_light') },
     { value: 'system', label: localize('com_nav_theme_system') },
     { value: 'dark', label: localize('com_nav_theme_dark') },
-    { value: 'light', label: localize('com_nav_theme_light') },
+    { value: 'saas', label: localize('com_nav_theme_saas') },
     { value: 'green', label: localize('com_nav_theme_green') },
   ];
 

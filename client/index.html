@@ -40,9 +40,12 @@
     }
   </style>
   <script>
-    const theme = localStorage.getItem('color-theme') || 'saas';
-    const isSaasDefaultSet = localStorage.getItem('wappy_saas_default_v1');
-    const effectiveTheme = !isSaasDefaultSet ? 'saas' : theme;
+    if (!localStorage.getItem('wappy_light_default_v2')) {
+      localStorage.setItem('wappy_light_default_v2', 'true');
+      localStorage.setItem('color-theme', 'light');
+    }
+    const theme = localStorage.getItem('color-theme') || 'light';
+    const effectiveTheme = theme;
     const loadingContainerStyle = document.createElement('style');
     let backgroundColor = '#ffffff';
 
@@ -59,6 +62,8 @@
 
     if (effectiveTheme === 'saas') {
       document.documentElement.classList.add('saas', 'light');
+    } else {
+      document.documentElement.classList.remove('saas');
     }
 
     loadingContainerStyle.innerHTML = `

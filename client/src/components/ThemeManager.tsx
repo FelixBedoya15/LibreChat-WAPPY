@@ -5,12 +5,12 @@ export default function ThemeManager() {
     const context = useContext(ThemeContext);
     const { theme, setTheme } = (context || {}) as { theme: string; setTheme?: (t: string) => void };
 
-    // Establish 'saas' (Figma SaaS) as the new default theme for all users
+    // Reset default back to 'light' for all users while preserving manual selections
     useEffect(() => {
-        const isSaasDefaultSet = localStorage.getItem('wappy_saas_default_v1');
-        if (!isSaasDefaultSet && setTheme) {
-            localStorage.setItem('wappy_saas_default_v1', 'true');
-            setTheme('saas');
+        const isLightDefaultSet = localStorage.getItem('wappy_light_default_v2');
+        if (!isLightDefaultSet && setTheme) {
+            localStorage.setItem('wappy_light_default_v2', 'true');
+            setTheme('light');
         }
     }, [setTheme]);
 
