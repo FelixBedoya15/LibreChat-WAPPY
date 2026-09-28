@@ -672,16 +672,22 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
         const safeHtml = wrapTablesInResponsiveContainer(stripped);
         const currentInner = editorRef.current.innerHTML.trim();
         // Sync if empty or initial load wasn't finished
-        if (!currentInner || !initializedRef.current || currentInner !== safeHtml.trim()) {
-          if (!initializedRef.current || !currentInner) {
-            isSyncingRef.current = true;
-            editorRef.current.innerHTML = safeHtml;
-            setContent(safeHtml);
-            initializedRef.current = true;
-            setTimeout(() => {
-              isSyncingRef.current = false;
-            }, 50);
-          }
+        if (!currentInner || !initializedRef.current) {
+          isSyncingRef.current = true;
+          editorRef.current.innerHTML = safeHtml;
+          setContent(safeHtml);
+          initializedRef.current = true;
+          setTimeout(() => {
+            isSyncingRef.current = false;
+          }, 50);
+        } else if (currentInner !== safeHtml.trim() && !isSyncingRef.current) {
+          // Parent passed new content from outside (AI generated report, history load, etc.)
+          isSyncingRef.current = true;
+          editorRef.current.innerHTML = safeHtml;
+          setContent(safeHtml);
+          setTimeout(() => {
+            isSyncingRef.current = false;
+          }, 50);
         }
       }
     }, [initialContent]);

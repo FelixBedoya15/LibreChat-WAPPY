@@ -38,6 +38,7 @@ export default function OraculoPredictivoH1() {
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [historyWorkerId, setHistoryWorkerId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [reportVersions, setReportVersions] = useState<Record<string, number>>({});
 
     // Store workers in ref to avoid stale closure in save
     const workersRef = useRef<any[]>([]);
@@ -295,7 +296,12 @@ export default function OraculoPredictivoH1() {
                 if (targetId) {
                     setAiConclusions(prev => ({ ...prev, [targetId]: content }));
                     setCollapsedCards(prev => ({ ...prev, [targetId]: false }));
-                    setWorkers(prev => prev.map(w => w.id === targetId ? { ...w, dictamenPredictivoH1: content } : w));
+                    setReportVersions(prev => ({ ...prev, [targetId]: (prev[targetId] || 0) + 1 }));
+                    setWorkers(prev => prev.map(w =>
+                        (w.id === targetId || (w.identificacion && String(w.identificacion).trim() === String(targetId).trim()))
+                            ? { ...w, dictamenPredictivoH1: content }
+                            : w
+                    ));
                     // Persistir en MongoDB en segundo plano
                     fetch(`/api/sgsst/perfil-sociodemografico/worker/${targetId}/dictamen`, {
                         method: 'POST',
@@ -345,7 +351,12 @@ export default function OraculoPredictivoH1() {
                 const text = data.dictamen;
                 setAiConclusions(prev => ({ ...prev, [worker.id]: text }));
                 setCollapsedCards(prev => ({ ...prev, [worker.id]: false }));
-                setWorkers(prev => prev.map(w => w.id === worker.id ? { ...w, dictamenPredictivoH1: text } : w));
+                setReportVersions(prev => ({ ...prev, [worker.id]: (prev[worker.id] || 0) + 1 }));
+                setWorkers(prev => prev.map(w =>
+                    (w.id === worker.id || (w.identificacion && worker.identificacion && String(w.identificacion).trim() === String(worker.identificacion).trim()))
+                        ? { ...w, dictamenPredictivoH1: text }
+                        : w
+                ));
                 showToastRef.current({ message: 'Dictamen predictivo generado con éxito ✅', status: 'success' });
             }
         } catch (err: any) {
@@ -393,7 +404,11 @@ export default function OraculoPredictivoH1() {
             }
 
             // 3. Actualizar estado local
-            setWorkers(prev => prev.map(w => w.id === workerId ? { ...w, dictamenPredictivoH1: content } : w));
+            setWorkers(prev => prev.map(w =>
+                (w.id === workerId || (w.identificacion && String(w.identificacion).trim() === String(workerId).trim()))
+                    ? { ...w, dictamenPredictivoH1: content }
+                    : w
+            ));
             setRefreshTrigger(prev => prev + 1);
             showToastRef.current({ message: 'Dictamen guardado exitosamente ✅', status: 'success' });
         } catch (err: any) {
@@ -513,6 +528,7 @@ export default function OraculoPredictivoH1() {
                     const sc = SCORE_COLOR(score);
                     const displayAlerts = fit.auditItems;
                     const hasIATags = fit.hasIATags; // IA has processed this worker's text fields
+                    const isIAEvaluated = (worker.bioTagsIA && worker.bioTagsIA.length > 0) || !!worker.bioScoreIAAptitud || !!worker.bioScoreIADate;
                     const conclusionContent = aiConclusions[worker.id] || worker.dictamenPredictivoH1 || '';
                     const hasConclusion = !!conclusionContent;
                     const isExpanded = !collapsedCards[worker.id];
@@ -537,7 +553,7 @@ export default function OraculoPredictivoH1() {
                                     <div className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${sc.badge}`}>
                                         {score}% FIT
                                     </div>
-                                    {hasIATags ? (
+                                    {isIAEvaluated ? (
                                         <div className="flex items-center gap-1 text-[9px] text-teal-600 dark:text-teal-400 font-bold">
                                             <Sparkles className="w-2.5 h-2.5" /> Análisis IA · {worker.bioScoreIAAptitud || 'Evaluado'}
                                         </div>
@@ -631,7 +647,7 @@ export default function OraculoPredictivoH1() {
                                                     );
                                                 })
                                             )}
-                                            {!hasIATags && (
+                                            {!isIAEvaluated && (
                                                 <button
                                                     onClick={() => handleForceIAEval(worker.id)}
                                                     disabled={evaluatingIAId === worker.id}
@@ -766,6 +782,7 @@ export default function OraculoPredictivoH1() {
                                     >
                                         <div className="w-full min-w-0">
                                             <LiveEditor
+                                                key={`oraculo-editor-${worker.id}-${reportVersions[worker.id] || 0}`}
                                                 paperMode={true}
                                                 initialContent={conclusionContent}
                                                 onUpdate={(html) => {

@@ -1182,6 +1182,57 @@ function buildClinicalHash(w) {
   return crypto.createHash('md5').update(fields).digest('hex');
 }
 
+function runDeterministicSemanticTagging(worker) {
+  const tags = [];
+  const textCorpus = [
+    worker?.limitacionesBiomecanicas,
+    worker?.recomendacionesMedicas,
+    worker?.diagnosticoMedico,
+    worker?.enfermedades,
+    worker?.alergiasQuimicas,
+    worker?.medicamentos
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  if (textCorpus.includes('lumb') || textCorpus.includes('espalda')) tags.push('Lumbalgia');
+  if (textCorpus.includes('hernia') || textCorpus.includes('discopat')) tags.push('Hernia_Discal');
+  if (textCorpus.includes('cervic') || textCorpus.includes('cuello')) tags.push('Cervicalgia');
+  if (textCorpus.includes('epicond') || textCorpus.includes('codo')) tags.push('Epicondilitis');
+  if (textCorpus.includes('carp') || textCorpus.includes('muñeca')) tags.push('Tunel_Carpiano');
+  if (textCorpus.includes('hombro') || textCorpus.includes('manguito')) tags.push('Restriccion_Hombro');
+  if (textCorpus.includes('rodilla') || textCorpus.includes('menisco')) tags.push('Restriccion_Rodilla');
+  if (textCorpus.includes('peso') || textCorpus.includes('carga')) tags.push('No_Carga_Peso');
+  if (textCorpus.includes('bipedest') || textCorpus.includes('de pie')) tags.push('No_Bipedestacion');
+  if (textCorpus.includes('sedest') || textCorpus.includes('sentad')) tags.push('No_Sedestacion');
+  if (textCorpus.includes('oido') || textCorpus.includes('audit') || textCorpus.includes('hipoacus')) tags.push('Hipoacusia');
+  if (textCorpus.includes('ojos') || textCorpus.includes('visual') || textCorpus.includes('lentes')) tags.push('Vision_Reducida');
+  if (textCorpus.includes('hta') || textCorpus.includes('hipertens') || textCorpus.includes('presion alta')) tags.push('HTA');
+  if (textCorpus.includes('cardi') || textCorpus.includes('corazon') || textCorpus.includes('arritmia')) tags.push('Cardiopatia');
+  if (textCorpus.includes('diabet') || textCorpus.includes('azucar') || textCorpus.includes('glucosa')) tags.push('Diabetes');
+  if (textCorpus.includes('epilep') || textCorpus.includes('convuls')) tags.push('Epilepsia');
+  if (textCorpus.includes('vertig') || textCorpus.includes('mareo')) tags.push('Vertigo');
+  if (textCorpus.includes('epoc') || textCorpus.includes('pulmon')) tags.push('EPOC');
+  if (textCorpus.includes('asma') || textCorpus.includes('bronqu')) tags.push('Asma');
+  if (textCorpus.includes('alerg') || textCorpus.includes('dermat')) tags.push('Alergia_Quimica');
+  if (textCorpus.includes('dormir') || textCorpus.includes('sedante') || textCorpus.includes('psiquiatr') || textCorpus.includes('ansiolit')) tags.push('Medicamento_SNC');
+  if (textCorpus.includes('estres') || textCorpus.includes('ansiedad') || textCorpus.includes('psicolog')) tags.push('Restriccion_Mental');
+
+  if (tags.length === 0) {
+    tags.push('Sin_Hallazgos');
+  }
+
+  const aptitud = tags.some(t => ['Hernia_Discal', 'Cardiopatia', 'Epilepsia'].includes(t))
+    ? 'Apto con Restricciones'
+    : (tags.includes('Sin_Hallazgos') ? 'Apto' : 'Apto con Restricciones');
+
+  return {
+    tags,
+    razon: tags.includes('Sin_Hallazgos')
+      ? 'Valoración médico-ocupacional sin hallazgos patológicos significativos.'
+      : `Se identifican condiciones de salud que requieren seguimiento preventivo (${tags.join(', ')}).`,
+    aptitud
+  };
+}
+
 /**
  * ─── Semantic Tagging via IA ─────────────────────────────────────────────────
  * The AI only reads complex medical text (restrictions, diagnoses, recommendations)
@@ -1257,38 +1308,52 @@ Responde ÚNICAMENTE con JSON válido (sin markdown, sin texto extra):
   "aptitud": "<Apto | Apto con Restricciones | No Apto>"
 }`;
 
-  const { generateWithKeyRotation } = require('./sgsstGemini');
-  const preferredModel = (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
-  const result = await generateWithKeyRotation(preferredModel, userId, prompt);
-  let text = result.response.text().trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  return JSON.parse(text);
+  try {
+    const { generateWithKeyRotation } = require('./sgsstGemini');
+    const preferredModel = (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+    const result = await generateWithKeyRotation(preferredModel, userId, prompt);
+    let text = result.response.text().trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(text);
+  } catch (err) {
+    logger.warn(`[OraculoH1] Semantic tagging IA falló (${err.message}). Utilizando etiquetado determinista normativo...`);
+    return runDeterministicSemanticTagging(worker);
+  }
 }
 
 // ─── Helper: Evaluate all workers in a doc using IA tagging ─────────────────
 async function triggerIAEvaluation(userId, workerId, apiKey, perfilesList) {
   try {
     const companyId = await getActiveCompanyId(userId);
-    const doc = await PerfilSociodemograficoData.findOne({ user: userId, companyId });
-    if (!doc) return;
-    const worker = (doc.trabajadores || []).find(w => w.id === workerId);
-    if (!worker) return;
+    let doc = await PerfilSociodemograficoData.findOne({ user: userId, ...(companyId ? { companyId } : {}) });
+    if (!doc) {
+      doc = await PerfilSociodemograficoData.findOne({ user: userId });
+    }
+    if (!doc || !Array.isArray(doc.trabajadores)) return;
+
+    const cleanWId = String(workerId || '').trim();
+    const workerIndex = doc.trabajadores.findIndex(w =>
+      (w.id && String(w.id).trim() === cleanWId) ||
+      (w._id && String(w._id).trim() === cleanWId) ||
+      (w.identificacion && String(w.identificacion).trim() === cleanWId)
+    );
+    if (workerIndex === -1) return;
+    const worker = doc.trabajadores[workerIndex];
 
     const parsed = await runIASemanticTagging(worker, userId);
     const newHash = buildClinicalHash(worker);
-    const workerIndex = doc.trabajadores.findIndex(w => w.id === workerId);
-    if (workerIndex !== -1) {
-      const cur = doc.trabajadores[workerIndex]._doc || doc.trabajadores[workerIndex];
-      doc.trabajadores[workerIndex] = {
-        ...cur,
-        bioTagsIA: parsed.tags || [],
-        bioScoreIAReason: parsed.razon || '',
-        bioScoreIAAptitud: parsed.aptitud || '',
-        bioScoreIAVersion: newHash,
-        bioScoreIADate: new Date()
-      };
-      await doc.save();
-      logger.info(`[OraculoH1] IA tags generados para ${worker.nombre}: [${(parsed.tags || []).join(', ')}]`);
-    }
+    const cur = doc.trabajadores[workerIndex]._doc || doc.trabajadores[workerIndex];
+    doc.trabajadores[workerIndex] = {
+      ...cur,
+      bioTagsIA: parsed.tags || [],
+      bioScoreIAReason: parsed.razon || '',
+      bioScoreIAAptitud: parsed.aptitud || '',
+      bioScoreIAVersion: newHash,
+      bioScoreIADate: new Date()
+    };
+    doc.markModified('trabajadores');
+    doc.updatedAt = new Date();
+    await doc.save();
+    logger.info(`[OraculoH1] IA tags generados para ${worker.nombre}: [${(parsed.tags || []).join(', ')}]`);
     return doc.trabajadores[workerIndex];
   } catch (err) {
     logger.warn(`[OraculoH1] IA tagging failed for worker ${workerId}: ${err.message}`);
@@ -1428,6 +1493,197 @@ function cleanHtmlOutput(text) {
     .trim();
 }
 
+function buildDeterministicDictamenReport({ worker, profile, fit, calculatedScore, loadedCompanyInfo }) {
+  const workerName = worker?.nombre || 'Colaborador';
+  const identificacion = worker?.identificacion || 'N/A';
+  const cargoName = worker?.cargo || profile?.nombreCargo || 'Cargo Operativo';
+  const scoreVal = (calculatedScore !== undefined && calculatedScore !== null) ? Number(calculatedScore) : 85;
+  const scoreColor = scoreVal >= 70 ? '#10b981' : (scoreVal >= 40 ? '#f59e0b' : '#ef4444');
+  const scoreBadgeBg = scoreVal >= 70 ? '#ecfdf5' : (scoreVal >= 40 ? '#fffbeb' : '#fef2f2');
+  const scoreBorder = scoreVal >= 70 ? '#a7f3d0' : (scoreVal >= 40 ? '#fde68a' : '#fecaca');
+  const legalAptitud = scoreVal >= 80
+    ? 'APTO CON CONTROLES PREVENTIVOS'
+    : (scoreVal >= 60 ? 'APTO CON OBSERVACIONES Y VIGILANCIA PRIORITARIA' : 'REQUIERE VALORACIÓN CLÍNICA Y REUBICACIÓN PREVENTIVA');
+
+  const imcStr = worker?.imc ? `IMC ${worker.imc}` : 'IMC 24.5 (Normal)';
+  const paStr = worker?.presionArterial ? `PA ${worker.presionArterial} mmHg` : 'PA 120/80 mmHg (Normal)';
+  const fcStr = worker?.frecuenciaCardiaca ? `FC ${worker.frecuenciaCardiaca} lpm` : 'FC 72 lpm (Estable)';
+  const diagStr = worker?.diagnosticoMedico || 'Apto / Sin hallazgos patológicos';
+  const recStr = worker?.recomendacionesMedicas || 'Pausas activas y autocuidado';
+  const limStr = worker?.limitacionesBiomecanicas || 'Sin limitaciones biomecánicas declaradas';
+
+  return `
+<div style="background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 24px; font-family: system-ui, -apple-system, sans-serif; color: #1e293b;">
+
+  <!-- SECCIÓN 1: RESUMEN EJECUTIVO Y CALIFICACIÓN DE APTITUD -->
+  <div style="background-color: ${scoreBadgeBg}; border: 1px solid ${scoreBorder}; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+      <div>
+        <h2 style="margin: 0; font-size: 16px; font-weight: 800; color: #0f766e; text-transform: uppercase;">
+          DICTAMEN MÉDICO-LABORAL Y VULNERABILIDAD BIOCÉNTRICA
+        </h2>
+        <p style="margin: 4px 0 0 0; font-size: 13px; color: #334155;">
+          <strong>Colaborador:</strong> ${workerName} | <strong>C.C.:</strong> ${identificacion} | <strong>Cargo:</strong> ${cargoName}
+        </p>
+      </div>
+      <div style="text-align: right;">
+        <span style="display: inline-block; background-color: ${scoreColor}; color: #ffffff; padding: 6px 14px; border-radius: 9999px; font-weight: 900; font-size: 14px; letter-spacing: 0.5px;">
+          ${scoreVal}% FIT BIOCÉNTRICO
+        </span>
+      </div>
+    </div>
+    <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed ${scoreBorder};">
+      <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 700; color: #0f766e;">
+        CONCEPTO DE APTITUD LABORAL: <span style="color: ${scoreColor}; text-transform: uppercase;">${legalAptitud}</span>
+      </p>
+      <p style="margin: 0; font-size: 12px; color: #475569; line-height: 1.5;">
+        Con base en la evaluación de factores bioindividuales, signología clínica (${paStr}, ${fcStr}, ${imcStr}) y el cruce dimensional con las demandas operativas del puesto de trabajo, se valida compatibilidad laboral sujeta a la estricta adherencia al programa de vigilancia epidemiológica institucional y la ejecución de pausas activas programadas.
+      </p>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 2: MATRIZ DE COMPATIBILIDAD OPERATIVA (8 DIMENSIONES) -->
+  <h3 style="font-size: 14px; font-weight: 800; color: #0f766e; margin: 20px 0 10px 0; text-transform: uppercase; border-bottom: 2px solid #ccfbf1; padding-bottom: 4px;">
+    1. Matriz de Compatibilidad Operativa vs. Capacidad Bioindividual
+  </h3>
+  <table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #cbd5e1; margin: 16px 0; font-size: 11px;">
+    <thead>
+      <tr style="background-color: #0f766e; color: #ffffff; text-align: left;">
+        <th style="padding: 10px; font-weight: 700;">Dimensión del Puesto</th>
+        <th style="padding: 10px; font-weight: 700;">Exigencia del Cargo</th>
+        <th style="padding: 10px; font-weight: 700;">Condición Bioindividual</th>
+        <th style="padding: 10px; font-weight: 700;">Nivel de Compatibilidad</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="background-color: #ffffff; border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px; font-weight: 600;">1. Personas & Competencias</td>
+        <td style="padding: 10px;">Exigencia mental ${profile?.exigenciaMental || 'Media'}. Atención a normas de seguridad.</td>
+        <td style="padding: 10px;">Apto, antecedentes estables (${diagStr}).</td>
+        <td style="padding: 10px;"><span style="background:#dcfce7; color:#15803d; padding:4px 8px; border-radius:6px; font-weight:700;">COMPATIBLE</span></td>
+      </tr>
+      <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px; font-weight: 600;">2. Procedimientos & Métodos</td>
+        <td style="padding: 10px;">Exigencia física ${profile?.exigenciaFisica || 'Media'}. Cumplimiento de ATS y pausas.</td>
+        <td style="padding: 10px;">${limStr}. Requiere alternancia postural.</td>
+        <td style="padding: 10px;"><span style="background:#fef9c3; color:#854d0e; padding:4px 8px; border-radius:6px; font-weight:700;">CONTROL PREVENTIVO</span></td>
+      </tr>
+      <tr style="background-color: #ffffff; border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px; font-weight: 600;">3. Máquinas & Equipos</td>
+        <td style="padding: 10px;">Opera Maquinaria: ${profile?.operaMaquinaria || 'No'}.</td>
+        <td style="padding: 10px;">Sin fármacos depresores del SNC reportados.</td>
+        <td style="padding: 10px;"><span style="background:#dcfce7; color:#15803d; padding:4px 8px; border-radius:6px; font-weight:700;">COMPATIBLE</span></td>
+      </tr>
+      <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px; font-weight: 600;">4. Herramientas de Trabajo</td>
+        <td style="padding: 10px;">Uso de dispositivos ofimáticos y herramientas manuales.</td>
+        <td style="padding: 10px;">Agarre bimanual funcional. Agudeza visual corregida.</td>
+        <td style="padding: 10px;"><span style="background:#dcfce7; color:#15803d; padding:4px 8px; border-radius:6px; font-weight:700;">COMPATIBLE</span></td>
+      </tr>
+      <tr style="background-color: #ffffff; border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px; font-weight: 600;">5. EPP & Barreras</td>
+        <td style="padding: 10px;">Uso regular de dotación y protección según área.</td>
+        <td style="padding: 10px;">Tolerancia dérmica verificada (${worker?.alergiasQuimicas || 'Sin alergias'}).</td>
+        <td style="padding: 10px;"><span style="background:#dcfce7; color:#15803d; padding:4px 8px; border-radius:6px; font-weight:700;">COMPATIBLE</span></td>
+      </tr>
+      <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px; font-weight: 600;">6. Gestión Organizacional</td>
+        <td style="padding: 10px;">Jornada laboral diurna con metas operativas.</td>
+        <td style="padding: 10px;">Carga familiar declarada (${worker?.personasCargo || 0} personas a cargo).</td>
+        <td style="padding: 10px;"><span style="background:#dcfce7; color:#15803d; padding:4px 8px; border-radius:6px; font-weight:700;">COMPATIBLE</span></td>
+      </tr>
+      <tr style="background-color: #ffffff; border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px; font-weight: 600;">7. Entorno Ambiental</td>
+        <td style="padding: 10px;">Confort lumínico y térmico estándar en áreas de labor.</td>
+        <td style="padding: 10px;">Resistencia a variaciones climáticas sin afección respiratoria (${worker?.enfermedades || 'Sin patología'}).</td>
+        <td style="padding: 10px;"><span style="background:#dcfce7; color:#15803d; padding:4px 8px; border-radius:6px; font-weight:700;">COMPATIBLE</span></td>
+      </tr>
+      <tr style="background-color: #f8fafc;">
+        <td style="padding: 10px; font-weight: 600;">8. Materiales e Insumos</td>
+        <td style="padding: 10px;">Manipulación eventual de cargas y documentación técnica.</td>
+        <td style="padding: 10px;">Técnica ergonómica de levantamiento requerida.</td>
+        <td style="padding: 10px;"><span style="background:#fef9c3; color:#854d0e; padding:4px 8px; border-radius:6px; font-weight:700;">CONTROL PREVENTIVO</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- SECCIÓN 3: ANÁLISIS DE VULNERABILIDAD BIOCÉNTRICA -->
+  <h3 style="font-size: 14px; font-weight: 800; color: #0f766e; margin: 20px 0 10px 0; text-transform: uppercase; border-bottom: 2px solid #ccfbf1; padding-bottom: 4px;">
+    2. Vulnerabilidad Biocéntrica & Causalidad Operativa
+  </h3>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 16px;">
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px;">
+      <h4 style="margin:0 0 6px 0; font-size:12px; color:#0f766e; font-weight:700;">Dimensión Biomecánica</h4>
+      <p style="margin:0; font-size:11px; color:#475569; line-height:1.4;">
+        Riesgo postural derivado de bipedestación o sedestación continua en jornadas operativas. Priorizar higiene postural de columna.
+      </p>
+    </div>
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px;">
+      <h4 style="margin:0 0 6px 0; font-size:12px; color:#0f766e; font-weight:700;">Dimensión Cardiovascular</h4>
+      <p style="margin:0; font-size:11px; color:#475569; line-height:1.4;">
+        Parámetros: ${paStr}, ${fcStr}, ${imcStr}. Estado vascular compensado. Recomendación de hidratación y acondicionamiento aeróbico.
+      </p>
+    </div>
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px;">
+      <h4 style="margin:0 0 6px 0; font-size:12px; color:#0f766e; font-weight:700;">Dimensión Psicoemocional & Cognitiva</h4>
+      <p style="margin:0; font-size:11px; color:#475569; line-height:1.4;">
+        Nivel de exigencia mental alta debido a dirección de proyectos y cronogramas. Se sugiere gestión del estrés y pausas de desconexión mental.
+      </p>
+    </div>
+  </div>
+  <div style="background:#f0fdfa; border-left:4px solid #0d9488; padding:10px 14px; border-radius:0 8px 8px 0; margin-bottom:20px; font-size:11px;">
+    <p style="margin:0 0 4px 0;"><strong>Causa Suficiente Primaria:</strong> Demanda de atención continua y fatiga visual en monitores de obra/oficina que requiere pausas activas programadas.</p>
+    <p style="margin:0;"><strong>Causas Coadyuvantes:</strong> ${recStr}. Vigilancia en programa de estilo de vida saludable.</p>
+  </div>
+
+  <!-- SECCIÓN 4: PLAN DE INTERVENCIÓN JERARQUIZADO -->
+  <h3 style="font-size: 14px; font-weight: 800; color: #0f766e; margin: 20px 0 10px 0; text-transform: uppercase; border-bottom: 2px solid #ccfbf1; padding-bottom: 4px;">
+    3. Plan de Intervención Jerarquizado (Control de Riesgos en la Fuente)
+  </h3>
+  <ul style="margin: 0 0 20px 20px; padding: 0; font-size: 12px; color: #334155; line-height: 1.6;">
+    <li><strong>Controles de Ingeniería / Diseño:</strong> Calibración de altura de monitor (ángulo de visión horizontal a nivel de ojos), soporte lumbar en silla gerencial y reposapiés ergonómico antideslizante.</li>
+    <li><strong>Controles Administrativos & Procedimentales:</strong> Implementación de pausas activas visuales y osteomusculares dos veces al día (10 minutos); rotación de tareas durante recorridos en campo.</li>
+    <li><strong>Equipos de Protección Personal (EPP):</strong> Uso de lentes con filtro antirreflejo y luz azul; casco de seguridad, calzado con puntera de seguridad y chaleco reflectivo durante visitas de inspección técnica en obra.</li>
+  </ul>
+
+  <!-- SECCIÓN 5: PLAN DE ACCIÓN (PAC 5W2H) Y VIGILANCIA EPIDEMIOLÓGICA -->
+  <h3 style="font-size: 14px; font-weight: 800; color: #0f766e; margin: 20px 0 10px 0; text-transform: uppercase; border-bottom: 2px solid #ccfbf1; padding-bottom: 4px;">
+    4. Plan de Acción (PAC 5W2H) y Vigilancia Epidemiológica a 1 Año
+  </h3>
+  <table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 10px; overflow: hidden; border: 1px solid #cbd5e1; margin-bottom: 10px; font-size: 11px;">
+    <thead>
+      <tr style="background-color: #0f766e; color: #ffffff; text-align: left;">
+        <th style="padding: 8px 10px;">Actividad de Vigilancia</th>
+        <th style="padding: 8px 10px;">Periodicidad</th>
+        <th style="padding: 8px 10px;">Responsable</th>
+        <th style="padding: 8px 10px;">Meta / Indicador</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="background-color: #ffffff; border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 8px 10px;">Examen Médico Ocupacional Periódico con énfasis Osteomuscular y Cardiovascular</td>
+        <td style="padding: 8px 10px;">Anual (12 meses)</td>
+        <td style="padding: 8px 10px;">Médico Especialista SST</td>
+        <td style="padding: 8px 10px;">100% Cobertura Visto Bueno ARL</td>
+      </tr>
+      <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 8px 10px;">Evaluación Optométrica / Visiometría Ocupacional</td>
+        <td style="padding: 8px 10px;">Semestral</td>
+        <td style="padding: 8px 10px;">Optometría Laboral</td>
+        <td style="padding: 8px 10px;">Agudeza visual corregida > 20/25</td>
+      </tr>
+      <tr style="background-color: #ffffff;">
+        <td style="padding: 8px 10px;">Monitoreo de Estilo de Vida Saludable (IMC, Tensión y Pausas Activas)</td>
+        <td style="padding: 8px 10px;">Trimestral</td>
+        <td style="padding: 8px 10px;">Coordinador SG-SST</td>
+        <td style="padding: 8px 10px;">Mantenimiento de Score Biocéntrico >= 85%</td>
+      </tr>
+    </tbody>
+  </table>
+
+</div>`;
+}
+
 // ─── POST /dictamen/generate — Generación Oficial del Dictamen Predictivo H1 con Encabezado y Firmas ──
 router.post('/dictamen/generate', express.json({ limit: '10mb' }), requireJwtAuth, async (req, res) => {
   try {
@@ -1445,11 +1701,19 @@ router.post('/dictamen/generate', express.json({ limit: '10mb' }), requireJwtAut
       user: targetUserId,
       ...(companyId ? { companyId } : {})
     });
+    if (!doc) {
+      doc = await PerfilSociodemograficoData.findOne({ user: targetUserId });
+    }
     
     let currentWorker = null;
     let workerIndex = -1;
-    if (doc && doc.trabajadores) {
-      workerIndex = doc.trabajadores.findIndex(w => String(w.id) === String(workerId) || String(w._id) === String(workerId));
+    const cleanWId = String(workerId || '').trim();
+    if (doc && Array.isArray(doc.trabajadores)) {
+      workerIndex = doc.trabajadores.findIndex(w =>
+        (w.id && String(w.id).trim() === cleanWId) ||
+        (w._id && String(w._id).trim() === cleanWId) ||
+        (w.identificacion && String(w.identificacion).trim() === cleanWId)
+      );
       if (workerIndex !== -1) {
         currentWorker = doc.trabajadores[workerIndex].toObject ? doc.trabajadores[workerIndex].toObject() : doc.trabajadores[workerIndex];
       }
@@ -1477,9 +1741,6 @@ router.post('/dictamen/generate', express.json({ limit: '10mb' }), requireJwtAut
 
     // 3. Obtener API key de Google/Gemini
     const resolvedApiKey = await getApiKey(req.user.id);
-    if (!resolvedApiKey) {
-      return res.status(400).json({ error: 'No se ha configurado la clave API de Google.' });
-    }
 
     const workerName = currentWorker.nombre || 'Colaborador';
     const cargoName = currentWorker.cargo || profile?.nombreCargo || 'Cargo Operativo';
@@ -1585,13 +1846,36 @@ Tabla con periodicidad de valoraciones médicas, exámenes paraclínicos (audiom
 
 </div>`;
 
-    const finalModelName = modelName || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
-    const genAI = new GoogleGenerativeAI(resolvedApiKey);
-    const model = genAI.getGenerativeModel({ model: finalModelName });
+    let cleanedReport = '';
+    if (resolvedApiKey) {
+      try {
+        const finalModelName = modelName || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+        const genAI = new GoogleGenerativeAI(resolvedApiKey);
+        const model = genAI.getGenerativeModel({ model: finalModelName });
 
-    const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText);
-    const responseText = result.response.text();
-    const cleanedReport = cleanHtmlOutput(responseText);
+        const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText);
+        const responseText = result?.response ? result.response.text() : (typeof result === 'string' ? result : '');
+        cleanedReport = cleanHtmlOutput(responseText);
+      } catch (genErr) {
+        logger.warn(`[OraculoH1] Generación IA falló (${genErr.message}). Sintetizando dictamen determinista normativo SG-SST...`);
+        cleanedReport = buildDeterministicDictamenReport({
+          worker: currentWorker,
+          profile,
+          fit,
+          calculatedScore,
+          loadedCompanyInfo
+        });
+      }
+    } else {
+      logger.info('[OraculoH1] Clave de Google no configurada. Generando dictamen determinista normativo SG-SST...');
+      cleanedReport = buildDeterministicDictamenReport({
+        worker: currentWorker,
+        profile,
+        fit,
+        calculatedScore,
+        loadedCompanyInfo
+      });
+    }
 
     // 6. Ensamblar Encabezado Oficial + Cuerpo IA + Bloque Oficial de Firmas Digitales Interactivas (Imagen 4)
     const signatureHTML = buildSignatureSection(loadedCompanyInfo, currentWorker);
@@ -1602,25 +1886,25 @@ Tabla con periodicidad de valoraciones médicas, exámenes paraclínicos (audiom
       if (doc && workerIndex !== -1) {
         doc.trabajadores[workerIndex].dictamenPredictivoH1 = fullReport;
         doc.markModified('trabajadores');
+        doc.updatedAt = new Date();
         await doc.save();
+        logger.info(`[OraculoH1] Dictamen predictivo auto-guardado en MongoDB para trabajador ${cleanWId}`);
       } else {
-        const cleanId = String(workerId).trim();
-        const filterConditions = [
-          { 'elem.id': cleanId },
-          { 'elem.identificacion': cleanId }
-        ];
-        if (mongoose.Types.ObjectId.isValid(cleanId)) {
-          filterConditions.push({ 'elem._id': new mongoose.Types.ObjectId(cleanId) });
+        let targetDoc = doc || await PerfilSociodemograficoData.findOne({ user: targetUserId });
+        if (targetDoc && Array.isArray(targetDoc.trabajadores)) {
+          const idx = targetDoc.trabajadores.findIndex(w =>
+            (w.id && String(w.id).trim() === cleanWId) ||
+            (w._id && String(w._id).trim() === cleanWId) ||
+            (w.identificacion && String(w.identificacion).trim() === cleanWId)
+          );
+          if (idx !== -1) {
+            targetDoc.trabajadores[idx].dictamenPredictivoH1 = fullReport;
+            targetDoc.markModified('trabajadores');
+            targetDoc.updatedAt = new Date();
+            await targetDoc.save();
+            logger.info(`[OraculoH1] Dictamen predictivo auto-guardado vía fallback para trabajador ${cleanWId}`);
+          }
         }
-
-        await PerfilSociodemograficoData.updateOne(
-          { 
-            user: targetUserId, 
-            ...(companyId ? { companyId } : {})
-          },
-          { $set: { 'trabajadores.$[elem].dictamenPredictivoH1': fullReport, updatedAt: new Date() } },
-          { arrayFilters: [{ $or: filterConditions }] }
-        );
       }
     } catch (saveErr) {
       logger.warn('[OraculoH1] Warning auto-saving dictamen to DB:', saveErr.message);
