@@ -1009,7 +1009,22 @@ const startServer = async () => {
 
     const lang = req.cookies.lang || req.headers['accept-language']?.split(',')[0] || 'en-US';
     const saneLang = lang.replace(/"/g, '&quot;');
-    let updatedIndexHtml = indexHTML.replace(/lang="en-US"/g, `lang="${saneLang}"`);
+    let currentRawHtml = indexHTML;
+    try {
+      currentRawHtml = fs.readFileSync(indexPath, 'utf8');
+      if (process.env.DOMAIN_CLIENT) {
+        const clientUrl = new URL(process.env.DOMAIN_CLIENT);
+        const baseHref = clientUrl.pathname.endsWith('/')
+          ? clientUrl.pathname
+          : `${clientUrl.pathname}/`;
+        if (baseHref !== '/') {
+          currentRawHtml = currentRawHtml.replace(/base href="\/"/, `base href="${baseHref}"`);
+        }
+      }
+    } catch {
+      currentRawHtml = indexHTML;
+    }
+    let updatedIndexHtml = currentRawHtml.replace(/lang="en-US"/g, `lang="${saneLang}"`);
 
     res.type('html');
     res.send(updatedIndexHtml);
