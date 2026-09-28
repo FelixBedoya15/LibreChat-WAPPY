@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import {
   Award,
@@ -37,6 +37,8 @@ import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
 import { SignaturePad } from './SignaturePad';
 import ExpandingButton from './ExpandingButton';
 import WorkerAutocomplete from './WorkerAutocomplete';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
+import ExportDropdown from './ExportDropdown';
 
 interface CopasstWorkspaceProps {
   // Optional props
@@ -57,6 +59,12 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
   // Modal Acta State
   const [showActaModal, setShowActaModal] = useState(false);
   const [selectedActa, setSelectedActa] = useState<any>(null);
+  const [actaModalTab, setActaModalTab] = useState<'form' | 'report'>('form');
+  const [reportHtml, setReportHtml] = useState<string>('');
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportFileName, setReportFileName] = useState('Acta-COPASST');
+  const liveEditorRef = useRef<LiveEditorHandle>(null);
+
   const [actaForm, setActaForm] = useState<any>({
     mes: new Date().getMonth() + 1,
     anio: new Date().getFullYear(),
@@ -68,9 +76,12 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
     asistentes: [],
     desarrollo: {
       lecturaActaAnterior: 'Aprobada sin observaciones.',
+      seguimientoCompromisos: '',
       analisisAccidentalidad: '',
       inspeccionesSeguridad: '',
       capacitacionesYCampanas: '',
+      solicitudesTrabajadores: '',
+      asesoriaArl: '',
       proposicionesVarios: '',
     },
     compromisos: [],
@@ -251,16 +262,46 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
     }
   };
 
-  const handleOpenOfficialReport = async (actaId: string) => {
+  const handleOpenOfficialReport = async (actaIdOrData?: any, fromTable = false) => {
+    setReportLoading(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.post(`/api/sgsst/copasst/actas/${actaId}/reporte-oficial`, {}, { headers });
-      if (res.data?.url) {
-        window.open(res.data.url, '_blank');
+      const isExistingId = typeof actaIdOrData === 'string' && actaIdOrData !== 'preview';
+      const actaId = isExistingId ? actaIdOrData : (selectedActa?._id || 'preview');
+      const bodyPayload = isExistingId ? {} : actaForm;
+
+      if (fromTable && isExistingId) {
+        const found = actas.find((a) => a._id === actaIdOrData);
+        if (found) {
+          setSelectedActa(found);
+          setActaForm({
+            mes: found.mes,
+            anio: found.anio,
+            tipo: found.tipo || 'ordinaria_mensual',
+            lugar: found.lugar || 'Sala Principal de Reuniones / Híbrida',
+            horaInicio: found.horaInicio || '08:00',
+            horaFin: found.horaFin || '10:00',
+            quorumVerificado: found.quorumVerificado !== false,
+            asistentes: found.asistentes || [],
+            desarrollo: found.desarrollo || {},
+            compromisos: found.compromisos || [],
+          });
+        }
       }
+
+      const res = await axios.post(`/api/sgsst/copasst/actas/${actaId}/reporte-oficial`, bodyPayload, { headers });
+      if (res.data?.html) {
+        setReportHtml(res.data.html);
+        const fileName = res.data.fileName || (selectedActa?.consecutivo ? `Acta-COPASST-${selectedActa.consecutivo}` : 'Acta-COPASST');
+        setReportFileName(fileName);
+      }
+      setActaModalTab('report');
+      setShowActaModal(true);
     } catch (err: any) {
       console.error('Error opening official acta report:', err);
       showToast({ message: err.response?.data?.error || 'Error al generar el acta oficial con firmas', status: 'error' });
+    } finally {
+      setReportLoading(false);
     }
   };
 
@@ -624,7 +665,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                     {actaDelMes ? (
                       <>
                         <button
-                          onClick={() => handleOpenOfficialReport(actaDelMes._id)}
+                          onClick={() => handleOpenOfficialReport(actaDelMes._id, true)}
                           className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100"
                           title="Generar Acta Oficial con Firmas Digitales"
                         >
@@ -915,8 +956,8 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
       {/* ═══ MODAL CREAR / EDITAR ACTA MENSUAL ═══ */}
       {showActaModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-          <div className="w-full max-w-4xl bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 md:p-8 shadow-2xl space-y-6 my-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-zinc-800">
+          <div className="w-full max-w-5xl bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 md:p-8 shadow-2xl space-y-6 my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-zinc-800">
               <div className="flex items-center gap-3">
                 <div className="p-3 rounded-2xl bg-teal-500/10 text-teal-600">
                   <FileText className="w-6 h-6" />
@@ -931,37 +972,69 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 </div>
               </div>
 
+              {/* Selector de Pestaña: Diligenciamiento vs Generador de Informe */}
+              <div className="flex items-center p-1 bg-slate-100 dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700">
+                <button
+                  type="button"
+                  onClick={() => setActaModalTab('form')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    actaModalTab === 'form'
+                      ? 'bg-white dark:bg-zinc-900 text-teal-600 dark:text-teal-300 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  <PenTool className="w-3.5 h-3.5" />
+                  <span>Diligenciamiento</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenOfficialReport(selectedActa?._id || 'preview', false)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    actaModalTab === 'report'
+                      ? 'bg-white dark:bg-zinc-900 text-teal-600 dark:text-teal-300 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Informe Oficial</span>
+                </button>
+              </div>
+
               {/* Botón IA Tenshi + Botones de Firma + Botón Cerrar */}
               <div className="flex items-center gap-2">
-                {selectedActa && (
+                {actaModalTab === 'report' ? (
+                  <ExportDropdown
+                    content={reportHtml}
+                    fileName={reportFileName}
+                    reportType="general"
+                  />
+                ) : (
                   <>
+                    {selectedActa && (
+                      <ExpandingButton
+                        onClick={handleCopySigningLink}
+                        label="Link de Firma"
+                        icon={Share2}
+                        variant="outline-teal"
+                        title="Copiar enlace para que los miembros firmen desde su portal"
+                      />
+                    )}
                     <ExpandingButton
-                      onClick={() => handleOpenOfficialReport(selectedActa._id)}
-                      label="Acta Oficial (Firmas)"
-                      icon={Printer}
-                      variant="teal"
-                      title="Ver o imprimir el acta oficial con firmas digitales de los participantes"
-                    />
-                    <ExpandingButton
-                      onClick={handleCopySigningLink}
-                      label="Link de Firma"
-                      icon={Share2}
-                      variant="outline-teal"
-                      title="Copiar enlace para que los miembros firmen desde su portal"
+                      onClick={handleGenerateWithAI}
+                      isLoading={isGeneratingIA}
+                      label={isGeneratingIA ? 'Redactando con Tenshi...' : 'Redactar con Tenshi IA'}
+                      icon={Sparkles}
+                      variant="orange"
+                      title="Redactar borrador del acta con Tenshi IA"
                     />
                   </>
                 )}
-                <ExpandingButton
-                  onClick={handleGenerateWithAI}
-                  isLoading={isGeneratingIA}
-                  label={isGeneratingIA ? 'Redactando con Tenshi...' : 'Redactar con Tenshi IA'}
-                  icon={Sparkles}
-                  variant="orange"
-                  title="Redactar borrador del acta con Tenshi IA"
-                />
                 <button
                   type="button"
-                  onClick={() => setShowActaModal(false)}
+                  onClick={() => {
+                    setShowActaModal(false);
+                    setActaModalTab('form');
+                  }}
                   className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                   title="Cerrar modal"
                 >
@@ -970,8 +1043,76 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
               </div>
             </div>
 
-            {/* Metadatos Básicos */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {actaModalTab === 'report' ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-800/80 rounded-2xl">
+                  <div className="flex items-center gap-2 text-teal-800 dark:text-teal-200 text-xs font-semibold">
+                    <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
+                    <span>Vista Oficial en Papel Membretado A4 con Firmas Digitales de los Participantes (Ley 527/1999)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ExpandingButton
+                      onClick={() => setActaModalTab('form')}
+                      label="Volver al Formulario"
+                      icon={PenTool}
+                      variant="neutral"
+                      title="Volver al formulario de campos estructurados"
+                    />
+                    <ExportDropdown
+                      content={reportHtml}
+                      fileName={reportFileName}
+                      reportType="general"
+                    />
+                  </div>
+                </div>
+
+                {reportLoading ? (
+                  <div className="flex flex-col items-center justify-center p-16 space-y-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+                    <p className="text-xs text-slate-500 font-bold">Generando documento oficial con firmas...</p>
+                  </div>
+                ) : (
+                  <div className="w-full bg-slate-100 dark:bg-zinc-950 p-2 sm:p-4 rounded-3xl overflow-y-auto max-h-[70vh]">
+                    <LiveEditor
+                      ref={liveEditorRef}
+                      paperMode={true}
+                      initialContent={reportHtml}
+                      onUpdate={(html) => setReportHtml(html)}
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-zinc-800">
+                  <ExpandingButton
+                    onClick={() => setActaModalTab('form')}
+                    label="Volver al Formulario"
+                    icon={ChevronRight}
+                    variant="secondary"
+                    title="Regresar a editar los campos estructurados"
+                  />
+                  <div className="flex items-center gap-2">
+                    <ExportDropdown
+                      content={reportHtml}
+                      fileName={reportFileName}
+                      reportType="general"
+                    />
+                    <ExpandingButton
+                      onClick={() => {
+                        setShowActaModal(false);
+                        setActaModalTab('form');
+                      }}
+                      label="Cerrar"
+                      icon={X}
+                      variant="secondary"
+                      title="Cerrar visor de informe"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Metadatos Básicos */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Consecutivo</label>
                 <input
@@ -1135,81 +1276,162 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
               </div>
             </div>
 
-            {/* Desarrollo Temático del Acta */}
+            {/* Desarrollo Temático del Acta con Todos los Puntos Legales */}
             <div className="space-y-4">
               <h4 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400">
-                Desarrollo de los Puntos del Orden del Día
+                Desarrollo de los Puntos del Orden del Día (Res. 2013/1986 y Dec. 1072/2015)
               </h4>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
-                  1. Análisis de Accidentalidad, Incidentes y Ausentismo ATEL
-                </label>
-                <textarea
-                  rows={2}
-                  value={actaForm.desarrollo?.analisisAccidentalidad || ''}
-                  onChange={(e) =>
-                    setActaForm({
-                      ...actaForm,
-                      desarrollo: { ...actaForm.desarrollo, analisisAccidentalidad: e.target.value },
-                    })
-                  }
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
-                  placeholder="Comportamiento del mes, días de incapacidad y causas de incidentes..."
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                    1. Lectura y Aprobación del Acta Anterior
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={actaForm.desarrollo?.lecturaActaAnterior || ''}
+                    onChange={(e) =>
+                      setActaForm({
+                        ...actaForm,
+                        desarrollo: { ...actaForm.desarrollo, lecturaActaAnterior: e.target.value },
+                      })
+                    }
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
+                    placeholder="Lectura de acta ordinaria anterior y constancia de aprobación..."
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                    2. Seguimiento a Compromisos y Tareas Previas
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={actaForm.desarrollo?.seguimientoCompromisos || ''}
+                    onChange={(e) =>
+                      setActaForm({
+                        ...actaForm,
+                        desarrollo: { ...actaForm.desarrollo, seguimientoCompromisos: e.target.value },
+                      })
+                    }
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
+                    placeholder="Revisión de avance de tareas pendientes del mes previo..."
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
-                  2. Inspecciones Planeadas de Seguridad y Hallazgos en Terreno
-                </label>
-                <textarea
-                  rows={2}
-                  value={actaForm.desarrollo?.inspeccionesSeguridad || ''}
-                  onChange={(e) =>
-                    setActaForm({
-                      ...actaForm,
-                      desarrollo: { ...actaForm.desarrollo, inspeccionesSeguridad: e.target.value },
-                    })
-                  }
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
-                  placeholder="Inspecciones de extintores, rutas de evacuación, orden y aseo..."
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                    3. Análisis de Accidentalidad, Incidentes y Ausentismo (ATEL)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={actaForm.desarrollo?.analisisAccidentalidad || ''}
+                    onChange={(e) =>
+                      setActaForm({
+                        ...actaForm,
+                        desarrollo: { ...actaForm.desarrollo, analisisAccidentalidad: e.target.value },
+                      })
+                    }
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
+                    placeholder="Comportamiento del mes, días de incapacidad y causas de incidentes..."
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                    4. Inspecciones Planeadas de Seguridad y Hallazgos en Terreno
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={actaForm.desarrollo?.inspeccionesSeguridad || ''}
+                    onChange={(e) =>
+                      setActaForm({
+                        ...actaForm,
+                        desarrollo: { ...actaForm.desarrollo, inspeccionesSeguridad: e.target.value },
+                      })
+                    }
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
+                    placeholder="Inspecciones de extintores, rutas de evacuación, orden y aseo..."
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
-                  3. Capacitaciones SG-SST y Campañas de Sensibilización
-                </label>
-                <textarea
-                  rows={2}
-                  value={actaForm.desarrollo?.capacitacionesYCampanas || ''}
-                  onChange={(e) =>
-                    setActaForm({
-                      ...actaForm,
-                      desarrollo: { ...actaForm.desarrollo, capacitacionesYCampanas: e.target.value },
-                    })
-                  }
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
-                  placeholder="Cursos ejecutados, asistencia de colaboradores y plan del mes..."
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                    5. Cumplimiento de Cronograma de Capacitaciones y Campañas
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={actaForm.desarrollo?.capacitacionesYCampanas || ''}
+                    onChange={(e) =>
+                      setActaForm({
+                        ...actaForm,
+                        desarrollo: { ...actaForm.desarrollo, capacitacionesYCampanas: e.target.value },
+                      })
+                    }
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
+                    placeholder="Cursos ejecutados, asistencia de colaboradores y plan del mes..."
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                    6. Peticiones, Sugerencias e Inquietudes de los Trabajadores
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={actaForm.desarrollo?.solicitudesTrabajadores || ''}
+                    onChange={(e) =>
+                      setActaForm({
+                        ...actaForm,
+                        desarrollo: { ...actaForm.desarrollo, solicitudesTrabajadores: e.target.value },
+                      })
+                    }
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
+                    placeholder="Inquietudes recibidas sobre EPP, ergonomía o condiciones laborales..."
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
-                  4. Proposiciones, Varios y Próxima Sesión
-                </label>
-                <textarea
-                  rows={2}
-                  value={actaForm.desarrollo?.proposicionesVarios || ''}
-                  onChange={(e) =>
-                    setActaForm({
-                      ...actaForm,
-                      desarrollo: { ...actaForm.desarrollo, proposicionesVarios: e.target.value },
-                    })
-                  }
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                    7. Asesoría, Recomendaciones e Intervención de la ARL
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={actaForm.desarrollo?.asesoriaArl || ''}
+                    onChange={(e) =>
+                      setActaForm({
+                        ...actaForm,
+                        desarrollo: { ...actaForm.desarrollo, asesoriaArl: e.target.value },
+                      })
+                    }
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
+                    placeholder="Acompañamiento técnico, visitas o capacitaciones brindadas por la ARL..."
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                    8. Proposiciones, Varios y Acuerdos de Cierre
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={actaForm.desarrollo?.proposicionesVarios || ''}
+                    onChange={(e) =>
+                      setActaForm({
+                        ...actaForm,
+                        desarrollo: { ...actaForm.desarrollo, proposicionesVarios: e.target.value },
+                      })
+                    }
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
+                    placeholder="Varios y acuerdos para la próxima reunión..."
+                  />
+                </div>
               </div>
             </div>
 
@@ -1292,25 +1514,39 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
             </div>
 
             {/* Footer Modal Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-zinc-800">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-zinc-800">
               <ExpandingButton
-                onClick={() => setShowActaModal(false)}
+                onClick={() => {
+                  setShowActaModal(false);
+                  setActaModalTab('form');
+                }}
                 label="Cancelar"
                 icon={X}
                 variant="secondary"
                 title="Descartar cambios y cerrar"
               />
-              <ExpandingButton
-                onClick={handleSaveActa}
-                label="Guardar Acta Reglamentaria"
-                icon={CheckCircle2}
-                variant="teal"
-                title="Guardar acta y registrar compromisos"
-              />
+              <div className="flex items-center gap-2">
+                <ExpandingButton
+                  onClick={() => handleOpenOfficialReport(selectedActa?._id || 'preview', false)}
+                  label="Generar / Ver Informe Oficial"
+                  icon={Printer}
+                  variant="outline-teal"
+                  title="Previsualizar y exportar en papel membretado con firmas"
+                />
+                <ExpandingButton
+                  onClick={handleSaveActa}
+                  label="Guardar Acta Reglamentaria"
+                  icon={CheckCircle2}
+                  variant="teal"
+                  title="Guardar acta y registrar compromisos"
+                />
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </div>
+    </div>
+  )}
 
       {/* ═══ MODAL CONVOCATORIA ELECCIONES ═══ */}
       {showEleccionModal && (

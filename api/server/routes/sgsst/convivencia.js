@@ -641,8 +641,20 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
     const company = await getActiveCompany(req.user.id);
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
 
-    const acta = await SgsstConvivenciaActa.findOne({ _id: req.params.id, companyId: company._id });
-    if (!acta) return res.status(404).json({ error: 'Acta no encontrada' });
+    let acta;
+    if (req.params.id === 'preview') {
+      acta = req.body || {};
+      if (!acta.consecutivo) acta.consecutivo = 'BORRADOR';
+      if (!acta.trimestre) acta.trimestre = 1;
+      if (!acta.anio) acta.anio = new Date().getFullYear();
+    } else {
+      const dbActa = await SgsstConvivenciaActa.findOne({ _id: req.params.id, companyId: company._id });
+      if (!dbActa) return res.status(404).json({ error: 'Acta no encontrada' });
+      acta = dbActa.toObject ? dbActa.toObject() : { ...dbActa };
+      if (req.body && Object.keys(req.body).length > 0) {
+        acta = { ...acta, ...req.body, desarrollo: { ...acta.desarrollo, ...req.body.desarrollo } };
+      }
+    }
 
     const { buildStandardHeader, buildCommitteeSignatureSection } = require('./reportHeader');
     const PublicReport = require('../../../models/PublicReport');
@@ -653,7 +665,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
       : new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 
     const headerHtml = buildStandardHeader({
-      title: `ACTA ORDINARIA TRIMESTRAL N° ${acta.consecutivo} - COMITÉ DE CONVIVENCIA LABORAL`,
+      title: `ACTA ORDINARIA TRIMESTRAL N° ${acta.consecutivo || 'Borrador'} - COMITÉ DE CONVIVENCIA LABORAL`,
       companyInfo: company,
       date: formattedDate,
       norm: 'Resolución 3461 de 2025 • Ley 1010 de 2006 • Ley 2365 de 2024',
@@ -723,6 +735,11 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 24px; color: #1e293b; background-color: #ffffff; line-height: 1.5;">
         ${headerHtml}
 
+        <!-- Aviso Legal de Confidencialidad -->
+        <div style="margin-bottom: 20px; padding: 10px 16px; background-color: #fdf2f8; border: 1.5px dashed #f43f5e; border-radius: 10px; font-size: 10.5px; color: #9f1239; line-height: 1.4;">
+          <strong>🔒 ACTA DE CARÁCTER ESTRICTAMENTE RESERVADO Y CONFIDENCIAL:</strong> En observancia de la <em>Resolución 3461 de 2025</em> y la <em>Ley 1010 de 2006</em>, las deliberaciones y documentos del Comité de Convivencia Laboral están sujetos a reserva legal. Los integrantes están obligados a guardar estricta reserva de la información conocida en razón de sus funciones.
+        </div>
+
         <!-- Ficha de la Sesión -->
         <div style="margin-bottom: 24px; border: 1.5px solid #0f766e; border-radius: 12px; overflow: hidden; page-break-inside: avoid;">
           <div style="background: linear-gradient(90deg, #0f766e, #0d9488); color: #ffffff; padding: 9px 14px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
@@ -732,7 +749,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
             <tbody>
               <tr style="border-bottom: 1px solid #e2e8f0;">
                 <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; width: 25%; color: #334155;">Consecutivo Acta:</td>
-                <td style="padding: 8px 12px; font-weight: 700; color: #0f766e; width: 25%;">${acta.consecutivo}</td>
+                <td style="padding: 8px 12px; font-weight: 700; color: #0f766e; width: 25%;">${acta.consecutivo || 'Borrador'}</td>
                 <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; width: 25%; color: #334155;">Periodo Evaluado:</td>
                 <td style="padding: 8px 12px; width: 25%;">Trimestre Q${acta.trimestre} de ${acta.anio}</td>
               </tr>
@@ -747,7 +764,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
                 <td style="padding: 8px 12px;">${acta.lugar || 'Sala Confidencial de Convivencia'}</td>
                 <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Quórum Reglamentario:</td>
                 <td style="padding: 8px 12px; font-weight: bold; color: ${acta.quorumVerificado !== false ? '#15803d' : '#b45309'};">
-                  ${acta.quorumVerificado !== false ? '✓ Quórum Verificado y Válido' : 'Quórum Pendiente'}
+                  ${acta.quorumVerificado !== false ? '✓ Quórum Verificado y Válido (Mitad + 1)' : 'Quórum Pendiente'}
                 </td>
               </tr>
             </tbody>
@@ -763,11 +780,41 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
           </h3>
 
           ${
+            acta.desarrollo?.lecturaActaAnterior
+              ? `
+            <div style="margin-bottom: 14px; page-break-inside: avoid;">
+              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                1. Lectura y Aprobación del Acta Trimestral Anterior
+              </h4>
+              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
+                ${acta.desarrollo.lecturaActaAnterior}
+              </div>
+            </div>
+          `
+              : ''
+          }
+
+          ${
+            acta.desarrollo?.seguimientoCompromisos
+              ? `
+            <div style="margin-bottom: 14px; page-break-inside: avoid;">
+              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                2. Seguimiento a Compromisos Previos y Fórmulas de Concertación
+              </h4>
+              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
+                ${acta.desarrollo.seguimientoCompromisos}
+              </div>
+            </div>
+          `
+              : ''
+          }
+
+          ${
             acta.desarrollo?.revisionQuejasTrimestre
               ? `
             <div style="margin-bottom: 14px; page-break-inside: avoid;">
               <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                1. Revisión Periódica de Casos y Trámites Conciliatorios (Sin Nombres Propios)
+                3. Revisión Periódica de Casos y Trámites Conciliatorios (Sin Nombres Propios)
               </h4>
               <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
                 ${acta.desarrollo.revisionQuejasTrimestre}
@@ -782,7 +829,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
               ? `
             <div style="margin-bottom: 14px; page-break-inside: avoid;">
               <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                2. Campañas Preventivas contra el Acoso Laboral y Acoso Sexual
+                4. Campañas Preventivas contra el Acoso Laboral y Acoso Sexual
               </h4>
               <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
                 ${acta.desarrollo.campanasPreventivasAcoso}
@@ -797,10 +844,25 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
               ? `
             <div style="margin-bottom: 14px; page-break-inside: avoid;">
               <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                3. Monitoreo de Clima Laboral y Riesgo Psicosocial
+                5. Monitoreo de Clima Laboral y Riesgo Psicosocial
               </h4>
               <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
                 ${acta.desarrollo.climaLaboralPsicosocial}
+              </div>
+            </div>
+          `
+              : ''
+          }
+
+          ${
+            acta.desarrollo?.recomendacionesAltaDireccion
+              ? `
+            <div style="margin-bottom: 14px; page-break-inside: avoid;">
+              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                6. Recomendaciones Preventivas y Correctivas a la Alta Dirección
+              </h4>
+              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
+                ${acta.desarrollo.recomendacionesAltaDireccion}
               </div>
             </div>
           `
@@ -812,7 +874,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
               ? `
             <div style="margin-bottom: 14px; page-break-inside: avoid;">
               <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                4. Proposiciones, Varios y Acuerdos
+                7. Proposiciones, Varios y Acuerdos de Cierre
               </h4>
               <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
                 ${acta.desarrollo.proposicionesVarios}
@@ -853,7 +915,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
     const publicReport = new PublicReport({
       id: reportId,
       content: fullHtml,
-      fileName: `Acta-COCOLAB-${acta.consecutivo}`,
+      fileName: `Acta-COCOLAB-${acta.consecutivo || 'Borrador'}`,
       reportType: 'general',
     });
     await publicReport.save();
@@ -862,6 +924,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
       success: true,
       reportId,
       url: `/report/${reportId}`,
+      html: fullHtml,
     });
   } catch (error) {
     logger.error('[CONVIVENCIA] POST /actas/:id/reporte-oficial error:', error);

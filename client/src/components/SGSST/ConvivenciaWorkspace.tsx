@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import {
   HeartHandshake,
@@ -40,6 +40,8 @@ import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
 import SignaturePad from './SignaturePad';
 import ExpandingButton from './ExpandingButton';
 import WorkerAutocomplete from './WorkerAutocomplete';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
+import ExportDropdown from './ExportDropdown';
 
 export default function ConvivenciaWorkspace() {
   const { token } = useAuthContext();
@@ -52,6 +54,13 @@ export default function ConvivenciaWorkspace() {
   const [actas, setActas] = useState<any[]>([]);
   const [elecciones, setElecciones] = useState<any[]>([]);
   const [workers, setWorkers] = useState<any[]>([]);
+
+  // Pestaña activa dentro del modal de Acta: Diligenciamiento ('form') o Informe Oficial membretado ('report')
+  const [actaModalTab, setActaModalTab] = useState<'form' | 'report'>('form');
+  const [reportHtml, setReportHtml] = useState<string>('');
+  const [reportLoading, setReportLoading] = useState<boolean>(false);
+  const [reportFileName, setReportFileName] = useState<string>('Acta-Comite-Convivencia');
+  const liveEditorRef = useRef<LiveEditorHandle>(null);
 
   // Modal Caso State
   const [selectedCaso, setSelectedCaso] = useState<any>(null);
@@ -82,6 +91,9 @@ export default function ConvivenciaWorkspace() {
     consecutivo: '',
     tipo: 'ordinaria_trimestral',
     centroTrabajo: 'Sede Principal',
+    lugar: 'Sala Confidencial de Convivencia / Híbrida',
+    horaInicio: '09:00',
+    horaFin: '11:00',
     quorumVerificado: true,
     asistentes: [],
     estadisticasQuejas: {
@@ -93,9 +105,12 @@ export default function ConvivenciaWorkspace() {
       casosAcosoSexualLey2365: 0,
     },
     desarrollo: {
+      lecturaActaAnterior: '',
+      seguimientoCompromisos: '',
       revisionQuejasTrimestre: '',
       campanasPreventivasAcoso: '',
       climaLaboralPsicosocial: '',
+      recomendacionesAltaDireccion: '',
       proposicionesVarios: '',
     },
     compromisos: [],
@@ -228,6 +243,9 @@ export default function ConvivenciaWorkspace() {
       anio: new Date().getFullYear(),
       tipo: 'ordinaria_trimestral',
       centroTrabajo: activeComite?.centroTrabajo || 'Sede Principal',
+      lugar: 'Sala Confidencial de Convivencia / Híbrida',
+      horaInicio: '09:00',
+      horaFin: '11:00',
       quorumVerificado: true,
       asistentes: defaultAsistentes,
       estadisticasQuejas: {
@@ -239,10 +257,13 @@ export default function ConvivenciaWorkspace() {
         casosAcosoSexualLey2365: casos.filter((c) => c.tipoAcoso === 'sexual_ley_2365').length,
       },
       desarrollo: {
-        revisionQuejasTrimestre: 'Se analizaron los radicados confidenciales garantizando la reserva de ley.',
-        campanasPreventivasAcoso: 'Ejecución de talleres de resolución asertiva de conflictos y respeto.',
-        climaLaboralPsicosocial: 'Monitoreo preventivo del clima intralaboral y relaciones de mando.',
-        proposicionesVarios: 'Coordinación de la próxima sesión ordinaria trimestral.',
+        lecturaActaAnterior: 'Se dio lectura al acta ordinaria anterior siendo aprobada por unanimidad de los asistentes.',
+        seguimientoCompromisos: 'Se verificaron los acuerdos y compromisos suscritos en la sesión precedente, reportando avance satisfactorio.',
+        revisionQuejasTrimestre: 'Se analizaron los radicados confidenciales garantizando la reserva de ley y sin mención de nombres propios.',
+        campanasPreventivasAcoso: 'Ejecución de talleres de resolución asertiva de conflictos, prevención del acoso laboral y sensibilización Ley 2365 de 2024.',
+        climaLaboralPsicosocial: 'Monitoreo preventivo del clima intralaboral y relaciones de mando en coordinación con el área de Talento Humano y SGSST.',
+        recomendacionesAltaDireccion: 'Recomendaciones dirigidas a la Gerencia General y Talento Humano para fortalecer la cultura de respeto y diálogo.',
+        proposicionesVarios: 'Coordinación y fecha tentativa para la próxima sesión ordinaria trimestral del CCL.',
       },
       compromisos: [
         {
@@ -254,6 +275,7 @@ export default function ConvivenciaWorkspace() {
       ],
     });
     setSelectedActa(null);
+    setActaModalTab('form');
     setShowActaModal(true);
   };
 
@@ -262,9 +284,23 @@ export default function ConvivenciaWorkspace() {
     setActaForm({
       id: acta._id,
       ...acta,
+      lugar: acta.lugar || 'Sala Confidencial de Convivencia / Híbrida',
+      horaInicio: acta.horaInicio || '09:00',
+      horaFin: acta.horaFin || '11:00',
+      quorumVerificado: acta.quorumVerificado !== false,
       asistentes: acta.asistentes || [],
+      estadisticasQuejas: acta.estadisticasQuejas || {
+        quejasRecibidasTrimestre: 0,
+        enTramite: 0,
+        acuerdosConciliatorios: 0,
+        archivadasSinMerito: 0,
+        remitidasAltaDireccion: 0,
+        casosAcosoSexualLey2365: 0,
+      },
+      desarrollo: acta.desarrollo || {},
       compromisos: acta.compromisos || [],
     });
+    setActaModalTab('form');
     setShowActaModal(true);
   };
 
@@ -280,16 +316,53 @@ export default function ConvivenciaWorkspace() {
     }
   };
 
-  const handleOpenOfficialReport = async (actaId: string) => {
+  const handleOpenOfficialReport = async (actaIdOrData?: any, fromTable = false) => {
+    setReportLoading(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.post(`/api/sgsst/convivencia/actas/${actaId}/reporte-oficial`, {}, { headers });
-      if (res.data?.url) {
-        window.open(res.data.url, '_blank');
+      const isExistingId = typeof actaIdOrData === 'string' && actaIdOrData !== 'preview';
+      const actaId = isExistingId ? actaIdOrData : (selectedActa?._id || 'preview');
+      const bodyPayload = isExistingId ? {} : actaForm;
+
+      if (fromTable && isExistingId) {
+        const found = actas.find((a) => a._id === actaIdOrData);
+        if (found) {
+          setSelectedActa(found);
+          setActaForm({
+            id: found._id,
+            ...found,
+            lugar: found.lugar || 'Sala Confidencial de Convivencia / Híbrida',
+            horaInicio: found.horaInicio || '09:00',
+            horaFin: found.horaFin || '11:00',
+            quorumVerificado: found.quorumVerificado !== false,
+            asistentes: found.asistentes || [],
+            estadisticasQuejas: found.estadisticasQuejas || {
+              quejasRecibidasTrimestre: 0,
+              enTramite: 0,
+              acuerdosConciliatorios: 0,
+              archivadasSinMerito: 0,
+              remitidasAltaDireccion: 0,
+              casosAcosoSexualLey2365: 0,
+            },
+            desarrollo: found.desarrollo || {},
+            compromisos: found.compromisos || [],
+          });
+        }
       }
+
+      const res = await axios.post(`/api/sgsst/convivencia/actas/${actaId}/reporte-oficial`, bodyPayload, { headers });
+      if (res.data?.html) {
+        setReportHtml(res.data.html);
+        const fileName = res.data.fileName || (selectedActa?.consecutivo ? `Acta-COCOLAB-${selectedActa.consecutivo}` : `Acta-COCOLAB-Q${actaForm.trimestre}-${actaForm.anio}`);
+        setReportFileName(fileName);
+      }
+      setActaModalTab('report');
+      setShowActaModal(true);
     } catch (err: any) {
       console.error('Error opening official convivencia acta report:', err);
       showToast({ message: err.response?.data?.error || 'Error al generar el acta oficial con firmas', status: 'error' });
+    } finally {
+      setReportLoading(false);
     }
   };
 
@@ -796,7 +869,7 @@ export default function ConvivenciaWorkspace() {
                     {actaQ ? (
                       <>
                         <button
-                          onClick={() => handleOpenOfficialReport(actaQ._id)}
+                          onClick={() => handleOpenOfficialReport(actaQ._id, true)}
                           className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100"
                           title="Generar Acta Oficial con Firmas Digitales"
                         >
@@ -1304,57 +1377,90 @@ export default function ConvivenciaWorkspace() {
         </div>
       )}
 
-      {/* ═══ MODAL CREAR / EDITAR ACTA TRIMESTRAL ═══ */}
+      {/* ═══ MODAL CREAR / EDITAR ACTA TRIMESTRAL CON LIVEEDITOR E INFORME OFICIAL ═══ */}
       {showActaModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-          <div className="w-full max-w-4xl bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 md:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-zinc-800">
+          <div className="w-full max-w-5xl bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 md:p-8 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-zinc-800">
               <div className="flex items-center gap-3">
                 <div className="p-3 rounded-2xl bg-indigo-500/10 text-indigo-600">
                   <FileText className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="text-xl font-black text-slate-800 dark:text-zinc-100">
-                    Acta Trimestral Ordinaria del CCL
+                    {selectedActa ? 'Examinar / Editar Acta CCL' : 'Diligenciar Nueva Acta Trimestral CCL'}
                   </h3>
-                  <p className="text-xs text-slate-500">
-                    Trimestre Q{actaForm.trimestre} de {actaForm.anio} • Resolución 3461 de 2025
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">
+                    Trimestre Q{actaForm.trimestre} de {actaForm.anio} • Resolución 3461 de 2025 y Ley 2365 de 2024
                   </p>
                 </div>
               </div>
 
-              {/* Botón IA Tenshi + Botones de Firma + Botón Cerrar */}
+              {/* Selector de Pestaña: Diligenciamiento vs Generador de Informe */}
+              <div className="flex items-center p-1 bg-slate-100 dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700">
+                <button
+                  type="button"
+                  onClick={() => setActaModalTab('form')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    actaModalTab === 'form'
+                      ? 'bg-white dark:bg-zinc-900 text-teal-600 dark:text-teal-300 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  <PenTool className="w-3.5 h-3.5" />
+                  <span>Diligenciamiento</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenOfficialReport(selectedActa?._id || 'preview', false)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    actaModalTab === 'report'
+                      ? 'bg-white dark:bg-zinc-900 text-teal-600 dark:text-teal-300 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Informe Oficial</span>
+                </button>
+              </div>
+
+              {/* Acciones en Cabecera */}
               <div className="flex items-center gap-2">
-                {selectedActa && (
+                {actaModalTab === 'report' ? (
+                  <ExportDropdown
+                    content={reportHtml}
+                    fileName={reportFileName}
+                    reportType="general"
+                  />
+                ) : (
                   <>
+                    {selectedActa && (
+                      <ExpandingButton
+                        onClick={handleCopySigningLink}
+                        label="Link de Firma"
+                        icon={Share2}
+                        variant="outline-teal"
+                        title="Copiar enlace para que los miembros firmen desde su portal"
+                      />
+                    )}
                     <ExpandingButton
-                      onClick={() => handleOpenOfficialReport(selectedActa._id)}
-                      label="Acta Oficial (Firmas)"
-                      icon={Printer}
-                      variant="teal"
-                      title="Ver o imprimir el acta oficial con firmas digitales de los participantes"
-                    />
-                    <ExpandingButton
-                      onClick={handleCopySigningLink}
-                      label="Link de Firma"
-                      icon={Share2}
-                      variant="outline-teal"
-                      title="Copiar enlace para que los miembros firmen desde su portal"
+                      variant="orange"
+                      icon={Sparkles}
+                      label={isGeneratingIA ? 'Redactando con Tenshi...' : 'Redactar con Tenshi IA'}
+                      onClick={handleGenerateActaIA}
+                      disabled={isGeneratingIA}
+                      isLoading={isGeneratingIA}
+                      title="Redactar borrador del acta con Tenshi IA"
                     />
                   </>
                 )}
-                <ExpandingButton
-                  variant="orange"
-                  icon={Sparkles}
-                  label={isGeneratingIA ? 'Redactando con Tenshi...' : 'Redactar con Tenshi IA'}
-                  onClick={handleGenerateActaIA}
-                  disabled={isGeneratingIA}
-                  isLoading={isGeneratingIA}
-                  title="Redactar borrador del acta con Tenshi IA"
-                />
                 <button
                   type="button"
-                  onClick={() => setShowActaModal(false)}
+                  onClick={() => {
+                    setShowActaModal(false);
+                    setActaModalTab('form');
+                  }}
                   className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                   title="Cerrar modal"
                 >
@@ -1363,344 +1469,661 @@ export default function ConvivenciaWorkspace() {
               </div>
             </div>
 
-            {/* Metadatos del Acta */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/40 border border-slate-100 dark:border-zinc-800">
-              <div>
-                <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Trimestre</label>
-                <select
-                  value={actaForm.trimestre}
-                  onChange={(e) => setActaForm({ ...actaForm, trimestre: Number(e.target.value) })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
-                >
-                  <option value={1}>Q1 (Ene - Mar)</option>
-                  <option value={2}>Q2 (Abr - Jun)</option>
-                  <option value={3}>Q3 (Jul - Sep)</option>
-                  <option value={4}>Q4 (Oct - Dic)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Año</label>
-                <input
-                  type="number"
-                  value={actaForm.anio}
-                  onChange={(e) => setActaForm({ ...actaForm, anio: Number(e.target.value) })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Consecutivo</label>
-                <input
-                  type="text"
-                  placeholder={`ACTA-COCOLAB-${actaForm.anio}-Q${actaForm.trimestre}`}
-                  value={actaForm.consecutivo || ''}
-                  onChange={(e) => setActaForm({ ...actaForm, consecutivo: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Sede / Centro</label>
-                <input
-                  type="text"
-                  value={actaForm.centroTrabajo || 'Sede Principal'}
-                  onChange={(e) => setActaForm({ ...actaForm, centroTrabajo: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
-                />
-              </div>
-            </div>
-
-            {/* Asistentes y Firmas Digitales */}
-            <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                <div>
-                  <h4 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400 flex items-center gap-1.5">
-                    <Users className="w-4 h-4" /> Asistentes y Firmas Digitales ({actaForm.asistentes?.length || 0})
-                  </h4>
-                  <p className="text-[11px] text-slate-400 dark:text-zinc-400">
-                    Los miembros del comité pueden firmar en esta pantalla o directamente desde su portal de colaborador
-                  </p>
+            {actaModalTab === 'report' ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-800/80 rounded-2xl">
+                  <div className="flex items-center gap-2 text-teal-800 dark:text-teal-200 text-xs font-semibold">
+                    <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
+                    <span>Vista Oficial en Papel Membretado A4 con Firmas Digitales de los Participantes (Res. 3461/2025)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ExpandingButton
+                      onClick={() => setActaModalTab('form')}
+                      label="Volver al Formulario"
+                      icon={PenTool}
+                      variant="neutral"
+                      title="Volver al formulario de campos estructurados"
+                    />
+                    <ExportDropdown
+                      content={reportHtml}
+                      fileName={reportFileName}
+                      reportType="general"
+                    />
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                {reportLoading ? (
+                  <div className="flex flex-col items-center justify-center p-16 space-y-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+                    <p className="text-xs text-slate-500 font-bold">Generando documento oficial confidencial con firmas...</p>
+                  </div>
+                ) : (
+                  <div className="w-full bg-slate-100 dark:bg-zinc-950 p-2 sm:p-4 rounded-3xl overflow-y-auto max-h-[70vh]">
+                    <LiveEditor
+                      ref={liveEditorRef}
+                      paperMode={true}
+                      initialContent={reportHtml}
+                      onUpdate={(html) => setReportHtml(html)}
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-zinc-800">
                   <ExpandingButton
+                    onClick={() => setActaModalTab('form')}
+                    label="Volver al Formulario"
+                    icon={ChevronRight}
                     variant="secondary"
-                    icon={<RefreshCw className="w-3.5 h-3.5" />}
-                    label="Sincronizar Miembros"
-                    size="sm"
-                    onClick={handleSyncCommitteeMembersToActa}
-                    title="Convocatoria obligatoria a todos los miembros oficiales del CCL"
+                    title="Regresar a editar los campos estructurados"
                   />
-                  <div className="w-48 sm:w-64">
-                    <WorkerAutocomplete
-                      value=""
-                      onChange={() => {}}
-                      onSelect={(w) => {
-                        const exists = (actaForm.asistentes || []).some(
-                          (a: any) => String(a.cedula).trim() === String(w.identificacion || w.cedula).trim()
-                        );
-                        if (exists) {
-                          showToast({ message: 'Este colaborador ya está en la lista de asistentes', status: 'warning' });
-                          return;
-                        }
-                        setActaForm({
-                          ...actaForm,
-                          asistentes: [
-                            ...(actaForm.asistentes || []),
-                            {
-                              nombre: w.nombre,
-                              cedula: w.identificacion || w.cedula || '',
-                              rol: w.cargo || 'Miembro CCL',
-                              asistio: true,
-                              firma: null,
-                            },
-                          ],
-                        });
+                  <div className="flex items-center gap-2">
+                    <ExportDropdown
+                      content={reportHtml}
+                      fileName={reportFileName}
+                      reportType="general"
+                    />
+                    <ExpandingButton
+                      onClick={() => {
+                        setShowActaModal(false);
+                        setActaModalTab('form');
                       }}
-                      data={workers}
-                      placeholder="+ Añadir trabajador a lista..."
-                      className="py-1 px-2.5 text-[11px] h-7"
+                      label="Cerrar"
+                      icon={X}
+                      variant="secondary"
+                      title="Cerrar visor de informe"
                     />
                   </div>
                 </div>
               </div>
+            ) : (
+              <>
+                {/* Metadatos del Acta */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/40 border border-slate-100 dark:border-zinc-800">
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Trimestre</label>
+                    <select
+                      value={actaForm.trimestre}
+                      onChange={(e) => setActaForm({ ...actaForm, trimestre: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
+                    >
+                      <option value={1}>Q1 (Ene - Mar)</option>
+                      <option value={2}>Q2 (Abr - Jun)</option>
+                      <option value={3}>Q3 (Jul - Sep)</option>
+                      <option value={4}>Q4 (Oct - Dic)</option>
+                    </select>
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {(actaForm.asistentes || []).map((asistente: any, aIdx: number) => (
-                  <div key={aIdx} className="p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-800/40 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-800 dark:text-zinc-100 truncate">{asistente.nombre}</p>
-                      <p className="text-[10px] text-slate-500 dark:text-zinc-400">{asistente.rol} • C.C. {asistente.cedula}</p>
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Año</label>
+                    <input
+                      type="number"
+                      value={actaForm.anio}
+                      onChange={(e) => setActaForm({ ...actaForm, anio: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
+                    >
+                    </input>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Consecutivo</label>
+                    <input
+                      type="text"
+                      placeholder={`ACTA-COCOLAB-${actaForm.anio}-Q${actaForm.trimestre}`}
+                      value={actaForm.consecutivo || ''}
+                      onChange={(e) => setActaForm({ ...actaForm, consecutivo: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Sede / Centro</label>
+                    <input
+                      type="text"
+                      value={actaForm.centroTrabajo || 'Sede Principal'}
+                      onChange={(e) => setActaForm({ ...actaForm, centroTrabajo: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Lugar de la Sesión</label>
+                    <input
+                      type="text"
+                      value={actaForm.lugar || 'Sala Confidencial de Convivencia / Híbrida'}
+                      onChange={(e) => setActaForm({ ...actaForm, lugar: e.target.value })}
+                      placeholder="Sala de juntas, sala confidencial o enlace virtual..."
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 block mb-1">Horario (Inicio - Fin)</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="time"
+                        value={actaForm.horaInicio || '09:00'}
+                        onChange={(e) => setActaForm({ ...actaForm, horaInicio: e.target.value })}
+                        className="w-1/2 px-2 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
+                      />
+                      <input
+                        type="time"
+                        value={actaForm.horaFin || '11:00'}
+                        onChange={(e) => setActaForm({ ...actaForm, horaFin: e.target.value })}
+                        className="w-1/2 px-2 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-5">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 dark:text-zinc-300">
+                      <input
+                        type="checkbox"
+                        checked={actaForm.quorumVerificado !== false}
+                        onChange={(e) => setActaForm({ ...actaForm, quorumVerificado: e.target.checked })}
+                        className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500"
+                      />
+                      <span>Quórum Verificado (Mitad + 1)</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Balance Estadístico Confidencial de Quejas */}
+                <div className="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/70 dark:border-indigo-800/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-400 flex items-center gap-1.5">
+                      <Shield className="w-4 h-4" /> Balance Estadístico Confidencial de Casos (Res. 3461/2025)
+                    </h4>
+                    <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/60 px-2 py-0.5 rounded-full">
+                      Sin nombres propios (Reserva de ley)
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-2.5">
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-center">
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1">Recibidas</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={actaForm.estadisticasQuejas?.quejasRecibidasTrimestre || 0}
+                        onChange={(e) =>
+                          setActaForm({
+                            ...actaForm,
+                            estadisticasQuejas: {
+                              ...actaForm.estadisticasQuejas,
+                              quejasRecibidasTrimestre: Number(e.target.value),
+                            },
+                          })
+                        }
+                        className="w-full text-center text-sm font-black text-slate-800 dark:text-zinc-100 bg-transparent"
+                      />
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-center">
+                      <label className="text-[10px] font-bold text-sky-600 block mb-1">En Trámite</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={actaForm.estadisticasQuejas?.enTramite || 0}
+                        onChange={(e) =>
+                          setActaForm({
+                            ...actaForm,
+                            estadisticasQuejas: {
+                              ...actaForm.estadisticasQuejas,
+                              enTramite: Number(e.target.value),
+                            },
+                          })
+                        }
+                        className="w-full text-center text-sm font-black text-sky-600 bg-transparent"
+                      />
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-center">
+                      <label className="text-[10px] font-bold text-emerald-600 block mb-1">Conciliadas</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={actaForm.estadisticasQuejas?.acuerdosConciliatorios || 0}
+                        onChange={(e) =>
+                          setActaForm({
+                            ...actaForm,
+                            estadisticasQuejas: {
+                              ...actaForm.estadisticasQuejas,
+                              acuerdosConciliatorios: Number(e.target.value),
+                            },
+                          })
+                        }
+                        className="w-full text-center text-sm font-black text-emerald-600 bg-transparent"
+                      />
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-center">
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1">Archivadas</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={actaForm.estadisticasQuejas?.archivadasSinMerito || 0}
+                        onChange={(e) =>
+                          setActaForm({
+                            ...actaForm,
+                            estadisticasQuejas: {
+                              ...actaForm.estadisticasQuejas,
+                              archivadasSinMerito: Number(e.target.value),
+                            },
+                          })
+                        }
+                        className="w-full text-center text-sm font-black text-slate-600 bg-transparent"
+                      />
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-center">
+                      <label className="text-[10px] font-bold text-amber-600 block mb-1">Remitidas Dir.</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={actaForm.estadisticasQuejas?.remitidasAltaDireccion || 0}
+                        onChange={(e) =>
+                          setActaForm({
+                            ...actaForm,
+                            estadisticasQuejas: {
+                              ...actaForm.estadisticasQuejas,
+                              remitidasAltaDireccion: Number(e.target.value),
+                            },
+                          })
+                        }
+                        className="w-full text-center text-sm font-black text-amber-600 bg-transparent"
+                      />
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-center">
+                      <label className="text-[10px] font-bold text-purple-600 block mb-1">Ley 2365</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={actaForm.estadisticasQuejas?.casosAcosoSexualLey2365 || 0}
+                        onChange={(e) =>
+                          setActaForm({
+                            ...actaForm,
+                            estadisticasQuejas: {
+                              ...actaForm.estadisticasQuejas,
+                              casosAcosoSexualLey2365: Number(e.target.value),
+                            },
+                          })
+                        }
+                        className="w-full text-center text-sm font-black text-purple-600 bg-transparent"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Asistentes y Firmas Digitales */}
+                <div className="space-y-3">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400 flex items-center gap-1.5">
+                        <Users className="w-4 h-4" /> Asistentes y Firmas Digitales ({actaForm.asistentes?.length || 0})
+                      </h4>
+                      <p className="text-[11px] text-slate-400 dark:text-zinc-400">
+                        Los miembros del comité pueden firmar en esta pantalla o directamente desde su portal de colaborador
+                      </p>
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {asistente.firma ? (
-                        <div className="flex items-center gap-1.5">
-                          <img src={asistente.firma} alt="Firma" className="h-7 max-w-[70px] border border-teal-500/30 rounded bg-white px-1 object-contain" />
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                            {asistente.firmadoDesde === 'portal_trabajador' ? 'Portal' : 'Firmado'}
-                          </span>
+                    <div className="flex items-center gap-2">
+                      <ExpandingButton
+                        variant="secondary"
+                        icon={<RefreshCw className="w-3.5 h-3.5" />}
+                        label="Sincronizar Miembros"
+                        size="sm"
+                        onClick={handleSyncCommitteeMembersToActa}
+                        title="Convocatoria obligatoria a todos los miembros oficiales del CCL"
+                      />
+                      <div className="w-48 sm:w-64">
+                        <WorkerAutocomplete
+                          value=""
+                          onChange={() => {}}
+                          onSelect={(w) => {
+                            const exists = (actaForm.asistentes || []).some(
+                              (a: any) => String(a.cedula).trim() === String(w.identificacion || w.cedula).trim()
+                            );
+                            if (exists) {
+                              showToast({ message: 'Este colaborador ya está en la lista de asistentes', status: 'warning' });
+                              return;
+                            }
+                            setActaForm({
+                              ...actaForm,
+                              asistentes: [
+                                ...(actaForm.asistentes || []),
+                                {
+                                  nombre: w.nombre,
+                                  cedula: w.identificacion || w.cedula || '',
+                                  rol: w.cargo || 'Miembro CCL',
+                                  asistio: true,
+                                  firma: null,
+                                },
+                              ],
+                            });
+                          }}
+                          data={workers}
+                          placeholder="+ Añadir trabajador a lista..."
+                          className="py-1 px-2.5 text-[11px] h-7"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {(actaForm.asistentes || []).map((asistente: any, aIdx: number) => (
+                      <div key={aIdx} className="p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-800/40 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-800 dark:text-zinc-100 truncate">{asistente.nombre}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-zinc-400">{asistente.rol} • C.C. {asistente.cedula}</p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {asistente.firma ? (
+                            <div className="flex items-center gap-1.5">
+                              <img src={asistente.firma} alt="Firma" className="h-7 max-w-[70px] border border-teal-500/30 rounded bg-white px-1 object-contain" />
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                {asistente.firmadoDesde === 'portal_trabajador' ? 'Portal' : 'Firmado'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = [...actaForm.asistentes];
+                                  updated[aIdx].firma = null;
+                                  setActaForm({ ...actaForm, asistentes: updated });
+                                }}
+                                className="text-slate-400 hover:text-red-500 p-1"
+                                title="Borrar firma para volver a firmar"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleCopyWorkerSignLink(asistente.cedula)}
+                                className="flex h-7 items-center justify-center rounded-lg px-2 shadow-xs active:scale-95 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 text-[10px] font-bold border border-amber-200/80 dark:border-amber-800/80"
+                                title="Copiar enlace para enviar por WhatsApp o correo al trabajador"
+                              >
+                                <Share2 className="w-3 h-3 mr-1" />
+                                <span>Link</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSigningAssistantIndex(aIdx)}
+                                className="flex h-7 items-center justify-center rounded-lg px-2 shadow-xs active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 text-[10px] font-bold border border-teal-200/80 dark:border-teal-800/80"
+                                title="Firmar en pantalla táctil / ratón en vivo"
+                              >
+                                <PenTool className="w-3 h-3 mr-1" />
+                                <span>Firmar</span>
+                              </button>
+                            </div>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => {
-                              const updated = [...actaForm.asistentes];
-                              updated[aIdx].firma = null;
+                              const updated = actaForm.asistentes.filter((_: any, idx: number) => idx !== aIdx);
                               setActaForm({ ...actaForm, asistentes: updated });
                             }}
-                            className="text-slate-400 hover:text-red-500 p-1"
-                            title="Borrar firma para volver a firmar"
+                            className="text-slate-300 hover:text-red-400 p-1"
+                            title="Quitar asistente"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleCopyWorkerSignLink(asistente.cedula)}
-                            className="flex h-7 items-center justify-center rounded-lg px-2 shadow-xs active:scale-95 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 text-[10px] font-bold border border-amber-200/80 dark:border-amber-800/80"
-                            title="Copiar enlace para enviar por WhatsApp o correo al trabajador"
-                          >
-                            <Share2 className="w-3 h-3 mr-1" />
-                            <span>Link</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setSigningAssistantIndex(aIdx)}
-                            className="flex h-7 items-center justify-center rounded-lg px-2 shadow-xs active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 text-[10px] font-bold border border-teal-200/80 dark:border-teal-800/80"
-                            title="Firmar en pantalla táctil / ratón en vivo"
-                          >
-                            <PenTool className="w-3 h-3 mr-1" />
-                            <span>Firmar</span>
-                          </button>
-                        </div>
-                      )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const updated = actaForm.asistentes.filter((_: any, idx: number) => idx !== aIdx);
-                          setActaForm({ ...actaForm, asistentes: updated });
-                        }}
-                        className="text-slate-300 hover:text-red-400 p-1"
-                        title="Quitar asistente"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                {/* Desarrollo Temático del Acta con los 7 Puntos Estatutarios */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                    Desarrollo del Orden del Día (Res. 3461/2025, Ley 1010/2006 y Ley 2365/2024)
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                        1. Lectura y Aprobación del Acta Anterior
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={actaForm.desarrollo?.lecturaActaAnterior || ''}
+                        onChange={(e) =>
+                          setActaForm({
+                            ...actaForm,
+                            desarrollo: { ...actaForm.desarrollo, lecturaActaAnterior: e.target.value },
+                          })
+                        }
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
+                        placeholder="Lectura del acta ordinaria anterior y verificación de aprobación..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                        2. Seguimiento a Compromisos y Fórmulas de Concertación Previas
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={actaForm.desarrollo?.seguimientoCompromisos || ''}
+                        onChange={(e) =>
+                          setActaForm({
+                            ...actaForm,
+                            desarrollo: { ...actaForm.desarrollo, seguimientoCompromisos: e.target.value },
+                          })
+                        }
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
+                        placeholder="Revisión del cumplimiento de fórmulas de diálogo y compromisos previos..."
+                      />
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Desarrollo Temático del Acta */}
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
-                  1. Revisión Estadística Confidencial de Quejas del Trimestre
-                </label>
-                <textarea
-                  rows={2}
-                  value={actaForm.desarrollo?.revisionQuejasTrimestre || ''}
-                  onChange={(e) =>
-                    setActaForm({
-                      ...actaForm,
-                      desarrollo: { ...actaForm.desarrollo, revisionQuejasTrimestre: e.target.value },
-                    })
-                  }
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
-                  2. Campañas Preventivas y Talleres de Convivencia
-                </label>
-                <textarea
-                  rows={2}
-                  value={actaForm.desarrollo?.campanasPreventivasAcoso || ''}
-                  onChange={(e) =>
-                    setActaForm({
-                      ...actaForm,
-                      desarrollo: { ...actaForm.desarrollo, campanasPreventivasAcoso: e.target.value },
-                    })
-                  }
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
-                  3. Diagnóstico de Clima Laboral y Factores Psicosociales
-                </label>
-                <textarea
-                  rows={2}
-                  value={actaForm.desarrollo?.climaLaboralPsicosocial || ''}
-                  onChange={(e) =>
-                    setActaForm({
-                      ...actaForm,
-                      desarrollo: { ...actaForm.desarrollo, climaLaboralPsicosocial: e.target.value },
-                    })
-                  }
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
-                  4. Proposiciones, Varios y Próxima Sesión Ordinaria
-                </label>
-                <textarea
-                  rows={2}
-                  value={actaForm.desarrollo?.proposicionesVarios || ''}
-                  onChange={(e) =>
-                    setActaForm({
-                      ...actaForm,
-                      desarrollo: { ...actaForm.desarrollo, proposicionesVarios: e.target.value },
-                    })
-                  }
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-xs"
-                />
-              </div>
-            </div>
-
-            {/* Compromisos del Acta (Sincronizados con Kanban ACPM) */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400">
-                    Plan de Acción / Compromisos Asumidos ({actaForm.compromisos?.length || 0})
-                  </h4>
-                  <p className="text-[11px] text-slate-400 dark:text-zinc-400">
-                    Los compromisos se sincronizan automáticamente como tarjetas de acción en el Centro de Control (Kanban ACPM)
-                  </p>
-                </div>
-                <ExpandingButton
-                  variant="outline-teal"
-                  icon={<Plus className="w-3.5 h-3.5" />}
-                  label="Agregar Compromiso"
-                  onClick={() =>
-                    setActaForm({
-                      ...actaForm,
-                      compromisos: [
-                        ...(actaForm.compromisos || []),
-                        {
-                          accion: '',
-                          responsable: '',
-                          fechaLimite: new Date().toISOString().split('T')[0],
-                          estado: 'pendiente',
-                        },
-                      ],
-                    })
-                  }
-                />
-              </div>
-
-              {(actaForm.compromisos || []).map((comp: any, cIdx: number) => (
-                <div key={cIdx} className="grid grid-cols-1 sm:grid-cols-4 gap-2 p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/40">
-                  <input
-                    type="text"
-                    placeholder="Acción preventiva o acuerdo..."
-                    value={comp.accion || ''}
-                    onChange={(e) => {
-                      const updated = [...actaForm.compromisos];
-                      updated[cIdx].accion = e.target.value;
-                      setActaForm({ ...actaForm, compromisos: updated });
-                    }}
-                    className="sm:col-span-2 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-semibold"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Responsable..."
-                    value={comp.responsable || ''}
-                    onChange={(e) => {
-                      const updated = [...actaForm.compromisos];
-                      updated[cIdx].responsable = e.target.value;
-                      setActaForm({ ...actaForm, compromisos: updated });
-                    }}
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-semibold"
-                  />
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="date"
-                      value={comp.fechaLimite || ''}
-                      onChange={(e) => {
-                        const updated = [...actaForm.compromisos];
-                        updated[cIdx].fechaLimite = e.target.value;
-                        setActaForm({ ...actaForm, compromisos: updated });
-                      }}
-                      className="w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-semibold"
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                      3. Revisión Confidencial de Casos y Trámites Conciliatorios (Sin Nombres Propios)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={actaForm.desarrollo?.revisionQuejasTrimestre || ''}
+                      onChange={(e) =>
+                        setActaForm({
+                          ...actaForm,
+                          desarrollo: { ...actaForm.desarrollo, revisionQuejasTrimestre: e.target.value },
+                        })
+                      }
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
+                      placeholder="Análisis general de radicados atendidos, mediaciones y estado de trámites..."
                     />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const updated = actaForm.compromisos.filter((_: any, idx: number) => idx !== cIdx);
-                        setActaForm({ ...actaForm, compromisos: updated });
-                      }}
-                      className="p-1.5 text-slate-400 hover:text-red-500"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                        4. Campañas Preventivas contra Acoso Laboral y Sexual (Ley 2365/2024)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={actaForm.desarrollo?.campanasPreventivasAcoso || ''}
+                        onChange={(e) =>
+                          setActaForm({
+                            ...actaForm,
+                            desarrollo: { ...actaForm.desarrollo, campanasPreventivasAcoso: e.target.value },
+                          })
+                        }
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
+                        placeholder="Talleres de comunicación asertiva, respeto y rutas frente a violencias de género..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                        5. Monitoreo de Clima Laboral y Factores de Riesgo Psicosocial
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={actaForm.desarrollo?.climaLaboralPsicosocial || ''}
+                        onChange={(e) =>
+                          setActaForm({
+                            ...actaForm,
+                            desarrollo: { ...actaForm.desarrollo, climaLaboralPsicosocial: e.target.value },
+                          })
+                        }
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
+                        placeholder="Diagnóstico de relaciones laborales, cargas de trabajo y bienestar intralaboral..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                        6. Recomendaciones Preventivas y Correctivas a la Alta Dirección
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={actaForm.desarrollo?.recomendacionesAltaDireccion || ''}
+                        onChange={(e) =>
+                          setActaForm({
+                            ...actaForm,
+                            desarrollo: { ...actaForm.desarrollo, recomendacionesAltaDireccion: e.target.value },
+                          })
+                        }
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
+                        placeholder="Medidas recomendadas a la Gerencia y Talento Humano para mitigar tensiones..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block mb-1">
+                        7. Proposiciones, Varios y Acuerdos de Cierre
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={actaForm.desarrollo?.proposicionesVarios || ''}
+                        onChange={(e) =>
+                          setActaForm({
+                            ...actaForm,
+                            desarrollo: { ...actaForm.desarrollo, proposicionesVarios: e.target.value },
+                          })
+                        }
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-xs"
+                        placeholder="Asuntos varios y programación de la próxima reunión ordinaria trimestral..."
+                      />
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-zinc-800">
-              <ExpandingButton
-                variant="secondary"
-                icon={<X className="w-4 h-4" />}
-                label="Cancelar"
-                onClick={() => setShowActaModal(false)}
-              />
-              <ExpandingButton
-                variant="teal"
-                icon={<CheckCircle2 className="w-4 h-4" />}
-                label="Guardar Acta Trimestral"
-                onClick={handleSaveActa}
-              />
-            </div>
+                {/* Compromisos del Acta (Sincronizados con Kanban ACPM) */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                        Plan de Acción / Compromisos Asumidos ({actaForm.compromisos?.length || 0})
+                      </h4>
+                      <p className="text-[11px] text-slate-400 dark:text-zinc-400">
+                        Los compromisos se sincronizan automáticamente como tarjetas de acción en el Centro de Control (Kanban ACPM)
+                      </p>
+                    </div>
+                    <ExpandingButton
+                      variant="outline-teal"
+                      icon={<Plus className="w-3.5 h-3.5" />}
+                      label="Agregar Compromiso"
+                      onClick={() =>
+                        setActaForm({
+                          ...actaForm,
+                          compromisos: [
+                            ...(actaForm.compromisos || []),
+                            {
+                              accion: '',
+                              responsable: '',
+                              fechaLimite: new Date().toISOString().split('T')[0],
+                              estado: 'pendiente',
+                            },
+                          ],
+                        })
+                      }
+                    />
+                  </div>
+
+                  {(actaForm.compromisos || []).map((comp: any, cIdx: number) => (
+                    <div key={cIdx} className="grid grid-cols-1 sm:grid-cols-4 gap-2 p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/40">
+                      <input
+                        type="text"
+                        placeholder="Acción preventiva o acuerdo..."
+                        value={comp.accion || ''}
+                        onChange={(e) => {
+                          const updated = [...actaForm.compromisos];
+                          updated[cIdx].accion = e.target.value;
+                          setActaForm({ ...actaForm, compromisos: updated });
+                        }}
+                        className="sm:col-span-2 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-semibold"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Responsable..."
+                        value={comp.responsable || ''}
+                        onChange={(e) => {
+                          const updated = [...actaForm.compromisos];
+                          updated[cIdx].responsable = e.target.value;
+                          setActaForm({ ...actaForm, compromisos: updated });
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-semibold"
+                      />
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="date"
+                          value={comp.fechaLimite || ''}
+                          onChange={(e) => {
+                            const updated = [...actaForm.compromisos];
+                            updated[cIdx].fechaLimite = e.target.value;
+                            setActaForm({ ...actaForm, compromisos: updated });
+                          }}
+                          className="w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-semibold"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = actaForm.compromisos.filter((_: any, idx: number) => idx !== cIdx);
+                            setActaForm({ ...actaForm, compromisos: updated });
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-red-500"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Footer Modal Buttons */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-zinc-800">
+                  <ExpandingButton
+                    onClick={() => {
+                      setShowActaModal(false);
+                      setActaModalTab('form');
+                    }}
+                    label="Cancelar"
+                    icon={X}
+                    variant="secondary"
+                    title="Descartar cambios y cerrar"
+                  />
+                  <div className="flex items-center gap-2">
+                    <ExpandingButton
+                      onClick={() => handleOpenOfficialReport(selectedActa?._id || 'preview', false)}
+                      label="Generar / Ver Informe Oficial"
+                      icon={Printer}
+                      variant="outline-teal"
+                      title="Previsualizar y exportar en papel membretado con firmas"
+                    />
+                    <ExpandingButton
+                      onClick={handleSaveActa}
+                      label="Guardar Acta Trimestral"
+                      icon={CheckCircle2}
+                      variant="teal"
+                      title="Guardar acta y sincronizar compromisos con el Centro de Control"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

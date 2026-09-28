@@ -537,8 +537,20 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
     const company = await getActiveCompany(req.user.id);
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
 
-    const acta = await SgsstCopasstActa.findOne({ _id: req.params.id, companyId: company._id });
-    if (!acta) return res.status(404).json({ error: 'Acta no encontrada' });
+    let acta;
+    if (req.params.id === 'preview') {
+      acta = req.body || {};
+      if (!acta.consecutivo) acta.consecutivo = 'BORRADOR';
+      if (!acta.mes) acta.mes = new Date().getMonth() + 1;
+      if (!acta.anio) acta.anio = new Date().getFullYear();
+    } else {
+      const dbActa = await SgsstCopasstActa.findOne({ _id: req.params.id, companyId: company._id });
+      if (!dbActa) return res.status(404).json({ error: 'Acta no encontrada' });
+      acta = dbActa.toObject ? dbActa.toObject() : { ...dbActa };
+      if (req.body && Object.keys(req.body).length > 0) {
+        acta = { ...acta, ...req.body, desarrollo: { ...acta.desarrollo, ...req.body.desarrollo } };
+      }
+    }
 
     const { buildStandardHeader, buildCommitteeSignatureSection } = require('./reportHeader');
     const PublicReport = require('../../../models/PublicReport');
@@ -559,7 +571,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
 
     const ordenList = Array.isArray(acta.ordenDelDia) && acta.ordenDelDia.length > 0
       ? acta.ordenDelDia.map((item) => `<li style="margin-bottom: 6px; font-weight: 500;">${item}</li>`).join('')
-      : '<li>1. Verificación del quórum reglamentario</li><li>2. Revisión de compromisos anteriores</li><li>3. Análisis de accidentalidad y condiciones</li>';
+      : '<li>1. Verificación del quórum reglamentario</li><li>2. Lectura y aprobación del acta anterior</li><li>3. Seguimiento a compromisos de actas anteriores</li><li>4. Revisión y análisis de accidentalidad, incidentes y enfermedades (ATEL)</li><li>5. Inspecciones planeadas de seguridad</li><li>6. Avance de capacitaciones en SST</li><li>7. Solicitudes y propuestas de los trabajadores</li><li>8. Recomendaciones ARL</li><li>9. Proposiciones y varios</li>';
 
     const compromisosRows = Array.isArray(acta.compromisos) && acta.compromisos.length > 0
       ? acta.compromisos
@@ -605,7 +617,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
             <tbody>
               <tr style="border-bottom: 1px solid #e2e8f0;">
                 <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; width: 25%; color: #334155;">Consecutivo Acta:</td>
-                <td style="padding: 8px 12px; font-weight: 700; color: #0f766e; width: 25%;">${acta.consecutivo}</td>
+                <td style="padding: 8px 12px; font-weight: 700; color: #0f766e; width: 25%;">${acta.consecutivo || 'Borrador'}</td>
                 <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; width: 25%; color: #334155;">Periodo Evaluado:</td>
                 <td style="padding: 8px 12px; width: 25%;">Mes ${acta.mes} de ${acta.anio}</td>
               </tr>
@@ -620,7 +632,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
                 <td style="padding: 8px 12px;">${acta.lugar || 'Sede Principal / Virtual'}</td>
                 <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Quórum Reglamentario:</td>
                 <td style="padding: 8px 12px; font-weight: bold; color: ${acta.quorumVerificado !== false ? '#15803d' : '#b45309'};">
-                  ${acta.quorumVerificado !== false ? '✓ Quórum Verificado y Válido' : 'Quórum Pendiente'}
+                  ${acta.quorumVerificado !== false ? '✓ Quórum Verificado y Válido (Mitad + 1)' : 'Quórum Pendiente'}
                 </td>
               </tr>
             </tbody>
@@ -659,11 +671,26 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
           }
 
           ${
+            acta.desarrollo?.seguimientoCompromisos
+              ? `
+            <div style="margin-bottom: 14px; page-break-inside: avoid;">
+              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                2. Seguimiento a Compromisos y Tareas Previas
+              </h4>
+              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
+                ${acta.desarrollo.seguimientoCompromisos}
+              </div>
+            </div>
+          `
+              : ''
+          }
+
+          ${
             acta.desarrollo?.analisisAccidentalidad
               ? `
             <div style="margin-bottom: 14px; page-break-inside: avoid;">
               <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                2. Revisión y Análisis de Accidentalidad, Incidentes y Ausentismo (ATEL)
+                3. Revisión y Análisis de Accidentalidad, Incidentes y Ausentismo (ATEL)
               </h4>
               <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
                 ${acta.desarrollo.analisisAccidentalidad}
@@ -678,7 +705,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
               ? `
             <div style="margin-bottom: 14px; page-break-inside: avoid;">
               <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                3. Inspecciones Planeadas de Seguridad y Hallazgos en Terreno
+                4. Inspecciones Planeadas de Seguridad y Hallazgos en Terreno
               </h4>
               <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
                 ${acta.desarrollo.inspeccionesSeguridad}
@@ -693,10 +720,40 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
               ? `
             <div style="margin-bottom: 14px; page-break-inside: avoid;">
               <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                4. Cumplimiento de Cronograma de Capacitaciones y Campañas
+                5. Cumplimiento de Cronograma de Capacitaciones y Campañas
               </h4>
               <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
                 ${acta.desarrollo.capacitacionesYCampanas}
+              </div>
+            </div>
+          `
+              : ''
+          }
+
+          ${
+            acta.desarrollo?.solicitudesTrabajadores
+              ? `
+            <div style="margin-bottom: 14px; page-break-inside: avoid;">
+              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                6. Peticiones, Sugerencias e Inquietudes de los Trabajadores
+              </h4>
+              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
+                ${acta.desarrollo.solicitudesTrabajadores}
+              </div>
+            </div>
+          `
+              : ''
+          }
+
+          ${
+            acta.desarrollo?.asesoriaArl
+              ? `
+            <div style="margin-bottom: 14px; page-break-inside: avoid;">
+              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                7. Asesoría, Recomendaciones e Intervención de la ARL
+              </h4>
+              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
+                ${acta.desarrollo.asesoriaArl}
               </div>
             </div>
           `
@@ -708,7 +765,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
               ? `
             <div style="margin-bottom: 14px; page-break-inside: avoid;">
               <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                5. Proposiciones, Varios y Acuerdos de Cierre
+                8. Proposiciones, Varios y Acuerdos de Cierre
               </h4>
               <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
                 ${acta.desarrollo.proposicionesVarios}
@@ -749,7 +806,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
     const publicReport = new PublicReport({
       id: reportId,
       content: fullHtml,
-      fileName: `Acta-COPASST-${acta.consecutivo}`,
+      fileName: `Acta-COPASST-${acta.consecutivo || 'Borrador'}`,
       reportType: 'general',
     });
     await publicReport.save();
@@ -758,6 +815,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
       success: true,
       reportId,
       url: `/report/${reportId}`,
+      html: fullHtml,
     });
   } catch (error) {
     logger.error('[COPASST] POST /actas/:id/reporte-oficial error:', error);
