@@ -31,10 +31,38 @@ import CollapsibleReportBox from './CollapsibleReportBox';
 import AcpmActionPlanBox, { type ActionPlanItem } from './AcpmActionPlanBox';
 
 const STATUS_OPTIONS = [
-    { value: 'cumple' as const, label: 'Cumple', icon: CheckCircle2, color: 'text-green-500 bg-green-500/10' },
-    { value: 'no_cumple' as const, label: 'No Cumple', icon: XCircle, color: 'text-red-500 bg-red-500/10' },
-    { value: 'parcial' as const, label: 'Parcial', icon: AlertCircle, color: 'text-yellow-500 bg-yellow-500/10' },
-    { value: 'no_aplica' as const, label: 'No Aplica', icon: MinusCircle, color: 'text-gray-400 bg-gray-400/10' },
+    {
+        value: 'cumple' as const,
+        label: 'Cumple',
+        icon: CheckCircle2,
+        color: 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-500 text-emerald-600 dark:text-emerald-400',
+        dotColor: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]',
+        textColor: 'text-emerald-700 dark:text-emerald-300',
+    },
+    {
+        value: 'no_cumple' as const,
+        label: 'No Cumple',
+        icon: XCircle,
+        color: 'bg-rose-50 dark:bg-rose-950/50 border-rose-500 text-rose-600 dark:text-rose-400',
+        dotColor: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)]',
+        textColor: 'text-rose-700 dark:text-rose-300',
+    },
+    {
+        value: 'parcial' as const,
+        label: 'Parcial',
+        icon: AlertCircle,
+        color: 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 text-amber-600 dark:text-amber-400',
+        dotColor: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.7)]',
+        textColor: 'text-amber-700 dark:text-amber-300',
+    },
+    {
+        value: 'no_aplica' as const,
+        label: 'No Aplica',
+        icon: MinusCircle,
+        color: 'bg-slate-100 dark:bg-zinc-800 border-slate-400 dark:border-zinc-600 text-slate-700 dark:text-zinc-300',
+        dotColor: 'bg-slate-400 dark:bg-zinc-500',
+        textColor: 'text-slate-600 dark:text-zinc-300',
+    },
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -845,23 +873,41 @@ export default function AltaDireccionChecklist() {
                                                                 </div>
                                                             </div>
 
-                                                            {/* Status Buttons */}
-                                                            <div className="flex sm:flex-col lg:flex-row flex-wrap gap-1 sm:ml-4 sm:flex-shrink-0 border-t sm:border-t-0 border-border-light pt-3 sm:pt-0 justify-between sm:justify-end">
-                                                                {STATUS_OPTIONS.map(opt => {
+                                                            {/* Status Buttons - WAPPY Capsule & Tooltip */}
+                                                            <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-surface-secondary/80 dark:bg-zinc-900/80 backdrop-blur-md border border-border-medium/80 dark:border-zinc-800 shadow-2xs sm:ml-4 sm:flex-shrink-0 self-start sm:self-auto">
+                                                                {STATUS_OPTIONS.map((opt) => {
                                                                     const Icon = opt.icon;
                                                                     const isSelected = status === opt.value;
                                                                     return (
-                                                                        <button
-                                                                            key={opt.value}
-                                                                            onClick={() => handleStatusChange(item.id, opt.value)}
-                                                                            className={cn(
-                                                                                'rounded-xl p-2 transition-all',
-                                                                                isSelected ? opt.color : 'text-text-tertiary hover:bg-surface-tertiary',
-                                                                            )}
-                                                                            title={opt.label}
-                                                                        >
-                                                                            <Icon className="h-5 w-5" />
-                                                                        </button>
+                                                                        <div key={opt.value} className="relative group/tip flex items-center justify-center">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleStatusChange(item.id, opt.value)}
+                                                                                aria-label={opt.label}
+                                                                                className={cn(
+                                                                                    'w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 active:scale-95 border',
+                                                                                    isSelected
+                                                                                        ? cn(opt.color, 'shadow-xs font-bold')
+                                                                                        : 'border-transparent text-text-tertiary hover:bg-surface-tertiary hover:text-text-primary',
+                                                                                )}
+                                                                            >
+                                                                                <Icon className="h-5 w-5" />
+                                                                            </button>
+
+                                                                            {/* Letrero flotante estilo WAPPY */}
+                                                                            <div
+                                                                                role="tooltip"
+                                                                                className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-1.5 z-50 invisible opacity-0 scale-95 transition-all duration-150 ease-out group-hover/tip:visible group-hover/tip:opacity-100 group-hover/tip:scale-100"
+                                                                            >
+                                                                                <div className="flex flex-col items-center">
+                                                                                    <div className="h-0 w-0 border-x-4 border-b-4 border-x-transparent border-b-white/95 dark:border-b-zinc-900/95 -mb-[1px]" />
+                                                                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-slate-200/90 dark:border-zinc-700/80 shadow-lg shadow-slate-200/50 dark:shadow-black/70 text-[11px] font-bold whitespace-nowrap">
+                                                                                        <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', opt.dotColor)} />
+                                                                                        <span className={cn(opt.textColor)}>{opt.label}</span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
                                                                     );
                                                                 })}
                                                             </div>

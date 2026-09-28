@@ -169,16 +169,18 @@ export default function OraculoPredictivoH1() {
         }
 
         // 3. CAMPOS DE TEXTO LIBRE → IA SEMÁNTICA (9 Dominios)
-        const iaTags: string[] = w.bioTagsIA || [];
-        const hasIATags = iaTags.length > 0 && !iaTags.includes('Sin_Hallazgos');
+        const iaTags: string[] = Array.isArray(w.bioTagsIA) ? w.bioTagsIA : [];
+        const isIAEvaluated = !!(w.bioScoreIADate || iaTags.length > 0);
+        const hasIATags = isIAEvaluated;
         const hasAnyText = [
             w.limitacionesBiomecanicas, w.recomendacionesMedicas,
             w.diagnosticoMedico, w.enfermedades, w.alergiasQuimicas, w.medicamentos
         ].some(v => v && String(v).trim().length > 2 && !String(v).toLowerCase().includes('ninguna') && !String(v).toLowerCase().includes('ninguno'));
 
         if (hasAnyText) {
-            if (hasIATags) {
+            if (isIAEvaluated && iaTags.length > 0) {
                 iaTags.forEach(tag => {
+                    if (tag === 'Sin_Hallazgos') return;
                     const rule = TAG_RULES[tag];
                     if (!rule) return;
                     let pts = rule.pts;

@@ -72,17 +72,25 @@ export default function AcpmActionPlanBox({
   const [newPriority, setNewPriority] = useState<'alta' | 'media' | 'baja'>('media');
   const [newActionType, setNewActionType] = useState<'correctiva' | 'preventiva' | 'mejora'>('correctiva');
 
-  // Sync if initialActions updates from parent (e.g. AI analysis generated actions)
+  const [dismissedActionIds, setDismissedActionIds] = useState<Set<string>>(new Set());
+
+  // Sync when initialActions updates from parent module (e.g. findings marked as cumple/no_cumple)
   useEffect(() => {
-    if (initialActions && initialActions.length > 0) {
-      setActions(prev => {
-        // Keep user additions, add new ones from parent
-        const existingTitles = new Set(prev.map(p => p.title.trim().toLowerCase()));
-        const toAdd = initialActions.filter(ia => !existingTitles.has(ia.title.trim().toLowerCase()));
-        return [...prev, ...toAdd];
-      });
-    }
-  }, [initialActions]);
+    setActions(prev => {
+      // 1. Preserve manual user additions (IDs starting with 'act-')
+      const manualActions = prev.filter(p => p.id && p.id.startsWith('act-'));
+
+      // 2. Incoming actions from parent module (strictly non-compliant items: no_cumple & parcial)
+      const incoming = (Array.isArray(initialActions) ? initialActions : [])
+        .filter(ia => !dismissedActionIds.has(ia.id || ''));
+
+      // 3. Keep manual actions that don't duplicate incoming item titles
+      const incomingTitles = new Set(incoming.map(ia => ia.title.trim().toLowerCase()));
+      const filteredManual = manualActions.filter(ma => !incomingTitles.has(ma.title.trim().toLowerCase()));
+
+      return [...incoming, ...filteredManual];
+    });
+  }, [initialActions, dismissedActionIds]);
 
   const handleAddAction = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,6 +119,10 @@ export default function AcpmActionPlanBox({
   };
 
   const handleRemoveAction = (idx: number) => {
+    const actionToRemove = actions[idx];
+    if (actionToRemove?.id) {
+      setDismissedActionIds(prev => new Set(prev).add(actionToRemove.id!));
+    }
     setActions(prev => prev.filter((_, i) => i !== idx));
   };
 
