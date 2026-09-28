@@ -941,7 +941,6 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                       icon={Printer}
                       variant="teal"
                       title="Ver o imprimir el acta oficial con firmas digitales de los participantes"
-                      alwaysShowLabel={true}
                     />
                     <ExpandingButton
                       onClick={handleCopySigningLink}
@@ -949,7 +948,6 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                       icon={Share2}
                       variant="outline-teal"
                       title="Copiar enlace para que los miembros firmen desde su portal"
-                      alwaysShowLabel={true}
                     />
                   </>
                 )}
@@ -960,7 +958,6 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                   icon={Sparkles}
                   variant="orange"
                   title="Redactar borrador del acta con Tenshi IA"
-                  alwaysShowLabel={true}
                 />
                 <button
                   type="button"
@@ -1035,29 +1032,38 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                     variant="secondary"
                     title="Convocatoria obligatoria a todos los miembros oficiales del COPASST"
                     size="sm"
-                    alwaysShowLabel={true}
                   />
-                  <ExpandingButton
-                    onClick={() => {
-                      const nombre = prompt('Nombre completo del nuevo participante:');
-                      if (!nombre) return;
-                      const cedula = prompt('Número de identificación (Cédula):') || '';
-                      const rol = prompt('Rol o estamento (ej: Invitado, Asesor SST, Vocal):') || 'Participante';
-                      setActaForm({
-                        ...actaForm,
-                        asistentes: [
-                          ...(actaForm.asistentes || []),
-                          { nombre, cedula, rol, asistio: true, firma: null },
-                        ],
-                      });
-                    }}
-                    label="Agregar Asistente"
-                    icon={Plus}
-                    variant="outline-teal"
-                    title="Añadir nuevo participante"
-                    size="sm"
-                    alwaysShowLabel={true}
-                  />
+                  <div className="w-48 sm:w-64">
+                    <WorkerAutocomplete
+                      value=""
+                      onChange={() => {}}
+                      onSelect={(w) => {
+                        const exists = (actaForm.asistentes || []).some(
+                          (a: any) => String(a.cedula).trim() === String(w.identificacion || w.cedula).trim()
+                        );
+                        if (exists) {
+                          showToast({ message: 'Este colaborador ya está en la lista de asistentes', status: 'warning' });
+                          return;
+                        }
+                        setActaForm({
+                          ...actaForm,
+                          asistentes: [
+                            ...(actaForm.asistentes || []),
+                            {
+                              nombre: w.nombre,
+                              cedula: w.identificacion || w.cedula || '',
+                              rol: w.cargo || 'Participante',
+                              asistio: true,
+                              firma: null,
+                            },
+                          ],
+                        });
+                      }}
+                      data={workers}
+                      placeholder="+ Añadir trabajador a lista..."
+                      className="py-1 px-2.5 text-[11px] h-7"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1293,7 +1299,6 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 icon={X}
                 variant="secondary"
                 title="Descartar cambios y cerrar"
-                alwaysShowLabel={true}
               />
               <ExpandingButton
                 onClick={handleSaveActa}
@@ -1301,7 +1306,6 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 icon={CheckCircle2}
                 variant="teal"
                 title="Guardar acta y registrar compromisos"
-                alwaysShowLabel={true}
               />
             </div>
           </div>
@@ -1482,7 +1486,6 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 icon={X}
                 variant="secondary"
                 title="Cerrar ventana de QR"
-                alwaysShowLabel={true}
               />
             </div>
           </div>

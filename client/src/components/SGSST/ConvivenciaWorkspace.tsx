@@ -39,6 +39,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
 import SignaturePad from './SignaturePad';
 import ExpandingButton from './ExpandingButton';
+import WorkerAutocomplete from './WorkerAutocomplete';
 
 export default function ConvivenciaWorkspace() {
   const { token } = useAuthContext();
@@ -50,6 +51,7 @@ export default function ConvivenciaWorkspace() {
   const [casos, setCasos] = useState<any[]>([]);
   const [actas, setActas] = useState<any[]>([]);
   const [elecciones, setElecciones] = useState<any[]>([]);
+  const [workers, setWorkers] = useState<any[]>([]);
 
   // Modal Caso State
   const [selectedCaso, setSelectedCaso] = useState<any>(null);
@@ -119,17 +121,42 @@ export default function ConvivenciaWorkspace() {
     setLoading(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const [resConfig, resCasos, resActas, resElecciones] = await Promise.all([
+      const [resConfig, resCasos, resActas, resElecciones, resWorkers] = await Promise.all([
         axios.get('/api/sgsst/convivencia/config', { headers }),
         axios.get('/api/sgsst/convivencia/casos', { headers }),
         axios.get('/api/sgsst/convivencia/actas', { headers }),
         axios.get('/api/sgsst/convivencia/elecciones', { headers }),
+        axios.get('/api/sgsst/convivencia/trabajadores', { headers }).catch(() => ({ data: { workers: [] } })),
       ]);
 
       setConfig(resConfig.data);
       setCasos(resCasos.data.casos || []);
       setActas(resActas.data.actas || []);
       setElecciones(resElecciones.data.elecciones || []);
+
+      let loadedWorkers = resWorkers.data?.workers || [];
+      try {
+        const resSocio = await axios.get('/api/sgsst/perfil-sociodemografico/data', { headers });
+        if (resSocio.data?.trabajadores?.length) {
+          const cedulas = new Set(loadedWorkers.map((w: any) => String(w.cedula || w.identificacion || '').trim()));
+          resSocio.data.trabajadores.forEach((tw: any) => {
+            const c = String(tw.identificacion || '').trim();
+            if (c && !cedulas.has(c)) {
+              cedulas.add(c);
+              loadedWorkers.push({
+                nombre: tw.nombre,
+                cedula: c,
+                identificacion: c,
+                cargo: tw.cargo || '',
+                area: tw.area || '',
+              });
+            }
+          });
+        }
+      } catch (e) {
+        // Fallback silencioso
+      }
+      setWorkers(loadedWorkers);
     } catch (err) {
       console.error('Error fetching convivencia data:', err);
       showToast({ message: 'Error al cargar datos de Convivencia Laboral', status: 'error' });
@@ -1177,14 +1204,12 @@ export default function ConvivenciaWorkspace() {
                 icon={<X className="w-4 h-4" />}
                 label="Cerrar"
                 onClick={() => setShowCasoModal(false)}
-                alwaysShowLabel={true}
               />
               <ExpandingButton
                 variant="teal"
                 icon={<CheckCircle2 className="w-4 h-4" />}
                 label="Guardar Actuación"
                 onClick={handleAddActuacion}
-                alwaysShowLabel={true}
               />
             </div>
           </div>
@@ -1267,14 +1292,12 @@ export default function ConvivenciaWorkspace() {
                 icon={<X className="w-4 h-4" />}
                 label="Cancelar"
                 onClick={() => setShowMedidasModal(false)}
-                alwaysShowLabel={true}
               />
               <ExpandingButton
                 variant="rose"
                 icon={<AlertOctagon className="w-4 h-4" />}
                 label="Activar Medidas Urgentes"
                 onClick={handleApplyMedidas}
-                alwaysShowLabel={true}
               />
             </div>
           </div>
@@ -1310,7 +1333,6 @@ export default function ConvivenciaWorkspace() {
                       icon={Printer}
                       variant="teal"
                       title="Ver o imprimir el acta oficial con firmas digitales de los participantes"
-                      alwaysShowLabel={true}
                     />
                     <ExpandingButton
                       onClick={handleCopySigningLink}
@@ -1318,7 +1340,6 @@ export default function ConvivenciaWorkspace() {
                       icon={Share2}
                       variant="outline-teal"
                       title="Copiar enlace para que los miembros firmen desde su portal"
-                      alwaysShowLabel={true}
                     />
                   </>
                 )}
@@ -1330,7 +1351,6 @@ export default function ConvivenciaWorkspace() {
                   disabled={isGeneratingIA}
                   isLoading={isGeneratingIA}
                   title="Redactar borrador del acta con Tenshi IA"
-                  alwaysShowLabel={true}
                 />
                 <button
                   type="button"
@@ -1409,30 +1429,40 @@ export default function ConvivenciaWorkspace() {
                     icon={<RefreshCw className="w-3.5 h-3.5" />}
                     label="Sincronizar Miembros"
                     size="sm"
-                    alwaysShowLabel={true}
                     onClick={handleSyncCommitteeMembersToActa}
                     title="Convocatoria obligatoria a todos los miembros oficiales del CCL"
                   />
-                  <ExpandingButton
-                    variant="outline-teal"
-                    icon={<Plus className="w-3.5 h-3.5" />}
-                    label="Agregar Asistente"
-                    size="sm"
-                    alwaysShowLabel={true}
-                    onClick={() => {
-                      const nombre = prompt('Nombre completo del asistente:');
-                      if (!nombre) return;
-                      const cedula = prompt('Número de identificación (C.C.):') || '';
-                      const rol = prompt('Rol o estamento (ej: Representante Empleador, Representante Trabajadores, Asesor Externo):') || 'Miembro CCL';
-                      setActaForm({
-                        ...actaForm,
-                        asistentes: [
-                          ...(actaForm.asistentes || []),
-                          { nombre, cedula, rol, asistio: true, firma: null },
-                        ],
-                      });
-                    }}
-                  />
+                  <div className="w-48 sm:w-64">
+                    <WorkerAutocomplete
+                      value=""
+                      onChange={() => {}}
+                      onSelect={(w) => {
+                        const exists = (actaForm.asistentes || []).some(
+                          (a: any) => String(a.cedula).trim() === String(w.identificacion || w.cedula).trim()
+                        );
+                        if (exists) {
+                          showToast({ message: 'Este colaborador ya está en la lista de asistentes', status: 'warning' });
+                          return;
+                        }
+                        setActaForm({
+                          ...actaForm,
+                          asistentes: [
+                            ...(actaForm.asistentes || []),
+                            {
+                              nombre: w.nombre,
+                              cedula: w.identificacion || w.cedula || '',
+                              rol: w.cargo || 'Miembro CCL',
+                              asistio: true,
+                              firma: null,
+                            },
+                          ],
+                        });
+                      }}
+                      data={workers}
+                      placeholder="+ Añadir trabajador a lista..."
+                      className="py-1 px-2.5 text-[11px] h-7"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1663,14 +1693,12 @@ export default function ConvivenciaWorkspace() {
                 icon={<X className="w-4 h-4" />}
                 label="Cancelar"
                 onClick={() => setShowActaModal(false)}
-                alwaysShowLabel={true}
               />
               <ExpandingButton
                 variant="teal"
                 icon={<CheckCircle2 className="w-4 h-4" />}
                 label="Guardar Acta Trimestral"
                 onClick={handleSaveActa}
-                alwaysShowLabel={true}
               />
             </div>
           </div>
@@ -1751,33 +1779,40 @@ export default function ConvivenciaWorkspace() {
                   ))}
                 </div>
 
-                {/* Formulario rápido para añadir candidato */}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Nombre completo..."
+                {/* Formulario con Autocompletado de Trabajadores para Postulación CCL */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <WorkerAutocomplete
                     value={newCandidato.nombre}
-                    onChange={(e) => setNewCandidato({ ...newCandidato, nombre: e.target.value })}
-                    className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
+                    onChange={(val) => setNewCandidato({ ...newCandidato, nombre: val })}
+                    onSelect={(w) => {
+                      setNewCandidato({
+                        nombre: w.nombre,
+                        cedula: w.identificacion || w.cedula || '',
+                        cargo: w.cargo || '',
+                      });
+                    }}
+                    data={workers}
+                    placeholder="Buscar o escribir trabajador..."
+                    wrapperClassName="flex-1"
                   />
                   <input
                     type="text"
                     placeholder="Cédula..."
                     value={newCandidato.cedula}
                     onChange={(e) => setNewCandidato({ ...newCandidato, cedula: e.target.value })}
-                    className="w-28 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
+                    className="w-full sm:w-28 px-2.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
                   />
                   <input
                     type="text"
                     placeholder="Cargo..."
                     value={newCandidato.cargo}
                     onChange={(e) => setNewCandidato({ ...newCandidato, cargo: e.target.value })}
-                    className="w-28 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
+                    className="w-full sm:w-28 px-2.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
                   />
                   <ExpandingButton
                     variant="teal"
                     icon={<Plus className="w-3.5 h-3.5" />}
-                    label="Agregar"
+                    label="Añadir Candidato"
                     onClick={() => {
                       if (!newCandidato.nombre.trim()) return;
                       setEleccionForm({
@@ -1800,14 +1835,12 @@ export default function ConvivenciaWorkspace() {
                 icon={<X className="w-4 h-4" />}
                 label="Cancelar"
                 onClick={() => setShowEleccionModal(false)}
-                alwaysShowLabel={true}
               />
               <ExpandingButton
                 variant="teal"
                 icon={<Vote className="w-4 h-4" />}
                 label="Publicar Convocatoria"
                 onClick={handleCreateEleccion}
-                alwaysShowLabel={true}
               />
             </div>
           </div>
@@ -1840,7 +1873,6 @@ export default function ConvivenciaWorkspace() {
                 icon={<X className="w-4 h-4" />}
                 label="Cerrar"
                 onClick={() => setQrModalUrl(null)}
-                alwaysShowLabel={true}
               />
             </div>
           </div>

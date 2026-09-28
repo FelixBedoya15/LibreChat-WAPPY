@@ -397,14 +397,189 @@ html {
 .saas .bg-chat-input {
   background-color: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
-  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.03) !important;
-  border-radius: 1rem !important;
+  box-shadow: 0 12px 35px -8px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.04) !important;
+  border-radius: 1.25rem !important;
+}
+
+.saas .bg-chat-input:focus-within {
+  border-color: #0f172a !important;
+  box-shadow: 0 16px 40px -8px rgba(15, 23, 42, 0.12) !important;
 }
 
 .saas .conversation-layout,
 .saas main {
-  background-image: radial-gradient(#e2e8f0 1px, transparent 1px) !important;
+  background-color: #ffffff !important;
+  background-image: radial-gradient(#e2e8f0 1.2px, transparent 1.2px) !important;
   background-size: 24px 24px !important;
+}
+
+/* =========================================================================
+   FIGMA SAAS THEME: COMPREHENSIVE COMPONENT OVERRIDES
+   ========================================================================= */
+
+/* 1. Primary "+ Nuevo Chat" Button */
+.saas button[class*="bg-teal-600"],
+.saas a[class*="bg-teal-600"],
+.saas .bg-teal-600 {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border: 1px solid #1e293b !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.15) !important;
+}
+
+.saas button[class*="hover:bg-teal-700"]:hover,
+.saas a[class*="hover:bg-teal-700"]:hover,
+.saas .hover\:bg-teal-700:hover {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+/* 2. Left Sidebar (Nav) */
+.saas nav#chat-history-nav,
+.saas #chat-history-nav,
+.saas div[class*="w-[320px]"],
+.saas div[class*="w-[260px]"] {
+  background-color: #f8fafc !important;
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+.saas #chat-history-nav button {
+  border-radius: 0.75rem !important;
+}
+
+/* Active sidebar item */
+.saas #chat-history-nav button[class*="bg-teal-50"],
+.saas #chat-history-nav button[class*="bg-teal-100"],
+.saas #chat-history-nav .bg-teal-50\/50,
+.saas #chat-history-nav .bg-teal-100\/50 {
+  background-color: #ffffff !important;
+  border: 1.5px solid #0f172a !important;
+  color: #0f172a !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08) !important;
+}
+
+.saas #chat-history-nav button[class*="text-teal-700"],
+.saas #chat-history-nav button[class*="text-teal-600"],
+.saas #chat-history-nav .text-teal-700,
+.saas #chat-history-nav .text-teal-600,
+.saas #chat-history-nav .text-teal-500 {
+  color: #0f172a !important;
+}
+
+.saas #chat-history-nav button[class*="border-teal-400"],
+.saas #chat-history-nav .border-teal-400,
+.saas #chat-history-nav .border-teal-400\/50 {
+  border-color: #0f172a !important;
+}
+
+.saas #chat-history-nav button:hover {
+  border-color: #94a3b8 !important;
+  background-color: #f1f5f9 !important;
+}
+
+/* 3. User Profile Card (Bottom Left: Administrador Wappy) */
+.saas div[class*="bg-surface-secondary"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Avatar box / initials */
+.saas div[class*="rounded-lg"][class*="shadow-sm"][class*="border"] {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #1e293b !important;
+}
+
+/* 4. Right-Hand Floating Toolbar (SidePanel Nav) */
+.saas .bg-token-sidebar-surface-primary,
+.saas div[data-collapsed="true"] {
+  background-color: #f8fafc !important;
+  border-left: 1px solid #e2e8f0 !important;
+}
+
+.saas div[data-collapsed="true"] button {
+  border-radius: 0.75rem !important;
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+.saas div[data-collapsed="true"] button:hover {
+  border-color: #0f172a !important;
+  color: #0f172a !important;
+  background-color: #f8fafc !important;
+}
+
+/* Active button in right toolbar */
+.saas div[data-collapsed="true"] button[class*="bg-teal-100"],
+.saas div[data-collapsed="true"] .bg-teal-100\/50 {
+  background-color: #0f172a !important;
+  border-color: #0f172a !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2) !important;
+}
+
+.saas div[data-collapsed="true"] button[class*="bg-teal-100"] svg,
+.saas div[data-collapsed="true"] .bg-teal-100\/50 svg {
+  color: #ffffff !important;
+}
+
+/* 5. SGSST & Dashboard Pages (Image 2 Fixes) */
+.saas .bg-teal-50,
+.saas .bg-teal-50\/50,
+.saas .bg-emerald-50,
+.saas .bg-emerald-50\/50,
+.saas .bg-teal-500\/10,
+.saas .bg-emerald-500\/10,
+.saas .bg-teal-100,
+.saas .bg-emerald-100 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Squircle icon container (the green ECG box in Image 2) */
+.saas div[class*="rounded-"][class*="bg-teal-"],
+.saas div[class*="rounded-"][class*="bg-emerald-"] {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+.saas div[class*="rounded-"][class*="bg-teal-"] svg,
+.saas div[class*="rounded-"][class*="bg-emerald-"] svg {
+  color: #ffffff !important;
+}
+
+/* Replace teal/emerald text with dark slate #0F172A */
+.saas .text-teal-600,
+.saas .text-teal-700,
+.saas .text-teal-800,
+.saas .text-emerald-600,
+.saas .text-emerald-700,
+.saas .text-emerald-800 {
+  color: #0f172a !important;
+}
+
+/* Active switches / pills in Hitos (the toggle switch in Image 2) */
+.saas button[class*="bg-teal-500"],
+.saas button[class*="bg-teal-600"],
+.saas button[class*="bg-emerald-500"],
+.saas span[class*="bg-teal-500"],
+.saas span[class*="bg-emerald-500"] {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+.saas .border-teal-400,
+.saas .border-teal-500,
+.saas .border-emerald-400,
+.saas .border-emerald-500 {
+  border-color: #0f172a !important;
+}
+
+/* 6. Top Bar & Chat Header */
+.saas header {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  backdrop-filter: blur(8px) !important;
 }
 
 .bg-surface-primary {
