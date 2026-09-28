@@ -128,6 +128,17 @@ export default function ConvivenciaWorkspace() {
   });
   const [newCandidato, setNewCandidato] = useState({ nombre: '', cargo: '', cedula: '' });
 
+  // Modal Designación Directa Empleador CCL (Res. 652/2012 y Res. 3461/2025)
+  const [showDesignarEmpleadorModal, setShowDesignarEmpleadorModal] = useState(false);
+  const [representantesEmpleadorList, setRepresentantesEmpleadorList] = useState<any[]>([]);
+  const [newRepEmpleador, setNewRepEmpleador] = useState<any>({
+    nombre: '',
+    cargo: '',
+    cedula: '',
+    rol: 'Principal',
+  });
+  const [savingEmpleador, setSavingEmpleador] = useState(false);
+
   const [isGeneratingIA, setIsGeneratingIA] = useState(false);
   const [qrModalUrl, setQrModalUrl] = useState<string | null>(null);
 
@@ -433,10 +444,78 @@ export default function ConvivenciaWorkspace() {
     }
   };
 
+  const handleOpenDesignarEmpleadorModal = () => {
+    const activeComite = config?.comites?.find((c: any) => c.estado === 'activo') || config?.comites?.[0];
+    const actuales = (activeComite?.representantesEmpleador || []).map((r: any) => ({
+      nombre: r.nombre || '',
+      cargo: r.cargo || '',
+      cedula: r.cedula || '',
+      rol: r.rol || 'Principal',
+    }));
+    setRepresentantesEmpleadorList(actuales);
+    setNewRepEmpleador({ nombre: '', cargo: '', cedula: '', rol: 'Principal' });
+    setShowDesignarEmpleadorModal(true);
+  };
+
+  const handleSaveRepresentantesEmpleador = async () => {
+    setSavingEmpleador(true);
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const activeComite = config?.comites?.find((c: any) => c.estado === 'activo') || config?.comites?.[0];
+      const payload = {
+        comiteId: activeComite?._id,
+        centroTrabajo: activeComite?.centroTrabajo || 'Sede Principal',
+        periodoInicio: activeComite?.periodoInicio || new Date().toISOString(),
+        periodoFin: activeComite?.periodoFin || new Date(Date.now() + 2 * 365 * 24 * 60 * 60 * 1000).toISOString(),
+        representantesEmpleador: representantesEmpleadorList.map((r: any) => ({
+          nombre: String(r.nombre || '').trim(),
+          cargo: String(r.cargo || 'Directivo / Representante').trim(),
+          cedula: String(r.cedula || '').trim(),
+          rol: r.rol || 'Principal',
+        })),
+        representantesTrabajadores: activeComite?.representantesTrabajadores || [],
+      };
+
+      await axios.post('/api/sgsst/convivencia/comite', payload, { headers });
+      showToast({ message: 'Representantes del empleador designados y guardados con éxito', status: 'success' });
+      setShowDesignarEmpleadorModal(false);
+      fetchAllData();
+    } catch (err: any) {
+      showToast({ message: err.response?.data?.error || 'Error al guardar designación del empleador', status: 'error' });
+    } finally {
+      setSavingEmpleador(false);
+    }
+  };
+
   const handleCreateEleccion = async () => {
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      await axios.post('/api/sgsst/convivencia/elecciones', eleccionForm, { headers });
+      const rawCandidatos = Array.isArray(eleccionForm.candidatos) ? eleccionForm.candidatos : [];
+      const cleanCandidatos = rawCandidatos.map((c: any, idx: number) => {
+        const fallbackId = c.id || c.cedula || `cand-${Date.now()}-${idx}`;
+        return {
+          id: String(fallbackId),
+          nombre: String(c.nombre || `Candidato ${idx + 1}`).trim(),
+          cargo: String(c.cargo || 'Trabajador').trim(),
+          cedula: String(c.cedula || fallbackId).trim(),
+          propuesta: String(c.propuesta || 'Representar activamente a los trabajadores en convivencia laboral').trim(),
+          votos: Number(c.votos) || 0,
+        };
+      });
+
+      if (cleanCandidatos.length === 0) {
+        showToast({ message: 'Debe añadir al menos un candidato para abrir la elección', status: 'warning' });
+        return;
+      }
+
+      await axios.post(
+        '/api/sgsst/convivencia/elecciones',
+        {
+          ...eleccionForm,
+          candidatos: cleanCandidatos,
+        },
+        { headers }
+      );
       showToast({ message: 'Convocatoria a elecciones creada y activa', status: 'success' });
       setShowEleccionModal(false);
       fetchAllData();
@@ -604,23 +683,44 @@ export default function ConvivenciaWorkspace() {
               />
             )}
             {activeTab === 'comites' && (
-              <ToolbarButton
-                id="tb-convocar-ccl"
-                onClick={() => setActiveTab('elecciones')}
-                label="Convocar Votación Secreta"
-                icon={Vote}
-                title="Iniciar Convocatoria Electoral del CCL"
-                variant="dummy"
-              />
+              <>
+                <ToolbarButton
+                  id="tb-designar-empleador-ccl"
+                  onClick={handleOpenDesignarEmpleadorModal}
+                  label="Designar Empleador"
+                  icon={Shield}
+                  title="Designar Directamente Representantes del Empleador (Presidente, Principales y Suplentes)"
+                  variant="history"
+                />
+                <ToolbarButton
+                  id="tb-convocar-ccl"
+                  onClick={() => setActiveTab('elecciones')}
+                  label="Convocar Votación Secreta"
+                  icon={Vote}
+                  title="Iniciar Convocatoria Electoral del CCL"
+                  variant="dummy"
+                />
+              </>
             )}
             {activeTab === 'elecciones' && (
               <ToolbarButton
                 id="tb-convocatoria-electoral"
                 onClick={() => {
+                  const defaultCandidatos = (workers.slice(0, 4) || []).map((w: any, idx: number) => {
+                    const ced = String(w.cedula || w.documento || w.identificacion || `cand-${idx + 1}`).trim();
+                    return {
+                      id: ced,
+                      nombre: w.nombre || `Candidato ${idx + 1}`,
+                      cargo: w.cargo || 'Trabajador',
+                      cedula: ced,
+                      propuesta: 'Representar activamente a los trabajadores en convivencia laboral',
+                      votos: 0,
+                    };
+                  });
                   setEleccionForm({
                     titulo: `Elecciones Comité de Convivencia ${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
                     periodo: `${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
-                    candidatos: [],
+                    candidatos: defaultCandidatos,
                   });
                   setShowEleccionModal(true);
                 }}
@@ -944,13 +1044,22 @@ export default function ConvivenciaWorkspace() {
               </p>
             </div>
 
-            <ExpandingButton
-              onClick={() => setActiveTab('elecciones')}
-              label="Convocar Votación Secreta"
-              icon={Vote}
-              variant="orange"
-              title="Iniciar Convocatoria y Votación Secreta Digital"
-            />
+            <div className="flex items-center gap-2">
+              <ExpandingButton
+                onClick={handleOpenDesignarEmpleadorModal}
+                label="Designar Empleador"
+                icon={Shield}
+                variant="teal"
+                title="Designar directamente representantes del empleador (Presidente, Principales y Suplentes)"
+              />
+              <ExpandingButton
+                onClick={() => setActiveTab('elecciones')}
+                label="Convocar Votación Trabajadores"
+                icon={Vote}
+                variant="orange"
+                title="Iniciar Convocatoria y Votación Secreta Digital"
+              />
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -958,7 +1067,23 @@ export default function ConvivenciaWorkspace() {
               <div className="p-8 rounded-3xl border border-dashed border-slate-300 dark:border-zinc-800 text-center text-slate-400">
                 <Building2 className="w-12 h-12 mx-auto mb-2 text-slate-300" />
                 <p className="text-sm font-bold text-slate-700 dark:text-zinc-300">Sin comités de convivencia conformados</p>
-                <p className="text-xs">Convoque a elecciones o registre los representantes para formalizar el comité.</p>
+                <p className="text-xs mb-3">Convoque a elecciones o designe los representantes del empleador para formalizar el comité.</p>
+                <div className="flex items-center justify-center gap-2">
+                  <ExpandingButton
+                    onClick={handleOpenDesignarEmpleadorModal}
+                    label="Designar Empleador"
+                    icon={Shield}
+                    variant="teal"
+                    title="Designar representantes del empleador"
+                  />
+                  <ExpandingButton
+                    onClick={() => setActiveTab('elecciones')}
+                    label="Convocar Votación Trabajadores"
+                    icon={Vote}
+                    variant="orange"
+                    title="Iniciar Convocatoria Electoral"
+                  />
+                </div>
               </div>
             ) : (
               config.comites.map((comite: any, cIdx: number) => (
@@ -977,20 +1102,38 @@ export default function ConvivenciaWorkspace() {
                         </p>
                       </div>
                     </div>
-                    <span className="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                      {comite.estado?.toUpperCase() || 'ACTIVO'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        {comite.estado?.toUpperCase() || 'ACTIVO'}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Representantes Empleador */}
                   <div>
-                    <h5 className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-3 flex items-center gap-1.5">
-                      <Shield className="w-4 h-4" /> Representantes del Empleador (Designados por Gerencia)
-                    </h5>
+                    <div className="flex items-center justify-between mb-3">
+                      <h5 className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                        <Shield className="w-4 h-4" /> Representantes del Empleador (Designados por Gerencia)
+                      </h5>
+                      <ExpandingButton
+                        onClick={handleOpenDesignarEmpleadorModal}
+                        label="Gestionar Designación"
+                        icon={Shield}
+                        variant="outline-teal"
+                        title="Modificar o agregar representantes del empleador"
+                      />
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {(comite.representantesEmpleador || []).length === 0 ? (
-                        <div className="p-3 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800 text-xs text-slate-400 italic">
-                          Sin representantes del empleador designados.
+                        <div className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800 text-xs text-slate-400 text-center flex flex-col items-center justify-center gap-2 col-span-2">
+                          <span>Sin representantes del empleador designados.</span>
+                          <ExpandingButton
+                            onClick={handleOpenDesignarEmpleadorModal}
+                            label="+ Designar Ahora"
+                            icon={Plus}
+                            variant="teal"
+                            title="Designar representantes del empleador directamente"
+                          />
                         </div>
                       ) : (
                         comite.representantesEmpleador.map((r: any, idx: number) => (
@@ -2234,15 +2377,23 @@ export default function ConvivenciaWorkspace() {
                   />
                   <ExpandingButton
                     variant="teal"
-                    icon={<Plus className="w-3.5 h-3.5" />}
+                    icon={Plus}
                     label="Añadir Candidato"
                     onClick={() => {
                       if (!newCandidato.nombre.trim()) return;
+                      const candId = newCandidato.cedula?.trim() || `cand-${Date.now()}`;
                       setEleccionForm({
                         ...eleccionForm,
                         candidatos: [
                           ...(eleccionForm.candidatos || []),
-                          { ...newCandidato, id: Date.now().toString() },
+                          {
+                            id: candId,
+                            nombre: newCandidato.nombre.trim(),
+                            cargo: newCandidato.cargo?.trim() || 'Trabajador',
+                            cedula: newCandidato.cedula?.trim() || candId,
+                            propuesta: 'Representar activamente a los trabajadores en convivencia laboral',
+                            votos: 0,
+                          },
                         ],
                       });
                       setNewCandidato({ nombre: '', cargo: '', cedula: '' });
@@ -2255,15 +2406,214 @@ export default function ConvivenciaWorkspace() {
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-zinc-800">
               <ExpandingButton
                 variant="secondary"
-                icon={<X className="w-4 h-4" />}
+                icon={X}
                 label="Cancelar"
                 onClick={() => setShowEleccionModal(false)}
               />
               <ExpandingButton
-                variant="teal"
-                icon={<Vote className="w-4 h-4" />}
-                label="Publicar Convocatoria"
+                variant="orange"
+                icon={Vote}
+                label="Abrir Urna Digital"
                 onClick={handleCreateEleccion}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MODAL DESIGNACIÓN DIRECTA DEL EMPLEADOR CONVIVENCIA ═══ */}
+      {showDesignarEmpleadorModal && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-zinc-800">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-indigo-500/10 text-indigo-600">
+                  <Shield className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 dark:text-zinc-100">
+                    Designación Directa de Representantes del Empleador (CCL)
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">
+                    Resolución 652/2012 y Res. 3461/2025: El empleador designa directamente a sus representantes (Presidente, Principales y Suplentes) sin someterlos a votación.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDesignarEmpleadorModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                title="Cerrar modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Representantes del Empleador Actuales */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                  Representantes Designados ({representantesEmpleadorList.length})
+                </h4>
+                <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-full">
+                  Designación Empresarial
+                </span>
+              </div>
+
+              {representantesEmpleadorList.length === 0 ? (
+                <div className="text-center py-6 px-4 rounded-2xl border border-dashed border-slate-300 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/30">
+                  <p className="text-xs font-medium text-slate-500">
+                    Aún no se han registrado representantes del empleador para el Comité de Convivencia. Añade al Presidente y a los representantes principales o suplentes abajo.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {representantesEmpleadorList.map((rep, idx) => (
+                    <div
+                      key={rep.cedula || idx}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl border border-slate-200 dark:border-zinc-700 bg-slate-50/80 dark:bg-zinc-800/40"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                          {rep.rol === 'Presidente' ? '👑' : '👔'}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800 dark:text-zinc-100">
+                            {rep.nombre}
+                          </p>
+                          <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                            {rep.cargo || 'Cargo no especificado'} {rep.cedula ? `• C.C. ${rep.cedula}` : ''}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
+                        <select
+                          value={rep.rol}
+                          onChange={(e) => {
+                            const updated = [...representantesEmpleadorList];
+                            updated[idx].rol = e.target.value;
+                            setRepresentantesEmpleadorList(updated);
+                          }}
+                          className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200"
+                        >
+                          <option value="Presidente">Presidente</option>
+                          <option value="Principal">Principal</option>
+                          <option value="Suplente">Suplente</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRepresentantesEmpleadorList(representantesEmpleadorList.filter((_, i) => i !== idx));
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                          title="Eliminar de la lista"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Formulario para Añadir Nuevo Representante */}
+              <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/80 space-y-2.5">
+                <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">
+                  + Agregar Nuevo Representante del Empleador
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                  <div className="sm:col-span-5">
+                    <WorkerAutocomplete
+                      value={newRepEmpleador.nombre}
+                      onChange={(val) => setNewRepEmpleador({ ...newRepEmpleador, nombre: val })}
+                      onSelect={(w) => {
+                        setNewRepEmpleador({
+                          ...newRepEmpleador,
+                          nombre: w.nombre,
+                          cedula: w.identificacion || w.cedula || w.documento || '',
+                          cargo: w.cargo || '',
+                        });
+                      }}
+                      data={workers}
+                      placeholder="Buscar o escribir trabajador..."
+                      wrapperClassName="w-full"
+                    />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <input
+                      type="text"
+                      placeholder="Cédula..."
+                      value={newRepEmpleador.cedula}
+                      onChange={(e) => setNewRepEmpleador({ ...newRepEmpleador, cedula: e.target.value })}
+                      className="w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
+                    />
+                  </div>
+                  <div className="sm:col-span-4">
+                    <input
+                      type="text"
+                      placeholder="Cargo..."
+                      value={newRepEmpleador.cargo}
+                      onChange={(e) => setNewRepEmpleador({ ...newRepEmpleador, cargo: e.target.value })}
+                      className="w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-semibold text-slate-600 dark:text-zinc-400">Rol:</label>
+                    <select
+                      value={newRepEmpleador.rol}
+                      onChange={(e) => setNewRepEmpleador({ ...newRepEmpleador, rol: e.target.value })}
+                      className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200"
+                    >
+                      <option value="Presidente">Presidente</option>
+                      <option value="Principal">Principal</option>
+                      <option value="Suplente">Suplente</option>
+                    </select>
+                  </div>
+                  <ExpandingButton
+                    onClick={() => {
+                      if (!newRepEmpleador.nombre.trim()) {
+                        showToast({ message: 'Ingresa o selecciona el nombre del representante', status: 'warning' });
+                        return;
+                      }
+                      setRepresentantesEmpleadorList([
+                        ...representantesEmpleadorList,
+                        {
+                          ...newRepEmpleador,
+                          nombre: newRepEmpleador.nombre.trim(),
+                          cedula: newRepEmpleador.cedula?.trim() || `cc-${Date.now()}`,
+                          cargo: newRepEmpleador.cargo?.trim() || 'Directivo / Representante',
+                        },
+                      ]);
+                      setNewRepEmpleador({ nombre: '', cargo: '', cedula: '', rol: 'Principal' });
+                    }}
+                    label="Agregar a la Lista"
+                    icon={Plus}
+                    variant="teal"
+                    title="Añadir a la lista temporal de designación"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-zinc-800">
+              <ExpandingButton
+                onClick={() => setShowDesignarEmpleadorModal(false)}
+                label="Cancelar"
+                icon={X}
+                variant="secondary"
+                title="Descartar cambios"
+              />
+              <ExpandingButton
+                onClick={handleSaveRepresentantesEmpleador}
+                label={savingEmpleador ? 'Guardando...' : 'Guardar Designación Oficial'}
+                icon={CheckCircle2}
+                variant="teal"
+                disabled={savingEmpleador}
+                title="Guardar y asentar representantes del empleador en el comité de convivencia"
               />
             </div>
           </div>
@@ -2293,7 +2643,7 @@ export default function ConvivenciaWorkspace() {
             <div className="flex items-center justify-center gap-2 pt-2">
               <ExpandingButton
                 variant="secondary"
-                icon={<X className="w-4 h-4" />}
+                icon={X}
                 label="Cerrar"
                 onClick={() => setQrModalUrl(null)}
               />

@@ -172,10 +172,24 @@ router.get('/trabajadores', requireJwtAuth, async (req, res) => {
     const company = await getActiveCompany(req.user.id);
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
 
-    let workers = await SgsstWorker.find({ companyId: company._id, estado: { $ne: 'retirado' } })
-      .select('nombre cedula cargo area email telefono')
+    const rawWorkers = await SgsstWorker.find({ companyId: company._id, estado: { $ne: 'retirado' } })
+      .select('nombre documento cedula cargo area email telefono')
       .sort({ nombre: 1 })
       .lean();
+
+    const workers = (rawWorkers || []).map(w => {
+      const doc = String(w.documento || w.cedula || w._id || '').trim();
+      return {
+        nombre: w.nombre,
+        cedula: doc,
+        documento: doc,
+        identificacion: doc,
+        cargo: w.cargo || '',
+        area: w.area || '',
+        email: w.email || '',
+        telefono: w.telefono || '',
+      };
+    });
 
     const perfilDoc = await PerfilSociodemograficoData.findOne({ companyId: company._id }).lean()
       || await PerfilSociodemograficoData.findOne({ user: req.user.id }).lean();
@@ -183,12 +197,14 @@ router.get('/trabajadores', requireJwtAuth, async (req, res) => {
     if (perfilDoc && Array.isArray(perfilDoc.trabajadores)) {
       const existingCedulas = new Set((workers || []).map(w => String(w.cedula || '').trim()));
       perfilDoc.trabajadores.forEach(w => {
-        const c = String(w.identificacion || '').trim();
+        const c = String(w.identificacion || w.cedula || w.documento || '').trim();
         if (c && !existingCedulas.has(c)) {
           existingCedulas.add(c);
           workers.push({
             nombre: w.nombre,
             cedula: c,
+            documento: c,
+            identificacion: c,
             cargo: w.cargo || '',
             area: w.area || '',
             email: w.email || '',
@@ -441,6 +457,20 @@ router.post('/elecciones', requireJwtAuth, async (req, res) => {
 
     const workerCount = Number(company.workerCount) || 1;
 
+    const cleanCandidatos = (Array.isArray(candidatos) ? candidatos : []).map((c, idx) => {
+      const ced = String(c.cedula || c.identificacion || c.documento || '').trim();
+      const candId = String(c.id || ced || `cand-${Date.now()}-${idx}`).trim();
+      return {
+        id: candId,
+        nombre: String(c.nombre || `Candidato ${idx + 1}`).trim(),
+        cedula: ced || candId,
+        cargo: String(c.cargo || '').trim(),
+        propuesta: String(c.propuesta || 'Compromiso por la prevención y el bienestar de todos.').trim(),
+        foto: String(c.foto || '').trim(),
+        votos: Number(c.votos) || 0,
+      };
+    });
+
     const nuevaEleccion = new SgsstEleccion({
       companyId: company._id,
       user: req.user.id,
@@ -451,7 +481,7 @@ router.post('/elecciones', requireJwtAuth, async (req, res) => {
       fechaCierre: fechaCierre || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días por defecto
       estado: estado || 'activa',
       totalVotantesHabilitados: workerCount,
-      candidatos: Array.isArray(candidatos) ? candidatos : [],
+      candidatos: cleanCandidatos,
       juradosVotacion: Array.isArray(juradosVotacion) ? juradosVotacion : [],
     });
 

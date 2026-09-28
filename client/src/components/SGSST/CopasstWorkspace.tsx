@@ -96,6 +96,12 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
   });
   const [newCandidato, setNewCandidato] = useState({ nombre: '', cargo: '', cedula: '' });
 
+  // Modal Designación Directa de Representantes del Empleador (Sin Votación)
+  const [showDesignarEmpleadorModal, setShowDesignarEmpleadorModal] = useState(false);
+  const [representantesEmpleadorList, setRepresentantesEmpleadorList] = useState<any[]>([]);
+  const [newRepEmpleador, setNewRepEmpleador] = useState({ nombre: '', cedula: '', cargo: '', rol: 'Principal' });
+  const [savingEmpleador, setSavingEmpleador] = useState(false);
+
   // IA Generation loading
   const [isGeneratingIA, setIsGeneratingIA] = useState(false);
   const [qrModalUrl, setQrModalUrl] = useState<string | null>(null);
@@ -410,15 +416,63 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
     showToast({ message: 'Enlace de firma copiado. Puedes enviarlo por WhatsApp al trabajador.', status: 'success' });
   };
 
+  const handleOpenDesignarEmpleadorModal = () => {
+    setRepresentantesEmpleadorList(config?.comite?.representantesEmpleador ? [...config.comite.representantesEmpleador] : []);
+    setNewRepEmpleador({ nombre: '', cedula: '', cargo: '', rol: 'Principal' });
+    setShowDesignarEmpleadorModal(true);
+  };
+
+  const handleSaveRepresentantesEmpleador = async () => {
+    if (representantesEmpleadorList.length === 0) {
+      showToast({ message: 'Agrega al menos un representante designado por el empleador', status: 'warning' });
+      return;
+    }
+    setSavingEmpleador(true);
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.post(
+        '/api/sgsst/copasst/comite',
+        { representantesEmpleador: representantesEmpleadorList },
+        { headers }
+      );
+      showToast({ message: 'Representantes del empleador designados y formalizados con éxito', status: 'success' });
+      setShowDesignarEmpleadorModal(false);
+      fetchAllData();
+    } catch (err: any) {
+      console.error('Error saving employer representatives:', err);
+      showToast({ message: err.response?.data?.error || 'Error al guardar representantes del empleador', status: 'error' });
+    } finally {
+      setSavingEmpleador(false);
+    }
+  };
+
   const handleCreateEleccion = async () => {
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      await axios.post('/api/sgsst/copasst/elecciones', eleccionForm, { headers });
-      showToast({ message: 'Convocatoria a elecciones creada y activa', status: 'success' });
+      if (!eleccionForm.candidatos || eleccionForm.candidatos.length === 0) {
+        showToast({ message: 'Debes postular al menos un candidato para abrir la urna digital', status: 'warning' });
+        return;
+      }
+      const sanitizedPayload = {
+        ...eleccionForm,
+        candidatos: eleccionForm.candidatos.map((c: any, idx: number) => {
+          const ced = String(c.cedula || c.identificacion || c.documento || '').trim();
+          const candId = String(c.id || ced || `cand-${Date.now()}-${idx}`).trim();
+          return {
+            ...c,
+            id: candId,
+            cedula: ced || candId,
+            propuesta: c.propuesta || 'Compromiso por la prevención y el bienestar de todos.',
+            votos: Number(c.votos) || 0,
+          };
+        }),
+      };
+      await axios.post('/api/sgsst/copasst/elecciones', sanitizedPayload, { headers });
+      showToast({ message: 'Convocatoria a elecciones creada y urna digital activa', status: 'success' });
       setShowEleccionModal(false);
       fetchAllData();
     } catch (err: any) {
-      showToast({ message: err.response?.data?.error || 'Error al crear elección', status: 'error' });
+      showToast({ message: err.response?.data?.error || 'Error al crear proceso de elección', status: 'error' });
     }
   };
 
@@ -521,14 +575,24 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
               />
             )}
             {activeTab === 'conformacion' && (
-              <ToolbarButton
-                id="tb-convocar-eleccion"
-                onClick={() => setActiveTab('elecciones')}
-                label="Convocar Votación Secreta"
-                icon={Vote}
-                title="Abrir Votación Secreta Digital"
-                variant="dummy"
-              />
+              <>
+                <ToolbarButton
+                  id="tb-designar-empleador"
+                  onClick={handleOpenDesignarEmpleadorModal}
+                  label="Designar Empleador"
+                  icon={Shield}
+                  title="Designar Representantes del Empleador (Sin Votación)"
+                  variant="ai"
+                />
+                <ToolbarButton
+                  id="tb-convocar-eleccion"
+                  onClick={() => setActiveTab('elecciones')}
+                  label="Convocar Votación Secreta"
+                  icon={Vote}
+                  title="Abrir Votación Secreta Digital"
+                  variant="dummy"
+                />
+              </>
             )}
             {activeTab === 'elecciones' && (
               <ToolbarButton
@@ -537,14 +601,18 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                   setEleccionForm({
                     titulo: `Elección COPASST ${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
                     periodo: `${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
-                    candidatos: workers.slice(0, 4).map((w) => ({
-                      id: w.cedula,
-                      nombre: w.nombre,
-                      cedula: w.cedula,
-                      cargo: w.cargo,
-                      propuesta: 'Compromiso por la prevención y el bienestar de todos.',
-                      votos: 0,
-                    })),
+                    candidatos: workers.slice(0, 4).map((w, idx) => {
+                      const ced = String(w.cedula || w.documento || w.identificacion || '').trim();
+                      const candId = String(ced || `cand-${Date.now()}-${idx}`).trim();
+                      return {
+                        id: candId,
+                        nombre: w.nombre,
+                        cedula: ced || candId,
+                        cargo: w.cargo || '',
+                        propuesta: 'Compromiso por la prevención y el bienestar de todos.',
+                        votos: 0,
+                      };
+                    }),
                   });
                   setShowEleccionModal(true);
                 }}
@@ -745,24 +813,50 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 </p>
               </div>
 
-              <ExpandingButton
-                onClick={() => setActiveTab('elecciones')}
-                label="Convocar Votación Secreta"
-                icon={Vote}
-                variant="orange"
-                title="Iniciar Convocatoria y Votación Secreta Digital"
-              />
+              <div className="flex items-center gap-2">
+                <ExpandingButton
+                  onClick={handleOpenDesignarEmpleadorModal}
+                  label="Designar Empleador"
+                  icon={Shield}
+                  variant="teal"
+                  title="Designar directamente los representantes del empleador (Presidente, Principales, Suplentes) sin votación"
+                />
+                <ExpandingButton
+                  onClick={() => setActiveTab('elecciones')}
+                  label="Convocar Votación Trabajadores"
+                  icon={Vote}
+                  variant="orange"
+                  title="Iniciar Convocatoria y Votación Secreta Digital para trabajadores"
+                />
+              </div>
             </div>
 
             {/* Representantes Empleador */}
             <div className="mb-6">
-              <h4 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400 mb-3 flex items-center gap-1.5">
-                <Shield className="w-4 h-4" /> Representantes del Empleador (Designados por Gerencia)
-              </h4>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400 flex items-center gap-1.5">
+                  <Shield className="w-4 h-4" /> Representantes del Empleador (Designados por Gerencia)
+                </h4>
+                <ExpandingButton
+                  onClick={handleOpenDesignarEmpleadorModal}
+                  label="Gestionar Designación"
+                  icon={Edit2}
+                  variant="outline-teal"
+                  size="sm"
+                  title="Modificar o añadir representantes designados por la Gerencia"
+                />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {(config?.comite?.representantesEmpleador || []).length === 0 ? (
-                  <div className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-zinc-700 text-xs text-slate-400 italic">
-                    Sin representantes del empleador designados aún.
+                  <div className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-zinc-700 text-xs text-slate-400 italic flex items-center justify-between">
+                    <span>Sin representantes del empleador designados aún.</span>
+                    <button
+                      type="button"
+                      onClick={handleOpenDesignarEmpleadorModal}
+                      className="text-teal-600 dark:text-teal-400 font-bold hover:underline"
+                    >
+                      + Designar ahora
+                    </button>
                   </div>
                 ) : (
                   (config.comite.representantesEmpleador || []).map((r: any, idx: number) => (
@@ -834,14 +928,18 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 setEleccionForm({
                   titulo: `Elección COPASST ${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
                   periodo: `${new Date().getFullYear()}-${new Date().getFullYear() + 2}`,
-                  candidatos: workers.slice(0, 4).map((w) => ({
-                    id: w.cedula,
-                    nombre: w.nombre,
-                    cedula: w.cedula,
-                    cargo: w.cargo,
-                    propuesta: 'Compromiso por la prevención y el bienestar de todos.',
-                    votos: 0,
-                  })),
+                  candidatos: workers.slice(0, 4).map((w, idx) => {
+                    const ced = String(w.cedula || w.documento || w.identificacion || '').trim();
+                    const candId = String(ced || `cand-${Date.now()}-${idx}`).trim();
+                    return {
+                      id: candId,
+                      nombre: w.nombre,
+                      cedula: ced || candId,
+                      cargo: w.cargo || '',
+                      propuesta: 'Compromiso por la prevención y el bienestar de todos.',
+                      votos: 0,
+                    };
+                  }),
                 });
                 setShowEleccionModal(true);
               }}
@@ -1655,11 +1753,19 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                   <ExpandingButton
                     onClick={() => {
                       if (!newCandidato.nombre.trim()) return;
+                      const candId = newCandidato.cedula?.trim() || `cand-${Date.now()}`;
                       setEleccionForm({
                         ...eleccionForm,
                         candidatos: [
                           ...(eleccionForm.candidatos || []),
-                          { ...newCandidato, id: Date.now().toString(), votos: 0 },
+                          {
+                            id: candId,
+                            nombre: newCandidato.nombre.trim(),
+                            cargo: newCandidato.cargo?.trim() || 'Trabajador',
+                            cedula: newCandidato.cedula?.trim() || candId,
+                            propuesta: 'Representar activamente a los trabajadores',
+                            votos: 0,
+                          },
                         ],
                       });
                       setNewCandidato({ nombre: '', cargo: '', cedula: '' });
@@ -1687,6 +1793,205 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 icon={Vote}
                 variant="orange"
                 title="Publicar convocatoria y abrir urna digital"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MODAL DESIGNACIÓN DIRECTA DEL EMPLEADOR ═══ */}
+      {showDesignarEmpleadorModal && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-zinc-800">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-teal-500/10 text-teal-600">
+                  <Shield className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 dark:text-zinc-100">
+                    Designación Directa de Representantes del Empleador
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">
+                    Por Resolución 2013/1986 y Dec. 1072/2015, el empleador nombra a dedo a sus representantes y al Presidente sin votación.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDesignarEmpleadorModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                title="Cerrar modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Representantes del Empleador Actuales */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                  Representantes Designados ({representantesEmpleadorList.length})
+                </h4>
+                <span className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded-full">
+                  Designación Empresarial
+                </span>
+              </div>
+
+              {representantesEmpleadorList.length === 0 ? (
+                <div className="text-center py-6 px-4 rounded-2xl border border-dashed border-slate-300 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/30">
+                  <p className="text-xs font-medium text-slate-500">
+                    Aún no se han registrado representantes del empleador. Añade al Presidente y a los representantes principales o suplentes abajo.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {representantesEmpleadorList.map((rep, idx) => (
+                    <div
+                      key={rep.cedula || idx}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl border border-slate-200 dark:border-zinc-700 bg-slate-50/80 dark:bg-zinc-800/40"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-600 flex items-center justify-center font-bold text-xs">
+                          {rep.rol === 'Presidente' ? '👑' : '👔'}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800 dark:text-zinc-100">
+                            {rep.nombre}
+                          </p>
+                          <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                            {rep.cargo || 'Cargo no especificado'} {rep.cedula ? `• C.C. ${rep.cedula}` : ''}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
+                        <select
+                          value={rep.rol}
+                          onChange={(e) => {
+                            const updated = [...representantesEmpleadorList];
+                            updated[idx].rol = e.target.value;
+                            setRepresentantesEmpleadorList(updated);
+                          }}
+                          className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200"
+                        >
+                          <option value="Presidente">Presidente</option>
+                          <option value="Principal">Principal</option>
+                          <option value="Suplente">Suplente</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRepresentantesEmpleadorList(representantesEmpleadorList.filter((_, i) => i !== idx));
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                          title="Eliminar de la lista"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Formulario para Añadir Nuevo Representante */}
+              <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/80 space-y-2.5">
+                <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">
+                  + Agregar Nuevo Representante del Empleador
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                  <div className="sm:col-span-5">
+                    <WorkerAutocomplete
+                      value={newRepEmpleador.nombre}
+                      onChange={(val) => setNewRepEmpleador({ ...newRepEmpleador, nombre: val })}
+                      onSelect={(w) => {
+                        setNewRepEmpleador({
+                          ...newRepEmpleador,
+                          nombre: w.nombre,
+                          cedula: w.identificacion || w.cedula || w.documento || '',
+                          cargo: w.cargo || '',
+                        });
+                      }}
+                      data={workers}
+                      placeholder="Buscar o escribir trabajador..."
+                      wrapperClassName="w-full"
+                    />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <input
+                      type="text"
+                      placeholder="Cédula..."
+                      value={newRepEmpleador.cedula}
+                      onChange={(e) => setNewRepEmpleador({ ...newRepEmpleador, cedula: e.target.value })}
+                      className="w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
+                    />
+                  </div>
+                  <div className="sm:col-span-4">
+                    <input
+                      type="text"
+                      placeholder="Cargo..."
+                      value={newRepEmpleador.cargo}
+                      onChange={(e) => setNewRepEmpleador({ ...newRepEmpleador, cargo: e.target.value })}
+                      className="w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-semibold text-slate-600 dark:text-zinc-400">Rol:</label>
+                    <select
+                      value={newRepEmpleador.rol}
+                      onChange={(e) => setNewRepEmpleador({ ...newRepEmpleador, rol: e.target.value })}
+                      className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-semibold bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200"
+                    >
+                      <option value="Presidente">Presidente</option>
+                      <option value="Principal">Principal</option>
+                      <option value="Suplente">Suplente</option>
+                    </select>
+                  </div>
+                  <ExpandingButton
+                    onClick={() => {
+                      if (!newRepEmpleador.nombre.trim()) {
+                        showToast({ message: 'Ingresa o selecciona el nombre del representante', status: 'warning' });
+                        return;
+                      }
+                      setRepresentantesEmpleadorList([
+                        ...representantesEmpleadorList,
+                        {
+                          ...newRepEmpleador,
+                          nombre: newRepEmpleador.nombre.trim(),
+                          cedula: newRepEmpleador.cedula?.trim() || `cc-${Date.now()}`,
+                          cargo: newRepEmpleador.cargo?.trim() || 'Directivo / Representante',
+                        },
+                      ]);
+                      setNewRepEmpleador({ nombre: '', cargo: '', cedula: '', rol: 'Principal' });
+                    }}
+                    label="Agregar a la Lista"
+                    icon={Plus}
+                    variant="teal"
+                    title="Añadir a la lista temporal de designación"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-zinc-800">
+              <ExpandingButton
+                onClick={() => setShowDesignarEmpleadorModal(false)}
+                label="Cancelar"
+                icon={X}
+                variant="secondary"
+                title="Descartar cambios"
+              />
+              <ExpandingButton
+                onClick={handleSaveRepresentantesEmpleador}
+                label={savingEmpleador ? 'Guardando...' : 'Guardar Designación Oficial'}
+                icon={CheckCircle2}
+                variant="teal"
+                disabled={savingEmpleador}
+                title="Guardar y asentar representantes del empleador en el comité"
               />
             </div>
           </div>

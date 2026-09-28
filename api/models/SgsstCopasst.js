@@ -260,9 +260,9 @@ const sgsstEleccionSchema = new mongoose.Schema(
     },
     candidatos: [
       {
-        id: { type: String, required: true },
+        id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
         nombre: { type: String, required: true },
-        cedula: { type: String, required: true },
+        cedula: { type: String, default: '' },
         cargo: { type: String, default: '' },
         propuesta: { type: String, default: '' },
         foto: { type: String, default: '' },
