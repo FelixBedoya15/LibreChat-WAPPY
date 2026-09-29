@@ -12,6 +12,7 @@ import { useAuthContext } from '~/hooks';
 import { ThemeSelector } from '@librechat/client';
 import { QRCodeSVG } from 'qrcode.react';
 import axios from 'axios';
+import './marketing.css';
 
 // Declare global types for YouTube Iframe Player API
 declare global {
@@ -317,6 +318,16 @@ export default function ComunidadPage() {
   // Iframe presentation pseudo-fullscreen state
   const [isIframeFullscreen, setIsIframeFullscreen] = useState(false);
   const isIframeFullscreenRef = useRef(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+      setIsScrolled(scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
   // Admin Config Panel States
   const isAdminPanelOpenRef = useRef(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
@@ -1958,15 +1969,16 @@ export default function ComunidadPage() {
   const isDownloadUnlocked = isAdmin || isAccessGranted || isVideoFinished;
 
   return (
-    <div className={`min-h-screen bg-surface-secondary text-text-primary font-sans relative overflow-x-hidden transition-colors duration-300 flex flex-col justify-between ${funnelKey === 'comunidadmp' ? 'comunidadmp-bg' : ''}`}>
+    <div className={`min-h-screen relative overflow-x-hidden transition-colors duration-300 flex flex-col justify-between ${funnelKey === 'comunidadmp' ? 'mkt comunidadmp-landing-style' : 'bg-surface-secondary text-text-primary font-sans'}`}>
       
       {/* Premium Tech Grid & Flowing Ambient Light */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_80%,transparent_100%)]"></div>
         {funnelKey === 'comunidadmp' ? (
           <>
-            <div className="absolute top-[10%] left-[20%] w-[60vw] h-[50vw] rounded-full bg-[#0EA5A5]/[0.06] blur-[140px] pointer-events-none" />
-            <div className="absolute bottom-[20%] right-[15%] w-[45vw] h-[45vw] rounded-full bg-[#06B6D4]/[0.04] blur-[120px] pointer-events-none" />
+            <div className="cloud" style={{ top: 40, left: -60, width: 340, height: 140, background: 'rgba(91, 184, 245, 0.16)' }} />
+            <div className="cloud" style={{ top: 180, right: -50, width: 320, height: 130, background: 'rgba(199, 243, 3, 0.14)' }} />
+            <div className="cloud" style={{ top: 450, left: '25%', width: 380, height: 160, background: 'rgba(14, 165, 165, 0.10)' }} />
           </>
         ) : (
           <>
@@ -1992,6 +2004,76 @@ export default function ComunidadPage() {
             }
             .font-space-grotesk {
               font-family: 'Space Grotesk', sans-serif !important;
+            }
+            .comunidadmp-landing-style {
+              background: #f6f7f9 !important;
+              color: #0e1300 !important;
+              font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+            }
+            .dark .comunidadmp-landing-style {
+              background: #090d16 !important;
+              color: #f1f5f9 !important;
+            }
+            /* Eye-catching Instagram Button Styles (Landing Page Design) */
+            .btn-instagram-hero {
+              background: linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%) !important;
+              color: #ffffff !important;
+              font-family: var(--ui, 'Inter', sans-serif) !important;
+              font-size: 15.5px !important;
+              font-weight: 700 !important;
+              letter-spacing: -0.01em !important;
+              height: 52px !important;
+              border-radius: 9999px !important;
+              padding: 0 12px 0 24px !important;
+              display: inline-flex !important;
+              align-items: center !important;
+              gap: 10px !important;
+              box-shadow: 0 10px 28px rgba(225, 48, 108, 0.45) !important;
+              transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+              text-decoration: none !important;
+              border: none !important;
+              cursor: pointer !important;
+            }
+            .btn-instagram-hero:hover {
+              transform: translateY(-2px) scale(1.03) !important;
+              box-shadow: 0 14px 36px rgba(225, 48, 108, 0.65) !important;
+              filter: brightness(1.08) !important;
+            }
+            .btn-instagram-hero .pip {
+              background: rgba(255, 255, 255, 0.25) !important;
+              width: 32px !important;
+              height: 32px !important;
+              border-radius: 9999px !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+              transition: transform 0.25s ease !important;
+            }
+            .btn-instagram-hero:hover .pip {
+              transform: translateX(3px) !important;
+              background: rgba(255, 255, 255, 0.35) !important;
+            }
+
+            .btn-instagram-nav {
+              background: linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%) !important;
+              color: #ffffff !important;
+              font-family: var(--ui, 'Inter', sans-serif) !important;
+              font-size: 13.5px !important;
+              font-weight: 700 !important;
+              height: 42px !important;
+              border-radius: 9999px !important;
+              padding: 0 18px !important;
+              display: inline-flex !important;
+              align-items: center !important;
+              gap: 8px !important;
+              box-shadow: 0 4px 18px rgba(225, 48, 108, 0.4) !important;
+              transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+              text-decoration: none !important;
+            }
+            .btn-instagram-nav:hover {
+              transform: translateY(-2px) scale(1.03) !important;
+              box-shadow: 0 8px 24px rgba(225, 48, 108, 0.6) !important;
+              filter: brightness(1.08) !important;
             }
              /* Mauricio Presentation Custom overrides - Light Mode Default */
             .comunidadmp-bg {
@@ -2136,105 +2218,213 @@ export default function ComunidadPage() {
 
       <div>
         {/* Top Header Navbar */}
-        <nav className="w-full max-w-6xl mx-auto px-4 py-4 sm:px-6 sm:py-4 flex items-center justify-between relative z-10 border border-border-medium/40 bg-surface-primary/40 backdrop-blur-md rounded-2xl mt-4 shadow-sm transition-all duration-300">
-          <div className="flex items-center gap-1.5 sm:gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 bg-emerald-500/20 blur-md rounded-xl"></div>
-              <img src="/assets/logo.png" alt="WAPPY Logo" className="h-14 sm:h-20 w-auto relative z-10" />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 sm:gap-3">
-            {isAdmin && (
-              <>
-                <button
-                  onClick={() => {
-                    localStorage.removeItem(getStorageKey('wappy_comunidad_email'));
-                    localStorage.removeItem(getStorageKey('wappy_lead_captured'));
-                    localStorage.removeItem(getStorageKey('wappy_lead_data'));
-                    localStorage.removeItem(getStorageKey('wappy_comunidad_video_finished'));
-                    localStorage.removeItem(getStorageKey('wappy_comunidad_video_progress'));
-                    setIsAccessGranted(false);
-                    setIsLeadCaptured(false);
-                    setShowLeadModal(false);
-                    setCurrentTime(0);
-                    window.location.reload();
-                  }}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-red-500/20 hover:border-red-500/40 bg-red-500/5 hover:bg-red-500/10 text-red-500 transition-all text-xs font-semibold shadow-sm"
-                  title="Reinicia las cookies locales para probar la vista pública"
-                >
-                  Reiniciar Sesión
-                </button>
-
-                <button
-                  onClick={() => {
-                    setIsLeadsPanelOpen(!isLeadsPanelOpen);
-                    setIsAdminPanelOpen(false);
-                  }}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-surface-primary hover:bg-surface-hover text-text-primary border border-border-medium transition-all text-xs font-semibold shadow-sm"
-                >
-                  <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  Métricas de Comunidad
-                </button>
-
-                <button
-                  onClick={() => {
-                    setIsAdminPanelOpen(!isAdminPanelOpen);
-                    setIsLeadsPanelOpen(false);
-                  }}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-surface-primary hover:bg-surface-hover text-text-primary border border-border-medium transition-all text-xs font-semibold shadow-sm"
-                >
-                  <Settings className="w-3.5 h-3.5 text-emerald-500" />
-                  Ajustes de Curso
-                </button>
-              </>
-            )}
-            {!isAdmin && (
-              <button
-                onClick={() => {
-
-                  setAdminLoginEmail('cristhian@mauricioposadac.com');
-                  setAdminLoginPassword('');
-                  setAdminLoginError('');
-                  setShowAdminLoginModal(true);
-                }}
-                className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold transition-all shadow-sm hover:scale-105"
-                title="Ingresar como Administrador para ver Métricas y Ajustes"
-              >
-                <Key className="w-3.5 h-3.5" />
-                <span>Acceso Admin</span>
-              </button>
-            )}
-
-            <>
+        {funnelKey === 'comunidadmp' ? (
+          <nav className="mkt-nav" aria-label="Navegación principal">
+            <div className={`mkt-nav-inner ${isScrolled ? 'scrolled' : ''}`}>
               <a
-                href={funnelKey === 'comunidadmp' ? 'https://www.instagram.com/wappy_ia' : 'https://wa.me/573106415385'}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => trackClick(funnelKey === 'comunidadmp' ? 'instagram' : 'whatsapp')}
-                className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-full border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08] text-emerald-600 dark:text-emerald-400 font-semibold transition-all duration-300 text-xs sm:text-sm flex items-center gap-1 sm:gap-1.5 ${funnelKey === 'comunidadmp' ? 'comunidadmp-btn-whatsapp' : ''}`}
+                className="mkt-nav-logo"
+                aria-label="WAPPY IA - Ecosistema SG-SST Inteligente"
+                href="/"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate('/');
+                }}
               >
-                {funnelKey === 'comunidadmp' ? (
-                  <Instagram className="w-4 h-4 flex-shrink-0" />
-                ) : (
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.858.002-2.634-1.02-5.11-2.881-6.974-1.862-1.864-4.339-2.89-6.974-2.891-5.438 0-9.862 4.422-9.866 9.86-.001 1.702.453 3.361 1.311 4.816L1.874 21.66l4.773-1.506zm13.114-6.398c-.29-.145-1.716-.847-1.978-.942-.262-.096-.453-.145-.644.145-.19.29-.738.942-.905 1.133-.166.19-.333.214-.623.069-.29-.145-1.22-.449-2.324-1.433-.859-.767-1.439-1.714-1.607-2.005-.168-.29-.018-.447.127-.591.13-.13.29-.338.436-.508.145-.17.193-.29.29-.483.097-.19.048-.362-.024-.508-.073-.145-.644-1.55-.88-2.119-.23-.556-.479-.482-.644-.49-.166-.008-.356-.01-.546-.01-.19 0-.501.071-.762.35-.262.279-1 1.002-1 2.443 0 1.441 1.049 2.834 1.195 3.027.145.19 2.062 3.149 4.996 4.413.698.301 1.243.481 1.668.616.702.223 1.34.191 1.845.116.562-.083 1.716-.701 1.958-1.378.243-.677.243-1.258.17-1.378-.073-.12-.262-.19-.553-.335z"/>
-                  </svg>
-                )}
-                <span><span className="hidden sm:inline">¿Tienes dudas? </span>Escríbenos</span>
+                <img src="/marketing/wappy-cat-logo.png" alt="WAPPY Logo" className="mkt-logo-icon" />
+                <div className="mkt-logo-text">
+                  <span className="mkt-logo-title">WAPPY<span>IA</span></span>
+                  <span className="mkt-logo-sub">SOMOS SST</span>
+                </div>
               </a>
-              {(isVideoFinished || isAdmin || isLeadCaptured) && (
-                <button
-                  onClick={() => navigate('/login')}
-                  className={`px-6 py-3 sm:px-8 sm:py-3.5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold transition-all duration-300 text-xs sm:text-sm shadow-md shadow-emerald-500/10 hover:scale-105 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap min-w-[140px] sm:min-w-[180px] ${funnelKey === 'comunidadmp' ? 'comunidadmp-btn-wappy' : ''}`}
+
+              <div className="flex items-center gap-1.5 sm:gap-2.5">
+                {isAdmin && (
+                  <>
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem(getStorageKey('wappy_comunidad_email'));
+                        localStorage.removeItem(getStorageKey('wappy_lead_captured'));
+                        localStorage.removeItem(getStorageKey('wappy_lead_data'));
+                        localStorage.removeItem(getStorageKey('wappy_comunidad_video_finished'));
+                        localStorage.removeItem(getStorageKey('wappy_comunidad_video_progress'));
+                        setIsAccessGranted(false);
+                        setIsLeadCaptured(false);
+                        setShowLeadModal(false);
+                        setCurrentTime(0);
+                        window.location.reload();
+                      }}
+                      className="hidden md:flex items-center gap-1 px-3 py-1.5 rounded-full border border-red-500/20 hover:border-red-500/40 bg-red-500/5 text-red-500 transition-all text-xs font-semibold"
+                      title="Reiniciar Sesión Local"
+                    >
+                      Reiniciar
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsLeadsPanelOpen(!isLeadsPanelOpen);
+                        setIsAdminPanelOpen(false);
+                      }}
+                      className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-full bg-surface-primary hover:bg-surface-hover text-text-primary border border-border-medium transition-all text-xs font-semibold"
+                    >
+                      <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+                      Métricas
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsAdminPanelOpen(!isAdminPanelOpen);
+                        setIsLeadsPanelOpen(false);
+                      }}
+                      className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-full bg-surface-primary hover:bg-surface-hover text-text-primary border border-border-medium transition-all text-xs font-semibold"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-emerald-500" />
+                      Ajustes
+                    </button>
+                  </>
+                )}
+
+                {!isAdmin && (
+                  <button
+                    onClick={() => {
+                      setAdminLoginEmail('cristhian@mauricioposadac.com');
+                      setAdminLoginPassword('');
+                      setAdminLoginError('');
+                      setShowAdminLoginModal(true);
+                    }}
+                    className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-full border border-slate-300 dark:border-zinc-700 bg-white/70 dark:bg-zinc-800/70 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold transition-all"
+                    title="Ingresar como Administrador"
+                  >
+                    <Key className="w-3 h-3 text-emerald-500" />
+                    <span>Admin</span>
+                  </button>
+                )}
+
+                <a
+                  href="https://www.instagram.com/wappy_ia"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackClick('instagram')}
+                  className="btn-instagram-nav"
+                  title="Síguenos en Instagram @wappy_ia"
                 >
-                  <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                  <span>Acceder a WAPPY</span>
+                  <Instagram className="w-4 h-4 flex-shrink-0" />
+                  <span className="hidden xs:inline sm:inline">Síguenos en Instagram</span>
+                  <span className="inline xs:hidden sm:hidden">Instagram</span>
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/login')}
+                  className="btn btn-lime btn-sm font-bold flex items-center gap-1.5"
+                  title="Acceder a WAPPY"
+                >
+                  <UserCheck className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Acceder</span>
+                </button>
+              </div>
+            </div>
+          </nav>
+        ) : (
+          <nav className="w-full max-w-6xl mx-auto px-4 py-4 sm:px-6 sm:py-4 flex items-center justify-between relative z-10 border border-border-medium/40 bg-surface-primary/40 backdrop-blur-md rounded-2xl mt-4 shadow-sm transition-all duration-300">
+            <div className="flex items-center gap-1.5 sm:gap-3">
+              <div className="relative">
+                <div className="absolute inset-0 bg-emerald-500/20 blur-md rounded-xl"></div>
+                <img src="/assets/logo.png" alt="WAPPY Logo" className="h-14 sm:h-20 w-auto relative z-10" />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 sm:gap-3">
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem(getStorageKey('wappy_comunidad_email'));
+                      localStorage.removeItem(getStorageKey('wappy_lead_captured'));
+                      localStorage.removeItem(getStorageKey('wappy_lead_data'));
+                      localStorage.removeItem(getStorageKey('wappy_comunidad_video_finished'));
+                      localStorage.removeItem(getStorageKey('wappy_comunidad_video_progress'));
+                      setIsAccessGranted(false);
+                      setIsLeadCaptured(false);
+                      setShowLeadModal(false);
+                      setCurrentTime(0);
+                      window.location.reload();
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-red-500/20 hover:border-red-500/40 bg-red-500/5 hover:bg-red-500/10 text-red-500 transition-all text-xs font-semibold shadow-sm"
+                    title="Reinicia las cookies locales para probar la vista pública"
+                  >
+                    Reiniciar Sesión
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsLeadsPanelOpen(!isLeadsPanelOpen);
+                      setIsAdminPanelOpen(false);
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-surface-primary hover:bg-surface-hover text-text-primary border border-border-medium transition-all text-xs font-semibold shadow-sm"
+                  >
+                    <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    Métricas de Comunidad
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsAdminPanelOpen(!isAdminPanelOpen);
+                      setIsLeadsPanelOpen(false);
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-surface-primary hover:bg-surface-hover text-text-primary border border-border-medium transition-all text-xs font-semibold shadow-sm"
+                  >
+                    <Settings className="w-3.5 h-3.5 text-emerald-500" />
+                    Ajustes de Curso
+                  </button>
+                </>
+              )}
+              {!isAdmin && (
+                <button
+                  onClick={() => {
+
+                    setAdminLoginEmail('cristhian@mauricioposadac.com');
+                    setAdminLoginPassword('');
+                    setAdminLoginError('');
+                    setShowAdminLoginModal(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold transition-all shadow-sm hover:scale-105"
+                  title="Ingresar como Administrador para ver Métricas y Ajustes"
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  <span>Acceso Admin</span>
                 </button>
               )}
-            </>
-          </div>
-        </nav>
+
+              <>
+                <a
+                  href={funnelKey === 'comunidadmp' ? 'https://www.instagram.com/wappy_ia' : 'https://wa.me/573106415385'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackClick(funnelKey === 'comunidadmp' ? 'instagram' : 'whatsapp')}
+                  className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-full border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08] text-emerald-600 dark:text-emerald-400 font-semibold transition-all duration-300 text-xs sm:text-sm flex items-center gap-1 sm:gap-1.5 ${funnelKey === 'comunidadmp' ? 'comunidadmp-btn-whatsapp' : ''}`}
+                >
+                  {funnelKey === 'comunidadmp' ? (
+                    <Instagram className="w-4 h-4 flex-shrink-0" />
+                  ) : (
+                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.858.002-2.634-1.02-5.11-2.881-6.974-1.862-1.864-4.339-2.89-6.974-2.891-5.438 0-9.862 4.422-9.866 9.86-.001 1.702.453 3.361 1.311 4.816L1.874 21.66l4.773-1.506zm13.114-6.398c-.29-.145-1.716-.847-1.978-.942-.262-.096-.453-.145-.644.145-.19.29-.738.942-.905 1.133-.166.19-.333.214-.623.069-.29-.145-1.22-.449-2.324-1.433-.859-.767-1.439-1.714-1.607-2.005-.168-.29-.018-.447.127-.591.13-.13.29-.338.436-.508.145-.17.193-.29.29-.483.097-.19.048-.362-.024-.508-.073-.145-.644-1.55-.88-2.119-.23-.556-.479-.482-.644-.49-.166-.008-.356-.01-.546-.01-.19 0-.501.071-.762.35-.262.279-1 1.002-1 2.443 0 1.441 1.049 2.834 1.195 3.027.145.19 2.062 3.149 4.996 4.413.698.301 1.243.481 1.668.616.702.223 1.34.191 1.845.116.562-.083 1.716-.701 1.958-1.378.243-.677.243-1.258.17-1.378-.073-.12-.262-.19-.553-.335z"/>
+                    </svg>
+                  )}
+                  <span><span className="hidden sm:inline">¿Tienes dudas? </span>Escríbenos</span>
+                </a>
+                {(isVideoFinished || isAdmin || isLeadCaptured) && (
+                  <button
+                    onClick={() => navigate('/login')}
+                    className={`px-6 py-3 sm:px-8 sm:py-3.5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold transition-all duration-300 text-xs sm:text-sm shadow-md shadow-emerald-500/10 hover:scale-105 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap min-w-[140px] sm:min-w-[180px] ${funnelKey === 'comunidadmp' ? 'comunidadmp-btn-wappy' : ''}`}
+                  >
+                    <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                    <span>Acceder a WAPPY</span>
+                  </button>
+                )}
+              </>
+            </div>
+          </nav>
+        )}
 
         {/* --- Admin leads / purchases metrics panel --- */}
         {isAdmin && isLeadsPanelOpen && (
@@ -3211,68 +3401,114 @@ export default function ComunidadPage() {
 
           </main>
         ) : (
-          <main className="w-full max-w-4xl mx-auto px-6 py-4 flex flex-col items-center text-center relative z-10">
+          <main className={`w-full max-w-5xl mx-auto px-4 sm:px-6 flex flex-col items-center text-center relative z-10 ${funnelKey === 'comunidadmp' ? 'pt-28 sm:pt-36' : 'py-4'}`}>
             
             {funnelKey === 'comunidadmp' ? (
-              <span className="comunidadmp-kicker mb-6 block">CAPACITACIÓN EXCLUSIVA · MAURICIO POSADA</span>
-            ) : (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold mb-6 animate-pulse">
-                <Sparkles className="w-3.5 h-3.5" />
-                CAPACITACIÓN EXCLUSIVA WAPPY
-              </div>
-            )}
+              <>
+                <span className="trial mb-5">
+                  <span className="tdot"></span>
+                  Somos SST · Capacitación Exclusiva Mauricio Posada
+                </span>
 
-            <h1 className={`text-4xl sm:text-6xl font-extrabold tracking-tighter text-text-primary mb-8 leading-[1.1] max-w-3xl outfit ${funnelKey === 'comunidadmp' ? 'comunidadmp-title font-space-grotesk' : ''}`}>
-              {funnelKey === 'comunidadmp' ? (
-                <>IA Aplicada a la Seguridad y salud en el Trabajo</>
-              ) : funnelKey === 'wappyvital' ? (
-                <>
-                  <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">WAPPY: IA para SST que Multiplica tu Rentabilidad 🚀</span>
-                </>
-              ) : (
-                <>
-                  Descarga <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">10 aplicativos SST listos para usar</span> y ahorra horas de trabajo
-                </>
-              )}
-            </h1>
+                <h1 className="display text-3xl sm:text-5xl md:text-6xl text-center mb-4 tracking-tight max-w-4xl">
+                  <span className="hero-h1-main">IA Aplicada a la Seguridad</span>{' '}
+                  <span className="hero-h1-sub">y Salud en el Trabajo</span>
+                </h1>
 
-            {/* Mauricio Posada Embedded Slideshow Presentation (FIRST POSITION) */}
-            {funnelKey === 'comunidadmp' && (
-              <div id="mp-presentation-parent" className="w-full max-w-4xl mx-auto mt-2 mb-12 text-left relative z-10">
-                <div className="flex flex-col gap-2 mb-6 border-b border-border-medium/30 pb-4">
-                  <span className="text-emerald-500 font-mono text-[11px] tracking-wider uppercase font-semibold">MATERIAL DE SOPORTE GIRA IA-SST · MAURICIO POSADA</span>
-                  <p className="text-xs sm:text-sm text-text-secondary">
-                    Desliza o usa los controles inferiores para navegar por la presentación oficial.
-                  </p>
-                </div>
+                <p className="sub max-w-2xl mx-auto text-center mb-6 text-sm sm:text-base leading-relaxed text-slate-600 dark:text-slate-300">
+                  Explora la presentación interactiva oficial y descubre cómo transformar la gestión de riesgos y la productividad SST con inteligencia artificial.
+                </p>
 
-                {/* Single iframe wrapper. Fullscreen states are managed entirely via dynamic CSS classes & layout overrides */}
-                <div 
-                  id="mp-presentation-container"
-                  className={`w-full relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-slate-950/90 shadow-[0_0_50px_-12px_rgba(16,185,129,0.15)] aspect-video mb-4 group transition-all duration-500 hover:border-emerald-500/35 z-10 ${isIframeFullscreen ? 'comunidadmp-fullscreen-iframe' : ''}`}
-                >
-                  <iframe
-                    src="/assets/gira-ia-sst.html"
-                    title="Presentación Interactiva Mauricio Posada"
-                    className="w-full h-full border-0"
-                    allowFullScreen
-                  />
-                </div>
-                
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-2 w-full">
-                  <p className="text-xs text-text-secondary">
-                    Navega a través de las diapositivas. Puedes cambiar el tema (claro/oscuro) y activar pantalla completa desde los controles de la presentación.
-                  </p>
+                {/* BOTÓN LLAMATIVO SÍGUENOS EN INSTAGRAM */}
+                <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mb-8">
+                  <a
+                    href="https://www.instagram.com/wappy_ia"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackClick('instagram')}
+                    className="btn btn-instagram-hero group"
+                    title="Síguenos en Instagram @wappy_ia"
+                  >
+                    <Instagram className="w-5 h-5 flex-shrink-0" />
+                    <span>Síguenos en Instagram</span>
+                    <span className="pip">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                      </svg>
+                    </span>
+                  </a>
+
                   <a 
                     href="/assets/gira-ia-sst.html" 
                     download="Gira_IA_SST_Mauricio.html"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs transition-all duration-300 shadow-md shadow-emerald-500/20 hover:scale-105"
+                    className="btn btn-glass"
+                    title="Descargar memorias y diapositivas"
                   >
                     <Download className="w-4 h-4" />
                     Descargar Memorias
                   </a>
                 </div>
-              </div>
+
+                {/* Mauricio Posada Embedded Slideshow Presentation */}
+                <div id="mp-presentation-parent" className="w-full max-w-5xl mx-auto mb-12 text-left relative z-10">
+                  <div className="flex items-center justify-between gap-3 mb-3 px-1">
+                    <span className="eyebrow">
+                      <span className="dot" />
+                      Material Interactivo Oficial · Gira IA-SST
+                    </span>
+                    <span className="text-xs text-text-secondary hidden sm:inline-block">
+                      Navega con controles o pantalla completa
+                    </span>
+                  </div>
+
+                  {/* Single iframe wrapper */}
+                  <div 
+                    id="mp-presentation-container"
+                    className={`w-full relative rounded-3xl overflow-hidden border border-slate-200/80 dark:border-zinc-800 bg-slate-950 shadow-[0_20px_60px_-15px_rgba(14,19,0,0.12)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] aspect-video mb-4 group transition-all duration-500 hover:border-emerald-500/35 z-10 ${isIframeFullscreen ? 'comunidadmp-fullscreen-iframe' : ''}`}
+                  >
+                    <iframe
+                      src="/assets/gira-ia-sst.html"
+                      title="Presentación Interactiva Mauricio Posada"
+                      className="w-full h-full border-0"
+                      allowFullScreen
+                    />
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-2 px-1 w-full">
+                    <p className="text-xs text-text-secondary">
+                      Navega a través de las diapositivas. Puedes cambiar el tema (claro/oscuro) y activar pantalla completa desde los controles de la presentación.
+                    </p>
+                    <a 
+                      href="/assets/gira-ia-sst.html" 
+                      download="Gira_IA_SST_Mauricio.html"
+                      className="btn btn-lime btn-sm self-end sm:self-auto"
+                    >
+                      <Download className="w-4 h-4" />
+                      Descargar Diapositivas
+                    </a>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold mb-6 animate-pulse">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  CAPACITACIÓN EXCLUSIVA WAPPY
+                </div>
+
+                <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tighter text-text-primary mb-8 leading-[1.1] max-w-3xl outfit">
+                  {funnelKey === 'wappyvital' ? (
+                    <>
+                      <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">WAPPY: IA para SST que Multiplica tu Rentabilidad 🚀</span>
+                    </>
+                  ) : (
+                    <>
+                      Descarga <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">10 aplicativos SST listos para usar</span> y ahorra horas de trabajo
+                    </>
+                  )}
+                </h1>
+              </>
             )}
 
             {/* Quick Access / Skip Video Banner */}
@@ -4215,11 +4451,23 @@ export default function ComunidadPage() {
         </div>
       )}
 
-      <footer className="w-full border-t border-border-medium py-6 mt-10 text-center text-xs text-text-secondary relative z-10 bg-surface-primary/20">
-        <div className="flex justify-center gap-6 mb-2">
+      <footer className="w-full border-t border-border-medium/40 py-8 mt-12 text-center text-xs text-text-secondary relative z-10 bg-transparent">
+        <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 mb-3">
           <a href="/privacy" className="hover:text-emerald-500 transition-colors">Políticas de Privacidad</a>
           <span>·</span>
           <a href="/terms" className="hover:text-emerald-500 transition-colors">Términos de Servicio</a>
+          <span>·</span>
+          <a
+            href="https://www.instagram.com/wappy_ia"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => trackClick('instagram')}
+            className="hover:text-pink-500 font-semibold transition-colors flex items-center gap-1.5"
+            title="Instagram @wappy_ia"
+          >
+            <Instagram className="w-3.5 h-3.5 text-pink-500" />
+            <span>@wappy_ia</span>
+          </a>
         </div>
         <p>© {new Date().getFullYear()} WAPPY. Todos los derechos reservados.</p>
       </footer>
