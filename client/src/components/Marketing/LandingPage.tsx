@@ -445,68 +445,91 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* Real Audit Items (matching CondicionesSalud & OraculoPredictivoH1) */}
-              <div className="chan-cards">
-                <div className="chan-card">
-                  <span className="cdot" style={{ background: '#10B981' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                    </svg>
-                  </span>
-                  <div>
-                    <div className="cn">{lang === 'es' ? 'Biometría & Signos Vitales' : 'Biometrics & Vital Signs'}</div>
-                    <div className="cs">{lang === 'es' ? 'PA 120/80 mmHg · IMC 23.8 Normal · CIE-10 sin patología' : 'BP 120/80 · Normal BMI · Clear ICD-10'}</div>
+              {/* Real Audit Items (matching CondicionesSalud & BioFitAuditModal) */}
+              <div style={{ marginTop: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981' }}></span>
+                    {lang === 'es' ? 'Desglose de Auditoría Biocéntrica (Base 100%)' : 'Biocentric Audit Deductions (Base 100%)'}
                   </div>
+                  <span style={{ fontSize: 9.5, fontWeight: 700, color: '#34D399', background: 'rgba(16, 185, 129, 0.15)', padding: '2px 8px', borderRadius: 9999 }}>
+                    {lang === 'es' ? 'Score Final: 92% FIT' : 'Final Score: 92% FIT'}
+                  </span>
                 </div>
 
-                <div className="chan-card">
-                  <span className="cdot" style={{ background: '#F59E0B' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
-                      <line x1="12" y1="9" x2="12" y2="13"></line>
-                      <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                  </span>
-                  <div>
-                    <div className="cn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span>{lang === 'es' ? 'Biomecánica Lumbar (GTC 45)' : 'Lumbar Biomechanics (GTC 45)'}</span>
-                      <span style={{ fontSize: 9, fontWeight: 900, background: '#F59E0B', color: '#451A03', padding: '1px 5px', borderRadius: 4 }}>-8 pts</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {/* Item 1: Biomecánica Lumbar (-8 pts) */}
+                  <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: '10px 14px', borderRadius: 14, background: 'rgba(245, 158, 11, 0.09)', border: '1px solid rgba(245, 158, 11, 0.28)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 54, borderRight: '1px solid rgba(255,255,255,0.12)', paddingRight: 10 }}>
+                      <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 19, color: '#FBBF24', lineHeight: 1 }}>-8</span>
+                      <span style={{ fontSize: 8, fontWeight: 800, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>{lang === 'es' ? 'PUNTOS' : 'POINTS'}</span>
                     </div>
-                    <div className="cs">{lang === 'es' ? 'Alerta: flexión repetitiva de tronco en línea de empaque' : 'Warning: repetitive trunk flexion in packing line'}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 13 }}>⚠️</span>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>{lang === 'es' ? 'Biomecánica Lumbar (GTC 45)' : 'Lumbar Biomechanics (GTC 45)'}</span>
+                        </div>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, padding: '2px 6px', borderRadius: 9999, background: 'rgba(245, 158, 11, 0.2)', color: '#FDE68A', textTransform: 'uppercase' }}>
+                          {lang === 'es' ? 'Físico / Puesto' : 'Physical'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.7)', lineHeight: 1.35 }}>
+                        {lang === 'es' ? 'Alerta: flexión repetitiva de tronco > 20° en línea de empaque vs. antecedentes osteomusculares.' : 'Warning: repetitive trunk flexion > 20° in packing line vs musculoskeletal history.'}
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="chan-card">
-                  <span className="cdot" style={{ background: '#8B5CF6' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                    </svg>
-                  </span>
-                  <div>
-                    <div className="cn">{lang === 'es' ? 'Prescripción de Adaptación Ergonómica' : 'Ergonomic Adaptation Prescription'}</div>
-                    <div className="cs">{lang === 'es' ? 'Pausas activas dirigidas y ajuste de altura en mesa' : 'Active targeted breaks & workbench height control'}</div>
+                  {/* Item 2: Clínico / CIE-10 (0 pts - Aprobado) */}
+                  <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: '10px 14px', borderRadius: 14, background: 'rgba(16, 185, 129, 0.09)', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 54, borderRight: '1px solid rgba(255,255,255,0.12)', paddingRight: 10 }}>
+                      <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 19, color: '#34D399', lineHeight: 1 }}>0</span>
+                      <span style={{ fontSize: 8, fontWeight: 800, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>{lang === 'es' ? 'PUNTOS' : 'POINTS'}</span>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 13 }}>🩺</span>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>{lang === 'es' ? 'Biometría & Concepto CIE-10' : 'Biometrics & ICD-10'}</span>
+                        </div>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, padding: '2px 6px', borderRadius: 9999, background: 'rgba(16, 185, 129, 0.2)', color: '#A7F3D0', textTransform: 'uppercase' }}>
+                          {lang === 'es' ? 'Clínico / Salud' : 'Clinical'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.7)', lineHeight: 1.35 }}>
+                        {lang === 'es' ? 'PA 120/80 mmHg · IMC 23.8 Normal · Examen ocupacional periódico sin patologías limitantes.' : 'BP 120/80 · Normal BMI · Clear periodic occupational medical exam.'}
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="chan-card">
-                  <span className="cdot" style={{ background: '#0284C7' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                      <line x1="16" y1="13" x2="8" y2="13"></line>
-                      <line x1="16" y1="17" x2="8" y2="17"></line>
-                    </svg>
-                  </span>
-                  <div>
-                    <div className="cn">{lang === 'es' ? 'Dictamen Preventivo Tenshi IA' : 'Tenshi AI Preventive Opinion'}</div>
-                    <div className="cs">{lang === 'es' ? 'Aptitud validada con controles preventivos sin secuelas' : 'Certified fitness with preventative controls'}</div>
+                  {/* Item 3: Prescripción Readaptación Tenshi IA */}
+                  <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: '10px 14px', borderRadius: 14, background: 'rgba(13, 148, 136, 0.12)', border: '1px solid rgba(13, 148, 136, 0.3)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 54, borderRight: '1px solid rgba(255,255,255,0.12)', paddingRight: 10 }}>
+                      <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 13, color: '#2DD4BF', lineHeight: 1.1 }}>ACTIVO</span>
+                      <span style={{ fontSize: 7.5, fontWeight: 800, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>{lang === 'es' ? 'CONTROL' : 'CONTROL'}</span>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 13 }}>⚡</span>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>{lang === 'es' ? 'Plan de Readaptación Ergonómica (Tenshi IA)' : 'Ergonomic Adaptation Plan (Tenshi AI)'}</span>
+                        </div>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, padding: '2px 6px', borderRadius: 9999, background: 'rgba(45, 212, 191, 0.2)', color: '#99F6E4', textTransform: 'uppercase' }}>
+                          {lang === 'es' ? 'Prescripción' : 'Prescription'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.7)', lineHeight: 1.35 }}>
+                        {lang === 'es' ? 'Pausas activas dirigidas cada 2 horas y ajuste de plano de mesa a 95 cm para mitigar la flexión.' : 'Targeted active micro-breaks every 2 hours and workbench height adjustment to 95 cm.'}
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="chan-card" style={{ gridColumn: 'span 2', background: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.25)', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 11.5, fontWeight: 700, color: '#34D399', textAlign: 'center' }}>
-                    {lang === 'es' ? '✓ Cumplimiento Estricto Decreto 1072/15, Res. 0312/19 y Guía Técnica GTC 45' : '✓ Full compliance with Dec. 1072/15, Res. 0312/19 & GTC 45'}
-                  </span>
+                  {/* Compliance footer */}
+                  <div style={{ padding: '8px 12px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.22)', borderRadius: 10, textAlign: 'center', marginTop: 2 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#34D399' }}>
+                      {lang === 'es' ? '✓ Dictamen Técnico: Aptitud Operativa Óptima con Controles Preventivos Activos' : '✓ Certified Fitness: Optimal Operative Fitness with Active Controls'}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -673,18 +696,95 @@ export default function LandingPage() {
                 <div style={{ padding: '16px 18px' }}>
                   {/* QR & Mobile voting banner */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 14, padding: '12px 14px', marginBottom: 14 }}>
-                    {/* Visual QR SVG */}
-                    <div style={{ width: 64, height: 64, background: '#fff', borderRadius: 8, padding: 4, border: '1px solid #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <svg width="56" height="56" viewBox="0 0 24 24" fill="#0F172A">
-                        <path d="M2 2h7v7H2V2zm2 2v3h3V4H4zm5 0h1v2H9V4zm2 0h2v1h-2V4zm3 0h1v1h-1V4zm2 0h2v2h-1V5h-1V4zm2 2h1v1h-1V6zm0 2h1v1h-1V8zm-2 0h1v1h-1V8zm-1-1h1v1h-1V7zm-2 0h1v2h-1V7zm0-2h1v1h-1V5zm-2 3h1v1h-1V8zm-3 0h1v1H8V8zm-6 2h1v2H2v-2h1v1h1v-1h1v1h1v-1zm4 1h1v1h1v1H8v-1H7v-1zm4 0h1v1h-1v-1zm2 0h1v1h-1v-1zm3 0h1v1h-1v-1zm2 0h1v2h-1v-1h-1v-1zm-9 2h1v1h-1v-1zm4 0h2v1h-2v-1zm4 0h1v1h-1v-1zm2 1h1v1h-1v-1zm-9 1h1v1h-1v-1zm2 0h1v2h-1v-1h-1v-1h1zm4 0h1v1h-1v-1zm-7 1h1v1H9v-1zm2 0h1v1h-1v-1zm4 0h1v1h-1v-1zm3 0h1v1h-1v-1zm-9 1h1v2H9v-1H8v-1h2zm3 0h2v1h-1v1h-1v-2zm3 0h1v2h-1v-1h-1v-1h1zm-13 2h7v7H2v-7zm2 2v3h3v-3H4zm11-2h7v7h-7v-7zm2 2v3h3v-3h-3z"/>
+                    {/* Realistic, High-Resolution QR Vector Card with Corner Guides */}
+                    <div style={{ position: 'relative', width: 72, height: 72, background: '#fff', borderRadius: 12, padding: 6, border: '1px solid #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 14px rgba(15,23,42,0.08)' }}>
+                      {/* Corner Target Accents */}
+                      <span style={{ position: 'absolute', top: 2, left: 2, width: 8, height: 8, borderTop: '2px solid #0D9488', borderLeft: '2px solid #0D9488', borderTopLeftRadius: 3 }}></span>
+                      <span style={{ position: 'absolute', top: 2, right: 2, width: 8, height: 8, borderTop: '2px solid #0D9488', borderRight: '2px solid #0D9488', borderTopRightRadius: 3 }}></span>
+                      <span style={{ position: 'absolute', bottom: 2, left: 2, width: 8, height: 8, borderBottom: '2px solid #0D9488', borderLeft: '2px solid #0D9488', borderBottomLeftRadius: 3 }}></span>
+                      <span style={{ position: 'absolute', bottom: 2, right: 2, width: 8, height: 8, borderBottom: '2px solid #0D9488', borderRight: '2px solid #0D9488', borderBottomRightRadius: 3 }}></span>
+
+                      <svg width="58" height="58" viewBox="0 0 100 100" fill="none">
+                        {/* Finder Top-Left */}
+                        <rect x="4" y="4" width="28" height="28" rx="5" fill="#0F172A" />
+                        <rect x="9" y="9" width="18" height="18" rx="3" fill="#fff" />
+                        <rect x="13" y="13" width="10" height="10" rx="2" fill="#0D9488" />
+
+                        {/* Finder Top-Right */}
+                        <rect x="68" y="4" width="28" height="28" rx="5" fill="#0F172A" />
+                        <rect x="73" y="9" width="18" height="18" rx="3" fill="#fff" />
+                        <rect x="77" y="13" width="10" height="10" rx="2" fill="#0D9488" />
+
+                        {/* Finder Bottom-Left */}
+                        <rect x="4" y="68" width="28" height="28" rx="5" fill="#0F172A" />
+                        <rect x="9" y="73" width="18" height="18" rx="3" fill="#fff" />
+                        <rect x="13" y="77" width="10" height="10" rx="2" fill="#0D9488" />
+
+                        {/* Alignment Pattern Bottom-Right */}
+                        <rect x="68" y="68" width="20" height="20" rx="4" fill="#0F172A" />
+                        <rect x="72" y="72" width="12" height="12" rx="2" fill="#fff" />
+                        <rect x="75" y="75" width="6" height="6" rx="1.5" fill="#0D9488" />
+
+                        {/* Timing Lines & Authentic Data Grid Modules */}
+                        <rect x="36" y="6" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="44" y="6" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="52" y="6" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="60" y="6" width="5" height="5" rx="1" fill="#0F172A" />
+
+                        <rect x="36" y="14" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="48" y="14" width="5" height="5" rx="1" fill="#0D9488" />
+                        <rect x="56" y="14" width="5" height="5" rx="1" fill="#0F172A" />
+
+                        <rect x="36" y="22" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="44" y="22" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="60" y="22" width="5" height="5" rx="1" fill="#0F172A" />
+
+                        {/* Middle horizontal band */}
+                        <rect x="6" y="36" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="14" y="36" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="22" y="36" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="36" y="36" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="44" y="36" width="13" height="5" rx="1" fill="#0F172A" />
+                        <rect x="68" y="36" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="76" y="36" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="88" y="36" width="5" height="5" rx="1" fill="#0F172A" />
+
+                        <rect x="6" y="44" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="18" y="44" width="5" height="5" rx="1" fill="#0D9488" />
+                        <rect x="26" y="44" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="36" y="44" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="48" y="44" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="60" y="44" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="72" y="44" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="84" y="44" width="8" height="5" rx="1" fill="#0F172A" />
+
+                        <rect x="6" y="52" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="14" y="52" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="22" y="52" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="36" y="52" width="13" height="5" rx="1" fill="#0F172A" />
+                        <rect x="56" y="52" width="5" height="5" rx="1" fill="#0D9488" />
+                        <rect x="68" y="52" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="80" y="52" width="5" height="5" rx="1" fill="#0F172A" />
+
+                        {/* Bottom right data blocks */}
+                        <rect x="36" y="68" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="44" y="68" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="52" y="68" width="8" height="5" rx="1" fill="#0F172A" />
+
+                        <rect x="36" y="76" width="5" height="5" rx="1" fill="#0D9488" />
+                        <rect x="48" y="76" width="5" height="5" rx="1" fill="#0F172A" />
+                        <rect x="56" y="76" width="5" height="5" rx="1" fill="#0F172A" />
+
+                        <rect x="36" y="84" width="13" height="5" rx="1" fill="#0F172A" />
+                        <rect x="56" y="84" width="5" height="5" rx="1" fill="#0F172A" />
                       </svg>
                     </div>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: '#0F172A' }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 800, color: '#0F172A' }}>
                         {lang === 'es' ? 'Escanea para sufragar' : 'Scan to cast secret ballot'}
                       </div>
                       <div style={{ fontSize: 10.5, color: '#64748B', lineHeight: 1.35, marginTop: 2 }}>
-                        {lang === 'es' ? 'Voto anónimo y directo desde el celular validado por cédula (Res. 2013/86).' : 'Anonymous mobile voting verified by worker ID (Res. 2013/86).'}
+                        {lang === 'es' ? 'Voto anónimo y directo desde el smartphone validado por cédula (Res. 2013/86).' : 'Anonymous mobile voting verified by worker ID (Res. 2013/86).'}
                       </div>
                     </div>
                   </div>
@@ -852,19 +952,47 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Feature 3: Matrices Técnicas (GTC 45, SGA, Legal) */}
+          {/* Feature 3: Dos Matrices Convergentes (Hito 1 vs. Hito 4) */}
           <div id="matrices" className="feat">
             <div className="feat-copy">
               <span className="eyebrow">
                 <span className="dot"></span>
-                {lang === 'es' ? 'Matrices Técnicas & Evaluación de Riesgos' : 'Risk Matrices & Technical Compliance'}
+                {lang === 'es' ? 'Hito 1 & Hito 4 · Dos Matrices Convergentes' : 'Milestone 1 & 4 · Convergent Risk Matrices'}
               </span>
-              <h3>{lang === 'es' ? 'Cálculos de riesgo exactos, matrices IPEVAR GTC 45 y SGA.' : 'Exact risk math, GTC 45 hazard matrix and chemical SGA.'}</h3>
+              <h3>
+                {lang === 'es'
+                  ? 'Matriz IPEVR Organizacional (Hito 1) vs. Matriz Bio-IPEVR (Hito 4): La prevención viva.'
+                  : 'Organizational IPEVR (Milestone 1) vs. Dynamic Bio-IPEVR (Milestone 4): Living Prevention.'}
+              </h3>
               <p>
                 {lang === 'es'
-                  ? 'Gestiona tus matrices preventivas con metodologías estandarizadas: Matriz IPEVAR bajo GTC 45 con cálculo paramétrico exacto, Matriz de Compatibilidad Química oficial bajo el Sistema Globalmente Armonizado (SGA - Decreto 1496) y Matriz Legal SST auditada.'
-                  : 'Manage safety matrices using official standards: GTC 45 hazard matrix with automated risk scoring, UN SGA chemical storage segregation, and verified Colombian legal compliance matrix.'}
+                  ? 'WAPPY trasciende las matrices estáticas en papel combinando dos metodologías complementarias que se sincronizan en tiempo real:'
+                  : 'WAPPY replaces static spreadsheets with two synchronized risk engines:'}
               </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '14px 0 18px', fontSize: 13, lineHeight: 1.55, color: 'var(--ink)' }}>
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12, padding: '10px 14px' }}>
+                  <strong style={{ color: '#0F172A', display: 'block', marginBottom: 2 }}>
+                    🏛️ {lang === 'es' ? '1. Matriz IPEVR Oficial (Hito 1 · Gobernanza & GTC 45):' : '1. Official IPEVR Matrix (Milestone 1 · GTC 45):'}
+                  </strong>
+                  <span style={{ color: '#475569' }}>
+                    {lang === 'es'
+                      ? 'Evalúa el puesto de trabajo de manera macro y reglamentaria (Decreto 1072 & Res. 0312). Utiliza la fórmula paramétrica oficial: ND × NE = NP y NP × NC = Nivel de Riesgo (NR I a IV) para definir la jerarquía de controles de la empresa.'
+                      : 'Assesses roles and zones collectively under Colombian standard GTC 45 (ND × NE = NP; NP × NC = Risk Level NR I-IV) establishing enterprise hierarchy of controls.'}
+                  </span>
+                </div>
+
+                <div style={{ background: '#F0FDFA', border: '1px solid #CCFBF1', borderRadius: 12, padding: '10px 14px' }}>
+                  <strong style={{ color: '#0D9488', display: 'block', marginBottom: 2 }}>
+                    🧬 {lang === 'es' ? '2. Matriz Bio-IPEVR Dinámica (Hito 4 · Metodología del Bioindividuo):' : '2. Dynamic Bio-IPEVR Matrix (Milestone 4 · Bioindividual):'}
+                  </strong>
+                  <span style={{ color: '#334155' }}>
+                    {lang === 'es'
+                      ? 'Evalúa a la persona real que ocupa el puesto en 8 dominios fisiológicos (Osteomuscular, Cardiovascular, Neurológico, etc.). Multiplica la Susceptibilidad Clínica (NS) por la Exposición (NE) y aplica el Modulador de Percepción del Riesgo: los puntos por autorreportes del trabajador amortiguan el riesgo efectivo hasta un 40%.'
+                      : 'Assesses the actual human worker across 8 bio-physiological domains. Multiplies Clinical Susceptibility (NS) by Exposure (NE), moderated by worker risk perception score (reducing up to 40%).'}
+                  </span>
+                </div>
+              </div>
+
               <ul className="feat-list">
                 <li>
                   <span className="ck">
@@ -872,7 +1000,9 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Fórmula matemática GTC 45: ND × NE = NP y NP × NC = Nivel de Riesgo (NR)' : 'GTC 45 mathematical formula: ND × NE = NP and NP × NC = Risk Level (NR)'}
+                  {lang === 'es'
+                    ? '¿Por qué son diferentes? Hito 1 audita el cargo formal ante la ley; Hito 4 protege la anatomía viva y estado clínico del trabajador que lo ejecuta.'
+                    : 'Why are they different? Milestone 1 audits formal job compliance; Milestone 4 protects the worker’s live clinical biology.'}
                 </li>
                 <li>
                   <span className="ck">
@@ -880,7 +1010,9 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Matriz semaforizada oficial SGA (Decreto 1496) para bodegas de químicos' : 'Official color-coded SGA matrix (Decree 1496) for chemical segregation'}
+                  {lang === 'es'
+                    ? '¿Cómo convergen? Si en Hito 1 el riesgo es estándar, pero en Hito 4 el colaborador presenta vulnerabilidad lumbar o fatiga, el sistema eleva la alerta a crítico.'
+                    : 'How do they converge? If Milestone 1 rates risk standard, but Milestone 4 detects personal vulnerability, the system escalates the risk to critical.'}
                 </li>
                 <li>
                   <span className="ck">
@@ -888,35 +1020,71 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Matriz Legal con verificación de estándares mínimos (Dec. 1072 & Res. 0312)' : 'Legal matrix verifying minimum standards (Decree 1072 & Resolution 0312)'}
+                  {lang === 'es'
+                    ? 'Cierre automático del ciclo: La convergencia prescribe controles de ingeniería y dispara tareas correctivas directas al Centro de Control ACPM (Hito 7).'
+                    : 'Automated loop: Convergence prescribes engineering controls and sends corrective tasks straight to the CAPA Kanban (Milestone 7).'}
                 </li>
               </ul>
             </div>
 
             <div className="feat-art tint-mint">
-              <div style={{ width: 300, background: 'linear-gradient(160deg, #0F172A, #1E293B)', borderRadius: 20, boxShadow: '0 16px 40px rgba(15,23,42,0.25)', padding: 18, color: '#fff' }}>
+              <div style={{ width: 330, background: 'linear-gradient(160deg, #0F172A, #1E293B)', borderRadius: 20, boxShadow: '0 16px 40px rgba(15,23,42,0.25)', padding: 18, color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}>
+                {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 18, color: '#C7F303' }}>
-                    Matriz IPEVAR GTC 45
+                  <div style={{ fontFamily: 'var(--display)', fontWeight: 800, fontSize: 15, color: '#C7F303' }}>
+                    Doble Matriz Convergente
                   </div>
-                  <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 8px', borderRadius: 9999, background: 'rgba(199,243,3,0.15)', color: '#C7F303' }}>
-                    AUTOMATIZADA
+                  <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 9999, background: 'rgba(199,243,3,0.15)', color: '#C7F303' }}>
+                    SINCRONIZACIÓN IA
                   </span>
                 </div>
-                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 14, padding: '12px 14px', marginBottom: 8, border: '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fff' }}>Peligro Biomecánico / Físico</div>
-                    <span style={{ fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 6, background: '#EF4444', color: '#fff' }}>NR I</span>
+
+                {/* Matrix 1: Hito 1 */}
+                <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: '12px 14px', marginBottom: 8, border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: '#38BDF8', letterSpacing: '.05em' }}>
+                      Hito 1 · Matriz IPEVR (GTC 45)
+                    </span>
+                    <span style={{ fontSize: 9.5, fontWeight: 800, padding: '1px 6px', borderRadius: 6, background: '#EF4444', color: '#fff' }}>
+                      NR I (Crítico)
+                    </span>
                   </div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>ND 6 · NE 4 · NC 25 = NR 600 (Crítico)</div>
-                  <div style={{ fontSize: 10, color: '#34D399', fontWeight: 600, marginTop: 4 }}>✓ Control de Ingeniería Prescrito</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Peligro Biomecánico en Línea</div>
+                  <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>
+                    ND 6 × NE 4 = NP 24 · NC 25 → NR 600 (GTC 45)
+                  </div>
+                  <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 3 }}>
+                    Evaluación Colectiva del Puesto &amp; Legal Dec. 1072
+                  </div>
                 </div>
-                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 14, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fff' }}>Compatibilidad Química SGA</div>
-                    <span style={{ fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 6, background: '#10B981', color: '#fff' }}>100% OK</span>
+
+                {/* Convergence Arrow Indicator */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, margin: '4px 0', fontSize: 10.5, fontWeight: 800, color: '#C7F303' }}>
+                  <span>↕</span> {lang === 'es' ? 'Cruce Algorítmico en Tiempo Real' : 'Real-time Algorithmic Cross'} <span>↕</span>
+                </div>
+
+                {/* Matrix 2: Hito 4 */}
+                <div style={{ background: 'rgba(45, 212, 191, 0.08)', borderRadius: 14, padding: '12px 14px', border: '1px solid rgba(45, 212, 191, 0.25)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: '#2DD4BF', letterSpacing: '.05em' }}>
+                      Hito 4 · Matriz Bio-IPEVR (Bioindividuo)
+                    </span>
+                    <span style={{ fontSize: 9.5, fontWeight: 800, padding: '1px 6px', borderRadius: 6, background: '#F59E0B', color: '#451A03' }}>
+                      Efectivo: 8.4
+                    </span>
                   </div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>16 FDS / HDS verificadas · Sin cruces reactivos</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Carlos Gómez · Dominio Osteomuscular</div>
+                  <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.7)', marginTop: 3 }}>
+                    Susceptibilidad NS 4 × Exposición NE 3 = 12 Bruto
+                  </div>
+                  <div style={{ fontSize: 10, color: '#34D399', fontWeight: 700, marginTop: 4 }}>
+                    ✓ Modulador Activo: -30% por Cultura Preventiva
+                  </div>
+                </div>
+
+                {/* Automatic CAPA Sync Footer */}
+                <div style={{ marginTop: 8, padding: '7px 10px', background: 'rgba(199,243,3,0.1)', borderRadius: 8, textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#C7F303' }}>
+                  ⚡ {lang === 'es' ? 'Acción de Ingeniería enviada a ACPM (Hito 7)' : 'Engineering task dispatched to CAPA (Milestone 7)'}
                 </div>
               </div>
             </div>
@@ -953,55 +1121,83 @@ export default function LandingPage() {
                 </svg>
                 {lang === 'es' ? 'Análisis Biomecánico · Fisioterapeuta IA' : 'Biomechanical Analysis · AI Physio'}
               </div>
-              <div className="phone">
-                <div className="phone-screen">
-                  <div className="phone-notch">
-                    <span></span>
+              <div className="phone" style={{ width: 260, height: 530, display: 'flex', flexDirection: 'column', padding: 8, boxSizing: 'border-box' }}>
+                <div className="phone-screen" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#F8FAFC', borderRadius: 34, overflow: 'hidden' }}>
+                  {/* Unified Dynamic Island Notch */}
+                  <div className="phone-notch" style={{ height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0F172A', flexShrink: 0 }}>
+                    <span style={{ width: 56, height: 12, borderRadius: 9999, background: '#000' }}></span>
                   </div>
-                  <div style={{ padding: '6px 16px 10px', textAlign: 'left', background: '#fff' }}>
-                    <div style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 19, color: '#0E1300' }}>
-                      {lang === 'es' ? 'Evaluación Postural' : 'Postural Assessment'}
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, background: '#E9E9EE', borderRadius: 9, padding: 3, marginTop: 8 }}>
-                      <span style={{ flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 700, padding: '6px 0', background: '#fff', borderRadius: 7, color: '#0E1300' }}>
-                        Visión IA en Vivo
-                      </span>
-                      <span style={{ flex: 1, textAlign: 'center', fontSize: 11, color: '#6A6A6E', padding: '6px 0', fontWeight: 600 }}>
-                        ROSA / OWAS
+
+                  {/* Unified Header */}
+                  <div style={{ background: '#0F172A', padding: '6px 12px 10px', color: '#fff', textAlign: 'left', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <span style={{ width: 28, height: 28, borderRadius: 8, background: '#0284C7', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>
+                          📐
+                        </span>
+                        <div>
+                          <div style={{ fontSize: 12.5, fontWeight: 800, lineHeight: 1.1 }}>{lang === 'es' ? 'Evaluación Postural' : 'Postural Assessment'}</div>
+                          <div style={{ fontSize: 9.5, color: '#94A3B8' }}>{lang === 'es' ? 'Visión IA en Vivo · GTC 45' : 'Live AI Vision · GTC 45'}</div>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 8.5, fontWeight: 800, padding: '2px 6px', borderRadius: 9999, background: 'rgba(56, 189, 248, 0.2)', color: '#38BDF8' }}>
+                        CÁMARA IA
                       </span>
                     </div>
                   </div>
 
-                  <div style={{ background: '#F2F3F7', padding: 8, textAlign: 'left' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: '#fff', borderRadius: 14, marginBottom: 6 }}>
-                      <span style={{ width: 36, height: 36, borderRadius: 10, background: '#FEF3C7', color: '#B45309', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>
-                        24°
-                      </span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>Inclinación Cervical / Cuello</div>
-                        <div style={{ fontSize: 11, color: '#B45309', fontWeight: 600 }}>Flexión moderada · Alerta preventiva</div>
-                        <span style={{ display: 'inline-block', marginTop: 3, fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 9999, background: '#FEF3C7', color: '#B45309' }}>
-                          Ajustar altura de pantalla
+                  {/* Phone Body */}
+                  <div style={{ flex: 1, padding: 10, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: '#F1F5F9', minHeight: 0 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {/* Tabs */}
+                      <div style={{ display: 'flex', gap: 4, background: '#E2E8F0', borderRadius: 8, padding: 2 }}>
+                        <span style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 700, padding: '4px 0', background: '#fff', borderRadius: 6, color: '#0F172A' }}>
+                          Visión IA en Vivo
                         </span>
+                        <span style={{ flex: 1, textAlign: 'center', fontSize: 10, color: '#64748B', padding: '4px 0', fontWeight: 600 }}>
+                          ROSA / OWAS
+                        </span>
+                      </div>
+
+                      {/* Card 1 */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0' }}>
+                        <span style={{ width: 34, height: 34, borderRadius: 8, background: '#FEF3C7', color: '#B45309', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 12 }}>
+                          24°
+                        </span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A' }}>Inclinación Cervical / Cuello</div>
+                          <div style={{ fontSize: 10, color: '#B45309', fontWeight: 600 }}>Flexión moderada · Alerta preventiva</div>
+                          <span style={{ display: 'inline-block', marginTop: 2, fontSize: 8.5, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: '#FEF3C7', color: '#B45309' }}>
+                            Ajustar altura de pantalla
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Card 2 */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0' }}>
+                        <span style={{ width: 34, height: 34, borderRadius: 8, background: '#DCFCE7', color: '#15803D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 12 }}>
+                          OK
+                        </span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A' }}>Alineación de Columna Lumbar</div>
+                          <div style={{ fontSize: 10, color: '#64748B' }}>Apoyo lumbar adecuado en silla</div>
+                          <span style={{ display: 'inline-block', marginTop: 2, fontSize: 8.5, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: '#DCFCE7', color: '#15803D' }}>
+                            Postura Neutra Aceptable
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Card 3: Normative note */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', borderRadius: 10, padding: '6px 8px', fontSize: 9.5, color: '#0369A1', fontWeight: 700, border: '1px solid #E0F2FE' }}>
+                        <span>📏</span>
+                        <span>{lang === 'es' ? 'Evaluación Biomecánica Res. 2400' : 'Biomechanical Audit Res. 2400'}</span>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: '#fff', borderRadius: 14, marginBottom: 6 }}>
-                      <span style={{ width: 36, height: 36, borderRadius: 10, background: '#D6F4DF', color: '#0A5818', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>
-                        OK
-                      </span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>Alineación de Columna Lumbar</div>
-                        <div style={{ fontSize: 11, color: '#64748B' }}>Apoyo lumbar adecuado en silla</div>
-                        <span style={{ display: 'inline-block', marginTop: 3, fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 9999, background: '#D6F4DF', color: '#0A5818' }}>
-                          Postura Neutra Aceptable
-                        </span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '6px 4px' }}>
-                      <span style={{ height: 36, padding: '0 16px', borderRadius: 9999, background: '#C7F303', color: '#0E1300', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700 }}>
-                        📷 {lang === 'es' ? 'Cámara en Vivo' : 'Live Camera'}
+                    {/* Bottom Action Button */}
+                    <div style={{ marginTop: 'auto', paddingTop: 6 }}>
+                      <span style={{ height: 36, width: '100%', borderRadius: 10, background: '#C7F303', color: '#0E1300', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11.5, fontWeight: 800 }}>
+                        📷 {lang === 'es' ? 'Cámara en Vivo (IA)' : 'Live AI Camera'}
                       </span>
                     </div>
                   </div>
@@ -1017,45 +1213,71 @@ export default function LandingPage() {
                 </svg>
                 {lang === 'es' ? 'Chat Especializado · +20 Agentes SST' : 'Specialized Chat · 20+ OHS Agents'}
               </div>
-              <div className="phone">
-                <div className="phone-screen">
-                  <div className="phone-notch">
-                    <span style={{ width: 10, height: 10, borderRadius: 9999 }}></span>
+              <div className="phone" style={{ width: 260, height: 530, display: 'flex', flexDirection: 'column', padding: 8, boxSizing: 'border-box' }}>
+                <div className="phone-screen" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#F8FAFC', borderRadius: 34, overflow: 'hidden' }}>
+                  {/* Unified Dynamic Island Notch */}
+                  <div className="phone-notch" style={{ height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0F172A', flexShrink: 0 }}>
+                    <span style={{ width: 56, height: 12, borderRadius: 9999, background: '#000' }}></span>
                   </div>
-                  <div style={{ background: 'linear-gradient(160deg, #0F172A, #1E293B)', padding: '12px 14px', color: '#fff', textAlign: 'left' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ width: 32, height: 32, borderRadius: 9999, background: '#C7F303', color: '#0E1300', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>
-                        FT
+
+                  {/* Unified Header */}
+                  <div style={{ background: '#0F172A', padding: '6px 12px 10px', color: '#fff', textAlign: 'left', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <span style={{ width: 28, height: 28, borderRadius: 8, background: '#C7F303', color: '#0E1300', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 12 }}>
+                          FT
+                        </span>
+                        <div>
+                          <div style={{ fontSize: 12.5, fontWeight: 800, lineHeight: 1.1 }}>Fisioterapeuta IA</div>
+                          <div style={{ fontSize: 9.5, color: '#94A3B8' }}>{lang === 'es' ? 'En línea · +20 Especialistas' : 'Online · 20+ Specialists'}</div>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 8.5, fontWeight: 800, padding: '2px 6px', borderRadius: 9999, background: 'rgba(199, 243, 3, 0.2)', color: '#C7F303' }}>
+                        CHAT IA
                       </span>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700 }}>Fisioterapeuta Laboral IA</div>
-                        <div style={{ fontSize: 10, color: '#94A3B8' }}>En línea · +20 Agentes disponibles</div>
+                    </div>
+                  </div>
+
+                  {/* Phone Body */}
+                  <div style={{ flex: 1, padding: 10, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: '#F1F5F9', minHeight: 0 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {/* Specialist pills */}
+                      <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2 }}>
+                        <span style={{ fontSize: 9.5, fontWeight: 800, padding: '3px 8px', borderRadius: 9999, background: '#0E1300', color: '#C7F303', whiteSpace: 'nowrap' }}>
+                          Fisioterapeuta
+                        </span>
+                        <span style={{ fontSize: 9.5, fontWeight: 600, padding: '3px 8px', borderRadius: 9999, background: '#E2E8F0', color: '#475569', whiteSpace: 'nowrap' }}>
+                          Médico Laboral
+                        </span>
+                        <span style={{ fontSize: 9.5, fontWeight: 600, padding: '3px 8px', borderRadius: 9999, background: '#E2E8F0', color: '#475569', whiteSpace: 'nowrap' }}>
+                          Abogado RIT
+                        </span>
+                      </div>
+
+                      {/* Chat dialog bubble */}
+                      <div style={{ background: '#fff', borderRadius: 12, padding: 9, fontSize: 11, lineHeight: 1.45, color: '#1E293B', border: '1px solid #E2E8F0' }}>
+                        {lang === 'es'
+                          ? 'Analicé el puesto. Para mitigar sobrecargas biomecánicas en miembros superiores, sugiero micropausas activas dirigidas y elevación de pantalla a la altura de los ojos.'
+                          : 'Reviewed workstation ergonomics. To reduce upper limb strain, I recommend targeted active breaks and adjusting monitor to eye level.'}
+                      </div>
+
+                      {/* Technical citation card */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', borderRadius: 10, padding: '6px 8px', fontSize: 9.5, color: '#0369A1', fontWeight: 700, border: '1px solid #E0F2FE' }}>
+                        <span>📜</span>
+                        <span>{lang === 'es' ? 'Citado con Res. 2400 & ISO 11226' : 'Cited with Res. 2400 & ISO 11226'}</span>
+                      </div>
+
+                      {/* Model / Agent info */}
+                      <div style={{ fontSize: 9.5, color: '#64748B', padding: '0 2px' }}>
+                        ✓ {lang === 'es' ? 'Acceso 24/7 sin citas ni esperas' : 'Instant 24/7 access with zero waiting'}
                       </div>
                     </div>
-                  </div>
 
-                  <div style={{ padding: '12px', textAlign: 'left', background: '#F8FAFC' }}>
-                    <div style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 8, marginBottom: 8 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 9999, background: '#0E1300', color: '#C7F303', whiteSpace: 'nowrap' }}>
-                        Fisioterapeuta
+                    {/* Bottom Action Button */}
+                    <div style={{ marginTop: 'auto', paddingTop: 6 }}>
+                      <span style={{ height: 36, width: '100%', borderRadius: 10, background: '#C7F303', color: '#0E1300', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11.5, fontWeight: 800 }}>
+                        🎙️ {lang === 'es' ? 'Consulta por Voz en Vivo' : 'Live Voice Session'}
                       </span>
-                      <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 9999, background: '#E2E8F0', color: '#475569', whiteSpace: 'nowrap' }}>
-                        Médico Laboral
-                      </span>
-                      <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 9999, background: '#E2E8F0', color: '#475569', whiteSpace: 'nowrap' }}>
-                        Abogado RIT
-                      </span>
-                    </div>
-
-                    <div style={{ background: '#fff', borderRadius: 14, padding: 10, fontSize: 12, lineHeight: 1.45, color: '#1E293B', border: '1px solid #E2E8F0', marginBottom: 8 }}>
-                      {lang === 'es'
-                        ? 'Analicé el puesto de trabajo. Para mitigar sobrecargas biomecánicas en miembros superiores, sugiero micropausas activas y elevación del monitor según la guía técnica del MinTrabajo.'
-                        : 'Reviewed the workstation. To prevent upper limb strain, I recommend active micro-breaks and elevating the screen according to OHS ergonomic standards.'}
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F1F5F9', borderRadius: 10, padding: '6px 10px', fontSize: 10.5, color: '#0369A1', fontWeight: 700 }}>
-                      <span>📜</span>
-                      <span>{lang === 'es' ? 'Citado con Res. 2400 & ISO 11226' : 'Cited with Res. 2400 & ISO 11226'}</span>
                     </div>
                   </div>
                 </div>
@@ -1073,86 +1295,93 @@ export default function LandingPage() {
                 </svg>
                 {lang === 'es' ? 'Portales Públicos QR · Colaboradores' : 'Public QR Portals · Workforce'}
               </div>
-              <div className="phone">
-                <div className="phone-screen">
-                  <div className="phone-notch">
-                    <span style={{ width: 10, height: 10, borderRadius: 9999 }}></span>
+              <div className="phone" style={{ width: 260, height: 530, display: 'flex', flexDirection: 'column', padding: 8, boxSizing: 'border-box' }}>
+                <div className="phone-screen" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#F8FAFC', borderRadius: 34, overflow: 'hidden' }}>
+                  {/* Unified Dynamic Island Notch */}
+                  <div className="phone-notch" style={{ height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0F172A', flexShrink: 0 }}>
+                    <span style={{ width: 56, height: 12, borderRadius: 9999, background: '#000' }}></span>
                   </div>
-                  <div style={{ background: 'linear-gradient(160deg, #0F766E, #115E59)', padding: '12px 14px', color: '#fff', textAlign: 'left' }}>
+
+                  {/* Unified Header */}
+                  <div style={{ background: '#0F172A', padding: '6px 12px 10px', color: '#fff', textAlign: 'left', flexShrink: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ width: 30, height: 30, borderRadius: 8, background: '#2DD4BF', color: '#042F2E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 13 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <span style={{ width: 28, height: 28, borderRadius: 8, background: '#0D9488', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 12 }}>
                           QR
                         </span>
                         <div>
-                          <div style={{ fontSize: 13, fontWeight: 700 }}>Portal Colaborador</div>
-                          <div style={{ fontSize: 10, color: '#CCFBF1' }}>Cero contraseñas · Cédula</div>
+                          <div style={{ fontSize: 12.5, fontWeight: 800, lineHeight: 1.1 }}>{lang === 'es' ? 'Portal Colaborador' : 'Worker Portal'}</div>
+                          <div style={{ fontSize: 9.5, color: '#94A3B8' }}>{lang === 'es' ? 'Cero contraseñas · Cédula' : 'Zero passwords · ID check'}</div>
                         </div>
                       </div>
-                      <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 9999, background: 'rgba(255,255,255,0.2)', color: '#fff' }}>
-                        PWA
+                      <span style={{ fontSize: 8.5, fontWeight: 800, padding: '2px 6px', borderRadius: 9999, background: 'rgba(13, 148, 136, 0.25)', color: '#2DD4BF' }}>
+                        PWA MÓVIL
                       </span>
                     </div>
                   </div>
 
-                  <div style={{ background: '#F1F5F9', padding: 8, textAlign: 'left' }}>
-                    {/* Worker badge */}
-                    <div style={{ background: '#fff', borderRadius: 10, padding: '7px 10px', marginBottom: 6, border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 800, color: '#0F172A' }}>Carlos M. Gómez</div>
-                        <div style={{ fontSize: 9.5, color: '#64748B' }}>C.C. 1.020.485.*** · Planta</div>
-                      </div>
-                      <span style={{ width: 7, height: 7, borderRadius: 9999, background: '#10B981' }}></span>
-                    </div>
-
-                    {/* Service 1: Votaciones COPASST */}
-                    <div style={{ background: '#fff', borderRadius: 12, padding: '8px 10px', marginBottom: 5, border: '1px solid #E2E8F0' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                        <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span>🗳️</span> {lang === 'es' ? 'Votación COPASST' : 'COPASST Voting'}
+                  {/* Phone Body */}
+                  <div style={{ flex: 1, padding: 10, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: '#F1F5F9', minHeight: 0 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {/* Worker active ID */}
+                      <div style={{ background: '#fff', borderRadius: 10, padding: '6px 8px', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 800, color: '#0F172A' }}>Carlos M. Gómez</div>
+                          <div style={{ fontSize: 9.5, color: '#64748B' }}>C.C. 1.020.485.*** · Operario Planta</div>
                         </div>
-                        <span style={{ fontSize: 8.5, fontWeight: 800, padding: '1px 6px', borderRadius: 9999, background: '#DCFCE7', color: '#15803D' }}>
-                          {lang === 'es' ? 'Tarjetón Activo' : 'Ballot Open'}
-                        </span>
+                        <span style={{ width: 7, height: 7, borderRadius: 9999, background: '#10B981' }}></span>
                       </div>
-                      <div style={{ fontSize: 9.5, color: '#64748B' }}>
-                        {lang === 'es' ? 'Voto secreto cifrado en urna móvil' : 'Encrypted secret mobile ballot'}
-                      </div>
-                    </div>
 
-                    {/* Service 2: Auto-reporte de Riesgos */}
-                    <div style={{ background: '#fff', borderRadius: 12, padding: '8px 10px', marginBottom: 5, border: '1px solid #E2E8F0' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                        <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span>📸</span> {lang === 'es' ? 'Auto-reporte de Peligro' : 'Hazard Self-Report'}
+                      {/* Service 1: Votaciones COPASST */}
+                      <div style={{ background: '#fff', borderRadius: 10, padding: '7px 8px', border: '1px solid #E2E8F0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span>🗳️</span> {lang === 'es' ? 'Votación COPASST' : 'COPASST Voting'}
+                          </div>
+                          <span style={{ fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 9999, background: '#DCFCE7', color: '#15803D' }}>
+                            {lang === 'es' ? 'Tarjetón Activo' : 'Ballot Open'}
+                          </span>
                         </div>
-                        <span style={{ fontSize: 8.5, fontWeight: 800, padding: '1px 6px', borderRadius: 9999, background: '#FEF3C7', color: '#B45309' }}>
-                          {lang === 'es' ? 'Con Foto' : 'Photo'}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 9.5, color: '#64748B' }}>
-                        {lang === 'es' ? 'Condición insegura en tiempo real' : 'Real-time hazard report'}
-                      </div>
-                    </div>
-
-                    {/* Service 3: Firma Digital de Actas */}
-                    <div style={{ background: '#fff', borderRadius: 12, padding: '8px 10px', marginBottom: 6, border: '1px solid #E2E8F0' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                        <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span>✍️</span> {lang === 'es' ? 'Firma Digital de Actas' : 'Digital Signatures'}
+                        <div style={{ fontSize: 9.5, color: '#64748B' }}>
+                          {lang === 'es' ? 'Voto secreto cifrado en urna móvil' : 'Encrypted secret mobile ballot'}
                         </div>
-                        <span style={{ fontSize: 8.5, fontWeight: 800, padding: '1px 6px', borderRadius: 9999, background: '#E0F2FE', color: '#0369A1' }}>
-                          {lang === 'es' ? 'En Pantalla' : 'On-Screen'}
-                        </span>
                       </div>
-                      <div style={{ fontSize: 9.5, color: '#64748B' }}>
-                        {lang === 'es' ? 'Entrega de EPP y compromisos SST' : 'PPE and OHS commitments'}
+
+                      {/* Service 2: Auto-reporte de Riesgos */}
+                      <div style={{ background: '#fff', borderRadius: 10, padding: '7px 8px', border: '1px solid #E2E8F0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span>📸</span> {lang === 'es' ? 'Auto-reporte de Peligro' : 'Hazard Report'}
+                          </div>
+                          <span style={{ fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 9999, background: '#FEF3C7', color: '#B45309' }}>
+                            {lang === 'es' ? 'Con Foto' : 'Photo'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 9.5, color: '#64748B' }}>
+                          {lang === 'es' ? 'Condición insegura en tiempo real' : 'Real-time hazard report'}
+                        </div>
+                      </div>
+
+                      {/* Service 3: Firma Digital de Actas */}
+                      <div style={{ background: '#fff', borderRadius: 10, padding: '7px 8px', border: '1px solid #E2E8F0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span>✍️</span> {lang === 'es' ? 'Firma Digital de Actas' : 'Digital Signatures'}
+                          </div>
+                          <span style={{ fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 9999, background: '#E0F2FE', color: '#0369A1' }}>
+                            {lang === 'es' ? 'En Pantalla' : 'On-Screen'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 9.5, color: '#64748B' }}>
+                          {lang === 'es' ? 'Entrega de EPP y compromisos SST' : 'PPE and OHS commitments'}
+                        </div>
                       </div>
                     </div>
 
-                    <div style={{ textAlign: 'center', padding: '4px 0 2px' }}>
-                      <span style={{ fontSize: 9.5, fontWeight: 800, color: '#0D9488', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        <span>⚡</span> {lang === 'es' ? 'Escanear QR de Empresa' : 'Scan Company QR'}
+                    {/* Bottom Action Button */}
+                    <div style={{ marginTop: 'auto', paddingTop: 6 }}>
+                      <span style={{ height: 36, width: '100%', borderRadius: 10, background: '#C7F303', color: '#0E1300', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11.5, fontWeight: 800 }}>
+                        ⚡ {lang === 'es' ? 'Escanear QR de Empresa' : 'Scan Company QR'}
                       </span>
                     </div>
                   </div>
