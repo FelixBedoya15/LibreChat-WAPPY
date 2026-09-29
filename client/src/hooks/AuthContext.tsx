@@ -161,7 +161,20 @@ const AuthContextProvider = ({
   };
 
   const isPublicRoute = useCallback((pathname: string) => {
-    const publicPaths = ['/landing', '/inicio', '/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/comunidadmp', '/wappyvital', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html'];
+    const isStandalone =
+      typeof window !== 'undefined' &&
+      (window.matchMedia('(display-mode: standalone)').matches ||
+        window.matchMedia('(display-mode: fullscreen)').matches ||
+        window.matchMedia('(display-mode: minimal-ui)').matches ||
+        (window.navigator as any).standalone === true ||
+        document.referrer.includes('android-app://') ||
+        new URLSearchParams(window.location.search).get('source') === 'pwa');
+
+    if ((pathname === '/' || pathname === '') && isStandalone) {
+      return false;
+    }
+
+    const publicPaths = ['/', '', '/landing', '/inicio', '/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/comunidadmp', '/wappyvital', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html'];
     if (publicPaths.includes(pathname)) {
       return true;
     }

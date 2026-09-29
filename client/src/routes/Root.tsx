@@ -151,6 +151,9 @@ export default function Root() {
   };
 
   if (!isAuthenticated) {
+    if (window.location.pathname === '/' || window.location.pathname === '') {
+      return <Outlet context={{ navVisible: false, setNavVisible: () => {} } satisfies ContextType} />;
+    }
     if (isPublicRoute(window.location.pathname)) {
       return (
         <div className="flex h-screen w-screen bg-surface-primary text-text-primary">

@@ -79,7 +79,7 @@ export default defineConfig(({ command }) => ({
         name: 'WAPPY IA - Tu asistente de IA avanzado',
         short_name: 'WAPPY IA',
         description: 'WAPPY IA - Tu asistente de inteligencia artificial avanzado',
-        start_url: '/',
+        start_url: '/?source=pwa',
         scope: '/',
         display: 'standalone',
         orientation: 'portrait',

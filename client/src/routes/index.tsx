@@ -98,10 +98,33 @@ const MauricioPosadaRedirect = () => {
 const RootIndexRedirect = () => {
   const { isAuthenticated } = useAuthContext();
   const location = useLocation();
-  if (!isAuthenticated) {
-    return <Navigate to={{ pathname: '/landing', search: location.search }} replace={true} />;
+
+  const isStandalone =
+    typeof window !== 'undefined' &&
+    (window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches ||
+      window.matchMedia('(display-mode: minimal-ui)').matches ||
+      (window.navigator as any).standalone === true ||
+      document.referrer.includes('android-app://') ||
+      new URLSearchParams(location.search).get('source') === 'pwa');
+
+  if (isStandalone) {
+    if (isAuthenticated) {
+      return <Navigate to={{ pathname: '/c/new', search: location.search }} replace={true} />;
+    }
+    return <Navigate to={{ pathname: '/login', search: location.search }} replace={true} />;
   }
-  return <Navigate to={{ pathname: '/c/new', search: location.search }} replace={true} />;
+
+  if (isAuthenticated) {
+    return <Navigate to={{ pathname: '/c/new', search: location.search }} replace={true} />;
+  }
+
+  return withSuspense(
+    <AuthContextProvider>
+      <LandingPage />
+      <ApiErrorWatcher />
+    </AuthContextProvider>
+  );
 };
 
 const BillingRedirect = () => {
@@ -297,22 +320,12 @@ export const router = createBrowserRouter(
     },
     {
       path: 'landing',
-      element: withSuspense(
-        <AuthContextProvider>
-          <LandingPage />
-          <ApiErrorWatcher />
-        </AuthContextProvider>
-      ),
+      element: <Navigate to="/" replace={true} />,
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'inicio',
-      element: withSuspense(
-        <AuthContextProvider>
-          <LandingPage />
-          <ApiErrorWatcher />
-        </AuthContextProvider>
-      ),
+      element: <Navigate to="/" replace={true} />,
       errorElement: <RouteErrorBoundary />,
     },
     {

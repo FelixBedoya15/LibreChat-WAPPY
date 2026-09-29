@@ -1,88 +1,11 @@
+import { Link } from 'react-router-dom';
 import { ThemeSelector } from '@librechat/client';
 import { TStartupConfig } from 'librechat-data-provider';
 import { ErrorMessage } from '~/components/Auth/ErrorMessage';
 import { TranslationKeys, useLocalize } from '~/hooks';
 import SocialLoginRender from './SocialLoginRender';
-import { BlinkAnimation } from './BlinkAnimation';
 import { Banner } from '../Banners';
 import Footer from './Footer';
-
-/* ─── Animated Background Particles ────────────────────────────────── */
-const FloatingParticles = () => (
-  <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-    <svg className="absolute h-full w-full" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="authGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#22c55e" stopOpacity="0.08" />
-          <stop offset="100%" stopColor="#10b981" stopOpacity="0.03" />
-        </linearGradient>
-        <linearGradient id="authGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#0ea5e9" stopOpacity="0.06" />
-          <stop offset="100%" stopColor="#22c55e" stopOpacity="0.02" />
-        </linearGradient>
-      </defs>
-
-      {/* Large floating circle - top right */}
-      <circle cx="85%" cy="15%" r="120" fill="url(#authGrad1)">
-        <animate attributeName="cy" values="15%;18%;15%" dur="8s" repeatCount="indefinite" />
-        <animate attributeName="cx" values="85%;82%;85%" dur="12s" repeatCount="indefinite" />
-      </circle>
-
-      {/* Medium circle - bottom left */}
-      <circle cx="10%" cy="80%" r="80" fill="url(#authGrad2)">
-        <animate attributeName="cy" values="80%;76%;80%" dur="10s" repeatCount="indefinite" />
-        <animate attributeName="cx" values="10%;14%;10%" dur="14s" repeatCount="indefinite" />
-      </circle>
-
-      {/* Small pulsing dot - center left */}
-      <circle cx="5%" cy="45%" r="4" fill="#22c55e" opacity="0.15">
-        <animate attributeName="r" values="3;6;3" dur="4s" repeatCount="indefinite" />
-        <animate attributeName="opacity" values="0.1;0.25;0.1" dur="4s" repeatCount="indefinite" />
-      </circle>
-
-      {/* Small pulsing dot - center right */}
-      <circle cx="92%" cy="55%" r="3" fill="#10b981" opacity="0.12">
-        <animate attributeName="r" values="2;5;2" dur="5s" repeatCount="indefinite" />
-        <animate attributeName="opacity" values="0.08;0.2;0.08" dur="5s" repeatCount="indefinite" />
-      </circle>
-
-      {/* Hexagon outline - top left */}
-      <polygon
-        points="60,20 80,30 80,50 60,60 40,50 40,30"
-        fill="none"
-        stroke="#22c55e"
-        strokeWidth="0.8"
-        opacity="0.08"
-        transform="translate(40, 120)"
-      >
-        <animateTransform attributeName="transform" type="rotate" values="0 60 40;360 60 40" dur="30s" repeatCount="indefinite" />
-      </polygon>
-
-      {/* Hexagon outline - bottom right */}
-      <polygon
-        points="60,20 80,30 80,50 60,60 40,50 40,30"
-        fill="none"
-        stroke="#0ea5e9"
-        strokeWidth="0.6"
-        opacity="0.06"
-        transform="translate(700, 500)"
-      >
-        <animateTransform attributeName="transform" type="rotate" values="360 60 40;0 60 40" dur="25s" repeatCount="indefinite" />
-      </polygon>
-
-      {/* Tiny floating dots */}
-      <circle cx="30%" cy="25%" r="2" fill="#22c55e" opacity="0.1">
-        <animate attributeName="cy" values="25%;22%;25%" dur="6s" repeatCount="indefinite" />
-      </circle>
-      <circle cx="70%" cy="70%" r="1.5" fill="#10b981" opacity="0.1">
-        <animate attributeName="cy" values="70%;73%;70%" dur="7s" repeatCount="indefinite" />
-      </circle>
-      <circle cx="50%" cy="90%" r="2.5" fill="#0ea5e9" opacity="0.06">
-        <animate attributeName="cx" values="50%;53%;50%" dur="9s" repeatCount="indefinite" />
-      </circle>
-    </svg>
-  </div>
-);
 
 function AuthLayout({
   children,
@@ -102,18 +25,20 @@ function AuthLayout({
   error: TranslationKeys | null;
 }) {
   const localize = useLocalize();
+  const isRegister = pathname.includes('register');
+  const isLogin = pathname.includes('login');
 
   const hasStartupConfigError = startupConfigError !== null && startupConfigError !== undefined;
   const DisplayError = () => {
     if (hasStartupConfigError) {
       return (
-        <div className="mx-auto sm:max-w-sm">
+        <div className="mx-auto sm:max-w-sm mb-4">
           <ErrorMessage>{localize('com_auth_error_login_server')}</ErrorMessage>
         </div>
       );
     } else if (error === 'com_auth_error_invalid_reset_token') {
       return (
-        <div className="mx-auto sm:max-w-sm">
+        <div className="mx-auto sm:max-w-sm mb-4">
           <ErrorMessage>
             {localize('com_auth_error_invalid_reset_token')}{' '}
             <a className="font-semibold text-green-600 hover:underline" href="/forgot-password">
@@ -125,7 +50,7 @@ function AuthLayout({
       );
     } else if (error != null && error) {
       return (
-        <div className="mx-auto sm:max-w-sm">
+        <div className="mx-auto sm:max-w-sm mb-4">
           <ErrorMessage>{localize(error)}</ErrorMessage>
         </div>
       );
@@ -134,41 +59,141 @@ function AuthLayout({
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-white dark:bg-gray-900">
-      <FloatingParticles />
-      <Banner />
-      <BlinkAnimation active={isFetching}>
-        <div className="mt-6 h-40 w-full bg-cover sm:h-56 md:h-64">
-          <img
-            src="assets/logo.png"
-            className="h-full w-full object-contain drop-shadow-sm"
-            alt={localize('com_ui_logo', { 0: startupConfig?.appTitle ?? 'LibreChat' })}
-          />
-        </div>
-      </BlinkAnimation>
-      <DisplayError />
-      <div className="absolute bottom-0 left-0 md:m-4">
-        <ThemeSelector />
-      </div>
+    <div className="relative min-h-screen flex flex-col justify-between overflow-x-hidden bg-gradient-to-b from-[#E6F3FA] via-[#D8ECF7] to-[#C8E4F3] dark:from-[#0B111E] dark:via-[#0F172A] dark:to-[#080C14] transition-colors duration-300">
+      {/* Soft Landing-style decorative clouds */}
+      <div
+        className="pointer-events-none absolute -top-12 -left-16 w-80 h-36 rounded-full bg-white/70 dark:bg-white/5 blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute top-48 -right-12 w-96 h-40 rounded-full bg-white/60 dark:bg-white/5 blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute bottom-24 left-1/4 w-[420px] h-44 rounded-full bg-white/50 dark:bg-white/5 blur-3xl opacity-70"
+        aria-hidden="true"
+      />
 
-      <div className="flex flex-grow items-center justify-center">
-        <div className="relative w-authPageWidth overflow-hidden rounded-2xl border border-border-medium/30 bg-white/80 px-6 py-4 shadow-xl shadow-green-500/[0.03] backdrop-blur-sm transition-all dark:bg-gray-900/80 sm:max-w-md">
+      <Banner />
+
+      {/* Top Header Bar */}
+      <header className="w-full max-w-5xl mx-auto px-4 pt-5 pb-2 flex items-center justify-between z-10">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-zinc-200 hover:text-black dark:hover:text-white px-3.5 py-1.5 rounded-full bg-white/80 dark:bg-zinc-800/80 backdrop-blur-md border border-slate-200/80 dark:border-zinc-700/80 shadow-sm transition-all active:scale-95"
+        >
+          <span className="text-base leading-none">←</span>
+          <span>Volver a WAPPY</span>
+        </Link>
+
+        <Link to="/" className="flex items-center gap-2 group">
+          <img
+            src="/assets/Logos WAPPY/Wlogo.svg"
+            className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
+            alt="WAPPY IA"
+          />
+          <span className="font-black text-xl tracking-tight text-slate-900 dark:text-white flex items-center">
+            WAPPY<span className="text-[#10b981] ml-0.5 text-base font-black">IA</span>
+          </span>
+        </Link>
+
+        <div className="flex items-center gap-2">
+          {isLogin ? (
+            <Link
+              to="/register"
+              className="inline-flex items-center gap-1 text-xs font-bold text-[#0E1300] bg-[#C7F303] hover:bg-[#b5dc02] px-3.5 py-1.5 rounded-full shadow-sm shadow-[#c7f303]/30 transition-all active:scale-95"
+            >
+              <span>Prueba gratis</span>
+              <span className="text-xs">→</span>
+            </Link>
+          ) : isRegister ? (
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-zinc-200 bg-white/80 dark:bg-zinc-800/80 hover:bg-white dark:hover:bg-zinc-700 px-3.5 py-1.5 rounded-full border border-slate-200/80 dark:border-zinc-700/80 shadow-sm transition-all active:scale-95"
+            >
+              <span>Iniciar sesión</span>
+              <span className="text-xs">→</span>
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-zinc-200 bg-white/80 dark:bg-zinc-800/80 hover:bg-white dark:hover:bg-zinc-700 px-3.5 py-1.5 rounded-full border border-slate-200/80 dark:border-zinc-700/80 shadow-sm transition-all active:scale-95"
+            >
+              <span>Ingresar</span>
+            </Link>
+          )}
+        </div>
+      </header>
+
+      {/* Main Form Center Card */}
+      <div className="flex flex-grow items-center justify-center py-6 px-4 z-10">
+        <div className="relative w-full max-w-[460px] overflow-hidden rounded-[28px] border border-slate-200/80 dark:border-zinc-800/90 bg-white/95 dark:bg-zinc-900/95 px-6 sm:px-8 py-7 shadow-2xl shadow-slate-900/10 dark:shadow-black/60 backdrop-blur-2xl transition-all">
+          {/* Landing Eyebrow */}
+          <div className="flex justify-center mb-3">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-lime-400/20 text-lime-900 dark:text-lime-300 border border-lime-400/40">
+              <span className="w-1.5 h-1.5 rounded-full bg-lime-500 animate-pulse"></span>
+              {isRegister
+                ? 'Comienza tu Prueba Gratis · 7 Días'
+                : 'Acceso Seguro · Ecosistema SST'}
+            </span>
+          </div>
+
           {!hasStartupConfigError && !isFetching && (
             <h1
-              className="mb-4 text-center text-2xl font-semibold whitespace-nowrap text-black dark:text-white"
+              className="mb-1 text-center text-2xl font-black tracking-tight text-slate-900 dark:text-white"
               style={{ userSelect: 'none' }}
             >
               {header}
             </h1>
           )}
+
+          <p className="text-center text-xs text-slate-500 dark:text-zinc-400 mb-5 leading-relaxed">
+            {isRegister
+              ? 'Activa tu empresa en 2 minutos y accede a +20 Agentes IA especializados'
+              : 'Orquestación de seguridad y salud en el trabajo con Tenshi IA'}
+          </p>
+
+          <DisplayError />
+
           {children}
-          {!pathname.includes('2fa') &&
-            (pathname.includes('login') || pathname.includes('register')) && (
-              <SocialLoginRender startupConfig={startupConfig} />
-            )}
+
+          {!pathname.includes('2fa') && (isLogin || isRegister) && (
+            <SocialLoginRender startupConfig={startupConfig} />
+          )}
+
+          {/* Quick Switch Link */}
+          <div className="mt-5 pt-4 border-t border-slate-100 dark:border-zinc-800/80 text-center text-xs text-slate-500 dark:text-zinc-400">
+            {isLogin ? (
+              <p>
+                ¿Aún no tienes cuenta?{' '}
+                <Link to="/register" className="font-bold text-teal-600 dark:text-teal-400 hover:underline">
+                  Comienza tu prueba gratis de 7 días
+                </Link>
+              </p>
+            ) : isRegister ? (
+              <p>
+                ¿Ya tienes una cuenta registrada?{' '}
+                <Link to="/login" className="font-bold text-teal-600 dark:text-teal-400 hover:underline">
+                  Inicia sesión aquí
+                </Link>
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
-      <Footer startupConfig={startupConfig} />
+
+      {/* Floating Theme Selector */}
+      <div className="fixed bottom-3 left-3 z-20">
+        <ThemeSelector />
+      </div>
+
+      {/* Footer */}
+      <div className="z-10 pb-4">
+        <Footer startupConfig={startupConfig} />
+        <p className="text-center text-[11px] text-slate-500 dark:text-zinc-500 mt-1">
+          WAPPY LTDA · Ecosistema de Inteligencia Artificial para el SG-SST en Colombia
+        </p>
+      </div>
     </div>
   );
 }
