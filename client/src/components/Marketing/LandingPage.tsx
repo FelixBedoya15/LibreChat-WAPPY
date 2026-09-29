@@ -127,11 +127,11 @@ export default function LandingPage() {
           </a>
 
           <div className="mkt-nav-links">
-            <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')} title="Somos SST: Estructura Integral">Somos SST</a>
+            <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')} title="Somos SST: Estructura de 8 Hitos">Somos SST</a>
             <a href="#tenshi" onClick={(e) => scrollToSection(e, 'tenshi')} title="Ecosistema de Agentes de IA Especializados">Agentes IA</a>
-            <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')} title="Matrices GTC 45 & Gestión de Riesgos">Matrices & Riesgos</a>
-            <a href="#movil" onClick={(e) => scrollToSection(e, 'movil')} title="Visión por Cámara y Reportes en Campo">Visión & Campo</a>
-            <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')} title="Planes para Mipymes y Empresas">Planes</a>
+            <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')} title="Matrices GTC 45 & Bio-IPEVR Dinámica">Matrices & Riesgos</a>
+            <a href="#movil" onClick={(e) => scrollToSection(e, 'movil')} title="Visión IA MediaPipe y Portales PWA">Visión & PWA</a>
+            <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')} title="Planes Wappy Pro">Planes</a>
             <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')} title="Preguntas Frecuentes">FAQ</a>
           </div>
 
@@ -215,6 +215,57 @@ export default function LandingPage() {
                 {lang === 'es' ? 'Sin tiendas' : 'Instant'}
               </span>
             </button>
+          </div>
+
+          {/* Banner Prevencionista IA (Imagen 4) */}
+          <div
+            className="hero-ai-banner"
+            style={{
+              maxWidth: 780,
+              margin: '20px auto 0',
+              padding: '14px 22px',
+              background: 'rgba(6, 17, 16, 0.90)',
+              border: '1px dashed rgba(34, 197, 94, 0.45)',
+              borderRadius: 20,
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 16,
+              textAlign: 'left',
+              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.22)',
+              position: 'relative',
+              zIndex: 3,
+            }}
+          >
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                background: '#041214',
+                border: '1px solid rgba(250, 204, 21, 0.35)',
+                boxShadow: '0 0 16px rgba(250, 204, 21, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 22,
+                flexShrink: 0,
+              }}
+            >
+              💡
+            </div>
+            <div>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.01em', lineHeight: 1.25 }}>
+                {lang === 'es'
+                  ? 'La IA no te reemplazará. El prevencionista que la use, sí.'
+                  : 'AI will not replace you. The safety professional who uses it will.'}
+              </div>
+              <div style={{ fontSize: 12.5, color: 'rgba(255, 255, 255, 0.82)', marginTop: 4, lineHeight: 1.45 }}>
+                {lang === 'es'
+                  ? 'El mercado laboral recompensa a quienes optimizan procesos. Wappy te capacita y te da las herramientas para realizar el trabajo de una semana en solo unas horas.'
+                  : 'The job market rewards those who optimize workflows. Wappy trains you and delivers the tools to accomplish a week’s work in just a few hours.'}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -2197,78 +2248,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* FAQ */}
-      <section id="faq" className="band" style={{ paddingTop: 0 }}>
-        <div className="wrap">
-          <div className="sec-head">
-            <span className="eyebrow">
-              <span className="dot"></span>
-              FAQ
-            </span>
-            <h2 className="display">{lang === 'es' ? 'Preguntas Frecuentes' : 'Frequently Asked Questions'}</h2>
-          </div>
-
-          <div className="faq">
-            <div className={`qa ${openFaq === 0 ? 'open' : ''}`}>
-              <button onClick={() => setOpenFaq(openFaq === 0 ? null : 0)} aria-expanded={openFaq === 0}>
-                {lang === 'es' ? '¿WAPPY cumple estrictamente con la legislación colombiana?' : 'Does WAPPY fully comply with Colombian regulations?'}
-                <span className="q-ico">+</span>
-              </button>
-              <div className="a">
-                <p>
-                  {lang === 'es'
-                    ? 'Totalmente. WAPPY está programado y auditado con base en la Resolución 0312 de 2019 (Estándares Mínimos), Decreto 1072 de 2015 (SG-SST), Guía Técnica Colombiana GTC 45, Decreto 1496 de 2018 (Sistema Globalmente Armonizado SGA), Resolución 2013 de 1986 (COPASST), Resolución 652 de 2012 y Ley 2365 de 2024 (Convivencia Laboral).'
-                    : 'Yes. WAPPY is modeled strictly on Colombian regulations: Decree 1072 of 2015, Res. 0312 of 2019, GTC 45 hazard guide, Decree 1496 (SGA), Res. 2013 of 1986 (COPASST), and Law 2365 of 2024 (Labor Harassment).'}
-                </p>
-              </div>
-            </div>
-
-            <div className={`qa ${openFaq === 1 ? 'open' : ''}`}>
-              <button onClick={() => setOpenFaq(openFaq === 1 ? null : 1)} aria-expanded={openFaq === 1}>
-                {lang === 'es' ? '¿Qué es Tenshi IA y cómo se diferencia de un ChatGPT genérico?' : 'What is Tenshi AI and how is it different from general ChatGPT?'}
-                <span className="q-ico">+</span>
-              </button>
-              <div className="a">
-                <p>
-                  {lang === 'es'
-                    ? 'Tenshi no es un chatbot genérico desconectado: es un orquestador inteligente autónomo. Coordina y delega consultas hacia más de 20 agentes especialistas en SST (fisioterapeutas, médicos laborales, abogados y químicos), diligencia formularios técnicos en pantalla mediante control de interfaz (Page Controller) y te asiste por voz con citas normativas exactas a la ley colombiana.'
-                    : 'Tenshi is an autonomous orchestrator connected to your safety database. It delegates queries to 20+ specialized OHS agents, fills forms on screen via Page Controller, and assists by voice citing exact statutory standards.'}
-                </p>
-              </div>
-            </div>
-
-            <div className={`qa ${openFaq === 2 ? 'open' : ''}`}>
-              <button onClick={() => setOpenFaq(openFaq === 2 ? null : 2)} aria-expanded={openFaq === 2}>
-                {lang === 'es' ? '¿Puedo exportar actas, matrices y reportes a Excel, Word o PDF?' : 'Can I export matrices and minutes to Excel, Word, or PDF?'}
-                <span className="q-ico">+</span>
-              </button>
-              <div className="a">
-                <p>
-                  {lang === 'es'
-                    ? 'Sí. Todos los documentos generados en WAPPY (actas de comités, matriz de riesgos GTC 45, matriz de compatibilidad química SGA, diagnósticos de estándares mínimos y carnets de capacitación) pueden exportarse en formatos editables de Excel y Word o descargarse en PDF membretados listos para auditorías.'
-                    : 'Yes. All generated records (committee minutes, GTC 45 risk matrix, chemical SGA matrix, and training certificates) export with one click to editable Excel/Word and signed PDF files.'}
-                </p>
-              </div>
-            </div>
-
-            <div className={`qa ${openFaq === 3 ? 'open' : ''}`}>
-              <button onClick={() => setOpenFaq(openFaq === 3 ? null : 3)} aria-expanded={openFaq === 3}>
-                {lang === 'es' ? '¿Cómo acceden los colaboradores desde su celular sin contraseñas?' : 'How do workers access mobile tools without passwords?'}
-                <span className="q-ico">+</span>
-              </button>
-              <div className="a">
-                <p>
-                  {lang === 'es'
-                    ? 'Mediante el portal móvil PWA y código QR oficial de la empresa. Los colaboradores escanean el QR desde su celular, validan su cédula y pueden autogestionar su perfil sociodemográfico, participar en votaciones secretas de comités, firmar actas digitalmente y reportar condiciones inseguras con foto al instante.'
-                    : 'Through the PWA mobile portal and company QR code. Workers scan the QR, verify with their national ID, and can update their demographic profiles, cast secret committee votes, sign minutes, and report hazards with photos instantly.'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
+      {/* Pricing: Solo Plan Wappy Pro con 3 Temporalidades (Mensual, Semestral, Anual) */}
       <section id="pricing" className="band" style={{ paddingTop: 0 }}>
         <div className="wrap">
           <div className="sec-head">
@@ -2276,102 +2256,30 @@ export default function LandingPage() {
               <span className="dot"></span>
               {lang === 'es' ? 'Planes Transparentes' : 'Transparent Pricing'}
             </span>
-            <h2 className="display">{lang === 'es' ? 'Planes que se ajustan a tu empresa' : 'Plans tailored to your organization'}</h2>
+            <h2 className="display">{lang === 'es' ? 'Planes Wappy Pro a la medida de tu empresa' : 'Wappy Pro Plans tailored to your organization'}</h2>
             <p>
               {lang === 'es'
-                ? 'Todos los planes inician con 7 días de prueba gratuita. Sin contratos de permanencia ni cobros ocultos.'
-                : 'All plans include a 7-day free trial. No lock-in, no hidden fees.'}
+                ? 'Una sola suite integral con todas las herramientas de IA y normatividad colombiana. Elige la periodicidad que mejor se ajuste a tu flujo empresarial:'
+                : 'A single complete suite with all AI tools and Colombian compliance. Choose the billing cycle that fits your business:'}
             </p>
           </div>
 
           <div className="price">
-            {/* Starter: Plan Plus */}
+            {/* Wappy Pro Mensual */}
             <div className="pcard">
-              <div className="pn">{lang === 'es' ? 'Plan Plus' : 'Plus Plan'}</div>
-              <div className="pp">$57.800<span>{lang === 'es' ? ' COP /mes' : ' COP/mo'}</span></div>
+              <span className="pbadge" style={{ position: 'static', alignSelf: 'flex-start', marginBottom: 14, background: '#F1F5F9', color: '#475569', border: '1px solid #CBD5E1' }}>
+                {lang === 'es' ? 'Flexibilidad Mensual' : 'Monthly Flexibility'}
+              </span>
+              <div className="pn">{lang === 'es' ? 'Wappy Pro Mensual' : 'Wappy Pro Monthly'}</div>
+              <div className="pp">$114.330<span>{lang === 'es' ? ' COP /mes' : ' COP/mo'}</span></div>
               <div style={{ fontSize: 13, color: '#9A9AA8', marginBottom: 4 }}>
-                {lang === 'es' ? 'Para profesionales y responsables del SG-SST' : 'For independent OHS professionals & consultants'}
+                {lang === 'es' ? 'Flexibilidad mes a mes · Cancela en cualquier momento' : 'Month-to-month flexibility · Cancel anytime'}
               </div>
               <div className="ptrial">
                 <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#1E8E3E', display: 'inline-block' }}></span>
                 {lang === 'es' ? 'Prueba gratis de 7 días' : '7-day free trial'}
               </div>
               <ul>
-                <li>
-                  <span className="pck">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  </span>
-                  {lang === 'es' ? 'Acceso a plataforma Somos SST' : 'Access to Somos SST platform'}
-                </li>
-                <li>
-                  <span className="pck">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  </span>
-                  {lang === 'es' ? 'Chat con IA y conversaciones ilimitadas' : 'Unlimited AI chat & conversations'}
-                </li>
-                <li>
-                  <span className="pck">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  </span>
-                  {lang === 'es' ? 'Más de 15 Agentes Expertos en SST' : '15+ Specialized OHS AI agents'}
-                </li>
-                <li>
-                  <span className="pck">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  </span>
-                  {lang === 'es' ? 'Agente Matriz IPEVR (GTC 45)' : 'IPEVR Hazard Matrix Agent (GTC 45)'}
-                </li>
-                <li>
-                  <span className="pck">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  </span>
-                  {lang === 'es' ? 'Aula de estudio & Blog WAPPY' : 'Study Hall & WAPPY Blog'}
-                </li>
-                <li>
-                  <span className="pck">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  </span>
-                  {lang === 'es' ? 'Exportación oficial a Excel y PDF' : 'Official export to Excel and PDF'}
-                </li>
-              </ul>
-              <button className="btn btn-glass btn-sm" style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }} onClick={() => navigate('/planes')}>
-                {lang === 'es' ? 'Elegir Plan Plus' : 'Choose Plus Plan'}
-              </button>
-            </div>
-
-            {/* Flagship: Wappy Pro */}
-            <div className="pcard feat-plan">
-              <span className="pbadge">{lang === 'es' ? 'Más popular' : 'Most Popular'}</span>
-              <div className="pn">{lang === 'es' ? 'Wappy Pro' : 'Wappy Pro'}</div>
-              <div className="pp">$114.330<span>{lang === 'es' ? ' COP /mes' : ' COP/mo'}</span></div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 4 }}>
-                {lang === 'es' ? 'Para empresas que buscan analítica predictiva y visión IA' : 'For organizations seeking predictive AI & live vision'}
-              </div>
-              <div className="ptrial">
-                <span style={{ width: 6, height: 6, borderRadius: 9999, background: 'var(--lime)', display: 'inline-block' }}></span>
-                {lang === 'es' ? 'Prueba gratis de 7 días' : '7-day free trial'}
-              </div>
-              <ul>
-                <li>
-                  <span className="pck">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  </span>
-                  <strong>{lang === 'es' ? 'Todo lo del Plan Plus, y además:' : 'Everything in Plus Plan, plus:'}</strong>
-                </li>
                 <li>
                   <span className="pck">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
@@ -2386,7 +2294,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Actos predictivos en ATEL & Termómetro Psicosocial' : 'Predictive ATEL Incidents & Psychosocial Climate'}
+                  {lang === 'es' ? 'Conversaciones ilimitadas con +20 Agentes IA' : 'Unlimited chats with 20+ specialized AI agents'}
                 </li>
                 <li>
                   <span className="pck">
@@ -2394,7 +2302,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Todos los módulos interconectados con más de 20 Agentes IA' : 'All modules interconnected with +20 AI Agents'}
+                  {lang === 'es' ? 'Análisis Biomecánico en Vivo con Visión IA (MediaPipe)' : 'Live Biomechanical Vision Analysis (MediaPipe)'}
                 </li>
                 <li>
                   <span className="pck">
@@ -2402,7 +2310,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Chat Live (videollamada en vivo para riesgos)' : 'Chat Live (video calling to inspect hazards)'}
+                  {lang === 'es' ? 'Matriz IPEVR (GTC 45) y Bio-IPEVR interconectadas' : 'Interconnected GTC 45 and Bio-IPEVR matrices'}
                 </li>
                 <li>
                   <span className="pck">
@@ -2410,7 +2318,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Análisis Biomecánico en Vivo con Visión IA' : 'Live Biomechanical Analysis with AI Vision'}
+                  {lang === 'es' ? 'Actos predictivos en ATEL & Termómetro Psicosocial' : 'Predictive ATEL incidents & Psychosocial thermometer'}
                 </li>
                 <li>
                   <span className="pck">
@@ -2418,7 +2326,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Crea tus propios Agentes de IA a la medida' : 'Create your own custom AI agents'}
+                  {lang === 'es' ? 'Portales Públicos QR para colaboradores sin contraseñas' : 'Passwordless public QR portals for workers'}
                 </li>
                 <li>
                   <span className="pck">
@@ -2429,24 +2337,27 @@ export default function LandingPage() {
                   {lang === 'es' ? '3 GB de almacenamiento (+1 GB por sede adicional)' : '3 GB storage (+1 GB per extra branch)'}
                 </li>
               </ul>
-              <button className="btn btn-lime btn-sm" style={{ marginTop: 'auto', justifyContent: 'center' }} onClick={() => navigate('/planes')}>
-                {lang === 'es' ? 'Elegir Wappy Pro' : 'Choose Wappy Pro'}
+              <button className="btn btn-glass btn-sm" style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }} onClick={() => navigate('/planes')}>
+                {lang === 'es' ? 'Elegir Pro Mensual' : 'Choose Pro Monthly'}
               </button>
             </div>
 
-            {/* Lifetime: Wappy Vital */}
+            {/* Wappy Pro Semestral */}
             <div className="pcard">
-              <span className="pbadge" style={{ background: '#10B981', color: '#fff' }}>
-                {lang === 'es' ? 'Pago Único' : 'One-time Pay'}
+              <span className="pbadge" style={{ position: 'static', alignSelf: 'flex-start', marginBottom: 14, background: '#0D9488', color: '#fff' }}>
+                {lang === 'es' ? 'Ahorro Semestral · 6% DCTO' : 'Biannual Savings · 6% OFF'}
               </span>
-              <div className="pn">{lang === 'es' ? 'Wappy Vital' : 'Wappy Vital'}</div>
-              <div className="pp">$150.000<span>{lang === 'es' ? ' COP' : ' COP'}</span></div>
+              <div className="pn">{lang === 'es' ? 'Wappy Pro Semestral' : 'Wappy Pro Semiannual'}</div>
+              <div className="pp">$641.960<span>{lang === 'es' ? ' COP /semestre' : ' COP/6 mo'}</span></div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#0D9488', marginTop: 1, marginBottom: 4 }}>
+                {lang === 'es' ? '⚡ Equivalente a $106.993 COP/mes' : '⚡ $106,993 COP/mo equivalent'}
+              </div>
               <div style={{ fontSize: 13, color: '#9A9AA8', marginBottom: 4 }}>
-                {lang === 'es' ? 'Acceso de por vida · Sin mensualidades recurrentes' : 'Lifetime access · No recurring fees'}
+                {lang === 'es' ? 'Compromiso semestral con tarifa reducida para tu empresa' : 'Semiannual commitment with reduced monthly fee'}
               </div>
               <div className="ptrial">
-                <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#10B981', display: 'inline-block' }}></span>
-                {lang === 'es' ? 'Licencia vitalicia permanente' : 'Permanent lifetime license'}
+                <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#1E8E3E', display: 'inline-block' }}></span>
+                {lang === 'es' ? 'Prueba gratis de 7 días' : '7-day free trial'}
               </div>
               <ul>
                 <li>
@@ -2455,7 +2366,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Acceso vitalicio para 1 empresa' : 'Lifetime access for 1 company'}
+                  <strong>{lang === 'es' ? 'Todo lo del Plan Pro, facturado semestralmente' : 'Full Pro suite billed every 6 months'}</strong>
                 </li>
                 <li>
                   <span className="pck">
@@ -2463,7 +2374,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Hasta 20 chats abiertos simultáneos' : 'Up to 20 open concurrent chats'}
+                  {lang === 'es' ? 'Ahorro directo en la tarifa mensual de tu SG-SST' : 'Direct savings on your monthly safety budget'}
                 </li>
                 <li>
                   <span className="pck">
@@ -2471,7 +2382,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Más de 15 Agentes Especialistas en SST' : '15+ Specialized OHS AI agents'}
+                  {lang === 'es' ? '30+ aplicativos del SG-SST 100% habilitados' : 'All 30+ safety management applications active'}
                 </li>
                 <li>
                   <span className="pck">
@@ -2479,7 +2390,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Skills IPEVR, Editor RIT y Canvas' : 'IPEVR, RIT Editor & Canvas Skills'}
+                  {lang === 'es' ? '+20 Agentes IA: Médico, Abogado, Fisioterapeuta, Higienista' : '20+ AI Agents: Doctor, Legal, Physio, Hygienist'}
                 </li>
                 <li>
                   <span className="pck">
@@ -2487,7 +2398,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Videollamada con exoesqueleto biomecánico' : 'Video call with biomechanical exoskeleton'}
+                  {lang === 'es' ? 'Visión artificial y diagnóstico postural MediaPipe en vivo' : 'Computer vision live ergonomic MediaPipe pose checks'}
                 </li>
                 <li>
                   <span className="pck">
@@ -2495,11 +2406,99 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Descargas y exportaciones ilimitadas' : 'Unlimited downloads & exports'}
+                  {lang === 'es' ? 'Votación secreta COPASST y firmas electrónicas en actas' : 'Secret COPASST voting and electronic digital signatures'}
+                </li>
+                <li>
+                  <span className="pck">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  {lang === 'es' ? 'Soporte técnico preferencial y acompañamiento de inicio' : 'Priority technical support & onboarding assistance'}
                 </li>
               </ul>
               <button className="btn btn-glass btn-sm" style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }} onClick={() => navigate('/planes')}>
-                {lang === 'es' ? 'Obtener Wappy Vital' : 'Get Wappy Vital'}
+                {lang === 'es' ? 'Elegir Pro Semestral' : 'Choose Pro Semiannual'}
+              </button>
+            </div>
+
+            {/* Wappy Pro Anual (Más Popular / Máximo Ahorro) */}
+            <div className="pcard feat-plan">
+              <span className="pbadge" style={{ position: 'static', alignSelf: 'flex-start', marginBottom: 14 }}>
+                {lang === 'es' ? 'Más popular · Máximo ahorro' : 'Most Popular · Max Savings'}
+              </span>
+              <div className="pn">{lang === 'es' ? 'Wappy Pro Anual' : 'Wappy Pro Annual'}</div>
+              <div className="pp">$1.200.000<span>{lang === 'es' ? ' COP /año' : ' COP/yr'}</span></div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--lime)', marginTop: 1, marginBottom: 4 }}>
+                {lang === 'es' ? '🌟 Solo $100.000 COP/mes (Ahorras $171.960/año)' : '🌟 Only $100,000 COP/mo (Save $171,960/yr)'}
+              </div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginBottom: 4 }}>
+                {lang === 'es' ? 'La elección preferida por empresas: máxima economía y continuidad SG-SST' : 'Preferred by businesses: maximum savings and continuous OHS compliance'}
+              </div>
+              <div className="ptrial">
+                <span style={{ width: 6, height: 6, borderRadius: 9999, background: 'var(--lime)', display: 'inline-block' }}></span>
+                {lang === 'es' ? 'Prueba gratis de 7 días' : '7-day free trial'}
+              </div>
+              <ul>
+                <li>
+                  <span className="pck">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  <strong>{lang === 'es' ? 'Todo lo del ecosistema Wappy Pro con tarifa preferencial' : 'Full Wappy Pro ecosystem at frozen best rate'}</strong>
+                </li>
+                <li>
+                  <span className="pck">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  {lang === 'es' ? 'Paga solo $100.000 COP/mes con facturación anual única' : 'Pay only $100,000 COP/mo with single annual billing'}
+                </li>
+                <li>
+                  <span className="pck">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  {lang === 'es' ? 'Somos SST integral: 30+ aplicativos en los 8 hitos normativos' : 'Complete Somos SST: 30+ apps in all 8 milestones'}
+                </li>
+                <li>
+                  <span className="pck">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  {lang === 'es' ? '+20 Agentes IA autónomos y orquestador Tenshi 24/7' : '20+ autonomous AI agents & Tenshi orchestrator 24/7'}
+                </li>
+                <li>
+                  <span className="pck">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  {lang === 'es' ? 'Visión IA MediaPipe para evaluación ergonómica de puestos' : 'MediaPipe AI vision for ergonomic workstation audits'}
+                </li>
+                <li>
+                  <span className="pck">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  {lang === 'es' ? 'Creación de Agentes de IA propios a la medida de tu empresa' : 'Custom tailored AI agents for your business'}
+                </li>
+                <li>
+                  <span className="pck">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  {lang === 'es' ? 'Acompañamiento prioritario en migración de matrices y datos' : 'Priority assistance with data & matrix migrations'}
+                </li>
+              </ul>
+              <button className="btn btn-lime btn-sm" style={{ marginTop: 'auto', justifyContent: 'center' }} onClick={() => navigate('/planes')}>
+                {lang === 'es' ? 'Elegir Wappy Pro Anual' : 'Choose Wappy Pro Annual'}
               </button>
             </div>
           </div>
@@ -2512,7 +2511,7 @@ export default function LandingPage() {
               </div>
               <div style={{ fontSize: 13, color: 'var(--ink2)', marginTop: 4 }}>
                 {lang === 'es'
-                  ? 'Plan Empresas & Corporativo: Dominio propio, marca blanca con logos propios, usuarios ilimitados, agentes IA a la medida y 200 GB de almacenamiento.'
+                  ? 'Plan Empresas & Corporativo: Dominio propio, marca blanca con logos institucionales, usuarios ilimitados, agentes IA a la medida y 200 GB de almacenamiento.'
                   : 'Enterprise Plan: Custom domain, white-label branding, unlimited users, custom AI agents, and 200 GB storage.'}
               </div>
             </div>
@@ -2533,6 +2532,115 @@ export default function LandingPage() {
             >
               {lang === 'es' ? 'Ver tabla comparativa detallada →' : 'See detailed comparison table →'}
             </button>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ: Preguntas Frecuentes con Protección de Datos & Propiedad de la IA */}
+      <section id="faq" className="band" style={{ paddingTop: 0 }}>
+        <div className="wrap">
+          <div className="sec-head">
+            <span className="eyebrow">
+              <span className="dot"></span>
+              FAQ
+            </span>
+            <h2 className="display">{lang === 'es' ? 'Preguntas Frecuentes' : 'Frequently Asked Questions'}</h2>
+          </div>
+
+          <div className="faq">
+            {/* FAQ 0 */}
+            <div className={`qa ${openFaq === 0 ? 'open' : ''}`}>
+              <button onClick={() => setOpenFaq(openFaq === 0 ? null : 0)} aria-expanded={openFaq === 0}>
+                {lang === 'es' ? '¿WAPPY cumple estrictamente con la legislación colombiana?' : 'Does WAPPY fully comply with Colombian regulations?'}
+                <span className="q-ico">+</span>
+              </button>
+              <div className="a">
+                <p>
+                  {lang === 'es'
+                    ? 'Totalmente. WAPPY está programado y auditado con base en la Resolución 0312 de 2019 (Estándares Mínimos), Decreto 1072 de 2015 (SG-SST), Guía Técnica Colombiana GTC 45, Decreto 1496 de 2018 (Sistema Globalmente Armonizado SGA), Resolución 2013 de 1986 (COPASST), Resolución 652 de 2012 y Ley 2365 de 2024 (Convivencia Laboral).'
+                    : 'Yes. WAPPY is modeled strictly on Colombian regulations: Decree 1072 of 2015, Res. 0312 of 2019, GTC 45 hazard guide, Decree 1496 (SGA), Res. 2013 of 1986 (COPASST), and Law 2365 of 2024 (Labor Harassment).'}
+                </p>
+              </div>
+            </div>
+
+            {/* FAQ 1 */}
+            <div className={`qa ${openFaq === 1 ? 'open' : ''}`}>
+              <button onClick={() => setOpenFaq(openFaq === 1 ? null : 1)} aria-expanded={openFaq === 1}>
+                {lang === 'es' ? '¿Qué es Tenshi IA y cómo se diferencia de un ChatGPT genérico?' : 'What is Tenshi AI and how is it different from general ChatGPT?'}
+                <span className="q-ico">+</span>
+              </button>
+              <div className="a">
+                <p>
+                  {lang === 'es'
+                    ? 'Tenshi no es un chatbot genérico desconectado: es un orquestador inteligente autónomo. Coordina y delega consultas hacia más de 20 agentes especialistas en SST (fisioterapeutas, médicos laborales, abogados y químicos), diligencia formularios técnicos en pantalla mediante control de interfaz (Page Controller) y te asiste por voz con citas normativas exactas a la ley colombiana.'
+                    : 'Tenshi is an autonomous orchestrator connected to your safety database. It delegates queries to 20+ specialized OHS agents, fills forms on screen via Page Controller, and assists by voice citing exact statutory standards.'}
+                </p>
+              </div>
+            </div>
+
+            {/* FAQ 2 */}
+            <div className={`qa ${openFaq === 2 ? 'open' : ''}`}>
+              <button onClick={() => setOpenFaq(openFaq === 2 ? null : 2)} aria-expanded={openFaq === 2}>
+                {lang === 'es' ? '¿Puedo exportar actas, matrices y reportes a Excel, Word o PDF?' : 'Can I export matrices and minutes to Excel, Word, or PDF?'}
+                <span className="q-ico">+</span>
+              </button>
+              <div className="a">
+                <p>
+                  {lang === 'es'
+                    ? 'Sí. Todos los documentos generados en WAPPY (actas de comités, matriz de riesgos GTC 45, matriz de compatibilidad química SGA, diagnósticos de estándares mínimos y carnets de capacitación) pueden exportarse en formatos editables de Excel y Word o descargarse en PDF membretados listos para auditorías.'
+                    : 'Yes. All generated records (committee minutes, GTC 45 risk matrix, chemical SGA matrix, and training certificates) export with one click to editable Excel/Word and signed PDF files.'}
+                </p>
+              </div>
+            </div>
+
+            {/* FAQ 3 */}
+            <div className={`qa ${openFaq === 3 ? 'open' : ''}`}>
+              <button onClick={() => setOpenFaq(openFaq === 3 ? null : 3)} aria-expanded={openFaq === 3}>
+                {lang === 'es' ? '¿Cómo acceden los colaboradores desde su celular sin contraseñas?' : 'How do workers access mobile tools without passwords?'}
+                <span className="q-ico">+</span>
+              </button>
+              <div className="a">
+                <p>
+                  {lang === 'es'
+                    ? 'Mediante el portal móvil PWA y código QR oficial de la empresa. Los colaboradores escanean el QR desde su celular, validan su cédula y pueden autogestionar su perfil sociodemográfico, participar en votaciones secretas de comités, firmar actas digitalmente y reportar condiciones inseguras con foto al instante.'
+                    : 'Through the PWA mobile portal and company QR code. Workers scan the QR, verify with their national ID, and can update their demographic profiles, cast secret committee votes, sign minutes, and report hazards with photos instantly.'}
+                </p>
+              </div>
+            </div>
+
+            {/* FAQ 4: Protección y Tratamiento de Datos (Ley 1581 / Habeas Data) */}
+            <div className={`qa ${openFaq === 4 ? 'open' : ''}`}>
+              <button onClick={() => setOpenFaq(openFaq === 4 ? null : 4)} aria-expanded={openFaq === 4}>
+                {lang === 'es'
+                  ? '¿Cómo se protegen los datos y cómo es el tratamiento de la información de mi empresa?'
+                  : 'How is company data protected and processed?'}
+                <span className="q-ico">+</span>
+              </button>
+              <div className="a">
+                <p>
+                  {lang === 'es'
+                    ? 'Cumplimos estrictamente con la Ley 1581 de 2012 (Régimen General de Protección de Datos Personales en Colombia) y el Decreto 1377 de 2013. Toda la información de tu organización y colaboradores viaja cifrada en tránsito (TLS/HTTPS) y se resguarda cifrada en reposo (AES-256) bajo aislamiento multi-inquilino. WAPPY LTDA jamás vende, comercializa ni comparte la información de tu empresa con terceros, y tus datos empresariales NUNCA se utilizan para entrenar modelos públicos de inteligencia artificial.'
+                    : 'We strictly comply with Colombia’s Statutory Data Protection Law (Ley 1581 de 2012) and Decree 1377 of 2013. All corporate and worker records are encrypted in transit (TLS/HTTPS) and at rest (AES-256) with strict multi-tenant isolation. WAPPY LTDA never sells or shares your records with third parties, and your proprietary data is NEVER used to train public AI models.'}
+                </p>
+              </div>
+            </div>
+
+            {/* FAQ 5: Propiedad de la IA y de los Datos */}
+            <div className={`qa ${openFaq === 5 ? 'open' : ''}`}>
+              <button onClick={() => setOpenFaq(openFaq === 5 ? null : 5)} aria-expanded={openFaq === 5}>
+                {lang === 'es'
+                  ? '¿Quién es el dueño de la IA, de los datos ingresados y de los reportes generados?'
+                  : 'Who owns the AI, the input data, and generated reports?'}
+                <span className="q-ico">+</span>
+              </button>
+              <div className="a">
+                <p>
+                  {lang === 'es'
+                    ? 'Tu empresa es la única y absoluta dueña de sus datos: todas las bases de datos cargadas, información de trabajadores, matrices de riesgos, actas de comités y diagnósticos generados pertenecen exclusivamente a tu organización. WAPPY LTDA (NIT 901437310-3, Medellín, Colombia) es la titular y propietaria del software, algoritmos y agentes de inteligencia artificial, otorgando a tu empresa una licencia de uso corporativa para operar y liderar su SG-SST con total autonomía.'
+                    : 'Your organization is the sole and exclusive owner of its data: all uploaded records, worker information, hazard matrices, committee minutes, and reports belong entirely to your company. WAPPY LTDA (NIT 901437310-3, Medellín, Colombia) owns the software architecture and AI agent platform, granting your company a corporate subscription license to run your OHS management system with complete autonomy.'}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -2565,7 +2673,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* Footer: 4 Columnas Temáticas Estructuradas con WAPPY LTDA */}
       <footer>
         <div className="fcloud" style={{ top: 40, left: -50, width: 280, height: 110 }}></div>
         <div className="fcloud" style={{ top: 120, right: -40, width: 240, height: 100 }}></div>
@@ -2612,33 +2720,42 @@ export default function LandingPage() {
             </div>
 
             <div className="foot-cols">
+              {/* Columna 1: Plataforma Somos SST */}
               <div className="foot-col">
-                <h4>{lang === 'es' ? 'Módulos' : 'Modules'}</h4>
-                <a href="#tenshi">{lang === 'es' ? 'Tenshi IA' : 'Tenshi AI'}</a>
-                <a href="#modulos">COPASST & Convivencia</a>
-                <a href="#matrices">Matrices & Riesgos</a>
-                <a href="#modulos">{lang === 'es' ? 'Matriz GTC 45' : 'GTC 45 Matrix'}</a>
-                <a href="#modulos">{lang === 'es' ? 'Química SGA' : 'Chemical SGA'}</a>
+                <h4>{lang === 'es' ? 'Plataforma Somos SST' : 'Somos SST Platform'}</h4>
+                <a href="#modulos">{lang === 'es' ? '8 Hitos del SG-SST' : '8 OHS Milestones'}</a>
+                <a href="#matrices">{lang === 'es' ? 'Matriz IPEVR (GTC 45)' : 'IPEVR Risk Matrix'}</a>
+                <a href="#matrices">{lang === 'es' ? 'Bio-IPEVR Dinámica' : 'Dynamic Bio-IPEVR'}</a>
+                <a href="#modulos">{lang === 'es' ? 'Comités COPASST & CCL' : 'COPASST & Harassment'}</a>
+                <a href="#modulos">{lang === 'es' ? 'Química SGA (Dec. 1496)' : 'SGA Chemical Matrix'}</a>
               </div>
+
+              {/* Columna 2: Inteligencia Artificial */}
               <div className="foot-col">
-                <h4>{lang === 'es' ? 'Soluciones' : 'Solutions'}</h4>
-                <a href="#pricing">{lang === 'es' ? 'Para Consultores' : 'For Consultants'}</a>
-                <a href="#pricing">{lang === 'es' ? 'Para Empresas' : 'For Enterprises'}</a>
-                <a href="#pricing">{lang === 'es' ? 'Para ARLs y Grupos' : 'For ARLs'}</a>
-                <a href="/blog">{lang === 'es' ? 'Blog Normativo' : 'Blog'}</a>
+                <h4>{lang === 'es' ? 'Inteligencia Artificial' : 'Artificial Intelligence'}</h4>
+                <a href="#tenshi">{lang === 'es' ? 'Tenshi IA Orquestador' : 'Tenshi AI Orchestrator'}</a>
+                <a href="#tenshi">{lang === 'es' ? '+20 Agentes Especialistas' : '+20 Specialist Agents'}</a>
+                <a href="#movil">{lang === 'es' ? 'Fisioterapeuta (MediaPipe)' : 'AI Physio (MediaPipe)'}</a>
+                <a href="#tenshi">{lang === 'es' ? 'Actos Predictivos ATEL' : 'Predictive ATEL Incidents'}</a>
+                <a href="#movil">{lang === 'es' ? 'Portal Móvil PWA & QR' : 'PWA Mobile & QR'}</a>
               </div>
+
+              {/* Columna 3: Recursos & Planes */}
               <div className="foot-col">
-                <h4>{lang === 'es' ? 'Recursos' : 'Resources'}</h4>
-                <a href="#faq">{lang === 'es' ? 'Centro de Ayuda' : 'Help Center'}</a>
-                <a href="#modulos">{lang === 'es' ? 'Academia LMS' : 'LMS Academy'}</a>
-                <a href="/c/new">{lang === 'es' ? 'Plataforma Web' : 'Web App'}</a>
-                <a href="#pricing">{lang === 'es' ? 'Precios' : 'Pricing'}</a>
+                <h4>{lang === 'es' ? 'Recursos & Planes' : 'Resources & Pricing'}</h4>
+                <a href="#pricing">{lang === 'es' ? 'Planes Wappy Pro' : 'Wappy Pro Plans'}</a>
+                <a href="#faq">{lang === 'es' ? 'Preguntas Frecuentes' : 'Help & FAQ'}</a>
+                <a href="/blog">{lang === 'es' ? 'Blog de Seguridad SST' : 'OHS Safety Blog'}</a>
+                <a href="/c/new">{lang === 'es' ? 'Acceso a la Plataforma' : 'Platform Access'}</a>
               </div>
+
+              {/* Columna 4: Legal & Empresa */}
               <div className="foot-col">
-                <h4>Legal</h4>
-                <a href="/terms">{lang === 'es' ? 'Términos del Servicio' : 'Terms'}</a>
-                <a href="/privacy-policy">{lang === 'es' ? 'Política de Privacidad' : 'Privacy'}</a>
-                <a href="/cookies">Cookies</a>
+                <h4>{lang === 'es' ? 'Legal & Empresa' : 'Legal & Compliance'}</h4>
+                <a href="/terms">{lang === 'es' ? 'Términos del Servicio' : 'Terms of Service'}</a>
+                <a href="/privacy-policy">{lang === 'es' ? 'Política de Privacidad' : 'Privacy Policy'}</a>
+                <a href="/privacy-policy">{lang === 'es' ? 'Tratamiento de Datos (Ley 1581)' : 'Data Protection (Ley 1581)'}</a>
+                <a href="/about">{lang === 'es' ? 'Acerca de WAPPY LTDA' : 'About WAPPY LTDA'}</a>
               </div>
             </div>
           </div>
@@ -2646,7 +2763,7 @@ export default function LandingPage() {
           <div className="foot-word">WAPPY</div>
 
           <div className="foot-bottom">
-            <span>© 2026 Wappy. {lang === 'es' ? 'Todos los derechos reservados. Desarrollado en Colombia.' : 'All rights reserved. Developed in Colombia.'}</span>
+            <span>© 2026 WAPPY LTDA · NIT 901437310-3 · Medellín, Colombia. {lang === 'es' ? 'Todos los derechos reservados.' : 'All rights reserved.'}</span>
             <div className="foot-legal">
               <a href="/terms">{lang === 'es' ? 'Términos' : 'Terms'}</a>
               <a href="/privacy-policy">{lang === 'es' ? 'Privacidad' : 'Privacy'}</a>
@@ -2760,9 +2877,9 @@ export default function LandingPage() {
               <thead>
                 <tr>
                   <th>{lang === 'es' ? 'Módulo / Capacidad' : 'Module / Feature'}</th>
-                  <th>Plan Plus<br /><span>$57.800/mes</span></th>
-                  <th className="hl">Wappy Pro<br /><span>$114.330/mes</span></th>
-                  <th>Wappy Vital<br /><span>$150.000 (Único)</span></th>
+                  <th>Wappy Pro Mensual<br /><span>$114.330/mes</span></th>
+                  <th>Wappy Pro Semestral<br /><span>$106.993/mes</span></th>
+                  <th className="hl">Wappy Pro Anual<br /><span>$100.000/mes · Ahorro</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -2772,20 +2889,20 @@ export default function LandingPage() {
                 <tr>
                   <td>{lang === 'es' ? 'COPASST (Votación QR & Actas)' : 'COPASST (QR & Minutes)'}</td>
                   <td><span className="cy">✓</span></td>
-                  <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
                 </tr>
                 <tr>
                   <td>{lang === 'es' ? 'Comité de Convivencia Laboral (COCOLAB)' : 'Harassment Committee'}</td>
-                  <td><span className="cn">–</span></td>
-                  <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
+                  <td><span className="cy">✓</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
                 </tr>
                 <tr>
                   <td>{lang === 'es' ? 'Brigada de Emergencias y simulacros' : 'Emergency Brigade'}</td>
-                  <td><span className="cn">–</span></td>
-                  <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
+                  <td><span className="cy">✓</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
                 </tr>
 
                 <tr className="grp">
@@ -2794,26 +2911,26 @@ export default function LandingPage() {
                 <tr>
                   <td>{lang === 'es' ? 'Matriz de Riesgos GTC 45 (IPEVAR)' : 'GTC 45 Risk Matrix'}</td>
                   <td><span className="cy">✓</span></td>
-                  <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
                 </tr>
                 <tr>
                   <td>{lang === 'es' ? 'Matriz Legal SST (Dec. 1072)' : 'Legal OHS Matrix'}</td>
-                  <td><span className="cn">–</span></td>
-                  <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
+                  <td><span className="cy">✓</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
                 </tr>
                 <tr>
                   <td>{lang === 'es' ? 'Matriz Química SGA (Decreto 1496)' : 'Chemical SGA Matrix'}</td>
-                  <td><span className="cn">–</span></td>
-                  <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
+                  <td><span className="cy">✓</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
                 </tr>
                 <tr>
                   <td>{lang === 'es' ? 'Autoevaluación Ergonómica Postural EPT' : 'Ergonomics EPT'}</td>
-                  <td><span className="cn">–</span></td>
-                  <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
+                  <td><span className="cy">✓</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
                 </tr>
 
                 <tr className="grp">
@@ -2822,42 +2939,54 @@ export default function LandingPage() {
                 <tr>
                   <td>{lang === 'es' ? 'Consultas legales normativas' : 'Regulatory legal inquiries'}</td>
                   <td><span className="cy">✓</span></td>
-                  <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
                 </tr>
                 <tr>
                   <td>{lang === 'es' ? 'Análisis Biomecánico en Vivo con Visión IA' : 'Live Biomechanical Analysis'}</td>
-                  <td><span className="cn">–</span></td>
-                  <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
+                  <td><span className="cy">✓</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
                 </tr>
                 <tr>
                   <td>{lang === 'es' ? 'Control de Interfaz y Diligenciamiento en Pantalla' : 'Page Controller Automation'}</td>
-                  <td><span className="cn">–</span></td>
+                  <td><span className="cy">✓</span></td>
+                  <td><span className="cy">✓</span></td>
                   <td className="hl"><span className="cy">✓</span></td>
-                  <td><span className="cn">–</span></td>
                 </tr>
 
                 <tr className="grp">
-                  <td colSpan={4}>Canales & Formación</td>
+                  <td colSpan={4}>Canales, Formación & Beneficios</td>
                 </tr>
                 <tr>
                   <td>{lang === 'es' ? 'Portal Móvil PWA con Código QR' : 'PWA Mobile QR Portal'}</td>
                   <td><span className="cy">✓</span></td>
-                  <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
                 </tr>
                 <tr>
                   <td>{lang === 'es' ? 'Academia LMS y certificados interactivos' : 'LMS Academy & interactive certs'}</td>
                   <td><span className="cy">✓</span></td>
-                  <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Creación de Agentes de IA propios' : 'Custom AI Agent Builder'}</td>
-                  <td><span className="cn">–</span></td>
+                  <td>{lang === 'es' ? 'Creación de Agentes de IA propios (+20 incluidos)' : 'Custom AI Agent Builder (+20 included)'}</td>
+                  <td><span className="cy">✓</span></td>
+                  <td><span className="cy">✓</span></td>
                   <td className="hl"><span className="cy">✓</span></td>
-                  <td><span className="cn">–</span></td>
+                </tr>
+                <tr>
+                  <td>{lang === 'es' ? 'Acompañamiento en Parametrización e Inducción' : 'Onboarding & Setup'}</td>
+                  <td style={{ fontSize: 12 }}>{lang === 'es' ? 'Autoguiado' : 'Self-guided'}</td>
+                  <td style={{ fontSize: 12 }}>{lang === 'es' ? 'Asistido' : 'Assisted'}</td>
+                  <td className="hl" style={{ fontSize: 12, fontWeight: 700 }}>{lang === 'es' ? 'Sesión VIP 1 a 1' : '1-on-1 VIP Session'}</td>
+                </tr>
+                <tr>
+                  <td>{lang === 'es' ? 'Nivel de Soporte Técnico' : 'Support Level'}</td>
+                  <td style={{ fontSize: 12 }}>{lang === 'es' ? 'Plataforma & Tickets' : 'Platform & Tickets'}</td>
+                  <td style={{ fontSize: 12 }}>{lang === 'es' ? 'WhatsApp Preferente' : 'Priority WhatsApp'}</td>
+                  <td className="hl" style={{ fontSize: 12, fontWeight: 700 }}>{lang === 'es' ? 'VIP Prioritario 24/7' : 'VIP 24/7 Priority'}</td>
                 </tr>
               </tbody>
             </table>
