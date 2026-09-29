@@ -48,7 +48,7 @@ export default function LandingPage() {
     if (isAuthenticated) {
       navigate('/c/new');
     } else {
-      navigate('/signup');
+      navigate('/register');
     }
   };
 
@@ -112,11 +112,11 @@ export default function LandingPage() {
           <a
             className="mkt-nav-logo"
             aria-label="WAPPY IA - Ecosistema SG-SST Inteligente"
-            href="/landing"
+            href="/"
             onClick={(e) => {
               e.preventDefault();
               window.scrollTo({ top: 0, behavior: 'smooth' });
-              try { window.history.pushState(null, '', '/landing'); } catch (err) {}
+              try { window.history.pushState(null, '', '/'); } catch (err) {}
             }}
           >
             <img src="/marketing/wappy-cat-logo.png" alt="WAPPY Logo" className="mkt-logo-icon" />

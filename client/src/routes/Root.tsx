@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 import type { ContextType } from '~/common';
 import {
   useSearchEnabled,
@@ -137,7 +137,7 @@ export default function Root() {
   };
 
   const isPublicRoute = (pathname: string) => {
-    const publicPaths = ['/landing', '/inicio', '/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/comunidadmp', '/wappyvital', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html'];
+    const publicPaths = ['/', '', '/landing', '/inicio', '/planes', '/contactanos', '/privacy', '/terms', '/about', '/register', '/login', '/comunidad', '/comunidadmp', '/wappyvital', '/portafolio', '/portafolio.html', '/embajadores', '/embajadores.html', '/mauricioposada', '/mauricioposada.html'];
     if (publicPaths.includes(pathname)) {
       return true;
     }
@@ -160,7 +160,7 @@ export default function Root() {
         </div>
       );
     }
-    return null;
+    return <Navigate to="/login" replace />;
   }
 
   if (user?.accountStatus === 'inactive') {

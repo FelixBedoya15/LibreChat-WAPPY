@@ -12,7 +12,7 @@ import {
 } from '~/components/Auth';
 import { MarketplaceProvider } from '~/components/Agents/MarketplaceContext';
 import { OAuthSuccess, OAuthError } from '~/components/OAuth';
-import { AuthContextProvider } from '~/hooks/AuthContext';
+import { AuthContextProvider, useAuthContext } from '~/hooks/AuthContext';
 import RouteErrorBoundary from './RouteErrorBoundary';
 import StartupLayout from './Layouts/Startup';
 import LoginLayout from './Layouts/Login';
@@ -96,7 +96,11 @@ const MauricioPosadaRedirect = () => {
 };
 
 const RootIndexRedirect = () => {
+  const { isAuthenticated } = useAuthContext();
   const location = useLocation();
+  if (!isAuthenticated) {
+    return <Navigate to={{ pathname: '/landing', search: location.search }} replace={true} />;
+  }
   return <Navigate to={{ pathname: '/c/new', search: location.search }} replace={true} />;
 };
 
@@ -221,6 +225,10 @@ export const router = createBrowserRouter(
         {
           path: 'register',
           element: <Registration />,
+        },
+        {
+          path: 'signup',
+          element: <Navigate to="/register" replace />,
         },
         {
           path: 'forgot-password',
