@@ -20,8 +20,11 @@ export default function LandingPage() {
   // Form states for Demo Modal
   const [demoName, setDemoName] = useState('');
   const [demoEmail, setDemoEmail] = useState('');
+  const [demoPhone, setDemoPhone] = useState('');
   const [demoCompany, setDemoCompany] = useState('');
-  const [demoTeamSize, setDemoTeamSize] = useState('1–25 trabajadores');
+  const [demoArl, setDemoArl] = useState('');
+  const [demoArlCustom, setDemoArlCustom] = useState('');
+  const [demoTeamSize, setDemoTeamSize] = useState('1–10 trabajadores');
   const [isSubmittingDemo, setIsSubmittingDemo] = useState(false);
 
   useEffect(() => {
@@ -77,15 +80,21 @@ export default function LandingPage() {
     e.preventDefault();
     setIsSubmittingDemo(true);
     try {
+      const selectedArl = demoArl === 'Otra' && demoArlCustom.trim()
+        ? `Otra (${demoArlCustom.trim()})`
+        : (demoArl || 'No especificada');
+
       await fetch('/api/contact/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: demoName,
           email: demoEmail,
+          phone: demoPhone,
           company: demoCompany || 'No especificada',
+          arl: selectedArl,
           plan: 'Solicitud Demo Personalizada WAPPY',
-          message: `Solicitud de Demostración en vivo desde la Landing Page.\nEmpresa: ${demoCompany || 'No especificada'}\nTamaño de la empresa: ${demoTeamSize}\nFecha: ${new Date().toLocaleString('es-CO')}`,
+          message: `Solicitud de Demostración en vivo desde la Landing Page.\nEmpresa: ${demoCompany || 'No especificada'}\nARL: ${selectedArl}\nTeléfono/WhatsApp: ${demoPhone || 'No proporcionado'}\nTamaño de la empresa: ${demoTeamSize}\nFecha: ${new Date().toLocaleString('es-CO')}`,
         }),
       });
 
@@ -97,7 +106,10 @@ export default function LandingPage() {
       );
       setDemoName('');
       setDemoEmail('');
+      setDemoPhone('');
       setDemoCompany('');
+      setDemoArl('');
+      setDemoArlCustom('');
     } catch (err) {
       console.error('Error submitting demo lead:', err);
       setIsDemoModalOpen(false);
@@ -2855,6 +2867,24 @@ export default function LandingPage() {
                 Sedes · Empresas & Sedes
               </span>
             </div>
+
+            {/* 24. Consultar Especialista SST */}
+            <div className="i">
+              <span className="g" style={{ background: '#EDE9FE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Consultar Especialista
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#7C3AED', background: '#EDE9FE', padding: '2px 6px', borderRadius: 9999 }}>
+                Multi-Agente · +20 Roles
+              </span>
+            </div>
           </div>
         </div>
       </section>
@@ -3523,11 +3553,56 @@ export default function LandingPage() {
             />
             <input
               className="fld"
+              type="tel"
+              placeholder={lang === 'es' ? 'Número de contacto / WhatsApp' : 'Phone / WhatsApp'}
+              required
+              value={demoPhone}
+              onChange={(e) => setDemoPhone(e.target.value)}
+            />
+            <input
+              className="fld"
               type="text"
               placeholder={lang === 'es' ? 'Empresa u Organización' : 'Company or Organization'}
+              required
               value={demoCompany}
               onChange={(e) => setDemoCompany(e.target.value)}
             />
+            <select
+              className="fld"
+              required
+              value={demoArl}
+              onChange={(e) => setDemoArl(e.target.value)}
+            >
+              <option value="" disabled>
+                {lang === 'es' ? 'Selecciona la ARL de tu empresa' : 'Select company ARL / Insurance'}
+              </option>
+              <option value="Positiva">ARL Positiva Compañía de Seguros</option>
+              <option value="SURA">ARL SURA (Suramericana)</option>
+              <option value="Seguros Bolívar">ARL Seguros Bolívar</option>
+              <option value="Colmena Seguros">ARL Colmena Seguros</option>
+              <option value="AXA Colpatria">ARL AXA Colpatria</option>
+              <option value="Seguros del Estado">ARL Seguros del Estado</option>
+              <option value="La Equidad Seguros">ARL La Equidad Seguros</option>
+              <option value="Mapfre">ARL Mapfre</option>
+              <option value="Aurora">ARL Aurora</option>
+              <option value="Alfa">ARL Alfa</option>
+              <option value="Otra">
+                {lang === 'es' ? 'Otra ARL / Asesor Independiente' : 'Other ARL / Independent'}
+              </option>
+              <option value="Sin ARL">
+                {lang === 'es' ? 'Aún sin ARL / En trámite' : 'No ARL yet / In progress'}
+              </option>
+            </select>
+            {demoArl === 'Otra' && (
+              <input
+                className="fld"
+                type="text"
+                placeholder={lang === 'es' ? '¿Cuál es tu ARL?' : 'Which ARL?'}
+                required
+                value={demoArlCustom}
+                onChange={(e) => setDemoArlCustom(e.target.value)}
+              />
+            )}
             <select
               className="fld"
               value={demoTeamSize}

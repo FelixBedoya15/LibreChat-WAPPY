@@ -317,9 +317,9 @@ body,
 .mkt-modal {
   background: #fff;
   border-radius: 24px;
-  width: 440px;
+  width: 460px;
   max-width: 100%;
-  padding: 32px;
+  padding: 28px 28px 24px;
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
   transform: scale(0.94) translateY(10px);
@@ -360,16 +360,16 @@ body,
 .mkt-modal .fld {
   box-sizing: border-box;
   width: 100%;
-  height: 48px;
+  height: 44px;
   font-family: var(--ui);
   color: #0e1300;
   background: #f6f7f9;
   border: 1px solid #e7eaee;
   border-radius: 13px;
   outline: none;
-  margin-bottom: 10px;
-  padding: 0 15px;
-  font-size: 15px;
+  margin-bottom: 9px;
+  padding: 0 14px;
+  font-size: 14px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 

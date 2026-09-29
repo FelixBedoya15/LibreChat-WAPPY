@@ -11,7 +11,7 @@ const { logger } = require('@librechat/data-schemas');
  */
 router.post('/request', async (req, res) => {
     try {
-        const { name, email, phone, company, plan, message } = req.body;
+        const { name, email, phone, company, plan, message, arl } = req.body;
 
         if (!name || !email || !plan) {
             return res.status(400).json({ message: 'Nombre, email y plan son requeridos.' });
@@ -25,22 +25,22 @@ router.post('/request', async (req, res) => {
         // 1. Create a Ticket record for the admin to manage
         const planName = plan === 'riesgos' ? 'Plan Intermediación Riesgos Laborales' : 
                          plan === 'empresas' ? 'Plan Empresas' : 
-                         'Plan Asesores Independientes SST';
+                         plan === 'asesores' ? 'Plan Asesores Independientes SST' : (plan || 'Solicitud Comercial WAPPY');
                          
         const ticket = await Ticket.create({
             name,
             email,
-            phone,
+            phone: phone || 'No especificado',
             type: 'Solicitud Empresarial',
-            description: `EMPRESA: ${company || 'N/A'}\nPLAN: ${planName}\nMENSAJE: ${message}`,
+            description: `EMPRESA: ${company || 'N/A'}\nARL: ${arl || 'No especificada'}\nPLAN: ${planName}\nMENSAJE: ${message}`,
             status: 'pending',
         });
 
         // 2. Notify all admins in-app
         const admins = await User.find({ role: 'ADMIN' }).select('_id email').lean();
         
-        const titleNotif = 'Nueva Solicitud de Plan Empresarial';
-        const bodyNotif = `${name} (${company || 'Persona Natural'}) ha solicitado información sobre el ${plan}.`;
+        const titleNotif = 'Nueva Solicitud de Plan Empresarial / Demo WAPPY';
+        const bodyNotif = `${name} (${company || 'Persona Natural'} - ARL: ${arl || 'N/A'}) ha solicitado información sobre ${planName}. Tel: ${phone || 'N/A'}`;
 
         const notificationDocs = admins.map(a => ({
             user: a._id,
@@ -60,9 +60,8 @@ router.post('/request', async (req, res) => {
             email,
             phone: phone || 'No proporcionado',
             company: company || 'No proporcionado',
-            plan: plan === 'riesgos' ? 'Plan Intermediación Riesgos Laborales' : 
-                  plan === 'empresas' ? 'Plan Empresas' : 
-                  'Plan Asesores Independientes SST',
+            arl: arl || 'No proporcionada',
+            plan: planName,
             message: message || 'Sin comentarios adicionales',
             date: dateStr,
         };

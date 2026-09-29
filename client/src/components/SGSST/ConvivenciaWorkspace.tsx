@@ -555,6 +555,7 @@ export default function ConvivenciaWorkspace() {
         {
           trimestre: actaForm.trimestre,
           anio: actaForm.anio,
+          desarrolloActual: actaForm.desarrollo,
         },
         { headers }
       );
@@ -574,7 +575,7 @@ export default function ConvivenciaWorkspace() {
             })),
           ],
         }));
-        showToast({ message: '¡Acta trimestral redactada con rigor por Tenshi IA!', status: 'success' });
+        showToast({ message: '¡Los 7 puntos del acta trimestral fueron redactados y ampliados por Tenshi IA!', status: 'success' });
       }
     } catch (err) {
       showToast({ message: 'Error al generar acta con IA', status: 'error' });
@@ -1648,7 +1649,9 @@ export default function ConvivenciaWorkspace() {
                 {reportLoading ? (
                   <div className="flex flex-col items-center justify-center p-16 space-y-3">
                     <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
-                    <p className="text-xs text-slate-500 font-bold">Generando documento oficial confidencial con firmas...</p>
+                    <p className="text-xs text-slate-600 dark:text-zinc-300 font-bold">
+                      Tenshi IA está redactando, complementando y estructurando el Informe Oficial confidencial con firmas...
+                    </p>
                   </div>
                 ) : (
                   <div className="w-full bg-slate-100 dark:bg-zinc-950 p-2 sm:p-4 rounded-3xl overflow-y-auto max-h-[70vh]">
@@ -2261,10 +2264,11 @@ export default function ConvivenciaWorkspace() {
                   <div className="flex items-center gap-2">
                     <ExpandingButton
                       onClick={() => handleOpenOfficialReport(selectedActa?._id || 'preview', false)}
-                      label="Generar / Ver Informe Oficial"
+                      isLoading={reportLoading}
+                      label={reportLoading ? 'Complementando con IA...' : 'Generar / Ver Informe Oficial'}
                       icon={Printer}
                       variant="outline-teal"
-                      title="Previsualizar y exportar en papel membretado con firmas"
+                      title="Complementar con Tenshi IA y exportar en papel membretado con firmas"
                     />
                     <ExpandingButton
                       onClick={handleSaveActa}
