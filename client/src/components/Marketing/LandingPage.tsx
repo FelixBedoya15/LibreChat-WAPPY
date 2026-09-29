@@ -230,25 +230,50 @@ export default function LandingPage() {
               <line x1="50%" y1="38%" x2="50%" y2="68%" className="connector-line" />
             </svg>
 
-            {/* ⭐ CENTRO: METODOLOGÍA DEL BIOINDIVIDUO (Somos SST · Imagen 3) - ESTÁTICO ⭐ */}
-            <div className="float-center-bio" style={{ top: 230, left: '50%', transform: 'translate(-50%, -50%)', width: 285 }}>
+            {/* ⭐ CENTRO: EL COLABORADOR EN EL CORAZÓN DE LA ORGANIZACIÓN (Somos SST) - ESTÁTICO ⭐ */}
+            <div className="float-center-bio" style={{ top: 230, left: '50%', transform: 'translate(-50%, -50%)', width: 310 }}>
               <div className="fcb-eyebrow">
                 <span className="fcb-pulse-dot"></span>
-                Somos SST · Bioindividuo
+                {lang === 'es' ? 'Metodología del Bioindividuo' : 'Bioindividual Methodology'}
               </div>
-              <div className="fcb-score">
-                98.2% <span style={{ fontSize: 24, fontWeight: 800 }}>FIT</span>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '10px 0 6px' }}>
+                <div style={{ width: 42, height: 42, borderRadius: 12, background: '#DCFCE7', color: '#15803D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0, boxShadow: '0 4px 12px rgba(22,163,74,0.15)' }}>
+                  👤
+                </div>
+                <div>
+                  <div style={{ fontSize: 21, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+                    {lang === 'es' ? 'El Colaborador' : 'The Worker'}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>
+                    {lang === 'es' ? 'Núcleo de la Organización' : 'Core of the Organization'}
+                  </div>
+                </div>
               </div>
-              <div className="fcb-bars">
-                <span className="fcb-bar"></span>
-                <span className="fcb-bar"></span>
-                <span className="fcb-bar"></span>
+
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#15803D', padding: '3px 8px', borderRadius: 9999, fontSize: 10.5, fontWeight: 800, margin: '2px 0 6px' }}>
+                <span>⚡</span> {lang === 'es' ? 'Interconectado con +20 Agentes IA' : 'Connected to +20 AI Agents'}
               </div>
-              <div className="fcb-tag">
-                ENFOQUE BIOCÉNTRICO INTEGRAL
+
+              <div className="fcb-bars" style={{ marginTop: 8 }}>
+                <span className="fcb-bar" title="Salud"></span>
+                <span className="fcb-bar" title="Aptitud"></span>
+                <span className="fcb-bar" title="Bienestar"></span>
               </div>
-              <div className="fcb-sub">
-                Salud Integral, Aptitud Ocupacional & Bienestar
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, fontWeight: 800, color: '#15803D', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 4 }}>
+                <span>{lang === 'es' ? 'Salud' : 'Health'}</span>
+                <span>{lang === 'es' ? 'Aptitud' : 'Fitness'}</span>
+                <span>{lang === 'es' ? 'Bienestar' : 'Wellness'}</span>
+              </div>
+
+              <div className="fcb-tag" style={{ marginTop: 10 }}>
+                {lang === 'es' ? 'NÚCLEO DEL ECOSISTEMA PREVENTIVO' : 'CORE OF THE PREVENTIVE ECOSYSTEM'}
+              </div>
+              <div className="fcb-sub" style={{ fontSize: 11, lineHeight: 1.35 }}>
+                {lang === 'es'
+                  ? 'El ser humano en el centro: hacia donde convergen las 30+ aplicaciones, la gamificación y la analítica predictiva.'
+                  : 'The human at the center: where 30+ applications, gamification, and predictive AI converge.'}
               </div>
             </div>
 
@@ -286,7 +311,9 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="fcv2-body" style={{ background: '#C7F303', color: '#0E1300' }}>
-                Pronóstico estocástico de siniestralidad y radar de 9 dominios bioindividuales: anticipa picos de riesgo ergonómico y ausentismo antes de que ocurran con planes PAC automáticos.
+                {lang === 'es'
+                  ? 'Pronóstico estocástico de siniestralidad y radar de 9 dominios bioindividuales: anticipa picos de riesgo ergonómico, ausentismo y accidentalidad antes de que ocurran, generando planes preventivos coordinados con los agentes de IA.'
+                  : 'Stochastic incident forecasting and 9-domain bioindividual radar: anticipates ergonomic risks, absenteeism, and incidents before they happen with AI-coordinated preventive plans.'}
               </div>
             </div>
 
@@ -343,7 +370,9 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="fcv2-body" style={{ background: '#EFF6FF', color: '#1D4ED8' }}>
-                Plataforma con más de 30 aplicativos para el cumplimiento del SG-SST: diagnóstico, matrices IPEVAR, comités, inspecciones de campo, ATS, medicina laboral y reporte de incidentes.
+                {lang === 'es'
+                  ? 'Plataforma con más de 30 aplicativos para el SG-SST: diagnóstico, matrices IPEVAR, comités, inspecciones de campo, ATS, actos predictivos en ATEL y analítica en tiempo real. ¡Todo 100% interconectado con nuestros agentes de IA!'
+                  : 'Platform with 30+ applications for OHS: diagnostics, IPEVAR matrix, committees, inspections, JSA/ATS, predictive ATEL events, and real-time analytics. 100% interconnected with AI agents!'}
               </div>
             </div>
           </div>
@@ -380,13 +409,13 @@ export default function LandingPage() {
                 </div>
                 <div className="display" style={{ fontSize: 26, marginTop: 4, lineHeight: 1.15, fontWeight: 700 }}>
                   {lang === 'es'
-                    ? 'Dictamen de Compatibilidad & FIT Score 360°'
+                    ? 'Dictamen de Compatibilidad Cargo-Persona · FIT Score 360°'
                     : 'Job-Person Compatibility & 360° FIT Score'}
                 </div>
-                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 8, lineHeight: 1.5 }}>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 8, lineHeight: 1.55 }}>
                   {lang === 'es'
-                    ? 'Motor biocéntrico que evalúa la compatibilidad entre el diseño del puesto y la capacidad fisiológica del colaborador, emitiendo el porcentaje FIT y prescribiendo adaptaciones inmediatas.'
-                    : 'Biocentric engine evaluating job demands vs. worker physiological capacity, outputting the FIT Score and prescribing ergonomic adjustments before illnesses emerge.'}
+                    ? '¿Qué significa el Porcentaje FIT? WAPPY cruza analíticamente las demandas del puesto (biomecánicas, físicas y psicosociales del Profesiograma) con el concepto de aptitud médica del colaborador (CIE-10). Un porcentaje alto (ej. 98.2% FIT) certifica compatibilidad total con su cargo; si el puntaje desciende, los Agentes IA prescriben adaptaciones ergonómicas y controles preventivos de inmediato para evitar enfermedades laborales.'
+                    : 'What does the FIT Score mean? WAPPY analytically compares job demands (biomechanical, physical, cognitive) with the worker’s medical fitness (ICD-10). A high score (e.g. 98.2% FIT) certifies total job ergonomics and compatibility, prompting instant preventive adaptations if risks appear.'}
                 </p>
               </div>
 
@@ -398,8 +427,8 @@ export default function LandingPage() {
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">Conceptos de Aptitud Médica</div>
-                    <div className="cs">CIE-10, ingresos y periódicos</div>
+                    <div className="cn">{lang === 'es' ? 'Conceptos de Aptitud Médica' : 'Medical Fitness Concepts'}</div>
+                    <div className="cs">{lang === 'es' ? 'Diagnósticos CIE-10, ingresos y periódicos' : 'ICD-10, periodic exams'}</div>
                   </div>
                 </div>
 
@@ -411,8 +440,8 @@ export default function LandingPage() {
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">Profesiograma & Biomecánica</div>
-                    <div className="cs">Demandas físicas y ergonómicas</div>
+                    <div className="cn">{lang === 'es' ? 'Profesiograma & Biomecánica' : 'Job Demands & Biomechanics'}</div>
+                    <div className="cs">{lang === 'es' ? 'Exigencias físicas, posturales y cognitivas' : 'Physical and posture demands'}</div>
                   </div>
                 </div>
 
@@ -426,8 +455,8 @@ export default function LandingPage() {
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">Contexto Sociodemográfico</div>
-                    <div className="cs">Hábitos, entorno y vulnerabilidad</div>
+                    <div className="cn">{lang === 'es' ? 'Contexto Sociodemográfico' : 'Sociodemographic Context'}</div>
+                    <div className="cs">{lang === 'es' ? 'Hábitos, entorno y vulnerabilidad' : 'Habits and vulnerability'}</div>
                   </div>
                 </div>
 
@@ -438,8 +467,8 @@ export default function LandingPage() {
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">Plan PAC Biocéntrico</div>
-                    <div className="cs">Restricciones y pausas preventivas</div>
+                    <div className="cn">{lang === 'es' ? 'Planes de Adaptación Preventiva' : 'Preventive Adaptation Plans'}</div>
+                    <div className="cs">{lang === 'es' ? 'Ajustes al puesto, pausas activas y controles' : 'Ergonomic controls & active breaks'}</div>
                   </div>
                 </div>
 
@@ -448,14 +477,14 @@ export default function LandingPage() {
                     <span style={{ fontSize: 13, fontWeight: 900, color: '#0E1300' }}>%</span>
                   </span>
                   <div>
-                    <div className="cn">98.2% FIT Biocéntrico</div>
-                    <div className="cs">Semáforo de compatibilidad</div>
+                    <div className="cn">{lang === 'es' ? '98.2% FIT: Compatibilidad Óptima' : '98.2% FIT: Optimal Compatibility'}</div>
+                    <div className="cs">{lang === 'es' ? 'Cruce analítico aptitud vs. demandas del puesto' : 'Analytical cross: fitness vs. job demands'}</div>
                   </div>
                 </div>
 
                 <div className="chan-card" style={{ alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed' }}>
                   <span style={{ fontSize: 11.5, fontWeight: 700, color: '#34D399' }}>
-                    ✓ Decreto 1072 & Res. 0312
+                    {lang === 'es' ? '✓ Interconectado con Agentes IA · Dec. 1072 & Res. 0312' : '✓ Connected with AI Agents · Dec. 1072 & Res. 0312'}
                   </span>
                 </div>
               </div>
@@ -988,8 +1017,8 @@ export default function LandingPage() {
             </h2>
             <p>
               {lang === 'es'
-                ? 'El ecosistema modular más completo de Colombia, estructurado bajo la Metodología del Bioindividuo y los 8 Hitos de gestión. Automatización, rigor normativo colombiano y analítica en una sola plataforma.'
-                : 'Colombia’s most robust OHS platform, structured under the Bioindividual Methodology and 8 management milestones.'}
+                ? 'El ecosistema modular más completo de Colombia, estructurado bajo la Metodología del Bioindividuo y los 8 Hitos de gestión. Todos los aplicativos están 100% interconectados con más de 20 agentes de IA especializados que analizan, diligencian y previenen en tiempo real sin silos ni doble digitación.'
+                : 'Colombia’s most robust OHS platform, structured under the Bioindividual Methodology and 8 management milestones, 100% interconnected with +20 specialist AI agents.'}
             </p>
           </div>
 
@@ -1370,10 +1399,10 @@ export default function LandingPage() {
                 </svg>
               </span>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                Capacitaciones PAC
+                Capacitaciones SST
               </span>
               <span style={{ fontSize: 9, fontWeight: 800, color: '#0891B2', background: '#CFFAFE', padding: '2px 6px', borderRadius: 9999 }}>
-                Hito 6 · Escuela
+                Hito 6 · Plan Formación
               </span>
             </div>
 
@@ -1792,7 +1821,15 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Skills Termómetro Psicosocial & Medicina Laboral' : 'Psychosocial Climate & Occupational Health Skills'}
+                  {lang === 'es' ? 'Actos predictivos en ATEL & Termómetro Psicosocial' : 'Predictive ATEL Incidents & Psychosocial Climate'}
+                </li>
+                <li>
+                  <span className="pck">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  {lang === 'es' ? 'Todos los módulos interconectados con más de 20 Agentes IA' : 'All modules interconnected with +20 AI Agents'}
                 </li>
                 <li>
                   <span className="pck">
