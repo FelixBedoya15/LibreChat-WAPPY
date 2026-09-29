@@ -1732,30 +1732,52 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="vid-shell" style={{ position: 'relative', width: '100%', maxWidth: 1120, margin: '0 auto', borderRadius: 28, overflow: 'hidden', boxShadow: '0 30px 80px rgba(14, 19, 0, 0.22)', background: '#0B1120', aspectRatio: '16 / 9' }}>
-            {/* Top Left Badge */}
-            <span className="vid-tag eyebrow" style={{ zIndex: 10 }}>
-              <span className="dot" style={{ background: '#10B981' }}></span>
-              {lang === 'es' ? 'Análisis Biomecánico en Vivo · Fisioterapeuta IA' : 'Live Biomechanical Vision Demo · AI Physio'}
-            </span>
+          {/* Video Action Toolbar (OUTSIDE the video - zero buttons covering YouTube!) */}
+          <div className="vid-control-bar">
+            <div className="vid-control-left">
+              <span className="vid-live-pill">
+                <span className="dot" style={{ background: '#10B981' }}></span>
+                {lang === 'es' ? 'Análisis en Vivo · Fisioterapeuta IA' : 'Live Analysis · AI Physio'}
+              </span>
+              <span className="vid-tech-pill">
+                MediaPipe Pose · Cinemática
+              </span>
+            </div>
 
-            {/* Top Right Spec Badge */}
-            <span
-              className="vid-tag vid-tag-spec eyebrow"
-              style={{
-                left: 'auto',
-                right: 20,
-                zIndex: 10,
-                background: 'rgba(15, 23, 42, 0.85)',
-                color: '#E2E8F0',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                backdropFilter: 'blur(8px)',
-              }}
-            >
-              <span className="dot" style={{ background: '#C7F303' }}></span>
-              {lang === 'es' ? 'MediaPipe Pose · Detección Cinemática' : 'MediaPipe Pose · Kinematic Detection'}
-            </span>
+            <div className="vid-control-right">
+              <button
+                type="button"
+                className={`vid-toggle-btn ${!showVideo ? 'active' : ''}`}
+                onClick={() => setShowVideo(false)}
+              >
+                🖼️ {lang === 'es' ? 'Infografía Estática' : 'Static Diagram'}
+              </button>
+              <button
+                type="button"
+                className={`vid-toggle-btn ${showVideo ? 'active' : ''}`}
+                onClick={() => setShowVideo(true)}
+              >
+                ▶️ {lang === 'es' ? 'Video en Vivo' : 'Live Video'}
+              </button>
+              <a
+                href="https://youtube.com/shorts/-cR-Qv3DDsM"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="vid-ext-link"
+                title="Abrir en YouTube Shorts"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                </svg>
+                YouTube ↗
+              </a>
+            </div>
+          </div>
 
+          {/* Video Shell: Adapts between 16:9 for static poster and 9:16 vertical smartphone frame for YouTube Short */}
+          <div
+            className={`vid-shell ${showVideo ? 'vid-vertical-mode' : 'vid-poster-mode'}`}
+          >
             {!showVideo ? (
               /* Static Image Poster with Interactive Play Trigger */
               <div
@@ -1782,7 +1804,7 @@ export default function LandingPage() {
                   className="vid-poster-img"
                 />
 
-                {/* Overlay Play Button */}
+                {/* Center Play Button Overlay */}
                 <div
                   className="vid-play"
                   style={{
@@ -1838,7 +1860,7 @@ export default function LandingPage() {
                 </div>
               </div>
             ) : (
-              /* Active YouTube Embed Player */
+              /* Active YouTube Embed Player - 100% UNCLUTTERED, ZERO OVERLAPPING BUTTONS */
               <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000' }}>
                 <iframe
                   src="https://www.youtube.com/embed/-cR-Qv3DDsM?autoplay=1&rel=0&playsinline=1"
@@ -1852,72 +1874,6 @@ export default function LandingPage() {
                     display: 'block',
                   }}
                 />
-
-                {/* Return to Static Infographic Button */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowVideo(false);
-                  }}
-                  style={{
-                    position: 'absolute',
-                    top: 18,
-                    right: 18,
-                    zIndex: 20,
-                    background: 'rgba(15, 23, 42, 0.9)',
-                    backdropFilter: 'blur(8px)',
-                    color: '#FFFFFF',
-                    border: '1px solid rgba(255, 255, 255, 0.25)',
-                    borderRadius: 9999,
-                    padding: '7px 14px',
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-                  }}
-                  title={lang === 'es' ? 'Volver a la imagen estática' : 'Back to static image'}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                  {lang === 'es' ? 'Ver imagen de análisis' : 'View static diagram'}
-                </button>
-
-                {/* Direct Link to YouTube */}
-                <a
-                  href="https://youtube.com/shorts/-cR-Qv3DDsM"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    position: 'absolute',
-                    bottom: 18,
-                    right: 18,
-                    zIndex: 20,
-                    background: 'rgba(15, 23, 42, 0.9)',
-                    backdropFilter: 'blur(8px)',
-                    color: '#C7F303',
-                    border: '1px solid rgba(199, 243, 3, 0.35)',
-                    borderRadius: 9999,
-                    padding: '7px 14px',
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                    textDecoration: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                  </svg>
-                  {lang === 'es' ? 'Abrir en YouTube' : 'Open in YouTube'} ↗
-                </a>
               </div>
             )}
           </div>
