@@ -15,6 +15,7 @@ export default function LandingPage() {
   const [isPwaModalOpen, setIsPwaModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showVideo, setShowVideo] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Form states for Demo Modal
   const [demoName, setDemoName] = useState('');
@@ -35,6 +36,18 @@ export default function LandingPage() {
       document.removeEventListener('scroll', handleScroll);
     };
   }, []);
+
+  // Lock background scrolling when mobile navigation menu is active
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -78,6 +91,26 @@ export default function LandingPage() {
 
   const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
     e.preventDefault();
+    setIsMobileMenuOpen(false);
+    const el = document.getElementById(targetId);
+    if (el) {
+      const navOffset = 90;
+      const elementPosition = el.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - navOffset;
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+      try {
+        window.history.pushState(null, '', `#${targetId}`);
+      } catch (err) {
+        // ignore
+      }
+    }
+  };
+
+  const navigateToSection = (targetId: string) => {
+    setIsMobileMenuOpen(false);
     const el = document.getElementById(targetId);
     if (el) {
       const navOffset = 90;
@@ -97,6 +130,15 @@ export default function LandingPage() {
 
   return (
     <div className="mkt">
+      {/* Mobile Menu Backdrop */}
+      {isMobileMenuOpen && (
+        <div
+          className="mkt-mobile-menu-backdrop"
+          onClick={() => setIsMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Floating Capsule Navbar */}
       <nav className="mkt-nav" aria-label="Navegación principal">
         <div className={`mkt-nav-inner ${isScrolled ? 'scrolled' : ''}`}>
@@ -106,6 +148,7 @@ export default function LandingPage() {
             href="/"
             onClick={(e) => {
               e.preventDefault();
+              setIsMobileMenuOpen(false);
               window.scrollTo({ top: 0, behavior: 'smooth' });
               try { window.history.pushState(null, '', '/'); } catch (err) {}
             }}
@@ -122,6 +165,7 @@ export default function LandingPage() {
             <a href="#tenshi" onClick={(e) => scrollToSection(e, 'tenshi')} title="Ecosistema de Agentes de IA Especializados">Agentes IA</a>
             <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')} title="Matrices GTC 45 & Bio-IPEVR Dinámica">Matrices & Riesgos</a>
             <a href="#movil" onClick={(e) => scrollToSection(e, 'movil')} title="Visión IA MediaPipe y Portales PWA">Visión & PWA</a>
+            <a href="#herramientas" onClick={(e) => scrollToSection(e, 'herramientas')} title="Herramientas y Conectores de Agentes">Herramientas</a>
             <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')} title="Planes Wappy Pro">Planes</a>
             <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')} title="Preguntas Frecuentes">FAQ</a>
           </div>
@@ -134,8 +178,128 @@ export default function LandingPage() {
             <button type="button" className="btn btn-lime btn-sm" onClick={() => setIsDemoModalOpen(true)}>
               Agendar demo
             </button>
+
+            {/* Mobile Hamburger Toggle Button */}
+            <button
+              type="button"
+              className={`mkt-hamburger-btn ${isMobileMenuOpen ? 'active' : ''}`}
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+              aria-expanded={isMobileMenuOpen}
+            >
+              <span className="mkt-hamburger-bar"></span>
+              <span className="mkt-hamburger-bar"></span>
+              <span className="mkt-hamburger-bar"></span>
+            </button>
           </div>
         </div>
+
+        {/* Mobile Menu Dropdown Drawer */}
+        {isMobileMenuOpen && (
+          <div className="mkt-mobile-menu-drawer">
+            <div className="mkt-mobile-menu-links">
+              <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('modulos')}>
+                <span className="mkt-mobile-link-icon">🚀</span>
+                <div className="mkt-mobile-link-info">
+                  <span className="mkt-mobile-link-title">Somos SST · 8 Hitos</span>
+                  <span className="mkt-mobile-link-desc">Estructura modular integral del SG-SST</span>
+                </div>
+              </button>
+
+              <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('tenshi')}>
+                <span className="mkt-mobile-link-icon">🤖</span>
+                <div className="mkt-mobile-link-info">
+                  <span className="mkt-mobile-link-title">Ecosistema Tenshi IA</span>
+                  <span className="mkt-mobile-link-desc">+20 Agentes autónomos especializados en SST</span>
+                </div>
+              </button>
+
+              <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('matrices')}>
+                <span className="mkt-mobile-link-icon">📊</span>
+                <div className="mkt-mobile-link-info">
+                  <span className="mkt-mobile-link-title">Matrices & Riesgos GTC-45</span>
+                  <span className="mkt-mobile-link-desc">IPEVR, Química SGA, PESV y Legal RIT</span>
+                </div>
+              </button>
+
+              <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('movil')}>
+                <span className="mkt-mobile-link-icon">📱</span>
+                <div className="mkt-mobile-link-info">
+                  <span className="mkt-mobile-link-title">Visión en Vivo & App PWA</span>
+                  <span className="mkt-mobile-link-desc">Análisis biomecánico y portales QR sin claves</span>
+                </div>
+              </button>
+
+              <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('herramientas')}>
+                <span className="mkt-mobile-link-icon">🔌</span>
+                <div className="mkt-mobile-link-info">
+                  <span className="mkt-mobile-link-title">Herramientas & Conectores</span>
+                  <span className="mkt-mobile-link-desc">Google Workspace, Cron, APIs de clima y SGA</span>
+                </div>
+              </button>
+
+              <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('pricing')}>
+                <span className="mkt-mobile-link-icon">💳</span>
+                <div className="mkt-mobile-link-info">
+                  <span className="mkt-mobile-link-title">Planes & Tarifas Wappy Pro</span>
+                  <span className="mkt-mobile-link-desc">Mensual, semestral y anual con ahorro</span>
+                </div>
+              </button>
+
+              <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('faq')}>
+                <span className="mkt-mobile-link-icon">❓</span>
+                <div className="mkt-mobile-link-info">
+                  <span className="mkt-mobile-link-title">Preguntas Frecuentes</span>
+                  <span className="mkt-mobile-link-desc">Responsabilidad, seguridad de datos y uso</span>
+                </div>
+              </button>
+            </div>
+
+            <div className="mkt-mobile-menu-divider"></div>
+
+            {/* Language Selector */}
+            <div className="mkt-mobile-lang-row">
+              <span className="mkt-mobile-lang-label">{lang === 'es' ? 'Idioma:' : 'Language:'}</span>
+              <div className="mkt-mobile-lang-btns">
+                <button
+                  type="button"
+                  className={`mkt-mobile-lang-btn ${lang === 'es' ? 'active' : ''}`}
+                  onClick={() => setLang('es')}
+                >
+                  🇨🇴 Español
+                </button>
+                <button
+                  type="button"
+                  className={`mkt-mobile-lang-btn ${lang === 'en' ? 'active' : ''}`}
+                  onClick={() => setLang('en')}
+                >
+                  🇺🇸 English
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile CTAs */}
+            <div className="mkt-mobile-menu-actions">
+              <button
+                type="button"
+                className="btn btn-outline-dark"
+                style={{ width: '100%', justifyContent: 'center' }}
+                onClick={() => { setIsMobileMenuOpen(false); handleLogin(); }}
+              >
+                {isAuthenticated ? 'Ir al Chat' : 'Iniciar sesión'}
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ width: '100%', justifyContent: 'center' }}
+                onClick={() => { setIsMobileMenuOpen(false); handleStartTrial(); }}
+              >
+                {lang === 'es' ? 'Comenzar prueba gratis de 7 días' : 'Start 7-day free trial'}
+              </button>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero Section */}
@@ -273,7 +437,7 @@ export default function LandingPage() {
             </svg>
 
             {/* ⭐ CENTRO: EL COLABORADOR EN EL CORAZÓN DE LA ORGANIZACIÓN (Somos SST) - ESTÁTICO ⭐ */}
-            <div className="float-center-bio" style={{ top: 250, left: '50%', transform: 'translate(-50%, -50%)', width: 310 }}>
+            <div className="float-center-bio">
               <div className="fcb-eyebrow">
                 <span className="fcb-pulse-dot"></span>
                 {lang === 'es' ? 'Metodología del Bioindividuo' : 'Bioindividual Methodology'}
@@ -319,102 +483,105 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Satellite 1 (Top-Left): Gamificación en SST */}
-            <div className="float-card-v2" style={{ top: 6, left: '1.5%', width: 330 }}>
-              <div className="fcv2-header">
-                <div className="fcv2-icon" style={{ background: '#FEF3C7', color: '#B45309' }}>
-                  🏆
+            {/* Responsive Satellites Container */}
+            <div className="hero-satellites">
+              {/* Satellite 1 (Top-Left): Gamificación en SST */}
+              <div className="float-card-v2 pos-top-left">
+                <div className="fcv2-header">
+                  <div className="fcv2-icon" style={{ background: '#FEF3C7', color: '#B45309' }}>
+                    🏆
+                  </div>
+                  <div className="fcv2-titles">
+                    <div className="fcv2-title">Gamificación en SST</div>
+                    <div className="fcv2-subtitle">Cultura Participativa & Retos</div>
+                  </div>
+                  <div className="fcv2-badge" style={{ background: '#FEF08A', color: '#854D0E' }}>
+                    PARTICIPACIÓN 100%
+                  </div>
                 </div>
-                <div className="fcv2-titles">
-                  <div className="fcv2-title">Gamificación en SST</div>
-                  <div className="fcv2-subtitle">Cultura Participativa & Retos</div>
-                </div>
-                <div className="fcv2-badge" style={{ background: '#FEF08A', color: '#854D0E' }}>
-                  PARTICIPACIÓN 100%
+                <div className="fcv2-body" style={{ background: '#FEF9C3', color: '#713F12' }}>
+                  Votaciones QR para comités (COPASST y Convivencia), retos de autocuidado, reporte lúdico de actos inseguros (ACI), seguimiento anímico diario y puntos que motivan a los colaboradores.
                 </div>
               </div>
-              <div className="fcv2-body" style={{ background: '#FEF9C3', color: '#713F12' }}>
-                Votaciones QR para comités (COPASST y Convivencia), retos de autocuidado, reporte lúdico de actos inseguros (ACI), seguimiento anímico diario y puntos que motivan a los colaboradores.
-              </div>
-            </div>
 
-            {/* Satellite 2 (Top-Right): Hito 8: Inteligencia Artificial & Oráculo Predictivo */}
-            <div className="float-card-v2" style={{ top: 6, right: '1.5%', width: 335, animationDelay: '1.2s' }}>
-              <div className="fcv2-header">
-                <div className="fcv2-icon" style={{ background: '#C7F303', color: '#0E1300' }}>
-                  🔮
+              {/* Satellite 2 (Top-Right): Hito 8: Inteligencia Artificial & Oráculo Predictivo */}
+              <div className="float-card-v2 pos-top-right">
+                <div className="fcv2-header">
+                  <div className="fcv2-icon" style={{ background: '#C7F303', color: '#0E1300' }}>
+                    🔮
+                  </div>
+                  <div className="fcv2-titles">
+                    <div className="fcv2-title">IA & Oráculo Predictivo</div>
+                    <div className="fcv2-subtitle">Analítica Predictiva Avanzada</div>
+                  </div>
+                  <div className="fcv2-badge" style={{ background: '#FEF08A', color: '#854D0E' }}>
+                    ANTICIPACIÓN EN VIVO
+                  </div>
                 </div>
-                <div className="fcv2-titles">
-                  <div className="fcv2-title">IA & Oráculo Predictivo</div>
-                  <div className="fcv2-subtitle">Analítica Predictiva Avanzada</div>
-                </div>
-                <div className="fcv2-badge" style={{ background: '#FEF08A', color: '#854D0E' }}>
-                  ANTICIPACIÓN EN VIVO
+                <div className="fcv2-body" style={{ background: '#C7F303', color: '#0E1300' }}>
+                  {lang === 'es'
+                    ? 'Pronóstico estocástico de siniestralidad y radar de 9 dominios bioindividuales: anticipa picos de riesgo ergonómico, ausentismo y accidentalidad antes de que ocurran, generando planes preventivos coordinados con los agentes de IA.'
+                    : 'Stochastic incident forecasting and 9-domain bioindividual radar: anticipates ergonomic risks, absenteeism, and incidents before they happen with AI-coordinated preventive plans.'}
                 </div>
               </div>
-              <div className="fcv2-body" style={{ background: '#C7F303', color: '#0E1300' }}>
-                {lang === 'es'
-                  ? 'Pronóstico estocástico de siniestralidad y radar de 9 dominios bioindividuales: anticipa picos de riesgo ergonómico, ausentismo y accidentalidad antes de que ocurran, generando planes preventivos coordinados con los agentes de IA.'
-                  : 'Stochastic incident forecasting and 9-domain bioindividual radar: anticipates ergonomic risks, absenteeism, and incidents before they happen with AI-coordinated preventive plans.'}
-              </div>
-            </div>
 
-            {/* Satellite 3 (Bottom-Left): +20 Agentes Especialistas en SST */}
-            <div className="float-card-v2" style={{ top: 255, left: '1.5%', width: 330, animationDelay: '2.1s' }}>
-              <div className="fcv2-header">
-                <div className="fcv2-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}>
-                  🤖
+              {/* Satellite 3 (Bottom-Left): +20 Agentes Especialistas en SST */}
+              <div className="float-card-v2 pos-bottom-left">
+                <div className="fcv2-header">
+                  <div className="fcv2-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}>
+                    🤖
+                  </div>
+                  <div className="fcv2-titles">
+                    <div className="fcv2-title">+20 Agentes Especialistas SST</div>
+                    <div className="fcv2-subtitle">Inteligencia Artificial Autónoma 24/7</div>
+                  </div>
+                  <div className="fcv2-badge" style={{ background: '#CFFAFE', color: '#0E7490' }}>
+                    MULTIA-AGENTE
+                  </div>
                 </div>
-                <div className="fcv2-titles">
-                  <div className="fcv2-title">+20 Agentes Especialistas SST</div>
-                  <div className="fcv2-subtitle">Inteligencia Artificial Autónoma 24/7</div>
-                </div>
-                <div className="fcv2-badge" style={{ background: '#CFFAFE', color: '#0E7490' }}>
-                  MULTIA-AGENTE
+                <div className="fcv2-body" style={{ background: '#ECFEFF', color: '#155E75' }}>
+                  Expertos dedicados: Médico Laboral, Auditor SG-SST, Especialista en Riesgo Químico (SGA), Biomecánica & ROSA, Tareas Críticas, GTC-45, Analista Forense AT/EL y Salud Mental.
                 </div>
               </div>
-              <div className="fcv2-body" style={{ background: '#ECFEFF', color: '#155E75' }}>
-                Expertos dedicados: Médico Laboral, Auditor SG-SST, Especialista en Riesgo Químico (SGA), Biomecánica & ROSA, Tareas Críticas, GTC-45, Analista Forense AT/EL y Salud Mental.
-              </div>
-            </div>
 
-            {/* Satellite 4 (Bottom-Right): Academia LMS & Blog SST */}
-            <div className="float-card-v2" style={{ top: 255, right: '1.5%', width: 335, animationDelay: '1.8s' }}>
-              <div className="fcv2-header">
-                <div className="fcv2-icon" style={{ background: '#DCFCE7', color: '#15803D' }}>
-                  🎓
+              {/* Satellite 4 (Bottom-Right): Academia LMS & Blog SST */}
+              <div className="float-card-v2 pos-bottom-right">
+                <div className="fcv2-header">
+                  <div className="fcv2-icon" style={{ background: '#DCFCE7', color: '#15803D' }}>
+                    🎓
+                  </div>
+                  <div className="fcv2-titles">
+                    <div className="fcv2-title">Academia LMS & Blog SST</div>
+                    <div className="fcv2-subtitle">Centro Educativo · Artículos al Día</div>
+                  </div>
+                  <div className="fcv2-badge" style={{ background: '#DCFCE7', color: '#15803D' }}>
+                    CERTIFICADO ✓
+                  </div>
                 </div>
-                <div className="fcv2-titles">
-                  <div className="fcv2-title">Academia LMS & Blog SST</div>
-                  <div className="fcv2-subtitle">Centro Educativo · Artículos al Día</div>
-                </div>
-                <div className="fcv2-badge" style={{ background: '#DCFCE7', color: '#15803D' }}>
-                  CERTIFICADO ✓
+                <div className="fcv2-body" style={{ background: '#F0FDF4', color: '#166534' }}>
+                  Micro-lecciones interactivas de 5 min con quizzes gamificados, expedición automática de carnets digitales verificables y blog con análisis normativo y técnico permanente.
                 </div>
               </div>
-              <div className="fcv2-body" style={{ background: '#F0FDF4', color: '#166534' }}>
-                Micro-lecciones interactivas de 5 min con quizzes gamificados, expedición automática de carnets digitales verificables y blog con análisis normativo y técnico permanente.
-              </div>
-            </div>
 
-            {/* Satellite 5 (Bottom-Center): Somos SST · +30 Aplicativos para el SG-SST */}
-            <div className="float-card-v2 center-bottom" style={{ top: 450, left: '50%', transform: 'translateX(-50%)', width: 360 }}>
-              <div className="fcv2-header">
-                <div className="fcv2-icon" style={{ background: '#E0F2FE', color: '#0284C7' }}>
-                  ⚡
+              {/* Satellite 5 (Bottom-Center): Somos SST · +30 Aplicativos para el SG-SST */}
+              <div className="float-card-v2 pos-bottom-center">
+                <div className="fcv2-header">
+                  <div className="fcv2-icon" style={{ background: '#E0F2FE', color: '#0284C7' }}>
+                    ⚡
+                  </div>
+                  <div className="fcv2-titles">
+                    <div className="fcv2-title">Somos SST · Ecosistema Modular</div>
+                    <div className="fcv2-subtitle">Más de 30 Aplicativos para el SG-SST</div>
+                  </div>
+                  <div className="fcv2-badge" style={{ background: '#E0E7FF', color: '#3730A3' }}>
+                    8 HITOS
+                  </div>
                 </div>
-                <div className="fcv2-titles">
-                  <div className="fcv2-title">Somos SST · Ecosistema Modular</div>
-                  <div className="fcv2-subtitle">Más de 30 Aplicativos para el SG-SST</div>
+                <div className="fcv2-body" style={{ background: '#EFF6FF', color: '#1D4ED8' }}>
+                  {lang === 'es'
+                    ? 'Plataforma con más de 30 aplicativos para el SG-SST: diagnóstico, matrices IPEVAR, comités, inspecciones de campo, ATS, actos predictivos en ATEL y analítica en tiempo real. ¡Todo 100% interconectado con nuestros agentes de IA!'
+                    : 'Platform with 30+ applications for OHS: diagnostics, IPEVAR matrix, committees, inspections, JSA/ATS, predictive ATEL events, and real-time analytics. 100% interconnected with AI agents!'}
                 </div>
-                <div className="fcv2-badge" style={{ background: '#E0E7FF', color: '#3730A3' }}>
-                  8 HITOS
-                </div>
-              </div>
-              <div className="fcv2-body" style={{ background: '#EFF6FF', color: '#1D4ED8' }}>
-                {lang === 'es'
-                  ? 'Plataforma con más de 30 aplicativos para el SG-SST: diagnóstico, matrices IPEVAR, comités, inspecciones de campo, ATS, actos predictivos en ATEL y analítica en tiempo real. ¡Todo 100% interconectado con nuestros agentes de IA!'
-                  : 'Platform with 30+ applications for OHS: diagnostics, IPEVAR matrix, committees, inspections, JSA/ATS, predictive ATEL events, and real-time analytics. 100% interconnected with AI agents!'}
               </div>
             </div>
           </div>
@@ -1070,7 +1237,7 @@ export default function LandingPage() {
             </div>
 
             <div className="feat-art tint-mint">
-              <div style={{ width: 330, background: 'linear-gradient(160deg, #0F172A, #1E293B)', borderRadius: 20, boxShadow: '0 16px 40px rgba(15,23,42,0.25)', padding: 18, color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ width: '100%', maxWidth: 330, boxSizing: 'border-box', background: 'linear-gradient(160deg, #0F172A, #1E293B)', borderRadius: 20, boxShadow: '0 16px 40px rgba(15,23,42,0.25)', padding: 18, color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}>
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div style={{ fontFamily: 'var(--display)', fontWeight: 800, fontSize: 15, color: '#C7F303' }}>
@@ -1574,7 +1741,7 @@ export default function LandingPage() {
 
             {/* Top Right Spec Badge */}
             <span
-              className="vid-tag eyebrow"
+              className="vid-tag vid-tag-spec eyebrow"
               style={{
                 left: 'auto',
                 right: 20,
@@ -2294,13 +2461,13 @@ export default function LandingPage() {
             </h2>
             <p>
               {lang === 'es'
-                ? 'Nuestros más de 20 agentes especialistas en SST no solo conversan: ejecutan acciones en tiempo real con herramientas de Google Workspace, visión artificial MediaPipe, webhooks de n8n, mensajería WhatsApp, pasarelas de pago y calculadoras técnicas oficiales.'
-                : 'Our 20+ specialized OHS AI agents do not just chat: they take real-time action with Google Workspace tools, MediaPipe computer vision, n8n webhooks, WhatsApp messaging, payment gateways, and official technical OHS calculators.'}
+                ? 'Nuestros más de 20 agentes especialistas en SST ejecutan acciones en tiempo real con herramientas de Google Workspace, Microsoft OneDrive, alertas meteorológicas OpenWeather para emergencias, bases de datos químicas SGA, automatizaciones n8n y las matrices oficiales del SG-SST.'
+                : 'Our 20+ specialized OHS AI agents execute real-time actions using Google Workspace tools, Microsoft OneDrive, OpenWeather emergency alerts, GHS chemical databases, n8n automations, and official OHS compliance matrices.'}
             </p>
           </div>
 
           <div className="intg">
-            {/* 1. Google Drive */}
+            {/* 1. Google Drive API */}
             <div className="i">
               <span className="g" style={{ background: '#E8F0FE' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#1A73E8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2310,14 +2477,14 @@ export default function LandingPage() {
                 </svg>
               </span>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                Google Drive
+                Google Drive API
               </span>
               <span style={{ fontSize: 9, fontWeight: 800, color: '#1A73E8', background: '#E8F0FE', padding: '2px 6px', borderRadius: 9999 }}>
                 Google · Cloud
               </span>
             </div>
 
-            {/* 2. Google Sheets */}
+            {/* 2. Google Sheets API */}
             <div className="i">
               <span className="g" style={{ background: '#E6F4EA' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#137333" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2329,14 +2496,14 @@ export default function LandingPage() {
                 </svg>
               </span>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                Google Sheets
+                Google Sheets API
               </span>
               <span style={{ fontSize: 9, fontWeight: 800, color: '#137333', background: '#E6F4EA', padding: '2px 6px', borderRadius: 9999 }}>
                 Google · Tablas
               </span>
             </div>
 
-            {/* 3. Google Docs */}
+            {/* 3. Google Docs API */}
             <div className="i">
               <span className="g" style={{ background: '#E8F0FE' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#1A73E8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2348,17 +2515,34 @@ export default function LandingPage() {
                 </svg>
               </span>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                Google Docs
+                Google Docs API
               </span>
               <span style={{ fontSize: 9, fontWeight: 800, color: '#1A73E8', background: '#E8F0FE', padding: '2px 6px', borderRadius: 9999 }}>
-                Google · Redacción
+                Google · Documentos
               </span>
             </div>
 
-            {/* 4. Google Calendar */}
+            {/* 4. Google Slides API */}
             <div className="i">
               <span className="g" style={{ background: '#FEF3C7' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                  <line x1="8" y1="21" x2="16" y2="21"></line>
+                  <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Google Slides API
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#D97706', background: '#FEF3C7', padding: '2px 6px', borderRadius: 9999 }}>
+                Google · Presentaciones
+              </span>
+            </div>
+
+            {/* 5. Google Calendar API */}
+            <div className="i">
+              <span className="g" style={{ background: '#FEF3C7' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                   <line x1="16" y1="2" x2="16" y2="6"></line>
                   <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -2368,12 +2552,12 @@ export default function LandingPage() {
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
                 Google Calendar
               </span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#D97706', background: '#FEF3C7', padding: '2px 6px', borderRadius: 9999 }}>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#B45309', background: '#FEF3C7', padding: '2px 6px', borderRadius: 9999 }}>
                 Google · Agenda
               </span>
             </div>
 
-            {/* 5. Gmail Oficial */}
+            {/* 6. Gmail Oficial API */}
             <div className="i">
               <span className="g" style={{ background: '#FEE2E2' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2382,14 +2566,14 @@ export default function LandingPage() {
                 </svg>
               </span>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                Gmail Oficial
+                Gmail Oficial API
               </span>
               <span style={{ fontSize: 9, fontWeight: 800, color: '#DC2626', background: '#FEE2E2', padding: '2px 6px', borderRadius: 9999 }}>
-                Google · Correo
+                Google · Notificaciones
               </span>
             </div>
 
-            {/* 6. Google Search Grounding */}
+            {/* 7. Google Search en Vivo */}
             <div className="i">
               <span className="g" style={{ background: '#EDE9FE' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2401,11 +2585,11 @@ export default function LandingPage() {
                 Google Search
               </span>
               <span style={{ fontSize: 9, fontWeight: 800, color: '#7C3AED', background: '#EDE9FE', padding: '2px 6px', borderRadius: 9999 }}>
-                Google · En Vivo
+                Google · Citas en Vivo
               </span>
             </div>
 
-            {/* 7. NotebookLM / Gemini MCP */}
+            {/* 8. NotebookLM / Gemini MCP */}
             <div className="i">
               <span className="g" style={{ background: '#E0F2FE' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#0284C7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2417,70 +2601,56 @@ export default function LandingPage() {
                 NotebookLM MCP
               </span>
               <span style={{ fontSize: 9, fontWeight: 800, color: '#0284C7', background: '#E0F2FE', padding: '2px 6px', borderRadius: 9999 }}>
-                Google · Cuadernos
+                Google · Cuadernos SST
               </span>
             </div>
 
-            {/* 8. WhatsApp Business API */}
+            {/* 9. OpenWeather API (Emergencias y Riesgo Climático) */}
             <div className="i">
-              <span className="g" style={{ background: '#DCFCE7' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+              <span className="g" style={{ background: '#E0F2FE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0369A1" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
                 </svg>
               </span>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                WhatsApp API
+                OpenWeather API
               </span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#16A34A', background: '#DCFCE7', padding: '2px 6px', borderRadius: 9999 }}>
-                Meta · Alertas
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0369A1', background: '#E0F2FE', padding: '2px 6px', borderRadius: 9999 }}>
+                Clima · Emergencias
               </span>
             </div>
 
-            {/* 9. Visión IA (MediaPipe) */}
+            {/* 10. Sustancias Químicas SGA / ONU (Riesgo Químico) */}
             <div className="i">
-              <span className="g" style={{ background: '#CCFBF1' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#0D9488" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                  <circle cx="12" cy="12" r="3"></circle>
+              <span className="g" style={{ background: '#CFFAFE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0891B2" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 2v7.31"></path>
+                  <path d="M14 9.3V2"></path>
+                  <path d="M8.5 2h7"></path>
+                  <path d="M14 9.3a6.5 6.5 0 1 1-4 0"></path>
                 </svg>
               </span>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                MediaPipe Vision
+                Químicos SGA / ONU
               </span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#0D9488', background: '#CCFBF1', padding: '2px 6px', borderRadius: 9999 }}>
-                Google · Posturas
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0891B2', background: '#CFFAFE', padding: '2px 6px', borderRadius: 9999 }}>
+                Inventario · Libro Púrpura
               </span>
             </div>
 
-            {/* 10. Canvas Interactivo */}
+            {/* 11. Gestor Automatizaciones (Cron) */}
             <div className="i">
-              <span className="g" style={{ background: '#FCE7F3' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#DB2777" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                  <polyline points="21 15 16 10 5 21"></polyline>
+              <span className="g" style={{ background: '#E0E7FF' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
               </span>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                Canvas Interactivo
+                Tareas Cron
               </span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#DB2777', background: '#FCE7F3', padding: '2px 6px', borderRadius: 9999 }}>
-                Editor · Tiempo Real
-              </span>
-            </div>
-
-            {/* 11. Page Controller (Operar GUI) */}
-            <div className="i">
-              <span className="g" style={{ background: '#FEF3C7' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 3l7 18 3-7 7-3L3 3z"></path>
-                </svg>
-              </span>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                Page Controller
-              </span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#B45309', background: '#FEF3C7', padding: '2px 6px', borderRadius: 9999 }}>
-                WAPPY · Autómata
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#4F46E5', background: '#E0E7FF', padding: '2px 6px', borderRadius: 9999 }}>
+                Simulacros & Extintores
               </span>
             </div>
 
@@ -2495,88 +2665,11 @@ export default function LandingPage() {
                 n8n & Webhooks
               </span>
               <span style={{ fontSize: 9, fontWeight: 800, color: '#EA580C', background: '#FFEDD5', padding: '2px 6px', borderRadius: 9999 }}>
-                Flujos · Sin Código
+                Cadenas de Rescate
               </span>
             </div>
 
-            {/* 13. Gestor Automatizaciones (Cron) */}
-            <div className="i">
-              <span className="g" style={{ background: '#E0E7FF' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-              </span>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                Cron Automatizado
-              </span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#4F46E5', background: '#E0E7FF', padding: '2px 6px', borderRadius: 9999 }}>
-                Tareas · Segundo Plano
-              </span>
-            </div>
-
-            {/* 14. Wompi Bancolombia */}
-            <div className="i">
-              <span className="g" style={{ background: '#FEF08A' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#854D0E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                  <line x1="1" y1="10" x2="23" y2="10"></line>
-                </svg>
-              </span>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                Wompi Bancolombia
-              </span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#854D0E', background: '#FEF08A', padding: '2px 6px', borderRadius: 9999 }}>
-                Fintech · Pasarela
-              </span>
-            </div>
-
-            {/* 15. YouTube Education API */}
-            <div className="i">
-              <span className="g" style={{ background: '#FEE2E2' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#B91C1C" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-              </span>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                YouTube LMS API
-              </span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#B91C1C', background: '#FEE2E2', padding: '2px 6px', borderRadius: 9999 }}>
-                Multimedia · Videos
-              </span>
-            </div>
-
-            {/* 16. OpenWeather API */}
-            <div className="i">
-              <span className="g" style={{ background: '#E0F2FE' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#0369A1" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
-                </svg>
-              </span>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                OpenWeather API
-              </span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#0369A1', background: '#E0F2FE', padding: '2px 6px', borderRadius: 9999 }}>
-                Clima · Brigadas
-              </span>
-            </div>
-
-            {/* 17. Generador Visual Flux & DALL-E */}
-            <div className="i">
-              <span className="g" style={{ background: '#FAF5FF' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#9333EA" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"></path>
-                </svg>
-              </span>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                Flux & DALL-E 3
-              </span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#9333EA', background: '#FAF5FF', padding: '2px 6px', borderRadius: 9999 }}>
-                IA · Afiches SST
-              </span>
-            </div>
-
-            {/* 18. Matriz IPEVAR Tool */}
+            {/* 13. Matriz IPEVR (GTC 45) */}
             <div className="i">
               <span className="g" style={{ background: '#FEE2E2' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2586,32 +2679,32 @@ export default function LandingPage() {
                 </svg>
               </span>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                Calculadora GTC 45
+                Matriz IPEVR (GTC 45)
               </span>
               <span style={{ fontSize: 9, fontWeight: 800, color: '#DC2626', background: '#FEE2E2', padding: '2px 6px', borderRadius: 9999 }}>
-                Peligros · ND/NE
+                Matriz · Peligros & Riesgos
               </span>
             </div>
 
-            {/* 19. Matriz Química SGA Tool */}
+            {/* 14. Matriz de Compatibilidad Química */}
             <div className="i">
-              <span className="g" style={{ background: '#CFFAFE' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#0891B2" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M10 2v7.31"></path>
-                  <path d="M14 9.3V2"></path>
-                  <path d="M8.5 2h7"></path>
-                  <path d="M14 9.3a6.5 6.5 0 1 1-4 0"></path>
+              <span className="g" style={{ background: '#CCFBF1' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0D9488" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 11V4a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v7"></path>
+                  <path d="M5 11a7 7 0 0 0 14 0"></path>
+                  <line x1="12" y1="18" x2="12" y2="22"></line>
+                  <line x1="8" y1="22" x2="16" y2="22"></line>
                 </svg>
               </span>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                SGA Químico Tool
+                Matriz Compatibilidad
               </span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#0891B2', background: '#CFFAFE', padding: '2px 6px', borderRadius: 9999 }}>
-                Sustancias · Dec. 1496
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0D9488', background: '#CCFBF1', padding: '2px 6px', borderRadius: 9999 }}>
+                Matriz · Dec. 1496 Químico
               </span>
             </div>
 
-            {/* 20. Matriz PESV Vial Tool */}
+            {/* 15. Matriz de Riesgo Vial PESV */}
             <div className="i">
               <span className="g" style={{ background: '#FEF3C7' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2622,14 +2715,46 @@ export default function LandingPage() {
                 </svg>
               </span>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                PESV Vial Tool
+                Matriz de Riesgo PESV
               </span>
               <span style={{ fontSize: 9, fontWeight: 800, color: '#D97706', background: '#FEF3C7', padding: '2px 6px', borderRadius: 9999 }}>
-                Vial · Res. 40595
+                Matriz · Res. 40595 Vial
               </span>
             </div>
 
-            {/* 21. Analítica Psicosocial Tool */}
+            {/* 16. Matriz Legal & Editor RIT */}
+            <div className="i">
+              <span className="g" style={{ background: '#FEF3C7' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#92400E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Matriz Legal & RIT
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#92400E', background: '#FEF3C7', padding: '2px 6px', borderRadius: 9999 }}>
+                Matriz · Dec. 1072 & RIT
+              </span>
+            </div>
+
+            {/* 17. Analítica de Actos y Condiciones (ACI) */}
+            <div className="i">
+              <span className="g" style={{ background: '#FFE4E6' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#E11D48" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                  <circle cx="12" cy="13" r="4"></circle>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Analítica Actos ACI
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#E11D48', background: '#FFE4E6', padding: '2px 6px', borderRadius: 9999 }}>
+                Reportes · Terreno & Fotos
+              </span>
+            </div>
+
+            {/* 18. Radar Psicosocial */}
             <div className="i">
               <span className="g" style={{ background: '#FCE7F3' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#BE185D" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2640,44 +2765,58 @@ export default function LandingPage() {
                 Radar Psicosocial
               </span>
               <span style={{ fontSize: 9, fontWeight: 800, color: '#BE185D', background: '#FCE7F3', padding: '2px 6px', borderRadius: 9999 }}>
-                Bienestar · Res. 2764
+                Batería · Res. 2764
               </span>
             </div>
 
-            {/* 22. Analítica Predictiva ATEL Tool */}
+            {/* 19. Microsoft OneDrive API */}
             <div className="i">
-              <span className="g" style={{ background: '#D1FAE5' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="20" x2="18" y2="10"></line>
-                  <line x1="12" y1="20" x2="12" y2="4"></line>
-                  <line x1="6" y1="20" x2="6" y2="14"></line>
+              <span className="g" style={{ background: '#EFF6FF' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0078D4" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
                 </svg>
               </span>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                Predictiva ATEL
+                Microsoft OneDrive
               </span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#059669', background: '#D1FAE5', padding: '2px 6px', borderRadius: 9999 }}>
-                Estocástica · Oráculo
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0078D4', background: '#EFF6FF', padding: '2px 6px', borderRadius: 9999 }}>
+                Microsoft · M365 Cloud
               </span>
             </div>
 
-            {/* 23. Editor RIT MinTrabajo */}
+            {/* 20. Canvas Interactivo */}
+            <div className="i">
+              <span className="g" style={{ background: '#FCE7F3' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#DB2777" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                  <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Canvas Interactivo
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#DB2777', background: '#FCE7F3', padding: '2px 6px', borderRadius: 9999 }}>
+                Editor · Tiempo Real
+              </span>
+            </div>
+
+            {/* 21. Page Controller (Operar GUI) */}
             <div className="i">
               <span className="g" style={{ background: '#FEF3C7' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#92400E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 3l7 18 3-7 7-3L3 3z"></path>
                 </svg>
               </span>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                Editor RIT
+                Page Controller
               </span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#92400E', background: '#FEF3C7', padding: '2px 6px', borderRadius: 9999 }}>
-                Reglamentos · Legal
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#B45309', background: '#FEF3C7', padding: '2px 6px', borderRadius: 9999 }}>
+                WAPPY · Autómata UI
               </span>
             </div>
 
-            {/* 24. Multi-Agent Bridge */}
+            {/* 22. Orquestador Tenshi Multi-Agente */}
             <div className="i">
               <span className="g" style={{ background: '#0E1300' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#C7F303" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2689,10 +2828,27 @@ export default function LandingPage() {
                 </svg>
               </span>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                Tenshi Multi-Agent
+                Tenshi Multi-Agente
               </span>
               <span style={{ fontSize: 9, fontWeight: 800, color: '#0E1300', background: '#C7F303', padding: '2px 6px', borderRadius: 9999 }}>
                 Orquestador · +20 IA
+              </span>
+            </div>
+
+            {/* 23. Somos SST Core DB */}
+            <div className="i">
+              <span className="g" style={{ background: '#DCFCE7' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Somos SST DB
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#16A34A', background: '#DCFCE7', padding: '2px 6px', borderRadius: 9999 }}>
+                Sedes · Empresas & Sedes
               </span>
             </div>
           </div>
