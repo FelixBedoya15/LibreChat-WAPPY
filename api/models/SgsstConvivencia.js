@@ -162,10 +162,18 @@ const convivenciaActaSchema = new mongoose.Schema(
       casosAcosoSexualLey2365: { type: Number, default: 0 },
     },
     desarrollo: {
+      lecturaActaAnterior: { type: String, default: 'Aprobada sin modificaciones.' },
+      seguimientoCompromisos: { type: String, default: '' },
       revisionQuejasTrimestre: { type: String, default: '' },
       campanasPreventivasAcoso: { type: String, default: '' },
       climaLaboralPsicosocial: { type: String, default: '' },
+      recomendacionesAltaDireccion: { type: String, default: '' },
       proposicionesVarios: { type: String, default: '' },
+      analisisIaTenshi: { type: String, default: '' },
+    },
+    reporteOficialHtml: {
+      type: String,
+      default: '',
     },
     compromisos: [
       {

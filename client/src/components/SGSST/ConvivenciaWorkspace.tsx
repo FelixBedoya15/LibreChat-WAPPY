@@ -329,11 +329,13 @@ export default function ConvivenciaWorkspace() {
 
   const handleOpenOfficialReport = async (actaIdOrData?: any, fromTable = false) => {
     setReportLoading(true);
+    setActaModalTab('report');
+    setShowActaModal(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const isExistingId = typeof actaIdOrData === 'string' && actaIdOrData !== 'preview';
       const actaId = isExistingId ? actaIdOrData : (selectedActa?._id || 'preview');
-      const bodyPayload = isExistingId ? {} : actaForm;
+      const bodyPayload = fromTable && isExistingId ? {} : actaForm;
 
       if (fromTable && isExistingId) {
         const found = actas.find((a) => a._id === actaIdOrData);
@@ -362,13 +364,21 @@ export default function ConvivenciaWorkspace() {
       }
 
       const res = await axios.post(`/api/sgsst/convivencia/actas/${actaId}/reporte-oficial`, bodyPayload, { headers });
+      if (res.data?.desarrolloEnriquecido) {
+        setActaForm((prev: any) => ({
+          ...prev,
+          desarrollo: {
+            ...prev.desarrollo,
+            ...res.data.desarrolloEnriquecido,
+          },
+        }));
+      }
       if (res.data?.html) {
         setReportHtml(res.data.html);
         const fileName = res.data.fileName || (selectedActa?.consecutivo ? `Acta-COCOLAB-${selectedActa.consecutivo}` : `Acta-COCOLAB-Q${actaForm.trimestre}-${actaForm.anio}`);
         setReportFileName(fileName);
+        showToast({ message: '¡Informe Oficial confidencial complementado y estructurado con Tenshi IA!', status: 'success' });
       }
-      setActaModalTab('report');
-      setShowActaModal(true);
     } catch (err: any) {
       console.error('Error opening official convivencia acta report:', err);
       showToast({ message: err.response?.data?.error || 'Error al generar el acta oficial con firmas', status: 'error' });

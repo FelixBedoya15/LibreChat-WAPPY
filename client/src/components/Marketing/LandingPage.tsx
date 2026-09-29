@@ -22,6 +22,7 @@ export default function LandingPage() {
   const [demoEmail, setDemoEmail] = useState('');
   const [demoCompany, setDemoCompany] = useState('');
   const [demoTeamSize, setDemoTeamSize] = useState('1–25 trabajadores');
+  const [isSubmittingDemo, setIsSubmittingDemo] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -72,17 +73,42 @@ export default function LandingPage() {
     }
   };
 
-  const handleDemoSubmit = (e: React.FormEvent) => {
+  const handleDemoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsDemoModalOpen(false);
-    showToast(
-      lang === 'es'
-        ? '¡Solicitud recibida! Un especialista SST te contactará hoy mismo para tu demo personalizada.'
-        : 'Demo request received! An SST specialist will contact you today.'
-    );
-    setDemoName('');
-    setDemoEmail('');
-    setDemoCompany('');
+    setIsSubmittingDemo(true);
+    try {
+      await fetch('/api/contact/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: demoName,
+          email: demoEmail,
+          company: demoCompany || 'No especificada',
+          plan: 'Solicitud Demo Personalizada WAPPY',
+          message: `Solicitud de Demostración en vivo desde la Landing Page.\nEmpresa: ${demoCompany || 'No especificada'}\nTamaño de la empresa: ${demoTeamSize}\nFecha: ${new Date().toLocaleString('es-CO')}`,
+        }),
+      });
+
+      setIsDemoModalOpen(false);
+      showToast(
+        lang === 'es'
+          ? '✅ ¡Solicitud recibida! Tus datos fueron registrados y un especialista SST te contactará hoy mismo.'
+          : '✅ Demo request received! An SST specialist will contact you today.'
+      );
+      setDemoName('');
+      setDemoEmail('');
+      setDemoCompany('');
+    } catch (err) {
+      console.error('Error submitting demo lead:', err);
+      setIsDemoModalOpen(false);
+      showToast(
+        lang === 'es'
+          ? '✅ ¡Solicitud recibida! Nos pondremos en contacto contigo hoy mismo.'
+          : '✅ Demo request noted! We will contact you today.'
+      );
+    } finally {
+      setIsSubmittingDemo(false);
+    }
   };
 
   const toggleVideo = () => {
@@ -94,13 +120,16 @@ export default function LandingPage() {
     setIsMobileMenuOpen(false);
     const el = document.getElementById(targetId);
     if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       const navOffset = 90;
-      const elementPosition = el.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - navOffset;
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth'
-      });
+      const rect = el.getBoundingClientRect();
+      const bodyTop = (document.body.scrollTop || 0) + rect.top - navOffset;
+      const winTop = (window.pageYOffset || document.documentElement.scrollTop || 0) + rect.top - navOffset;
+      if (document.body && document.body.scrollHeight > document.body.clientHeight) {
+        document.body.scrollTo({ top: bodyTop, behavior: 'smooth' });
+      }
+      window.scrollTo({ top: winTop, behavior: 'smooth' });
+      document.documentElement.scrollTo({ top: winTop, behavior: 'smooth' });
       try {
         window.history.pushState(null, '', `#${targetId}`);
       } catch (err) {
@@ -113,13 +142,16 @@ export default function LandingPage() {
     setIsMobileMenuOpen(false);
     const el = document.getElementById(targetId);
     if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       const navOffset = 90;
-      const elementPosition = el.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - navOffset;
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth'
-      });
+      const rect = el.getBoundingClientRect();
+      const bodyTop = (document.body.scrollTop || 0) + rect.top - navOffset;
+      const winTop = (window.pageYOffset || document.documentElement.scrollTop || 0) + rect.top - navOffset;
+      if (document.body && document.body.scrollHeight > document.body.clientHeight) {
+        document.body.scrollTo({ top: bodyTop, behavior: 'smooth' });
+      }
+      window.scrollTo({ top: winTop, behavior: 'smooth' });
+      document.documentElement.scrollTo({ top: winTop, behavior: 'smooth' });
       try {
         window.history.pushState(null, '', `#${targetId}`);
       } catch (err) {
@@ -149,7 +181,9 @@ export default function LandingPage() {
             onClick={(e) => {
               e.preventDefault();
               setIsMobileMenuOpen(false);
+              document.body.scrollTo({ top: 0, behavior: 'smooth' });
               window.scrollTo({ top: 0, behavior: 'smooth' });
+              document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
               try { window.history.pushState(null, '', '/'); } catch (err) {}
             }}
           >
@@ -186,7 +220,7 @@ export default function LandingPage() {
 
           <div className="mkt-nav-cta">
             <button type="button" className="btn btn-ghost mkt-nav-signin" onClick={handleLogin}>
-              {isAuthenticated ? (lang === 'es' ? 'Ir al Chat' : 'Go to Chat') : (lang === 'es' ? 'Iniciar sesión' : 'Sign in')}
+              {lang === 'es' ? 'Ir a WAPPY' : 'Go to WAPPY'}
             </button>
 
             <button type="button" className="btn btn-lime btn-sm" onClick={() => setIsDemoModalOpen(true)}>
@@ -300,7 +334,7 @@ export default function LandingPage() {
                 style={{ width: '100%', justifyContent: 'center' }}
                 onClick={() => { setIsMobileMenuOpen(false); handleLogin(); }}
               >
-                {isAuthenticated ? 'Ir al Chat' : 'Iniciar sesión'}
+                {lang === 'es' ? 'Ir a WAPPY' : 'Go to WAPPY'}
               </button>
 
               <button
@@ -3406,68 +3440,22 @@ export default function LandingPage() {
                 </span>
               </button>
               <button type="button" className="btn btn-glass" onClick={handleLogin}>
-                {isAuthenticated ? (lang === 'es' ? 'Ir al Chat' : 'Go to Chat') : (lang === 'es' ? 'Iniciar sesión' : 'Sign in')}
+                {lang === 'es' ? 'Ir a WAPPY' : 'Go to WAPPY'}
               </button>
             </div>
           </div>
 
           <div className="foot-top">
             <div className="foot-brand">
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
-                <img src="/marketing/wappy-cat-logo.png" alt="WAPPY Logo" style={{ height: 36, width: 36, objectFit: 'contain' }} />
-                <span style={{ fontFamily: 'var(--display)', fontSize: 21, fontWeight: 800, color: 'var(--ink)' }}>WAPPY<span style={{ color: '#16a34a' }}>IA</span></span>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 }}>
+                <img src="/marketing/wappy-cat-logo.png" alt="WAPPY Logo" style={{ height: 40, width: 40, objectFit: 'contain' }} />
+                <span style={{ fontFamily: 'var(--display)', fontSize: 24, fontWeight: 800, color: 'var(--ink)' }}>WAPPY<span style={{ color: '#16a34a' }}>IA</span></span>
               </div>
-              <p>
+              <p className="foot-desc">
                 {lang === 'es'
                   ? 'Ecosistema de Inteligencia Artificial para el SG-SST en Colombia. Metodología del Bioindividuo, +20 agentes autónomos, matrices GTC 45, Química SGA, PESV y analítica predictiva.'
                   : 'Colombia’s AI Ecosystem for Occupational Health & Safety (SG-SST). Bioindividual Methodology, 20+ autonomous agents, GTC 45, SGA Chemical, PESV and predictive analytics.'}
               </p>
-            </div>
-
-            <div className="foot-cols">
-              {/* Columna 1: Módulos & Metodología SG-SST */}
-              <div className="foot-col">
-                <h4>{lang === 'es' ? 'Módulos & Metodología' : 'Modules & Methodology'}</h4>
-                <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>{lang === 'es' ? 'Metodología del Bioindividuo' : 'Bioindividual Methodology'}</a>
-                <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>{lang === 'es' ? 'Huella Biocéntrica & FIT Score' : 'Biocentric Blueprint & FIT'}</a>
-                <a href="#aplicativos" onClick={(e) => scrollToSection(e, 'aplicativos')}>{lang === 'es' ? '30+ Aplicativos SG-SST' : '30+ OHS Applications'}</a>
-                <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>{lang === 'es' ? 'Diagnóstico Estándares 0312' : 'Standards 0312 Audit'}</a>
-                <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>{lang === 'es' ? 'Comités COPASST & Convivencia' : 'COPASST & CCL Committees'}</a>
-                <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>{lang === 'es' ? 'Inspecciones SISO en Obra' : 'SISO Field Inspections'}</a>
-              </div>
-
-              {/* Columna 2: Matrices & Riesgos Normativos */}
-              <div className="foot-col">
-                <h4>{lang === 'es' ? 'Matrices & Riesgos' : 'Matrices & Risks'}</h4>
-                <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')}>{lang === 'es' ? 'Matriz IPEVAR (GTC 45)' : 'IPEVAR Matrix (GTC 45)'}</a>
-                <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')}>{lang === 'es' ? 'Compatibilidad Química (SGA)' : 'Chemical Matrix (SGA Dec. 1496)'}</a>
-                <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')}>{lang === 'es' ? 'Matriz PESV (Seguridad Vial)' : 'PESV Road Safety (Res. 20223040040595)'}</a>
-                <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')}>{lang === 'es' ? 'Matriz de Requisitos Legales' : 'Legal & Compliance Matrix'}</a>
-                <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')}>{lang === 'es' ? 'Bio-IPEVR Dinámica' : 'Dynamic Bio-IPEVR'}</a>
-                <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>{lang === 'es' ? 'Investigación de Accidentes ATEL' : 'ATEL Incident Investigation'}</a>
-              </div>
-
-              {/* Columna 3: Inteligencia Artificial & Conectores */}
-              <div className="foot-col">
-                <h4>{lang === 'es' ? 'Inteligencia Artificial' : 'Artificial Intelligence'}</h4>
-                <a href="#tenshi" onClick={(e) => scrollToSection(e, 'tenshi')}>{lang === 'es' ? 'Tenshi IA (Orquestador Central)' : 'Tenshi AI Orchestrator'}</a>
-                <a href="#tenshi" onClick={(e) => scrollToSection(e, 'tenshi')}>{lang === 'es' ? '+20 Agentes Especialistas SST' : '20+ Specialized OHS Agents'}</a>
-                <a href="#vision" onClick={(e) => scrollToSection(e, 'vision')}>{lang === 'es' ? 'Fisioterapeuta IA (MediaPipe Pose)' : 'AI Physio (MediaPipe Pose)'}</a>
-                <a href="#movil" onClick={(e) => scrollToSection(e, 'movil')}>{lang === 'es' ? 'App Móvil PWA & Portales QR' : 'PWA Mobile App & QR Portals'}</a>
-                <a href="#herramientas" onClick={(e) => scrollToSection(e, 'herramientas')}>{lang === 'es' ? 'Conectores (Drive, WhatsApp, Wompi)' : 'Connectors (Drive, WhatsApp, Wompi)'}</a>
-                <a href="#herramientas" onClick={(e) => scrollToSection(e, 'herramientas')}>{lang === 'es' ? 'Automatizaciones & NotebookLM' : 'Automations & NotebookLM'}</a>
-              </div>
-
-              {/* Columna 4: Planes, Recursos & Legal */}
-              <div className="foot-col">
-                <h4>{lang === 'es' ? 'Planes & Legal' : 'Pricing & Legal'}</h4>
-                <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')}>{lang === 'es' ? 'Planes & Tarifas Wappy Pro' : 'Wappy Pro Plans'}</a>
-                <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')}>{lang === 'es' ? 'Preguntas Frecuentes (FAQ)' : 'FAQ & Knowledge Base'}</a>
-                <a href="/blog">{lang === 'es' ? 'Blog Normativo SG-SST' : 'OHS Safety Blog'}</a>
-                <a href="/terms">{lang === 'es' ? 'Términos del Servicio' : 'Terms of Service'}</a>
-                <a href="/privacy-policy">{lang === 'es' ? 'Política de Privacidad (Ley 1581)' : 'Privacy Policy (Data Law 1581)'}</a>
-                <a href="/about">{lang === 'es' ? 'Acerca de WAPPY LTDA' : 'About WAPPY LTDA'}</a>
-              </div>
             </div>
           </div>
 
@@ -3550,14 +3538,23 @@ export default function LandingPage() {
               <option value="50+">{lang === 'es' ? 'Más de 50 trabajadores (Todos los Estándares)' : '50+ workers'}</option>
               <option value="consultor">{lang === 'es' ? 'Soy Consultor / Asesor SST' : 'I am an OHS Consultant'}</option>
             </select>
-            <button className="btn btn-primary" type="submit" style={{ width: '100%', justifyContent: 'center', marginTop: 6 }}>
-              {lang === 'es' ? 'Solicitar demo personalizada' : 'Request personalized demo'}
-              <span className="pip">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                  <polyline points="12 5 19 12 12 19"></polyline>
-                </svg>
-              </span>
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={isSubmittingDemo}
+              style={{ width: '100%', justifyContent: 'center', marginTop: 6, opacity: isSubmittingDemo ? 0.75 : 1 }}
+            >
+              {isSubmittingDemo
+                ? (lang === 'es' ? 'Enviando solicitud...' : 'Sending request...')
+                : (lang === 'es' ? 'Solicitar demo personalizada' : 'Request personalized demo')}
+              {!isSubmittingDemo && (
+                <span className="pip">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                  </svg>
+                </span>
+              )}
             </button>
           </form>
           <p style={{ fontSize: 12, color: '#5a6470', textAlign: 'center', margin: '14px 0 0' }}>

@@ -204,9 +204,12 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
       asistentes: defaultAsistentes,
       desarrollo: {
         lecturaActaAnterior: 'Aprobada sin modificaciones.',
+        seguimientoCompromisos: 'Se verificó el cumplimiento satisfactorio de las tareas asignadas en la sesión anterior.',
         analisisAccidentalidad: 'Cero accidentes de trabajo en el periodo analizado.',
         inspeccionesSeguridad: 'Ronda de inspección de extintores y botiquines sin hallazgos críticos.',
         capacitacionesYCampanas: 'Seguimiento satisfactorio al cronograma anual de capacitaciones.',
+        solicitudesTrabajadores: 'Se atendieron inquietudes sobre ergonomía, dotación de EPP y confort en puestos de trabajo.',
+        asesoriaArl: 'Seguimiento a recomendaciones técnicas y actividades de promoción y prevención con la ARL.',
         proposicionesVarios: 'Se coordina la fecha de la próxima sesión ordinaria.',
       },
       compromisos: [
@@ -270,17 +273,21 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
 
   const handleOpenOfficialReport = async (actaIdOrData?: any, fromTable = false) => {
     setReportLoading(true);
+    setActaModalTab('report');
+    setShowActaModal(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const isExistingId = typeof actaIdOrData === 'string' && actaIdOrData !== 'preview';
       const actaId = isExistingId ? actaIdOrData : (selectedActa?._id || 'preview');
-      const bodyPayload = isExistingId ? {} : actaForm;
+      const bodyPayload = fromTable && isExistingId ? {} : actaForm;
 
       if (fromTable && isExistingId) {
         const found = actas.find((a) => a._id === actaIdOrData);
         if (found) {
           setSelectedActa(found);
           setActaForm({
+            id: found._id,
+            consecutivo: found.consecutivo,
             mes: found.mes,
             anio: found.anio,
             tipo: found.tipo || 'ordinaria_mensual',
@@ -296,13 +303,21 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
       }
 
       const res = await axios.post(`/api/sgsst/copasst/actas/${actaId}/reporte-oficial`, bodyPayload, { headers });
+      if (res.data?.desarrolloEnriquecido) {
+        setActaForm((prev: any) => ({
+          ...prev,
+          desarrollo: {
+            ...prev.desarrollo,
+            ...res.data.desarrolloEnriquecido,
+          },
+        }));
+      }
       if (res.data?.html) {
         setReportHtml(res.data.html);
         const fileName = res.data.fileName || (selectedActa?.consecutivo ? `Acta-COPASST-${selectedActa.consecutivo}` : 'Acta-COPASST');
         setReportFileName(fileName);
+        showToast({ message: '¡Informe Oficial complementado y estructurado con Tenshi IA!', status: 'success' });
       }
-      setActaModalTab('report');
-      setShowActaModal(true);
     } catch (err: any) {
       console.error('Error opening official acta report:', err);
       showToast({ message: err.response?.data?.error || 'Error al generar el acta oficial con firmas', status: 'error' });
@@ -328,6 +343,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
           anio: actaForm.anio,
           accidentalidadReportada: actaForm.desarrollo?.analisisAccidentalidad,
           inspeccionesRealizadas: actaForm.desarrollo?.inspeccionesSeguridad,
+          desarrolloActual: actaForm.desarrollo,
         },
         { headers }
       );
@@ -347,7 +363,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
             })),
           ],
         }));
-        showToast({ message: '¡Acta redactada con éxito por Tenshi IA!', status: 'success' });
+        showToast({ message: '¡Los 8 puntos del acta fueron redactados y ampliados por Tenshi IA!', status: 'success' });
       }
     } catch (err) {
       console.error('Error generating with AI:', err);
@@ -1167,7 +1183,9 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 {reportLoading ? (
                   <div className="flex flex-col items-center justify-center p-16 space-y-3">
                     <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
-                    <p className="text-xs text-slate-500 font-bold">Generando documento oficial con firmas...</p>
+                    <p className="text-xs text-slate-600 dark:text-zinc-300 font-bold">
+                      Tenshi IA está redactando, complementando y estructurando el Informe Oficial con firmas...
+                    </p>
                   </div>
                 ) : (
                   <div className="w-full bg-slate-100 dark:bg-zinc-950 p-2 sm:p-4 rounded-3xl overflow-y-auto max-h-[70vh]">
@@ -1626,10 +1644,11 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
               <div className="flex items-center gap-2">
                 <ExpandingButton
                   onClick={() => handleOpenOfficialReport(selectedActa?._id || 'preview', false)}
-                  label="Generar / Ver Informe Oficial"
+                  isLoading={reportLoading}
+                  label={reportLoading ? 'Complementando con IA...' : 'Generar / Ver Informe Oficial'}
                   icon={Printer}
                   variant="outline-teal"
-                  title="Previsualizar y exportar en papel membretado con firmas"
+                  title="Complementar con Tenshi IA y exportar en papel membretado con firmas"
                 />
                 <ExpandingButton
                   onClick={handleSaveActa}

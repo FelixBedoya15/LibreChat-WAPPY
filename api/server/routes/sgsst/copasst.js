@@ -375,48 +375,80 @@ router.post('/actas/generar-borrador-ia', requireJwtAuth, async (req, res) => {
     const company = await getActiveCompany(req.user.id);
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
 
-    const { mes, anio, notasAdicionales, accidentalidadReportada, inspeccionesRealizadas } = req.body;
+    const {
+      mes,
+      anio,
+      notasAdicionales,
+      accidentalidadReportada,
+      inspeccionesRealizadas,
+      desarrolloActual = {},
+    } = req.body;
 
-    const prompt = `Actúa como Tenshi, experta líder en Seguridad y Salud en el Trabajo y secretaria técnica consultora bajo la normativa colombiana (Resolución 2013 de 1986, Decreto 1072 de 2015 Art. 2.2.4.6.8 y Resolución 0312 de 2019 Estándar 1.1.6).
-Redacta el desarrollo formal, técnico y propositivo de una Reunión Ordinaria Mensual del COPASST para la empresa "${company.companyName}".
-Mes: ${mes || 'Mes en curso'} de ${anio || new Date().getFullYear()}.
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel =
+      personalization?.sstManagement ||
+      (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
 
-Datos de entrada del mes:
-- Accidentalidad y ausentismo (ATEL): ${accidentalidadReportada || 'Cero accidentes incapacitantes en el periodo. Se investigó 1 casi-accidente sin lesión.'}
-- Inspecciones de seguridad física y condiciones de trabajo: ${inspeccionesRealizadas || 'Inspección de extintores, botiquines y orden y aseo en puestos operativos.'}
-- Notas del coordinador o miembros: ${notasAdicionales || 'Se requiere reforzar divulgación del canal anónimo de reporte.'}
+    const prompt = `Actúa como Tenshi, experta líder en Seguridad y Salud en el Trabajo y secretaria técnica consultora bajo la normativa colombiana (Resolución 2013 de 1986, Decreto 1072 de 2015 Art. 2.2.4.6.8 / 2.2.4.6.34 y Resolución 0312 de 2019 Estándar 1.1.6).
+Redacta y complementa el desarrollo formal, técnico, amplio y propositivo de todos los 8 puntos reglamentarios de una Reunión Ordinaria Mensual del COPASST para la empresa "${company.companyName}" (Actividad económica: ${company.economicActivity || 'General'}, Nivel de riesgo: ${company.riskLevel || 'I'}, Trabajadores: ${company.workerCount || 'N/A'}).
+Mes: ${mes || new Date().getMonth() + 1} de ${anio || new Date().getFullYear()}.
 
-Genera un JSON EXACTO con las siguientes claves:
+Insumos actuales registrados en el formulario (toma estos apuntes como base y amplíalos con redacción técnica, detallada y normativa de al menos 3 a 5 oraciones completas por cada punto; si algún campo está vacío, redáctalo de forma completa y coherente con la gestión mensual del SG-SST):
+1. Lectura acta anterior: ${desarrolloActual.lecturaActaAnterior || 'Lectura y verificación de quórum reglamentario.'}
+2. Seguimiento a compromisos previos: ${desarrolloActual.seguimientoCompromisos || 'Verificación del cierre de acciones preventivas y correctivas del periodo anterior.'}
+3. Accidentalidad y ausentismo (ATEL): ${accidentalidadReportada || desarrolloActual.analisisAccidentalidad || 'Cero accidentes incapacitantes en el periodo. Vigilancia de incidentes y ausentismo médico.'}
+4. Inspecciones planeadas de seguridad: ${inspeccionesRealizadas || desarrolloActual.inspeccionesSeguridad || 'Inspección de extintores, botiquines, señalización y orden y aseo en áreas operativas y administrativas.'}
+5. Cumplimiento de cronograma de capacitaciones: ${desarrolloActual.capacitacionesYCampanas || 'Seguimiento satisfactorio al plan anual de capacitación y campañas de autocuidado.'}
+6. Peticiones, sugerencias e inquietudes de los trabajadores: ${desarrolloActual.solicitudesTrabajadores || 'Revisión de reportes de condiciones de trabajo, ergonomía y dotación de EPP canalizados por los representantes de los trabajadores.'}
+7. Asesoría, recomendaciones e intervención de la ARL: ${desarrolloActual.asesoriaArl || 'Seguimiento a asistencias técnicas, capacitaciones virtuales/presenciales y recomendaciones emitidas por la ARL.'}
+8. Proposiciones, varios y acuerdos de cierre: ${notasAdicionales || desarrolloActual.proposicionesVarios || 'Coordinación de la próxima sesión ordinaria y fortalecimiento de la cultura preventiva.'}
+
+Genera un JSON EXACTO con las siguientes claves (todos los 8 campos deben tener redacción técnica, completa y profesional):
 {
-  "lecturaActaAnterior": "Texto formal de aprobación...",
-  "analisisAccidentalidad": "Análisis técnico y estadístico del comportamiento de accidentalidad...",
-  "inspeccionesSeguridad": "Hallazgos de la ronda de inspección paritaria y recomendaciones de mejora...",
-  "capacitacionesYCampanas": "Evaluación del cronograma formativo y sensibilizaciones del mes...",
-  "proposicionesVarios": "Propuestas paritarias y reconocimientos...",
+  "lecturaActaAnterior": "Texto formal y completo de verificación de quórum y aprobación del acta anterior...",
+  "seguimientoCompromisos": "Balance detallado del cumplimiento de los compromisos previos y cierre de acciones...",
+  "analisisAccidentalidad": "Análisis técnico y estadístico del comportamiento de accidentalidad, severidad, frecuencia y ausentismo ATEL...",
+  "inspeccionesSeguridad": "Hallazgos detallados de la ronda de inspección paritaria a instalaciones, equipos de emergencia y puestos de trabajo...",
+  "capacitacionesYCampanas": "Evaluación técnica de la ejecución y cobertura del cronograma formativo y sensibilizaciones del mes...",
+  "solicitudesTrabajadores": "Desarrollo formal de las peticiones, sugerencias sobre EPP, ergonomía y condiciones laborales reportadas por los trabajadores...",
+  "asesoriaArl": "Detalle del acompañamiento técnico, reinversión de recursos y recomendaciones de la Administradora de Riesgos Laborales (ARL)...",
+  "proposicionesVarios": "Propuestas paritarias, reconocimientos y acuerdos de cierre para la siguiente sesión...",
   "compromisosSugeridos": [
     { "accion": "...", "responsable": "...", "fechaLimite": "YYYY-MM-DD" },
     { "accion": "...", "responsable": "...", "fechaLimite": "YYYY-MM-DD" }
   ]
 }
-Solo responde con el objeto JSON válido.`;
+Solo responde con el objeto JSON válido, sin bloques markdown.`;
 
-    const aiResponse = await generateWithKeyRotation(prompt, {
-      temperature: 0.3,
-      responseMimeType: 'application/json',
-    });
+    const result = await generateWithKeyRotation(
+      {
+        model: preferredModel,
+        generationConfig: {
+          temperature: 0.4,
+          responseMimeType: 'application/json',
+        },
+      },
+      req.user?.id || req.user,
+      prompt
+    );
+
+    const response = await result.response;
+    const rawText = response
+      .text()
+      .replace(/```json\n?/gi, '')
+      .replace(/```\n?/g, '')
+      .trim();
 
     let parsed = {};
     try {
-      parsed = JSON.parse(aiResponse);
+      parsed = JSON.parse(rawText);
     } catch (e) {
-      parsed = {
-        lecturaActaAnterior: 'Se dio lectura al acta anterior, siendo aprobada por unanimidad de los miembros asistentes.',
-        analisisAccidentalidad: 'Revisión mensual de indicadores de severidad y frecuencia ATEL sin novedad crítica.',
-        inspeccionesSeguridad: 'Verificación periódica de instalaciones y equipos de emergencia.',
-        capacitacionesYCampanas: 'Seguimiento al cumplimiento del plan anual de capacitación SG-SST.',
-        proposicionesVarios: 'Se coordinan preparativos para la próxima reunión ordinaria.',
-        compromisosSugeridos: [],
-      };
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[0]);
+      } else {
+        throw e;
+      }
     }
 
     res.json({ success: true, borrador: parsed });
@@ -561,20 +593,21 @@ router.post('/elecciones/:id/escrutinio', requireJwtAuth, async (req, res) => {
   }
 });
 
-// ─── 10. POST /actas/:id/reporte-oficial — Generar Documento Oficial con Firmas de Participantes ──
+// ─── 10. POST /actas/:id/reporte-oficial — Generar Documento Oficial con IA y Firmas de Participantes ──
 router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
   try {
     const company = await getActiveCompany(req.user.id);
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
 
     let acta;
+    let dbActa = null;
     if (req.params.id === 'preview') {
       acta = req.body || {};
       if (!acta.consecutivo) acta.consecutivo = 'BORRADOR';
       if (!acta.mes) acta.mes = new Date().getMonth() + 1;
       if (!acta.anio) acta.anio = new Date().getFullYear();
     } else {
-      const dbActa = await SgsstCopasstActa.findOne({ _id: req.params.id, companyId: company._id });
+      dbActa = await SgsstCopasstActa.findOne({ _id: req.params.id, companyId: company._id });
       if (!dbActa) return res.status(404).json({ error: 'Acta no encontrada' });
       acta = dbActa.toObject ? dbActa.toObject() : { ...dbActa };
       if (req.body && Object.keys(req.body).length > 0) {
@@ -599,14 +632,142 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
       actividad: `Sesión ${acta.tipo === 'extraordinaria' ? 'Extraordinaria' : 'Ordinaria Mensual'} - Mes ${acta.mes} de ${acta.anio}`,
     });
 
-    const ordenList = Array.isArray(acta.ordenDelDia) && acta.ordenDelDia.length > 0
-      ? acta.ordenDelDia.map((item) => `<li style="margin-bottom: 6px; font-weight: 500;">${item}</li>`).join('')
-      : '<li>1. Verificación del quórum reglamentario</li><li>2. Lectura y aprobación del acta anterior</li><li>3. Seguimiento a compromisos de actas anteriores</li><li>4. Revisión y análisis de accidentalidad, incidentes y enfermedades (ATEL)</li><li>5. Inspecciones planeadas de seguridad</li><li>6. Avance de capacitaciones en SST</li><li>7. Solicitudes y propuestas de los trabajadores</li><li>8. Recomendaciones ARL</li><li>9. Proposiciones y varios</li>';
+    const asistentesStr =
+      Array.isArray(acta.asistentes) && acta.asistentes.length > 0
+        ? acta.asistentes
+            .map(
+              (a) =>
+                `${a.nombre || 'Miembro'} (${a.rol || 'Integrante'} - CC: ${a.cedula || 'N/A'} - ${
+                  a.asistio !== false ? 'Asistió' : 'Ausente'
+                })`
+            )
+            .join('; ')
+        : 'Miembros del Comité Paritario de Seguridad y Salud en el Trabajo (COPASST)';
 
-    const compromisosRows = Array.isArray(acta.compromisos) && acta.compromisos.length > 0
-      ? acta.compromisos
-          .map(
-            (c, idx) => `
+    const compromisosStr =
+      Array.isArray(acta.compromisos) && acta.compromisos.length > 0
+        ? acta.compromisos
+            .map(
+              (c, idx) =>
+                `${idx + 1}. Acción: ${c.accion} | Responsable: ${c.responsable || 'Comité'} | Fecha límite: ${
+                  c.fechaLimite || 'Por definir'
+                } | Estado: ${c.estado || 'pendiente'}`
+            )
+            .join('\n')
+        : 'Sin compromisos manuales previos registrados.';
+
+    // ─── Enriquecimiento y Desarrollo Integral con Tenshi IA (Gemini) ───
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel =
+      personalization?.sstManagement ||
+      (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+
+    let aiBodyHtml = '';
+    let desarrolloEnriquecido = { ...(acta.desarrollo || {}) };
+
+    try {
+      const aiPrompt = `Eres un Experto Técnico Senior en Seguridad y Salud en el Trabajo (SG-SST) en Colombia y Secretario Técnico del Comité Paritario de Seguridad y Salud en el Trabajo (COPASST), especializado en la Resolución 2013 de 1986, el Decreto 1072 de 2015 (Artículos 2.2.4.6.8, 2.2.4.6.11, 2.2.4.6.29 y 2.2.4.6.34), la Resolución 0312 de 2019 (Estándar 1.1.6) y la Resolución 1401 de 2007.
+
+Tu objetivo es tomar los apuntes e insumos registrados por el usuario en el formulario del Acta N° ${acta.consecutivo || 'BORRADOR'} (Mes ${acta.mes} de ${acta.anio}) de la empresa "${company.companyName}" (Actividad Económica: ${company.economicActivity || 'General'}, Nivel de Riesgo: ${company.riskLevel || 'I'}, N° Trabajadores: ${company.workerCount || 'N/A'}) y **COMPLEMENTARLOS, EXPANDIRLOS Y ESTRUCTURARLOS** en un **INFORME OFICIAL DE ACTA COPASST EXHAUSTIVO, TÉCNICO, NORMATIVO Y DE ALTA CALIDAD AUDITORA**.
+
+**ASISTENTES CONVOCADOS A LA SESIÓN:**
+${asistentesStr}
+
+**APUNTES / INSUMOS SUMINISTRADOS EN EL FORMULARIO DEL ACTA:**
+1. Lectura y Aprobación del Acta Anterior: ${acta.desarrollo?.lecturaActaAnterior || '[No detallado - complementar técnicamente]'}
+2. Seguimiento a Compromisos y Tareas Previas: ${acta.desarrollo?.seguimientoCompromisos || '[No detallado - complementar técnicamente según gestión continua del comité]'}
+3. Análisis de Accidentalidad, Incidentes y Ausentismo (ATEL): ${acta.desarrollo?.analisisAccidentalidad || '[No detallado - complementar técnicamente]'}
+4. Inspecciones Planeadas de Seguridad y Hallazgos en Terreno: ${acta.desarrollo?.inspeccionesSeguridad || '[No detallado - complementar técnicamente]'}
+5. Cumplimiento de Cronograma de Capacitaciones y Campañas: ${acta.desarrollo?.capacitacionesYCampanas || '[No detallado - complementar técnicamente]'}
+6. Peticiones, Sugerencias e Inquietudes de los Trabajadores: ${acta.desarrollo?.solicitudesTrabajadores || '[No detallado - complementar técnicamente con canalización paritaria de condiciones de trabajo, ergonomía y EPP]'}
+7. Asesoría, Recomendaciones e Intervención de la ARL: ${acta.desarrollo?.asesoriaArl || '[No detallado - complementar técnicamente con seguimiento a asistencia técnica y reinversión ARL]'}
+8. Proposiciones, Varios y Acuerdos de Cierre: ${acta.desarrollo?.proposicionesVarios || '[No detallado - complementar técnicamente]'}
+
+**COMPROMISOS / PLAN DE ACCIÓN REGISTRADOS EN EL FORMULARIO:**
+${compromisosStr}
+
+**INSTRUCCIONES DE SALIDA (JSON ESTRICTO):**
+Devuelve un objeto JSON válido con dos propiedades principales:
+1. \`"desarrolloEnriquecido"\`: Un objeto con las 8 claves exactas (\`lecturaActaAnterior\`, \`seguimientoCompromisos\`, \`analisisAccidentalidad\`, \`inspeccionesSeguridad\`, \`capacitacionesYCampanas\`, \`solicitudesTrabajadores\`, \`asesoriaArl\`, \`proposicionesVarios\`), donde cada clave contiene un párrafo técnico completo, formal y detallado (en texto plano sin HTML) que amplía y complementa los apuntes del usuario (especialmente aquellos que estaban cortos o vacíos).
+2. \`"htmlBody"\`: Código HTML puro y limpio (sin etiquetas \`<html>\`, \`<body>\`, ni bloques markdown \`\`\`html) que contenga el cuerpo técnico completo del informe oficial con las siguientes secciones:
+
+   - **Sección A: Dictamen Ejecutivo de la Sesión Mensual Paritaria**
+     Un contenedor destacado:
+     \`<div style="border-left: 4px solid #0f766e; background-color: #f0fdfa; padding: 14px 18px; border-radius: 0 10px 10px 0; margin-bottom: 22px; font-size: 11.5px; color: #1e293b; line-height: 1.65;"><strong>📊 Dictamen Ejecutivo de Gestión Paritaria (COPASST):</strong> [Análisis integral de 2 párrafos sobre el desempeño del SG-SST en el mes ${acta.mes} de ${acta.anio}, la vigencia del quórum paritario bajo la Res. 2013/1986 y el balance preventivo del periodo]</div>\`
+
+   - **Sección B: Desarrollo Técnico y Normativo de los 8 Puntos del Orden del Día**
+     Título: \`<h3 style="margin: 0 0 14px 0; font-size: 13px; font-weight: 800; color: #0f766e; text-transform: uppercase; border-bottom: 2px solid #0f766e; padding-bottom: 6px;">📝 DESARROLLO EXHAUSTIVO Y DELIBERACIONES DE LA REUNIÓN</h3>\`
+     Desarrolla **TODOS LOS 8 PUNTOS REGLAMENTARIOS** (del 1 al 8). Para cada punto, genera una tarjeta HTML estilizada:
+     \`<div style="margin-bottom: 14px; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; page-break-inside: avoid;"><div style="background-color: #f8fafc; padding: 8px 14px; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: 800; color: #0f172a; text-transform: uppercase;">[N° y Nombre del Punto]</div><div style="padding: 12px 14px; font-size: 11px; color: #334155; line-height: 1.65; background-color: #ffffff;">[Desarrollo técnico extenso de 2 párrafos, articulando lo reportado por el usuario con las funciones legales del Art. 11 de la Res. 2013/1986 y el Dec. 1072/2015, determinaciones tomadas por el comité y medidas preventivas adoptadas]</div></div>\`
+
+   - **Sección C: Matriz Técnica de Vigilancia Epidemiológica, Inspecciones y Control Operacional del Mes**
+     Título: \`<h3 style="margin: 22px 0 10px 0; font-size: 12.5px; font-weight: 800; color: #0f766e; text-transform: uppercase; letter-spacing: 0.5px;">🔍 MATRIZ PARITARIA DE VIGILANCIA, INSPECCIONES Y CONTROL DE RIESGOS</h3>\`
+     Genera una tabla HTML (\`<table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; margin-bottom: 22px; font-size: 10.5px;">\`) con encabezados en \`background-color: #0f766e; color: #ffffff; padding: 8px 10px; text-align: left; font-weight: 800; text-transform: uppercase;\` y al menos 5 filas analizando los ejes del mes:
+     Columnas: **Eje de Vigilancia SST** | **Condición / Hallazgo Analizado en Sesión** | **Medida de Intervención / Control Paritario** | **Soporte Normativo** | **Nivel de Seguimiento**.
+
+   - **Sección D: Plan de Acción, Compromisos Asumidos y Trazabilidad PHVA**
+     Título: \`<h3 style="margin: 22px 0 10px 0; font-size: 12.5px; font-weight: 800; color: #0f766e; text-transform: uppercase; letter-spacing: 0.5px;">🎯 PLAN DE ACCIÓN PARITARIO Y COMPROMISOS ADQUIRIDOS (CICLO PHVA)</h3>\`
+     Genera una tabla HTML detallada que incluya TODOS los compromisos registrados por el usuario (ampliando técnicamente su alcance y definiendo el entregable/evidencia verificable) más 2 compromisos preventivos complementarios derivados del desarrollo de los 8 puntos.
+     Columnas: **#** | **Acción Preventiva / Correctiva y Alcance Técnico** | **Evidencia / Entregable de Verificación** | **Responsable** | **Fecha Límite** | **Estado**.
+
+   - **Sección E: Constancia Reglamentaria de Aprobación y Cierre**
+     Un bloque final de cierre formal indicando la hora de finalización (${acta.horaFin || '10:00'}), la aprobación unánime de las determinaciones por parte de los representantes del empleador y de los trabajadores, y su validez probatoria ante el Ministerio del Trabajo.`;
+
+      const aiResult = await generateWithKeyRotation(
+        {
+          model: preferredModel,
+          generationConfig: {
+            temperature: 0.35,
+            responseMimeType: 'application/json',
+          },
+        },
+        req.user?.id || req.user,
+        aiPrompt
+      );
+
+      const response = await aiResult.response;
+      const rawText = response
+        .text()
+        .replace(/```json\n?/gi, '')
+        .replace(/```\n?/g, '')
+        .trim();
+
+      let parsedAi = {};
+      try {
+        parsedAi = JSON.parse(rawText);
+      } catch (parseErr) {
+        const match = rawText.match(/\{[\s\S]*\}/);
+        if (match) parsedAi = JSON.parse(match[0]);
+      }
+
+      if (parsedAi.desarrolloEnriquecido && typeof parsedAi.desarrolloEnriquecido === 'object') {
+        desarrolloEnriquecido = {
+          ...desarrolloEnriquecido,
+          ...parsedAi.desarrolloEnriquecido,
+        };
+        acta.desarrollo = desarrolloEnriquecido;
+      }
+
+      if (parsedAi.htmlBody && typeof parsedAi.htmlBody === 'string') {
+        aiBodyHtml = parsedAi.htmlBody
+          .replace(/```html\n?/gi, '')
+          .replace(/```\n?/g, '')
+          .trim();
+      }
+    } catch (aiErr) {
+      logger.warn('[COPASST] AI enrichment fallback in reporte-oficial:', aiErr.message);
+    }
+
+    const ordenList =
+      Array.isArray(acta.ordenDelDia) && acta.ordenDelDia.length > 0
+        ? acta.ordenDelDia.map((item) => `<li style="margin-bottom: 6px; font-weight: 500;">${item}</li>`).join('')
+        : '<li>1. Verificación del quórum reglamentario</li><li>2. Lectura y aprobación del acta anterior</li><li>3. Seguimiento a compromisos de actas anteriores</li><li>4. Revisión y análisis de accidentalidad, incidentes y enfermedades (ATEL)</li><li>5. Inspecciones planeadas de seguridad y hallazgos en terreno</li><li>6. Cumplimiento del cronograma de capacitaciones y campañas SST</li><li>7. Peticiones, sugerencias e inquietudes de los trabajadores</li><li>8. Asesoría, recomendaciones e intervención de la ARL</li><li>9. Proposiciones, varios y acuerdos de cierre</li>';
+
+    const compromisosRows =
+      Array.isArray(acta.compromisos) && acta.compromisos.length > 0
+        ? acta.compromisos
+            .map(
+              (c, idx) => `
         <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
           <td style="padding: 8px 10px; font-weight: bold; text-align: center; color: #64748b;">${idx + 1}</td>
           <td style="padding: 8px 10px; color: #1e293b; font-weight: 600;">${c.accion}</td>
@@ -616,16 +777,71 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
             <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 9px; font-weight: 800; background-color: ${
               c.estado === 'cumplido' ? '#dcfce7' : c.estado === 'en_progreso' ? '#e0f2fe' : '#fef3c7'
             }; color: ${
-              c.estado === 'cumplido' ? '#15803d' : c.estado === 'en_progreso' ? '#0369a1' : '#b45309'
-            }; text-transform: uppercase;">
+                c.estado === 'cumplido' ? '#15803d' : c.estado === 'en_progreso' ? '#0369a1' : '#b45309'
+              }; text-transform: uppercase;">
               ${c.estado || 'pendiente'}
             </span>
           </td>
         </tr>
       `
+            )
+            .join('')
+        : `<tr><td colspan="5" style="padding: 12px; text-align: center; color: #94a3b8; font-style: italic; font-size: 11px;">No se registraron compromisos adicionales en esta sesión.</td></tr>`;
+
+    // Fallback HTML en caso de que la IA no haya devuelto htmlBody
+    const fallbackBodyHtml = `
+      <!-- Desarrollo Temático -->
+      <div style="margin-bottom: 24px;">
+        <h3 style="margin: 0 0 14px 0; font-size: 13px; font-weight: 800; color: #0f766e; text-transform: uppercase; border-bottom: 2px solid #0f766e; padding-bottom: 6px;">
+          📝 DESARROLLO Y ANÁLISIS DE LA REUNIÓN
+        </h3>
+        ${[
+          ['1. Lectura y Aprobación del Acta Anterior', acta.desarrollo?.lecturaActaAnterior],
+          ['2. Seguimiento a Compromisos y Tareas Previas', acta.desarrollo?.seguimientoCompromisos],
+          ['3. Revisión y Análisis de Accidentalidad, Incidentes y Ausentismo (ATEL)', acta.desarrollo?.analisisAccidentalidad],
+          ['4. Inspecciones Planeadas de Seguridad y Hallazgos en Terreno', acta.desarrollo?.inspeccionesSeguridad],
+          ['5. Cumplimiento de Cronograma de Capacitaciones y Campañas', acta.desarrollo?.capacitacionesYCampanas],
+          ['6. Peticiones, Sugerencias e Inquietudes de los Trabajadores', acta.desarrollo?.solicitudesTrabajadores],
+          ['7. Asesoría, Recomendaciones e Intervención de la ARL', acta.desarrollo?.asesoriaArl],
+          ['8. Proposiciones, Varios y Acuerdos de Cierre', acta.desarrollo?.proposicionesVarios],
+        ]
+          .filter(([, val]) => Boolean(val))
+          .map(
+            ([label, val]) => `
+            <div style="margin-bottom: 14px; page-break-inside: avoid;">
+              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                ${label}
+              </h4>
+              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
+                ${val}
+              </div>
+            </div>
+          `
           )
-          .join('')
-      : `<tr><td colspan="5" style="padding: 12px; text-align: center; color: #94a3b8; font-style: italic; font-size: 11px;">No se registraron compromisos adicionales en esta sesión.</td></tr>`;
+          .join('')}
+      </div>
+
+      <!-- Compromisos -->
+      <div style="margin-bottom: 24px; page-break-inside: avoid;">
+        <h3 style="margin: 0 0 10px 0; font-size: 12.5px; font-weight: 800; color: #0f766e; text-transform: uppercase; letter-spacing: 0.5px;">
+          🎯 PLAN DE ACCIÓN Y COMPROMISOS ADQUIRIDOS
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+          <thead>
+            <tr style="background-color: #f1f5f9; color: #475569; font-size: 10.5px; font-weight: 800; text-transform: uppercase;">
+              <th style="padding: 8px 10px; width: 6%; text-align: center;">#</th>
+              <th style="padding: 8px 10px; width: 44%; text-align: left;">Acción / Compromiso</th>
+              <th style="padding: 8px 10px; width: 22%; text-align: left;">Responsable</th>
+              <th style="padding: 8px 10px; width: 16%; text-align: left;">Fecha Límite</th>
+              <th style="padding: 8px 10px; width: 12%; text-align: center;">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${compromisosRows}
+          </tbody>
+        </table>
+      </div>
+    `;
 
     // FIRMAS OBLIGATORIAS: DE LOS PARTICIPANTES DEL COMITÉ (NO LAS GENÉRICAS DE LA EMPRESA)
     const signaturesHtml = buildCommitteeSignatureSection({
@@ -672,165 +888,25 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
         <!-- Orden del Día -->
         <div style="margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; background-color: #f8fafc; page-break-inside: avoid;">
           <h3 style="margin: 0 0 10px 0; font-size: 12px; font-weight: 800; color: #0f766e; text-transform: uppercase; letter-spacing: 0.5px;">
-            📋 ORDEN DEL DÍA
+            📋 ORDEN DEL DÍA REGLAMENTARIO
           </h3>
           <ul style="margin: 0; padding-left: 20px; font-size: 11.5px; color: #334155;">
             ${ordenList}
           </ul>
         </div>
 
-        <!-- Desarrollo Temático -->
-        <div style="margin-bottom: 24px;">
-          <h3 style="margin: 0 0 14px 0; font-size: 13px; font-weight: 800; color: #0f766e; text-transform: uppercase; border-bottom: 2px solid #0f766e; padding-bottom: 6px;">
-            📝 DESARROLLO Y ANÁLISIS DE LA REUNIÓN
-          </h3>
-
-          ${
-            acta.desarrollo?.lecturaActaAnterior
-              ? `
-            <div style="margin-bottom: 14px; page-break-inside: avoid;">
-              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                1. Lectura y Aprobación del Acta Anterior
-              </h4>
-              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
-                ${acta.desarrollo.lecturaActaAnterior}
-              </div>
-            </div>
-          `
-              : ''
-          }
-
-          ${
-            acta.desarrollo?.seguimientoCompromisos
-              ? `
-            <div style="margin-bottom: 14px; page-break-inside: avoid;">
-              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                2. Seguimiento a Compromisos y Tareas Previas
-              </h4>
-              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
-                ${acta.desarrollo.seguimientoCompromisos}
-              </div>
-            </div>
-          `
-              : ''
-          }
-
-          ${
-            acta.desarrollo?.analisisAccidentalidad
-              ? `
-            <div style="margin-bottom: 14px; page-break-inside: avoid;">
-              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                3. Revisión y Análisis de Accidentalidad, Incidentes y Ausentismo (ATEL)
-              </h4>
-              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
-                ${acta.desarrollo.analisisAccidentalidad}
-              </div>
-            </div>
-          `
-              : ''
-          }
-
-          ${
-            acta.desarrollo?.inspeccionesSeguridad
-              ? `
-            <div style="margin-bottom: 14px; page-break-inside: avoid;">
-              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                4. Inspecciones Planeadas de Seguridad y Hallazgos en Terreno
-              </h4>
-              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
-                ${acta.desarrollo.inspeccionesSeguridad}
-              </div>
-            </div>
-          `
-              : ''
-          }
-
-          ${
-            acta.desarrollo?.capacitacionesYCampanas
-              ? `
-            <div style="margin-bottom: 14px; page-break-inside: avoid;">
-              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                5. Cumplimiento de Cronograma de Capacitaciones y Campañas
-              </h4>
-              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
-                ${acta.desarrollo.capacitacionesYCampanas}
-              </div>
-            </div>
-          `
-              : ''
-          }
-
-          ${
-            acta.desarrollo?.solicitudesTrabajadores
-              ? `
-            <div style="margin-bottom: 14px; page-break-inside: avoid;">
-              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                6. Peticiones, Sugerencias e Inquietudes de los Trabajadores
-              </h4>
-              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
-                ${acta.desarrollo.solicitudesTrabajadores}
-              </div>
-            </div>
-          `
-              : ''
-          }
-
-          ${
-            acta.desarrollo?.asesoriaArl
-              ? `
-            <div style="margin-bottom: 14px; page-break-inside: avoid;">
-              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                7. Asesoría, Recomendaciones e Intervención de la ARL
-              </h4>
-              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
-                ${acta.desarrollo.asesoriaArl}
-              </div>
-            </div>
-          `
-              : ''
-          }
-
-          ${
-            acta.desarrollo?.proposicionesVarios
-              ? `
-            <div style="margin-bottom: 14px; page-break-inside: avoid;">
-              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                8. Proposiciones, Varios y Acuerdos de Cierre
-              </h4>
-              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
-                ${acta.desarrollo.proposicionesVarios}
-              </div>
-            </div>
-          `
-              : ''
-          }
-        </div>
-
-        <!-- Compromisos -->
-        <div style="margin-bottom: 24px; page-break-inside: avoid;">
-          <h3 style="margin: 0 0 10px 0; font-size: 12.5px; font-weight: 800; color: #0f766e; text-transform: uppercase; letter-spacing: 0.5px;">
-            🎯 PLAN DE ACCIÓN Y COMPROMISOS ADQUIRIDOS
-          </h3>
-          <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-            <thead>
-              <tr style="background-color: #f1f5f9; color: #475569; font-size: 10.5px; font-weight: 800; text-transform: uppercase;">
-                <th style="padding: 8px 10px; width: 6%; text-align: center;">#</th>
-                <th style="padding: 8px 10px; width: 44%; text-align: left;">Acción / Compromiso</th>
-                <th style="padding: 8px 10px; width: 22%; text-align: left;">Responsable</th>
-                <th style="padding: 8px 10px; width: 16%; text-align: left;">Fecha Límite</th>
-                <th style="padding: 8px 10px; width: 12%; text-align: center;">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${compromisosRows}
-            </tbody>
-          </table>
-        </div>
+        ${aiBodyHtml || fallbackBodyHtml}
 
         <!-- Firmas Oficiales de los Participantes del COPASST -->
         ${signaturesHtml}
       </div>
     `;
+
+    if (dbActa) {
+      dbActa.desarrollo = { ...dbActa.desarrollo, ...desarrolloEnriquecido };
+      dbActa.reporteOficialHtml = fullHtml;
+      await dbActa.save();
+    }
 
     const reportId = uuidv4();
     const publicReport = new PublicReport({
@@ -846,6 +922,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
       reportId,
       url: `/report/${reportId}`,
       html: fullHtml,
+      desarrolloEnriquecido,
     });
   } catch (error) {
     logger.error('[COPASST] POST /actas/:id/reporte-oficial error:', error);

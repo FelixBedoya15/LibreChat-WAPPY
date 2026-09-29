@@ -31,7 +31,11 @@ body {
 }
 
 html:has(.mkt),
-html {
+html,
+body:has(.mkt),
+body,
+#root,
+.mkt {
   scroll-behavior: smooth;
 }
 
@@ -2345,55 +2349,39 @@ html {
 .mkt .foot-top {
   z-index: 2;
   border-top: 1px solid rgba(14, 19, 0, 0.12);
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 48px;
-  padding: 40px 0;
+  padding: 36px 0 20px;
   display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
   position: relative;
 }
 
 .mkt .foot-brand {
-  max-width: 280px;
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .mkt .foot-brand img {
-  height: 26px;
-  margin-bottom: 14px;
+  height: 38px;
+  width: 38px;
+  object-fit: contain;
 }
 
+.mkt .foot-brand .foot-desc,
 .mkt .foot-brand p {
-  color: rgba(14, 19, 0, 0.55);
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.mkt .foot-cols {
-  flex-wrap: wrap;
-  gap: 56px;
-  display: flex;
-}
-
-.mkt .foot-col h4 {
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(14, 19, 0, 0.45);
-  margin: 0 0 14px;
-  font-size: 12px;
-}
-
-.mkt .foot-col a {
-  color: var(--ink2);
-  padding: 7px 0;
-  font-size: 14.5px;
-  font-weight: 500;
-  transition: opacity 0.15s;
-  display: block;
-}
-
-.mkt .foot-col a:hover {
-  opacity: 0.6;
+  color: rgba(14, 19, 0, 0.68);
+  margin: 8px auto 0;
+  font-size: clamp(14px, 1.4vw, 17px);
+  line-height: 1.65;
+  width: 100%;
+  max-width: 1100px;
+  text-align: center;
+  letter-spacing: -0.01em;
 }
 
 .mkt .foot-word {
@@ -2495,10 +2483,6 @@ html {
   .mkt .tgrid,
   .mkt .price {
     grid-template-columns: 1fr;
-  }
-  .mkt .foot-cols {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 32px;
   }
   .mkt .life-copy {
     padding: 32px;
@@ -2703,10 +2687,6 @@ html {
   }
   .mkt .final h2 {
     font-size: clamp(26px, 6vw, 36px);
-  }
-  .mkt .foot-cols {
-    grid-template-columns: 1fr;
-    gap: 24px;
   }
   .mkt-modal-scrim {
     padding: 12px !important;

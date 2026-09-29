@@ -475,7 +475,7 @@ router.post('/actas/generar-borrador-ia', requireJwtAuth, async (req, res) => {
     const company = await getActiveCompany(req.user.id);
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
 
-    const { trimestre, anio, notasAdicionales } = req.body;
+    const { trimestre, anio, notasAdicionales, desarrolloActual = {} } = req.body;
 
     // Calcular estadísticas reales de quejas para alimentar el acta trimestral sin exponer nombres
     const casos = await SgsstConvivenciaCaso.find({ companyId: company._id });
@@ -484,8 +484,13 @@ router.post('/actas/generar-borrador-ia', requireJwtAuth, async (req, res) => {
     const acuerdos = casos.filter((c) => c.estado === 'acuerdo_conciliatorio').length;
     const remitidas = casos.filter((c) => c.estado === 'no_acuerdo_alta_direccion').length;
 
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel =
+      personalization?.sstManagement ||
+      (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+
     const prompt = `Actúa como Tenshi, experta jurídica y psicosocial en Seguridad y Salud en el Trabajo, bajo la estricta Resolución 3461 del 1 de septiembre de 2025 (Convenio 190 OIT), Ley 1010 de 2006 y Ley 2365 de 2024 de Colombia.
-Redacta el contenido formal y reservado de un Acta Ordinaria Trimestral del Comité de Convivencia Laboral (CCL) para la empresa "${company.companyName}".
+Redacta y complementa el contenido formal, técnico y reservado de los 7 puntos reglamentarios de un Acta Ordinaria Trimestral del Comité de Convivencia Laboral (CCL) para la empresa "${company.companyName}".
 Trimestre: Q${trimestre || 1} de ${anio || new Date().getFullYear()}.
 
 Métricas anonimizadas del trimestre:
@@ -493,37 +498,61 @@ Métricas anonimizadas del trimestre:
 - Casos en trámite activo (bajo plazo de 65 días): ${enTramite}
 - Acuerdos de mediación y compromisos suscritos: ${acuerdos}
 - Casos remitidos a la Alta Dirección por falta de acuerdo: ${remitidas}
-- Notas del comité: ${notasAdicionales || 'Desarrollo de campañas de comunicación asertiva y prevención del acoso laboral y de género.'}
 
-Genera un JSON EXACTO con las siguientes claves:
+Apuntes actuales del formulario (amplíalos técnicamente de 3 a 5 oraciones completas por punto; si algún campo está vacío, redáctalo de forma completa):
+1. Lectura acta anterior: ${desarrolloActual.lecturaActaAnterior || 'Verificación del quórum y aprobación del acta trimestral anterior.'}
+2. Seguimiento a compromisos previos: ${desarrolloActual.seguimientoCompromisos || 'Seguimiento al cumplimiento de acuerdos de convivencia y acciones preventivas del trimestre previo.'}
+3. Revisión confidencial de quejas: ${desarrolloActual.revisionQuejasTrimestre || 'Revisión estadística reservada de trámites y mediaciones sin exponer identidades.'}
+4. Campañas preventivas acoso laboral y sexual: ${desarrolloActual.campanasPreventivasAcoso || 'Campañas de prevención de acoso laboral (Ley 1010/2006) y acoso sexual (Ley 2365/2024).'}
+5. Clima laboral y riesgo psicosocial: ${desarrolloActual.climaLaboralPsicosocial || 'Monitoreo de factores psicosociales intralaborales y liderazgo respetuoso.'}
+6. Recomendaciones a la Alta Dirección: ${desarrolloActual.recomendacionesAltaDireccion || 'Recomendaciones a Gerencia y Talento Humano para fortalecer el ambiente laboral.'}
+7. Proposiciones y varios: ${notasAdicionales || desarrolloActual.proposicionesVarios || 'Programación de actividades y próxima sesión trimestral.'}
+
+Genera un JSON EXACTO con las siguientes claves (todos los 7 puntos completos):
 {
+  "lecturaActaAnterior": "Texto formal de verificación de quórum y aprobación del acta trimestral anterior...",
+  "seguimientoCompromisos": "Balance detallado del seguimiento a compromisos y fórmulas de concertación previas...",
   "revisionQuejasTrimestre": "Resumen técnico de la gestión confidencial de los radicados del trimestre...",
-  "campanasPreventivasAcoso": "Iniciativas preventivas, talleres y sensibilizaciones psicosociales ejecutadas...",
-  "climaLaboralPsicosocial": "Diagnóstico y recomendaciones para el clima laboral y respeto interpersonal...",
+  "campanasPreventivasAcoso": "Iniciativas preventivas, talleres y sensibilizaciones psicosociales ejecutadas bajo Ley 1010/2006 y Ley 2365/2024...",
+  "climaLaboralPsicosocial": "Diagnóstico y acciones sobre clima laboral, batería de riesgo psicosocial y respeto interpersonal...",
+  "recomendacionesAltaDireccion": "Recomendaciones preventivas y correctivas dirigidas a la Alta Dirección y Talento Humano...",
   "proposicionesVarios": "Acuerdos y programación de actividades para el siguiente trimestre...",
   "compromisosSugeridos": [
     { "accion": "...", "responsable": "...", "fechaLimite": "YYYY-MM-DD" },
     { "accion": "...", "responsable": "...", "fechaLimite": "YYYY-MM-DD" }
   ]
 }
-Solo responde con el objeto JSON válido.`;
+Solo responde con el objeto JSON válido, sin bloques markdown.`;
 
-    const aiResponse = await generateWithKeyRotation(prompt, {
-      temperature: 0.3,
-      responseMimeType: 'application/json',
-    });
+    const result = await generateWithKeyRotation(
+      {
+        model: preferredModel,
+        generationConfig: {
+          temperature: 0.4,
+          responseMimeType: 'application/json',
+        },
+      },
+      req.user?.id || req.user,
+      prompt
+    );
+
+    const response = await result.response;
+    const rawText = response
+      .text()
+      .replace(/```json\n?/gi, '')
+      .replace(/```\n?/g, '')
+      .trim();
 
     let parsed = {};
     try {
-      parsed = JSON.parse(aiResponse);
+      parsed = JSON.parse(rawText);
     } catch (e) {
-      parsed = {
-        revisionQuejasTrimestre: 'Se revisó el consolidado estadístico de quejas recibidas en el trimestre, manteniendo la reserva legal.',
-        campanasPreventivasAcoso: 'Se evaluaron las campañas de divulgación del manual de convivencia y prevención del acoso.',
-        climaLaboralPsicosocial: 'Monitoreo de factores psicosociales intralaborales en conjunto con el área de talento humano.',
-        proposicionesVarios: 'Se fijan fechas para las próximas sesiones de sensibilización.',
-        compromisosSugeridos: [],
-      };
+      const match = rawText.match(/\{[\s\S]*\}/);
+      if (match) {
+        parsed = JSON.parse(match[0]);
+      } else {
+        throw e;
+      }
     }
 
     res.json({ success: true, borrador: parsed });
@@ -665,20 +694,21 @@ router.post('/elecciones/:id/escrutinio', requireJwtAuth, async (req, res) => {
   }
 });
 
-// ─── 10. POST /actas/:id/reporte-oficial — Generar Documento Oficial con Firmas de Participantes ──
+// ─── 10. POST /actas/:id/reporte-oficial — Generar Documento Oficial con IA y Firmas de Participantes ──
 router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
   try {
     const company = await getActiveCompany(req.user.id);
     if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
 
     let acta;
+    let dbActa = null;
     if (req.params.id === 'preview') {
       acta = req.body || {};
       if (!acta.consecutivo) acta.consecutivo = 'BORRADOR';
       if (!acta.trimestre) acta.trimestre = 1;
       if (!acta.anio) acta.anio = new Date().getFullYear();
     } else {
-      const dbActa = await SgsstConvivenciaActa.findOne({ _id: req.params.id, companyId: company._id });
+      dbActa = await SgsstConvivenciaActa.findOne({ _id: req.params.id, companyId: company._id });
       if (!dbActa) return res.status(404).json({ error: 'Acta no encontrada' });
       acta = dbActa.toObject ? dbActa.toObject() : { ...dbActa };
       if (req.body && Object.keys(req.body).length > 0) {
@@ -730,6 +760,122 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
       </div>
     `;
 
+    const asistentesStr =
+      Array.isArray(acta.asistentes) && acta.asistentes.length > 0
+        ? acta.asistentes
+            .map(
+              (a) =>
+                `${a.nombre || 'Miembro'} (${a.rol || 'Integrante'} - CC: ${a.cedula || 'N/A'} - ${
+                  a.asistio !== false ? 'Asistió' : 'Ausente'
+                })`
+            )
+            .join('; ')
+        : 'Miembros del Comité de Convivencia Laboral (COCOLAB)';
+
+    const compromisosStr =
+      Array.isArray(acta.compromisos) && acta.compromisos.length > 0
+        ? acta.compromisos
+            .map(
+              (c, idx) =>
+                `${idx + 1}. Acción: ${c.accion} | Responsable: ${c.responsable || 'Comité'} | Fecha límite: ${
+                  c.fechaLimite || 'Por definir'
+                } | Estado: ${c.estado || 'pendiente'}`
+            )
+            .join('\n')
+        : 'Sin compromisos manuales previos registrados.';
+
+    // ─── Enriquecimiento y Desarrollo Integral con Tenshi IA (Gemini) ───
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel =
+      personalization?.sstManagement ||
+      (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+
+    let aiBodyHtml = '';
+    let desarrolloEnriquecido = { ...(acta.desarrollo || {}) };
+
+    try {
+      const aiPrompt = `Eres un Experto Jurídico y Psicosocial Senior en Seguridad y Salud en el Trabajo en Colombia y Secretario Técnico del Comité de Convivencia Laboral (COCOLAB), especializado en la Resolución 3461 de 2025, la Ley 1010 de 2006, la Ley 2365 de 2024 (Prevención de acoso sexual en el ámbito laboral) y la Resolución 2764 de 2022 (Batería de Riesgo Psicosocial).
+
+Tu objetivo es tomar los apuntes e insumos registrados por el usuario en el formulario del Acta Trimestral N° ${acta.consecutivo || 'BORRADOR'} (Trimestre Q${acta.trimestre} de ${acta.anio}) de la empresa "${company.companyName}" y **COMPLEMENTARLOS, EXPANDIRLOS Y ESTRUCTURARLOS** en un **INFORME OFICIAL DE ACTA DE CONVIVENCIA LABORAL EXHAUSTIVO, TÉCNICO, CONFIDENCIAL Y DE ALTA CALIDAD AUDITORA** (protegiendo siempre la reserva de identidades de quejosos).
+
+**ASISTENTES CONVOCADOS A LA SESIÓN:**
+${asistentesStr}
+
+**ESTADÍSTICAS ANONIMIZADAS DEL TRIMESTRE:**
+- Quejas recibidas: ${stats.quejasRecibidasTrimestre || 0} | En trámite: ${stats.enTramite || 0} | Acuerdos conciliatorios: ${stats.acuerdosConciliatorios || 0} | Casos Ley 2365: ${stats.casosAcosoSexualLey2365 || 0}
+
+**APUNTES / INSUMOS SUMINISTRADOS EN EL FORMULARIO DEL ACTA:**
+1. Lectura y Aprobación del Acta Anterior: ${acta.desarrollo?.lecturaActaAnterior || '[No detallado - complementar técnicamente]'}
+2. Seguimiento a Compromisos Previos y Fórmulas de Concertación: ${acta.desarrollo?.seguimientoCompromisos || '[No detallado - complementar técnicamente]'}
+3. Revisión Confidencial de Casos y Trámites Conciliatorios: ${acta.desarrollo?.revisionQuejasTrimestre || '[No detallado - complementar técnicamente]'}
+4. Campañas Preventivas contra Acoso Laboral y Sexual (Ley 2365/2024): ${acta.desarrollo?.campanasPreventivasAcoso || '[No detallado - complementar técnicamente]'}
+5. Monitoreo de Clima Laboral y Factores de Riesgo Psicosocial: ${acta.desarrollo?.climaLaboralPsicosocial || '[No detallado - complementar técnicamente]'}
+6. Recomendaciones Preventivas y Correctivas a la Alta Dirección: ${acta.desarrollo?.recomendacionesAltaDireccion || '[No detallado - complementar técnicamente]'}
+7. Proposiciones, Varios y Acuerdos de Cierre: ${acta.desarrollo?.proposicionesVarios || '[No detallado - complementar técnicamente]'}
+
+**COMPROMISOS / PLAN DE ACCIÓN REGISTRADOS EN EL FORMULARIO:**
+${compromisosStr}
+
+**INSTRUCCIONES DE SALIDA (JSON ESTRICTO):**
+Devuelve un objeto JSON válido con dos propiedades principales:
+1. \`"desarrolloEnriquecido"\`: Un objeto con las 7 claves exactas (\`lecturaActaAnterior\`, \`seguimientoCompromisos\`, \`revisionQuejasTrimestre\`, \`campanasPreventivasAcoso\`, \`climaLaboralPsicosocial\`, \`recomendacionesAltaDireccion\`, \`proposicionesVarios\`), cada una con un párrafo técnico completo y detallado en texto plano.
+2. \`"htmlBody"\`: Código HTML puro y limpio (sin bloques markdown) con:
+   - **Sección A: Dictamen Ejecutivo de Convivencia y Clima Psicosocial del Trimestre**
+     \`<div style="border-left: 4px solid #0f766e; background-color: #f0fdfa; padding: 14px 18px; border-radius: 0 10px 10px 0; margin-bottom: 22px; font-size: 11.5px; color: #1e293b; line-height: 1.65;"><strong>🛡️ Dictamen Ejecutivo del Comité de Convivencia Laboral:</strong> [Análisis de 2 párrafos sobre el clima organizacional, la gestión preventiva bajo la Res. 3461/2025 y Ley 2365/2024 en el Trimestre Q${acta.trimestre} de ${acta.anio}]</div>\`
+   - **Sección B: Desarrollo Exhaustivo de los 7 Puntos Reglamentarios de la Sesión**
+     Título: \`<h3 style="margin: 0 0 14px 0; font-size: 13px; font-weight: 800; color: #0f766e; text-transform: uppercase; border-bottom: 2px solid #0f766e; padding-bottom: 6px;">📝 DESARROLLO Y ANÁLISIS DE LA SESIÓN DE CONVIVENCIA</h3>\`
+     Desarrolla **TODOS LOS 7 PUNTOS** (del 1 al 7) en tarjetas HTML estilizadas con 2 párrafos técnicos y normativos por cada punto.
+   - **Sección C: Matriz de Gestión Preventiva Psicosocial y Convivencia del Trimestre**
+     Tabla HTML con encabezados \`#0f766e\` y al menos 4 filas: **Factor / Línea de Acción Psicosocial** | **Diagnóstico / Gestión del Trimestre** | **Medida Preventiva / Correctiva** | **Marco Legal (Ley 1010 / Res. 3461 / Ley 2365)**.
+   - **Sección D: Plan de Acción y Medidas Concertadas**
+     Tabla HTML detallada que incluya los compromisos registrados por el usuario (ampliados con alcance y entregable verificable) más 2 compromisos preventivos complementarios.
+   - **Sección E: Constancia de Reserva Legal y Cierre de Sesión**.`;
+
+      const aiResult = await generateWithKeyRotation(
+        {
+          model: preferredModel,
+          generationConfig: {
+            temperature: 0.35,
+            responseMimeType: 'application/json',
+          },
+        },
+        req.user?.id || req.user,
+        aiPrompt
+      );
+
+      const response = await aiResult.response;
+      const rawText = response
+        .text()
+        .replace(/```json\n?/gi, '')
+        .replace(/```\n?/g, '')
+        .trim();
+
+      let parsedAi = {};
+      try {
+        parsedAi = JSON.parse(rawText);
+      } catch (parseErr) {
+        const match = rawText.match(/\{[\s\S]*\}/);
+        if (match) parsedAi = JSON.parse(match[0]);
+      }
+
+      if (parsedAi.desarrolloEnriquecido && typeof parsedAi.desarrolloEnriquecido === 'object') {
+        desarrolloEnriquecido = {
+          ...desarrolloEnriquecido,
+          ...parsedAi.desarrolloEnriquecido,
+        };
+        acta.desarrollo = desarrolloEnriquecido;
+      }
+
+      if (parsedAi.htmlBody && typeof parsedAi.htmlBody === 'string') {
+        aiBodyHtml = parsedAi.htmlBody
+          .replace(/```html\n?/gi, '')
+          .replace(/```\n?/g, '')
+          .trim();
+      }
+    } catch (aiErr) {
+      logger.warn('[CONVIVENCIA] AI enrichment fallback in reporte-oficial:', aiErr.message);
+    }
+
     const compromisosRows = Array.isArray(acta.compromisos) && acta.compromisos.length > 0
       ? acta.compromisos
           .map(
@@ -753,6 +899,59 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
           )
           .join('')
       : `<tr><td colspan="5" style="padding: 12px; text-align: center; color: #94a3b8; font-style: italic; font-size: 11px;">No se registraron compromisos adicionales en esta sesión.</td></tr>`;
+
+    const fallbackBodyHtml = `
+      <!-- Desarrollo Temático -->
+      <div style="margin-bottom: 24px;">
+        <h3 style="margin: 0 0 14px 0; font-size: 13px; font-weight: 800; color: #0f766e; text-transform: uppercase; border-bottom: 2px solid #0f766e; padding-bottom: 6px;">
+          📝 DESARROLLO Y ANÁLISIS DE LA SESIÓN DE CONVIVENCIA
+        </h3>
+        ${[
+          ['1. Lectura y Aprobación del Acta Trimestral Anterior', acta.desarrollo?.lecturaActaAnterior],
+          ['2. Seguimiento a Compromisos Previos y Fórmulas de Concertación', acta.desarrollo?.seguimientoCompromisos],
+          ['3. Revisión Periódica de Casos y Trámites Conciliatorios (Sin Nombres Propios)', acta.desarrollo?.revisionQuejasTrimestre],
+          ['4. Campañas Preventivas contra el Acoso Laboral y Acoso Sexual', acta.desarrollo?.campanasPreventivasAcoso],
+          ['5. Monitoreo de Clima Laboral y Riesgo Psicosocial', acta.desarrollo?.climaLaboralPsicosocial],
+          ['6. Recomendaciones Preventivas y Correctivas a la Alta Dirección', acta.desarrollo?.recomendacionesAltaDireccion],
+          ['7. Proposiciones, Varios y Acuerdos de Cierre', acta.desarrollo?.proposicionesVarios],
+        ]
+          .filter(([, val]) => Boolean(val))
+          .map(
+            ([label, val]) => `
+            <div style="margin-bottom: 14px; page-break-inside: avoid;">
+              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                ${label}
+              </h4>
+              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
+                ${val}
+              </div>
+            </div>
+          `
+          )
+          .join('')}
+      </div>
+
+      <!-- Compromisos -->
+      <div style="margin-bottom: 24px; page-break-inside: avoid;">
+        <h3 style="margin: 0 0 10px 0; font-size: 12.5px; font-weight: 800; color: #0f766e; text-transform: uppercase; letter-spacing: 0.5px;">
+          🎯 PLAN DE ACCIÓN Y MEDIDAS CONCERTADAS
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+          <thead>
+            <tr style="background-color: #f1f5f9; color: #475569; font-size: 10.5px; font-weight: 800; text-transform: uppercase;">
+              <th style="padding: 8px 10px; width: 6%; text-align: center;">#</th>
+              <th style="padding: 8px 10px; width: 44%; text-align: left;">Acción / Compromiso</th>
+              <th style="padding: 8px 10px; width: 22%; text-align: left;">Responsable</th>
+              <th style="padding: 8px 10px; width: 16%; text-align: left;">Fecha Límite</th>
+              <th style="padding: 8px 10px; width: 12%; text-align: center;">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${compromisosRows}
+          </tbody>
+        </table>
+      </div>
+    `;
 
     // FIRMAS OBLIGATORIAS: DE LOS PARTICIPANTES DEL COMITÉ (NO LAS GENÉRICAS DE LA EMPRESA)
     const signaturesHtml = buildCommitteeSignatureSection({
@@ -803,143 +1002,18 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
 
         ${estadisticasHtml}
 
-        <!-- Desarrollo Temático -->
-        <div style="margin-bottom: 24px;">
-          <h3 style="margin: 0 0 14px 0; font-size: 13px; font-weight: 800; color: #0f766e; text-transform: uppercase; border-bottom: 2px solid #0f766e; padding-bottom: 6px;">
-            📝 DESARROLLO Y ANÁLISIS DE LA SESIÓN DE CONVIVENCIA
-          </h3>
-
-          ${
-            acta.desarrollo?.lecturaActaAnterior
-              ? `
-            <div style="margin-bottom: 14px; page-break-inside: avoid;">
-              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                1. Lectura y Aprobación del Acta Trimestral Anterior
-              </h4>
-              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
-                ${acta.desarrollo.lecturaActaAnterior}
-              </div>
-            </div>
-          `
-              : ''
-          }
-
-          ${
-            acta.desarrollo?.seguimientoCompromisos
-              ? `
-            <div style="margin-bottom: 14px; page-break-inside: avoid;">
-              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                2. Seguimiento a Compromisos Previos y Fórmulas de Concertación
-              </h4>
-              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
-                ${acta.desarrollo.seguimientoCompromisos}
-              </div>
-            </div>
-          `
-              : ''
-          }
-
-          ${
-            acta.desarrollo?.revisionQuejasTrimestre
-              ? `
-            <div style="margin-bottom: 14px; page-break-inside: avoid;">
-              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                3. Revisión Periódica de Casos y Trámites Conciliatorios (Sin Nombres Propios)
-              </h4>
-              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
-                ${acta.desarrollo.revisionQuejasTrimestre}
-              </div>
-            </div>
-          `
-              : ''
-          }
-
-          ${
-            acta.desarrollo?.campanasPreventivasAcoso
-              ? `
-            <div style="margin-bottom: 14px; page-break-inside: avoid;">
-              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                4. Campañas Preventivas contra el Acoso Laboral y Acoso Sexual
-              </h4>
-              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
-                ${acta.desarrollo.campanasPreventivasAcoso}
-              </div>
-            </div>
-          `
-              : ''
-          }
-
-          ${
-            acta.desarrollo?.climaLaboralPsicosocial
-              ? `
-            <div style="margin-bottom: 14px; page-break-inside: avoid;">
-              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                5. Monitoreo de Clima Laboral y Riesgo Psicosocial
-              </h4>
-              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
-                ${acta.desarrollo.climaLaboralPsicosocial}
-              </div>
-            </div>
-          `
-              : ''
-          }
-
-          ${
-            acta.desarrollo?.recomendacionesAltaDireccion
-              ? `
-            <div style="margin-bottom: 14px; page-break-inside: avoid;">
-              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                6. Recomendaciones Preventivas y Correctivas a la Alta Dirección
-              </h4>
-              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
-                ${acta.desarrollo.recomendacionesAltaDireccion}
-              </div>
-            </div>
-          `
-              : ''
-          }
-
-          ${
-            acta.desarrollo?.proposicionesVarios
-              ? `
-            <div style="margin-bottom: 14px; page-break-inside: avoid;">
-              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                7. Proposiciones, Varios y Acuerdos de Cierre
-              </h4>
-              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
-                ${acta.desarrollo.proposicionesVarios}
-              </div>
-            </div>
-          `
-              : ''
-          }
-        </div>
-
-        <!-- Compromisos -->
-        <div style="margin-bottom: 24px; page-break-inside: avoid;">
-          <h3 style="margin: 0 0 10px 0; font-size: 12.5px; font-weight: 800; color: #0f766e; text-transform: uppercase; letter-spacing: 0.5px;">
-            🎯 PLAN DE ACCIÓN Y MEDIDAS CONCERTADAS
-          </h3>
-          <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-            <thead>
-              <tr style="background-color: #f1f5f9; color: #475569; font-size: 10.5px; font-weight: 800; text-transform: uppercase;">
-                <th style="padding: 8px 10px; width: 6%; text-align: center;">#</th>
-                <th style="padding: 8px 10px; width: 44%; text-align: left;">Acción / Compromiso</th>
-                <th style="padding: 8px 10px; width: 22%; text-align: left;">Responsable</th>
-                <th style="padding: 8px 10px; width: 16%; text-align: left;">Fecha Límite</th>
-                <th style="padding: 8px 10px; width: 12%; text-align: center;">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${compromisosRows}
-            </tbody>
-          </table>
-        </div>
+        ${aiBodyHtml || fallbackBodyHtml}
 
         <!-- Firmas Oficiales de los Participantes de Convivencia -->
         ${signaturesHtml}
       </div>
     `;
+
+    if (dbActa) {
+      dbActa.desarrollo = { ...dbActa.desarrollo, ...desarrolloEnriquecido };
+      dbActa.reporteOficialHtml = fullHtml;
+      await dbActa.save();
+    }
 
     const reportId = uuidv4();
     const publicReport = new PublicReport({
@@ -955,6 +1029,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
       reportId,
       url: `/report/${reportId}`,
       html: fullHtml,
+      desarrolloEnriquecido,
     });
   } catch (error) {
     logger.error('[CONVIVENCIA] POST /actas/:id/reporte-oficial error:', error);

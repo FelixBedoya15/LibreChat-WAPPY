@@ -181,11 +181,18 @@ const copasstActaSchema = new mongoose.Schema(
     // Desarrollo temático estructurado
     desarrollo: {
       lecturaActaAnterior: { type: String, default: 'Aprobada sin modificaciones.' },
+      seguimientoCompromisos: { type: String, default: '' },
       analisisAccidentalidad: { type: String, default: '' },
       inspeccionesSeguridad: { type: String, default: '' },
       capacitacionesYCampanas: { type: String, default: '' },
+      solicitudesTrabajadores: { type: String, default: '' },
+      asesoriaArl: { type: String, default: '' },
       proposicionesVarios: { type: String, default: '' },
       analisisIaTenshi: { type: String, default: '' }, // Sugerencias automáticas por IA
+    },
+    reporteOficialHtml: {
+      type: String,
+      default: '',
     },
     // Compromisos / Plan de acción derivado del acta
     compromisos: [
