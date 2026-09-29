@@ -1112,7 +1112,7 @@ export default function LandingPage() {
           </p>
 
           <div className="app-phones">
-            {/* Phone 1: Análisis Biomecánico Fisioterapeuta IA */}
+            {/* Phone 1: Análisis Biomecánico · Fisioterapeuta IA (MediaPipe Pose Exoskeleton) */}
             <div className="phone-wrap">
               <div className="phone-label">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1122,7 +1122,7 @@ export default function LandingPage() {
                 {lang === 'es' ? 'Análisis Biomecánico · Fisioterapeuta IA' : 'Biomechanical Analysis · AI Physio'}
               </div>
               <div className="phone" style={{ width: 260, height: 530, display: 'flex', flexDirection: 'column', padding: 8, boxSizing: 'border-box' }}>
-                <div className="phone-screen" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#F8FAFC', borderRadius: 34, overflow: 'hidden' }}>
+                <div className="phone-screen" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#090D16', borderRadius: 34, overflow: 'hidden' }}>
                   {/* Unified Dynamic Island Notch */}
                   <div className="phone-notch" style={{ height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0F172A', flexShrink: 0 }}>
                     <span style={{ width: 56, height: 12, borderRadius: 9999, background: '#000' }}></span>
@@ -1136,69 +1136,180 @@ export default function LandingPage() {
                           📐
                         </span>
                         <div>
-                          <div style={{ fontSize: 12.5, fontWeight: 800, lineHeight: 1.1 }}>{lang === 'es' ? 'Evaluación Postural' : 'Postural Assessment'}</div>
-                          <div style={{ fontSize: 9.5, color: '#94A3B8' }}>{lang === 'es' ? 'Visión IA en Vivo · GTC 45' : 'Live AI Vision · GTC 45'}</div>
+                          <div style={{ fontSize: 12.5, fontWeight: 800, lineHeight: 1.1 }}>{lang === 'es' ? 'Fisioterapeuta IA' : 'AI Physiotherapist'}</div>
+                          <div style={{ fontSize: 9.5, color: '#38BDF8', fontWeight: 600 }}>MediaPipe Pose · ROSA</div>
                         </div>
                       </div>
-                      <span style={{ fontSize: 8.5, fontWeight: 800, padding: '2px 6px', borderRadius: 9999, background: 'rgba(56, 189, 248, 0.2)', color: '#38BDF8' }}>
-                        CÁMARA IA
+                      <span style={{ fontSize: 8.5, fontWeight: 800, padding: '2px 6px', borderRadius: 9999, background: 'rgba(34, 197, 94, 0.2)', color: '#4ADE80', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#4ADE80', boxShadow: '0 0 6px #4ADE80' }}></span>
+                        {lang === 'es' ? 'EN VIVO' : 'LIVE'}
                       </span>
                     </div>
                   </div>
 
-                  {/* Phone Body */}
-                  <div style={{ flex: 1, padding: 10, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: '#F1F5F9', minHeight: 0 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {/* Tabs */}
-                      <div style={{ display: 'flex', gap: 4, background: '#E2E8F0', borderRadius: 8, padding: 2 }}>
-                        <span style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 700, padding: '4px 0', background: '#fff', borderRadius: 6, color: '#0F172A' }}>
-                          Visión IA en Vivo
-                        </span>
-                        <span style={{ flex: 1, textAlign: 'center', fontSize: 10, color: '#64748B', padding: '4px 0', fontWeight: 600 }}>
-                          ROSA / OWAS
-                        </span>
+                  {/* Camera Viewport with MediaPipe Pose Exoskeleton */}
+                  <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', background: 'radial-gradient(circle at 60% 40%, #111A2E 0%, #070B12 100%)', overflow: 'hidden', minHeight: 0 }}>
+                    {/* Viewfinder Telemetry Top HUD */}
+                    <div style={{ position: 'absolute', top: 6, left: 8, right: 8, zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: '2px 6px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#EF4444' }}></span>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#F1F5F9', letterSpacing: '0.04em' }}>REC 30 FPS</span>
                       </div>
-
-                      {/* Card 1 */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0' }}>
-                        <span style={{ width: 34, height: 34, borderRadius: 8, background: '#FEF3C7', color: '#B45309', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 12 }}>
-                          24°
-                        </span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A' }}>Inclinación Cervical / Cuello</div>
-                          <div style={{ fontSize: 10, color: '#B45309', fontWeight: 600 }}>Flexión moderada · Alerta preventiva</div>
-                          <span style={{ display: 'inline-block', marginTop: 2, fontSize: 8.5, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: '#FEF3C7', color: '#B45309' }}>
-                            Ajustar altura de pantalla
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Card 2 */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0' }}>
-                        <span style={{ width: 34, height: 34, borderRadius: 8, background: '#DCFCE7', color: '#15803D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 12 }}>
-                          OK
-                        </span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A' }}>Alineación de Columna Lumbar</div>
-                          <div style={{ fontSize: 10, color: '#64748B' }}>Apoyo lumbar adecuado en silla</div>
-                          <span style={{ display: 'inline-block', marginTop: 2, fontSize: 8.5, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: '#DCFCE7', color: '#15803D' }}>
-                            Postura Neutra Aceptable
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Card 3: Normative note */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', borderRadius: 10, padding: '6px 8px', fontSize: 9.5, color: '#0369A1', fontWeight: 700, border: '1px solid #E0F2FE' }}>
-                        <span>📏</span>
-                        <span>{lang === 'es' ? 'Evaluación Biomecánica Res. 2400' : 'Biomechanical Audit Res. 2400'}</span>
-                      </div>
+                      <span style={{ fontSize: 8.5, fontWeight: 800, padding: '2px 6px', borderRadius: 6, background: 'rgba(245, 158, 11, 0.25)', color: '#FCD34D', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
+                        ROSA: 4 · Moderado
+                      </span>
                     </div>
 
-                    {/* Bottom Action Button */}
-                    <div style={{ marginTop: 'auto', paddingTop: 6 }}>
-                      <span style={{ height: 36, width: '100%', borderRadius: 10, background: '#C7F303', color: '#0E1300', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11.5, fontWeight: 800 }}>
-                        📷 {lang === 'es' ? 'Cámara en Vivo (IA)' : 'Live AI Camera'}
-                      </span>
+                    {/* SVG Canvas: Workstation Silhouette + MediaPipe 33-Landmark Pose Exoskeleton */}
+                    <div style={{ width: '100%', height: 235, position: 'relative' }}>
+                      <svg width="100%" height="100%" viewBox="0 0 240 235" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+                        <defs>
+                          <filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="2" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                          </filter>
+                          <filter id="glow-amber" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="2" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                          </filter>
+                        </defs>
+
+                        {/* Camera Optical Reticles / Viewfinder Corners */}
+                        <path d="M 12 28 L 12 18 L 22 18" stroke="#38BDF8" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+                        <path d="M 228 28 L 228 18 L 218 18" stroke="#38BDF8" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+                        <path d="M 12 215 L 12 225 L 22 225" stroke="#38BDF8" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+                        <path d="M 228 215 L 228 225 L 218 225" stroke="#38BDF8" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+
+                        {/* Subtle background tech grid */}
+                        <line x1="20" y1="130" x2="220" y2="130" stroke="#1E293B" strokeWidth="0.8" strokeDasharray="3 4" opacity="0.5" />
+                        <line x1="120" y1="20" x2="120" y2="220" stroke="#1E293B" strokeWidth="0.8" strokeDasharray="3 4" opacity="0.4" />
+
+                        {/* Workstation Silhouette (Office Desk, Monitor & Ergonomic Chair) */}
+                        {/* Monitor & Stand */}
+                        <rect x="180" y="80" width="34" height="42" rx="3" fill="#151E2E" stroke="#334155" strokeWidth="1.5" />
+                        <rect x="182" y="82" width="30" height="38" rx="2" fill="#0284C7" fillOpacity="0.12" />
+                        <line x1="197" y1="122" x2="197" y2="148" stroke="#475569" strokeWidth="3" strokeLinecap="round" />
+                        <path d="M 186 148 L 208 148" stroke="#475569" strokeWidth="2.5" strokeLinecap="round" />
+
+                        {/* Office Desk */}
+                        <line x1="120" y1="150" x2="228" y2="150" stroke="#334155" strokeWidth="3.5" strokeLinecap="round" />
+                        <line x1="216" y1="150" x2="216" y2="228" stroke="#1E293B" strokeWidth="2.5" />
+
+                        {/* Keyboard & Mouse */}
+                        <rect x="156" y="146" width="22" height="4" rx="1.5" fill="#475569" />
+                        <ellipse cx="186" cy="148" rx="3.5" ry="2" fill="#64748B" />
+
+                        {/* Ergonomic Chair */}
+                        <path d="M 48 95 Q 52 145 56 168" stroke="#1E293B" strokeWidth="6" strokeLinecap="round" />
+                        <path d="M 52 168 L 105 168" stroke="#1E293B" strokeWidth="5" strokeLinecap="round" />
+                        <line x1="75" y1="168" x2="75" y2="216" stroke="#334155" strokeWidth="3.5" />
+                        <path d="M 58 222 L 75 216 L 92 222" stroke="#475569" strokeWidth="3" strokeLinecap="round" />
+
+                        {/* Human Worker Profile Silhouette */}
+                        <circle cx="95" cy="74" r="14" fill="#192338" />
+                        <path d="M 88 88 C 76 112 74 150 78 166 C 85 168 108 168 114 166 C 112 146 110 114 100 88 Z" fill="#151E2E" />
+                        <path d="M 78 166 L 128 170 L 122 220 L 140 224" stroke="#151E2E" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
+
+                        {/* --- MEDIAPIPE POSE EXOSKELETON OVERLAY --- */}
+                        {/* Connecting Bones (Cyan & Lime Glowing Vectors) */}
+                        {/* Spine / Trunk Vector */}
+                        <line x1="98" y1="102" x2="88" y2="164" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" filter="url(#glow-cyan)" />
+
+                        {/* Pelvis to Knee (Thigh) */}
+                        <line x1="88" y1="164" x2="132" y2="170" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" />
+
+                        {/* Knee to Ankle (Lower Leg) */}
+                        <line x1="132" y1="170" x2="128" y2="218" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" />
+
+                        {/* Ankle to Foot Tip */}
+                        <line x1="128" y1="218" x2="148" y2="222" stroke="#10B981" strokeWidth="2" strokeLinecap="round" />
+
+                        {/* Arm: Shoulder -> Elbow */}
+                        <line x1="98" y1="102" x2="122" y2="132" stroke="#22D3EE" strokeWidth="2.5" strokeLinecap="round" filter="url(#glow-cyan)" />
+
+                        {/* Forearm: Elbow -> Wrist */}
+                        <line x1="122" y1="132" x2="160" y2="145" stroke="#22D3EE" strokeWidth="2.5" strokeLinecap="round" filter="url(#glow-cyan)" />
+
+                        {/* Wrist to Hand Landmarks */}
+                        <line x1="160" y1="145" x2="170" y2="147" stroke="#22D3EE" strokeWidth="2" strokeLinecap="round" />
+
+                        {/* Head & Facial Landmarks */}
+                        <line x1="95" y1="74" x2="105" y2="72" stroke="#22D3EE" strokeWidth="1.8" strokeLinecap="round" />
+                        <line x1="105" y1="72" x2="108" y2="76" stroke="#22D3EE" strokeWidth="1.8" strokeLinecap="round" />
+
+                        {/* Cervical Vector (Warning / Amber): C7 Cervical to Ear */}
+                        <line x1="98" y1="102" x2="95" y2="74" stroke="#F59E0B" strokeWidth="2.8" strokeLinecap="round" filter="url(#glow-amber)" />
+
+                        {/* Vertical Reference Line for Cervical Angle */}
+                        <line x1="98" y1="102" x2="98" y2="60" stroke="#94A3B8" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.7" />
+
+                        {/* Cervical Angle Arc (24°) */}
+                        <path d="M 98 72 A 30 30 0 0 0 95 74" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" fill="none" />
+
+                        {/* Cervical Angle Warning Badge */}
+                        <g transform="translate(42, 54)">
+                          <rect x="0" y="0" width="50" height="18" rx="5" fill="#FEF3C7" stroke="#F59E0B" strokeWidth="1.2" />
+                          <text x="25" y="12" fill="#B45309" fontSize="8.5" fontWeight="900" textAnchor="middle" fontFamily="sans-serif">
+                            24° ALERTA
+                          </text>
+                        </g>
+
+                        {/* Elbow Angle Arc & Badge (95° OK) */}
+                        <g transform="translate(128, 116)">
+                          <rect x="0" y="0" width="40" height="15" rx="4" fill="#DCFCE7" stroke="#10B981" strokeWidth="1" />
+                          <text x="20" y="11" fill="#15803D" fontSize="8" fontWeight="800" textAnchor="middle" fontFamily="sans-serif">
+                            95° OK
+                          </text>
+                        </g>
+
+                        {/* MediaPipe 33-Landmark Glowing Node Dots */}
+                        <circle cx="95" cy="74" r="3.5" fill="#F59E0B" stroke="#FFFFFF" strokeWidth="1.5" />
+                        <circle cx="105" cy="72" r="2.5" fill="#22D3EE" stroke="#FFFFFF" strokeWidth="1" />
+                        <circle cx="108" cy="76" r="2.5" fill="#22D3EE" stroke="#FFFFFF" strokeWidth="1" />
+                        <circle cx="98" cy="102" r="4" fill="#F59E0B" stroke="#FFFFFF" strokeWidth="1.5" />
+                        <circle cx="122" cy="132" r="4" fill="#10B981" stroke="#FFFFFF" strokeWidth="1.5" />
+                        <circle cx="160" cy="145" r="3" fill="#22D3EE" stroke="#FFFFFF" strokeWidth="1" />
+                        <circle cx="170" cy="147" r="2.5" fill="#22D3EE" stroke="#FFFFFF" strokeWidth="1" />
+                        <circle cx="88" cy="164" r="4" fill="#10B981" stroke="#FFFFFF" strokeWidth="1.5" />
+                        <circle cx="132" cy="170" r="4" fill="#10B981" stroke="#FFFFFF" strokeWidth="1.5" />
+                        <circle cx="128" cy="218" r="3.5" fill="#10B981" stroke="#FFFFFF" strokeWidth="1" />
+                        <circle cx="148" cy="222" r="3" fill="#10B981" stroke="#FFFFFF" strokeWidth="1" />
+
+                        {/* Real-time confidence watermark badge */}
+                        <g transform="translate(10, 206)">
+                          <rect x="0" y="0" width="128" height="15" rx="4" fill="rgba(15, 23, 42, 0.75)" stroke="rgba(56, 189, 248, 0.3)" strokeWidth="0.8" />
+                          <text x="64" y="11" fill="#38BDF8" fontSize="7.5" fontWeight="700" textAnchor="middle" fontFamily="sans-serif">
+                            ⚡ 33 Landmarks · 98.4% Confianza
+                          </text>
+                        </g>
+                      </svg>
+                    </div>
+
+                    {/* Diagnostic Summary Drawer */}
+                    <div style={{ background: '#0F172A', borderTop: '1px solid #1E293B', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 9.5, fontWeight: 800, color: '#F8FAFC', display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F59E0B' }}></span>
+                          {lang === 'es' ? 'Flexión Cervical: 24° (Límite 20°)' : 'Neck Flexion: 24° (Limit 20°)'}
+                        </span>
+                        <span style={{ fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 4, background: '#FEF3C7', color: '#B45309' }}>
+                          ISO 11226
+                        </span>
+                      </div>
+
+                      <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '5px 8px', fontSize: 9, color: '#94A3B8', lineHeight: 1.35, border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <strong style={{ color: '#C7F303' }}>{lang === 'es' ? 'Fisioterapeuta IA: ' : 'AI Physio: '}</strong>
+                        {lang === 'es'
+                          ? 'Elevar monitor +8 cm y realizar micropausa activa de 2 min.'
+                          : 'Raise screen +8 cm and take 2-min active break.'}
+                      </div>
+
+                      {/* Bottom Action Button */}
+                      <div style={{ paddingTop: 2 }}>
+                        <span style={{ height: 32, width: '100%', borderRadius: 8, background: '#C7F303', color: '#0E1300', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 10.5, fontWeight: 800 }}>
+                          ⚡ {lang === 'es' ? 'Prescribir Ajuste en Matriz' : 'Sync to Risk Matrix'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1392,26 +1503,30 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Video Band */}
+      {/* Video Band: Ecosistema de +20 Agentes SST & Demo Fisioterapeuta IA */}
       <section className="band vid-band">
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot"></span>
-              {lang === 'es' ? 'WAPPY en acción' : 'WAPPY in action'}
+              {lang === 'es' ? 'Ecosistema de Agentes IA Especializados' : 'Specialized AI Agent Ecosystem'}
             </span>
-            <h2 className="display">{lang === 'es' ? 'La revolución de la IA en SST' : 'The AI revolution in OHS'}</h2>
+            <h2 className="display">
+              {lang === 'es'
+                ? 'Más de 20 Agentes Especialistas en SST Resolviendo en Tiempo Real'
+                : '20+ OHS AI Specialist Agents Solving in Real Time'}
+            </h2>
             <p>
               {lang === 'es'
-                ? 'Mira cómo Tenshi analiza una inspección en campo, calcula los índices de frecuencia y genera el informe de estándares mínimos en segundos.'
-                : 'Watch Tenshi audit safety records, score road safety risks, and generate management reports.'}
+                ? 'WAPPY no es un chatbot genérico ni un formulario pasivo: es un equipo multidisciplinario de más de 20 agentes autónomos (Fisioterapeuta biomecánico, Médico Laboral, Higienista Industrial, Auditor ISO 45001 y Abogado SST) interconectados en tiempo real. En pantalla puedes observar a la Fisioterapeuta IA ejecutando un análisis postural en vivo mediante visión artificial, detectando desviaciones articulares y prescribiendo ajustes ergonómicos al instante.'
+                : 'WAPPY is not a generic chatbot: it is an orchestrated multidisciplinary team of 20+ specialized autonomous agents (Biomechanical Physio, Occupational Doctor, Industrial Hygienist, ISO 45001 Auditor, and OHS Legal Advisor). Watch our AI Physiotherapist perform live computer vision pose estimation, detecting joint angles and prescribing instant ergonomic adjustments.'}
             </p>
           </div>
 
           <div className="vid-shell">
             <span className="vid-tag eyebrow">
               <span className="dot"></span>
-              {lang === 'es' ? 'Demostración de la plataforma' : 'Platform demo'}
+              {lang === 'es' ? 'Análisis Biomecánico en Vivo · Fisioterapeuta IA' : 'Live Biomechanical Vision Demo · AI Physio'}
             </span>
             <video
               ref={videoRef}
@@ -1982,7 +2097,9 @@ export default function LandingPage() {
                 <span className="av" style={{ background: '#E8EAFF', color: '#4852ED' }}>CM</span>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>Claudia Martínez</div>
-                  <div style={{ fontSize: 12.5, color: '#9A9AA8' }}>Gerente SST · Sector Construcción</div>
+                  <div style={{ fontSize: 12.5, color: '#9A9AA8' }}>
+                    {lang === 'es' ? 'Responsable del SG-SST · Sector Construcción' : 'SG-SST Lead · Construction Sector'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1998,7 +2115,9 @@ export default function LandingPage() {
                 <span className="av" style={{ background: '#D6F4DF', color: '#0A5818' }}>AR</span>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>Andrés Rentería</div>
-                  <div style={{ fontSize: 12.5, color: '#9A9AA8' }}>Líder de Seguridad y Salud en el Trabajo</div>
+                  <div style={{ fontSize: 12.5, color: '#9A9AA8' }}>
+                    {lang === 'es' ? 'Coordinador de Seguridad y Salud en el Trabajo' : 'OHS Coordinator · Manufacturing'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -2014,7 +2133,9 @@ export default function LandingPage() {
                 <span className="av" style={{ background: '#FEF0DC', color: '#F09030' }}>MP</span>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>Ing. Marcela Pardo</div>
-                  <div style={{ fontSize: 12.5, color: '#9A9AA8' }}>Consultora Senior Especialista SST</div>
+                  <div style={{ fontSize: 12.5, color: '#9A9AA8' }}>
+                    {lang === 'es' ? 'Especialista en SST · Licencia Vigente MinSalud' : 'OHS Specialist & Auditor · Certified'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -2022,12 +2143,23 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Lifestyle Section */}
+      {/* Lifestyle Section: Cultura Preventiva Real & Actividad SST en Obra */}
       <section className="band" style={{ paddingTop: 0 }}>
         <div className="wrap">
           <div className="life">
-            <img className="bg" src="/marketing/ref-lifestyle-1.png" alt="Seguridad en el Trabajo" />
-            <div className="scrim"></div>
+            <img
+              className="bg"
+              src="/images/sgsst_perfiles/siso_actividad.jpg"
+              alt="Actividad de Seguridad y Salud en el Trabajo - Inspección SISO en Obra"
+              style={{ objectFit: 'cover', objectPosition: 'center 20%' }}
+            />
+            <div
+              className="scrim"
+              style={{
+                background:
+                  'linear-gradient(90deg, rgba(8, 14, 4, 0.90) 0%, rgba(8, 14, 4, 0.72) 42%, rgba(8, 14, 4, 0.25) 75%, transparent 100%)',
+              }}
+            ></div>
             <div className="life-copy">
               <span className="eyebrow">
                 <span className="dot"></span>
@@ -2046,7 +2178,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="life-float" style={{ top: 36, right: 36, width: 260 }}>
+            <div className="life-float" style={{ bottom: 36, right: 36, width: 270 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 9 }}>
                 <span style={{ width: 24, height: 24, borderRadius: 7, background: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2">
@@ -2055,7 +2187,7 @@ export default function LandingPage() {
                 </span>
                 <span style={{ fontSize: 12.5, fontWeight: 700 }}>Tenshi Alerta SST</span>
               </div>
-              <div style={{ background: '#C7F303', borderRadius: 12, padding: '9px 12px', fontSize: 12, fontWeight: 500, color: '#0E1300', lineHeight: 1.4 }}>
+              <div style={{ background: '#C7F303', borderRadius: 12, padding: '9px 12px', fontSize: 12, fontWeight: 600, color: '#0E1300', lineHeight: 1.4 }}>
                 {lang === 'es'
                   ? '¡Excelente jornada! Hoy registramos cero incidentes y el 100% de preoperacionales completados en campo 👷‍♂️✨'
                   : 'Zero incidents recorded today and 100% of field pre-trips completed 👷‍♂️✨'}
