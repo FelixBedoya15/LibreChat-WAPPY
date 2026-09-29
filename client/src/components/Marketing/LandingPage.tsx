@@ -84,12 +84,40 @@ export default function LandingPage() {
     }
   };
 
+  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
+    e.preventDefault();
+    const el = document.getElementById(targetId);
+    if (el) {
+      const navOffset = 90;
+      const elementPosition = el.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - navOffset;
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+      try {
+        window.history.pushState(null, '', `#${targetId}`);
+      } catch (err) {
+        // ignore
+      }
+    }
+  };
+
   return (
     <div className="mkt">
       {/* Floating Capsule Navbar */}
       <nav className="mkt-nav" aria-label="Navegación principal">
         <div className={`mkt-nav-inner ${isScrolled ? 'scrolled' : ''}`}>
-          <a className="mkt-nav-logo" aria-label="WAPPY IA - Ecosistema SST y PESV" href="/landing">
+          <a
+            className="mkt-nav-logo"
+            aria-label="WAPPY IA - Ecosistema SST y PESV"
+            href="/landing"
+            onClick={(e) => {
+              e.preventDefault();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              try { window.history.pushState(null, '', '/landing'); } catch (err) {}
+            }}
+          >
             <img src="/marketing/wappy-cat-logo.png" alt="WAPPY Logo" className="mkt-logo-icon" />
             <div className="mkt-logo-text">
               <span className="mkt-logo-title">WAPPY<span>IA</span></span>
@@ -98,19 +126,15 @@ export default function LandingPage() {
           </a>
 
           <div className="mkt-nav-links">
-            <a href="#modulos" title="Somos SST: Estructura Integral">Somos SST</a>
-            <a href="#tenshi" title="Ecosistema de Agentes de IA Especializados">Agentes IA</a>
-            <a href="#pesv" title="PESV Res. 20223040040595 & Riesgos">PESV & Riesgos</a>
-            <a href="#movil" title="Visión por Cámara y Bot de WhatsApp">Visión & Móvil</a>
-            <a href="#pricing" title="Planes para Mipymes, Empresas y ARL">Planes</a>
-            <a href="#faq" title="Preguntas Frecuentes">FAQ</a>
+            <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')} title="Somos SST: Estructura Integral">Somos SST</a>
+            <a href="#tenshi" onClick={(e) => scrollToSection(e, 'tenshi')} title="Ecosistema de Agentes de IA Especializados">Agentes IA</a>
+            <a href="#pesv" onClick={(e) => scrollToSection(e, 'pesv')} title="PESV Res. 20223040040595 & Riesgos">PESV & Riesgos</a>
+            <a href="#movil" onClick={(e) => scrollToSection(e, 'movil')} title="Visión por Cámara y Bot de WhatsApp">Visión & Móvil</a>
+            <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')} title="Planes para Mipymes, Empresas y ARL">Planes</a>
+            <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')} title="Preguntas Frecuentes">FAQ</a>
           </div>
 
           <div className="mkt-nav-cta">
-            <span className="mkt-country-badge">
-              🇨🇴 Colombia · Res. 0312
-            </span>
-
             <button type="button" className="btn btn-ghost mkt-nav-signin" onClick={handleLogin}>
               {isAuthenticated ? 'Ir al Chat' : 'Iniciar sesión'}
             </button>
