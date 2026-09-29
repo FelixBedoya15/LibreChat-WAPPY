@@ -248,102 +248,102 @@ export default function LandingPage() {
                 ENFOQUE BIOCÉNTRICO INTEGRAL
               </div>
               <div className="fcb-sub">
-                Salud, Aptitud & Bienestar al Centro
+                Salud Integral, Aptitud Ocupacional & Bienestar
               </div>
             </div>
 
-            {/* Satellite 1 (Top-Left): Gamificación & Votaciones COPASST */}
+            {/* Satellite 1 (Top-Left): Gamificación en SST */}
             <div className="float-card-v2" style={{ top: 8, left: '1.5%', width: 330 }}>
               <div className="fcv2-header">
                 <div className="fcv2-icon" style={{ background: '#FEF3C7', color: '#B45309' }}>
-                  🗳️
+                  🏆
                 </div>
                 <div className="fcv2-titles">
-                  <div className="fcv2-title">Gamificación & Comités</div>
-                  <div className="fcv2-subtitle">COPASST · Convivencia</div>
+                  <div className="fcv2-title">Gamificación en SST</div>
+                  <div className="fcv2-subtitle">Cultura Participativa & Retos</div>
                 </div>
                 <div className="fcv2-badge" style={{ background: '#FEF08A', color: '#854D0E' }}>
-                  PARTICIPATIVO
+                  PARTICIPACIÓN 100%
                 </div>
               </div>
               <div className="fcv2-body" style={{ background: '#FEF9C3', color: '#713F12' }}>
-                Votación digital interactiva con QR: 48 colaboradores participaron en 15 min. Actas automatizadas sin papeleo.
+                Votaciones QR para comités (COPASST y Convivencia), retos de autocuidado, reporte lúdico de actos inseguros (ACI), seguimiento anímico diario y puntos que motivan a los colaboradores.
               </div>
             </div>
 
-            {/* Satellite 2 (Top-Right): Oráculo Predictivo H1 (Analítica Predictiva · Imagen 2) */}
+            {/* Satellite 2 (Top-Right): Hito 8: Inteligencia Artificial & Oráculo Predictivo */}
             <div className="float-card-v2" style={{ top: 8, right: '1.5%', width: 335, animationDelay: '1.2s' }}>
               <div className="fcv2-header">
                 <div className="fcv2-icon" style={{ background: '#C7F303', color: '#0E1300' }}>
                   🔮
                 </div>
                 <div className="fcv2-titles">
-                  <div className="fcv2-title">Oráculo Predictivo H1</div>
-                  <div className="fcv2-subtitle">analítica predictiva</div>
+                  <div className="fcv2-title">Hito 8: IA & Oráculo Predictivo</div>
+                  <div className="fcv2-subtitle">Analítica Predictiva Avanzada</div>
                 </div>
                 <div className="fcv2-badge" style={{ background: '#FEF08A', color: '#854D0E' }}>
-                  EN VIVO
+                  ANTICIPACIÓN EN VIVO
                 </div>
               </div>
               <div className="fcv2-body" style={{ background: '#C7F303', color: '#0E1300' }}>
-                Dictamen predictivo H1: Detección temprana de sobrecarga postural. Plan PAC generado antes de ausentismo 💚
+                Pronóstico estocástico de siniestralidad y radar de 9 dominios bioindividuales: anticipa picos de riesgo ergonómico y ausentismo antes de que ocurran con planes PAC automáticos.
               </div>
             </div>
 
-            {/* Satellite 3 (Bottom-Left): Análisis en Vivo · Visión por Cámara */}
+            {/* Satellite 3 (Bottom-Left): +20 Agentes Especialistas en SST */}
             <div className="float-card-v2" style={{ top: 220, left: '1.5%', width: 330, animationDelay: '2.1s' }}>
               <div className="fcv2-header">
                 <div className="fcv2-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}>
-                  📹
+                  🤖
                 </div>
                 <div className="fcv2-titles">
-                  <div className="fcv2-title">Análisis en Vivo · Visión IA</div>
-                  <div className="fcv2-subtitle">Monitoreo Ergonómico</div>
+                  <div className="fcv2-title">+20 Agentes Especialistas SST</div>
+                  <div className="fcv2-subtitle">Inteligencia Artificial Autónoma 24/7</div>
                 </div>
                 <div className="fcv2-badge" style={{ background: '#CFFAFE', color: '#0E7490' }}>
-                  TIEMPO REAL
+                  MULTIA-AGENTE
                 </div>
               </div>
               <div className="fcv2-body" style={{ background: '#ECFEFF', color: '#155E75' }}>
-                Cámara inteligente en puesto de trabajo: alerta temprana de fatiga biomecánica y recomendación de pausa activa en pantalla.
+                Expertos dedicados: Médico Laboral, Auditor SG-SST, Especialista en Riesgo Químico (SGA), Biomecánica & ROSA, Tareas Críticas, GTC-45, Analista Forense AT/EL y Salud Mental.
               </div>
             </div>
 
-            {/* Satellite 4 (Bottom-Right): Academia LMS & Centro Educativo */}
+            {/* Satellite 4 (Bottom-Right): Academia LMS & Blog SST */}
             <div className="float-card-v2" style={{ top: 220, right: '1.5%', width: 335, animationDelay: '1.8s' }}>
               <div className="fcv2-header">
                 <div className="fcv2-icon" style={{ background: '#DCFCE7', color: '#15803D' }}>
                   🎓
                 </div>
                 <div className="fcv2-titles">
-                  <div className="fcv2-title">Academia LMS & Quizzes</div>
-                  <div className="fcv2-subtitle">Centro Educativo · Blog</div>
+                  <div className="fcv2-title">Academia LMS & Blog SST</div>
+                  <div className="fcv2-subtitle">Centro Educativo · Artículos al Día</div>
                 </div>
                 <div className="fcv2-badge" style={{ background: '#DCFCE7', color: '#15803D' }}>
                   CERTIFICADO ✓
                 </div>
               </div>
               <div className="fcv2-body" style={{ background: '#F0FDF4', color: '#166534' }}>
-                Formación continua con micro-lecciones interactivas: 96% de aprobación en prevención y expedición de carnets digitales.
+                Micro-lecciones interactivas de 5 min con quizzes gamificados, expedición automática de carnets digitales verificables y blog con análisis normativo y técnico permanente.
               </div>
             </div>
 
-            {/* Satellite 5 (Bottom-Center): Google Drive & Registros Nube - ESTÁTICO Y CENTRADO ABAJO */}
+            {/* Satellite 5 (Bottom-Center): Somos SST · +30 Aplicativos en 8 Hitos */}
             <div className="float-card-v2 center-bottom" style={{ top: 410, left: '50%', transform: 'translateX(-50%)', width: 360 }}>
               <div className="fcv2-header">
                 <div className="fcv2-icon" style={{ background: '#E0F2FE', color: '#0284C7' }}>
-                  ☁️
+                  ⚡
                 </div>
                 <div className="fcv2-titles">
-                  <div className="fcv2-title">Google Drive Sync</div>
-                  <div className="fcv2-subtitle">Nube & Registros Centralizados</div>
+                  <div className="fcv2-title">Somos SST · Ecosistema Integral</div>
+                  <div className="fcv2-subtitle">Más de 30 Aplicativos en 8 Hitos</div>
                 </div>
                 <div className="fcv2-badge" style={{ background: '#E0E7FF', color: '#3730A3' }}>
-                  SINCRONIZADO
+                  DECRETO 1072 · RES. 0312
                 </div>
               </div>
               <div className="fcv2-body" style={{ background: '#EFF6FF', color: '#1D4ED8' }}>
-                Actas firmadas, matriz GTC 45 y perfiles biocéntricos respaldados automáticamente en la nube corporativa de tu empresa.
+                Suite completa que cubre todo el ciclo SG-SST: diagnóstico legal, matrices IPEVAR, comités, inspecciones de campo, ATS, medicina laboral, investigación ATEL y mejora continua.
               </div>
             </div>
           </div>
