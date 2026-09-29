@@ -14,8 +14,7 @@ export default function LandingPage() {
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [isPwaModalOpen, setIsPwaModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isVideoPlaying, setIsVideoPlaying] = useState(true);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [showVideo, setShowVideo] = useState(false);
 
   // Form states for Demo Modal
   const [demoName, setDemoName] = useState('');
@@ -74,15 +73,7 @@ export default function LandingPage() {
   };
 
   const toggleVideo = () => {
-    if (videoRef.current) {
-      if (videoRef.current.paused) {
-        videoRef.current.play();
-        setIsVideoPlaying(true);
-      } else {
-        videoRef.current.pause();
-        setIsVideoPlaying(false);
-      }
-    }
+    setShowVideo((prev) => !prev);
   };
 
   const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
@@ -1574,31 +1565,194 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="vid-shell">
-            <span className="vid-tag eyebrow">
-              <span className="dot"></span>
+          <div className="vid-shell" style={{ position: 'relative', width: '100%', maxWidth: 1120, margin: '0 auto', borderRadius: 28, overflow: 'hidden', boxShadow: '0 30px 80px rgba(14, 19, 0, 0.22)', background: '#0B1120', aspectRatio: '16 / 9' }}>
+            {/* Top Left Badge */}
+            <span className="vid-tag eyebrow" style={{ zIndex: 10 }}>
+              <span className="dot" style={{ background: '#10B981' }}></span>
               {lang === 'es' ? 'Análisis Biomecánico en Vivo · Fisioterapeuta IA' : 'Live Biomechanical Vision Demo · AI Physio'}
             </span>
-            <video
-              ref={videoRef}
-              src="/marketing/wappy-motion.mp4"
-              muted
-              loop
-              autoPlay
-              playsInline
-              preload="auto"
-            />
-            <button
-              className={`vid-play ${isVideoPlaying ? 'hide' : ''}`}
-              aria-label="Play tour"
-              onClick={toggleVideo}
+
+            {/* Top Right Spec Badge */}
+            <span
+              className="vid-tag eyebrow"
+              style={{
+                left: 'auto',
+                right: 20,
+                zIndex: 10,
+                background: 'rgba(15, 23, 42, 0.85)',
+                color: '#E2E8F0',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                backdropFilter: 'blur(8px)',
+              }}
             >
-              <span className="pbtn">
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="#0E1300">
-                  <polygon points="6 4 20 12 6 20 6 4"></polygon>
-                </svg>
-              </span>
-            </button>
+              <span className="dot" style={{ background: '#C7F303' }}></span>
+              {lang === 'es' ? 'MediaPipe Pose · Detección Cinemática' : 'MediaPipe Pose · Kinematic Detection'}
+            </span>
+
+            {!showVideo ? (
+              /* Static Image Poster with Interactive Play Trigger */
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  height: '100%',
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                }}
+                onClick={() => setShowVideo(true)}
+                title={lang === 'es' ? 'Clic para reproducir video del análisis en vivo' : 'Click to watch live video analysis'}
+              >
+                <img
+                  src="/marketing/analisis_postural_en_vivo.jpg"
+                  alt={lang === 'es' ? 'Análisis Postural Biomecánico en Vivo con Fisioterapeuta IA' : 'Live Postural Biomechanical Analysis with AI Physio'}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block',
+                    transition: 'transform 0.4s ease',
+                  }}
+                  className="vid-poster-img"
+                />
+
+                {/* Overlay Play Button */}
+                <div
+                  className="vid-play"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(14, 19, 0, 0.28)',
+                    backdropFilter: 'blur(1px)',
+                    gap: 14,
+                    transition: 'all 0.3s ease',
+                  }}
+                >
+                  <span
+                    className="pbtn"
+                    style={{
+                      background: '#C7F303',
+                      width: 86,
+                      height: 86,
+                      borderRadius: 9999,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 12px 40px rgba(199, 243, 3, 0.6), 0 0 0 10px rgba(199, 243, 3, 0.2)',
+                      transition: 'transform 0.25s ease, box-shadow 0.25s ease',
+                    }}
+                  >
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill="#0E1300">
+                      <polygon points="6 4 20 12 6 20 6 4"></polygon>
+                    </svg>
+                  </span>
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      background: 'rgba(15, 23, 42, 0.88)',
+                      backdropFilter: 'blur(10px)',
+                      color: '#FFFFFF',
+                      padding: '8px 18px',
+                      borderRadius: 9999,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      border: '1px solid rgba(255, 255, 255, 0.18)',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                    }}
+                  >
+                    <span>▶</span>
+                    <span>{lang === 'es' ? 'Ver video del análisis en vivo (2:24 min)' : 'Watch live video demo (2:24 min)'}</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Active YouTube Embed Player */
+              <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000' }}>
+                <iframe
+                  src="https://www.youtube.com/embed/-cR-Qv3DDsM?autoplay=1&rel=0&playsinline=1"
+                  title="Fisioterapeuta IA - Análisis postural en vivo"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                    display: 'block',
+                  }}
+                />
+
+                {/* Return to Static Infographic Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowVideo(false);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: 18,
+                    right: 18,
+                    zIndex: 20,
+                    background: 'rgba(15, 23, 42, 0.9)',
+                    backdropFilter: 'blur(8px)',
+                    color: '#FFFFFF',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    borderRadius: 9999,
+                    padding: '7px 14px',
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+                  }}
+                  title={lang === 'es' ? 'Volver a la imagen estática' : 'Back to static image'}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                  {lang === 'es' ? 'Ver imagen de análisis' : 'View static diagram'}
+                </button>
+
+                {/* Direct Link to YouTube */}
+                <a
+                  href="https://youtube.com/shorts/-cR-Qv3DDsM"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    position: 'absolute',
+                    bottom: 18,
+                    right: 18,
+                    zIndex: 20,
+                    background: 'rgba(15, 23, 42, 0.9)',
+                    backdropFilter: 'blur(8px)',
+                    color: '#C7F303',
+                    border: '1px solid rgba(199, 243, 3, 0.35)',
+                    borderRadius: 9999,
+                    padding: '7px 14px',
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  </svg>
+                  {lang === 'es' ? 'Abrir en YouTube' : 'Open in YouTube'} ↗
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </section>

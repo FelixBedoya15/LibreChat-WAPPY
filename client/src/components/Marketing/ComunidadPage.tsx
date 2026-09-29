@@ -3249,7 +3249,7 @@ export default function ComunidadPage() {
                 {/* Single iframe wrapper. Fullscreen states are managed entirely via dynamic CSS classes & layout overrides */}
                 <div 
                   id="mp-presentation-container"
-                  className="w-full relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-slate-950/90 shadow-[0_0_50px_-12px_rgba(16,185,129,0.15)] aspect-video mb-4 group transition-all duration-500 hover:border-emerald-500/35"
+                  className={`w-full relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-slate-950/90 shadow-[0_0_50px_-12px_rgba(16,185,129,0.15)] aspect-video mb-4 group transition-all duration-500 hover:border-emerald-500/35 z-10 ${isIframeFullscreen ? 'comunidadmp-fullscreen-iframe' : ''}`}
                 >
                   <iframe
                     src="/assets/gira-ia-sst.html"
