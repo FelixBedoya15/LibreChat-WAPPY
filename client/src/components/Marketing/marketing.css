@@ -642,7 +642,7 @@ html {
 /* Hero */
 .mkt .hero {
   background: var(--sky);
-  padding: 150px 0 90px;
+  padding: 150px 0 30px;
   position: relative;
   overflow: hidden;
 }
@@ -827,9 +827,9 @@ html {
 
 .mkt .hero-stage {
   z-index: 2;
-  height: 610px;
-  margin-top: 28px;
-  margin-bottom: 24px;
+  height: 575px;
+  margin-top: 48px;
+  margin-bottom: 0px;
   position: relative;
 }
 
@@ -1062,6 +1062,10 @@ html {
 
 .mkt .band {
   padding: 88px 0;
+}
+
+.mkt #modulos.band {
+  padding-top: 48px;
 }
 
 .mkt .sec-head {

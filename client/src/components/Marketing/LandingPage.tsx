@@ -278,7 +278,7 @@ export default function LandingPage() {
                   🔮
                 </div>
                 <div className="fcv2-titles">
-                  <div className="fcv2-title">Hito 8: IA & Oráculo Predictivo</div>
+                  <div className="fcv2-title">IA & Oráculo Predictivo</div>
                   <div className="fcv2-subtitle">Analítica Predictiva Avanzada</div>
                 </div>
                 <div className="fcv2-badge" style={{ background: '#FEF08A', color: '#854D0E' }}>
@@ -328,22 +328,22 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Satellite 5 (Bottom-Center): Somos SST · +30 Aplicativos en 8 Hitos */}
+            {/* Satellite 5 (Bottom-Center): Somos SST · +30 Aplicativos para el SG-SST */}
             <div className="float-card-v2 center-bottom" style={{ top: 410, left: '50%', transform: 'translateX(-50%)', width: 360 }}>
               <div className="fcv2-header">
                 <div className="fcv2-icon" style={{ background: '#E0F2FE', color: '#0284C7' }}>
                   ⚡
                 </div>
                 <div className="fcv2-titles">
-                  <div className="fcv2-title">Somos SST · Ecosistema Integral</div>
-                  <div className="fcv2-subtitle">Más de 30 Aplicativos en 8 Hitos</div>
+                  <div className="fcv2-title">Somos SST · Ecosistema Modular</div>
+                  <div className="fcv2-subtitle">Más de 30 Aplicativos para el SG-SST</div>
                 </div>
                 <div className="fcv2-badge" style={{ background: '#E0E7FF', color: '#3730A3' }}>
-                  DECRETO 1072 · RES. 0312
+                  8 HITOS
                 </div>
               </div>
               <div className="fcv2-body" style={{ background: '#EFF6FF', color: '#1D4ED8' }}>
-                Suite completa que cubre todo el ciclo SG-SST: diagnóstico legal, matrices IPEVAR, comités, inspecciones de campo, ATS, medicina laboral, investigación ATEL y mejora continua.
+                Plataforma con más de 30 aplicativos para el cumplimiento del SG-SST: diagnóstico, matrices IPEVAR, comités, inspecciones de campo, ATS, medicina laboral y reporte de incidentes.
               </div>
             </div>
           </div>
