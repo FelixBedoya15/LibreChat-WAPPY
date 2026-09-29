@@ -401,24 +401,51 @@ export default function LandingPage() {
             {/* Big Cell: Dictamen de Compatibilidad Cargo-Persona & FIT Score 360° */}
             <div className="cell big">
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 9999, background: '#10B981', display: 'inline-block' }}></span>
-                  <div style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.08em', color: '#10B981', fontWeight: 800 }}>
-                    {lang === 'es' ? 'Cruce Analítico Cargo-Persona' : 'Job-Person Analytical Cross'}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 9999, background: '#10B981', display: 'inline-block' }}></span>
+                    <div style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.08em', color: '#10B981', fontWeight: 800 }}>
+                      {lang === 'es' ? 'Hito 2 · Índice Biocéntrico Integral' : 'Milestone 2 · Biocentric Fit Index'}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 9999, background: 'rgba(16, 185, 129, 0.15)', color: '#34D399', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                    Cruce Algorítmico Activo
+                  </span>
+                </div>
+
+                {/* Score Visual Banner (radial meter + worker profile) */}
+                <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 18, background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 18, padding: '16px 20px', marginBottom: 16 }}>
+                  {/* Gauge */}
+                  <div style={{ position: 'relative', width: 84, height: 84, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg style={{ width: 84, height: 84, transform: 'rotate(-90deg)' }} viewBox="0 0 100 100">
+                      <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255, 255, 255, 0.1)" strokeWidth="8" />
+                      <circle cx="50" cy="50" r="40" fill="none" stroke="#10B981" strokeWidth="8" strokeDasharray="251.2" strokeDashoffset="20" strokeLinecap="round" />
+                    </svg>
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+                      <span style={{ fontSize: 20, fontWeight: 900, color: '#34D399', lineHeight: 1 }}>92%</span>
+                      <span style={{ fontSize: 7.5, fontWeight: 800, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.05em' }}>FIT SCORE</span>
+                      <span style={{ fontSize: 7, fontWeight: 900, background: '#10B981', color: '#062B16', padding: '1px 5px', borderRadius: 9999, marginTop: 2 }}>ÓPTIMO</span>
+                    </div>
+                  </div>
+
+                  {/* Worker Context */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>
+                      Carlos Mario Gómez
+                    </div>
+                    <div style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.75)', marginTop: 2 }}>
+                      {lang === 'es' ? 'Cargo: Operario de Planta & Maquinaria' : 'Role: Plant & Machinery Operator'}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.55)', marginTop: 4, lineHeight: 1.4 }}>
+                      {lang === 'es'
+                        ? 'Cruce analítico: Exigencias del Profesiograma (físicas, biomecánicas) vs. Concepto Médico Ocupacional (CIE-10).'
+                        : 'Analytical cross: Job Demands vs. Occupational Medical Concepts (ICD-10).'}
+                    </div>
                   </div>
                 </div>
-                <div className="display" style={{ fontSize: 26, marginTop: 4, lineHeight: 1.15, fontWeight: 700 }}>
-                  {lang === 'es'
-                    ? 'Dictamen de Compatibilidad Cargo-Persona · FIT Score 360°'
-                    : 'Job-Person Compatibility & 360° FIT Score'}
-                </div>
-                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 8, lineHeight: 1.55 }}>
-                  {lang === 'es'
-                    ? '¿Qué significa el Porcentaje FIT? WAPPY cruza analíticamente las demandas del puesto (biomecánicas, físicas y psicosociales del Profesiograma) con el concepto de aptitud médica del colaborador (CIE-10). Un porcentaje alto (ej. 98.2% FIT) certifica compatibilidad total con su cargo; si el puntaje desciende, los Agentes IA prescriben adaptaciones ergonómicas y controles preventivos de inmediato para evitar enfermedades laborales.'
-                    : 'What does the FIT Score mean? WAPPY analytically compares job demands (biomechanical, physical, cognitive) with the worker’s medical fitness (ICD-10). A high score (e.g. 98.2% FIT) certifies total job ergonomics and compatibility, prompting instant preventive adaptations if risks appear.'}
-                </p>
               </div>
 
+              {/* Real Audit Items (matching CondicionesSalud & OraculoPredictivoH1) */}
               <div className="chan-cards">
                 <div className="chan-card">
                   <span className="cdot" style={{ background: '#10B981' }}>
@@ -427,36 +454,25 @@ export default function LandingPage() {
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">{lang === 'es' ? 'Conceptos de Aptitud Médica' : 'Medical Fitness Concepts'}</div>
-                    <div className="cs">{lang === 'es' ? 'Diagnósticos CIE-10, ingresos y periódicos' : 'ICD-10, periodic exams'}</div>
+                    <div className="cn">{lang === 'es' ? 'Biometría & Signos Vitales' : 'Biometrics & Vital Signs'}</div>
+                    <div className="cs">{lang === 'es' ? 'PA 120/80 mmHg · IMC 23.8 Normal · CIE-10 sin patología' : 'BP 120/80 · Normal BMI · Clear ICD-10'}</div>
                   </div>
                 </div>
 
                 <div className="chan-card">
-                  <span className="cdot" style={{ background: '#0284C7' }}>
+                  <span className="cdot" style={{ background: '#F59E0B' }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                      <line x1="12" y1="9" x2="12" y2="13"></line>
+                      <line x1="12" y1="17" x2="12.01" y2="17"></line>
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">{lang === 'es' ? 'Profesiograma & Biomecánica' : 'Job Demands & Biomechanics'}</div>
-                    <div className="cs">{lang === 'es' ? 'Exigencias físicas, posturales y cognitivas' : 'Physical and posture demands'}</div>
-                  </div>
-                </div>
-
-                <div className="chan-card">
-                  <span className="cdot" style={{ background: '#D97706' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="9" cy="7" r="4"></circle>
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
-                  </span>
-                  <div>
-                    <div className="cn">{lang === 'es' ? 'Contexto Sociodemográfico' : 'Sociodemographic Context'}</div>
-                    <div className="cs">{lang === 'es' ? 'Hábitos, entorno y vulnerabilidad' : 'Habits and vulnerability'}</div>
+                    <div className="cn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>{lang === 'es' ? 'Biomecánica Lumbar (GTC 45)' : 'Lumbar Biomechanics (GTC 45)'}</span>
+                      <span style={{ fontSize: 9, fontWeight: 900, background: '#F59E0B', color: '#451A03', padding: '1px 5px', borderRadius: 4 }}>-8 pts</span>
+                    </div>
+                    <div className="cs">{lang === 'es' ? 'Alerta: flexión repetitiva de tronco en línea de empaque' : 'Warning: repetitive trunk flexion in packing line'}</div>
                   </div>
                 </div>
 
@@ -467,24 +483,29 @@ export default function LandingPage() {
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">{lang === 'es' ? 'Planes de Adaptación Preventiva' : 'Preventive Adaptation Plans'}</div>
-                    <div className="cs">{lang === 'es' ? 'Ajustes al puesto, pausas activas y controles' : 'Ergonomic controls & active breaks'}</div>
+                    <div className="cn">{lang === 'es' ? 'Prescripción de Adaptación Ergonómica' : 'Ergonomic Adaptation Prescription'}</div>
+                    <div className="cs">{lang === 'es' ? 'Pausas activas dirigidas y ajuste de altura en mesa' : 'Active targeted breaks & workbench height control'}</div>
                   </div>
                 </div>
 
                 <div className="chan-card">
-                  <span className="cdot" style={{ background: '#C7F303' }}>
-                    <span style={{ fontSize: 13, fontWeight: 900, color: '#0E1300' }}>%</span>
+                  <span className="cdot" style={{ background: '#0284C7' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
                   </span>
                   <div>
-                    <div className="cn">{lang === 'es' ? '98.2% FIT: Compatibilidad Óptima' : '98.2% FIT: Optimal Compatibility'}</div>
-                    <div className="cs">{lang === 'es' ? 'Cruce analítico aptitud vs. demandas del puesto' : 'Analytical cross: fitness vs. job demands'}</div>
+                    <div className="cn">{lang === 'es' ? 'Dictamen Preventivo Tenshi IA' : 'Tenshi AI Preventive Opinion'}</div>
+                    <div className="cs">{lang === 'es' ? 'Aptitud validada con controles preventivos sin secuelas' : 'Certified fitness with preventative controls'}</div>
                   </div>
                 </div>
 
-                <div className="chan-card" style={{ alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed' }}>
-                  <span style={{ fontSize: 11.5, fontWeight: 700, color: '#34D399' }}>
-                    {lang === 'es' ? '✓ Interconectado con Agentes IA · Dec. 1072 & Res. 0312' : '✓ Connected with AI Agents · Dec. 1072 & Res. 0312'}
+                <div className="chan-card" style={{ gridColumn: 'span 2', background: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.25)', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: '#34D399', textAlign: 'center' }}>
+                    {lang === 'es' ? '✓ Cumplimiento Estricto Decreto 1072/15, Res. 0312/19 y Guía Técnica GTC 45' : '✓ Full compliance with Dec. 1072/15, Res. 0312/19 & GTC 45'}
                   </span>
                 </div>
               </div>
@@ -506,12 +527,12 @@ export default function LandingPage() {
                 </div>
                 <div style={{ fontSize: 12.5, color: '#64748B', lineHeight: 1.5 }}>
                   {lang === 'es'
-                    ? 'Parametriza exigencias biomecánicas (ROSA/OWAS), físicas, cognitivas y psicosociales reales del puesto. Define la matriz de EPP y exámenes obligatorios por rol.'
-                    : 'Parameters for biomechanical, physical, cognitive, and psychosocial job demands. Defines required PPE and mandatory medical exams per role.'}
+                    ? 'Parametriza la ficha técnica del cargo: nivel de exigencia física, mental y operación de maquinaria. Asigna la matriz de EPP obligatorios, entrenamientos requeridos y almacena registros fotográficos y de video del puesto de trabajo.'
+                    : 'Configures role technical sheets: physical and mental demands, machinery operation, required PPE, trainings, and stores photographic and video evidence of the workstation.'}
                 </div>
               </div>
               <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--line)', fontSize: 11, fontWeight: 700, color: '#0369A1' }}>
-                ✓ {lang === 'es' ? 'Estandarización de exigencias' : 'Standardized job demands'}
+                ✓ {lang === 'es' ? 'Ficha técnica, EPP y evidencia en video' : 'Job demands, PPE & video records'}
               </div>
             </div>
 
@@ -523,7 +544,7 @@ export default function LandingPage() {
                     👥
                   </span>
                   <span style={{ background: '#FEF3C7', color: '#B45309', fontSize: 9.5, fontWeight: 800, padding: '3px 8px', borderRadius: 9999, textTransform: 'uppercase' }}>
-                    Antropología
+                    Línea Base SST
                   </span>
                 </div>
                 <div style={{ fontSize: 17, fontWeight: 700, color: '#0F172A', lineHeight: 1.25, marginBottom: 8 }}>
@@ -531,12 +552,12 @@ export default function LandingPage() {
                 </div>
                 <div style={{ fontSize: 12.5, color: '#64748B', lineHeight: 1.5 }}>
                   {lang === 'es'
-                    ? 'Mapea la comunidad laboral: edad, composición familiar, comorbilidades, hábitos y tiempo de desplazamiento. Permite personalizar los planes de salud y bienestar.'
-                    : 'Maps workforce demographics: age, family composition, comorbidities, habits, and commute time to personalize health and wellness programs.'}
+                    ? 'Caracterización integral de la población trabajadora: datos demográficos, hábitos de vida, afiliación a EPS/AFP, licencias de conducción (vigencia y categoría) y cursos de alturas. Permite importación masiva inteligente desde Excel.'
+                    : 'Comprehensive workforce characterization: demographics, lifestyle habits, healthcare/pension affiliations, driver licenses, and work-at-height certifications. Smart Excel import enabled.'}
                 </div>
               </div>
               <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--line)', fontSize: 11, fontWeight: 700, color: '#B45309' }}>
-                ✓ {lang === 'es' ? 'Vulnerabilidad individual y colectiva' : 'Individual & collective risk'}
+                ✓ {lang === 'es' ? 'Población trabajadora e importación Excel' : 'Workforce baseline & Excel import'}
               </div>
             </div>
 
@@ -548,7 +569,7 @@ export default function LandingPage() {
                     🩺
                   </span>
                   <span style={{ background: '#DCFCE7', color: '#15803D', fontSize: 9.5, fontWeight: 800, padding: '3px 8px', borderRadius: 9999, textTransform: 'uppercase' }}>
-                    Clínica SST
+                    Monitoreo Clínico
                   </span>
                 </div>
                 <div style={{ fontSize: 17, fontWeight: 700, color: '#0F172A', lineHeight: 1.25, marginBottom: 8 }}>
@@ -556,12 +577,12 @@ export default function LandingPage() {
                 </div>
                 <div style={{ fontSize: 12.5, color: '#64748B', lineHeight: 1.5 }}>
                   {lang === 'es'
-                    ? 'Seguimiento clínico de exámenes de ingreso, periódicos y retiro. Monitorea diagnósticos CIE-10, signos vitales y administra el semáforo de restricciones médicas laborales.'
-                    : 'Clinical tracking of pre-employment, periodic, and exit exams. Monitors ICD-10 diagnoses, vital signs, and manages workplace medical restrictions.'}
+                    ? 'Consolida los conceptos médicos ocupacionales (ingreso, periódico y retiro) con diagnósticos CIE-10, recomendaciones y biomonitoreo de signos vitales (PA, IMC, limitaciones osteomusculares). Genera el cálculo del Índice Biocéntrico Integral.'
+                    : 'Consolidates occupational medical concepts (entry, periodic, exit) with ICD-10 diagnoses, recommendations, and live vital sign biomonitoring (BP, BMI, musculoskeletal limits).'}
                 </div>
               </div>
               <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--line)', fontSize: 11, fontWeight: 700, color: '#15803D' }}>
-                ✓ {lang === 'es' ? 'Vigilancia epidemiológica activa' : 'Active medical surveillance'}
+                ✓ {lang === 'es' ? 'Conceptos CIE-10 y semáforo de restricciones' : 'ICD-10 concepts & medical restrictions'}
               </div>
             </div>
 
@@ -573,7 +594,7 @@ export default function LandingPage() {
                     📱
                   </span>
                   <span style={{ background: 'rgba(14, 19, 0, 0.12)', color: '#0E1300', fontSize: 9.5, fontWeight: 800, padding: '3px 8px', borderRadius: 9999, textTransform: 'uppercase' }}>
-                    Cero Papeleo
+                    Acceso QR
                   </span>
                 </div>
                 <div style={{ fontSize: 17, fontWeight: 800, color: '#0E1300', lineHeight: 1.25, marginBottom: 8 }}>
@@ -581,12 +602,12 @@ export default function LandingPage() {
                 </div>
                 <div style={{ fontSize: 12.5, color: 'rgba(14, 19, 0, 0.72)', lineHeight: 1.5, fontWeight: 500 }}>
                   {lang === 'es'
-                    ? 'El trabajador escanea el QR desde su celular, valida su cédula y autogestiona su perfil sociodemográfico, signos vitales y reporte de condiciones sin contraseñas.'
-                    : 'Workers scan a QR on their phone, verify by ID, and update demographic profiles, vital signs, and conditions with zero passwords or paperwork.'}
+                    ? 'El trabajador escanea el código QR de la empresa desde su celular y valida su identidad con su cédula. Puede actualizar su perfil sociodemográfico, votar en elecciones de comités, firmar actas digitalmente y reportar actos o condiciones inseguras con foto al instante.'
+                    : 'Workers scan the company QR code on their smartphone and verify by ID. They can update profiles, cast secret committee votes, sign minutes, and report hazards with photos instantly.'}
                 </div>
               </div>
               <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid rgba(14, 19, 0, 0.15)', fontSize: 11, fontWeight: 800, color: '#0E1300' }}>
-                ⚡ {lang === 'es' ? 'Acceso instantáneo con QR' : 'Instant mobile QR access'}
+                ⚡ {lang === 'es' ? 'Votación, firmas y auto-reporte sin claves' : 'Instant voting, signatures & hazard reporting'}
               </div>
             </div>
           </div>
@@ -601,7 +622,7 @@ export default function LandingPage() {
             <div className="feat-copy">
               <span className="eyebrow">
                 <span className="dot"></span>
-                {lang === 'es' ? 'Comités Paritarios & Actas Oficiales' : 'Committees & Digital Minutes'}
+                {lang === 'es' ? 'Hito 3 · Comités de apoyo organizacional' : 'Milestone 3 · Organizational Support Committees'}
               </span>
               <h3>{lang === 'es' ? 'COPASST, Convivencia y Brigada sin papeleo ni fricciones.' : 'Safety committees without paperwork or friction.'}</h3>
               <p>
@@ -638,35 +659,83 @@ export default function LandingPage() {
             </div>
 
             <div className="feat-art tint-sky">
-              <div style={{ width: '100%', maxWidth: 360, background: '#fff', borderRadius: 18, boxShadow: '0 16px 40px rgba(20,40,80,0.14)', overflow: 'hidden' }}>
-                <div style={{ padding: '14px 16px', borderBottom: '1px solid #EEF0F3', fontWeight: 700, fontFamily: 'var(--display)' }}>
-                  {lang === 'es' ? 'Panel de Comités (COPASST & Convivencia)' : 'Committee Dashboard (COPASST & Harassment)'}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 16px', borderBottom: '1px solid #F2F3F5' }}>
-                  <span style={{ width: 38, height: 38, borderRadius: 9999, background: '#E8EAFF', color: '#4852ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
-                    PR
-                  </span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>Presidente COPASST</div>
-                    <div style={{ fontSize: 12, color: '#9A9AA8' }}>Representante Empleador · {lang === 'es' ? 'Firmado digital' : 'Signed'}</div>
+              <div style={{ width: '100%', maxWidth: 380, background: '#fff', borderRadius: 20, boxShadow: '0 16px 40px rgba(20,40,80,0.14)', overflow: 'hidden', border: '1px solid #E2E8F0' }}>
+                <div style={{ padding: '14px 18px', borderBottom: '1px solid #EEF0F3', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ fontWeight: 800, fontSize: 13.5, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>🗳️</span> {lang === 'es' ? 'Urna Digital COPASST' : 'Digital Ballot Box COPASST'}
                   </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 16px', borderBottom: '1px solid #F2F3F5' }}>
-                  <span style={{ width: 38, height: 38, borderRadius: 9999, background: '#D6F4DF', color: '#0A5818', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
-                    SC
+                  <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 8px', borderRadius: 9999, background: '#DCFCE7', color: '#15803D', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#16A34A', display: 'inline-block' }}></span>
+                    VOTO SECRETO
                   </span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>Secretario del Comité</div>
-                    <div style={{ fontSize: 12, color: '#9A9AA8' }}>Representante Trabajadores · {lang === 'es' ? 'Firmado digital' : 'Signed'}</div>
+                </div>
+
+                <div style={{ padding: '16px 18px' }}>
+                  {/* QR & Mobile voting banner */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 14, padding: '12px 14px', marginBottom: 14 }}>
+                    {/* Visual QR SVG */}
+                    <div style={{ width: 64, height: 64, background: '#fff', borderRadius: 8, padding: 4, border: '1px solid #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <svg width="56" height="56" viewBox="0 0 24 24" fill="#0F172A">
+                        <path d="M2 2h7v7H2V2zm2 2v3h3V4H4zm5 0h1v2H9V4zm2 0h2v1h-2V4zm3 0h1v1h-1V4zm2 0h2v2h-1V5h-1V4zm2 2h1v1h-1V6zm0 2h1v1h-1V8zm-2 0h1v1h-1V8zm-1-1h1v1h-1V7zm-2 0h1v2h-1V7zm0-2h1v1h-1V5zm-2 3h1v1h-1V8zm-3 0h1v1H8V8zm-6 2h1v2H2v-2h1v1h1v-1h1v1h1v-1zm4 1h1v1h1v1H8v-1H7v-1zm4 0h1v1h-1v-1zm2 0h1v1h-1v-1zm3 0h1v1h-1v-1zm2 0h1v2h-1v-1h-1v-1zm-9 2h1v1h-1v-1zm4 0h2v1h-2v-1zm4 0h1v1h-1v-1zm2 1h1v1h-1v-1zm-9 1h1v1h-1v-1zm2 0h1v2h-1v-1h-1v-1h1zm4 0h1v1h-1v-1zm-7 1h1v1H9v-1zm2 0h1v1h-1v-1zm4 0h1v1h-1v-1zm3 0h1v1h-1v-1zm-9 1h1v2H9v-1H8v-1h2zm3 0h2v1h-1v1h-1v-2zm3 0h1v2h-1v-1h-1v-1h1zm-13 2h7v7H2v-7zm2 2v3h3v-3H4zm11-2h7v7h-7v-7zm2 2v3h3v-3h-3z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#0F172A' }}>
+                        {lang === 'es' ? 'Escanea para sufragar' : 'Scan to cast secret ballot'}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: '#64748B', lineHeight: 1.35, marginTop: 2 }}>
+                        {lang === 'es' ? 'Voto anónimo y directo desde el celular validado por cédula (Res. 2013/86).' : 'Anonymous mobile voting verified by worker ID (Res. 2013/86).'}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 16px' }}>
-                  <span style={{ width: 38, height: 38, borderRadius: 9999, background: '#FEF0DC', color: '#F09030', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
-                    QR
-                  </span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>Acta Registrada con Token</div>
-                    <div style={{ fontSize: 12, color: '#9A9AA8' }}>Res. 2013/86 · Res. 652/12 · {lang === 'es' ? 'Auditada' : 'Audited'}</div>
+
+                  {/* Quorum & Live Count */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                      <span>{lang === 'es' ? 'Quórum electoral en vivo:' : 'Live voting quorum:'}</span>
+                      <span style={{ color: '#0D9488', fontWeight: 800 }}>81.6% (98 / 120 votos)</span>
+                    </div>
+                    <div style={{ width: '100%', height: 6, background: '#E2E8F0', borderRadius: 9999, overflow: 'hidden' }}>
+                      <div style={{ width: '81.6%', height: '100%', background: '#0D9488', borderRadius: 9999 }}></div>
+                    </div>
+                  </div>
+
+                  {/* Candidates */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#F0FDFA', border: '1px solid #CCFBF1', borderRadius: 10 }}>
+                      <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A' }}>
+                        Carlos Gómez <span style={{ fontSize: 10, color: '#64748B', fontWeight: 500 }}>(Operario)</span>
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: '#0D9488' }}>
+                        42 votos <span style={{ fontSize: 9.5, color: '#64748B' }}>(43%)</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10 }}>
+                      <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A' }}>
+                        Mariana Ríos <span style={{ fontSize: 10, color: '#64748B', fontWeight: 500 }}>(Analista)</span>
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: '#475569' }}>
+                        34 votos <span style={{ fontSize: 9.5, color: '#64748B' }}>(35%)</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10 }}>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: '#64748B' }}>
+                        Voto en Blanco
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8' }}>
+                        22 votos <span style={{ fontSize: 9.5 }}>(22%)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action & Token */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #F1F5F9', paddingTop: 10 }}>
+                    <span style={{ fontSize: 10, color: '#15803D', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      ✓ Acta Oficial con Token & Firmas Digitales
+                    </span>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: '#0F172A', background: '#F1F5F9', padding: '3px 8px', borderRadius: 6 }}>
+                      Periodo 2026-2028
+                    </span>
                   </div>
                 </div>
               </div>
@@ -678,13 +747,13 @@ export default function LandingPage() {
             <div className="feat-copy">
               <span className="eyebrow">
                 <span className="dot"></span>
-                {lang === 'es' ? 'Tenshi IA · Orquestador Autónomo' : 'Tenshi AI · Autonomous Orchestrator'}
+                {lang === 'es' ? 'Tenshi IA · Orquestador & Orientador SST' : 'Tenshi AI · System Orchestrator & Guide'}
               </span>
-              <h3>{lang === 'es' ? 'Tu orquestador inteligente que coordina y ejecuta en el SG-SST.' : 'Your intelligent orchestrator coordinating and executing OHS tasks.'}</h3>
+              <h3>{lang === 'es' ? 'Tu orientador experto que te guía por el sistema y ejecuta actividades contigo.' : 'Your expert guide navigating the system and executing tasks with you.'}</h3>
               <p>
                 {lang === 'es'
-                  ? 'Tenshi no es un simple chat que responde con generalidades: es el orquestador autónomo de WAPPY. Enruta tus requerimientos hacia más de 20 agentes especialistas (médicos, fisioterapeutas, abogados, químicos), diligencia formularios técnicos en pantalla mediante control de interfaz (Page Controller) y te asiste por voz en tiempo real con fundamentación en la ley colombiana.'
-                  : 'Tenshi is WAPPY’s autonomous orchestrator. It delegates queries to +20 specialist agents, automates technical form filling on screen via Page Controller, and provides hands-free voice assistance grounded in Colombian OHS regulations.'}
+                  ? 'Tenshi no es un simple chat de respuestas genéricas: es el orientador y orquestador autónomo de WAPPY. Conoce a profundidad la estructura de los 8 Hitos y los más de 30 aplicativos de la plataforma. Si tienes dudas o no sabes por dónde empezar, Tenshi te guía paso a paso, te lleva al módulo exacto y te ayuda a diligenciar formularios, actas y matrices en pantalla mediante control de interfaz (Page Controller). Cuando requieres un criterio de alta especialidad, convoca y consulta en vivo a los más de 20 agentes expertos (médico laboral, auditor 0312, especialista químico SGA o ergónomo) integrando sus respuestas en tus actividades.'
+                  : 'Tenshi is WAPPY’s autonomous orchestrator and system guide. It knows all 8 milestones and 30+ applications: guiding you step by step, taking you to the exact module, and actively helping you fill forms, minutes, and matrices on screen via Page Controller, while coordinating with 20+ specialized AI agents.'}
               </p>
               <ul className="feat-list">
                 <li>
@@ -693,7 +762,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Orquesta y enruta consultas a más de 20 agentes especializados SST' : 'Orchestrates and routes queries to 20+ specialized OHS AI agents'}
+                  {lang === 'es' ? 'Orientador del SG-SST: Te guía paso a paso por los 8 Hitos y te indica exactamente qué hacer ante auditorías o inspecciones' : 'System guide across all 8 milestones, advising applicable requirements and where to resolve them'}
                 </li>
                 <li>
                   <span className="ck">
@@ -701,7 +770,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Automatización de interfaz: diligencia formularios, actas y matrices en pantalla' : 'Interface automation: fills technical forms, minutes, and matrices directly on screen'}
+                  {lang === 'es' ? 'Asistente de actividades en pantalla: Diligencia matrices, actas de comités y registros ACPM interactuando directamente en la interfaz' : 'Interface automation: fills technical forms, minutes, and CAPA plans directly on screen'}
                 </li>
                 <li>
                   <span className="ck">
@@ -709,36 +778,73 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Sesión de voz bidireccional en vivo para consultas en campo y manos libres' : 'Real-time two-way voice session for hands-free field operations'}
+                  {lang === 'es' ? 'Orquestador Multi-Agente: Consulta y enruta requerimientos complejos hacia más de 20 especialistas SST (Médico, Abogado, Ergónomo, Químico)' : 'Multi-Agent Orchestrator: consults and routes queries to 20+ specialized OHS AI agents'}
+                </li>
+                <li>
+                  <span className="ck">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  {lang === 'es' ? 'Sesión de voz bidireccional en vivo para consultar y ejecutar actividades con manos libres en campo' : 'Real-time two-way voice session to execute activities or solve inquiries hands-free on site'}
                 </li>
               </ul>
             </div>
 
             <div className="feat-art tint-lav">
-              <div style={{ width: '100%', maxWidth: 360, background: '#fff', borderRadius: 18, boxShadow: '0 16px 40px rgba(20,40,80,0.14)', padding: 18 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ width: '100%', maxWidth: 380, background: '#fff', borderRadius: 20, boxShadow: '0 16px 40px rgba(20,40,80,0.14)', padding: 20, border: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 28, height: 28, borderRadius: 8, background: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2">
+                    <span style={{ width: 30, height: 30, borderRadius: 10, background: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2.2">
                         <path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"></path>
                       </svg>
                     </span>
-                    <span style={{ fontWeight: 700, fontSize: 14 }}>Tenshi IA</span>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: '#0F172A', lineHeight: 1.1 }}>Tenshi IA</div>
+                      <div style={{ fontSize: 10, color: '#64748B', fontWeight: 600 }}>{lang === 'es' ? 'Orientador & Orquestador Activo' : 'Active System Guide & Orchestrator'}</div>
+                    </div>
                   </div>
-                  <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 9999, background: '#E0E7FF', color: '#4338CA' }}>
-                    Orquestador Activo
+                  <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 8px', borderRadius: 9999, background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #DBEAFE' }}>
+                    Control de Pantalla
                   </span>
                 </div>
-                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12, padding: 12, fontSize: 12.5, lineHeight: 1.5, color: '#334155', marginBottom: 12 }}>
-                  {lang === 'es'
-                    ? 'He coordinado con el Fisioterapeuta Laboral y el Médico Ocupacional. Diligencié la matriz de riesgos IPEVAR con controles de ingeniería y proyecté el borrador del acta reglamentaria.'
-                    : 'Coordinated with the Occupational Physician and Ergonomist. Filled the IPEVAR matrix with engineering controls and drafted the committee minutes.'}
+
+                {/* Simulated Guidance & Execution Flow */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+                  {/* User query */}
+                  <div style={{ alignSelf: 'flex-end', maxWidth: '88%', background: '#F1F5F9', borderRadius: '12px 12px 2px 12px', padding: '8px 12px', fontSize: 11.5, color: '#1E293B', lineHeight: 1.4 }}>
+                    {lang === 'es'
+                      ? 'Tenshi, guíame para registrar una acción de mejora por hallazgo ergonómico en la matriz IPEVAR y ayúdame a diligenciarla.'
+                      : 'Tenshi, guide me to record a CAPA improvement action from an ergonomic IPEVAR hazard and help me fill it out.'}
+                  </div>
+
+                  {/* Tenshi Response & Screen Action */}
+                  <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px 12px 12px 2px', padding: '12px', fontSize: 11.5, lineHeight: 1.45, color: '#334155' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#0284C7', marginBottom: 4 }}>
+                      <span>🧭</span> {lang === 'es' ? 'Orientación en Somos SST:' : 'System Guidance:'}
+                    </div>
+                    <div style={{ marginBottom: 8, fontSize: 11 }}>
+                      {lang === 'es'
+                        ? 'Te he guiado al Centro de Control ACPM (Hito 7). Convoqué al Especialista GTC 45 y al Ergónomo para formular la medida correctiva.'
+                        : 'Navigated to CAPA Control Center (Milestone 7). Consulted GTC 45 Specialist and Ergonomist.'}
+                    </div>
+
+                    <div style={{ background: '#fff', border: '1px solid #CBD5E1', borderRadius: 8, padding: '8px 10px', fontSize: 10.5 }}>
+                      <div style={{ fontWeight: 800, color: '#0F172A', marginBottom: 2 }}>⚡ {lang === 'es' ? 'Diligenciado en Pantalla:' : 'Form Filled on Screen:'}</div>
+                      <div style={{ color: '#475569' }}>• {lang === 'es' ? 'Acción: Control de ingeniería en mesa de empaque' : 'Action: Engineering control on packing table'}</div>
+                      <div style={{ color: '#475569' }}>• {lang === 'es' ? 'Causa Raíz: Sobrecarga lumbar repetitiva' : 'Root Cause: Repetitive lumbar overload'}</div>
+                      <div style={{ color: '#0D9488', fontWeight: 700, marginTop: 2 }}>✓ {lang === 'es' ? 'Listo para guardar y asignar responsable' : 'Ready to save & assign responsible'}</div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Footer action pill buttons */}
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <span style={{ flex: 1, height: 38, borderRadius: 9999, background: '#0E1300', color: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
-                    ⚡ {lang === 'es' ? 'Diligenciado en Pantalla' : 'Automated on Screen'}
+                  <span style={{ flex: 1, height: 36, borderRadius: 10, background: '#0E1300', color: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11.5, fontWeight: 800, gap: 5 }}>
+                    <span>⚡</span> {lang === 'es' ? 'Diligenciado en Pantalla' : 'Automated on Screen'}
                   </span>
-                  <span style={{ width: 38, height: 38, borderRadius: 9999, border: '1px solid #E7EAEE', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFC', fontSize: 14 }}>
+                  <span style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFC', fontSize: 14 }}>
                     🎙️
                   </span>
                 </div>
@@ -831,10 +937,10 @@ export default function LandingPage() {
           <h2 className="display" style={{ fontSize: 'clamp(30px,4.6vw,48px)', margin: '14px 0 0' }}>
             {lang === 'es' ? 'Seguridad y Salud en tu bolsillo' : 'Safety and Health in your pocket'}
           </h2>
-          <p style={{ fontSize: 17, color: 'rgba(14,19,0,0.62)', maxWidth: 540, margin: '14px auto 0' }}>
+          <p style={{ fontSize: 17, color: 'rgba(14,19,0,0.62)', maxWidth: 640, margin: '14px auto 0' }}>
             {lang === 'es'
-              ? 'Sin descargar aplicaciones pesadas: realiza análisis biomecánicos en vivo con el Fisioterapeuta IA, consulta a más de 20 especialistas SST y gestiona comités y reportes desde cualquier smartphone.'
-              : 'Zero app store installs: run live ergonomic posture assessments, consult 20+ specialized AI agents, and manage committees directly from any mobile browser.'}
+              ? 'Sin descargar aplicaciones pesadas: realiza análisis biomecánicos en vivo con el Fisioterapeuta IA, consulta a más de 20 especialistas SST y habilita portales públicos por QR para que tus trabajadores voten en comités, firmen actas y reporten peligros sin contraseñas.'
+              : 'Zero app store installs: run live ergonomic posture assessments, consult 20+ specialized AI agents, and launch instant QR portals for workers to vote in committees, sign records, and report hazards with zero passwords.'}
           </p>
 
           <div className="app-phones">
@@ -955,6 +1061,104 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+
+            {/* Phone 3: Portales Públicos por QR · Colaboradores */}
+            <div className="phone-wrap">
+              <div className="phone-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                {lang === 'es' ? 'Portales Públicos QR · Colaboradores' : 'Public QR Portals · Workforce'}
+              </div>
+              <div className="phone">
+                <div className="phone-screen">
+                  <div className="phone-notch">
+                    <span style={{ width: 10, height: 10, borderRadius: 9999 }}></span>
+                  </div>
+                  <div style={{ background: 'linear-gradient(160deg, #0F766E, #115E59)', padding: '12px 14px', color: '#fff', textAlign: 'left' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ width: 30, height: 30, borderRadius: 8, background: '#2DD4BF', color: '#042F2E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 13 }}>
+                          QR
+                        </span>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700 }}>Portal Colaborador</div>
+                          <div style={{ fontSize: 10, color: '#CCFBF1' }}>Cero contraseñas · Cédula</div>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 9999, background: 'rgba(255,255,255,0.2)', color: '#fff' }}>
+                        PWA
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#F1F5F9', padding: 8, textAlign: 'left' }}>
+                    {/* Worker badge */}
+                    <div style={{ background: '#fff', borderRadius: 10, padding: '7px 10px', marginBottom: 6, border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 800, color: '#0F172A' }}>Carlos M. Gómez</div>
+                        <div style={{ fontSize: 9.5, color: '#64748B' }}>C.C. 1.020.485.*** · Planta</div>
+                      </div>
+                      <span style={{ width: 7, height: 7, borderRadius: 9999, background: '#10B981' }}></span>
+                    </div>
+
+                    {/* Service 1: Votaciones COPASST */}
+                    <div style={{ background: '#fff', borderRadius: 12, padding: '8px 10px', marginBottom: 5, border: '1px solid #E2E8F0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span>🗳️</span> {lang === 'es' ? 'Votación COPASST' : 'COPASST Voting'}
+                        </div>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, padding: '1px 6px', borderRadius: 9999, background: '#DCFCE7', color: '#15803D' }}>
+                          {lang === 'es' ? 'Tarjetón Activo' : 'Ballot Open'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 9.5, color: '#64748B' }}>
+                        {lang === 'es' ? 'Voto secreto cifrado en urna móvil' : 'Encrypted secret mobile ballot'}
+                      </div>
+                    </div>
+
+                    {/* Service 2: Auto-reporte de Riesgos */}
+                    <div style={{ background: '#fff', borderRadius: 12, padding: '8px 10px', marginBottom: 5, border: '1px solid #E2E8F0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span>📸</span> {lang === 'es' ? 'Auto-reporte de Peligro' : 'Hazard Self-Report'}
+                        </div>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, padding: '1px 6px', borderRadius: 9999, background: '#FEF3C7', color: '#B45309' }}>
+                          {lang === 'es' ? 'Con Foto' : 'Photo'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 9.5, color: '#64748B' }}>
+                        {lang === 'es' ? 'Condición insegura en tiempo real' : 'Real-time hazard report'}
+                      </div>
+                    </div>
+
+                    {/* Service 3: Firma Digital de Actas */}
+                    <div style={{ background: '#fff', borderRadius: 12, padding: '8px 10px', marginBottom: 6, border: '1px solid #E2E8F0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span>✍️</span> {lang === 'es' ? 'Firma Digital de Actas' : 'Digital Signatures'}
+                        </div>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, padding: '1px 6px', borderRadius: 9999, background: '#E0F2FE', color: '#0369A1' }}>
+                          {lang === 'es' ? 'En Pantalla' : 'On-Screen'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 9.5, color: '#64748B' }}>
+                        {lang === 'es' ? 'Entrega de EPP y compromisos SST' : 'PPE and OHS commitments'}
+                      </div>
+                    </div>
+
+                    <div style={{ textAlign: 'center', padding: '4px 0 2px' }}>
+                      <span style={{ fontSize: 9.5, fontWeight: 800, color: '#0D9488', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <span>⚡</span> {lang === 'es' ? 'Escanear QR de Empresa' : 'Scan Company QR'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -1017,8 +1221,8 @@ export default function LandingPage() {
             </h2>
             <p>
               {lang === 'es'
-                ? 'El ecosistema modular más completo de Colombia, estructurado bajo la Metodología del Bioindividuo y los 8 Hitos de gestión. Todos los aplicativos están 100% interconectados con más de 20 agentes de IA especializados que analizan, diligencian y previenen en tiempo real sin silos ni doble digitación.'
-                : 'Colombia’s most robust OHS platform, structured under the Bioindividual Methodology and 8 management milestones, 100% interconnected with +20 specialist AI agents.'}
+                ? 'El ecosistema modular más completo de Colombia, estructurado bajo la Metodología del Bioindividuo y los 8 Hitos de gestión. Todos los aplicativos se conectan directamente a los más de 20 agentes de IA especialistas en SST de nuestro sistema para automatización, rigor normativo colombiano y analítica en una sola plataforma.'
+                : 'Colombia’s most comprehensive OHS ecosystem, structured under the Bioindividual Methodology and 8 management milestones, connecting directly to the 20+ specialized OHS AI agents across the system.'}
             </p>
           </div>
 
