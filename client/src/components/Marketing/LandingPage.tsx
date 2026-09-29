@@ -274,15 +274,15 @@ export default function LandingPage() {
           <div className="hero-stage">
             {/* SVG Connecting Constellation Lines */}
             <svg className="hero-connectors" aria-hidden="true">
-              <line x1="50%" y1="38%" x2="16%" y2="14%" className="connector-line" />
-              <line x1="50%" y1="38%" x2="84%" y2="14%" className="connector-line" />
-              <line x1="50%" y1="38%" x2="16%" y2="50%" className="connector-line" />
-              <line x1="50%" y1="38%" x2="84%" y2="50%" className="connector-line" />
-              <line x1="50%" y1="38%" x2="50%" y2="68%" className="connector-line" />
+              <line x1="50%" y1="40%" x2="16%" y2="12%" className="connector-line" />
+              <line x1="50%" y1="40%" x2="84%" y2="12%" className="connector-line" />
+              <line x1="50%" y1="40%" x2="16%" y2="52%" className="connector-line" />
+              <line x1="50%" y1="40%" x2="84%" y2="52%" className="connector-line" />
+              <line x1="50%" y1="40%" x2="50%" y2="75%" className="connector-line" />
             </svg>
 
             {/* ⭐ CENTRO: EL COLABORADOR EN EL CORAZÓN DE LA ORGANIZACIÓN (Somos SST) - ESTÁTICO ⭐ */}
-            <div className="float-center-bio" style={{ top: 230, left: '50%', transform: 'translate(-50%, -50%)', width: 310 }}>
+            <div className="float-center-bio" style={{ top: 250, left: '50%', transform: 'translate(-50%, -50%)', width: 310 }}>
               <div className="fcb-eyebrow">
                 <span className="fcb-pulse-dot"></span>
                 {lang === 'es' ? 'Metodología del Bioindividuo' : 'Bioindividual Methodology'}
@@ -329,7 +329,7 @@ export default function LandingPage() {
             </div>
 
             {/* Satellite 1 (Top-Left): Gamificación en SST */}
-            <div className="float-card-v2" style={{ top: 8, left: '1.5%', width: 330 }}>
+            <div className="float-card-v2" style={{ top: 6, left: '1.5%', width: 330 }}>
               <div className="fcv2-header">
                 <div className="fcv2-icon" style={{ background: '#FEF3C7', color: '#B45309' }}>
                   🏆
@@ -348,7 +348,7 @@ export default function LandingPage() {
             </div>
 
             {/* Satellite 2 (Top-Right): Hito 8: Inteligencia Artificial & Oráculo Predictivo */}
-            <div className="float-card-v2" style={{ top: 8, right: '1.5%', width: 335, animationDelay: '1.2s' }}>
+            <div className="float-card-v2" style={{ top: 6, right: '1.5%', width: 335, animationDelay: '1.2s' }}>
               <div className="fcv2-header">
                 <div className="fcv2-icon" style={{ background: '#C7F303', color: '#0E1300' }}>
                   🔮
@@ -369,7 +369,7 @@ export default function LandingPage() {
             </div>
 
             {/* Satellite 3 (Bottom-Left): +20 Agentes Especialistas en SST */}
-            <div className="float-card-v2" style={{ top: 220, left: '1.5%', width: 330, animationDelay: '2.1s' }}>
+            <div className="float-card-v2" style={{ top: 255, left: '1.5%', width: 330, animationDelay: '2.1s' }}>
               <div className="fcv2-header">
                 <div className="fcv2-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}>
                   🤖
@@ -388,7 +388,7 @@ export default function LandingPage() {
             </div>
 
             {/* Satellite 4 (Bottom-Right): Academia LMS & Blog SST */}
-            <div className="float-card-v2" style={{ top: 220, right: '1.5%', width: 335, animationDelay: '1.8s' }}>
+            <div className="float-card-v2" style={{ top: 255, right: '1.5%', width: 335, animationDelay: '1.8s' }}>
               <div className="fcv2-header">
                 <div className="fcv2-icon" style={{ background: '#DCFCE7', color: '#15803D' }}>
                   🎓
@@ -407,7 +407,7 @@ export default function LandingPage() {
             </div>
 
             {/* Satellite 5 (Bottom-Center): Somos SST · +30 Aplicativos para el SG-SST */}
-            <div className="float-card-v2 center-bottom" style={{ top: 410, left: '50%', transform: 'translateX(-50%)', width: 360 }}>
+            <div className="float-card-v2 center-bottom" style={{ top: 450, left: '50%', transform: 'translateX(-50%)', width: 360 }}>
               <div className="fcv2-header">
                 <div className="fcv2-icon" style={{ background: '#E0F2FE', color: '#0284C7' }}>
                   ⚡
@@ -2125,6 +2125,426 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Herramientas de IA, Conexiones API & Ecosistema de Integraciones */}
+      <section id="herramientas" className="band" style={{ paddingTop: 0 }}>
+        <div className="wrap">
+          <div className="sec-head">
+            <span className="eyebrow">
+              <span className="dot"></span>
+              {lang === 'es' ? 'Herramientas de IA & Conexiones API' : 'AI Agent Tools & API Ecosystem'}
+            </span>
+            <h2 className="display">
+              {lang === 'es'
+                ? 'Superpoderes e integraciones nativas para tus agentes de IA'
+                : 'Native Superpowers & API Integrations for AI Agents'}
+            </h2>
+            <p>
+              {lang === 'es'
+                ? 'Nuestros más de 20 agentes especialistas en SST no solo conversan: ejecutan acciones en tiempo real con herramientas de Google Workspace, visión artificial MediaPipe, webhooks de n8n, mensajería WhatsApp, pasarelas de pago y calculadoras técnicas oficiales.'
+                : 'Our 20+ specialized OHS AI agents do not just chat: they take real-time action with Google Workspace tools, MediaPipe computer vision, n8n webhooks, WhatsApp messaging, payment gateways, and official technical OHS calculators.'}
+            </p>
+          </div>
+
+          <div className="intg">
+            {/* 1. Google Drive */}
+            <div className="i">
+              <span className="g" style={{ background: '#E8F0FE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#1A73E8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 14.89 9 6.23l5 8.66H4z"></path>
+                  <path d="M9 6.23h10l-5 8.66"></path>
+                  <path d="M14 14.89 9 23.55 4 14.89"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Google Drive
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#1A73E8', background: '#E8F0FE', padding: '2px 6px', borderRadius: 9999 }}>
+                Google · Cloud
+              </span>
+            </div>
+
+            {/* 2. Google Sheets */}
+            <div className="i">
+              <span className="g" style={{ background: '#E6F4EA' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#137333" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                  <line x1="3" y1="9" x2="21" y2="9"></line>
+                  <line x1="3" y1="15" x2="21" y2="15"></line>
+                  <line x1="9" y1="3" x2="9" y2="21"></line>
+                  <line x1="15" y1="3" x2="15" y2="21"></line>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Google Sheets
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#137333', background: '#E6F4EA', padding: '2px 6px', borderRadius: 9999 }}>
+                Google · Tablas
+              </span>
+            </div>
+
+            {/* 3. Google Docs */}
+            <div className="i">
+              <span className="g" style={{ background: '#E8F0FE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#1A73E8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Google Docs
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#1A73E8', background: '#E8F0FE', padding: '2px 6px', borderRadius: 9999 }}>
+                Google · Redacción
+              </span>
+            </div>
+
+            {/* 4. Google Calendar */}
+            <div className="i">
+              <span className="g" style={{ background: '#FEF3C7' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Google Calendar
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#D97706', background: '#FEF3C7', padding: '2px 6px', borderRadius: 9999 }}>
+                Google · Agenda
+              </span>
+            </div>
+
+            {/* 5. Gmail Oficial */}
+            <div className="i">
+              <span className="g" style={{ background: '#FEE2E2' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Gmail Oficial
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#DC2626', background: '#FEE2E2', padding: '2px 6px', borderRadius: 9999 }}>
+                Google · Correo
+              </span>
+            </div>
+
+            {/* 6. Google Search Grounding */}
+            <div className="i">
+              <span className="g" style={{ background: '#EDE9FE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Google Search
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#7C3AED', background: '#EDE9FE', padding: '2px 6px', borderRadius: 9999 }}>
+                Google · En Vivo
+              </span>
+            </div>
+
+            {/* 7. NotebookLM / Gemini MCP */}
+            <div className="i">
+              <span className="g" style={{ background: '#E0F2FE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0284C7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                NotebookLM MCP
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0284C7', background: '#E0F2FE', padding: '2px 6px', borderRadius: 9999 }}>
+                Google · Cuadernos
+              </span>
+            </div>
+
+            {/* 8. WhatsApp Business API */}
+            <div className="i">
+              <span className="g" style={{ background: '#DCFCE7' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                WhatsApp API
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#16A34A', background: '#DCFCE7', padding: '2px 6px', borderRadius: 9999 }}>
+                Meta · Alertas
+              </span>
+            </div>
+
+            {/* 9. Visión IA (MediaPipe) */}
+            <div className="i">
+              <span className="g" style={{ background: '#CCFBF1' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0D9488" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                MediaPipe Vision
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0D9488', background: '#CCFBF1', padding: '2px 6px', borderRadius: 9999 }}>
+                Google · Posturas
+              </span>
+            </div>
+
+            {/* 10. Canvas Interactivo */}
+            <div className="i">
+              <span className="g" style={{ background: '#FCE7F3' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#DB2777" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                  <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Canvas Interactivo
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#DB2777', background: '#FCE7F3', padding: '2px 6px', borderRadius: 9999 }}>
+                Editor · Tiempo Real
+              </span>
+            </div>
+
+            {/* 11. Page Controller (Operar GUI) */}
+            <div className="i">
+              <span className="g" style={{ background: '#FEF3C7' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 3l7 18 3-7 7-3L3 3z"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Page Controller
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#B45309', background: '#FEF3C7', padding: '2px 6px', borderRadius: 9999 }}>
+                WAPPY · Autómata
+              </span>
+            </div>
+
+            {/* 12. n8n & Webhooks */}
+            <div className="i">
+              <span className="g" style={{ background: '#FFEDD5' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                n8n & Webhooks
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#EA580C', background: '#FFEDD5', padding: '2px 6px', borderRadius: 9999 }}>
+                Flujos · Sin Código
+              </span>
+            </div>
+
+            {/* 13. Gestor Automatizaciones (Cron) */}
+            <div className="i">
+              <span className="g" style={{ background: '#E0E7FF' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Cron Automatizado
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#4F46E5', background: '#E0E7FF', padding: '2px 6px', borderRadius: 9999 }}>
+                Tareas · Segundo Plano
+              </span>
+            </div>
+
+            {/* 14. Wompi Bancolombia */}
+            <div className="i">
+              <span className="g" style={{ background: '#FEF08A' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#854D0E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                  <line x1="1" y1="10" x2="23" y2="10"></line>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Wompi Bancolombia
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#854D0E', background: '#FEF08A', padding: '2px 6px', borderRadius: 9999 }}>
+                Fintech · Pasarela
+              </span>
+            </div>
+
+            {/* 15. YouTube Education API */}
+            <div className="i">
+              <span className="g" style={{ background: '#FEE2E2' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#B91C1C" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                YouTube LMS API
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#B91C1C', background: '#FEE2E2', padding: '2px 6px', borderRadius: 9999 }}>
+                Multimedia · Videos
+              </span>
+            </div>
+
+            {/* 16. OpenWeather API */}
+            <div className="i">
+              <span className="g" style={{ background: '#E0F2FE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0369A1" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                OpenWeather API
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0369A1', background: '#E0F2FE', padding: '2px 6px', borderRadius: 9999 }}>
+                Clima · Brigadas
+              </span>
+            </div>
+
+            {/* 17. Generador Visual Flux & DALL-E */}
+            <div className="i">
+              <span className="g" style={{ background: '#FAF5FF' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#9333EA" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Flux & DALL-E 3
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#9333EA', background: '#FAF5FF', padding: '2px 6px', borderRadius: 9999 }}>
+                IA · Afiches SST
+              </span>
+            </div>
+
+            {/* 18. Matriz IPEVAR Tool */}
+            <div className="i">
+              <span className="g" style={{ background: '#FEE2E2' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Calculadora GTC 45
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#DC2626', background: '#FEE2E2', padding: '2px 6px', borderRadius: 9999 }}>
+                Peligros · ND/NE
+              </span>
+            </div>
+
+            {/* 19. Matriz Química SGA Tool */}
+            <div className="i">
+              <span className="g" style={{ background: '#CFFAFE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0891B2" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 2v7.31"></path>
+                  <path d="M14 9.3V2"></path>
+                  <path d="M8.5 2h7"></path>
+                  <path d="M14 9.3a6.5 6.5 0 1 1-4 0"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                SGA Químico Tool
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0891B2', background: '#CFFAFE', padding: '2px 6px', borderRadius: 9999 }}>
+                Sustancias · Dec. 1496
+              </span>
+            </div>
+
+            {/* 20. Matriz PESV Vial Tool */}
+            <div className="i">
+              <span className="g" style={{ background: '#FEF3C7' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="1" y="3" width="15" height="13"></rect>
+                  <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                  <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                  <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                PESV Vial Tool
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#D97706', background: '#FEF3C7', padding: '2px 6px', borderRadius: 9999 }}>
+                Vial · Res. 40595
+              </span>
+            </div>
+
+            {/* 21. Analítica Psicosocial Tool */}
+            <div className="i">
+              <span className="g" style={{ background: '#FCE7F3' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#BE185D" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Radar Psicosocial
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#BE185D', background: '#FCE7F3', padding: '2px 6px', borderRadius: 9999 }}>
+                Bienestar · Res. 2764
+              </span>
+            </div>
+
+            {/* 22. Analítica Predictiva ATEL Tool */}
+            <div className="i">
+              <span className="g" style={{ background: '#D1FAE5' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"></line>
+                  <line x1="12" y1="20" x2="12" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Predictiva ATEL
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#059669', background: '#D1FAE5', padding: '2px 6px', borderRadius: 9999 }}>
+                Estocástica · Oráculo
+              </span>
+            </div>
+
+            {/* 23. Editor RIT MinTrabajo */}
+            <div className="i">
+              <span className="g" style={{ background: '#FEF3C7' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#92400E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Editor RIT
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#92400E', background: '#FEF3C7', padding: '2px 6px', borderRadius: 9999 }}>
+                Reglamentos · Legal
+              </span>
+            </div>
+
+            {/* 24. Multi-Agent Bridge */}
+            <div className="i">
+              <span className="g" style={{ background: '#0E1300' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#C7F303" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Tenshi Multi-Agent
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0E1300', background: '#C7F303', padding: '2px 6px', borderRadius: 9999 }}>
+                Orquestador · +20 IA
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Testimonials */}
       <section className="band" style={{ paddingTop: 0 }}>
         <div className="wrap">
@@ -2625,12 +3045,12 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* FAQ 5: Propiedad de la IA y de los Datos */}
+            {/* FAQ 5: Propiedad de la IA, Datos y Responsabilidad de Uso */}
             <div className={`qa ${openFaq === 5 ? 'open' : ''}`}>
               <button onClick={() => setOpenFaq(openFaq === 5 ? null : 5)} aria-expanded={openFaq === 5}>
                 {lang === 'es'
-                  ? '¿Quién es el dueño de la IA, de los datos ingresados y de los reportes generados?'
-                  : 'Who owns the AI, the input data, and generated reports?'}
+                  ? '¿Quién es el dueño de la IA, de los datos ingresados y quién es el responsable de su uso?'
+                  : 'Who owns the AI, the input data, and who is responsible for its use?'}
                 <span className="q-ico">+</span>
               </button>
               <div className="a">
@@ -2638,6 +3058,11 @@ export default function LandingPage() {
                   {lang === 'es'
                     ? 'Tu empresa es la única y absoluta dueña de sus datos: todas las bases de datos cargadas, información de trabajadores, matrices de riesgos, actas de comités y diagnósticos generados pertenecen exclusivamente a tu organización. WAPPY LTDA (NIT 901437310-3, Medellín, Colombia) es la titular y propietaria del software, algoritmos y agentes de inteligencia artificial, otorgando a tu empresa una licencia de uso corporativa para operar y liderar su SG-SST con total autonomía.'
                     : 'Your organization is the sole and exclusive owner of its data: all uploaded records, worker information, hazard matrices, committee minutes, and reports belong entirely to your company. WAPPY LTDA (NIT 901437310-3, Medellín, Colombia) owns the software architecture and AI agent platform, granting your company a corporate subscription license to run your OHS management system with complete autonomy.'}
+                </p>
+                <p style={{ marginTop: 10 }}>
+                  {lang === 'es'
+                    ? 'Responsabilidad de la IA: La empresa cliente y sus profesionales o usuarios autorizados son los únicos y exclusivos responsables del uso de la IA, de la supervisión humana y de la validación técnica previa a cualquier toma de decisiones o implementación de los contenidos generados. WAPPY actúa como copiloto tecnológico y de apoyo normativo, manteniendo intacto el principio de control humano (Human-in-the-loop) exigido por los estándares técnicos y legales del SG-SST en Colombia.'
+                    : 'AI Responsibility: The client company and its designated professionals or users are solely and exclusively responsible for the use of the AI, human oversight, and the technical validation and final decision-making regarding any recommendations, matrices, or reports generated. WAPPY functions as an OHS technological copilot, adhering strictly to the human-in-the-loop governance principle required by workplace safety regulations.'}
                 </p>
               </div>
             </div>
