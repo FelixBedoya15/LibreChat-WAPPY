@@ -111,7 +111,7 @@ export default function LandingPage() {
         <div className={`mkt-nav-inner ${isScrolled ? 'scrolled' : ''}`}>
           <a
             className="mkt-nav-logo"
-            aria-label="WAPPY IA - Ecosistema SST y PESV"
+            aria-label="WAPPY IA - Ecosistema SG-SST Inteligente"
             href="/landing"
             onClick={(e) => {
               e.preventDefault();
@@ -122,14 +122,14 @@ export default function LandingPage() {
             <img src="/marketing/wappy-cat-logo.png" alt="WAPPY Logo" className="mkt-logo-icon" />
             <div className="mkt-logo-text">
               <span className="mkt-logo-title">WAPPY<span>IA</span></span>
-              <span className="mkt-logo-sub">SST & PESV</span>
+              <span className="mkt-logo-sub">SOMOS SST</span>
             </div>
           </a>
 
           <div className="mkt-nav-links">
             <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')} title="Somos SST: Estructura Integral">Somos SST</a>
             <a href="#tenshi" onClick={(e) => scrollToSection(e, 'tenshi')} title="Ecosistema de Agentes de IA Especializados">Agentes IA</a>
-            <a href="#pesv" onClick={(e) => scrollToSection(e, 'pesv')} title="Matrices GTC 45 & Gestión de Riesgos">Matrices & Riesgos</a>
+            <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')} title="Matrices GTC 45 & Gestión de Riesgos">Matrices & Riesgos</a>
             <a href="#movil" onClick={(e) => scrollToSection(e, 'movil')} title="Visión por Cámara y Reportes en Campo">Visión & Campo</a>
             <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')} title="Planes para Mipymes y Empresas">Planes</a>
             <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')} title="Preguntas Frecuentes">FAQ</a>
@@ -350,128 +350,215 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Bento Grid: Gestión SST que escala contigo */}
+      {/* Bento Grid: Hito 2 · Huella Biocéntrica */}
       <section id="modulos" className="band">
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot"></span>
-              {lang === 'es' ? 'Módulos Especializados' : 'Specialized Modules'}
+              {lang === 'es' ? 'Hito 2 · Metodología del Bioindividuo' : 'Milestone 2 · Bioindividual Methodology'}
             </span>
             <h2 className="display">
-              {lang === 'es' ? 'Gestión SST & PESV que escala con tu empresa' : 'OHS & Road Safety that scales with you'}
+              {lang === 'es' ? 'Huella Biocéntrica: La Línea Base del Ser Humano' : 'Biocentric Blueprint: The Human Baseline'}
             </h2>
             <p>
               {lang === 'es'
-                ? 'Conecta cada proceso de seguridad laboral y vial en una sola suite colaborativa.'
-                : 'Connect every safety and compliance workflow in a unified collaborative suite.'}
+                ? 'El viaje preventivo comienza reconociendo que cada individuo posee variaciones biológicas, clínicas y sociales únicas. WAPPY cruza el estado de salud y las capacidades del trabajador con las exigencias del cargo para prevenir daños antes de que ocurran.'
+                : 'True prevention begins by recognizing that every worker has unique biological, clinical, and social variations. WAPPY crosses health baselines with job demands to prevent injuries before they occur.'}
             </p>
           </div>
 
           <div className="bento">
+            {/* Big Cell: Dictamen de Compatibilidad Cargo-Persona & FIT Score 360° */}
             <div className="cell big">
               <div>
-                <div style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: '.06em', opacity: 0.5 }}>
-                  {lang === 'es' ? 'Ecosistema Integral' : 'Integrated Ecosystem'}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 9999, background: '#10B981', display: 'inline-block' }}></span>
+                  <div style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.08em', color: '#10B981', fontWeight: 800 }}>
+                    {lang === 'es' ? 'Cruce Analítico Cargo-Persona' : 'Job-Person Analytical Cross'}
+                  </div>
                 </div>
-                <div className="display" style={{ fontSize: 28, marginTop: 8, lineHeight: 1.1 }}>
+                <div className="display" style={{ fontSize: 26, marginTop: 4, lineHeight: 1.15, fontWeight: 700 }}>
                   {lang === 'es'
-                    ? 'Todo lo que exige el Decreto 1072 y la Res. 0312, automatizado.'
-                    : 'Everything required by Colombian Decree 1072 and Res. 0312, automated.'}
+                    ? 'Dictamen de Compatibilidad & FIT Score 360°'
+                    : 'Job-Person Compatibility & 360° FIT Score'}
                 </div>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 8, lineHeight: 1.5 }}>
+                  {lang === 'es'
+                    ? 'Motor biocéntrico que evalúa la compatibilidad entre el diseño del puesto y la capacidad fisiológica del colaborador, emitiendo el porcentaje FIT y prescribiendo adaptaciones inmediatas.'
+                    : 'Biocentric engine evaluating job demands vs. worker physiological capacity, outputting the FIT Score and prescribing ergonomic adjustments before illnesses emerge.'}
+                </p>
               </div>
 
               <div className="chan-cards">
                 <div className="chan-card">
-                  <span className="cdot" style={{ background: '#25D366' }}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="#fff">
-                      <path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.3-1.2l-.3-.2-2.9.9.9-2.8-.2-.3A8 8 0 1 1 12 20z"></path>
+                  <span className="cdot" style={{ background: '#10B981' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">COPASST & Convivencia</div>
-                    <div className="cs">{lang === 'es' ? 'Votación QR & Actas' : 'QR Voting & Minutes'}</div>
+                    <div className="cn">Conceptos de Aptitud Médica</div>
+                    <div className="cs">CIE-10, ingresos y periódicos</div>
                   </div>
                 </div>
 
                 <div className="chan-card">
-                  <span className="cdot" style={{ background: '#0A7CFF' }}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="#fff">
-                      <path d="M18.9 8.5c-.8.5-1.3 1.4-1.3 2.4 0 1.2.7 2.2 1.7 2.6-.2.6-.5 1.3-.9 1.9-.6.9-1.2 1.8-2.1 1.8-.9 0-1.2-.5-2.2-.5s-1.4.5-2.2.5c-.9 0-1.6-1-2.2-1.9-1.3-1.9-2.3-5.3-1-7.6.7-1.2 1.8-1.9 3-1.9.9 0 1.7.6 2.2.6.5 0 1.5-.7 2.6-.6.5 0 1.8.2 2.7 1.2z"></path>
+                  <span className="cdot" style={{ background: '#0284C7' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">PESV Vial (Res. 40595)</div>
-                    <div className="cs">{lang === 'es' ? 'Flota & Preoperacional' : 'Fleet & Pre-trip'}</div>
+                    <div className="cn">Profesiograma & Biomecánica</div>
+                    <div className="cs">Demandas físicas y ergonómicas</div>
                   </div>
                 </div>
 
                 <div className="chan-card">
-                  <span className="cdot" style={{ background: '#E1306C' }}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
-                      <rect x="3" y="3" width="18" height="18" rx="5"></rect>
-                      <circle cx="12" cy="12" r="4"></circle>
-                      <circle cx="17.5" cy="6.5" r="1" fill="#fff"></circle>
+                  <span className="cdot" style={{ background: '#D97706' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="9" cy="7" r="4"></circle>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">Matriz GTC 45</div>
-                    <div className="cs">{lang === 'es' ? 'Peligros & Controles' : 'Hazards & Controls'}</div>
+                    <div className="cn">Contexto Sociodemográfico</div>
+                    <div className="cs">Hábitos, entorno y vulnerabilidad</div>
                   </div>
                 </div>
 
                 <div className="chan-card">
-                  <span className="cdot" style={{ background: '#5B6B7B' }}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
-                      <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-                      <path d="m2 7 10 6 10-6"></path>
+                  <span className="cdot" style={{ background: '#8B5CF6' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                     </svg>
                   </span>
                   <div>
-                    <div className="cn">Matriz Química SGA</div>
-                    <div className="cs">{lang === 'es' ? 'ONU & Almacenamiento' : 'UN & Storage'}</div>
+                    <div className="cn">Plan PAC Biocéntrico</div>
+                    <div className="cs">Restricciones y pausas preventivas</div>
                   </div>
                 </div>
 
                 <div className="chan-card">
                   <span className="cdot" style={{ background: '#C7F303' }}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2">
-                      <path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1 0-18 9 9 0 0 1 9 9z"></path>
-                      <path d="M3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 0 1 0 18"></path>
-                    </svg>
+                    <span style={{ fontSize: 13, fontWeight: 900, color: '#0E1300' }}>%</span>
                   </span>
                   <div>
-                    <div className="cn">Academia LMS & Quizzes</div>
-                    <div className="cs">{lang === 'es' ? 'Carnets & Certificados' : 'Badges & Certificates'}</div>
+                    <div className="cn">98.2% FIT Biocéntrico</div>
+                    <div className="cs">Semáforo de compatibilidad</div>
                   </div>
                 </div>
 
                 <div className="chan-card" style={{ alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>
-                    {lang === 'es' ? '+ Ergo EPT & Auditoría' : '+ Ergonomics & Audits'}
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: '#34D399' }}>
+                    ✓ Decreto 1072 & Res. 0312
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="cell lime">
-              <div className="stat-n">90%</div>
-              <div className="stat-l">{lang === 'es' ? 'Menos tiempo redactando actas y matrices' : 'Less time drafting minutes and matrices'}</div>
+            {/* Cell 1: Perfiles de Cargo (Roles & Profesiograma) */}
+            <div className="cell" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <span style={{ width: 36, height: 36, borderRadius: 10, background: '#E0F2FE', color: '#0369A1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+                    💼
+                  </span>
+                  <span style={{ background: '#E0F2FE', color: '#0369A1', fontSize: 9.5, fontWeight: 800, padding: '3px 8px', borderRadius: 9999, textTransform: 'uppercase' }}>
+                    Profesiograma
+                  </span>
+                </div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: '#0F172A', lineHeight: 1.25, marginBottom: 8 }}>
+                  {lang === 'es' ? 'Perfiles de Cargo (Roles)' : 'Job Profiles & Demands'}
+                </div>
+                <div style={{ fontSize: 12.5, color: '#64748B', lineHeight: 1.5 }}>
+                  {lang === 'es'
+                    ? 'Parametriza exigencias biomecánicas (ROSA/OWAS), físicas, cognitivas y psicosociales reales del puesto. Define la matriz de EPP y exámenes obligatorios por rol.'
+                    : 'Parameters for biomechanical, physical, cognitive, and psychosocial job demands. Defines required PPE and mandatory medical exams per role.'}
+                </div>
+              </div>
+              <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--line)', fontSize: 11, fontWeight: 700, color: '#0369A1' }}>
+                ✓ {lang === 'es' ? 'Estandarización de exigencias' : 'Standardized job demands'}
+              </div>
             </div>
 
-            <div className="cell">
-              <div className="stat-n">60+</div>
-              <div className="stat-l">{lang === 'es' ? 'Estándares auditados (Res. 0312)' : 'Standards audited (Res. 0312)'}</div>
+            {/* Cell 2: Perfil Sociodemográfico */}
+            <div className="cell" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <span style={{ width: 36, height: 36, borderRadius: 10, background: '#FEF3C7', color: '#B45309', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+                    👥
+                  </span>
+                  <span style={{ background: '#FEF3C7', color: '#B45309', fontSize: 9.5, fontWeight: 800, padding: '3px 8px', borderRadius: 9999, textTransform: 'uppercase' }}>
+                    Antropología
+                  </span>
+                </div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: '#0F172A', lineHeight: 1.25, marginBottom: 8 }}>
+                  {lang === 'es' ? 'Perfil Sociodemográfico' : 'Sociodemographic Profile'}
+                </div>
+                <div style={{ fontSize: 12.5, color: '#64748B', lineHeight: 1.5 }}>
+                  {lang === 'es'
+                    ? 'Mapea la comunidad laboral: edad, composición familiar, comorbilidades, hábitos y tiempo de desplazamiento. Permite personalizar los planes de salud y bienestar.'
+                    : 'Maps workforce demographics: age, family composition, comorbidities, habits, and commute time to personalize health and wellness programs.'}
+                </div>
+              </div>
+              <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--line)', fontSize: 11, fontWeight: 700, color: '#B45309' }}>
+                ✓ {lang === 'es' ? 'Vulnerabilidad individual y colectiva' : 'Individual & collective risk'}
+              </div>
             </div>
 
-            <div className="cell">
-              <div className="stat-n">12+</div>
-              <div className="stat-l">{lang === 'es' ? 'Agentes especializados SST entrenados' : 'Trained specialized OHS AI agents'}</div>
+            {/* Cell 3: Informe de Condiciones de Salud */}
+            <div className="cell" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <span style={{ width: 36, height: 36, borderRadius: 10, background: '#DCFCE7', color: '#15803D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+                    🩺
+                  </span>
+                  <span style={{ background: '#DCFCE7', color: '#15803D', fontSize: 9.5, fontWeight: 800, padding: '3px 8px', borderRadius: 9999, textTransform: 'uppercase' }}>
+                    Clínica SST
+                  </span>
+                </div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: '#0F172A', lineHeight: 1.25, marginBottom: 8 }}>
+                  {lang === 'es' ? 'Condiciones de Salud' : 'Health Baseline Reports'}
+                </div>
+                <div style={{ fontSize: 12.5, color: '#64748B', lineHeight: 1.5 }}>
+                  {lang === 'es'
+                    ? 'Seguimiento clínico de exámenes de ingreso, periódicos y retiro. Monitorea diagnósticos CIE-10, signos vitales y administra el semáforo de restricciones médicas laborales.'
+                    : 'Clinical tracking of pre-employment, periodic, and exit exams. Monitors ICD-10 diagnoses, vital signs, and manages workplace medical restrictions.'}
+                </div>
+              </div>
+              <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--line)', fontSize: 11, fontWeight: 700, color: '#15803D' }}>
+                ✓ {lang === 'es' ? 'Vigilancia epidemiológica activa' : 'Active medical surveillance'}
+              </div>
             </div>
 
-            <div className="cell">
-              <div className="stat-n">100%</div>
-              <div className="stat-l">{lang === 'es' ? 'Conforme a normativa colombiana' : 'Compliant with Colombian law'}</div>
+            {/* Cell 4: Portal del Colaborador por QR */}
+            <div className="cell lime" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <span style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(14, 19, 0, 0.1)', color: '#0E1300', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+                    📱
+                  </span>
+                  <span style={{ background: 'rgba(14, 19, 0, 0.12)', color: '#0E1300', fontSize: 9.5, fontWeight: 800, padding: '3px 8px', borderRadius: 9999, textTransform: 'uppercase' }}>
+                    Cero Papeleo
+                  </span>
+                </div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: '#0E1300', lineHeight: 1.25, marginBottom: 8 }}>
+                  {lang === 'es' ? 'Portal Móvil del Colaborador' : 'Mobile Worker Hub via QR'}
+                </div>
+                <div style={{ fontSize: 12.5, color: 'rgba(14, 19, 0, 0.72)', lineHeight: 1.5, fontWeight: 500 }}>
+                  {lang === 'es'
+                    ? 'El trabajador escanea el QR desde su celular, valida su cédula y autogestiona su perfil sociodemográfico, signos vitales y reporte de condiciones sin contraseñas.'
+                    : 'Workers scan a QR on their phone, verify by ID, and update demographic profiles, vital signs, and conditions with zero passwords or paperwork.'}
+                </div>
+              </div>
+              <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid rgba(14, 19, 0, 0.15)', fontSize: 11, fontWeight: 800, color: '#0E1300' }}>
+                ⚡ {lang === 'es' ? 'Acceso instantáneo con QR' : 'Instant mobile QR access'}
+              </div>
             </div>
           </div>
         </div>
@@ -485,13 +572,13 @@ export default function LandingPage() {
             <div className="feat-copy">
               <span className="eyebrow">
                 <span className="dot"></span>
-                {lang === 'es' ? 'Comités & Actas Digitales' : 'Committees & Digital Minutes'}
+                {lang === 'es' ? 'Comités Paritarios & Actas Oficiales' : 'Committees & Digital Minutes'}
               </span>
-              <h3>{lang === 'es' ? 'COPASST y Convivencia sin papeleo ni fricciones.' : 'Safety committees without paperwork or friction.'}</h3>
+              <h3>{lang === 'es' ? 'COPASST, Convivencia y Brigada sin papeleo ni fricciones.' : 'Safety committees without paperwork or friction.'}</h3>
               <p>
                 {lang === 'es'
-                  ? 'Elecciones con código QR, votación secreta con verificación de cédula, quórum automático y actas ejecutivas firmadas digitalmente en minutos.'
-                  : 'QR code elections, private voting verified by worker ID, automatic quorum checks, and digital legally compliant minutes in minutes.'}
+                  ? 'Elecciones democráticas y secretas con código QR desde el celular, escrutinio automático en tiempo real, redacción de actas asistida por IA y firmas digitales de los integrantes con plena validez legal.'
+                  : 'Secret QR code elections, real-time vote tally, AI-drafted minutes, and legally valid digital signatures directly from mobile.'}
               </p>
               <ul className="feat-list">
                 <li>
@@ -500,7 +587,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Autocompletado de candidatos desde la nómina' : 'Candidate autocomplete from employee database'}
+                  {lang === 'es' ? 'Votación secreta digital con código QR y validación de cédula' : 'Secret digital QR voting verified by worker ID'}
                 </li>
                 <li>
                   <span className="ck">
@@ -508,7 +595,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Escrutinio con porcentaje de participación en vivo' : 'Live participation percentage and ballot tally'}
+                  {lang === 'es' ? 'Escrutinio en tiempo real, cálculo de quórum y actas de posesión' : 'Live participation percentage, quorum checks, and inauguration records'}
                 </li>
                 <li>
                   <span className="ck">
@@ -516,7 +603,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Exportación a PDF y Word con validez legal' : 'Legally valid PDF and Word exports'}
+                  {lang === 'es' ? 'Redacción asistida por Tenshi IA y firmas digitales en pantalla' : 'AI-assisted minutes drafting and touch digital signatures'}
                 </li>
               </ul>
             </div>
@@ -524,7 +611,7 @@ export default function LandingPage() {
             <div className="feat-art tint-sky">
               <div style={{ width: '100%', maxWidth: 360, background: '#fff', borderRadius: 18, boxShadow: '0 16px 40px rgba(20,40,80,0.14)', overflow: 'hidden' }}>
                 <div style={{ padding: '14px 16px', borderBottom: '1px solid #EEF0F3', fontWeight: 700, fontFamily: 'var(--display)' }}>
-                  {lang === 'es' ? 'Panel de Comités (COPASST 2026)' : 'Committee Dashboard (COPASST 2026)'}
+                  {lang === 'es' ? 'Panel de Comités (COPASST & Convivencia)' : 'Committee Dashboard (COPASST & Harassment)'}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 16px', borderBottom: '1px solid #F2F3F5' }}>
                   <span style={{ width: 38, height: 38, borderRadius: 9999, background: '#E8EAFF', color: '#4852ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
@@ -532,7 +619,7 @@ export default function LandingPage() {
                   </span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 600 }}>Presidente COPASST</div>
-                    <div style={{ fontSize: 12, color: '#9A9AA8' }}>Representante Empleador · {lang === 'es' ? 'Firmado' : 'Signed'}</div>
+                    <div style={{ fontSize: 12, color: '#9A9AA8' }}>Representante Empleador · {lang === 'es' ? 'Firmado digital' : 'Signed'}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 16px', borderBottom: '1px solid #F2F3F5' }}>
@@ -541,7 +628,7 @@ export default function LandingPage() {
                   </span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 600 }}>Secretario del Comité</div>
-                    <div style={{ fontSize: 12, color: '#9A9AA8' }}>Representante Trabajadores · {lang === 'es' ? 'Firmado' : 'Signed'}</div>
+                    <div style={{ fontSize: 12, color: '#9A9AA8' }}>Representante Trabajadores · {lang === 'es' ? 'Firmado digital' : 'Signed'}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 16px' }}>
@@ -550,7 +637,7 @@ export default function LandingPage() {
                   </span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 600 }}>Acta Registrada con Token</div>
-                    <div style={{ fontSize: 12, color: '#9A9AA8' }}>SHA-256 · {lang === 'es' ? 'Auditada' : 'Audited'}</div>
+                    <div style={{ fontSize: 12, color: '#9A9AA8' }}>Res. 2013/86 · Res. 652/12 · {lang === 'es' ? 'Auditada' : 'Audited'}</div>
                   </div>
                 </div>
               </div>
@@ -564,11 +651,11 @@ export default function LandingPage() {
                 <span className="dot"></span>
                 {lang === 'es' ? 'Tenshi IA · Orquestador Autónomo' : 'Tenshi AI · Autonomous Orchestrator'}
               </span>
-              <h3>{lang === 'es' ? 'Tu equipo de especialistas SST trabajando 24/7.' : 'Your team of OHS specialists working 24/7.'}</h3>
+              <h3>{lang === 'es' ? 'Tu orquestador inteligente que coordina y ejecuta en el SG-SST.' : 'Your intelligent orchestrator coordinating and executing OHS tasks.'}</h3>
               <p>
                 {lang === 'es'
-                  ? 'Tenshi no es un simple chat: está conectado a tu base de datos de sedes, empleados y vehículos. Redacta informes ejecutivos, proyecta planes de trabajo y te alerta antes de una visita de la ARL o del MinTrabajo.'
-                  : 'Tenshi is connected to your employee and facility records. It drafts management reports, schedules compliance milestones, and prepares you for audits.'}
+                  ? 'Tenshi no es un simple chat que responde con generalidades: es el orquestador autónomo de WAPPY. Enruta tus requerimientos hacia más de 20 agentes especialistas (médicos, fisioterapeutas, abogados, químicos), diligencia formularios técnicos en pantalla mediante control de interfaz (Page Controller) y te asiste por voz en tiempo real con fundamentación en la ley colombiana.'
+                  : 'Tenshi is WAPPY’s autonomous orchestrator. It delegates queries to +20 specialist agents, automates technical form filling on screen via Page Controller, and provides hands-free voice assistance grounded in Colombian OHS regulations.'}
               </p>
               <ul className="feat-list">
                 <li>
@@ -577,7 +664,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Diagnóstico en tiempo real de estándares mínimos' : 'Real-time diagnosis of legal safety standards'}
+                  {lang === 'es' ? 'Orquesta y enruta consultas a más de 20 agentes especializados SST' : 'Orchestrates and routes queries to 20+ specialized OHS AI agents'}
                 </li>
                 <li>
                   <span className="ck">
@@ -585,7 +672,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Matriz GTC 45 con cálculo automático de deficiencia' : 'GTC 45 matrix with automated deficiency scores'}
+                  {lang === 'es' ? 'Automatización de interfaz: diligencia formularios, actas y matrices en pantalla' : 'Interface automation: fills technical forms, minutes, and matrices directly on screen'}
                 </li>
                 <li>
                   <span className="ck">
@@ -593,50 +680,55 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Respuestas citadas con normatividad vigente exacta' : 'Answers cited with exact Colombian legislation'}
+                  {lang === 'es' ? 'Sesión de voz bidireccional en vivo para consultas en campo y manos libres' : 'Real-time two-way voice session for hands-free field operations'}
                 </li>
               </ul>
             </div>
 
             <div className="feat-art tint-lav">
-              <div style={{ width: '100%', maxWidth: 340, background: '#fff', borderRadius: 18, boxShadow: '0 16px 40px rgba(20,40,80,0.14)', padding: 18 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <span style={{ width: 28, height: 28, borderRadius: 8, background: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2">
-                      <path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"></path>
-                    </svg>
+              <div style={{ width: '100%', maxWidth: 360, background: '#fff', borderRadius: 18, boxShadow: '0 16px 40px rgba(20,40,80,0.14)', padding: 18 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 28, height: 28, borderRadius: 8, background: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2">
+                        <path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"></path>
+                      </svg>
+                    </span>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>Tenshi IA</span>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 9999, background: '#E0E7FF', color: '#4338CA' }}>
+                    Orquestador Activo
                   </span>
-                  <span style={{ fontWeight: 700 }}>Tenshi IA</span>
                 </div>
-                <div style={{ background: '#F2F3F5', borderRadius: 12, padding: 12, fontSize: 13, lineHeight: 1.5, marginBottom: 12 }}>
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12, padding: 12, fontSize: 12.5, lineHeight: 1.5, color: '#334155', marginBottom: 12 }}>
                   {lang === 'es'
-                    ? 'Revisé la matriz de riesgos de la Sede Principal. Detecté 2 peligros biológicos sin control de ingeniería y 1 extintor próximo a vencer el 15 de octubre.'
-                    : 'Audited Main Facility risk matrix. Found 2 biological hazards lacking engineering controls and 1 fire extinguisher expiring October 15.'}
+                    ? 'He coordinado con el Fisioterapeuta Laboral y el Médico Ocupacional. Diligencié la matriz de riesgos IPEVAR con controles de ingeniería y proyecté el borrador del acta reglamentaria.'
+                    : 'Coordinated with the Occupational Physician and Ergonomist. Filled the IPEVAR matrix with engineering controls and drafted the committee minutes.'}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <span style={{ flex: 1, height: 38, borderRadius: 9999, background: '#C7F303', color: '#0E1300', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>
-                    {lang === 'es' ? 'Generar Plan de Acción' : 'Generate Action Plan'}
+                  <span style={{ flex: 1, height: 38, borderRadius: 9999, background: '#0E1300', color: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+                    ⚡ {lang === 'es' ? 'Diligenciado en Pantalla' : 'Automated on Screen'}
                   </span>
-                  <span style={{ width: 38, height: 38, borderRadius: 9999, border: '1px solid #E7EAEE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                    ↻
+                  <span style={{ width: 38, height: 38, borderRadius: 9999, border: '1px solid #E7EAEE', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFC', fontSize: 14 }}>
+                    🎙️
                   </span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Feature 3: PESV & Química */}
-          <div id="pesv" className="feat">
+          {/* Feature 3: Matrices Técnicas (GTC 45, SGA, Legal) */}
+          <div id="matrices" className="feat">
             <div className="feat-copy">
               <span className="eyebrow">
                 <span className="dot"></span>
-                {lang === 'es' ? 'PESV Vial & Compatibilidad Química' : 'Road Safety PESV & Chemical SGA'}
+                {lang === 'es' ? 'Matrices Técnicas & Evaluación de Riesgos' : 'Risk Matrices & Technical Compliance'}
               </span>
-              <h3>{lang === 'es' ? 'Cálculos de riesgo exactos y normatividad blindada.' : 'Exact risk math and airtight compliance.'}</h3>
+              <h3>{lang === 'es' ? 'Cálculos de riesgo exactos, matrices IPEVAR GTC 45 y SGA.' : 'Exact risk math, GTC 45 hazard matrix and chemical SGA.'}</h3>
               <p>
                 {lang === 'es'
-                  ? 'Evalúa flotas de vehículos y rutas críticas con la metodología oficial del PESV (Res. 20223040040595) y organiza tu bodega de químicos con la matriz de compatibilidad SGA (Decreto 1496).'
-                  : 'Evaluate vehicle fleets and critical routes with official road safety scoring (NP x NE x NC) and store chemicals safely using UN SGA compatibility matrices.'}
+                  ? 'Gestiona tus matrices preventivas con metodologías estandarizadas: Matriz IPEVAR bajo GTC 45 con cálculo paramétrico exacto, Matriz de Compatibilidad Química oficial bajo el Sistema Globalmente Armonizado (SGA - Decreto 1496) y Matriz Legal SST auditada.'
+                  : 'Manage safety matrices using official standards: GTC 45 hazard matrix with automated risk scoring, UN SGA chemical storage segregation, and verified Colombian legal compliance matrix.'}
               </p>
               <ul className="feat-list">
                 <li>
@@ -645,7 +737,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Fórmula matemática NP × NE × NC para nivel de riesgo vial' : 'Official NP × NE × NC mathematical formula for road risk'}
+                  {lang === 'es' ? 'Fórmula matemática GTC 45: ND × NE = NP y NP × NC = Nivel de Riesgo (NR)' : 'GTC 45 mathematical formula: ND × NE = NP and NP × NC = Risk Level (NR)'}
                 </li>
                 <li>
                   <span className="ck">
@@ -653,7 +745,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Matriz semaforizada verde/amarillo/rojo de sustancias químicas' : 'Color-coded chemical segregation matrix'}
+                  {lang === 'es' ? 'Matriz semaforizada oficial SGA (Decreto 1496) para bodegas de químicos' : 'Official color-coded SGA matrix (Decree 1496) for chemical segregation'}
                 </li>
                 <li>
                   <span className="ck">
@@ -661,36 +753,35 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Autoevaluación postural ergonómica (EPT) guiada' : 'Guided ergonomic postural self-assessment (EPT)'}
+                  {lang === 'es' ? 'Matriz Legal con verificación de estándares mínimos (Dec. 1072 & Res. 0312)' : 'Legal matrix verifying minimum standards (Decree 1072 & Resolution 0312)'}
                 </li>
               </ul>
             </div>
 
             <div className="feat-art tint-mint">
-              <div style={{ width: 290, background: 'linear-gradient(160deg, #C7F303, #A8D400)', borderRadius: 20, boxShadow: '0 16px 40px rgba(20,40,80,0.16)', padding: 18 }}>
-                <div style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 20, color: '#0E1300' }}>
-                  {lang === 'es' ? 'PESV Nivel Avanzado' : 'PESV Advanced Level'}
-                </div>
-                <div style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 13, color: 'rgba(14,19,0,0.6)', marginBottom: 12 }}>
-                  Res. 20223040040595
-                </div>
-                <div style={{ background: '#fff', borderRadius: 14, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0E1300' }}>24 Vehículos</div>
-                    <div style={{ fontSize: 11, color: '#6A6A6E' }}>{lang === 'es' ? 'Preoperacionales al día' : 'Inspections up to date'}</div>
+              <div style={{ width: 300, background: 'linear-gradient(160deg, #0F172A, #1E293B)', borderRadius: 20, boxShadow: '0 16px 40px rgba(15,23,42,0.25)', padding: 18, color: '#fff' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 18, color: '#C7F303' }}>
+                    Matriz IPEVAR GTC 45
                   </div>
-                  <span style={{ width: 28, height: 28, borderRadius: 9999, background: '#D6F4DF', color: '#0A5818', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>
-                    ✓
+                  <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 8px', borderRadius: 9999, background: 'rgba(199,243,3,0.15)', color: '#C7F303' }}>
+                    AUTOMATIZADA
                   </span>
                 </div>
-                <div style={{ background: '#fff', borderRadius: 14, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0E1300' }}>Riesgo Vial: Bajo</div>
-                    <div style={{ fontSize: 11, color: '#6A6A6E' }}>NP 2 · NE 2 · NC 10 = NR 40</div>
+                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 14, padding: '12px 14px', marginBottom: 8, border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fff' }}>Peligro Biomecánico / Físico</div>
+                    <span style={{ fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 6, background: '#EF4444', color: '#fff' }}>NR I</span>
                   </div>
-                  <span style={{ width: 28, height: 28, borderRadius: 9999, background: '#C7F303', color: '#0E1300', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>
-                    ★
-                  </span>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>ND 6 · NE 4 · NC 25 = NR 600 (Crítico)</div>
+                  <div style={{ fontSize: 10, color: '#34D399', fontWeight: 600, marginTop: 4 }}>✓ Control de Ingeniería Prescrito</div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 14, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fff' }}>Compatibilidad Química SGA</div>
+                    <span style={{ fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 6, background: '#10B981', color: '#fff' }}>100% OK</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>16 FDS / HDS verificadas · Sin cruces reactivos</div>
                 </div>
               </div>
             </div>
@@ -706,25 +797,26 @@ export default function LandingPage() {
         <div className="wrap" style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
           <span className="eyebrow">
             <span className="dot"></span>
-            {lang === 'es' ? 'Reportes desde Campo y WhatsApp' : 'Field Reports & WhatsApp'}
+            {lang === 'es' ? 'Acceso Móvil PWA & IA en Vivo' : 'PWA Mobile & Live AI'}
           </span>
           <h2 className="display" style={{ fontSize: 'clamp(30px,4.6vw,48px)', margin: '14px 0 0' }}>
             {lang === 'es' ? 'Seguridad y Salud en tu bolsillo' : 'Safety and Health in your pocket'}
           </h2>
-          <p style={{ fontSize: 17, color: 'rgba(14,19,0,0.62)', maxWidth: 520, margin: '14px auto 0' }}>
+          <p style={{ fontSize: 17, color: 'rgba(14,19,0,0.62)', maxWidth: 540, margin: '14px auto 0' }}>
             {lang === 'es'
-              ? 'Tus brigadistas, inspectores y trabajadores reportan actos inseguros, realizan preoperacionales de vehículos y consultan su carnet SST desde cualquier teléfono móvil.'
-              : 'Inspectors, drivers, and workers log unsafe conditions, perform pre-trip inspections, and check training badges directly from mobile.'}
+              ? 'Sin descargar aplicaciones pesadas: realiza análisis biomecánicos en vivo con el Fisioterapeuta IA, consulta a más de 20 especialistas SST y gestiona comités y reportes desde cualquier smartphone.'
+              : 'Zero app store installs: run live ergonomic posture assessments, consult 20+ specialized AI agents, and manage committees directly from any mobile browser.'}
           </p>
 
           <div className="app-phones">
-            {/* Phone 1: iOS Preoperacional */}
+            {/* Phone 1: Análisis Biomecánico Fisioterapeuta IA */}
             <div className="phone-wrap">
               <div className="phone-label">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="#0E1300">
-                  <path d="M16 1.6c.06.9-.3 1.8-.86 2.43-.6.66-1.55 1.17-2.48 1.1-.07-.88.35-1.8.88-2.36C14.08 2.1 15.1 1.64 16 1.6zM18.9 8.5c-.8.5-1.3 1.4-1.3 2.4 0 1.2.7 2.2 1.7 2.6-.2.6-.5 1.3-.9 1.9-.6.9-1.2 1.8-2.1 1.8-.9 0-1.2-.5-2.2-.5s-1.4.5-2.2.5c-.9 0-1.6-1-2.2-1.9-1.3-1.9-2.3-5.3-1-7.6.7-1.2 1.8-1.9 3-1.9.9 0 1.7.6 2.2.6.5 0 1.5-.7 2.6-.6.5 0 1.8.2 2.7 1.2z"></path>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"></path>
+                  <path d="M6 21v-4a6 6 0 0 1 12 0v4"></path>
                 </svg>
-                WAPPY Móvil · Inspecciones
+                {lang === 'es' ? 'Análisis Biomecánico · Fisioterapeuta IA' : 'Biomechanical Analysis · AI Physio'}
               </div>
               <div className="phone">
                 <div className="phone-screen">
@@ -732,49 +824,49 @@ export default function LandingPage() {
                     <span></span>
                   </div>
                   <div style={{ padding: '6px 16px 10px', textAlign: 'left', background: '#fff' }}>
-                    <div style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 22, color: '#0E1300' }}>
-                      {lang === 'es' ? 'Inspecciones' : 'Inspections'}
+                    <div style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 19, color: '#0E1300' }}>
+                      {lang === 'es' ? 'Evaluación Postural' : 'Postural Assessment'}
                     </div>
                     <div style={{ display: 'flex', gap: 6, background: '#E9E9EE', borderRadius: 9, padding: 3, marginTop: 8 }}>
-                      <span style={{ flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 600, padding: '6px 0', background: '#fff', borderRadius: 7 }}>
-                        {lang === 'es' ? 'Preoperacional' : 'Pre-trip'}
+                      <span style={{ flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 700, padding: '6px 0', background: '#fff', borderRadius: 7, color: '#0E1300' }}>
+                        Visión IA en Vivo
                       </span>
-                      <span style={{ flex: 1, textAlign: 'center', fontSize: 11, color: '#6A6A6E', padding: '6px 0' }}>
-                        {lang === 'es' ? 'Peligros' : 'Hazards'}
+                      <span style={{ flex: 1, textAlign: 'center', fontSize: 11, color: '#6A6A6E', padding: '6px 0', fontWeight: 600 }}>
+                        ROSA / OWAS
                       </span>
                     </div>
                   </div>
 
-                  <div style={{ background: '#F2F3F7', padding: 6, textAlign: 'left' }}>
+                  <div style={{ background: '#F2F3F7', padding: 8, textAlign: 'left' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: '#fff', borderRadius: 14, marginBottom: 6 }}>
-                      <span style={{ width: 36, height: 36, borderRadius: 9999, background: '#D6F4DF', color: '#0A5818', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>
-                        VH
+                      <span style={{ width: 36, height: 36, borderRadius: 10, background: '#FEF3C7', color: '#B45309', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>
+                        24°
                       </span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>Camión FTR Placa WPY-789</div>
-                        <div style={{ fontSize: 11, color: '#9A9AA8' }}>Frenos, luces y llantas: 100% OK</div>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>Inclinación Cervical / Cuello</div>
+                        <div style={{ fontSize: 11, color: '#B45309', fontWeight: 600 }}>Flexión moderada · Alerta preventiva</div>
+                        <span style={{ display: 'inline-block', marginTop: 3, fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 9999, background: '#FEF3C7', color: '#B45309' }}>
+                          Ajustar altura de pantalla
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: '#fff', borderRadius: 14, marginBottom: 6 }}>
+                      <span style={{ width: 36, height: 36, borderRadius: 10, background: '#D6F4DF', color: '#0A5818', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>
+                        OK
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>Alineación de Columna Lumbar</div>
+                        <div style={{ fontSize: 11, color: '#64748B' }}>Apoyo lumbar adecuado en silla</div>
                         <span style={{ display: 'inline-block', marginTop: 3, fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 9999, background: '#D6F4DF', color: '#0A5818' }}>
-                          {lang === 'es' ? 'Aprobado' : 'Passed'}
+                          Postura Neutra Aceptable
                         </span>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: '#fff', borderRadius: 14, marginBottom: 6 }}>
-                      <span style={{ width: 36, height: 36, borderRadius: 9999, background: '#FEF0DC', color: '#F09030', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>
-                        EXT
-                      </span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>Extintor Pasillo Bodega 3</div>
-                        <div style={{ fontSize: 11, color: '#9A9AA8' }}>Manómetro en zona de recarga</div>
-                        <span style={{ display: 'inline-block', marginTop: 3, fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 9999, background: '#FEF0DC', color: '#F09030' }}>
-                          {lang === 'es' ? 'Requiere Mantenimiento' : 'Needs Service'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 4px' }}>
-                      <span style={{ height: 36, padding: '0 16px', borderRadius: 9999, background: '#C7F303', color: '#0E1300', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700 }}>
-                        + Nueva Inspección
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '6px 4px' }}>
+                      <span style={{ height: 36, padding: '0 16px', borderRadius: 9999, background: '#C7F303', color: '#0E1300', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700 }}>
+                        📷 {lang === 'es' ? 'Cámara en Vivo' : 'Live Camera'}
                       </span>
                     </div>
                   </div>
@@ -782,48 +874,53 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Phone 2: Android Carnet SST */}
+            {/* Phone 2: Chat Especializado con +20 Agentes SST */}
             <div className="phone-wrap">
               <div className="phone-label">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="#0E1300">
-                  <path d="M3.6 2.4 13 12 3.6 21.6c-.3-.3-.5-.7-.5-1.3V3.7c0-.6.2-1 .5-1.3zM14.3 13.3l2.5 2.5-9.6 5.5 7.1-8zM17.9 9.8l3 1.7c.9.5.9 1.5 0 2l-3 1.7-2.7-2.7 2.7-2.7zM7.2 2.7l9.6 5.5-2.5 2.5-7.1-8z"></path>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                 </svg>
-                Android · Carnet Digital SST
+                {lang === 'es' ? 'Chat Especializado · +20 Agentes SST' : 'Specialized Chat · 20+ OHS Agents'}
               </div>
               <div className="phone">
                 <div className="phone-screen">
                   <div className="phone-notch">
                     <span style={{ width: 10, height: 10, borderRadius: 9999 }}></span>
                   </div>
-                  <div style={{ background: 'linear-gradient(160deg, #5BB8F5, #86CCF6)', height: 54 }}></div>
-                  <div style={{ padding: '14px 16px', textAlign: 'left', background: '#F2F3F7', marginTop: -30 }}>
-                    <div style={{ textAlign: 'center', marginBottom: 12 }}>
-                      <span style={{ width: 64, height: 64, borderRadius: 9999, background: '#C7F303', color: '#0E1300', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 20, border: '3px solid #F2F3F7' }}>
-                        FB
+                  <div style={{ background: 'linear-gradient(160deg, #0F172A, #1E293B)', padding: '12px 14px', color: '#fff', textAlign: 'left' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ width: 32, height: 32, borderRadius: 9999, background: '#C7F303', color: '#0E1300', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>
+                        FT
                       </span>
-                      <div style={{ fontSize: 16, fontWeight: 700, marginTop: 6 }}>Félix Bedoya</div>
-                      <div style={{ fontSize: 11, color: '#9A9AA8' }}>Operario de Almacén · CC. 102045...</div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700 }}>Fisioterapeuta Laboral IA</div>
+                        <div style={{ fontSize: 10, color: '#94A3B8' }}>En línea · +20 Agentes disponibles</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '12px', textAlign: 'left', background: '#F8FAFC' }}>
+                    <div style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 9999, background: '#0E1300', color: '#C7F303', whiteSpace: 'nowrap' }}>
+                        Fisioterapeuta
+                      </span>
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 9999, background: '#E2E8F0', color: '#475569', whiteSpace: 'nowrap' }}>
+                        Médico Laboral
+                      </span>
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 9999, background: '#E2E8F0', color: '#475569', whiteSpace: 'nowrap' }}>
+                        Abogado RIT
+                      </span>
                     </div>
 
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#3B40B5', marginBottom: 6 }}>
-                      ESTADO DE APTITUD MÉDICA
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-                      <span style={{ flex: 1, height: 34, borderRadius: 9999, background: '#E8EAFF', color: '#3B40B5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 11, fontWeight: 700 }}>
-                        <span style={{ width: 7, height: 7, borderRadius: 9999, background: '#1E8E3E' }}></span>
-                        {lang === 'es' ? 'Apto sin restricciones' : 'Fit for duty'}
-                      </span>
+                    <div style={{ background: '#fff', borderRadius: 14, padding: 10, fontSize: 12, lineHeight: 1.45, color: '#1E293B', border: '1px solid #E2E8F0', marginBottom: 8 }}>
+                      {lang === 'es'
+                        ? 'Analicé el puesto de trabajo. Para mitigar sobrecargas biomecánicas en miembros superiores, sugiero micropausas activas y elevación del monitor según la guía técnica del MinTrabajo.'
+                        : 'Reviewed the workstation. To prevent upper limb strain, I recommend active micro-breaks and elevating the screen according to OHS ergonomic standards.'}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <div style={{ background: '#fff', borderRadius: 16, padding: 10 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: '#1E8E3E' }}>Alturas 50h</div>
-                        <div style={{ fontSize: 10, color: '#9A9AA8' }}>Certificado Vigente</div>
-                      </div>
-                      <div style={{ background: '#fff', borderRadius: 16, padding: 10 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: '#4852ED' }}>COPASST</div>
-                        <div style={{ fontSize: 10, color: '#9A9AA8' }}>Miembro Activo</div>
-                      </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F1F5F9', borderRadius: 10, padding: '6px 10px', fontSize: 10.5, color: '#0369A1', fontWeight: 700 }}>
+                      <span>📜</span>
+                      <span>{lang === 'es' ? 'Citado con Res. 2400 & ISO 11226' : 'Cited with Res. 2400 & ISO 11226'}</span>
                     </div>
                   </div>
                 </div>
@@ -878,130 +975,523 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Integrations */}
+      {/* Más de 30 Aplicativos Disponibles en tu SG-SST */}
       <section className="band">
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot"></span>
-              {lang === 'es' ? 'Interoperabilidad & Conectividad' : 'Integrations & Interoperability'}
+              {lang === 'es' ? 'Ecosistema Integral de Aplicativos' : 'Comprehensive App Ecosystem'}
             </span>
-            <h2 className="display">{lang === 'es' ? 'Conectado a tus herramientas empresariales' : 'Connected to your enterprise tools'}</h2>
+            <h2 className="display">
+              {lang === 'es' ? 'Más de 30 aplicativos disponibles para tu SG-SST' : '30+ Specialized OHS Applications Available'}
+            </h2>
             <p>
               {lang === 'es'
-                ? 'WhatsApp Cloud API oficial, exportación a Excel y Word sin fórmulas rotas, Google Drive, OneDrive y bases de datos SQL.'
-                : 'WhatsApp Cloud API, export to Excel and Word, cloud storage sync, and enterprise webhooks.'}
+                ? 'El ecosistema modular más completo de Colombia, estructurado bajo la Metodología del Bioindividuo y los 8 Hitos de gestión. Automatización, rigor normativo colombiano y analítica en una sola plataforma.'
+                : 'Colombia’s most robust OHS platform, structured under the Bioindividual Methodology and 8 management milestones.'}
             </p>
           </div>
 
           <div className="intg">
+            {/* 1. Diagnóstico 0312 */}
             <div className="i">
-              <span className="g" style={{ background: '#25D366' }}>
-                <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.3-1.2l-.3-.2-2.9.9.9-2.8-.2-.3A8 8 0 1 1 12 20z"></path>
+              <span className="g" style={{ background: '#E0F2FE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0284C7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"></path>
+                  <path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"></path>
+                  <circle cx="20" cy="10" r="2"></circle>
                 </svg>
               </span>
-              WhatsApp API
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Diagnóstico 0312
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0284C7', background: '#E0F2FE', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 1 · Gobernanza
+              </span>
             </div>
 
+            {/* 2. Matriz IPEVAR */}
             <div className="i">
-              <span className="g" style={{ background: '#107C41' }}>
-                <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M21 2H3a1 1 0 0 0-1 1v18a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zm-9 15.5H5.5v-2H12v2zm0-4.5H5.5v-2H12v2zm0-4.5H5.5v-2H12v2zm6.5 9H13.5v-11h5v11z"></path>
+              <span className="g" style={{ background: '#FEE2E2' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
                 </svg>
               </span>
-              Excel Export
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Matriz IPEVAR GTC 45
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#DC2626', background: '#FEE2E2', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 1 · Peligros
+              </span>
             </div>
 
+            {/* 3. Matriz Legal */}
             <div className="i">
-              <span className="g" style={{ background: '#2B579A' }}>
-                <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M21 2H3a1 1 0 0 0-1 1v18a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zm-6.2 14.8-2.3-7.5h-1.6l-2.3 7.5h-1.8l-1.3-9.6h2.2l.8 6.4 2.1-6.4h1.7l2.1 6.4.8-6.4h2.2l-1.3 9.6h-1.2z"></path>
+              <span className="g" style={{ background: '#EDE9FE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path>
+                  <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path>
+                  <path d="M7 21h10"></path>
+                  <path d="M12 3v18"></path>
+                  <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"></path>
                 </svg>
               </span>
-              Word Docs
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Matriz Legal SST
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#7C3AED', background: '#EDE9FE', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 1 · Dec. 1072
+              </span>
             </div>
 
+            {/* 4. Vulnerabilidad */}
             <div className="i">
-              <span className="g" style={{ background: '#0F9D58' }}>
-                <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M7.7 2h8.6l5.7 10-4.3 7.5-8.6-15zm-5.7 10 4.3-7.5 8.6 15H6.3L2 12zm13.4 7.5H6.8L11.1 12h8.6l-4.3 7.5z"></path>
+              <span className="g" style={{ background: '#FFEDD5' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <circle cx="12" cy="12" r="6"></circle>
+                  <circle cx="12" cy="12" r="2"></circle>
                 </svg>
               </span>
-              Google Drive
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Vulnerabilidad & PAE
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#EA580C', background: '#FFEDD5', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 1 · Amenazas
+              </span>
             </div>
 
+            {/* 5. Política & Objetivos */}
             <div className="i">
-              <span className="g" style={{ background: '#0078D4' }}>
-                <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M19.4 10.1C18.6 6.6 15.5 4 11.8 4 9.1 4 6.7 5.4 5.3 7.5 2.3 8 0 10.6 0 13.8c0 3.4 2.8 6.2 6.2 6.2h13.1c2.6 0 4.7-2.1 4.7-4.7 0-2.4-1.8-4.4-4.6-5.2z"></path>
+              <span className="g" style={{ background: '#CCFBF1' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0D9488" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
                 </svg>
               </span>
-              OneDrive
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Política & Objetivos
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0D9488', background: '#CCFBF1', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 1 · Promesa
+              </span>
             </div>
 
+            {/* 6. Reglamentos RHS & RIT */}
             <div className="i">
-              <span className="g" style={{ background: '#336791' }}>
-                <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm1 14.9V13h-2v3.9H9.5v-5.4h5v5.4H13zm2.5-7.4h-7V8h7v1.5z"></path>
+              <span className="g" style={{ background: '#FEF3C7' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                 </svg>
               </span>
-              PostgreSQL
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Reglamentos RHS / RIT
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#B45309', background: '#FEF3C7', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 1 · Normativa
+              </span>
             </div>
 
+            {/* 7. Perfiles de Cargo */}
             <div className="i">
-              <span className="g" style={{ background: '#181717' }}>
-                <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"></path>
+              <span className="g" style={{ background: '#E0F2FE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0369A1" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
                 </svg>
               </span>
-              GitHub Sync
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Perfiles de Cargo
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0369A1', background: '#E0F2FE', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 2 · Profesiograma
+              </span>
             </div>
 
+            {/* 8. Perfil Sociodemográfico */}
             <div className="i">
-              <span className="g" style={{ background: '#4A154B' }}>
-                <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M5.04 15.17a2.52 2.52 0 1 1-2.52-2.52h2.52zM6.3 15.17a2.52 2.52 0 0 1 5.04 0v6.3a2.52 2.52 0 0 1-5.04 0z"></path>
+              <span className="g" style={{ background: '#FEF3C7' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                 </svg>
               </span>
-              Slack Alertas
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Perfil Sociodemográfico
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#D97706', background: '#FEF3C7', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 2 · Antropología
+              </span>
             </div>
 
+            {/* 9. Condiciones de Salud */}
             <div className="i">
-              <span className="g" style={{ background: '#E65100' }}>
-                <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M3 11h8V3H3v8zm2-6h4v4H5V5zm8-2v8h8V3h-8zm6 6h-4V5h4v4zM3 21h8v-8H3v8zm2-6h4v4H5v-4zm13-2h-2v2h2v-2zm-4 4h2v2h-2v-2zm2 2h2v2h-2v-2zm2-2h2v2h-2v-2zm0 4h2v2h-2v-2zm-4 0h2v2h-2v-2z"></path>
+              <span className="g" style={{ background: '#DCFCE7' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
                 </svg>
               </span>
-              Código QR
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Condiciones de Salud
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#15803D', background: '#DCFCE7', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 2 · CIE-10
+              </span>
             </div>
 
+            {/* 10. Dictamen FIT Score */}
             <div className="i">
-              <span className="g" style={{ background: '#1976D2' }}>
-                <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"></path>
+              <span className="g" style={{ background: '#DBEAFE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                 </svg>
               </span>
-              Firma Digital
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Dictamen FIT Score
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#2563EB', background: '#DBEAFE', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 2 · Compatibilidad
+              </span>
             </div>
 
+            {/* 11. Portal Móvil con QR */}
             <div className="i">
-              <span className="g" style={{ background: '#5E35B1' }}>
-                <svg viewBox="0 0 24 24" fill="#fff">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"></path>
+              <span className="g" style={{ background: '#F1F5F9' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                  <line x1="12" y1="18" x2="12.01" y2="18"></line>
                 </svg>
               </span>
-              MinTrabajo
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Portal Móvil con QR
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0E1300', background: '#E2E8F0', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 2 · Cero Papel
+              </span>
             </div>
 
+            {/* 12. COPASST / Vigía */}
+            <div className="i">
+              <span className="g" style={{ background: '#E0E7FF' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#4338CA" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="8" r="7"></circle>
+                  <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                COPASST / Vigía SST
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#4338CA', background: '#E0E7FF', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 3 · Comités
+              </span>
+            </div>
+
+            {/* 13. Convivencia COCOLAB */}
+            <div className="i">
+              <span className="g" style={{ background: '#FCE7F3' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#BE185D" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 14h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16"></path>
+                  <path d="m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.8-2.8L15 13"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Comité Convivencia
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#BE185D', background: '#FCE7F3', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 3 · COCOLAB
+              </span>
+            </div>
+
+            {/* 14. Brigada de Emergencia */}
+            <div className="i">
+              <span className="g" style={{ background: '#FEE2E2' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Brigada Emergencias
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#DC2626', background: '#FEE2E2', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 3 · Rescate
+              </span>
+            </div>
+
+            {/* 15. Termómetro Psicosocial */}
+            <div className="i">
+              <span className="g" style={{ background: '#FFE4E6' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#E11D48" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Termómetro Psicosocial
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#E11D48', background: '#FFE4E6', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 4 · Pulsos de Ánimo
+              </span>
+            </div>
+
+            {/* 16. Estudio de Puesto (EPT) */}
+            <div className="i">
+              <span className="g" style={{ background: '#D1FAE5' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="5" r="3"></circle>
+                  <path d="M12 8v8"></path>
+                  <path d="M9 13l3 3 3-3"></path>
+                  <path d="M7 21h10"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Estudio de Puesto (EPT)
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#059669', background: '#D1FAE5', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 4 · Biomecánica
+              </span>
+            </div>
+
+            {/* 17. Método OWAS / ROSA */}
+            <div className="i">
+              <span className="g" style={{ background: '#FEF3C7' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 12h20"></path>
+                  <path d="M20 12v8H4v-8"></path>
+                  <path d="m4 12 8-8 8 8"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Método OWAS / ROSA
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#D97706', background: '#FEF3C7', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 4 · Ergonomía
+              </span>
+            </div>
+
+            {/* 18. Análisis Trabajo Seguro (ATS) */}
+            <div className="i">
+              <span className="g" style={{ background: '#FFEDD5' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Análisis Seguro (ATS)
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#B45309', background: '#FFEDD5', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 5 · Terreno
+              </span>
+            </div>
+
+            {/* 19. Permiso Alturas */}
+            <div className="i">
+              <span className="g" style={{ background: '#FEE2E2' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2v20"></path>
+                  <path d="m17 5-5-3-5 3"></path>
+                  <path d="m17 19-5 3-5-3"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Permisos de Alturas
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#EA580C', background: '#FEE2E2', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 5 · Res. 4272
+              </span>
+            </div>
+
+            {/* 20. Química SGA */}
+            <div className="i">
+              <span className="g" style={{ background: '#E0F2FE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0284C7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 2v7.31"></path>
+                  <path d="M14 9.3V2"></path>
+                  <path d="M8.5 2h7"></path>
+                  <path d="M14 9.3a6.5 6.5 0 1 1-4 0"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Química SGA (Dec. 1496)
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0284C7', background: '#E0F2FE', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 5 · FDS / ONU
+              </span>
+            </div>
+
+            {/* 21. Entrega EPP */}
+            <div className="i">
+              <span className="g" style={{ background: '#DCFCE7' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                  <path d="m9 12 2 2 4-4"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Entrega y Control EPP
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#15803D', background: '#DCFCE7', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 5 · Dotación
+              </span>
+            </div>
+
+            {/* 22. Reporte de Actos */}
+            <div className="i">
+              <span className="g" style={{ background: '#FFE4E6' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#E11D48" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                  <circle cx="12" cy="13" r="4"></circle>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Reporte de Actos
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#E11D48', background: '#FFE4E6', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 6 · Terreno
+              </span>
+            </div>
+
+            {/* 23. Programa Capacitaciones */}
+            <div className="i">
+              <span className="g" style={{ background: '#CFFAFE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0891B2" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Capacitaciones PAC
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0891B2', background: '#CFFAFE', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 6 · Escuela
+              </span>
+            </div>
+
+            {/* 24. Academia LMS */}
+            <div className="i">
+              <span className="g" style={{ background: '#EEF2FF' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                  <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Academia LMS SST
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#4F46E5', background: '#EEF2FF', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 6 · Certificados
+              </span>
+            </div>
+
+            {/* 25. App Builder No-Code */}
+            <div className="i">
+              <span className="g" style={{ background: '#F3E8FF' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                App Builder No-Code
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#7C3AED', background: '#F3E8FF', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 6 · Creador
+              </span>
+            </div>
+
+            {/* 26. Gestión ATEL */}
+            <div className="i">
+              <span className="g" style={{ background: '#DBEAFE' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"></line>
+                  <line x1="12" y1="20" x2="12" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Ausentismo & ATEL
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#2563EB', background: '#DBEAFE', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 7 · Indicadores
+              </span>
+            </div>
+
+            {/* 27. Investigación AT */}
+            <div className="i">
+              <span className="g" style={{ background: '#FAF5FF' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#9333EA" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Investigación Forense
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#9333EA', background: '#FAF5FF', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 7 · Árbol Causas
+              </span>
+            </div>
+
+            {/* 28. Tablero Kanban ACPM */}
+            <div className="i">
+              <span className="g" style={{ background: '#D1FAE5' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                  <path d="M7 7h3v10H7z"></path>
+                  <path d="M14 7h3v6h-3z"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Tablero Kanban ACPM
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#059669', background: '#D1FAE5', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 7 · Mejora
+              </span>
+            </div>
+
+            {/* 29. Auditoría SG-SST */}
+            <div className="i">
+              <span className="g" style={{ background: '#CCFBF1' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0D9488" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                  <path d="m9 14 2 2 4-4"></path>
+                </svg>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Auditoría SG-SST 360°
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0D9488', background: '#CCFBF1', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 7 · Eficacia
+              </span>
+            </div>
+
+            {/* 30. Centro Predictivo IA */}
             <div className="i">
               <span className="g" style={{ background: '#0E1300' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#C7F303" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="8 7 3 12 8 17"></polyline>
-                  <polyline points="16 7 21 12 16 17"></polyline>
+                  <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"></path>
+                  <path d="m9 12 2 2 4-4"></path>
                 </svg>
               </span>
-              Webhooks API
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
+                Centro Predictivo IA
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#0E1300', background: '#C7F303', padding: '2px 6px', borderRadius: 9999 }}>
+                Hito 8 · Oráculo
+              </span>
             </div>
           </div>
         </div>
@@ -1039,14 +1529,14 @@ export default function LandingPage() {
               <div className="stars">★★★★★</div>
               <p>
                 {lang === 'es'
-                  ? '“El módulo PESV nos permitió pasar la auditoría de la Superintendencia de Transporte con cero no conformidades. El cálculo automático NP+NE+NC es impecable.”'
-                  : '“The road safety module helped us ace our transportation audit with zero non-conformities. Flawless mathematical risk scoring.”'}
+                  ? '“La Matriz IPEVAR bajo GTC 45 y la evaluación paramétrica nos permitieron pasar la auditoría de la ARL con 100% de cumplimiento. El cálculo automático de deficiencia y exposición es impecable.”'
+                  : '“The GTC 45 IPEVAR matrix and automated risk scoring helped us pass our OHS audit with 100% compliance. Flawless mathematical risk calculations.”'}
               </p>
               <div className="who">
                 <span className="av" style={{ background: '#D6F4DF', color: '#0A5818' }}>AR</span>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>Andrés Rentería</div>
-                  <div style={{ fontSize: 12.5, color: '#9A9AA8' }}>Director de Flota y Logística</div>
+                  <div style={{ fontSize: 12.5, color: '#9A9AA8' }}>Líder de Seguridad y Salud en el Trabajo</div>
                 </div>
               </div>
             </div>
@@ -1133,8 +1623,8 @@ export default function LandingPage() {
               <div className="a">
                 <p>
                   {lang === 'es'
-                    ? 'Totalmente. WAPPY está programado y auditado con base en la Resolución 0312 de 2019 (Estándares Mínimos), Decreto 1072 de 2015 (SG-SST), Resolución 20223040040595 de 2022 (PESV), Decreto 1496 de 2018 (Sistema Globalmente Armonizado SGA) y la Guía Técnica Colombiana GTC 45.'
-                    : 'Yes. WAPPY is modeled strictly on Colombian regulations: Decree 1072 of 2015, Res. 0312 of 2019, Res. 20223040040595 for Road Safety, and Decree 1496 for SGA.'}
+                    ? 'Totalmente. WAPPY está programado y auditado con base en la Resolución 0312 de 2019 (Estándares Mínimos), Decreto 1072 de 2015 (SG-SST), Guía Técnica Colombiana GTC 45, Decreto 1496 de 2018 (Sistema Globalmente Armonizado SGA), Resolución 2013 de 1986 (COPASST), Resolución 652 de 2012 y Ley 2365 de 2024 (Convivencia Laboral).'
+                    : 'Yes. WAPPY is modeled strictly on Colombian regulations: Decree 1072 of 2015, Res. 0312 of 2019, GTC 45 hazard guide, Decree 1496 (SGA), Res. 2013 of 1986 (COPASST), and Law 2365 of 2024 (Labor Harassment).'}
                 </p>
               </div>
             </div>
@@ -1147,8 +1637,8 @@ export default function LandingPage() {
               <div className="a">
                 <p>
                   {lang === 'es'
-                    ? 'Tenshi no es un chatbot desconectado: es un orquestador inteligente conectado directamente a la base de datos de tu empresa. Conoce a tus empleados, cargos, sedes, vehículos y expedientes históricos, y está entrenado para redactar actas legales, auditar porcentajes de cumplimiento y generar informes gerenciales con citas exactas a la ley.'
-                    : 'Tenshi is connected directly to your enterprise database. It knows your employees, roles, facilities, and fleet history, and produces legally valid documents with exact statutory citations.'}
+                    ? 'Tenshi no es un chatbot genérico desconectado: es un orquestador inteligente autónomo. Coordina y delega consultas hacia más de 20 agentes especialistas en SST (fisioterapeutas, médicos laborales, abogados y químicos), diligencia formularios técnicos en pantalla mediante control de interfaz (Page Controller) y te asiste por voz con citas normativas exactas a la ley colombiana.'
+                    : 'Tenshi is an autonomous orchestrator connected to your safety database. It delegates queries to 20+ specialized OHS agents, fills forms on screen via Page Controller, and assists by voice citing exact statutory standards.'}
                 </p>
               </div>
             </div>
@@ -1161,22 +1651,22 @@ export default function LandingPage() {
               <div className="a">
                 <p>
                   {lang === 'es'
-                    ? 'Sí. Todos los documentos generados en WAPPY (actas de COPASST, matriz de riesgos GTC 45, matriz PESV, actas de convivencia y carnets de capacitación) pueden exportarse con un clic en formatos editables de Excel y Word o descargarse en PDF listos para firmar con código QR.'
-                    : 'Yes. All generated records (committee minutes, GTC 45 risk matrix, PESV, and training certificates) export with one click to editable Excel/Word and signed PDF files.'}
+                    ? 'Sí. Todos los documentos generados en WAPPY (actas de comités, matriz de riesgos GTC 45, matriz de compatibilidad química SGA, diagnósticos de estándares mínimos y carnets de capacitación) pueden exportarse en formatos editables de Excel y Word o descargarse en PDF membretados listos para auditorías.'
+                    : 'Yes. All generated records (committee minutes, GTC 45 risk matrix, chemical SGA matrix, and training certificates) export with one click to editable Excel/Word and signed PDF files.'}
                 </p>
               </div>
             </div>
 
             <div className={`qa ${openFaq === 3 ? 'open' : ''}`}>
               <button onClick={() => setOpenFaq(openFaq === 3 ? null : 3)} aria-expanded={openFaq === 3}>
-                {lang === 'es' ? '¿Cómo funciona la integración con WhatsApp para reportes de trabajadores?' : 'How does the WhatsApp integration work for worker reports?'}
+                {lang === 'es' ? '¿Cómo acceden los colaboradores desde su celular sin contraseñas?' : 'How do workers access mobile tools without passwords?'}
                 <span className="q-ico">+</span>
               </button>
               <div className="a">
                 <p>
                   {lang === 'es'
-                    ? 'WAPPY se conecta a tu línea oficial de WhatsApp. Los trabajadores pueden enviar fotos de condiciones inseguras o realizar la inspección preoperacional de su vehículo chateando de forma natural. Tenshi procesa la información, clasifica el peligro y lo indexa automáticamente en la matriz correspondiente.'
-                    : 'WAPPY integrates with official WhatsApp. Workers report unsafe conditions or pre-trip vehicle checks by messaging naturally; Tenshi indexes and routes the data into the safety matrices.'}
+                    ? 'Mediante el portal móvil PWA y código QR oficial de la empresa. Los colaboradores escanean el QR desde su celular, validan su cédula y pueden autogestionar su perfil sociodemográfico, participar en votaciones secretas de comités, firmar actas digitalmente y reportar condiciones inseguras con foto al instante.'
+                    : 'Through the PWA mobile portal and company QR code. Workers scan the QR, verify with their national ID, and can update their demographic profiles, cast secret committee votes, sign minutes, and report hazards with photos instantly.'}
                 </p>
               </div>
             </div>
@@ -1201,12 +1691,12 @@ export default function LandingPage() {
           </div>
 
           <div className="price">
-            {/* Starter: Consultor */}
+            {/* Starter: Plan Plus */}
             <div className="pcard">
-              <div className="pn">{lang === 'es' ? 'Consultor SST' : 'OHS Consultant'}</div>
-              <div className="pp">$29<span>{lang === 'es' ? '/mes' : '/mo'}</span></div>
+              <div className="pn">{lang === 'es' ? 'Plan Plus' : 'Plus Plan'}</div>
+              <div className="pp">$57.800<span>{lang === 'es' ? ' COP /mes' : ' COP/mo'}</span></div>
               <div style={{ fontSize: 13, color: '#9A9AA8', marginBottom: 4 }}>
-                {lang === 'es' ? 'Para profesionales y pymes (hasta 25 trab.)' : 'For independent consultants & small teams'}
+                {lang === 'es' ? 'Para profesionales y responsables del SG-SST' : 'For independent OHS professionals & consultants'}
               </div>
               <div className="ptrial">
                 <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#1E8E3E', display: 'inline-block' }}></span>
@@ -1219,7 +1709,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? '1 empresa y hasta 2 sedes' : '1 company and up to 2 locations'}
+                  {lang === 'es' ? 'Acceso a plataforma Somos SST' : 'Access to Somos SST platform'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1227,7 +1717,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Matriz de Riesgos GTC 45 completa' : 'Complete GTC 45 risk matrix'}
+                  {lang === 'es' ? 'Chat con IA y conversaciones ilimitadas' : 'Unlimited AI chat & conversations'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1235,7 +1725,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Gestor de COPASST digital y actas' : 'Digital COPASST manager and minutes'}
+                  {lang === 'es' ? 'Más de 15 Agentes Expertos en SST' : '15+ Specialized OHS AI agents'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1243,7 +1733,15 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Tenshi IA para consultas normativas' : 'Tenshi AI for regulatory questions'}
+                  {lang === 'es' ? 'Agente Matriz IPEVR (GTC 45)' : 'IPEVR Hazard Matrix Agent (GTC 45)'}
+                </li>
+                <li>
+                  <span className="pck">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  {lang === 'es' ? 'Aula de estudio & Blog WAPPY' : 'Study Hall & WAPPY Blog'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1254,18 +1752,18 @@ export default function LandingPage() {
                   {lang === 'es' ? 'Exportación oficial a Excel y PDF' : 'Official export to Excel and PDF'}
                 </li>
               </ul>
-              <button className="btn btn-glass btn-sm" style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }} onClick={handleStartTrial}>
-                {lang === 'es' ? 'Comenzar gratis' : 'Start free'}
+              <button className="btn btn-glass btn-sm" style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }} onClick={() => navigate('/planes')}>
+                {lang === 'es' ? 'Elegir Plan Plus' : 'Choose Plus Plan'}
               </button>
             </div>
 
-            {/* Growth: Empresarial Pro */}
+            {/* Flagship: Wappy Pro */}
             <div className="pcard feat-plan">
               <span className="pbadge">{lang === 'es' ? 'Más popular' : 'Most Popular'}</span>
-              <div className="pn">{lang === 'es' ? 'Empresarial Pro' : 'Enterprise Pro'}</div>
-              <div className="pp">$99<span>{lang === 'es' ? '/mes' : '/mo'}</span></div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>
-                {lang === 'es' ? 'Para empresas que gestionan SG-SST y PESV' : 'For companies managing OHS & Road Safety'}
+              <div className="pn">{lang === 'es' ? 'Wappy Pro' : 'Wappy Pro'}</div>
+              <div className="pp">$114.330<span>{lang === 'es' ? ' COP /mes' : ' COP/mo'}</span></div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 4 }}>
+                {lang === 'es' ? 'Para empresas que buscan analítica predictiva y visión IA' : 'For organizations seeking predictive AI & live vision'}
               </div>
               <div className="ptrial">
                 <span style={{ width: 6, height: 6, borderRadius: 9999, background: 'var(--lime)', display: 'inline-block' }}></span>
@@ -1278,7 +1776,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  <strong>{lang === 'es' ? 'Todo lo del plan Consultor, más:' : 'Everything in Consultant, plus:'}</strong>
+                  <strong>{lang === 'es' ? 'Todo lo del Plan Plus, y además:' : 'Everything in Plus Plan, plus:'}</strong>
                 </li>
                 <li>
                   <span className="pck">
@@ -1286,7 +1784,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Módulo PESV completo (Res. 40595)' : 'Full Road Safety PESV module'}
+                  {lang === 'es' ? 'Somos SST completo (30+ aplicativos en 8 hitos)' : 'Full Somos SST (30+ apps across 8 milestones)'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1294,7 +1792,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'COPASST, Convivencia y Brigada con QR' : 'Safety, Harassment & Brigade with QR'}
+                  {lang === 'es' ? 'Skills Termómetro Psicosocial & Medicina Laboral' : 'Psychosocial Climate & Occupational Health Skills'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1302,7 +1800,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Matriz Química SGA & Almacenamiento' : 'Chemical SGA compatibility matrix'}
+                  {lang === 'es' ? 'Chat Live (videollamada en vivo para riesgos)' : 'Chat Live (video calling to inspect hazards)'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1310,7 +1808,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Bot de WhatsApp para reportes de campo' : 'WhatsApp bot for field condition logs'}
+                  {lang === 'es' ? 'Análisis Biomecánico en Vivo con Visión IA' : 'Live Biomechanical Analysis with AI Vision'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1318,24 +1816,35 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Academia LMS con carnets y certificados' : 'LMS Academy with badges and certs'}
+                  {lang === 'es' ? 'Crea tus propios Agentes de IA a la medida' : 'Create your own custom AI agents'}
+                </li>
+                <li>
+                  <span className="pck">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  {lang === 'es' ? '3 GB de almacenamiento (+1 GB por sede adicional)' : '3 GB storage (+1 GB per extra branch)'}
                 </li>
               </ul>
-              <button className="btn btn-lime btn-sm" style={{ marginTop: 'auto', justifyContent: 'center' }} onClick={handleStartTrial}>
-                {lang === 'es' ? 'Comenzar prueba gratis' : 'Start free trial'}
+              <button className="btn btn-lime btn-sm" style={{ marginTop: 'auto', justifyContent: 'center' }} onClick={() => navigate('/planes')}>
+                {lang === 'es' ? 'Elegir Wappy Pro' : 'Choose Wappy Pro'}
               </button>
             </div>
 
-            {/* Scale: Corporativo */}
+            {/* Lifetime: Wappy Vital */}
             <div className="pcard">
-              <div className="pn">{lang === 'es' ? 'Corporativo / ARL' : 'Enterprise / ARL'}</div>
-              <div className="pp">$249<span>{lang === 'es' ? '/mes' : '/mo'}</span></div>
+              <span className="pbadge" style={{ background: '#10B981', color: '#fff' }}>
+                {lang === 'es' ? 'Pago Único' : 'One-time Pay'}
+              </span>
+              <div className="pn">{lang === 'es' ? 'Wappy Vital' : 'Wappy Vital'}</div>
+              <div className="pp">$150.000<span>{lang === 'es' ? ' COP' : ' COP'}</span></div>
               <div style={{ fontSize: 13, color: '#9A9AA8', marginBottom: 4 }}>
-                {lang === 'es' ? 'Para firmas consultoras y grandes grupos' : 'For consulting firms & large conglomerates'}
+                {lang === 'es' ? 'Acceso de por vida · Sin mensualidades recurrentes' : 'Lifetime access · No recurring fees'}
               </div>
               <div className="ptrial">
-                <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#1E8E3E', display: 'inline-block' }}></span>
-                {lang === 'es' ? 'Prueba gratis de 7 días' : '7-day free trial'}
+                <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#10B981', display: 'inline-block' }}></span>
+                {lang === 'es' ? 'Licencia vitalicia permanente' : 'Permanent lifetime license'}
               </div>
               <ul>
                 <li>
@@ -1344,7 +1853,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  <strong>{lang === 'es' ? 'Todo lo de Empresarial, más:' : 'Everything in Enterprise, plus:'}</strong>
+                  {lang === 'es' ? 'Acceso vitalicio para 1 empresa' : 'Lifetime access for 1 company'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1352,7 +1861,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Multi-empresa y sedes ilimitadas' : 'Unlimited companies and branches'}
+                  {lang === 'es' ? 'Hasta 20 chats abiertos simultáneos' : 'Up to 20 open concurrent chats'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1360,7 +1869,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Marca blanca con logo y dominio propio' : 'White-label with custom domain'}
+                  {lang === 'es' ? 'Más de 15 Agentes Especialistas en SST' : '15+ Specialized OHS AI agents'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1368,7 +1877,7 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'API abierta y sincronización con ARL' : 'Open API & ARL reporting pipeline'}
+                  {lang === 'es' ? 'Skills IPEVR, Editor RIT y Canvas' : 'IPEVR, RIT Editor & Canvas Skills'}
                 </li>
                 <li>
                   <span className="pck">
@@ -1376,13 +1885,38 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </span>
-                  {lang === 'es' ? 'Acompañamiento VIP en auditorías legales' : 'VIP legal audit advisory'}
+                  {lang === 'es' ? 'Videollamada con exoesqueleto biomecánico' : 'Video call with biomechanical exoskeleton'}
+                </li>
+                <li>
+                  <span className="pck">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  {lang === 'es' ? 'Descargas y exportaciones ilimitadas' : 'Unlimited downloads & exports'}
                 </li>
               </ul>
-              <button className="btn btn-glass btn-sm" style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }} onClick={handleStartTrial}>
-                {lang === 'es' ? 'Hablar con ventas' : 'Contact sales'}
+              <button className="btn btn-glass btn-sm" style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }} onClick={() => navigate('/planes')}>
+                {lang === 'es' ? 'Obtener Wappy Vital' : 'Get Wappy Vital'}
               </button>
             </div>
+          </div>
+
+          {/* Banner Plan Empresas / Asesores / ARL */}
+          <div style={{ marginTop: 24, padding: '20px 24px', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, display: 'flex', flexDirection: 'column', md: { flexDirection: 'row' }, alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>
+                {lang === 'es' ? '¿Eres intermediador de ARL, consultora o gran empresa?' : 'Are you an ARL intermediary, consulting firm, or large enterprise?'}
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--ink2)', marginTop: 4 }}>
+                {lang === 'es'
+                  ? 'Plan Empresas & Corporativo: Dominio propio, marca blanca con logos propios, usuarios ilimitados, agentes IA a la medida y 200 GB de almacenamiento.'
+                  : 'Enterprise Plan: Custom domain, white-label branding, unlimited users, custom AI agents, and 200 GB storage.'}
+              </div>
+            </div>
+            <button className="btn btn-primary btn-sm" style={{ whiteSpace: 'nowrap' }} onClick={() => setIsDemoModalOpen(true)}>
+              {lang === 'es' ? 'Hablar con Asesor Corporativo' : 'Contact Enterprise Team'}
+            </button>
           </div>
 
           <div className="price-note">
@@ -1470,8 +2004,8 @@ export default function LandingPage() {
               </div>
               <p>
                 {lang === 'es'
-                  ? 'El primer ecosistema de inteligencia artificial para SG-SST y PESV en Colombia.'
-                  : 'The first AI ecosystem for OHS and Road Safety in Colombia.'}
+                  ? 'El primer ecosistema de inteligencia artificial para el SG-SST en Colombia.'
+                  : 'The first AI ecosystem for OHS management in Colombia.'}
               </p>
             </div>
 
@@ -1480,7 +2014,7 @@ export default function LandingPage() {
                 <h4>{lang === 'es' ? 'Módulos' : 'Modules'}</h4>
                 <a href="#tenshi">{lang === 'es' ? 'Tenshi IA' : 'Tenshi AI'}</a>
                 <a href="#modulos">COPASST & Convivencia</a>
-                <a href="#pesv">PESV Res. 40595</a>
+                <a href="#matrices">Matrices & Riesgos</a>
                 <a href="#modulos">{lang === 'es' ? 'Matriz GTC 45' : 'GTC 45 Matrix'}</a>
                 <a href="#modulos">{lang === 'es' ? 'Química SGA' : 'Chemical SGA'}</a>
               </div>
@@ -1540,8 +2074,8 @@ export default function LandingPage() {
           </h3>
           <p style={{ color: '#5a6470', fontSize: 14.5, margin: '0 0 20px', lineHeight: 1.5 }}>
             {lang === 'es'
-              ? 'Te mostraremos cómo Tenshi audita tu empresa, genera actas de COPASST y automatiza el PESV.'
-              : 'We will show you how Tenshi audits safety, generates committee minutes, and automates road safety.'}
+              ? 'Te mostraremos cómo Tenshi orquesta tu empresa, genera actas de COPASST y audita matrices de riesgos.'
+              : 'We will show you how Tenshi audits safety, generates committee minutes, and automates risk matrices.'}
           </p>
 
           <form onSubmit={handleDemoSubmit}>
@@ -1624,9 +2158,9 @@ export default function LandingPage() {
               <thead>
                 <tr>
                   <th>{lang === 'es' ? 'Módulo / Capacidad' : 'Module / Feature'}</th>
-                  <th>Consultor<br /><span>$29/mes</span></th>
-                  <th className="hl">Empresarial<br /><span>$99/mes</span></th>
-                  <th>Corporativo<br /><span>$249/mes</span></th>
+                  <th>Plan Plus<br /><span>$57.800/mes</span></th>
+                  <th className="hl">Wappy Pro<br /><span>$114.330/mes</span></th>
+                  <th>Wappy Vital<br /><span>$150.000 (Único)</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -1640,7 +2174,7 @@ export default function LandingPage() {
                   <td><span className="cy">✓</span></td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Comité de Convivencia Laboral (RIT)' : 'Harassment Committee'}</td>
+                  <td>{lang === 'es' ? 'Comité de Convivencia Laboral (COCOLAB)' : 'Harassment Committee'}</td>
                   <td><span className="cn">–</span></td>
                   <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
@@ -1653,16 +2187,16 @@ export default function LandingPage() {
                 </tr>
 
                 <tr className="grp">
-                  <td colSpan={4}>Seguridad Vial PESV & Matrices</td>
+                  <td colSpan={4}>Matrices Técnicas & Riesgos</td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Matriz de Riesgos GTC 45' : 'GTC 45 Risk Matrix'}</td>
+                  <td>{lang === 'es' ? 'Matriz de Riesgos GTC 45 (IPEVAR)' : 'GTC 45 Risk Matrix'}</td>
                   <td><span className="cy">✓</span></td>
                   <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Plan Estratégico Vial (Res. 40595)' : 'Road Safety PESV'}</td>
+                  <td>{lang === 'es' ? 'Matriz Legal SST (Dec. 1072)' : 'Legal OHS Matrix'}</td>
                   <td><span className="cn">–</span></td>
                   <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
@@ -1681,7 +2215,7 @@ export default function LandingPage() {
                 </tr>
 
                 <tr className="grp">
-                  <td colSpan={4}>Inteligencia Artificial Tenshi</td>
+                  <td colSpan={4}>Inteligencia Artificial Tenshi & Visión</td>
                 </tr>
                 <tr>
                   <td>{lang === 'es' ? 'Consultas legales normativas' : 'Regulatory legal inquiries'}</td>
@@ -1690,38 +2224,38 @@ export default function LandingPage() {
                   <td><span className="cy">✓</span></td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Acceso a base de datos empresarial' : 'Live database access'}</td>
+                  <td>{lang === 'es' ? 'Análisis Biomecánico en Vivo con Visión IA' : 'Live Biomechanical Analysis'}</td>
                   <td><span className="cn">–</span></td>
                   <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Alertas de vencimientos y auditorías' : 'Expiration alerts & audits'}</td>
+                  <td>{lang === 'es' ? 'Control de Interfaz y Diligenciamiento en Pantalla' : 'Page Controller Automation'}</td>
                   <td><span className="cn">–</span></td>
                   <td className="hl"><span className="cy">✓</span></td>
-                  <td><span className="cy">✓</span></td>
+                  <td><span className="cn">–</span></td>
                 </tr>
 
                 <tr className="grp">
                   <td colSpan={4}>Canales & Formación</td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Bot de WhatsApp para reportes' : 'WhatsApp Bot for reports'}</td>
-                  <td><span className="cn">–</span></td>
+                  <td>{lang === 'es' ? 'Portal Móvil PWA con Código QR' : 'PWA Mobile QR Portal'}</td>
+                  <td><span className="cy">✓</span></td>
                   <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Academia LMS y carnets digitales' : 'LMS Academy & digital badges'}</td>
-                  <td><span className="cn">–</span></td>
+                  <td>{lang === 'es' ? 'Academia LMS y certificados interactivos' : 'LMS Academy & interactive certs'}</td>
+                  <td><span className="cy">✓</span></td>
                   <td className="hl"><span className="cy">✓</span></td>
                   <td><span className="cy">✓</span></td>
                 </tr>
                 <tr>
-                  <td>{lang === 'es' ? 'Marca blanca y multi-empresa' : 'White-label & multi-company'}</td>
+                  <td>{lang === 'es' ? 'Creación de Agentes de IA propios' : 'Custom AI Agent Builder'}</td>
                   <td><span className="cn">–</span></td>
-                  <td className="hl"><span className="cn">–</span></td>
-                  <td><span className="cy">✓</span></td>
+                  <td className="hl"><span className="cy">✓</span></td>
+                  <td><span className="cn">–</span></td>
                 </tr>
               </tbody>
             </table>
