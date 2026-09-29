@@ -827,8 +827,9 @@ html {
 
 .mkt .hero-stage {
   z-index: 2;
-  height: 620px;
-  margin-top: 32px;
+  height: 610px;
+  margin-top: 28px;
+  margin-bottom: 24px;
   position: relative;
 }
 
@@ -854,33 +855,24 @@ html {
   }
 }
 
-/* Center Card: Bioindividuo (Image 3) */
+/* Center Card: Bioindividuo (Image 3) - ESTÁTICO como ancla central */
 .mkt .float-center-bio {
   background: #ffffff;
   border-radius: 26px;
   padding: 24px 28px;
   border: 2px solid #86efac;
   position: absolute;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) !important;
   box-shadow: 0 24px 60px rgba(34, 197, 94, 0.18), 0 0 0 6px rgba(34, 197, 94, 0.08);
-  animation: 6s ease-in-out infinite mkt-bob-center;
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
+  animation: none !important;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
   text-align: left;
 }
 
 .mkt .float-center-bio:hover {
-  transform: translate(-50%, calc(-50% - 6px)) scale(1.03) !important;
+  transform: translate(-50%, -50%) scale(1.02) !important;
   box-shadow: 0 32px 75px rgba(34, 197, 94, 0.26), 0 0 0 8px rgba(34, 197, 94, 0.12);
   z-index: 12;
-}
-
-@keyframes mkt-bob-center {
-  0%, 100% {
-    transform: translate(-50%, -50%);
-  }
-  50% {
-    transform: translate(-50%, calc(-50% - 10px));
-  }
 }
 
 .mkt .fcb-eyebrow {
@@ -973,23 +965,15 @@ html {
 }
 
 .mkt .float-card-v2.center-bottom {
-  transform: translateX(-50%);
-  animation: 6s ease-in-out infinite mkt-bob-bottom-center;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  animation: none !important;
 }
 
 .mkt .float-card-v2.center-bottom:hover {
-  transform: translate(-50%, -6px) scale(1.02) !important;
+  transform: translateX(-50%) translateY(-4px) scale(1.01) !important;
   box-shadow: 0 26px 60px rgba(15, 23, 42, 0.16);
   z-index: 10;
-}
-
-@keyframes mkt-bob-bottom-center {
-  0%, 100% {
-    transform: translateX(-50%);
-  }
-  50% {
-    transform: translate(-50%, -10px);
-  }
 }
 
 .mkt .fcv2-header {

@@ -223,15 +223,15 @@ export default function LandingPage() {
           <div className="hero-stage">
             {/* SVG Connecting Constellation Lines */}
             <svg className="hero-connectors" aria-hidden="true">
-              <line x1="50%" y1="42%" x2="16%" y2="14%" className="connector-line" />
-              <line x1="50%" y1="42%" x2="84%" y2="14%" className="connector-line" />
-              <line x1="50%" y1="42%" x2="16%" y2="54%" className="connector-line" />
-              <line x1="50%" y1="42%" x2="84%" y2="54%" className="connector-line" />
-              <line x1="50%" y1="42%" x2="50%" y2="76%" className="connector-line" />
+              <line x1="50%" y1="38%" x2="16%" y2="14%" className="connector-line" />
+              <line x1="50%" y1="38%" x2="84%" y2="14%" className="connector-line" />
+              <line x1="50%" y1="38%" x2="16%" y2="50%" className="connector-line" />
+              <line x1="50%" y1="38%" x2="84%" y2="50%" className="connector-line" />
+              <line x1="50%" y1="38%" x2="50%" y2="68%" className="connector-line" />
             </svg>
 
-            {/* ⭐ CENTRO: METODOLOGÍA DEL BIOINDIVIDUO (Somos SST · Imagen 3) ⭐ */}
-            <div className="float-center-bio" style={{ top: '42%', left: '50%', width: 285 }}>
+            {/* ⭐ CENTRO: METODOLOGÍA DEL BIOINDIVIDUO (Somos SST · Imagen 3) - ESTÁTICO ⭐ */}
+            <div className="float-center-bio" style={{ top: 230, left: '50%', transform: 'translate(-50%, -50%)', width: 285 }}>
               <div className="fcb-eyebrow">
                 <span className="fcb-pulse-dot"></span>
                 Somos SST · Bioindividuo
@@ -291,7 +291,7 @@ export default function LandingPage() {
             </div>
 
             {/* Satellite 3 (Bottom-Left): Análisis en Vivo · Visión por Cámara */}
-            <div className="float-card-v2" style={{ top: 265, left: '1.5%', width: 330, animationDelay: '2.1s' }}>
+            <div className="float-card-v2" style={{ top: 220, left: '1.5%', width: 330, animationDelay: '2.1s' }}>
               <div className="fcv2-header">
                 <div className="fcv2-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}>
                   📹
@@ -310,7 +310,7 @@ export default function LandingPage() {
             </div>
 
             {/* Satellite 4 (Bottom-Right): Academia LMS & Centro Educativo */}
-            <div className="float-card-v2" style={{ top: 265, right: '1.5%', width: 335, animationDelay: '1.8s' }}>
+            <div className="float-card-v2" style={{ top: 220, right: '1.5%', width: 335, animationDelay: '1.8s' }}>
               <div className="fcv2-header">
                 <div className="fcv2-icon" style={{ background: '#DCFCE7', color: '#15803D' }}>
                   🎓
@@ -328,8 +328,8 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Satellite 5 (Bottom-Center): Google Drive & Registros Nube */}
-            <div className="float-card-v2 center-bottom" style={{ top: 435, left: '50%', width: 370, animationDelay: '2.5s' }}>
+            {/* Satellite 5 (Bottom-Center): Google Drive & Registros Nube - ESTÁTICO Y CENTRADO ABAJO */}
+            <div className="float-card-v2 center-bottom" style={{ top: 410, left: '50%', transform: 'translateX(-50%)', width: 360 }}>
               <div className="fcv2-header">
                 <div className="fcv2-icon" style={{ background: '#E0F2FE', color: '#0284C7' }}>
                   ☁️
