@@ -128,9 +128,9 @@ export default function LandingPage() {
           <div className="mkt-nav-links">
             <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')} title="Somos SST: Estructura Integral">Somos SST</a>
             <a href="#tenshi" onClick={(e) => scrollToSection(e, 'tenshi')} title="Ecosistema de Agentes de IA Especializados">Agentes IA</a>
-            <a href="#pesv" onClick={(e) => scrollToSection(e, 'pesv')} title="PESV Res. 20223040040595 & Riesgos">PESV & Riesgos</a>
-            <a href="#movil" onClick={(e) => scrollToSection(e, 'movil')} title="Visión por Cámara y Bot de WhatsApp">Visión & Móvil</a>
-            <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')} title="Planes para Mipymes, Empresas y ARL">Planes</a>
+            <a href="#pesv" onClick={(e) => scrollToSection(e, 'pesv')} title="Matrices GTC 45 & Gestión de Riesgos">Matrices & Riesgos</a>
+            <a href="#movil" onClick={(e) => scrollToSection(e, 'movil')} title="Visión por Cámara y Reportes en Campo">Visión & Campo</a>
+            <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')} title="Planes para Mipymes y Empresas">Planes</a>
             <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')} title="Preguntas Frecuentes">FAQ</a>
           </div>
 
@@ -155,16 +155,27 @@ export default function LandingPage() {
         <div className="wrap hero-inner">
           <span className="trial">
             <span className="tdot"></span>
-            El Primer Ecosistema de IA para SG-SST y PESV en Colombia
+            {lang === 'es' ? 'Somos SST · Ecosistema de IA & Metodología del Bioindividuo' : 'Somos SST · AI Ecosystem & Bioindividual Methodology'}
           </span>
 
           <h1 className="display">
-            Automatiza tu SG-SST y PESV,<br />
-            <span className="t2">con agentes expertos e IA en tiempo real.</span>
+            {lang === 'es' ? (
+              <>
+                Evoluciona tu SG-SST con IA,<br />
+                <span className="t2">análisis en vivo y analítica predictiva.</span>
+              </>
+            ) : (
+              <>
+                Evolve your OHS with AI,<br />
+                <span className="t2">live analysis and predictive analytics.</span>
+              </>
+            )}
           </h1>
 
           <p className="sub">
-            WAPPY unifica comités (COPASST, Convivencia), matrices GTC 45, PESV (Res. 20223040040595), química SGA, ergonomía EPT y academia LMS en una plataforma autónoma conectada a WhatsApp.
+            {lang === 'es'
+              ? 'WAPPY sitúa al trabajador en el centro con la Metodología del Bioindividuo: gamificación participativa para comités y reportes, agentes expertos en tiempo real, integración directa con Google Drive y un centro educativo (Academia LMS) con certificaciones interactivas y blog normativo.'
+              : 'WAPPY places the worker at the center with the Bioindividual Methodology: participatory gamification for committees and reports, real-time expert AI agents, Google Drive integration, and an LMS educational academy with interactive certifications and blog.'}
           </p>
 
           <div className="hero-cta">
