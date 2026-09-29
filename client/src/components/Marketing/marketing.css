@@ -827,9 +827,193 @@ html {
 
 .mkt .hero-stage {
   z-index: 2;
-  height: 520px;
+  height: 580px;
   margin-top: 32px;
   position: relative;
+}
+
+.mkt .hero-connectors {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.mkt .connector-line {
+  stroke: rgba(34, 197, 94, 0.32);
+  stroke-width: 1.8;
+  stroke-dasharray: 6 6;
+  animation: connector-dash 24s linear infinite;
+}
+
+@keyframes connector-dash {
+  to {
+    stroke-dashoffset: -120;
+  }
+}
+
+/* Center Card: Bioindividuo (Image 3) */
+.mkt .float-center-bio {
+  background: #ffffff;
+  border-radius: 26px;
+  padding: 24px 28px;
+  border: 2px solid #86efac;
+  position: absolute;
+  box-shadow: 0 24px 60px rgba(34, 197, 94, 0.18), 0 0 0 6px rgba(34, 197, 94, 0.08);
+  animation: 6s ease-in-out infinite mkt-bob;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
+  text-align: left;
+}
+
+.mkt .float-center-bio:hover {
+  transform: translate(-50%, calc(-50% - 6px)) scale(1.03) !important;
+  box-shadow: 0 32px 75px rgba(34, 197, 94, 0.26), 0 0 0 8px rgba(34, 197, 94, 0.12);
+  z-index: 12;
+}
+
+.mkt .fcb-eyebrow {
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.mkt .fcb-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #16a34a;
+  box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7);
+  animation: fcb-pulse 2s infinite;
+}
+
+@keyframes fcb-pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgba(22, 163, 74, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0);
+  }
+}
+
+.mkt .fcb-score {
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: #16a34a;
+  margin: 4px 0 8px;
+  line-height: 1;
+}
+
+.mkt .fcb-bars {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.mkt .fcb-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 9999px;
+  background: #16a34a;
+}
+
+.mkt .fcb-tag {
+  font-size: 11px;
+  color: #15803d;
+  font-weight: 900;
+  margin-top: 10px;
+  letter-spacing: 0.04em;
+}
+
+.mkt .fcb-sub {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* Surrounding Cards: Style from Image 2 */
+.mkt .float-card-v2 {
+  background: #ffffff;
+  border-radius: 22px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  padding: 16px;
+  position: absolute;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.1);
+  animation: 6s ease-in-out infinite mkt-bob;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
+  text-align: left;
+}
+
+.mkt .float-card-v2:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 26px 60px rgba(15, 23, 42, 0.16);
+  z-index: 10;
+}
+
+.mkt .fcv2-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.mkt .fcv2-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.mkt .fcv2-titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.mkt .fcv2-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.mkt .fcv2-subtitle {
+  font-size: 10.5px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.mkt .fcv2-badge {
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.mkt .fcv2-body {
+  border-radius: 13px;
+  padding: 11px 13px;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .mkt .float {
@@ -1694,16 +1878,25 @@ html {
     align-items: center !important;
     margin-top: 32px !important;
   }
+  .mkt .hero-connectors {
+    display: none !important;
+  }
+  .mkt .float-center-bio,
+  .mkt .float-card-v2,
   .mkt .float {
     position: relative !important;
     top: auto !important;
     bottom: auto !important;
     left: auto !important;
     right: auto !important;
+    transform: none !important;
     width: 100% !important;
     max-width: 380px !important;
     animation: none !important;
     margin: 0 auto !important;
+  }
+  .mkt .float-center-bio {
+    order: -1 !important;
   }
   .mkt .bento {
     grid-template-columns: repeat(2, 1fr);

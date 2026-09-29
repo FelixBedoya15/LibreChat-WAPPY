@@ -218,117 +218,132 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Floating Interactive Stage (6 Tarjetas Flotantes en Vivo con Puntos Claves) */}
+        {/* Floating Interactive Stage (Ecosistema Centrado en el Bioindividuo con estilo Imagen 2) */}
         <div className="wrap">
           <div className="hero-stage">
-            {/* Float Card 1: Gamificación & Elecciones COPASST */}
-            <div className="float" style={{ top: 0, left: '1%', width: 300, padding: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <span style={{ width: 36, height: 36, borderRadius: 9999, background: '#E8EAFF', color: '#4852ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14 }}>
-                  🗳️
-                </span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>Votación & Actas COPASST</div>
-                  <div style={{ fontSize: 11, color: '#64748B' }}>Gamificación · Participación Activa</div>
-                </div>
-                <span style={{ background: '#DCFCE7', color: '#15803D', fontSize: 10, fontWeight: 700, borderRadius: 9999, padding: '3px 8px' }}>
-                  100% QUÓRUM
-                </span>
+            {/* SVG Connecting Constellation Lines */}
+            <svg className="hero-connectors" aria-hidden="true">
+              <line x1="50%" y1="44%" x2="16%" y2="15%" className="connector-line" />
+              <line x1="50%" y1="44%" x2="84%" y2="15%" className="connector-line" />
+              <line x1="50%" y1="44%" x2="16%" y2="60%" className="connector-line" />
+              <line x1="50%" y1="44%" x2="84%" y2="60%" className="connector-line" />
+              <line x1="50%" y1="44%" x2="50%" y2="82%" className="connector-line" />
+            </svg>
+
+            {/* ⭐ CENTRO: METODOLOGÍA DEL BIOINDIVIDUO (Somos SST · Imagen 3) ⭐ */}
+            <div className="float-center-bio" style={{ top: '44%', left: '50%', transform: 'translate(-50%, -50%)', width: 285 }}>
+              <div className="fcb-eyebrow">
+                <span className="fcb-pulse-dot"></span>
+                Somos SST · Bioindividuo
               </div>
-              <div style={{ background: '#F8FAFC', borderRadius: '4px 12px 12px 12px', padding: '9px 11px', fontSize: 12, lineHeight: 1.45, color: '#334155' }}>
-                Escrutinio digital con QR: 48 trabajadores votaron en 15 min. Acta con firma biométrica generada al instante.
+              <div className="fcb-score">
+                98.2% <span style={{ fontSize: 24, fontWeight: 800 }}>FIT</span>
+              </div>
+              <div className="fcb-bars">
+                <span className="fcb-bar"></span>
+                <span className="fcb-bar"></span>
+                <span className="fcb-bar"></span>
+              </div>
+              <div className="fcb-tag">
+                ENFOQUE BIOCÉNTRICO INTEGRAL
+              </div>
+              <div className="fcb-sub">
+                Salud, Aptitud & Bienestar al Centro
               </div>
             </div>
 
-            {/* Float Card 2: Oráculo Predictivo H1 (Analítica Predictiva e IA) */}
-            <div className="float" style={{ top: 12, right: '1%', width: 315, padding: 14, animationDelay: '1.2s' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
-                <span style={{ width: 28, height: 28, borderRadius: 8, background: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
-                  🔮
-                </span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: '#0F172A' }}>Oráculo Predictivo H1</span>
-                <span style={{ fontSize: 10.5, color: '#64748B' }}>analítica predictiva</span>
-                <span style={{ marginLeft: 'auto', background: '#FEF08A', color: '#854D0E', fontSize: 9.5, fontWeight: 700, borderRadius: 9999, padding: '2px 7px' }}>
-                  EN VIVO
-                </span>
+            {/* Satellite 1 (Top-Left): Gamificación & Votaciones COPASST */}
+            <div className="float-card-v2" style={{ top: 8, left: '1.5%', width: 330 }}>
+              <div className="fcv2-header">
+                <div className="fcv2-icon" style={{ background: '#FEF3C7', color: '#B45309' }}>
+                  🗳️
+                </div>
+                <div className="fcv2-titles">
+                  <div className="fcv2-title">Gamificación & Comités</div>
+                  <div className="fcv2-subtitle">COPASST · Convivencia</div>
+                </div>
+                <div className="fcv2-badge" style={{ background: '#FEF08A', color: '#854D0E' }}>
+                  PARTICIPATIVO
+                </div>
               </div>
-              <div style={{ background: '#C7F303', borderRadius: 12, padding: '10px 12px', fontSize: 12, fontWeight: 600, color: '#0E1300', lineHeight: 1.45 }}>
+              <div className="fcv2-body" style={{ background: '#FEF9C3', color: '#713F12' }}>
+                Votación digital interactiva con QR: 48 colaboradores participaron en 15 min. Actas automatizadas sin papeleo.
+              </div>
+            </div>
+
+            {/* Satellite 2 (Top-Right): Oráculo Predictivo H1 (Analítica Predictiva · Imagen 2) */}
+            <div className="float-card-v2" style={{ top: 8, right: '1.5%', width: 335, animationDelay: '1.2s' }}>
+              <div className="fcv2-header">
+                <div className="fcv2-icon" style={{ background: '#C7F303', color: '#0E1300' }}>
+                  🔮
+                </div>
+                <div className="fcv2-titles">
+                  <div className="fcv2-title">Oráculo Predictivo H1</div>
+                  <div className="fcv2-subtitle">analítica predictiva</div>
+                </div>
+                <div className="fcv2-badge" style={{ background: '#FEF08A', color: '#854D0E' }}>
+                  EN VIVO
+                </div>
+              </div>
+              <div className="fcv2-body" style={{ background: '#C7F303', color: '#0E1300' }}>
                 Dictamen predictivo H1: Detección temprana de sobrecarga postural. Plan PAC generado antes de ausentismo 💚
               </div>
             </div>
 
-            {/* Float Card 3: Metodología del Bioindividuo (Somos SST) - TARJETA CENTRAL */}
-            <div className="float" style={{ top: 155, left: '36%', width: 260, padding: 16, animationDelay: '0.6s' }}>
-              <div style={{ fontSize: 11, color: '#64748B', fontWeight: 700 }}>
-                Somos SST · Bioindividuo
-              </div>
-              <div className="display" style={{ fontWeight: 800, fontSize: 34, letterSpacing: '-0.03em', color: '#16A34A', marginTop: 2 }}>
-                98.2% FIT
-              </div>
-              <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
-                <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#16A34A' }}></span>
-                <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#16A34A' }}></span>
-                <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#16A34A' }}></span>
-              </div>
-              <div style={{ fontSize: 10, color: '#15803D', fontWeight: 800, marginTop: 7, letterSpacing: '0.02em' }}>
-                ENFOQUE BIOCÉNTRICO INTEGRAL
-              </div>
-            </div>
-
-            {/* Float Card 4: Análisis en Vivo · Visión por Cámara */}
-            <div className="float" style={{ top: 175, left: '0%', width: 300, padding: 14, animationDelay: '2.1s' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 9 }}>
-                <span style={{ width: 30, height: 30, borderRadius: 9999, background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
+            {/* Satellite 3 (Bottom-Left): Análisis en Vivo · Visión por Cámara */}
+            <div className="float-card-v2" style={{ top: 265, left: '1.5%', width: 330, animationDelay: '2.1s' }}>
+              <div className="fcv2-header">
+                <div className="fcv2-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}>
                   📹
-                </span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>Análisis en Vivo · Visión IA</div>
-                  <div style={{ fontSize: 10.5, color: '#64748B' }}>Monitoreo en Tiempo Real</div>
                 </div>
-                <span style={{ background: '#FFEDD5', color: '#C2410C', fontSize: 10, fontWeight: 700, borderRadius: 9999, padding: '3px 8px' }}>
-                  OWAS Nivel 2
-                </span>
+                <div className="fcv2-titles">
+                  <div className="fcv2-title">Análisis en Vivo · Visión IA</div>
+                  <div className="fcv2-subtitle">Monitoreo Ergonómico</div>
+                </div>
+                <div className="fcv2-badge" style={{ background: '#CFFAFE', color: '#0E7490' }}>
+                  TIEMPO REAL
+                </div>
               </div>
-              <div style={{ background: '#F8FAFC', borderRadius: '4px 12px 12px 12px', padding: '9px 11px', fontSize: 11.5, lineHeight: 1.45, color: '#334155' }}>
-                Ángulo ergonómico detectado en puesto de trabajo. Recomendación ergonómica y pausa activa en tiempo real.
+              <div className="fcv2-body" style={{ background: '#ECFEFF', color: '#155E75' }}>
+                Cámara inteligente en puesto de trabajo: alerta temprana de fatiga biomecánica y recomendación de pausa activa en pantalla.
               </div>
             </div>
 
-            {/* Float Card 5: Google Drive Sync & Nube */}
-            <div className="float" style={{ top: 195, right: '0%', width: 310, padding: 14, animationDelay: '1.6s' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 9 }}>
-                <span style={{ width: 30, height: 30, borderRadius: 9999, background: '#E0F2FE', color: '#0284C7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>
-                  ☁️
-                </span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>Google Drive Sync</div>
-                  <div style={{ fontSize: 10.5, color: '#64748B' }}>Nube & Respaldos Automáticos</div>
-                </div>
-                <span style={{ background: '#E0F2FE', color: '#0369A1', fontSize: 10, fontWeight: 800, borderRadius: 9999, padding: '3px 8px' }}>
-                  SINCRONIZADO
-                </span>
-              </div>
-              <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: '4px 12px 12px 12px', padding: '9px 11px', fontSize: 11.5, lineHeight: 1.45, color: '#0369A1' }}>
-                Actas firmadas, matriz GTC 45 y perfiles biocéntricos respaldados en tiempo real en la carpeta de tu empresa.
-              </div>
-            </div>
-
-            {/* Float Card 6: Academia LMS & Centro Educativo */}
-            <div className="float" style={{ top: 335, left: '26%', width: 360, padding: 14, animationDelay: '2.7s' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
-                <span style={{ width: 28, height: 28, borderRadius: 8, background: '#DCFCE7', color: '#15803D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>
+            {/* Satellite 4 (Bottom-Right): Academia LMS & Centro Educativo */}
+            <div className="float-card-v2" style={{ top: 265, right: '1.5%', width: 335, animationDelay: '1.8s' }}>
+              <div className="fcv2-header">
+                <div className="fcv2-icon" style={{ background: '#DCFCE7', color: '#15803D' }}>
                   🎓
-                </span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>Academia LMS & Quizzes</div>
-                  <div style={{ fontSize: 10.5, color: '#64748B' }}>Centro Educativo · Blog Formativo</div>
                 </div>
-                <span style={{ background: '#DCFCE7', color: '#15803D', fontSize: 10, fontWeight: 800, borderRadius: 9999, padding: '3px 8px' }}>
+                <div className="fcv2-titles">
+                  <div className="fcv2-title">Academia LMS & Quizzes</div>
+                  <div className="fcv2-subtitle">Centro Educativo · Blog</div>
+                </div>
+                <div className="fcv2-badge" style={{ background: '#DCFCE7', color: '#15803D' }}>
                   CERTIFICADO ✓
-                </span>
+                </div>
               </div>
-              <div style={{ background: '#F0FDF4', border: '1px solid #DCFCE7', borderRadius: '4px 12px 12px 12px', padding: '8px 12px', fontSize: 11.5, lineHeight: 1.4, color: '#166534' }}>
-                Micro-lecciones interactivas con gamificación: 96% de aprobación en prevención de riesgos y carnets digitales emitidos.
+              <div className="fcv2-body" style={{ background: '#F0FDF4', color: '#166534' }}>
+                Formación continua con micro-lecciones interactivas: 96% de aprobación en prevención y expedición de carnets digitales.
+              </div>
+            </div>
+
+            {/* Satellite 5 (Bottom-Center): Google Drive & Registros Nube */}
+            <div className="float-card-v2" style={{ top: 435, left: '50%', transform: 'translateX(-50%)', width: 370, animationDelay: '2.5s' }}>
+              <div className="fcv2-header">
+                <div className="fcv2-icon" style={{ background: '#E0F2FE', color: '#0284C7' }}>
+                  ☁️
+                </div>
+                <div className="fcv2-titles">
+                  <div className="fcv2-title">Google Drive Sync</div>
+                  <div className="fcv2-subtitle">Nube & Registros Centralizados</div>
+                </div>
+                <div className="fcv2-badge" style={{ background: '#E0E7FF', color: '#3730A3' }}>
+                  SINCRONIZADO
+                </div>
+              </div>
+              <div className="fcv2-body" style={{ background: '#EFF6FF', color: '#1D4ED8' }}>
+                Actas firmadas, matriz GTC 45 y perfiles biocéntricos respaldados automáticamente en la nube corporativa de tu empresa.
               </div>
             </div>
           </div>
