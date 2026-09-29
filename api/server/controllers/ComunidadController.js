@@ -497,7 +497,7 @@ const registerSessionMetric = async (req, res) => {
         }
 
         if (clickType) {
-            const allowedClicks = ['playVideo', 'quickAccess', 'checkoutSubmit', 'downloadFile', 'recoverAccess', 'whatsapp'];
+            const allowedClicks = ['playVideo', 'quickAccess', 'checkoutSubmit', 'downloadFile', 'recoverAccess', 'whatsapp', 'instagram'];
             if (allowedClicks.includes(clickType)) {
                 update.$inc = { [`clicks.${clickType}`]: 1 };
             }
