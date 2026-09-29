@@ -1197,12 +1197,31 @@ html {
 
 @media (max-width: 767px) {
   .mkt .hero-satellites {
-    grid-template-columns: 1fr !important;
-    max-width: 420px !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 12px !important;
+    padding: 10px 16px 18px !important;
+    margin: 16px -16px 0 !important;
+    scrollbar-width: none !important;
+    max-width: none !important;
+    width: calc(100% + 32px) !important;
+  }
+  .mkt .hero-satellites::-webkit-scrollbar {
+    display: none !important;
+  }
+  .mkt .hero-satellites .float-card-v2 {
+    flex: 0 0 84vw !important;
+    max-width: 320px !important;
+    scroll-snap-align: center !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
   }
   .mkt .float-card-v2.pos-bottom-center {
-    grid-column: span 1 !important;
-    max-width: 100% !important;
+    grid-column: auto !important;
+    max-width: 320px !important;
   }
 }
 
@@ -2319,6 +2338,111 @@ html {
   .mkt .cloud,
   .mkt footer .fcloud {
     display: none !important;
+  }
+}
+
+/* Mobile Horizontal Swipe Carousels for Cards (eliminates endless vertical scrolling on phones) */
+@media (max-width: 767px) {
+  /* 1. Bento Grid (Hito 2 Cards) */
+  .mkt .bento {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 12px !important;
+    padding: 8px 16px 20px !important;
+    margin: 16px -16px 0 !important;
+    scrollbar-width: none !important;
+    width: calc(100% + 32px) !important;
+  }
+  .mkt .bento::-webkit-scrollbar {
+    display: none !important;
+  }
+  .mkt .bento .cell {
+    flex: 0 0 84vw !important;
+    max-width: 320px !important;
+    scroll-snap-align: center !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .mkt .bento .big {
+    flex: 0 0 88vw !important;
+    max-width: 340px !important;
+  }
+
+  /* 2. Mobile App Showcase Phones */
+  .mkt .app-phones {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 16px !important;
+    padding: 12px 16px 24px !important;
+    margin: 24px -16px 0 !important;
+    justify-content: flex-start !important;
+    scrollbar-width: none !important;
+    width: calc(100% + 32px) !important;
+  }
+  .mkt .app-phones::-webkit-scrollbar {
+    display: none !important;
+  }
+  .mkt .phone-wrap {
+    flex: 0 0 78vw !important;
+    max-width: 280px !important;
+    scroll-snap-align: center !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+  .mkt .phone-wrap .phone {
+    width: 100% !important;
+    max-width: 260px !important;
+  }
+
+  /* 3. Pricing Tier Cards */
+  .mkt .price {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 14px !important;
+    padding: 10px 16px 20px !important;
+    margin: 20px -16px 0 !important;
+    scrollbar-width: none !important;
+    width: calc(100% + 32px) !important;
+  }
+  .mkt .price::-webkit-scrollbar {
+    display: none !important;
+  }
+  .mkt .pcard {
+    flex: 0 0 84vw !important;
+    max-width: 320px !important;
+    scroll-snap-align: center !important;
+  }
+
+  /* 4. Testimonials Cards */
+  .mkt .tgrid {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 14px !important;
+    padding: 10px 16px 16px !important;
+    margin: 20px -16px 0 !important;
+    scrollbar-width: none !important;
+    width: calc(100% + 32px) !important;
+  }
+  .mkt .tgrid::-webkit-scrollbar {
+    display: none !important;
+  }
+  .mkt .tcard {
+    flex: 0 0 84vw !important;
+    max-width: 320px !important;
+    scroll-snap-align: center !important;
   }
 }
 
