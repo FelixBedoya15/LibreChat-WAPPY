@@ -223,15 +223,15 @@ export default function LandingPage() {
           <div className="hero-stage">
             {/* SVG Connecting Constellation Lines */}
             <svg className="hero-connectors" aria-hidden="true">
-              <line x1="50%" y1="44%" x2="16%" y2="15%" className="connector-line" />
-              <line x1="50%" y1="44%" x2="84%" y2="15%" className="connector-line" />
-              <line x1="50%" y1="44%" x2="16%" y2="60%" className="connector-line" />
-              <line x1="50%" y1="44%" x2="84%" y2="60%" className="connector-line" />
-              <line x1="50%" y1="44%" x2="50%" y2="82%" className="connector-line" />
+              <line x1="50%" y1="42%" x2="16%" y2="14%" className="connector-line" />
+              <line x1="50%" y1="42%" x2="84%" y2="14%" className="connector-line" />
+              <line x1="50%" y1="42%" x2="16%" y2="54%" className="connector-line" />
+              <line x1="50%" y1="42%" x2="84%" y2="54%" className="connector-line" />
+              <line x1="50%" y1="42%" x2="50%" y2="76%" className="connector-line" />
             </svg>
 
             {/* ⭐ CENTRO: METODOLOGÍA DEL BIOINDIVIDUO (Somos SST · Imagen 3) ⭐ */}
-            <div className="float-center-bio" style={{ top: '44%', left: '50%', transform: 'translate(-50%, -50%)', width: 285 }}>
+            <div className="float-center-bio" style={{ top: '42%', left: '50%', width: 285 }}>
               <div className="fcb-eyebrow">
                 <span className="fcb-pulse-dot"></span>
                 Somos SST · Bioindividuo
@@ -329,7 +329,7 @@ export default function LandingPage() {
             </div>
 
             {/* Satellite 5 (Bottom-Center): Google Drive & Registros Nube */}
-            <div className="float-card-v2" style={{ top: 435, left: '50%', transform: 'translateX(-50%)', width: 370, animationDelay: '2.5s' }}>
+            <div className="float-card-v2 center-bottom" style={{ top: 435, left: '50%', width: 370, animationDelay: '2.5s' }}>
               <div className="fcv2-header">
                 <div className="fcv2-icon" style={{ background: '#E0F2FE', color: '#0284C7' }}>
                   ☁️
