@@ -658,30 +658,55 @@ html {
 .mkt .hero-inner {
   z-index: 3;
   text-align: center;
-  max-width: 840px;
+  max-width: 1060px;
   margin: 0 auto;
   position: relative;
 }
 
 .mkt .hero h1 {
-  letter-spacing: -0.045em;
+  letter-spacing: -0.035em;
   margin: 18px 0 0;
-  font-size: clamp(44px, 7.4vw, 82px);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.mkt .hero-h1-main {
+  display: block;
+  font-size: clamp(28px, 4.4vw, 52px);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  color: var(--ink);
+  line-height: 1.1;
+  white-space: normal;
+}
+
+@media (min-width: 768px) {
+  .mkt .hero-h1-main {
+    white-space: nowrap;
+  }
+}
+
+.mkt .hero-h1-sub {
+  display: block;
+  font-size: clamp(19px, 3.0vw, 34px);
   font-weight: 600;
-  line-height: 0.9;
+  color: rgba(14, 19, 0, 0.44);
+  margin-top: 8px;
+  line-height: 1.18;
+  letter-spacing: -0.02em;
 }
 
 .mkt .hero h1 .t2 {
-  color: rgba(14, 19, 0, 0.38);
+  color: rgba(14, 19, 0, 0.44);
 }
 
 .mkt .hero p.sub {
   color: rgba(14, 19, 0, 0.6);
-  max-width: 620px;
+  max-width: 680px;
   margin: 18px auto 0;
-  font-size: clamp(17px, 2.1vw, 20px);
+  font-size: clamp(16px, 1.9vw, 19px);
   font-weight: 450;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .mkt .hero-cta {
@@ -698,6 +723,69 @@ html {
   gap: 12px;
   margin-top: 20px;
   display: flex;
+}
+
+.mkt .pwa-install-badge {
+  background: var(--ink);
+  color: #fff;
+  cursor: pointer;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  align-items: center;
+  gap: 12px;
+  padding: 9px 20px;
+  box-shadow: 0 10px 24px rgba(14, 19, 0, 0.18);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s, background 0.18s;
+  display: inline-flex;
+}
+
+.mkt .pwa-install-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(14, 19, 0, 0.28);
+  background: #171f05;
+}
+
+.mkt .pwa-badge-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lime);
+  flex-shrink: 0;
+}
+
+.mkt .pwa-badge-content {
+  text-align: left;
+}
+
+.mkt .pwa-badge-content .pwa-s1 {
+  opacity: 0.72;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.mkt .pwa-badge-content .pwa-s2 {
+  font-size: 14.5px;
+  font-weight: 700;
+  font-family: var(--display);
+  letter-spacing: -0.01em;
+}
+
+.mkt .pwa-badge-pill {
+  background: var(--lime);
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 800;
+  border-radius: 9999px;
+  padding: 3px 9px;
+  margin-left: 6px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .mkt .store-badge {
@@ -739,7 +827,7 @@ html {
 
 .mkt .hero-stage {
   z-index: 2;
-  height: 490px;
+  height: 520px;
   margin-top: 32px;
   position: relative;
 }

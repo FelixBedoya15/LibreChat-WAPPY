@@ -12,6 +12,7 @@ export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
+  const [isPwaModalOpen, setIsPwaModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -161,13 +162,13 @@ export default function LandingPage() {
           <h1 className="display">
             {lang === 'es' ? (
               <>
-                Evoluciona tu SG-SST con IA,<br />
-                <span className="t2">análisis en vivo y analítica predictiva.</span>
+                <span className="hero-h1-main">Evoluciona tu SG-SST con IA,</span>
+                <span className="hero-h1-sub">análisis en vivo y analítica predictiva.</span>
               </>
             ) : (
               <>
-                Evolve your OHS with AI,<br />
-                <span className="t2">live analysis and predictive analytics.</span>
+                <span className="hero-h1-main">Evolve your OHS with AI,</span>
+                <span className="hero-h1-sub">live analysis and predictive analytics.</span>
               </>
             )}
           </h1>
@@ -194,75 +195,75 @@ export default function LandingPage() {
           </div>
 
           <div className="hero-badges">
-            <a className="store-badge" href="#movil">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff">
-                <path d="M16 1.6c.06.9-.3 1.8-.86 2.43-.6.66-1.55 1.17-2.48 1.1-.07-.88.35-1.8.88-2.36C14.08 2.1 15.1 1.64 16 1.6zM18.9 8.5c-.8.5-1.3 1.4-1.3 2.4 0 1.2.7 2.2 1.7 2.6-.2.6-.5 1.3-.9 1.9-.6.9-1.2 1.8-2.1 1.8-.9 0-1.2-.5-2.2-.5s-1.4.5-2.2.5c-.9 0-1.6-1-2.2-1.9-1.3-1.9-2.3-5.3-1-7.6.7-1.2 1.8-1.9 3-1.9.9 0 1.7.6 2.2.6.5 0 1.5-.7 2.6-.6.5 0 1.8.2 2.7 1.2z"></path>
-              </svg>
-              <div>
-                <div className="s1">Disponible para</div>
-                <div className="s2">iOS · iPhone</div>
+            <button
+              type="button"
+              className="pwa-install-badge"
+              onClick={() => setIsPwaModalOpen(true)}
+              title="Instalar WAPPY en tu celular o tablet (PWA)"
+            >
+              <div className="pwa-badge-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                  <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                </svg>
               </div>
-            </a>
-            <a className="store-badge" href="#movil">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff">
-                <path d="M3.6 2.4 13 12 3.6 21.6c-.3-.3-.5-.7-.5-1.3V3.7c0-.6.2-1 .5-1.3zM14.3 13.3l2.5 2.5-9.6 5.5 7.1-8zM17.9 9.8l3 1.7c.9.5.9 1.5 0 2l-3 1.7-2.7-2.7 2.7-2.7zM7.2 2.7l9.6 5.5-2.5 2.5-7.1-8z"></path>
-              </svg>
-              <div>
-                <div className="s1">Disponible para</div>
-                <div className="s2">Android & Web</div>
+              <div className="pwa-badge-content">
+                <div className="pwa-s1">{lang === 'es' ? 'Disponible como App Móvil' : 'Available as Mobile App'}</div>
+                <div className="pwa-s2">{lang === 'es' ? 'Descárgalo en tu celular · PWA' : 'Install on your phone · PWA'}</div>
               </div>
-            </a>
+              <span className="pwa-badge-pill">
+                {lang === 'es' ? 'Sin tiendas' : 'Instant'}
+              </span>
+            </button>
           </div>
         </div>
 
-        {/* Floating Interactive Stage (6 Tarjetas Flotantes en Vivo) */}
+        {/* Floating Interactive Stage (6 Tarjetas Flotantes en Vivo con Puntos Claves) */}
         <div className="wrap">
           <div className="hero-stage">
-            {/* Float Card 1: COPASST Digital */}
-            <div className="float" style={{ top: 0, left: '1%', width: 295, padding: 14 }}>
+            {/* Float Card 1: Gamificación & Elecciones COPASST */}
+            <div className="float" style={{ top: 0, left: '1%', width: 300, padding: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <span style={{ width: 36, height: 36, borderRadius: 9999, background: '#E8EAFF', color: '#4852ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
-                  CP
+                <span style={{ width: 36, height: 36, borderRadius: 9999, background: '#E8EAFF', color: '#4852ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14 }}>
+                  🗳️
                 </span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>Acta Mensual COPASST</div>
-                  <div style={{ fontSize: 11, color: '#64748B' }}>Res. 0312 · Firmada con QR</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>Votación & Actas COPASST</div>
+                  <div style={{ fontSize: 11, color: '#64748B' }}>Gamificación · Participación Activa</div>
                 </div>
                 <span style={{ background: '#DCFCE7', color: '#15803D', fontSize: 10, fontWeight: 700, borderRadius: 9999, padding: '3px 8px' }}>
-                  APROBADA
+                  100% QUÓRUM
                 </span>
               </div>
               <div style={{ background: '#F8FAFC', borderRadius: '4px 12px 12px 12px', padding: '9px 11px', fontSize: 12, lineHeight: 1.45, color: '#334155' }}>
-                Se aprueba inspección a bodega norte y cronograma de simulacro con quórum 100%.
+                Escrutinio digital con QR: 48 trabajadores votaron en 15 min. Acta con firma biométrica generada al instante.
               </div>
             </div>
 
-            {/* Float Card 2: Tenshi Orquestador */}
-            <div className="float" style={{ top: 15, right: '1%', width: 310, padding: 14, animationDelay: '1.2s' }}>
+            {/* Float Card 2: Oráculo Predictivo H1 (Analítica Predictiva e IA) */}
+            <div className="float" style={{ top: 12, right: '1%', width: 315, padding: 14, animationDelay: '1.2s' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
-                <span style={{ width: 26, height: 26, borderRadius: 8, background: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0E1300" strokeWidth="2.2">
-                    <path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"></path>
-                  </svg>
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: '#C7F303', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
+                  🔮
                 </span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: '#0F172A' }}>Tenshi IA</span>
-                <span style={{ fontSize: 10.5, color: '#64748B' }}>auditoría autónoma</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: '#0F172A' }}>Oráculo Predictivo H1</span>
+                <span style={{ fontSize: 10.5, color: '#64748B' }}>analítica predictiva</span>
                 <span style={{ marginLeft: 'auto', background: '#FEF08A', color: '#854D0E', fontSize: 9.5, fontWeight: 700, borderRadius: 9999, padding: '2px 7px' }}>
                   EN VIVO
                 </span>
               </div>
               <div style={{ background: '#C7F303', borderRadius: 12, padding: '10px 12px', fontSize: 12, fontWeight: 600, color: '#0E1300', lineHeight: 1.45 }}>
-                Matriz PESV actualizada según Res. 20223040040595: 14 inspecciones preoperacionales sin no conformidades críticas 💚
+                Dictamen predictivo H1: Detección temprana de sobrecarga postural. Plan PAC generado antes de ausentismo 💚
               </div>
             </div>
 
-            {/* Float Card 3: Cumplimiento Normativo Res. 0312 */}
-            <div className="float" style={{ top: 155, left: '37%', width: 235, padding: 16, animationDelay: '0.6s' }}>
+            {/* Float Card 3: Metodología del Bioindividuo (Somos SST) - TARJETA CENTRAL */}
+            <div className="float" style={{ top: 155, left: '36%', width: 260, padding: 16, animationDelay: '0.6s' }}>
               <div style={{ fontSize: 11, color: '#64748B', fontWeight: 700 }}>
-                Estándares Res. 0312 · ARL
+                Somos SST · Bioindividuo
               </div>
               <div className="display" style={{ fontWeight: 800, fontSize: 34, letterSpacing: '-0.03em', color: '#16A34A', marginTop: 2 }}>
-                98.5%
+                98.2% FIT
               </div>
               <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
                 <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#16A34A' }}></span>
@@ -270,64 +271,64 @@ export default function LandingPage() {
                 <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#16A34A' }}></span>
               </div>
               <div style={{ fontSize: 10, color: '#15803D', fontWeight: 800, marginTop: 7, letterSpacing: '0.02em' }}>
-                NIVEL ACEPTABLE (VIGENTE)
+                ENFOQUE BIOCÉNTRICO INTEGRAL
               </div>
             </div>
 
-            {/* Float Card 4: Visión por Cámara · Ergonomía Postural OWAS */}
+            {/* Float Card 4: Análisis en Vivo · Visión por Cámara */}
             <div className="float" style={{ top: 175, left: '0%', width: 300, padding: 14, animationDelay: '2.1s' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 9 }}>
                 <span style={{ width: 30, height: 30, borderRadius: 9999, background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
                   📹
                 </span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>Visión IA · Ergonomía Postural</div>
-                  <div style={{ fontSize: 10.5, color: '#64748B' }}>Cámara en tiempo real</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>Análisis en Vivo · Visión IA</div>
+                  <div style={{ fontSize: 10.5, color: '#64748B' }}>Monitoreo en Tiempo Real</div>
                 </div>
                 <span style={{ background: '#FFEDD5', color: '#C2410C', fontSize: 10, fontWeight: 700, borderRadius: 9999, padding: '3px 8px' }}>
                   OWAS Nivel 2
                 </span>
               </div>
               <div style={{ background: '#F8FAFC', borderRadius: '4px 12px 12px 12px', padding: '9px 11px', fontSize: 11.5, lineHeight: 1.45, color: '#334155' }}>
-                Ángulo de tronco: 38° detectado en puesto de empaque. Alerta de pausa activa y estiramiento despachada.
+                Ángulo ergonómico detectado en puesto de trabajo. Recomendación ergonómica y pausa activa en tiempo real.
               </div>
             </div>
 
-            {/* Float Card 5: Química SGA & Incompatibilidad */}
-            <div className="float" style={{ top: 195, right: '0%', width: 305, padding: 14, animationDelay: '1.6s' }}>
+            {/* Float Card 5: Google Drive Sync & Nube */}
+            <div className="float" style={{ top: 195, right: '0%', width: 310, padding: 14, animationDelay: '1.6s' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 9 }}>
-                <span style={{ width: 30, height: 30, borderRadius: 9999, background: '#FEE2E2', color: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
-                  ⚗️
+                <span style={{ width: 30, height: 30, borderRadius: 9999, background: '#E0F2FE', color: '#0284C7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>
+                  ☁️
                 </span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>Matriz SGA · Riesgo Químico</div>
-                  <div style={{ fontSize: 10.5, color: '#64748B' }}>Sustancias Peligrosas</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>Google Drive Sync</div>
+                  <div style={{ fontSize: 10.5, color: '#64748B' }}>Nube & Respaldos Automáticos</div>
                 </div>
-                <span style={{ background: '#FEE2E2', color: '#B91C1C', fontSize: 10, fontWeight: 800, borderRadius: 9999, padding: '3px 8px' }}>
-                  INCOMPATIBLE ⛔
+                <span style={{ background: '#E0F2FE', color: '#0369A1', fontSize: 10, fontWeight: 800, borderRadius: 9999, padding: '3px 8px' }}>
+                  SINCRONIZADO
                 </span>
               </div>
-              <div style={{ background: '#FFF1F2', border: '1px solid #FFE4E6', borderRadius: '4px 12px 12px 12px', padding: '9px 11px', fontSize: 11.5, lineHeight: 1.45, color: '#9F1239' }}>
-                Ácido Nítrico + Solvente Orgánico: Riesgo de reacción exotérmica. Segregación física obligatoria en Bodega 2.
+              <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: '4px 12px 12px 12px', padding: '9px 11px', fontSize: 11.5, lineHeight: 1.45, color: '#0369A1' }}>
+                Actas firmadas, matriz GTC 45 y perfiles biocéntricos respaldados en tiempo real en la carpeta de tu empresa.
               </div>
             </div>
 
-            {/* Float Card 6: WhatsApp Bot · Inspección Preoperacional PESV */}
-            <div className="float" style={{ top: 335, left: '26%', width: 350, padding: 14, animationDelay: '2.7s' }}>
+            {/* Float Card 6: Academia LMS & Centro Educativo */}
+            <div className="float" style={{ top: 335, left: '26%', width: 360, padding: 14, animationDelay: '2.7s' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
-                <span style={{ width: 28, height: 28, borderRadius: 8, background: '#25D366', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>
-                  💬
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: '#DCFCE7', color: '#15803D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>
+                  🎓
                 </span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>WhatsApp Bot · Flota PESV</div>
-                  <div style={{ fontSize: 10.5, color: '#64748B' }}>Furgón WPY-482 · Conductor Carlos M.</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>Academia LMS & Quizzes</div>
+                  <div style={{ fontSize: 10.5, color: '#64748B' }}>Centro Educativo · Blog Formativo</div>
                 </div>
                 <span style={{ background: '#DCFCE7', color: '#15803D', fontSize: 10, fontWeight: 800, borderRadius: 9999, padding: '3px 8px' }}>
-                  CONFORME ✓
+                  CERTIFICADO ✓
                 </span>
               </div>
               <div style={{ background: '#F0FDF4', border: '1px solid #DCFCE7', borderRadius: '4px 12px 12px 12px', padding: '8px 12px', fontSize: 11.5, lineHeight: 1.4, color: '#166534' }}>
-                Inspección de frenos, llantas y kit de carretera validada con foto y GPS a las 06:15 a.m. sin alertas críticas.
+                Micro-lecciones interactivas con gamificación: 96% de aprobación en prevención de riesgos y carnets digitales emitidos.
               </div>
             </div>
           </div>
@@ -1719,6 +1720,62 @@ export default function LandingPage() {
               {lang === 'es' ? 'Agendar demostración' : 'Schedule walkthrough'}
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* PWA Installation Instructions Modal */}
+      <div className={`mkt-modal-scrim ${isPwaModalOpen ? 'show' : ''}`} aria-hidden={!isPwaModalOpen}>
+        <div className="mkt-modal" role="dialog" aria-modal="true" aria-label="Instalar WAPPY PWA">
+          <button className="mkt-modal-x" onClick={() => setIsPwaModalOpen(false)} aria-label="Cerrar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <span style={{ fontSize: 36, display: 'inline-block', marginBottom: 8 }}>📲</span>
+            <h3 style={{ fontFamily: 'var(--display)', fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>
+              {lang === 'es' ? 'Instala WAPPY en tu celular o tablet' : 'Install WAPPY on your phone or tablet'}
+            </h3>
+            <p style={{ fontSize: 13.5, color: 'var(--muted)', marginTop: 6, lineHeight: 1.5 }}>
+              {lang === 'es'
+                ? 'WAPPY es una Aplicación Web Progresiva (PWA): ultraligera, siempre sincronizada y sin descargas pesadas desde tiendas.'
+                : 'WAPPY is a Progressive Web App (PWA): ultra-lightweight, always in sync, without heavy app store downloads.'}
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14, marginBottom: 22 }}>
+            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 14, padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14, color: '#0F172A', marginBottom: 8 }}>
+                <span>🍏</span> iPhone & iPad (Safari)
+              </div>
+              <ol style={{ fontSize: 12.5, color: '#475569', lineHeight: 1.6, paddingLeft: 18, margin: 0 }}>
+                <li>Abre WAPPY en <strong>Safari</strong>.</li>
+                <li>Toca el botón <strong>Compartir</strong> (cuadro con flecha hacia arriba ⬆️).</li>
+                <li>Baja y selecciona <strong>"Agregar a inicio"</strong> ➕.</li>
+              </ol>
+            </div>
+
+            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 14, padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14, color: '#0F172A', marginBottom: 8 }}>
+                <span>🤖</span> Android (Chrome)
+              </div>
+              <ol style={{ fontSize: 12.5, color: '#475569', lineHeight: 1.6, paddingLeft: 18, margin: 0 }}>
+                <li>Abre WAPPY en <strong>Google Chrome</strong>.</li>
+                <li>Toca el menú de <strong>tres puntos</strong> (⋮) arriba a la derecha.</li>
+                <li>Selecciona <strong>"Instalar aplicación"</strong> o "Agregar a la pantalla principal" 📥.</li>
+              </ol>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ width: '100%', justifyContent: 'center' }}
+            onClick={() => setIsPwaModalOpen(false)}
+          >
+            {lang === 'es' ? '¡Entendido, gracias!' : 'Got it, thanks!'}
+          </button>
         </div>
       </div>
     </div>
