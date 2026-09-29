@@ -127,16 +127,13 @@ function AuthLayout({
             </span>
           </div>
 
-          {/* WAPPY Brand Logo inside Card */}
-          <div className="flex items-center justify-center gap-2 mb-3">
+          {/* WAPPY Mascot Logo (Image 2) */}
+          <div className="flex items-center justify-center my-2">
             <img
-              src="/assets/Logos WAPPY/Wlogo.svg"
-              className="h-9 w-auto object-contain"
-              alt="WAPPY IA"
+              src="/assets/logo-bg.png"
+              className="h-20 w-20 sm:h-24 sm:w-24 object-contain dark:invert transition-transform hover:scale-105"
+              alt="WAPPY"
             />
-            <span className="font-black text-2xl tracking-tight text-slate-900 dark:text-white flex items-center">
-              WAPPY<span className="text-[#10b981] ml-0.5 text-base font-black">IA</span>
-            </span>
           </div>
 
           {!hasStartupConfigError && !isFetching && (
