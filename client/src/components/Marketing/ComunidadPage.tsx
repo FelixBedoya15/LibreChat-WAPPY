@@ -2305,11 +2305,10 @@ export default function ComunidadPage() {
                   rel="noopener noreferrer"
                   onClick={() => trackClick('instagram')}
                   className="btn-instagram-nav"
-                  title="Síguenos en Instagram @wappy_ia"
+                  title="¿Tienes dudas? Contáctanos en Instagram @wappy_ia"
                 >
                   <Instagram className="w-4 h-4 flex-shrink-0" />
-                  <span className="hidden xs:inline sm:inline">Síguenos en Instagram</span>
-                  <span className="inline xs:hidden sm:hidden">Instagram</span>
+                  <span>¿Tienes dudas?</span>
                 </a>
 
                 <button
