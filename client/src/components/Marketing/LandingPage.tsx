@@ -37,9 +37,9 @@ export default function LandingPage() {
     };
   }, []);
 
-  // Lock background scrolling when mobile navigation menu is active
+  // Lock background scrolling when mobile navigation menu or any modal is open
   useEffect(() => {
-    if (isMobileMenuOpen) {
+    if (isMobileMenuOpen || isDemoModalOpen || isCompareModalOpen || isPwaModalOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -47,7 +47,7 @@ export default function LandingPage() {
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isMobileMenuOpen]);
+  }, [isMobileMenuOpen, isDemoModalOpen, isCompareModalOpen, isPwaModalOpen]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -161,22 +161,36 @@ export default function LandingPage() {
           </a>
 
           <div className="mkt-nav-links">
-            <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')} title="Somos SST: Estructura de 8 Hitos">Somos SST</a>
-            <a href="#tenshi" onClick={(e) => scrollToSection(e, 'tenshi')} title="Ecosistema de Agentes de IA Especializados">Agentes IA</a>
-            <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')} title="Matrices GTC 45 & Bio-IPEVR Dinámica">Matrices & Riesgos</a>
-            <a href="#movil" onClick={(e) => scrollToSection(e, 'movil')} title="Visión IA MediaPipe y Portales PWA">Visión & PWA</a>
-            <a href="#herramientas" onClick={(e) => scrollToSection(e, 'herramientas')} title="Herramientas y Conectores de Agentes">Herramientas</a>
-            <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')} title="Planes Wappy Pro">Planes</a>
-            <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')} title="Preguntas Frecuentes">FAQ</a>
+            <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')} title={lang === 'es' ? 'Módulos SG-SST: Metodología y 30+ Aplicativos' : 'OHS Modules & Methodology'}>
+              {lang === 'es' ? 'Módulos SST' : 'OHS Modules'}
+            </a>
+            <a href="#tenshi" onClick={(e) => scrollToSection(e, 'tenshi')} title={lang === 'es' ? 'Ecosistema Tenshi: +20 Agentes Especialistas' : 'AI Agents'}>
+              {lang === 'es' ? 'Agentes IA' : 'AI Agents'}
+            </a>
+            <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')} title={lang === 'es' ? 'Matrices GTC 45, Química SGA, PESV y Legal' : 'Risk Matrices'}>
+              {lang === 'es' ? 'Matrices' : 'Matrices'}
+            </a>
+            <a href="#vision" onClick={(e) => scrollToSection(e, 'vision')} title={lang === 'es' ? 'Visión IA MediaPipe y App Móvil PWA' : 'Vision & Mobile'}>
+              {lang === 'es' ? 'Visión & PWA' : 'Vision & App'}
+            </a>
+            <a href="#herramientas" onClick={(e) => scrollToSection(e, 'herramientas')} title={lang === 'es' ? 'Herramientas, Conectores y Automatizaciones' : 'Tools & Connectors'}>
+              {lang === 'es' ? 'Herramientas' : 'Tools'}
+            </a>
+            <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')} title={lang === 'es' ? 'Planes y Tarifas Wappy Pro' : 'Pricing Plans'}>
+              {lang === 'es' ? 'Planes' : 'Plans'}
+            </a>
+            <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')} title={lang === 'es' ? 'Preguntas Frecuentes' : 'FAQ'}>
+              FAQ
+            </a>
           </div>
 
           <div className="mkt-nav-cta">
             <button type="button" className="btn btn-ghost mkt-nav-signin" onClick={handleLogin}>
-              {isAuthenticated ? 'Ir al Chat' : 'Iniciar sesión'}
+              {isAuthenticated ? (lang === 'es' ? 'Ir al Chat' : 'Go to Chat') : (lang === 'es' ? 'Iniciar sesión' : 'Sign in')}
             </button>
 
             <button type="button" className="btn btn-lime btn-sm" onClick={() => setIsDemoModalOpen(true)}>
-              Agendar demo
+              {lang === 'es' ? 'Agendar demo' : 'Book a demo'}
             </button>
 
             {/* Mobile Hamburger Toggle Button */}
@@ -201,56 +215,56 @@ export default function LandingPage() {
               <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('modulos')}>
                 <span className="mkt-mobile-link-icon">🚀</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">Somos SST · 8 Hitos</span>
-                  <span className="mkt-mobile-link-desc">Estructura modular integral del SG-SST</span>
+                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Módulos SG-SST · 8 Hitos' : 'OHS Modules · 8 Milestones'}</span>
+                  <span className="mkt-mobile-link-desc">{lang === 'es' ? '30+ Aplicativos, Huella Biocéntrica y Metodología' : '30+ Apps, Biocentric Blueprint & Methodology'}</span>
                 </div>
               </button>
 
               <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('tenshi')}>
                 <span className="mkt-mobile-link-icon">🤖</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">Ecosistema Tenshi IA</span>
-                  <span className="mkt-mobile-link-desc">+20 Agentes autónomos especializados en SST</span>
+                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Agentes IA · Tenshi' : 'Tenshi AI Ecosystem'}</span>
+                  <span className="mkt-mobile-link-desc">{lang === 'es' ? '+20 Agentes autónomos especializados en SST' : '20+ Autonomous OHS specialist agents'}</span>
                 </div>
               </button>
 
               <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('matrices')}>
                 <span className="mkt-mobile-link-icon">📊</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">Matrices & Riesgos GTC-45</span>
-                  <span className="mkt-mobile-link-desc">IPEVR, Química SGA, PESV y Legal RIT</span>
+                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Matrices Normativas' : 'Regulatory Matrices'}</span>
+                  <span className="mkt-mobile-link-desc">{lang === 'es' ? 'IPEVAR GTC-45, Química SGA, PESV y Legal RIT' : 'IPEVR GTC 45, SGA Chemical, PESV & Legal'}</span>
                 </div>
               </button>
 
-              <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('movil')}>
+              <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('vision')}>
                 <span className="mkt-mobile-link-icon">📱</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">Visión en Vivo & App PWA</span>
-                  <span className="mkt-mobile-link-desc">Análisis biomecánico y portales QR sin claves</span>
+                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Visión en Vivo & App PWA' : 'Live Vision & PWA App'}</span>
+                  <span className="mkt-mobile-link-desc">{lang === 'es' ? 'Análisis biomecánico MediaPipe y portales QR' : 'Biomechanical pose estimation & QR portals'}</span>
                 </div>
               </button>
 
               <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('herramientas')}>
                 <span className="mkt-mobile-link-icon">🔌</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">Herramientas & Conectores</span>
-                  <span className="mkt-mobile-link-desc">Google Workspace, Cron, APIs de clima y SGA</span>
+                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Herramientas & Conectores' : 'Tools & Connectors'}</span>
+                  <span className="mkt-mobile-link-desc">{lang === 'es' ? 'Google Drive, WhatsApp, Wompi y Automatizaciones' : 'Google Drive, WhatsApp, Wompi & Automations'}</span>
                 </div>
               </button>
 
               <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('pricing')}>
                 <span className="mkt-mobile-link-icon">💳</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">Planes & Tarifas Wappy Pro</span>
-                  <span className="mkt-mobile-link-desc">Mensual, semestral y anual con ahorro</span>
+                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Planes & Tarifas Wappy Pro' : 'Wappy Pro Plans & Pricing'}</span>
+                  <span className="mkt-mobile-link-desc">{lang === 'es' ? 'Precios transparentes y ahorro semestral/anual' : 'Transparent pricing with semester/annual savings'}</span>
                 </div>
               </button>
 
               <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('faq')}>
                 <span className="mkt-mobile-link-icon">❓</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">Preguntas Frecuentes</span>
-                  <span className="mkt-mobile-link-desc">Responsabilidad, seguridad de datos y uso</span>
+                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Preguntas Frecuentes' : 'Frequently Asked Questions'}</span>
+                  <span className="mkt-mobile-link-desc">{lang === 'es' ? 'Normatividad, ARL, seguridad de datos y uso' : 'Compliance, data security, and implementation'}</span>
                 </div>
               </button>
             </div>
@@ -1713,7 +1727,7 @@ export default function LandingPage() {
       </section>
 
       {/* Video Band: Ecosistema de +20 Agentes SST & Demo Fisioterapeuta IA */}
-      <section className="band vid-band">
+      <section id="vision" className="band vid-band">
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">
@@ -1881,7 +1895,7 @@ export default function LandingPage() {
       </section>
 
       {/* Más de 30 Aplicativos Disponibles en tu SG-SST */}
-      <section className="band">
+      <section id="aplicativos" className="band">
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">
@@ -3405,47 +3419,53 @@ export default function LandingPage() {
               </div>
               <p>
                 {lang === 'es'
-                  ? 'El primer ecosistema de inteligencia artificial para el SG-SST en Colombia.'
-                  : 'The first AI ecosystem for OHS management in Colombia.'}
+                  ? 'Ecosistema de Inteligencia Artificial para el SG-SST en Colombia. Metodología del Bioindividuo, +20 agentes autónomos, matrices GTC 45, Química SGA, PESV y analítica predictiva.'
+                  : 'Colombia’s AI Ecosystem for Occupational Health & Safety (SG-SST). Bioindividual Methodology, 20+ autonomous agents, GTC 45, SGA Chemical, PESV and predictive analytics.'}
               </p>
             </div>
 
             <div className="foot-cols">
-              {/* Columna 1: Plataforma Somos SST */}
+              {/* Columna 1: Módulos & Metodología SG-SST */}
               <div className="foot-col">
-                <h4>{lang === 'es' ? 'Plataforma Somos SST' : 'Somos SST Platform'}</h4>
-                <a href="#modulos">{lang === 'es' ? '8 Hitos del SG-SST' : '8 OHS Milestones'}</a>
-                <a href="#matrices">{lang === 'es' ? 'Matriz IPEVR (GTC 45)' : 'IPEVR Risk Matrix'}</a>
-                <a href="#matrices">{lang === 'es' ? 'Bio-IPEVR Dinámica' : 'Dynamic Bio-IPEVR'}</a>
-                <a href="#modulos">{lang === 'es' ? 'Comités COPASST & CCL' : 'COPASST & Harassment'}</a>
-                <a href="#modulos">{lang === 'es' ? 'Química SGA (Dec. 1496)' : 'SGA Chemical Matrix'}</a>
+                <h4>{lang === 'es' ? 'Módulos & Metodología' : 'Modules & Methodology'}</h4>
+                <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>{lang === 'es' ? 'Metodología del Bioindividuo' : 'Bioindividual Methodology'}</a>
+                <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>{lang === 'es' ? 'Huella Biocéntrica & FIT Score' : 'Biocentric Blueprint & FIT'}</a>
+                <a href="#aplicativos" onClick={(e) => scrollToSection(e, 'aplicativos')}>{lang === 'es' ? '30+ Aplicativos SG-SST' : '30+ OHS Applications'}</a>
+                <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>{lang === 'es' ? 'Diagnóstico Estándares 0312' : 'Standards 0312 Audit'}</a>
+                <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>{lang === 'es' ? 'Comités COPASST & Convivencia' : 'COPASST & CCL Committees'}</a>
+                <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>{lang === 'es' ? 'Inspecciones SISO en Obra' : 'SISO Field Inspections'}</a>
               </div>
 
-              {/* Columna 2: Inteligencia Artificial */}
+              {/* Columna 2: Matrices & Riesgos Normativos */}
+              <div className="foot-col">
+                <h4>{lang === 'es' ? 'Matrices & Riesgos' : 'Matrices & Risks'}</h4>
+                <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')}>{lang === 'es' ? 'Matriz IPEVAR (GTC 45)' : 'IPEVAR Matrix (GTC 45)'}</a>
+                <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')}>{lang === 'es' ? 'Compatibilidad Química (SGA)' : 'Chemical Matrix (SGA Dec. 1496)'}</a>
+                <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')}>{lang === 'es' ? 'Matriz PESV (Seguridad Vial)' : 'PESV Road Safety (Res. 20223040040595)'}</a>
+                <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')}>{lang === 'es' ? 'Matriz de Requisitos Legales' : 'Legal & Compliance Matrix'}</a>
+                <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')}>{lang === 'es' ? 'Bio-IPEVR Dinámica' : 'Dynamic Bio-IPEVR'}</a>
+                <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>{lang === 'es' ? 'Investigación de Accidentes ATEL' : 'ATEL Incident Investigation'}</a>
+              </div>
+
+              {/* Columna 3: Inteligencia Artificial & Conectores */}
               <div className="foot-col">
                 <h4>{lang === 'es' ? 'Inteligencia Artificial' : 'Artificial Intelligence'}</h4>
-                <a href="#tenshi">{lang === 'es' ? 'Tenshi IA Orquestador' : 'Tenshi AI Orchestrator'}</a>
-                <a href="#tenshi">{lang === 'es' ? '+20 Agentes Especialistas' : '+20 Specialist Agents'}</a>
-                <a href="#movil">{lang === 'es' ? 'Fisioterapeuta (MediaPipe)' : 'AI Physio (MediaPipe)'}</a>
-                <a href="#tenshi">{lang === 'es' ? 'Actos Predictivos ATEL' : 'Predictive ATEL Incidents'}</a>
-                <a href="#movil">{lang === 'es' ? 'Portal Móvil PWA & QR' : 'PWA Mobile & QR'}</a>
+                <a href="#tenshi" onClick={(e) => scrollToSection(e, 'tenshi')}>{lang === 'es' ? 'Tenshi IA (Orquestador Central)' : 'Tenshi AI Orchestrator'}</a>
+                <a href="#tenshi" onClick={(e) => scrollToSection(e, 'tenshi')}>{lang === 'es' ? '+20 Agentes Especialistas SST' : '20+ Specialized OHS Agents'}</a>
+                <a href="#vision" onClick={(e) => scrollToSection(e, 'vision')}>{lang === 'es' ? 'Fisioterapeuta IA (MediaPipe Pose)' : 'AI Physio (MediaPipe Pose)'}</a>
+                <a href="#movil" onClick={(e) => scrollToSection(e, 'movil')}>{lang === 'es' ? 'App Móvil PWA & Portales QR' : 'PWA Mobile App & QR Portals'}</a>
+                <a href="#herramientas" onClick={(e) => scrollToSection(e, 'herramientas')}>{lang === 'es' ? 'Conectores (Drive, WhatsApp, Wompi)' : 'Connectors (Drive, WhatsApp, Wompi)'}</a>
+                <a href="#herramientas" onClick={(e) => scrollToSection(e, 'herramientas')}>{lang === 'es' ? 'Automatizaciones & NotebookLM' : 'Automations & NotebookLM'}</a>
               </div>
 
-              {/* Columna 3: Recursos & Planes */}
+              {/* Columna 4: Planes, Recursos & Legal */}
               <div className="foot-col">
-                <h4>{lang === 'es' ? 'Recursos & Planes' : 'Resources & Pricing'}</h4>
-                <a href="#pricing">{lang === 'es' ? 'Planes Wappy Pro' : 'Wappy Pro Plans'}</a>
-                <a href="#faq">{lang === 'es' ? 'Preguntas Frecuentes' : 'Help & FAQ'}</a>
-                <a href="/blog">{lang === 'es' ? 'Blog de Seguridad SST' : 'OHS Safety Blog'}</a>
-                <a href="/c/new">{lang === 'es' ? 'Acceso a la Plataforma' : 'Platform Access'}</a>
-              </div>
-
-              {/* Columna 4: Legal & Empresa */}
-              <div className="foot-col">
-                <h4>{lang === 'es' ? 'Legal & Empresa' : 'Legal & Compliance'}</h4>
+                <h4>{lang === 'es' ? 'Planes & Legal' : 'Pricing & Legal'}</h4>
+                <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')}>{lang === 'es' ? 'Planes & Tarifas Wappy Pro' : 'Wappy Pro Plans'}</a>
+                <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')}>{lang === 'es' ? 'Preguntas Frecuentes (FAQ)' : 'FAQ & Knowledge Base'}</a>
+                <a href="/blog">{lang === 'es' ? 'Blog Normativo SG-SST' : 'OHS Safety Blog'}</a>
                 <a href="/terms">{lang === 'es' ? 'Términos del Servicio' : 'Terms of Service'}</a>
-                <a href="/privacy-policy">{lang === 'es' ? 'Política de Privacidad' : 'Privacy Policy'}</a>
-                <a href="/privacy-policy">{lang === 'es' ? 'Tratamiento de Datos (Ley 1581)' : 'Data Protection (Ley 1581)'}</a>
+                <a href="/privacy-policy">{lang === 'es' ? 'Política de Privacidad (Ley 1581)' : 'Privacy Policy (Data Law 1581)'}</a>
                 <a href="/about">{lang === 'es' ? 'Acerca de WAPPY LTDA' : 'About WAPPY LTDA'}</a>
               </div>
             </div>
@@ -3470,7 +3490,15 @@ export default function LandingPage() {
       </div>
 
       {/* Demo Booking Modal */}
-      <div className={`mkt-modal-scrim ${isDemoModalOpen ? 'show' : ''}`} aria-hidden={!isDemoModalOpen}>
+      <div
+        className={`mkt-modal-scrim ${isDemoModalOpen ? 'show' : ''}`}
+        aria-hidden={!isDemoModalOpen}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            setIsDemoModalOpen(false);
+          }
+        }}
+      >
         <div className="mkt-modal" role="dialog" aria-modal="true" aria-label="Demo WAPPY">
           <button className="mkt-modal-x" onClick={() => setIsDemoModalOpen(false)} aria-label="Close">
             ×
@@ -3550,7 +3578,15 @@ export default function LandingPage() {
       </div>
 
       {/* Plan Comparison Modal */}
-      <div className={`mkt-modal-scrim ${isCompareModalOpen ? 'show' : ''}`} aria-hidden={!isCompareModalOpen}>
+      <div
+        className={`mkt-modal-scrim ${isCompareModalOpen ? 'show' : ''}`}
+        aria-hidden={!isCompareModalOpen}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            setIsCompareModalOpen(false);
+          }
+        }}
+      >
         <div className="mkt-modal mkt-cmp-modal" role="dialog" aria-modal="true" aria-label="Comparación de planes WAPPY">
           <button className="mkt-modal-x" onClick={() => setIsCompareModalOpen(false)} aria-label="Close">
             ×
@@ -3695,7 +3731,15 @@ export default function LandingPage() {
       </div>
 
       {/* PWA Installation Instructions Modal */}
-      <div className={`mkt-modal-scrim ${isPwaModalOpen ? 'show' : ''}`} aria-hidden={!isPwaModalOpen}>
+      <div
+        className={`mkt-modal-scrim ${isPwaModalOpen ? 'show' : ''}`}
+        aria-hidden={!isPwaModalOpen}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            setIsPwaModalOpen(false);
+          }
+        }}
+      >
         <div className="mkt-modal" role="dialog" aria-modal="true" aria-label="Instalar WAPPY PWA">
           <button className="mkt-modal-x" onClick={() => setIsPwaModalOpen(false)} aria-label="Cerrar">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
