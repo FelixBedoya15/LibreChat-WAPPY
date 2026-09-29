@@ -86,17 +86,6 @@ function AuthLayout({
           <span>Volver a WAPPY</span>
         </Link>
 
-        <Link to="/" className="flex items-center gap-2 group">
-          <img
-            src="/assets/Logos WAPPY/Wlogo.svg"
-            className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
-            alt="WAPPY IA"
-          />
-          <span className="font-black text-xl tracking-tight text-slate-900 dark:text-white flex items-center">
-            WAPPY<span className="text-[#10b981] ml-0.5 text-base font-black">IA</span>
-          </span>
-        </Link>
-
         <div className="flex items-center gap-2">
           {isLogin ? (
             <Link
@@ -127,7 +116,7 @@ function AuthLayout({
 
       {/* Main Form Center Card */}
       <div className="flex flex-grow items-center justify-center py-6 px-4 z-10">
-        <div className="relative w-full max-w-[460px] overflow-hidden rounded-[28px] border border-slate-200/80 dark:border-zinc-800/90 bg-white/95 dark:bg-zinc-900/95 px-6 sm:px-8 py-7 shadow-2xl shadow-slate-900/10 dark:shadow-black/60 backdrop-blur-2xl transition-all">
+        <div className="relative w-authPageWidth overflow-hidden rounded-2xl border border-slate-200/80 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-900/90 px-6 sm:px-8 py-6 shadow-xl shadow-slate-900/5 dark:shadow-black/40 backdrop-blur-md transition-all sm:max-w-md">
           {/* Landing Eyebrow */}
           <div className="flex justify-center mb-3">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-lime-400/20 text-lime-900 dark:text-lime-300 border border-lime-400/40">
@@ -135,6 +124,18 @@ function AuthLayout({
               {isRegister
                 ? 'Comienza tu Prueba Gratis · 7 Días'
                 : 'Acceso Seguro · Ecosistema SST'}
+            </span>
+          </div>
+
+          {/* WAPPY Brand Logo inside Card */}
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <img
+              src="/assets/Logos WAPPY/Wlogo.svg"
+              className="h-9 w-auto object-contain"
+              alt="WAPPY IA"
+            />
+            <span className="font-black text-2xl tracking-tight text-slate-900 dark:text-white flex items-center">
+              WAPPY<span className="text-[#10b981] ml-0.5 text-base font-black">IA</span>
             </span>
           </div>
 
