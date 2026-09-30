@@ -269,8 +269,18 @@ export const router = createBrowserRouter(
       errorElement: <RouteErrorBoundary />,
     },
     {
+      path: 'privacy-policy',
+      element: <Navigate to="/privacy" replace={true} />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
       path: 'terms',
       element: withSuspense(<TermsOfServicePage />),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'terminos',
+      element: <Navigate to="/terms" replace={true} />,
       errorElement: <RouteErrorBoundary />,
     },
     {

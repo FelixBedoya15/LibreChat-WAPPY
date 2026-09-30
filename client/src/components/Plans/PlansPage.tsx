@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   Check,
@@ -1129,15 +1129,29 @@ export default function PlansPage() {
   }, [showToast]);
 
   return (
-    <div className="relative min-h-screen bg-surface-secondary">
+    <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-b from-[#E6F3FA] via-[#D8ECF7] to-[#C8E4F3] dark:from-[#0B111E] dark:via-[#0F172A] dark:to-[#080C14] transition-colors duration-300">
+      {/* Soft Landing-style decorative clouds */}
+      <div
+        className="pointer-events-none absolute -top-12 -left-16 w-80 h-36 rounded-full bg-white/70 dark:bg-white/5 blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute top-48 -right-12 w-96 h-40 rounded-full bg-white/60 dark:bg-white/5 blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute bottom-24 left-1/4 w-[420px] h-44 rounded-full bg-white/50 dark:bg-white/5 blur-3xl opacity-70"
+        aria-hidden="true"
+      />
+
       {/* Theme Selector */}
       <div className="fixed bottom-0 left-0 z-50 p-4 md:m-4">
         <ThemeSelector />
       </div>
 
       {/* Header Bar */}
-      <div className="border-border-medium/50 bg-surface-secondary/80 sticky top-0 z-10 border-b backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center gap-4 px-6 py-4">
+      <header className="sticky top-0 z-30 border-b border-slate-200/60 dark:border-zinc-800/60 bg-white/75 dark:bg-[#0B111E]/75 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 sm:px-6 py-3.5">
           <button
             onClick={() => {
               if (checkoutPlan) {
@@ -1145,23 +1159,36 @@ export default function PlansPage() {
               } else if (showRegister) {
                 setShowRegister(false);
               } else {
-                navigate(isAuthenticated ? '/c/new' : '/register');
+                navigate(isAuthenticated ? '/c/new' : '/');
               }
             }}
-            className="flex items-center gap-2 rounded-xl bg-surface-primary px-4 py-2 text-sm font-medium text-text-secondary transition-all hover:bg-surface-hover hover:text-text-primary"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-zinc-200 hover:text-black dark:hover:text-white px-3.5 py-1.5 rounded-full bg-white/80 dark:bg-zinc-800/80 backdrop-blur-md border border-slate-200/80 dark:border-zinc-700/80 shadow-sm transition-all active:scale-95"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Volver
+            <span className="text-base leading-none">←</span>
+            <span>Volver a WAPPY</span>
           </button>
-          <div className="flex-1" />
-          {!loading && (
-            <span className="text-xs text-text-tertiary">
-              Plan actual:{' '}
-              <span className="font-semibold capitalize text-text-primary">{activePlan}</span>
-            </span>
-          )}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              to="/privacy"
+              className="text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:text-teal-600 dark:hover:text-teal-400 px-3 py-1.5 rounded-full hover:bg-white/60 dark:hover:bg-zinc-800/60 transition-colors"
+            >
+              Privacidad
+            </Link>
+            <Link
+              to="/terms"
+              className="text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:text-teal-600 dark:hover:text-teal-400 px-3 py-1.5 rounded-full hover:bg-white/60 dark:hover:bg-zinc-800/60 transition-colors"
+            >
+              Términos
+            </Link>
+            {!loading && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+                Plan: <span className="capitalize">{activePlan}</span>
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      </header>
 
       <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
         {pendingPaymentInfo ? (
@@ -1969,14 +1996,16 @@ export default function PlansPage() {
           <>
             {/* Hero */}
             <div className="mb-12 text-center">
-              <div className="border-border-medium/60 mb-4 inline-flex items-center gap-3 rounded-full border bg-surface-primary px-5 py-2 text-lg font-medium text-text-secondary">
-                <PricingSVG className="h-6 w-6 text-green-500" />
-                Planes y Precios
+              <div className="flex justify-center mb-3">
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-lime-400/20 text-lime-900 dark:text-lime-300 border border-lime-400/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-lime-500 animate-pulse"></span>
+                  Suscripciones & Ecosistema SG-SST
+                </span>
               </div>
-              <h1 className="mt-2 bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent">
+              <h1 className="mt-2 text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white">
                 Elige tu plan de WAPPY IA
               </h1>
-              <p className="mx-auto mt-3 max-w-lg text-base text-text-secondary">
+              <p className="mx-auto mt-3 max-w-lg text-sm sm:text-base text-slate-600 dark:text-zinc-400">
                 Cancela cuando quieras desde tu portal de suscripción. Selecciona la facturación que
                 más te convenga.
               </p>
@@ -2003,17 +2032,17 @@ export default function PlansPage() {
                     <button
                       key={interval.id}
                       onClick={() => setBillingInterval(interval.id)}
-                      className={`relative flex flex-col items-center justify-center rounded-2xl border-2 px-2 py-4 transition-all duration-300 ${
+                      className={`relative flex flex-col items-center justify-center rounded-2xl border-2 px-2 py-4 transition-all duration-300 backdrop-blur-md ${
                         billingInterval === interval.id
-                          ? 'border-green-500 bg-green-50/50 shadow-md shadow-green-500/10 dark:border-green-400 dark:bg-green-950/20'
-                          : 'border-border-light bg-surface-primary hover:border-green-500/40 hover:bg-surface-hover'
+                          ? 'border-teal-500 bg-teal-50/80 shadow-md shadow-teal-500/20 dark:border-teal-400 dark:bg-teal-950/40'
+                          : 'border-slate-200/80 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 hover:border-teal-500/40 hover:bg-white dark:hover:bg-zinc-800'
                       }`}
                     >
                       <span
                         className={`text-base font-bold ${
                           billingInterval === interval.id
-                            ? 'text-green-700 dark:text-green-400'
-                            : 'text-text-primary'
+                            ? 'text-teal-700 dark:text-teal-300'
+                            : 'text-slate-900 dark:text-white'
                         }`}
                       >
                         {interval.label}
@@ -2023,20 +2052,20 @@ export default function PlansPage() {
                         <span
                           className={`mt-2 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide ${
                             billingInterval === interval.id
-                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm'
-                              : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                              ? 'bg-gradient-to-r from-teal-500 to-emerald-600 text-white shadow-sm'
+                              : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
                           }`}
                         >
                           Ahorra {maxDiscount}%
                         </span>
                       ) : (
-                        <span className="mt-2 text-[11px] font-medium text-text-tertiary">
+                        <span className="mt-2 text-[11px] font-medium text-slate-500 dark:text-zinc-400">
                           Precio base
                         </span>
                       )}
 
                       {billingInterval === interval.id && (
-                        <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-green-500 text-white shadow-md">
+                        <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-teal-500 text-white shadow-md">
                           <Check strokeWidth={3} className="h-3.5 w-3.5" />
                         </div>
                       )}
