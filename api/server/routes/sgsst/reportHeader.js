@@ -328,11 +328,11 @@ function buildCommitteeSignatureSection({ asistentes = [], companyInfo = {}, tip
   const list = Array.isArray(asistentes) ? asistentes.filter((a) => a.asistio !== false) : [];
 
   if (list.length === 0) {
-    return `
-      <div style="margin-top: 40px; padding: 20px; border: 1.5px dashed #cbd5e1; border-radius: 12px; text-align: center; color: #64748b; font-family: sans-serif;">
+    return `<!-- COMMITTEE_SIGNATURES_START -->
+      <div data-committee-signatures="true" style="margin-top: 40px; padding: 20px; border: 1.5px dashed #cbd5e1; border-radius: 12px; text-align: center; color: #64748b; font-family: sans-serif;">
         <p style="margin: 0; font-size: 13px; font-weight: bold;">Sin participantes registrados o convocados en esta sesión.</p>
       </div>
-    `;
+    <!-- COMMITTEE_SIGNATURES_END -->`;
   }
 
   // Generar tarjetas en formato tabla compatible 100% con motores de impresión y visualización PDF
@@ -389,9 +389,9 @@ function buildCommitteeSignatureSection({ asistentes = [], companyInfo = {}, tip
   };
   const nombreComiteFull = comiteNames[String(tipoComite).toLowerCase()] || 'Comité Paritario';
 
-  return `
+  return `<!-- COMMITTEE_SIGNATURES_START -->
 <!-- Bloque Oficial de Firmas Digitales de los Participantes del Comité -->
-<div style="margin-top: 40px; font-family: sans-serif; page-break-inside: avoid;">
+<div data-committee-signatures="true" style="margin-top: 40px; font-family: sans-serif; page-break-inside: avoid;">
   <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #0f766e; padding-bottom: 8px; margin-bottom: 14px;">
     <div>
       <h3 style="margin: 0; font-size: 13px; font-weight: 800; color: #0f766e; text-transform: uppercase; letter-spacing: 0.5px;">
@@ -416,7 +416,41 @@ function buildCommitteeSignatureSection({ asistentes = [], companyInfo = {}, tip
     <strong>Certificación Electrónica:</strong> El presente documento y las firmas digitales de los asistentes estampadas desde sus portales personales gozan de plena validez jurídica conforme a la <em>Ley 527 de 1999</em> y el <em>Decreto 1072 de 2015</em>. Los firmantes declaran haber revisado y aprobado el orden del día, los compromisos y el contenido íntegro del acta.
   </div>
 </div>
-  `;
+<!-- COMMITTEE_SIGNATURES_END -->`;
+}
+
+/**
+ * Reemplaza dinámicamente el bloque de firmas de participantes dentro de un HTML de Informe Oficial ya generado,
+ * sin alterar ni regenerar el resto del informe redactado por la IA.
+ */
+function updateCommitteeSignatureSectionInHtml(html, { asistentes = [], companyInfo = {}, tipoComite = 'copasst' } = {}) {
+  if (!html || typeof html !== 'string') return html;
+  const newSigHtml = buildCommitteeSignatureSection({ asistentes, companyInfo, tipoComite });
+
+  // 1. Si tiene marcadores explícitos COMMITTEE_SIGNATURES_START / END
+  if (/<!-- COMMITTEE_SIGNATURES_START -->[\s\S]*?<!-- COMMITTEE_SIGNATURES_END -->/.test(html)) {
+    return html.replace(/<!-- COMMITTEE_SIGNATURES_START -->[\s\S]*?<!-- COMMITTEE_SIGNATURES_END -->/, newSigHtml);
+  }
+
+  // 2. Si tiene el bloque vacío ("Sin participantes registrados o convocados en esta sesión.") con o sin etiquetas extra
+  const emptyPattern = /<div[^>]*>\s*<p[^>]*>[\s\S]{0,120}?Sin participantes registrados o convocados en esta sesi[oó]n[\s\S]{0,120}?<\/p>\s*<\/div>/i;
+  if (emptyPattern.test(html)) {
+    return html.replace(emptyPattern, newSigHtml);
+  }
+
+  // 3. Si tiene el bloque de firmas con atributo data-committee-signatures="true" y Certificación Electrónica
+  const dataAttrPopulatedPattern = /(?:<!-- Bloque Oficial de Firmas Digitales de los Participantes del Comit[eé] -->\s*)?<div[^>]*data-committee-signatures="true"[^>]*>[\s\S]*?Certificaci[oó]n Electr[oó]nica:[\s\S]*?<\/div>\s*<\/div>/i;
+  if (dataAttrPopulatedPattern.test(html)) {
+    return html.replace(dataAttrPopulatedPattern, newSigHtml);
+  }
+
+  // 4. Si tiene el bloque de firmas con título "Firmas Digitales de los Miembros y Participantes Asistentes"
+  const populatedPattern = /(?:<!-- Bloque Oficial de Firmas Digitales de los Participantes del Comit[eé] -->\s*)?<div[^>]*>\s*<div[^>]*>\s*<div[^>]*>\s*<h3[^>]*>\s*Firmas Digitales de los Miembros y Participantes Asistentes[\s\S]*?Certificaci[oó]n Electr[oó]nica:[\s\S]*?<\/div>\s*<\/div>/i;
+  if (populatedPattern.test(html)) {
+    return html.replace(populatedPattern, newSigHtml);
+  }
+
+  return html;
 }
 
 module.exports = {
@@ -425,4 +459,6 @@ module.exports = {
   buildCompanyContextString,
   buildSignatureSection,
   buildCommitteeSignatureSection,
+  updateCommitteeSignatureSectionInHtml,
 };
+

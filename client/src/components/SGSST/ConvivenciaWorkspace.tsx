@@ -624,7 +624,9 @@ export default function ConvivenciaWorkspace() {
       if (Array.isArray(messages) && messages.length > 0) {
         const lastMsg = messages[messages.length - 1];
         if (lastMsg?.text) {
-          setReportHtml(lastMsg.text);
+          const syncedHtml = syncCommitteeSignaturesInHtml(lastMsg.text, actaForm.asistentes || [], 'Convivencia');
+          setReportHtml(syncedHtml);
+          liveEditorRef.current?.setHTML(syncedHtml);
           setConversationId(convId);
           setReportMessageId(lastMsg.messageId);
           setActaModalTab('report');
@@ -637,6 +639,20 @@ export default function ConvivenciaWorkspace() {
       showToast({ message: 'Error al cargar el informe del historial', status: 'error' });
     }
   };
+
+  // Sincronización reactiva automática de firmas en el informe cada vez que cambian los asistentes o se abre la pestaña de informe
+  useEffect(() => {
+    if (!showActaModal) return;
+    const baseHtml = reportHtml || selectedActa?.reporteOficialHtml || actaForm?.reporteOficialHtml || '';
+    if (!baseHtml) return;
+    const synced = syncCommitteeSignaturesInHtml(baseHtml, actaForm.asistentes || [], 'Convivencia');
+    if (synced !== reportHtml) {
+      setReportHtml(synced);
+    }
+    if (actaModalTab === 'report' && liveEditorRef.current) {
+      liveEditorRef.current.setHTML(synced);
+    }
+  }, [actaForm.asistentes, actaModalTab, showActaModal]);
 
   const handleOpenDesignarEmpleadorModal = () => {
     const activeComite = config?.comites?.find((c: any) => c.estado === 'activo') || config?.comites?.[0];

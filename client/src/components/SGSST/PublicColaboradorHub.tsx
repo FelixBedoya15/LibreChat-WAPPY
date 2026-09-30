@@ -397,7 +397,7 @@ export default function PublicColaboradorHub() {
       desc: 'Firma digital de actas oficiales y asistencia a comités (COPASST/CCL)',
       points: '+50 a +100 pts',
       icon: UserCheck,
-      path: `/sgsst-public/comites/${companyId}${cedula ? `?cedula=${encodeURIComponent(cedula)}` : ''}`,
+      path: `/sgsst-public/comites/${companyId}`,
       color: 'from-indigo-500 to-purple-600',
     },
     {
@@ -413,7 +413,7 @@ export default function PublicColaboradorHub() {
       desc: 'Elige tus representantes COPASST y Convivencia',
       points: '+20 pts',
       icon: Vote,
-      path: `/sgsst-public/votaciones/${companyId}${cedula ? `?cedula=${encodeURIComponent(cedula)}` : ''}`,
+      path: `/sgsst-public/votaciones/${companyId}`,
       color: 'from-teal-600 to-emerald-700',
     },
     {

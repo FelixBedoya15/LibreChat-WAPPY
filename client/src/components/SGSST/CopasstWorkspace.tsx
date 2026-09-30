@@ -401,22 +401,33 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
         const lastMsg = messages[messages.length - 1];
         if (lastMsg?.text) {
           let loadedHtml = lastMsg.text;
+          let activeAsistentes = actaForm.asistentes || [];
           const match = loadedHtml.match(/<!-- SGSST_COPASST_ACTA_V1:(.*?) -->/);
           if (match && match[1]) {
             try {
               const parsedState = JSON.parse(match[1]);
               if (parsedState?.actaForm) {
-                setActaForm(parsedState.actaForm);
-                if (parsedState.actaForm.id) {
-                  const existing = actas.find((a) => a._id === parsedState.actaForm.id);
-                  if (existing) setSelectedActa(existing);
-                }
+                const existing = parsedState.actaForm.id
+                  ? actas.find((a) => a._id === parsedState.actaForm.id)
+                  : null;
+                if (existing) setSelectedActa(existing);
+                activeAsistentes =
+                  existing?.asistentes?.length
+                    ? existing.asistentes
+                    : parsedState.actaForm.asistentes?.length
+                      ? parsedState.actaForm.asistentes
+                      : activeAsistentes;
+                setActaForm({
+                  ...parsedState.actaForm,
+                  asistentes: activeAsistentes,
+                });
               }
             } catch (e) {}
             loadedHtml = loadedHtml.replace(/<!-- SGSST_COPASST_ACTA_V1:.*? -->/g, '');
           }
-          setReportHtml(loadedHtml);
-          liveEditorRef.current?.setHTML(loadedHtml);
+          const syncedHtml = syncCommitteeSignaturesInHtml(loadedHtml, activeAsistentes, 'copasst');
+          setReportHtml(syncedHtml);
+          liveEditorRef.current?.setHTML(syncedHtml);
           setConversationId(selectedConvoId);
           setReportMessageId(lastMsg.messageId);
           setIsHistoryOpen(false);
@@ -428,8 +439,22 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
         showToast({ message: 'Error al cargar el informe del historial', status: 'error' });
       }
     },
-    [token, actas, showToast]
+    [token, actas, actaForm.asistentes, showToast]
   );
+
+  // Sincronización reactiva automática de firmas en el informe cada vez que cambian los asistentes o se abre la pestaña de informe
+  useEffect(() => {
+    if (!showActaModal) return;
+    const baseHtml = reportHtml || selectedActa?.reporteOficialHtml || '';
+    if (!baseHtml) return;
+    const synced = syncCommitteeSignaturesInHtml(baseHtml, actaForm.asistentes || [], 'copasst');
+    if (synced !== reportHtml) {
+      setReportHtml(synced);
+    }
+    if (actaModalTab === 'report' && liveEditorRef.current) {
+      liveEditorRef.current.setHTML(synced);
+    }
+  }, [actaForm.asistentes, actaModalTab, showActaModal]);
 
   const handleDeleteActa = async (actaId: string) => {
     if (!window.confirm('¿Está seguro de eliminar esta acta mensual?')) return;

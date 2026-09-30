@@ -43,6 +43,16 @@ export default function PublicComites() {
   const [nombre, setNombre] = useState('');
   const [cedula, setCedula] = useState('');
   const [cargo, setCargo] = useState('');
+  const [rolEnComite, setRolEnComite] = useState('Presidente');
+  const [temasTratados, setTemasTratados] = useState('');
+  const [compromisos, setCompromisos] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submittedResult, setSubmittedResult] = useState<any | null>(null);
+
+  // Canvas para asistencia manual
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasSignature, setHasSignature] = useState(false);
 
   // Mode: actas_pendientes vs asistencia_general
   const [activeTab, setActiveTab] = useState<'actas' | 'general'>('actas');
