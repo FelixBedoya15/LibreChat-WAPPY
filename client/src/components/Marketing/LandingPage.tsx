@@ -127,10 +127,24 @@ export default function LandingPage() {
     setShowVideo((prev) => !prev);
   };
 
+  const resolveTargetElement = (targetId: string): HTMLElement | null => {
+    return (
+      document.getElementById(targetId) ||
+      (targetId === 'modulos' ? document.getElementById('aplicativos') : null) ||
+      (targetId === 'aplicativos' ? document.getElementById('modulos') : null) ||
+      (targetId === 'tenshi' ? document.getElementById('agentes') : null) ||
+      (targetId === 'agentes' ? document.getElementById('tenshi') : null) ||
+      (targetId === 'vision' ? document.getElementById('movil') : null) ||
+      (targetId === 'movil' ? document.getElementById('vision') : null) ||
+      (targetId === 'pricing' ? document.getElementById('planes') : null) ||
+      (targetId === 'planes' ? document.getElementById('pricing') : null)
+    );
+  };
+
   const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
     e.preventDefault();
     setIsMobileMenuOpen(false);
-    const el = document.getElementById(targetId);
+    const el = resolveTargetElement(targetId);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       const navOffset = 90;
@@ -152,7 +166,7 @@ export default function LandingPage() {
 
   const navigateToSection = (targetId: string) => {
     setIsMobileMenuOpen(false);
-    const el = document.getElementById(targetId);
+    const el = resolveTargetElement(targetId);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       const navOffset = 90;
@@ -207,25 +221,25 @@ export default function LandingPage() {
           </a>
 
           <div className="mkt-nav-links">
-            <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')} title={lang === 'es' ? 'Módulos SG-SST: Metodología y 30+ Aplicativos' : 'OHS Modules & Methodology'}>
+            <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')} title={lang === 'es' ? 'Módulos SST: Más de 30 Aplicativos Especializados' : 'OHS Modules & Apps'}>
               {lang === 'es' ? 'Módulos SST' : 'OHS Modules'}
             </a>
-            <a href="#tenshi" onClick={(e) => scrollToSection(e, 'tenshi')} title={lang === 'es' ? 'Ecosistema Tenshi: +20 Agentes Especialistas' : 'AI Agents'}>
+            <a href="#tenshi" onClick={(e) => scrollToSection(e, 'tenshi')} title={lang === 'es' ? 'Agentes IA: Tenshi y +20 Especialistas Autónomos en SST' : 'AI Agents & Tenshi'}>
               {lang === 'es' ? 'Agentes IA' : 'AI Agents'}
             </a>
-            <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')} title={lang === 'es' ? 'Matrices GTC 45, Química SGA, PESV y Legal' : 'Risk Matrices'}>
+            <a href="#matrices" onClick={(e) => scrollToSection(e, 'matrices')} title={lang === 'es' ? 'Matrices de Riesgos: GTC 45, Bio-IPEVR, PESV y SGA' : 'Risk Matrices'}>
               {lang === 'es' ? 'Matrices' : 'Matrices'}
             </a>
-            <a href="#vision" onClick={(e) => scrollToSection(e, 'vision')} title={lang === 'es' ? 'Visión IA MediaPipe y App Móvil PWA' : 'Vision & Mobile'}>
-              {lang === 'es' ? 'Visión & PWA' : 'Vision & App'}
+            <a href="#movil" onClick={(e) => scrollToSection(e, 'movil')} title={lang === 'es' ? 'Visión & PWA: App Móvil, Inspecciones y Modo Sin Conexión' : 'Vision & Mobile PWA'}>
+              {lang === 'es' ? 'Visión & PWA' : 'Vision & PWA'}
             </a>
-            <a href="#herramientas" onClick={(e) => scrollToSection(e, 'herramientas')} title={lang === 'es' ? 'Herramientas, Conectores y Automatizaciones' : 'Tools & Connectors'}>
+            <a href="#herramientas" onClick={(e) => scrollToSection(e, 'herramientas')} title={lang === 'es' ? 'Herramientas: 22 Integraciones Nativas y Conectores' : 'Tools & Connectors'}>
               {lang === 'es' ? 'Herramientas' : 'Tools'}
             </a>
-            <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')} title={lang === 'es' ? 'Planes y Tarifas Wappy Pro' : 'Pricing Plans'}>
+            <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')} title={lang === 'es' ? 'Planes Comerciales y Tarifas WAPPY Pro' : 'Pricing Plans'}>
               {lang === 'es' ? 'Planes' : 'Plans'}
             </a>
-            <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')} title={lang === 'es' ? 'Preguntas Frecuentes' : 'FAQ'}>
+            <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')} title={lang === 'es' ? 'Preguntas Frecuentes sobre WAPPY' : 'FAQ'}>
               FAQ
             </a>
           </div>
@@ -261,56 +275,56 @@ export default function LandingPage() {
               <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('modulos')}>
                 <span className="mkt-mobile-link-icon">🚀</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Módulos SG-SST · 8 Hitos' : 'OHS Modules · 8 Milestones'}</span>
-                  <span className="mkt-mobile-link-desc">{lang === 'es' ? '30+ Aplicativos, Huella Biocéntrica y Metodología' : '30+ Apps, Biocentric Blueprint & Methodology'}</span>
+                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Módulos SST' : 'OHS Modules'}</span>
+                  <span className="mkt-mobile-link-desc">{lang === 'es' ? '30+ Aplicativos especializados en los 8 Hitos' : '30+ Apps across 8 management milestones'}</span>
                 </div>
               </button>
 
               <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('tenshi')}>
                 <span className="mkt-mobile-link-icon">🤖</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Agentes IA · Tenshi' : 'Tenshi AI Ecosystem'}</span>
-                  <span className="mkt-mobile-link-desc">{lang === 'es' ? '+20 Agentes autónomos especializados en SST' : '20+ Autonomous OHS specialist agents'}</span>
+                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Agentes IA' : 'AI Agents'}</span>
+                  <span className="mkt-mobile-link-desc">{lang === 'es' ? 'Tenshi y +20 especialistas autónomos en SST' : 'Tenshi & 20+ autonomous OHS specialists'}</span>
                 </div>
               </button>
 
               <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('matrices')}>
                 <span className="mkt-mobile-link-icon">📊</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Matrices Normativas' : 'Regulatory Matrices'}</span>
-                  <span className="mkt-mobile-link-desc">{lang === 'es' ? 'IPEVAR GTC-45, Química SGA, PESV y Legal RIT' : 'IPEVR GTC 45, SGA Chemical, PESV & Legal'}</span>
+                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Matrices de Riesgos' : 'Risk Matrices'}</span>
+                  <span className="mkt-mobile-link-desc">{lang === 'es' ? 'GTC 45, Bio-IPEVR, PESV y SGA Química' : 'GTC 45, Bio-IPEVR, PESV & GHS Chemical'}</span>
                 </div>
               </button>
 
-              <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('vision')}>
+              <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('movil')}>
                 <span className="mkt-mobile-link-icon">📱</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Visión en Vivo & App PWA' : 'Live Vision & PWA App'}</span>
-                  <span className="mkt-mobile-link-desc">{lang === 'es' ? 'Análisis biomecánico MediaPipe y portales QR' : 'Biomechanical pose estimation & QR portals'}</span>
+                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Visión & PWA' : 'Vision & PWA'}</span>
+                  <span className="mkt-mobile-link-desc">{lang === 'es' ? 'App móvil offline y análisis postural en vivo' : 'Offline mobile app & live pose analysis'}</span>
                 </div>
               </button>
 
               <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('herramientas')}>
                 <span className="mkt-mobile-link-icon">🔌</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Herramientas & Conectores' : 'Tools & Connectors'}</span>
-                  <span className="mkt-mobile-link-desc">{lang === 'es' ? 'Google Drive, WhatsApp, Wompi y Automatizaciones' : 'Google Drive, WhatsApp, Wompi & Automations'}</span>
+                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Herramientas' : 'Tools'}</span>
+                  <span className="mkt-mobile-link-desc">{lang === 'es' ? '22 integraciones: Google, WhatsApp, n8n y más' : '22 native integrations: Google, WhatsApp, n8n'}</span>
                 </div>
               </button>
 
               <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('pricing')}>
                 <span className="mkt-mobile-link-icon">💳</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Planes & Tarifas Wappy Pro' : 'Wappy Pro Plans & Pricing'}</span>
-                  <span className="mkt-mobile-link-desc">{lang === 'es' ? 'Precios transparentes y ahorro semestral/anual' : 'Transparent pricing with semester/annual savings'}</span>
+                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Planes' : 'Plans'}</span>
+                  <span className="mkt-mobile-link-desc">{lang === 'es' ? 'Tarifas transparentes y prueba gratis de 7 días' : 'Transparent pricing with 7-day free trial'}</span>
                 </div>
               </button>
 
               <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('faq')}>
                 <span className="mkt-mobile-link-icon">❓</span>
                 <div className="mkt-mobile-link-info">
-                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'Preguntas Frecuentes' : 'Frequently Asked Questions'}</span>
-                  <span className="mkt-mobile-link-desc">{lang === 'es' ? 'Normatividad, ARL, seguridad de datos y uso' : 'Compliance, data security, and implementation'}</span>
+                  <span className="mkt-mobile-link-title">{lang === 'es' ? 'FAQ' : 'FAQ'}</span>
+                  <span className="mkt-mobile-link-desc">{lang === 'es' ? 'Normatividad colombiana, ARL y datos' : 'Compliance, data security, and support'}</span>
                 </div>
               </button>
             </div>
@@ -649,7 +663,7 @@ export default function LandingPage() {
       </header>
 
       {/* Bento Grid: Hito 2 · Huella Biocéntrica */}
-      <section id="modulos" className="band">
+      <section id="metodologia" className="band">
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">
@@ -906,21 +920,36 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Feature Spotlights */}
-      <section id="tenshi" className="band" style={{ paddingTop: 30 }}>
+      {/* Hito 3 · Comités */}
+      <section id="comites" className="band" style={{ paddingTop: 40 }}>
         <div className="wrap">
+          <div className="sec-head">
+            <span className="eyebrow">
+              <span className="dot"></span>
+              {lang === 'es' ? 'Hito 3 · Comités de Apoyo Organizacional' : 'Milestone 3 · Organizational Support Committees'}
+            </span>
+            <h2 className="display">
+              {lang === 'es' ? 'COPASST, Convivencia y Brigadas sin Papeleo' : 'Safety Committees without Paperwork or Friction'}
+            </h2>
+            <p>
+              {lang === 'es'
+                ? 'Elecciones democráticas y secretas con código QR desde el celular, escrutinio automático en tiempo real, redacción de actas asistida por IA y firmas digitales de los integrantes con plena validez legal.'
+                : 'Secret QR code elections, real-time vote tally, AI-drafted minutes, and legally valid digital signatures directly from mobile.'}
+            </p>
+          </div>
+
           {/* Feature 1: Comités */}
           <div className="feat">
             <div className="feat-copy">
               <span className="eyebrow">
                 <span className="dot"></span>
-                {lang === 'es' ? 'Hito 3 · Comités de apoyo organizacional' : 'Milestone 3 · Organizational Support Committees'}
+                {lang === 'es' ? 'Votación Digital & Actas IA' : 'Digital Voting & AI Minutes'}
               </span>
-              <h3>{lang === 'es' ? 'COPASST, Convivencia y Brigada sin papeleo ni fricciones.' : 'Safety committees without paperwork or friction.'}</h3>
+              <h3>{lang === 'es' ? 'Elecciones democráticas y actas de posesión en minutos.' : 'Democratic elections and inauguration records in minutes.'}</h3>
               <p>
                 {lang === 'es'
-                  ? 'Elecciones democráticas y secretas con código QR desde el celular, escrutinio automático en tiempo real, redacción de actas asistida por IA y firmas digitales de los integrantes con plena validez legal.'
-                  : 'Secret QR code elections, real-time vote tally, AI-drafted minutes, and legally valid digital signatures directly from mobile.'}
+                  ? 'Garantiza la participación de todos los colaboradores con votación por QR desde cualquier smartphone, validación de cédula y escrutinio automático con plena validez legal.'
+                  : 'Ensure team participation with QR voting from any mobile device, identity validation, and automatic possession records.'}
               </p>
               <ul className="feat-list">
                 <li>
@@ -1110,6 +1139,26 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Agentes IA & Tenshi Orquestador */}
+      <section id="tenshi" className="band" style={{ paddingTop: 40 }}>
+        <div className="wrap">
+          <div className="sec-head">
+            <span className="eyebrow">
+              <span className="dot"></span>
+              {lang === 'es' ? 'Inteligencia Artificial Especializada' : 'Specialized Artificial Intelligence'}
+            </span>
+            <h2 className="display">
+              {lang === 'es' ? 'Agentes IA: Tenshi y +20 Especialistas Autónomos en SST' : 'AI Agents: Tenshi & 20+ Autonomous Specialists'}
+            </h2>
+            <p>
+              {lang === 'es'
+                ? 'Tenshi no es un simple chat de respuestas genéricas: es el orientador y orquestador autónomo de WAPPY. Conoce a profundidad la estructura de los 8 Hitos y los más de 30 aplicativos de la plataforma, coordinando con médicos, ergónomos y abogados para operar el sistema por ti.'
+                : 'Tenshi is WAPPY’s autonomous orchestrator and system guide, coordinating with 20+ specialized AI agents and navigating the system for you.'}
+            </p>
+          </div>
 
           {/* Feature 2: Tenshi Orquestador */}
           <div className="feat rev">
@@ -1220,13 +1269,33 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Matrices Normativas & Bio-IPEVR */}
+      <section id="matrices" className="band" style={{ paddingTop: 40 }}>
+        <div className="wrap">
+          <div className="sec-head">
+            <span className="eyebrow">
+              <span className="dot"></span>
+              {lang === 'es' ? 'Hitos 1 & 4 · Evaluación y Control del Riesgo' : 'Milestones 1 & 4 · Risk Assessment & Control'}
+            </span>
+            <h2 className="display">
+              {lang === 'es' ? 'Matrices de Riesgos: GTC 45, Bio-IPEVR, PESV y SGA' : 'Risk Matrices: GTC 45, Bio-IPEVR, PESV & GHS'}
+            </h2>
+            <p>
+              {lang === 'es'
+                ? 'WAPPY trasciende las matrices estáticas en papel combinando dos metodologías complementarias sincronizadas en tiempo real: la Matriz IPEVR Oficial bajo GTC 45 y la Matriz Bio-IPEVR Dinámica con amortiguación de riesgo por autorreportes.'
+                : 'WAPPY replaces static spreadsheets with two synchronized risk engines: Official IPEVR and Dynamic Bio-IPEVR with worker perception damping.'}
+            </p>
+          </div>
 
           {/* Feature 3: Dos Matrices Convergentes (Hito 1 vs. Hito 4) */}
-          <div id="matrices" className="feat">
+          <div className="feat">
             <div className="feat-copy">
               <span className="eyebrow">
                 <span className="dot"></span>
-                {lang === 'es' ? 'Hito 1 & Hito 4 · Dos Matrices Convergentes' : 'Milestone 1 & 4 · Convergent Risk Matrices'}
+                {lang === 'es' ? 'Matrices Convergentes en Tiempo Real' : 'Real-time Convergent Risk Matrices'}
               </span>
               <h3>
                 {lang === 'es'
@@ -1367,18 +1436,20 @@ export default function LandingPage() {
         <div className="cloud" style={{ bottom: 40, right: -30, width: 220, height: 90 }}></div>
 
         <div className="wrap" style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
-          <span className="eyebrow">
-            <span className="dot"></span>
-            {lang === 'es' ? 'Acceso Móvil PWA & IA en Vivo' : 'PWA Mobile & Live AI'}
-          </span>
-          <h2 className="display" style={{ fontSize: 'clamp(30px,4.6vw,48px)', margin: '14px 0 0' }}>
-            {lang === 'es' ? 'Seguridad y Salud en tu bolsillo' : 'Safety and Health in your pocket'}
-          </h2>
-          <p style={{ fontSize: 17, color: 'rgba(14,19,0,0.62)', maxWidth: 640, margin: '14px auto 0' }}>
-            {lang === 'es'
-              ? 'Sin descargar aplicaciones pesadas: realiza análisis biomecánicos en vivo con el Fisioterapeuta IA, consulta a más de 20 especialistas SST y habilita portales públicos por QR para que tus trabajadores voten en comités, firmen actas y reporten peligros sin contraseñas.'
-              : 'Zero app store installs: run live ergonomic posture assessments, consult 20+ specialized AI agents, and launch instant QR portals for workers to vote in committees, sign records, and report hazards with zero passwords.'}
-          </p>
+          <div className="sec-head" style={{ marginBottom: 40 }}>
+            <span className="eyebrow">
+              <span className="dot"></span>
+              {lang === 'es' ? 'PWA Móvil & Modo Offline' : 'PWA Mobile & Offline Mode'}
+            </span>
+            <h2 className="display" style={{ fontSize: 'clamp(30px,4.6vw,48px)', margin: '14px 0 0' }}>
+              {lang === 'es' ? 'Visión & PWA: App Móvil, Inspecciones y Modo Sin Conexión' : 'Vision & PWA: Mobile App, Inspections & Offline Mode'}
+            </h2>
+            <p style={{ fontSize: 17, color: 'rgba(14,19,0,0.62)', maxWidth: 640, margin: '14px auto 0' }}>
+              {lang === 'es'
+                ? 'Sin descargar aplicaciones pesadas: realiza análisis biomecánicos en vivo con el Fisioterapeuta IA, consulta a más de 20 especialistas SST y habilita portales públicos por QR para que tus trabajadores voten en comités, firmen actas y reporten peligros sin contraseñas.'
+                : 'Zero app store installs: run live ergonomic posture assessments, consult 20+ specialized AI agents, and launch instant QR portals for workers to vote in committees, sign records, and report hazards with zero passwords.'}
+            </p>
+          </div>
 
           <div className="app-phones">
             {/* Phone 1: Análisis Biomecánico · Fisioterapeuta IA (MediaPipe Pose Exoskeleton) */}
@@ -1778,12 +1849,12 @@ export default function LandingPage() {
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot"></span>
-              {lang === 'es' ? 'Ecosistema de Agentes IA Especializados' : 'Specialized AI Agent Ecosystem'}
+              {lang === 'es' ? 'Demostración en Video · Visión por Computadora' : 'Video Demo · Computer Vision'}
             </span>
             <h2 className="display">
               {lang === 'es'
-                ? 'Más de 20 Agentes Especialistas en SST Resolviendo en Tiempo Real'
-                : '20+ OHS AI Specialist Agents Solving in Real Time'}
+                ? 'Fisioterapeuta IA y Análisis Postural con Visión Artificial en Vivo'
+                : 'Live AI Physiotherapist & Computer Vision Posture Analysis'}
             </h2>
             <p>
               {lang === 'es'
@@ -1941,15 +2012,16 @@ export default function LandingPage() {
       </section>
 
       {/* Más de 30 Aplicativos Disponibles en tu SG-SST */}
-      <section id="aplicativos" className="band">
+      <section id="modulos" className="band">
+        <div id="aplicativos" style={{ position: 'relative', top: -90 }} />
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot"></span>
-              {lang === 'es' ? 'Ecosistema Integral de Aplicativos' : 'Comprehensive App Ecosystem'}
+              {lang === 'es' ? 'Catálogo Interactivo · 8 Hitos SG-SST' : 'Interactive Catalog · 8 Milestones'}
             </span>
             <h2 className="display">
-              {lang === 'es' ? 'Más de 30 aplicativos disponibles para tu SG-SST' : '30+ Specialized OHS Applications Available'}
+              {lang === 'es' ? 'Módulos SST: Más de 30 Aplicativos Especializados' : 'OHS Modules: 30+ Specialized Applications'}
             </h2>
             <p>
               {lang === 'es'
@@ -2468,12 +2540,12 @@ export default function LandingPage() {
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot"></span>
-              {lang === 'es' ? 'Herramientas de IA & Conexiones API' : 'AI Agent Tools & API Ecosystem'}
+              {lang === 'es' ? 'Conectividad & Automatizaciones' : 'Connectivity & Automations'}
             </span>
             <h2 className="display">
               {lang === 'es'
-                ? 'Superpoderes e integraciones nativas para tus agentes de IA'
-                : 'Native Superpowers & API Integrations for AI Agents'}
+                ? 'Herramientas: 22 Integraciones Nativas y Conectores'
+                : 'Tools: 22 Native Integrations & Connectors'}
             </h2>
             <p>
               {lang === 'es'
@@ -2890,7 +2962,7 @@ export default function LandingPage() {
       </section>
 
       {/* Testimonials */}
-      <section className="band" style={{ paddingTop: 0 }}>
+      <section id="testimonios" className="band" style={{ paddingTop: 0 }}>
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">
@@ -3014,17 +3086,18 @@ export default function LandingPage() {
 
       {/* Pricing: Solo Plan Wappy Pro con 3 Temporalidades (Mensual, Semestral, Anual) */}
       <section id="pricing" className="band" style={{ paddingTop: 0 }}>
+        <div id="planes" style={{ position: 'relative', top: -90 }} />
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot"></span>
-              {lang === 'es' ? 'Planes Transparentes' : 'Transparent Pricing'}
+              {lang === 'es' ? 'Inversión Transparente & Retorno Inmediato' : 'Transparent Investment & ROI'}
             </span>
-            <h2 className="display">{lang === 'es' ? 'Planes Wappy Pro a la medida de tu empresa' : 'Wappy Pro Plans tailored to your organization'}</h2>
+            <h2 className="display">{lang === 'es' ? 'Planes Comerciales y Tarifas WAPPY Pro' : 'WAPPY Pro Pricing Plans'}</h2>
             <p>
               {lang === 'es'
-                ? 'Una sola suite integral con todas las herramientas de IA y normatividad colombiana. Elige la periodicidad que mejor se ajuste a tu flujo empresarial:'
-                : 'A single complete suite with all AI tools and Colombian compliance. Choose the billing cycle that fits your business:'}
+                ? 'Una sola suite integral con todas las herramientas de IA y normatividad colombiana. Elige la periodicidad que mejor se ajuste a tu flujo empresarial con 7 días de prueba gratis:'
+                : 'A single complete suite with all AI tools and Colombian compliance. Choose the billing cycle that fits your business with a 7-day free trial:'}
             </p>
           </div>
 
@@ -3306,9 +3379,14 @@ export default function LandingPage() {
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot"></span>
-              FAQ
+              {lang === 'es' ? 'Resolvemos tus Dudas' : 'Resolve Your Doubts'}
             </span>
-            <h2 className="display">{lang === 'es' ? 'Preguntas Frecuentes' : 'Frequently Asked Questions'}</h2>
+            <h2 className="display">{lang === 'es' ? 'Preguntas Frecuentes sobre WAPPY' : 'Frequently Asked Questions about WAPPY'}</h2>
+            <p>
+              {lang === 'es'
+                ? 'Todo lo que necesitas saber sobre legalidad en Colombia, protección de datos, soporte de ARL y funcionamiento de nuestros agentes de IA.'
+                : 'Everything you need to know about Colombian compliance, data privacy, OHS support, and AI agents.'}
+            </p>
           </div>
 
           <div className="faq">
