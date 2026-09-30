@@ -46,6 +46,7 @@ import WorkerAutocomplete from './WorkerAutocomplete';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ExportDropdown from './ExportDropdown';
 import ReportHistory from '~/components/Liva/ReportHistory';
+import { syncCommitteeSignaturesInHtml } from './committeeSignaturesHtml';
 
 export default function ConvivenciaWorkspace() {
   const { token } = useAuthContext();
@@ -332,7 +333,7 @@ export default function ConvivenciaWorkspace() {
       compromisos: acta.compromisos || [],
     });
     if (acta.reporteOficialHtml) {
-      setReportHtml(acta.reporteOficialHtml);
+      setReportHtml(syncCommitteeSignaturesInHtml(acta.reporteOficialHtml, acta.asistentes || [], 'Convivencia'));
     } else {
       setReportHtml('');
     }
@@ -427,10 +428,52 @@ export default function ConvivenciaWorkspace() {
     showToast({ message: 'Enlace copiado. Compártelo con los miembros del comité para firmar desde su dispositivo.', status: 'success' });
   };
 
+  // Sincroniza asistentes tanto en el formulario como en el Informe Oficial existente sin regenerar IA
+  const handleUpdateAsistentes = async (updatedAsistentes: any[], persistToDb = true) => {
+    const baseHtml = liveEditorRef.current?.getHTML() || reportHtml || selectedActa?.reporteOficialHtml || actaForm?.reporteOficialHtml || '';
+    const updatedHtml = baseHtml ? syncCommitteeSignaturesInHtml(baseHtml, updatedAsistentes, 'Convivencia') : '';
+
+    setActaForm((prev: any) => ({
+      ...prev,
+      asistentes: updatedAsistentes,
+      ...(updatedHtml ? { reporteOficialHtml: updatedHtml } : {}),
+    }));
+
+    if (updatedHtml) {
+      setReportHtml(updatedHtml);
+      if (liveEditorRef.current) {
+        liveEditorRef.current.setHTML(updatedHtml);
+      }
+    }
+
+    const existingId = selectedActa?._id || actaForm?.id;
+    if (persistToDb && existingId && token) {
+      try {
+        const headers = { Authorization: `Bearer ${token}` };
+        const res = await axios.post(
+          '/api/sgsst/convivencia/actas',
+          {
+            ...actaForm,
+            id: existingId,
+            asistentes: updatedAsistentes,
+            ...(updatedHtml ? { reporteOficialHtml: updatedHtml } : {}),
+          },
+          { headers },
+        );
+        if (res.data?.acta) {
+          setSelectedActa(res.data.acta);
+        }
+      } catch (e) {
+        // Silencioso en auto-sync
+      }
+    }
+  };
+
   const handleSyncCommitteeMembersToActa = () => {
     const list: any[] = [];
-    if (config?.comite) {
-      (config.comite.representantesEmpleador || []).forEach((r: any) => {
+    const activeComite = config?.comite || config?.comites?.find((c: any) => c.estado === 'activo') || config?.comites?.[0];
+    if (activeComite) {
+      (activeComite.representantesEmpleador || []).forEach((r: any) => {
         list.push({
           nombre: r.nombre,
           cedula: r.cedula,
@@ -440,7 +483,7 @@ export default function ConvivenciaWorkspace() {
           firma: null,
         });
       });
-      (config.comite.representantesTrabajadores || []).forEach((r: any) => {
+      (activeComite.representantesTrabajadores || []).forEach((r: any) => {
         list.push({
           nombre: r.nombre,
           cedula: r.cedula,
@@ -461,14 +504,25 @@ export default function ConvivenciaWorkspace() {
       showToast({ message: 'Todos los miembros oficiales del Comité de Convivencia ya están convocados en el acta.', status: 'info' });
       return;
     }
-    setActaForm({
-      ...actaForm,
-      asistentes: [...(actaForm.asistentes || []), ...nuevos],
-    });
-    showToast({ message: `Se convocaron ${nuevos.length} miembros oficiales del Comité de Convivencia para firmar`, status: 'success' });
+    const merged = [...(actaForm.asistentes || []), ...nuevos];
+    handleUpdateAsistentes(merged, true);
+    showToast({ message: `Se convocaron ${nuevos.length} miembros oficiales del Comité de Convivencia (sincronizados con el Informe Oficial)`, status: 'success' });
   };
 
-  const handleCopyWorkerSignLink = (cedula: string) => {
+  const handleCopyWorkerSignLink = async (cedula: string) => {
+    const existingId = selectedActa?._id || actaForm?.id;
+    if (!existingId && token) {
+      try {
+        const headers = { Authorization: `Bearer ${token}` };
+        const res = await axios.post('/api/sgsst/convivencia/actas', { ...actaForm }, { headers });
+        if (res.data?.acta) {
+          setSelectedActa(res.data.acta);
+          setActaForm((prev: any) => ({ ...prev, id: res.data.acta._id, consecutivo: res.data.acta.consecutivo }));
+        }
+      } catch (e) {
+        // continuar
+      }
+    }
     const origin = window.location.origin;
     const companyId = config?.company?.id || '';
     const url = `${origin}/sgsst-public/comites/${companyId}?cedula=${encodeURIComponent(cedula)}`;
@@ -822,37 +876,24 @@ export default function ConvivenciaWorkspace() {
               <ToolbarButton
                 id="tb-nuevo-caso"
                 onClick={() => {
-                  resetCasoForm();
-                  setShowCasoModal(true);
+                  const link = `${window.location.origin}/sgsst-public/convivencia/${config?.company?.id || ''}`;
+                  setQrModalUrl(link);
                 }}
-                label="Registrar Nueva Queja"
-                icon={Plus}
-                title="Registrar Queja Confidencial de Acoso Laboral"
+                label="Canal de Quejas"
+                icon={QrCode}
+                title="Compartir enlace o QR del Canal Confidencial de Quejas de Acoso Laboral"
                 variant="save"
               />
             )}
             {activeTab === 'actas' && (
-              <>
-                <ToolbarButton
-                  id="tb-nueva-acta"
-                  onClick={() => handleOpenNewActa(1)}
-                  label="Nueva Acta Trimestral"
-                  icon={Plus}
-                  title="Registrar o Continuar Acta Trimestral Ordinaria del CCL"
-                  variant="ai"
-                />
-                {showActaModal && (
-                  <ToolbarButton
-                    id="tb-ccl-save-acta-data"
-                    onClick={() => handleSaveActa(false)}
-                    isLoading={isSavingData}
-                    label="Guardar Datos"
-                    icon="database"
-                    title="Guardar datos del acta trimestral en la base de datos"
-                    variant="database"
-                  />
-                )}
-              </>
+              <ToolbarButton
+                id="tb-nueva-acta"
+                onClick={() => handleOpenNewActa(1)}
+                label="Nueva Acta Trimestral"
+                icon={Plus}
+                title="Registrar o Continuar Acta Trimestral Ordinaria del CCL"
+                variant="ai"
+              />
             )}
             {activeTab === 'comites' && (
               <>
@@ -919,17 +960,6 @@ export default function ConvivenciaWorkspace() {
                 Resolución 3461 de 2025: Máximo <strong>65 días calendario</strong> no prorrogables para conciliar, archivar o remitir a la Alta Dirección.
               </p>
             </div>
-
-            <ExpandingButton
-              onClick={() => {
-                resetCasoForm();
-                setShowCasoModal(true);
-              }}
-              label="Registrar Nueva Queja"
-              icon={Plus}
-              variant="teal"
-              title="Registrar Queja Confidencial de Acoso Laboral"
-            />
           </div>
 
           <div className="space-y-4">
@@ -1137,43 +1167,43 @@ export default function ConvivenciaWorkspace() {
                             handleEditActa(actaQ);
                             setActaModalTab('report');
                           }}
-                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100"
+                          className="group/btn shrink-0 flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-200 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100"
                           title="Ver Informe Oficial del Acta"
                         >
-                          <Printer className="w-3.5 h-3.5" />
-                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                          <Printer className="w-3.5 h-3.5 shrink-0" />
+                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-out group-hover/btn:ml-1 group-hover/btn:max-w-[110px] group-hover/btn:opacity-100 sm:flex">
                             <span className="text-[10px] font-bold">Informe Oficial</span>
                           </div>
                         </button>
 
                         <button
                           onClick={handleCopySigningLink}
-                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100"
+                          className="group/btn shrink-0 flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-200 px-1.5 shadow-sm active:scale-95 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100"
                           title="Copiar Enlace de Firma para Miembros"
                         >
-                          <Share2 className="w-3.5 h-3.5" />
-                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                          <Share2 className="w-3.5 h-3.5 shrink-0" />
+                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-out group-hover/btn:ml-1 group-hover/btn:max-w-[110px] group-hover/btn:opacity-100 sm:flex">
                             <span className="text-[10px] font-bold">Copiar Link</span>
                           </div>
                         </button>
 
                         <button
                           onClick={() => handleEditActa(actaQ)}
-                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700"
+                          className="group/btn shrink-0 flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-200 px-1.5 shadow-sm active:scale-95 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700"
                           title="Examinar y Editar Acta"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
-                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                          <Edit2 className="w-3.5 h-3.5 shrink-0" />
+                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-out group-hover/btn:ml-1 group-hover/btn:max-w-[110px] group-hover/btn:opacity-100 sm:flex">
                             <span className="text-[10px] font-bold">Examinar</span>
                           </div>
                         </button>
                         <button
                           onClick={() => handleDeleteActa(actaQ._id)}
-                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600"
+                          className="group/btn shrink-0 flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-200 px-1.5 shadow-sm active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600"
                           title="Eliminar Acta"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                          <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-out group-hover/btn:ml-1 group-hover/btn:max-w-[110px] group-hover/btn:opacity-100 sm:flex">
                             <span className="text-[10px] font-bold">Eliminar</span>
                           </div>
                         </button>
@@ -1181,11 +1211,11 @@ export default function ConvivenciaWorkspace() {
                     ) : (
                       <button
                         onClick={() => handleOpenNewActa(q)}
-                        className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-2 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 text-teal-600 dark:text-teal-300"
+                        className="group/btn shrink-0 flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-200 px-2 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 text-teal-600 dark:text-teal-300"
                         title={`Diligenciar Acta Q${q}`}
                       >
-                        <Plus className="w-3.5 h-3.5" />
-                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                        <Plus className="w-3.5 h-3.5 shrink-0" />
+                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-out group-hover/btn:ml-1 group-hover/btn:max-w-[110px] group-hover/btn:opacity-100 sm:flex">
                           <span className="text-[10px] font-bold">Diligenciar Q{q}</span>
                         </div>
                       </button>
@@ -1721,8 +1751,10 @@ export default function ConvivenciaWorkspace() {
                 <ToolbarButton
                   id="ccl-modal-tab-report"
                   onClick={() => {
-                    if (!reportHtml && selectedActa?.reporteOficialHtml) {
-                      setReportHtml(selectedActa.reporteOficialHtml);
+                    const sourceHtml = reportHtml || selectedActa?.reporteOficialHtml || actaForm?.reporteOficialHtml || '';
+                    if (sourceHtml) {
+                      const synced = syncCommitteeSignaturesInHtml(sourceHtml, actaForm.asistentes || [], 'Convivencia');
+                      setReportHtml(synced);
                     }
                     setActaModalTab('report');
                   }}
@@ -1735,26 +1767,6 @@ export default function ConvivenciaWorkspace() {
 
                 <div className="h-5 w-px bg-slate-200 dark:bg-zinc-700 mx-0.5" />
 
-                <ToolbarButton
-                  id="ccl-modal-btn-history"
-                  onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                  label="Historial"
-                  icon={History}
-                  title="Ver Historial de Informes guardados"
-                  variant="history"
-                  active={isHistoryOpen}
-                />
-
-                <ToolbarButton
-                  id="ccl-modal-btn-save-data"
-                  onClick={() => handleSaveActa(false)}
-                  isLoading={isSavingData}
-                  label="Guardar Datos"
-                  icon="database"
-                  title="Guardar datos del formulario en base de datos sin cerrar"
-                  variant="database"
-                />
-
                 {actaModalTab === 'report' ? (
                   <>
                     <ToolbarButton
@@ -1765,6 +1777,15 @@ export default function ConvivenciaWorkspace() {
                       icon="sparkles"
                       title="Generar o complementar el Informe Oficial membretado con Tenshi IA"
                       variant="dummy"
+                    />
+                    <ToolbarButton
+                      id="ccl-modal-btn-history"
+                      onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                      label="Historial"
+                      icon={History}
+                      title="Ver Historial de Informes guardados"
+                      variant="history"
+                      active={isHistoryOpen}
                     />
                     <ToolbarButton
                       id="ccl-modal-btn-save-report"
@@ -1783,6 +1804,15 @@ export default function ConvivenciaWorkspace() {
                   </>
                 ) : (
                   <>
+                    <ToolbarButton
+                      id="ccl-modal-btn-save-data"
+                      onClick={() => handleSaveActa(false)}
+                      isLoading={isSavingData}
+                      label="Guardar Datos"
+                      icon="database"
+                      title="Guardar datos del formulario en base de datos sin cerrar"
+                      variant="database"
+                    />
                     {selectedActa && (
                       <ToolbarButton
                         id="ccl-modal-btn-share-link"
@@ -1801,6 +1831,15 @@ export default function ConvivenciaWorkspace() {
                       icon="sparkles"
                       title="Redactar borrador del acta con Tenshi IA y guardar automáticamente"
                       variant="dummy"
+                    />
+                    <ToolbarButton
+                      id="ccl-modal-btn-history"
+                      onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                      label="Historial"
+                      icon={History}
+                      title="Ver Historial de Informes guardados"
+                      variant="history"
+                      active={isHistoryOpen}
                     />
                   </>
                 )}
@@ -1821,11 +1860,6 @@ export default function ConvivenciaWorkspace() {
 
             {actaModalTab === 'report' ? (
               <div className="space-y-4">
-                <div className="flex items-center gap-2 p-3.5 bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-800/80 rounded-2xl text-teal-800 dark:text-teal-200 text-xs font-semibold">
-                  <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
-                  <span>Vista Oficial en Papel Membretado A4 con Firmas Digitales de los Participantes (Res. 3461/2025)</span>
-                </div>
-
                 {reportLoading ? (
                   <div className="flex flex-col items-center justify-center p-16 space-y-3">
                     <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
@@ -2111,19 +2145,18 @@ export default function ConvivenciaWorkspace() {
                               showToast({ message: 'Este colaborador ya está en la lista de asistentes', status: 'warning' });
                               return;
                             }
-                            setActaForm({
-                              ...actaForm,
-                              asistentes: [
-                                ...(actaForm.asistentes || []),
-                                {
-                                  nombre: w.nombre,
-                                  cedula: w.identificacion || w.cedula || '',
-                                  rol: w.cargo || 'Miembro CCL',
-                                  asistio: true,
-                                  firma: null,
-                                },
-                              ],
-                            });
+                            const nextAsistentes = [
+                              ...(actaForm.asistentes || []),
+                              {
+                                nombre: w.nombre,
+                                cedula: w.identificacion || w.cedula || '',
+                                rol: w.cargo || 'Miembro CCL',
+                                asistio: true,
+                                firma: null,
+                              },
+                            ];
+                            handleUpdateAsistentes(nextAsistentes, true);
+                            showToast({ message: 'Participante agregado y sincronizado en el Informe Oficial', status: 'success' });
                           }}
                           data={workers}
                           placeholder="+ Añadir trabajador a lista..."
@@ -2151,9 +2184,10 @@ export default function ConvivenciaWorkspace() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const updated = [...actaForm.asistentes];
-                                  updated[aIdx].firma = null;
-                                  setActaForm({ ...actaForm, asistentes: updated });
+                                  const updated = actaForm.asistentes.map((item: any, idx: number) =>
+                                    idx === aIdx ? { ...item, firma: null } : item
+                                  );
+                                  handleUpdateAsistentes(updated, true);
                                 }}
                                 className="text-slate-400 hover:text-red-500 p-1"
                                 title="Borrar firma para volver a firmar"
@@ -2188,7 +2222,7 @@ export default function ConvivenciaWorkspace() {
                             type="button"
                             onClick={() => {
                               const updated = actaForm.asistentes.filter((_: any, idx: number) => idx !== aIdx);
-                              setActaForm({ ...actaForm, asistentes: updated });
+                              handleUpdateAsistentes(updated, true);
                             }}
                             className="text-slate-300 hover:text-red-400 p-1"
                             title="Quitar asistente"
@@ -2815,11 +2849,12 @@ export default function ConvivenciaWorkspace() {
         title={`Firma Digital de ${actaForm.asistentes?.[signingAssistantIndex ?? 0]?.nombre || 'Participante'}`}
         onSave={(b64) => {
           if (signingAssistantIndex !== null) {
-            const updated = [...actaForm.asistentes];
-            updated[signingAssistantIndex].firma = b64;
-            setActaForm({ ...actaForm, asistentes: updated });
+            const updated = actaForm.asistentes.map((item: any, idx: number) =>
+              idx === signingAssistantIndex ? { ...item, firma: b64 } : item
+            );
+            handleUpdateAsistentes(updated, true);
             setSigningAssistantIndex(null);
-            showToast({ message: 'Firma registrada correctamente', status: 'success' });
+            showToast({ message: 'Firma registrada y sincronizada en el Informe Oficial', status: 'success' });
           }
         }}
       />

@@ -43,6 +43,7 @@ import WorkerAutocomplete from './WorkerAutocomplete';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ExportDropdown from './ExportDropdown';
+import { syncCommitteeSignaturesInHtml } from './committeeSignaturesHtml';
 
 interface CopasstWorkspaceProps {
   // Optional props
@@ -268,7 +269,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
       estadoActa: acta.estadoActa,
     });
     if (acta.reporteOficialHtml) {
-      setReportHtml(acta.reporteOficialHtml);
+      setReportHtml(syncCommitteeSignaturesInHtml(acta.reporteOficialHtml, acta.asistentes || [], 'copasst'));
     } else {
       setReportHtml('');
     }
@@ -508,8 +509,50 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
     }
   };
 
-  const handleCopySigningLink = () => {
-    const link = `${window.location.origin}/sgsst-public/comites/${config?.company?.id || ''}`;
+  const handleUpdateAsistentes = useCallback(
+    async (nextAsistentes: any[]) => {
+      const baseHtml = liveEditorRef.current?.getHTML() || reportHtml || selectedActa?.reporteOficialHtml || '';
+      const updatedHtml = baseHtml ? syncCommitteeSignaturesInHtml(baseHtml, nextAsistentes, 'copasst') : '';
+
+      setActaForm((prev: any) => ({
+        ...prev,
+        asistentes: nextAsistentes,
+      }));
+
+      if (updatedHtml) {
+        setReportHtml(updatedHtml);
+        liveEditorRef.current?.setHTML(updatedHtml);
+      }
+
+      // Auto-persistir los asistentes y el HTML sincronizado en base de datos si el acta ya existe o está abierta
+      try {
+        const headers = { Authorization: `Bearer ${token}` };
+        const payload = {
+          ...actaForm,
+          asistentes: nextAsistentes,
+          id: actaForm.id || selectedActa?._id,
+          reporteOficialHtml: updatedHtml || undefined,
+        };
+        const res = await axios.post('/api/sgsst/copasst/actas', payload, { headers });
+        if (res.data?.acta) {
+          setSelectedActa(res.data.acta);
+          setActaForm((prev: any) => ({
+            ...prev,
+            id: res.data.acta._id,
+            consecutivo: res.data.acta.consecutivo || prev.consecutivo,
+          }));
+          fetchAllData();
+        }
+      } catch (e) {
+        console.warn('Auto-save asistentes warning:', e);
+      }
+    },
+    [actaForm, reportHtml, selectedActa, token],
+  );
+
+  const handleCopySigningLink = async () => {
+    const companyId = config?.company?.id || config?.comite?.companyId || '';
+    const link = `${window.location.origin}/sgsst-public/comites/${companyId}`;
     navigator.clipboard.writeText(link);
     showToast({ message: 'Enlace copiado. Compártelo con los miembros del comité para firmar desde su dispositivo.', status: 'success' });
   };
@@ -615,18 +658,18 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
       showToast({ message: 'Todos los miembros oficiales del COPASST ya están convocados en el acta.', status: 'info' });
       return;
     }
-    setActaForm({
-      ...actaForm,
-      asistentes: [...(actaForm.asistentes || []), ...nuevos],
-    });
-    showToast({ message: `Se convocaron ${nuevos.length} miembros oficiales del COPASST para firmar`, status: 'success' });
+    const nextAsistentes = [...(actaForm.asistentes || []), ...nuevos];
+    handleUpdateAsistentes(nextAsistentes);
+    showToast({ message: `Se convocaron ${nuevos.length} miembros oficiales del COPASST y se actualizaron en el informe`, status: 'success' });
   };
 
-  const handleCopyWorkerSignLink = (cedula: string) => {
+  const handleCopyWorkerSignLink = async (cedula: string) => {
     const origin = window.location.origin;
-    const companyId = config?.comite?.companyId || '';
+    const companyId = config?.company?.id || config?.comite?.companyId || '';
     const url = `${origin}/sgsst-public/comites/${companyId}?cedula=${encodeURIComponent(cedula)}`;
     navigator.clipboard.writeText(url);
+    // Asegurar que el asistente esté guardado en BD antes de que abra el enlace
+    handleUpdateAsistentes(actaForm.asistentes || []);
     showToast({ message: 'Enlace de firma copiado. Puedes enviarlo por WhatsApp al trabajador.', status: 'success' });
   };
 
@@ -788,27 +831,14 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
         customSections={[
           <div key="copasst-actions-bar" className="flex items-center gap-1.5">
             {activeTab === 'actas' && (
-              <>
-                <ToolbarButton
-                  id="tb-new-acta"
-                  onClick={() => handleOpenNewActa()}
-                  label="Nueva Acta Mensual"
-                  icon={Plus}
-                  title="Registrar o Continuar Acta Mensual del COPASST"
-                  variant="ai"
-                />
-                {showActaModal && (
-                  <ToolbarButton
-                    id="tb-save-acta-data"
-                    onClick={() => handleSaveActa(false)}
-                    isLoading={isSavingData}
-                    label="Guardar Datos"
-                    icon="database"
-                    title="Guardar datos del acta en la base de datos"
-                    variant="database"
-                  />
-                )}
-              </>
+              <ToolbarButton
+                id="tb-new-acta"
+                onClick={() => handleOpenNewActa()}
+                label="Nueva Acta Mensual"
+                icon={Plus}
+                title="Registrar o Continuar Acta Mensual del COPASST"
+                variant="ai"
+              />
             )}
             {activeTab === 'conformacion' && (
               <>
@@ -889,7 +919,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
               return (
                 <div
                   key={mesNum}
-                  className={`rounded-2xl border p-4 transition-all duration-300 relative group flex flex-col justify-between ${
+                  className={`rounded-2xl border p-4 transition-all duration-300 relative flex flex-col justify-between ${
                     actaDelMes
                       ? 'bg-white dark:bg-zinc-900 border-teal-500/40 shadow-sm hover:border-teal-500 hover:shadow-md'
                       : isPassed
@@ -954,7 +984,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                     )}
                   </div>
 
-                  {/* Micro-Botones Expansibles al Hover */}
+                  {/* Micro-Botones Expansibles al Hover (individuales por botón) */}
                   <div className="flex items-center justify-end gap-1.5 mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800">
                     {actaDelMes ? (
                       <>
@@ -963,44 +993,44 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                             handleEditActa(actaDelMes);
                             setActaModalTab('report');
                           }}
-                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100"
+                          className="group/btn shrink-0 flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-200 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100"
                           title="Ver Informe Oficial del Acta"
                         >
-                          <Printer className="w-3.5 h-3.5" />
-                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                          <Printer className="w-3.5 h-3.5 shrink-0" />
+                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-out group-hover/btn:ml-1 group-hover/btn:max-w-[110px] group-hover/btn:opacity-100 sm:flex">
                             <span className="text-[10px] font-bold">Informe Oficial</span>
                           </div>
                         </button>
 
                         <button
                           onClick={handleCopySigningLink}
-                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100"
+                          className="group/btn shrink-0 flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-200 px-1.5 shadow-sm active:scale-95 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100"
                           title="Copiar Enlace de Firma para Miembros"
                         >
-                          <Share2 className="w-3.5 h-3.5" />
-                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                          <Share2 className="w-3.5 h-3.5 shrink-0" />
+                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-out group-hover/btn:ml-1 group-hover/btn:max-w-[110px] group-hover/btn:opacity-100 sm:flex">
                             <span className="text-[10px] font-bold">Copiar Link</span>
                           </div>
                         </button>
 
                         <button
                           onClick={() => handleEditActa(actaDelMes)}
-                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700"
+                          className="group/btn shrink-0 flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-200 px-1.5 shadow-sm active:scale-95 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700"
                           title="Ver y Editar Acta"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
-                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                          <Edit2 className="w-3.5 h-3.5 shrink-0" />
+                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-out group-hover/btn:ml-1 group-hover/btn:max-w-[110px] group-hover/btn:opacity-100 sm:flex">
                             <span className="text-[10px] font-bold">Examinar</span>
                           </div>
                         </button>
 
                         <button
                           onClick={() => handleDeleteActa(actaDelMes._id)}
-                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600"
+                          className="group/btn shrink-0 flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-200 px-1.5 shadow-sm active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600"
                           title="Eliminar Acta"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                          <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-out group-hover/btn:ml-1 group-hover/btn:max-w-[110px] group-hover/btn:opacity-100 sm:flex">
                             <span className="text-[10px] font-bold">Eliminar</span>
                           </div>
                         </button>
@@ -1008,11 +1038,11 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                     ) : (
                       <button
                         onClick={() => handleOpenNewActa(mesNum)}
-                        className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-2 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 text-teal-600 dark:text-teal-300"
+                        className="group/btn shrink-0 flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-200 px-2 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 text-teal-600 dark:text-teal-300"
                         title="Diligenciar Acta del Mes"
                       >
-                        <Plus className="w-3.5 h-3.5" />
-                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                        <Plus className="w-3.5 h-3.5 shrink-0" />
+                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-out group-hover/btn:ml-1 group-hover/btn:max-w-[110px] group-hover/btn:opacity-100 sm:flex">
                           <span className="text-[10px] font-bold">Diligenciar</span>
                         </div>
                       </button>
@@ -1310,8 +1340,11 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 <ToolbarButton
                   id="modal-tab-report"
                   onClick={() => {
-                    if (!reportHtml && selectedActa?.reporteOficialHtml) {
-                      setReportHtml(selectedActa.reporteOficialHtml);
+                    const baseHtml = liveEditorRef.current?.getHTML() || reportHtml || selectedActa?.reporteOficialHtml || '';
+                    if (baseHtml) {
+                      const synced = syncCommitteeSignaturesInHtml(baseHtml, actaForm.asistentes || [], 'copasst');
+                      setReportHtml(synced);
+                      liveEditorRef.current?.setHTML(synced);
                     }
                     setActaModalTab('report');
                   }}
@@ -1324,26 +1357,6 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
 
                 <div className="h-5 w-px bg-slate-200 dark:bg-zinc-700 mx-0.5" />
 
-                <ToolbarButton
-                  id="modal-btn-history"
-                  onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                  label="Historial"
-                  icon={History}
-                  title="Ver Historial de Informes guardados"
-                  variant="history"
-                  active={isHistoryOpen}
-                />
-
-                <ToolbarButton
-                  id="modal-btn-save-data"
-                  onClick={() => handleSaveActa(false)}
-                  isLoading={isSavingData}
-                  label="Guardar Datos"
-                  icon="database"
-                  title="Guardar datos del formulario en base de datos sin cerrar"
-                  variant="database"
-                />
-
                 {actaModalTab === 'report' ? (
                   <>
                     <ToolbarButton
@@ -1354,6 +1367,15 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                       icon="sparkles"
                       title="Generar o complementar el Informe Oficial membretado con Tenshi IA"
                       variant="dummy"
+                    />
+                    <ToolbarButton
+                      id="modal-btn-history"
+                      onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                      label="Historial"
+                      icon={History}
+                      title="Ver Historial de Informes guardados"
+                      variant="history"
+                      active={isHistoryOpen}
                     />
                     <ToolbarButton
                       id="modal-btn-save-report"
@@ -1372,6 +1394,33 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                   </>
                 ) : (
                   <>
+                    <ToolbarButton
+                      id="modal-btn-ai-draft"
+                      onClick={handleGenerateWithAI}
+                      isLoading={isGeneratingIA}
+                      label={isGeneratingIA ? 'Redactando...' : 'Redactar con Tenshi IA'}
+                      icon="sparkles"
+                      title="Redactar borrador del acta con Tenshi IA y guardar automáticamente"
+                      variant="dummy"
+                    />
+                    <ToolbarButton
+                      id="modal-btn-history"
+                      onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                      label="Historial"
+                      icon={History}
+                      title="Ver Historial de Informes guardados"
+                      variant="history"
+                      active={isHistoryOpen}
+                    />
+                    <ToolbarButton
+                      id="modal-btn-save-data"
+                      onClick={() => handleSaveActa(false)}
+                      isLoading={isSavingData}
+                      label="Guardar Datos"
+                      icon="database"
+                      title="Guardar datos del formulario en base de datos sin cerrar"
+                      variant="database"
+                    />
                     {selectedActa && (
                       <ToolbarButton
                         id="modal-btn-share-link"
@@ -1382,15 +1431,6 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                         variant="history"
                       />
                     )}
-                    <ToolbarButton
-                      id="modal-btn-ai-draft"
-                      onClick={handleGenerateWithAI}
-                      isLoading={isGeneratingIA}
-                      label={isGeneratingIA ? 'Redactando...' : 'Redactar con Tenshi IA'}
-                      icon="sparkles"
-                      title="Redactar borrador del acta con Tenshi IA y guardar automáticamente"
-                      variant="dummy"
-                    />
                   </>
                 )}
 
@@ -1410,11 +1450,6 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
 
             {actaModalTab === 'report' ? (
               <div className="space-y-4">
-                <div className="flex items-center gap-2 p-3.5 bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-800/80 rounded-2xl text-teal-800 dark:text-teal-200 text-xs font-semibold">
-                  <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
-                  <span>Vista Oficial en Papel Membretado A4 con Firmas Digitales de los Participantes (Ley 527/1999)</span>
-                </div>
-
                 {reportLoading ? (
                   <div className="flex flex-col items-center justify-center p-16 space-y-3">
                     <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
@@ -1530,19 +1565,18 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                           showToast({ message: 'Este colaborador ya está en la lista de asistentes', status: 'warning' });
                           return;
                         }
-                        setActaForm({
-                          ...actaForm,
-                          asistentes: [
-                            ...(actaForm.asistentes || []),
-                            {
-                              nombre: w.nombre,
-                              cedula: w.identificacion || w.cedula || '',
-                              rol: w.cargo || 'Participante',
-                              asistio: true,
-                              firma: null,
-                            },
-                          ],
-                        });
+                        const nextAsistentes = [
+                          ...(actaForm.asistentes || []),
+                          {
+                            nombre: w.nombre,
+                            cedula: w.identificacion || w.cedula || '',
+                            cargo: w.cargo || '',
+                            rol: w.cargo || 'Participante',
+                            asistio: true,
+                            firma: null,
+                          },
+                        ];
+                        handleUpdateAsistentes(nextAsistentes);
                       }}
                       data={workers}
                       placeholder="+ Añadir trabajador a lista..."
@@ -1571,8 +1605,8 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                             type="button"
                             onClick={() => {
                               const updated = [...actaForm.asistentes];
-                              updated[aIdx].firma = null;
-                              setActaForm({ ...actaForm, asistentes: updated });
+                              updated[aIdx] = { ...updated[aIdx], firma: null, firmadoEn: null };
+                              handleUpdateAsistentes(updated);
                             }}
                             className="text-slate-400 hover:text-red-500 p-1"
                             title="Borrar firma para volver a firmar"
@@ -1607,7 +1641,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                         type="button"
                         onClick={() => {
                           const updated = actaForm.asistentes.filter((_: any, idx: number) => idx !== aIdx);
-                          setActaForm({ ...actaForm, asistentes: updated });
+                          handleUpdateAsistentes(updated);
                         }}
                         className="text-slate-300 hover:text-red-400 p-1"
                         title="Quitar asistente"
@@ -2257,10 +2291,14 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
         onSave={(b64) => {
           if (signingAssistantIndex !== null) {
             const updated = [...actaForm.asistentes];
-            updated[signingAssistantIndex].firma = b64;
-            setActaForm({ ...actaForm, asistentes: updated });
+            updated[signingAssistantIndex] = {
+              ...updated[signingAssistantIndex],
+              firma: b64,
+              firmadoEn: new Date().toISOString(),
+            };
+            handleUpdateAsistentes(updated);
             setSigningAssistantIndex(null);
-            showToast({ message: 'Firma registrada correctamente', status: 'success' });
+            showToast({ message: 'Firma registrada y actualizada en el Informe Oficial', status: 'success' });
           }
         }}
       />
