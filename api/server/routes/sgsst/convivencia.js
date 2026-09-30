@@ -5,6 +5,7 @@ const CompanyInfo = require('../../../models/CompanyInfo');
 const { SgsstConvivenciaComite, SgsstConvivenciaActa, SgsstConvivenciaCaso } = require('../../../models/SgsstConvivencia');
 const { SgsstEleccion } = require('../../../models/SgsstCopasst');
 const { SgsstPadronVotante, SgsstVotoAnonimo } = require('../../../models/SgsstVotacion');
+const SgsstWorker = require('../../../models/SgsstWorker');
 const KanbanTask = require('../../../models/KanbanTask');
 const PerfilSociodemograficoData = require('../../../models/PerfilSociodemograficoData');
 const { generateWithKeyRotation } = require('./sgsstGemini');
@@ -409,6 +410,15 @@ router.post('/actas', requireJwtAuth, async (req, res) => {
     if (estadoActa) acta.estadoActa = estadoActa;
     if (reporteOficialHtml !== undefined) acta.reporteOficialHtml = reporteOficialHtml;
 
+    if (acta.reporteOficialHtml) {
+      const { updateCommitteeSignatureSectionInHtml } = require('./reportHeader');
+      acta.reporteOficialHtml = updateCommitteeSignatureSectionInHtml(acta.reporteOficialHtml, {
+        asistentes: acta.asistentes,
+        companyInfo: company,
+        tipoComite: 'cocolab',
+      });
+    }
+
     await acta.save();
 
     // Sincronizar compromisos con el Centro de Control (KanbanTask / ACPM Hito 07)
@@ -812,7 +822,7 @@ router.post('/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
           </div>
           <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px;">
             <div style="font-size: 16px; font-weight: 900; color: #9333ea;">${stats.casosAcosoSexualLey2365 || 0}</div>
-            <div style="font-size: 9.5px; color: #64748b; font-weight: 700; text-transform: uppercase;">Ley 2365 (Sexual)</div>
+            <div style="font-size: 9.5px; color: #64748b; font-weight: 700; text-transform: uppercase;">Sexual</div>
           </div>
         </div>
       </div>
@@ -1041,14 +1051,14 @@ Devuelve un objeto JSON válido con dos propiedades principales:
                 <td style="padding: 8px 12px; width: 25%;">Trimestre Q${acta.trimestre} de ${acta.anio}</td>
               </tr>
               <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Tipo de Reunión:</td>
-                <td style="padding: 8px 12px; text-transform: capitalize;">${acta.tipo === 'extraordinaria' ? 'Extraordinaria' : 'Ordinaria Trimestral'}</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Fecha de la Sesión:</td>
+                <td style="padding: 8px 12px;">${formattedDate}</td>
                 <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Horario:</td>
                 <td style="padding: 8px 12px;">${acta.horaInicio || '09:00'} - ${acta.horaFin || '11:00'}</td>
               </tr>
               <tr>
-                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Lugar de la Sesión:</td>
-                <td style="padding: 8px 12px;">${acta.lugar || 'Sala Confidencial de Convivencia'}</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Sede / Lugar:</td>
+                <td style="padding: 8px 12px;">${acta.centroTrabajo ? `${acta.centroTrabajo} — ` : ''}${acta.lugar || 'Sala Confidencial de Convivencia'}</td>
                 <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Quórum Reglamentario:</td>
                 <td style="padding: 8px 12px; font-weight: bold; color: ${acta.quorumVerificado !== false ? '#15803d' : '#b45309'};">
                   ${acta.quorumVerificado !== false ? '✓ Quórum Verificado y Válido (Mitad + 1)' : 'Quórum Pendiente'}
@@ -1083,6 +1093,7 @@ Devuelve un objeto JSON válido con dos propiedades principales:
           consecutivo: autConsecutivo,
           trimestre: targetQuarter,
           anio: targetYear,
+          fecha: acta.fecha || Date.now(),
           tipo: acta.tipo || 'ordinaria_trimestral',
           centroTrabajo: acta.centroTrabajo || 'Sede Principal',
           lugar: acta.lugar || 'Sala Confidencial de Convivencia / Híbrida',
@@ -1100,9 +1111,12 @@ Devuelve un objeto JSON válido con dos propiedades principales:
       if (Array.isArray(acta.asistentes)) dbActa.asistentes = acta.asistentes;
       if (Array.isArray(acta.compromisos)) dbActa.compromisos = acta.compromisos;
       if (acta.estadisticasQuejas) dbActa.estadisticasQuejas = { ...dbActa.estadisticasQuejas, ...acta.estadisticasQuejas };
+      if (acta.fecha) dbActa.fecha = acta.fecha;
+      if (acta.centroTrabajo) dbActa.centroTrabajo = acta.centroTrabajo;
       if (acta.lugar) dbActa.lugar = acta.lugar;
       if (acta.horaInicio) dbActa.horaInicio = acta.horaInicio;
       if (acta.horaFin) dbActa.horaFin = acta.horaFin;
+      if (acta.quorumVerificado !== undefined) dbActa.quorumVerificado = acta.quorumVerificado;
       dbActa.desarrollo = { ...dbActa.desarrollo, ...desarrolloEnriquecido };
       dbActa.reporteOficialHtml = fullHtml;
       await dbActa.save();
@@ -1116,6 +1130,50 @@ Devuelve un objeto JSON válido con dos propiedades principales:
       reportType: 'general',
     });
     await publicReport.save();
+
+    // Guardar también en el Historial de Informes (Conversation + Message)
+    try {
+      const { saveConvo } = require('~/models/Conversation');
+      const { saveMessage } = require('~/models/Message');
+      const { Conversation } = require('~/db/models');
+      const conversationId = uuidv4();
+      const messageId = uuidv4();
+      const reportTitle = `Acta Convivencia ${dbActa?.consecutivo || acta.consecutivo || ''} - Q${dbActa?.trimestre || acta.trimestre}/${dbActa?.anio || acta.anio}`;
+      const reportTags = ['sgsst-convivencia', `company-${company._id.toString()}`];
+
+      await saveConvo(
+        req,
+        {
+          conversationId,
+          title: reportTitle,
+          endpoint: 'sgsst-diagnostico',
+          model: 'sgsst-diagnostico',
+          tags: reportTags,
+        },
+        { context: 'CONVIVENCIA reporte-oficial history' }
+      );
+      await saveMessage(
+        req,
+        {
+          messageId,
+          conversationId,
+          text: fullHtml,
+          sender: 'Comité de Convivencia',
+          isCreatedByUser: false,
+          parentMessageId: '00000000-0000-0000-0000-000000000000',
+        },
+        { context: 'CONVIVENCIA reporte-oficial message' }
+      );
+      if (Conversation) {
+        await Conversation.findOneAndUpdate(
+          { conversationId, user: req.user.id },
+          { $addToSet: { tags: { $each: reportTags } } },
+          { new: true }
+        );
+      }
+    } catch (histErr) {
+      logger.warn('[CONVIVENCIA] Could not save report to Conversation history:', histErr.message);
+    }
 
     res.json({
       success: true,

@@ -148,17 +148,21 @@ const ReportHistory = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const tagsKey = Array.isArray(tags) && tags.length > 0 ? tags.join(',') : 'report';
+
   // ─── Fetch directly from the dedicated backend endpoint ───────────────────
   // This completely bypasses React Query's cache, guaranteeing fresh data
   // that is already filtered by the active company on the server.
   const fetchHistory = useCallback(async () => {
-    if (!isAuthenticated) return;
+    const token = authToken || localStorage.getItem('token');
+    if (!isAuthenticated && !token) return;
     setIsLoading(true);
     setError(null);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     try {
-      // Use token from AuthContext first (always current), fallback to localStorage
-      const token = authToken || localStorage.getItem('token');
-      const tagParams = tags.map((t) => `tags=${encodeURIComponent(t)}`).join('&');
+      const currentTags = tagsKey.split(',').filter(Boolean);
+      const tagParams = currentTags.map((t) => `tags=${encodeURIComponent(t)}`).join('&');
       let endpoint = historyEndpoint || '/api/sgsst/diagnostico/report-history';
       if (tagParams) {
         endpoint += `${endpoint.includes('?') ? '&' : '?'}${tagParams}`;
@@ -166,6 +170,7 @@ const ReportHistory = ({
       const res = await fetch(endpoint, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         cache: 'no-store', // Never use browser cache
+        signal: controller.signal,
       });
       if (!res.ok) {
         let errMsg = 'Error al cargar el historial';
@@ -182,13 +187,18 @@ const ReportHistory = ({
       }
       const data = await res.json();
       setConversations(data.conversations || []);
-    } catch (_e) {
-      setError('Error de red al cargar el historial');
+    } catch (_e: any) {
+      if (_e?.name === 'AbortError') {
+        setError('La consulta tardó demasiado. Pulsa Actualizar para reintentar.');
+      } else {
+        setError('Error de red al cargar el historial');
+      }
       setConversations([]);
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
     }
-  }, [isAuthenticated, authToken, tags, historyEndpoint]);
+  }, [isAuthenticated, authToken, tagsKey, historyEndpoint]);
 
   // Fetch when modal opens
   useEffect(() => {

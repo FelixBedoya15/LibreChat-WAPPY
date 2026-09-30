@@ -147,6 +147,10 @@ const copasstActaSchema = new mongoose.Schema(
       type: String,
       default: '10:00',
     },
+    centroTrabajo: {
+      type: String,
+      default: 'Sede Principal',
+    },
     lugar: {
       type: String,
       default: 'Sala Principal de Reuniones / Híbrida',

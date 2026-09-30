@@ -181,8 +181,8 @@ export const PHASE_CATEGORIES = {
             normativity: 'Hito 7: Auditoría, Causalidad y Mejora Continua' 
         },
         { 
-            id: 'investigacion_atel', title: 'Investigación Forense ATEL', icon: 'Activity',
-            bioRationale: 'Indagación forense de causa raíz (Árbol de Causas e Ishikawa) asistida por IA para restaurar la salud del sistema.', 
+            id: 'investigacion_atel', title: 'Investigación ATEL', icon: 'Activity',
+            bioRationale: 'Investigación técnica de causa raíz (Árbol de Causas e Ishikawa) asistida por IA para restaurar la salud del sistema.', 
             normativity: 'Hito 7: Auditoría, Causalidad y Mejora Continua' 
         },
         { 

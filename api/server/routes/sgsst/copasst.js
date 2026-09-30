@@ -252,6 +252,7 @@ router.post('/actas', requireJwtAuth, async (req, res) => {
       fecha,
       horaInicio,
       horaFin,
+      centroTrabajo,
       lugar,
       ordenDelDia,
       quorumVerificado,
@@ -295,6 +296,7 @@ router.post('/actas', requireJwtAuth, async (req, res) => {
     if (fecha) acta.fecha = fecha;
     if (horaInicio) acta.horaInicio = horaInicio;
     if (horaFin) acta.horaFin = horaFin;
+    if (centroTrabajo) acta.centroTrabajo = centroTrabajo;
     if (lugar) acta.lugar = lugar;
     if (Array.isArray(ordenDelDia)) acta.ordenDelDia = ordenDelDia;
     if (quorumVerificado !== undefined) acta.quorumVerificado = quorumVerificado;
@@ -304,6 +306,15 @@ router.post('/actas', requireJwtAuth, async (req, res) => {
     if (proximaReunionFecha !== undefined) acta.proximaReunionFecha = proximaReunionFecha;
     if (estadoActa) acta.estadoActa = estadoActa;
     if (reporteOficialHtml !== undefined) acta.reporteOficialHtml = reporteOficialHtml;
+
+    if (acta.reporteOficialHtml) {
+      const { updateCommitteeSignatureSectionInHtml } = require('./reportHeader');
+      acta.reporteOficialHtml = updateCommitteeSignatureSectionInHtml(acta.reporteOficialHtml, {
+        asistentes: acta.asistentes,
+        companyInfo: company,
+        tipoComite: 'copasst',
+      });
+    }
 
     await acta.save();
 
@@ -925,14 +936,14 @@ Devuelve un objeto JSON válido con dos propiedades principales:
                 <td style="padding: 8px 12px; width: 25%;">Mes ${acta.mes} de ${acta.anio}</td>
               </tr>
               <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Tipo de Reunión:</td>
-                <td style="padding: 8px 12px; text-transform: capitalize;">${acta.tipo === 'extraordinaria' ? 'Extraordinaria' : 'Ordinaria Mensual'}</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Fecha de la Sesión:</td>
+                <td style="padding: 8px 12px;">${formattedDate}</td>
                 <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Horario:</td>
                 <td style="padding: 8px 12px;">${acta.horaInicio || '08:00'} - ${acta.horaFin || '10:00'}</td>
               </tr>
               <tr>
-                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Lugar de la Sesión:</td>
-                <td style="padding: 8px 12px;">${acta.lugar || 'Sede Principal / Virtual'}</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Sede / Lugar:</td>
+                <td style="padding: 8px 12px;">${acta.centroTrabajo ? `${acta.centroTrabajo} — ` : ''}${acta.lugar || 'Sede Principal / Virtual'}</td>
                 <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Quórum Reglamentario:</td>
                 <td style="padding: 8px 12px; font-weight: bold; color: ${acta.quorumVerificado !== false ? '#15803d' : '#b45309'};">
                   ${acta.quorumVerificado !== false ? '✓ Quórum Verificado y Válido (Mitad + 1)' : 'Quórum Pendiente'}
@@ -975,7 +986,9 @@ Devuelve un objeto JSON válido con dos propiedades principales:
           consecutivo: autConsecutivo,
           mes: targetMonth,
           anio: targetYear,
+          fecha: acta.fecha || Date.now(),
           tipo: acta.tipo || 'ordinaria_mensual',
+          centroTrabajo: acta.centroTrabajo || 'Sede Principal',
           lugar: acta.lugar || 'Sala Principal de Reuniones / Híbrida',
           horaInicio: acta.horaInicio || '08:00',
           horaFin: acta.horaFin || '10:00',
@@ -989,9 +1002,12 @@ Devuelve un objeto JSON válido con dos propiedades principales:
     if (dbActa) {
       if (Array.isArray(acta.asistentes)) dbActa.asistentes = acta.asistentes;
       if (Array.isArray(acta.compromisos)) dbActa.compromisos = acta.compromisos;
+      if (acta.fecha) dbActa.fecha = acta.fecha;
+      if (acta.centroTrabajo) dbActa.centroTrabajo = acta.centroTrabajo;
       if (acta.lugar) dbActa.lugar = acta.lugar;
       if (acta.horaInicio) dbActa.horaInicio = acta.horaInicio;
       if (acta.horaFin) dbActa.horaFin = acta.horaFin;
+      if (acta.quorumVerificado !== undefined) dbActa.quorumVerificado = acta.quorumVerificado;
       dbActa.desarrollo = { ...dbActa.desarrollo, ...desarrolloEnriquecido };
       dbActa.reporteOficialHtml = fullHtml;
       await dbActa.save();
@@ -1005,6 +1021,50 @@ Devuelve un objeto JSON válido con dos propiedades principales:
       reportType: 'general',
     });
     await publicReport.save();
+
+    // Guardar también en el Historial de Informes (Conversation + Message)
+    try {
+      const { saveConvo } = require('~/models/Conversation');
+      const { saveMessage } = require('~/models/Message');
+      const { Conversation } = require('~/db/models');
+      const conversationId = uuidv4();
+      const messageId = uuidv4();
+      const reportTitle = `Acta COPASST ${dbActa?.consecutivo || acta.consecutivo || ''} - Mes ${dbActa?.mes || acta.mes}/${dbActa?.anio || acta.anio}`;
+      const reportTags = ['sgsst-copasst', `company-${company._id.toString()}`];
+
+      await saveConvo(
+        req,
+        {
+          conversationId,
+          title: reportTitle,
+          endpoint: 'sgsst-diagnostico',
+          model: 'sgsst-diagnostico',
+          tags: reportTags,
+        },
+        { context: 'COPASST reporte-oficial history' }
+      );
+      await saveMessage(
+        req,
+        {
+          messageId,
+          conversationId,
+          text: fullHtml,
+          sender: 'COPASST',
+          isCreatedByUser: false,
+          parentMessageId: '00000000-0000-0000-0000-000000000000',
+        },
+        { context: 'COPASST reporte-oficial message' }
+      );
+      if (Conversation) {
+        await Conversation.findOneAndUpdate(
+          { conversationId, user: req.user.id },
+          { $addToSet: { tags: { $each: reportTags } } },
+          { new: true }
+        );
+      }
+    } catch (histErr) {
+      logger.warn('[COPASST] Could not save report to Conversation history:', histErr.message);
+    }
 
     res.json({
       success: true,

@@ -614,7 +614,7 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="fcv2-body" style={{ background: '#ECFEFF', color: '#155E75' }}>
-                  Expertos dedicados: Médico Laboral, Auditor SG-SST, Especialista en Riesgo Químico (SGA), Biomecánica & ROSA, Tareas Críticas, GTC-45, Analista Forense AT/EL y Salud Mental.
+                  Expertos dedicados: Médico Laboral, Auditor SG-SST, Especialista en Riesgo Químico (SGA), Biomecánica & ROSA, Tareas Críticas, GTC-45, Analista de Investigación AT/EL y Salud Mental.
                 </div>
               </div>
 
@@ -2474,7 +2474,7 @@ export default function LandingPage() {
                 </svg>
               </span>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', textAlign: 'center', lineHeight: 1.25, padding: '0 4px' }}>
-                Investigación Forense
+                Investigación ATEL
               </span>
               <span style={{ fontSize: 9, fontWeight: 800, color: '#9333EA', background: '#FAF5FF', padding: '2px 6px', borderRadius: 9999 }}>
                 Hito 7 · Árbol Causas

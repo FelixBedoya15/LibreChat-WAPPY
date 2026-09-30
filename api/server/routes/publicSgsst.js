@@ -2887,6 +2887,15 @@ const handleFirmarActa = async (req, res) => {
       acta.estadoActa = 'en_firmas';
     }
 
+    if (acta.reporteOficialHtml) {
+      const { updateCommitteeSignatureSectionInHtml } = require('./sgsst/reportHeader');
+      acta.reporteOficialHtml = updateCommitteeSignatureSectionInHtml(acta.reporteOficialHtml, {
+        asistentes: acta.asistentes,
+        companyInfo: company,
+        tipoComite: normalizedTipo,
+      });
+    }
+
     acta.markModified('asistentes');
     await acta.save();
 

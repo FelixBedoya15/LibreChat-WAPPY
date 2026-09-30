@@ -169,22 +169,52 @@ export default function RouteErrorBoundary() {
     data: typedError.data,
   };
 
+  const isChunkError =
+    errorDetails.message.includes('Failed to fetch dynamically imported module') ||
+    errorDetails.message.includes('Importing a module script failed') ||
+    errorDetails.message.includes('error loading dynamically imported module') ||
+    Boolean(
+      errorDetails.stack &&
+        (errorDetails.stack.includes('Failed to fetch dynamically imported module') ||
+          errorDetails.stack.includes('Importing a module script failed')),
+    );
+
+  const lastReload = typeof window !== 'undefined' ? sessionStorage.getItem('auto_reload_chunk_error') : null;
+  const shouldAutoReload =
+    isChunkError && (!lastReload || Date.now() - parseInt(lastReload, 10) > 15000);
+
   useEffect(() => {
-    const isChunkError =
-      errorDetails.message.includes('Failed to fetch dynamically imported module') ||
-      (errorDetails.stack && errorDetails.stack.includes('Failed to fetch dynamically imported module'));
+    if (!shouldAutoReload) return;
+    sessionStorage.setItem('auto_reload_chunk_error', Date.now().toString());
 
-    if (isChunkError) {
-      const lastReload = sessionStorage.getItem('auto_reload_chunk_error');
-      const now = Date.now();
-
-      // Si no hemos reintentado en los últimos 10 segundos, recargamos
-      if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
-        sessionStorage.setItem('auto_reload_chunk_error', now.toString());
+    const clearCachesAndReload = async () => {
+      try {
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map((r) => r.update().catch(() => r.unregister())));
+        }
+        if ('caches' in window) {
+          const keys = await window.caches.keys();
+          await Promise.all(keys.map((k) => window.caches.delete(k)));
+        }
+      } catch (e) {
+        logger.warn('Failed to clear SW cache on chunk error:', e);
+      } finally {
         window.location.reload();
       }
-    }
-  }, [errorDetails.message, errorDetails.stack]);
+    };
+
+    clearCachesAndReload();
+  }, [shouldAutoReload]);
+
+  if (shouldAutoReload) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-surface-primary p-6 text-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-teal-500 border-t-transparent mb-4" />
+        <p className="text-sm font-bold text-text-primary">Actualizando WAPPY a la versión más reciente...</p>
+      </div>
+    );
+  }
 
   const handleDownloadLogs = async () => {
     try {

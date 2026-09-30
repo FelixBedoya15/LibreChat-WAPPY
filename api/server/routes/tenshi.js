@@ -648,7 +648,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
                         const diligenciarFormularioDeclaration = {
                             name: 'wappy_diligenciar_formulario',
-                            description: 'Diligenciar Formulario: Autocompleta o redacta automáticamente campos de un formulario o aplicativo en pantalla (Investigación Forense ATEL, PESV, Alturas, Reporte de Actos, etc.) con datos estructurados.',
+                            description: 'Diligenciar Formulario: Autocompleta o redacta automáticamente campos de un formulario o aplicativo en pantalla (Investigación ATEL, PESV, Alturas, Reporte de Actos, etc.) con datos estructurados.',
                             parameters: {
                                 type: 'OBJECT',
                                 properties: {

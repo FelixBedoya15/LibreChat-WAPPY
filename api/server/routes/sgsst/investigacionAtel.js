@@ -229,7 +229,7 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
         };
 
         const systemPrompt = `Eres un asistente de Inteligencia Artificial experto en Seguridad y Salud en el Trabajo (SGSST) en Colombia (Resolución 1401 de 2007).
-Tu labor es transcribir, interpretar y mapear con máxima fidelidad forense toda la información contenida en este formulario FURAT (Formato Único de Reporte de Accidente de Trabajo) o informe de accidente/incidente.
+Tu labor es transcribir, interpretar y mapear con máxima fidelidad técnica toda la información contenida en este formulario FURAT (Formato Único de Reporte de Accidente de Trabajo) o informe de accidente/incidente.
 
 Lee meticulosamente todas las secciones (I. Empleador/Contratante, II. Trabajador accidentado, III. Información sobre el accidente, IV. Descripción del accidente, firmas y responsables):
 

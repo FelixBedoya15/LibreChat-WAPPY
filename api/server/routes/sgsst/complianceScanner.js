@@ -277,7 +277,7 @@ const SGSST_REPORT_MODULES = [
   },
   {
     tags: ['sgsst-investigacion-atel'],
-    moduleTitle: 'Hito 6: Investigación Forense ATEL',
+    moduleTitle: 'Hito 6: Investigación ATEL',
     codes: ['3.2.2', '7.1.3'],
     auditIds: ['aud_3_2_2', 'aud_7_1_3'],
     art3Ids: [],

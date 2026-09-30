@@ -31,10 +31,34 @@ import CollapsibleReportBox from './CollapsibleReportBox';
 import AcpmActionPlanBox, { type ActionPlanItem } from './AcpmActionPlanBox';
 
 const STATUS_OPTIONS = [
-    { value: 'cumple' as const, label: 'Cumple', icon: CheckCircle2, color: 'text-green-500 bg-green-500/10' },
-    { value: 'no_cumple' as const, label: 'No Cumple', icon: XCircle, color: 'text-red-500 bg-red-500/10' },
-    { value: 'parcial' as const, label: 'Parcial', icon: AlertCircle, color: 'text-yellow-500 bg-yellow-500/10' },
-    { value: 'no_aplica' as const, label: 'No Aplica', icon: MinusCircle, color: 'text-gray-400 bg-gray-400/10' },
+    {
+        value: 'cumple' as const,
+        label: 'Cumple',
+        icon: CheckCircle2,
+        color: 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-500 text-emerald-600 dark:text-emerald-300 font-bold shadow-xs',
+        hoverColor: 'hover:bg-emerald-50/80 dark:hover:bg-emerald-950/30 hover:text-emerald-600 dark:hover:text-emerald-300 hover:border-emerald-300',
+    },
+    {
+        value: 'no_cumple' as const,
+        label: 'No Cumple',
+        icon: XCircle,
+        color: 'bg-red-50 dark:bg-red-950/50 border-red-500 text-red-600 dark:text-red-300 font-bold shadow-xs',
+        hoverColor: 'hover:bg-red-50/80 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-300 hover:border-red-300',
+    },
+    {
+        value: 'parcial' as const,
+        label: 'Parcial',
+        icon: AlertCircle,
+        color: 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 text-amber-600 dark:text-amber-300 font-bold shadow-xs',
+        hoverColor: 'hover:bg-amber-50/80 dark:hover:bg-amber-950/30 hover:text-amber-600 dark:hover:text-amber-300 hover:border-amber-300',
+    },
+    {
+        value: 'no_aplica' as const,
+        label: 'No Aplica',
+        icon: MinusCircle,
+        color: 'bg-slate-100 dark:bg-zinc-800 border-slate-400 dark:border-zinc-500 text-slate-700 dark:text-zinc-200 font-bold shadow-xs',
+        hoverColor: 'hover:bg-slate-100 dark:hover:bg-zinc-700 hover:text-slate-700 dark:hover:text-zinc-200 hover:border-slate-300',
+    },
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -845,22 +869,39 @@ export default function AltaDireccionChecklist() {
                                                                 </div>
                                                             </div>
 
-                                                            {/* Status Buttons */}
-                                                            <div className="flex sm:flex-col lg:flex-row flex-wrap gap-1 sm:ml-4 sm:flex-shrink-0 border-t sm:border-t-0 border-border-light pt-3 sm:pt-0 justify-between sm:justify-end">
+                                                            {/* Botonera Flotante Cápsula de Evaluación (WAPPY Design System) */}
+                                                            <div className="inline-flex flex-wrap items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-sm sm:ml-4 sm:flex-shrink-0 self-start">
                                                                 {STATUS_OPTIONS.map(opt => {
                                                                     const Icon = opt.icon;
                                                                     const isSelected = status === opt.value;
                                                                     return (
                                                                         <button
                                                                             key={opt.value}
+                                                                            type="button"
                                                                             onClick={() => handleStatusChange(item.id, opt.value)}
-                                                                            className={cn(
-                                                                                'rounded-xl p-2 transition-all',
-                                                                                isSelected ? opt.color : 'text-text-tertiary hover:bg-surface-tertiary',
-                                                                            )}
                                                                             title={opt.label}
+                                                                            aria-label={opt.label}
+                                                                            className={cn(
+                                                                                'group flex h-8 min-w-[32px] items-center justify-center rounded-xl border transition-all duration-300 px-2 shadow-2xs active:scale-95',
+                                                                                isSelected
+                                                                                    ? opt.color
+                                                                                    : cn(
+                                                                                        'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300',
+                                                                                        opt.hoverColor,
+                                                                                    ),
+                                                                            )}
                                                                         >
-                                                                            <Icon className="h-5 w-5" />
+                                                                            <Icon className="h-4 w-4 shrink-0" />
+                                                                            <div
+                                                                                className={cn(
+                                                                                    'items-center overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out flex',
+                                                                                    isSelected
+                                                                                        ? 'ml-1.5 max-w-[100px] opacity-100'
+                                                                                        : 'max-w-0 opacity-0 group-hover:ml-1.5 group-hover:max-w-[100px] group-hover:opacity-100',
+                                                                                )}
+                                                                            >
+                                                                                <span className="text-[11px] font-bold">{opt.label}</span>
+                                                                            </div>
                                                                         </button>
                                                                     );
                                                                 })}

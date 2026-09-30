@@ -237,8 +237,8 @@ async function getFullSSTContext(userId, companyId) {
             }
         }
 
-        // ─── HITO 4: TRAUMATISMO Y CURACIÓN (SINIESTRALIDAD ATEL & CAUSALIDAD FORENSE RES. 1401) ───
-        fullContext += `\n[HITO 4 - TRAUMATISMO Y CURACIÓN: HISTÓRICO ATEL & INVESTIGACIONES DE CAUSALIDAD FORENSE (RES. 1401 / GEMA)]\n`;
+        // ─── HITO 4: TRAUMATISMO Y CURACIÓN (SINIESTRALIDAD ATEL & CAUSALIDAD TÉCNICA RES. 1401) ───
+        fullContext += `\n[HITO 4 - TRAUMATISMO Y CURACIÓN: HISTÓRICO ATEL & INVESTIGACIONES DE CAUSALIDAD TÉCNICA (RES. 1401 / GEMA)]\n`;
         const ATELAnnualData = mongoose.models.ATELAnnualData;
         if (ATELAnnualData) {
             const ad = await ATELAnnualData.findOne({ user: userId, companyId }).lean();
@@ -264,7 +264,7 @@ async function getFullSSTContext(userId, companyId) {
         if (InvestigacionAtelData) {
             const investigations = await InvestigacionAtelData.find({ user: userId, companyId }).lean();
             if (investigations?.length) {
-                fullContext += `  • Investigaciones de Causalidad Forense ATEL: ${investigations.length} eventos investigados\n`;
+                fullContext += `  • Investigaciones de Causalidad ATEL: ${investigations.length} eventos investigados\n`;
                 investigations.slice(0, 4).forEach(inv => {
                     const f = inv.formData || {};
                     fullContext += `    - Accidente: "${f.nombreAccidentado || 'Trabajador'}" (${f.cargoAccidentado || 'Cargo'}) | Mecanismo: "${f.mecanismoAccidente || 'N'}" | Causa Inmediata: "${f.causasInmediatas || 'N'}" | Causa Básica: "${f.causasBasicas || 'N'}"\n`;
@@ -1275,8 +1275,8 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             { id: 'analisis_ats', name: 'Análisis de Trabajo Seguro (ATS)', category: 'Operación', count: countAts, unit: 'formatos ATS', status: 'connected' },
             { id: 'reportes_actos', name: 'Reportes de Actos & Condiciones', category: 'Operación', count: totalActsConds, unit: 'tarjetas de campo', status: 'connected' },
             { id: 'percepcion_miedo', name: 'Percepción & Miedo (Voz IPEVR)', category: 'Operación', count: totalMiedo, unit: 'percepciones recogidas', status: 'connected' },
-            { id: 'estadisticas_atel', name: 'Estadísticas ATEL (Resolución 0312)', category: 'Forense', count: totalATEL, unit: 'eventos registrados', status: 'connected' },
-            { id: 'investigaciones_atel', name: 'Investigación Forense (Res. 1401 GEMA)', category: 'Forense', count: countInvestigations, unit: 'árboles de causas', status: 'connected' },
+            { id: 'estadisticas_atel', name: 'Estadísticas ATEL (Resolución 0312)', category: 'Siniestralidad', count: totalATEL, unit: 'eventos registrados', status: 'connected' },
+            { id: 'investigaciones_atel', name: 'Investigación ATEL (Res. 1401 GEMA)', category: 'Siniestralidad', count: countInvestigations, unit: 'árboles de causas', status: 'connected' },
             { id: 'matriz_legal', name: 'Matriz Legal & Cumplimiento', category: 'Gestión', count: countNormas, unit: 'artículos normativos', status: 'connected' },
             { id: 'programa_capacitaciones', name: 'Programa Anual de Capacitaciones', category: 'Gestión', count: countCapacitaciones, unit: 'temas programados', status: 'connected' },
             { id: 'kanban_tasks', name: 'Compromisos & Hallazgos Kanban', category: 'Gestión', count: countKanban, unit: 'planes de acción', status: 'connected' }

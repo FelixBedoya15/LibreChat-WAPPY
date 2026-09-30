@@ -23,20 +23,20 @@ import { cn } from '~/utils';
 import store from '~/store';
 import { Search } from 'lucide-react';
 
-const PlansButton = lazy(() => import('./PlansButton'));
-const AccountSettings = lazy(() => import('./AccountSettings'));
-const SGSSTButton = lazy(() => import('./SGSSTButton'));
-const AulaEstudioButton = lazy(() => import('./AulaEstudioButton'));
-const MarketplaceNavButton = lazy(() => import('./MarketplaceNavButton'));
-const RutaAprendizajeButton = lazy(() => import('./RutaAprendizajeButton'));
-const BlogButton = lazy(() => import('./BlogButton'));
-const AuditoriaButton = lazy(() => import('./AuditoriaButton'));
+import PlansButton from './PlansButton';
+import AccountSettings from './AccountSettings';
+import SGSSTButton from './SGSSTButton';
+import AulaEstudioButton from './AulaEstudioButton';
+import MarketplaceNavButton from './MarketplaceNavButton';
+import RutaAprendizajeButton from './RutaAprendizajeButton';
+import BlogButton from './BlogButton';
+import AuditoriaButton from './AuditoriaButton';
+import BookmarkNav from './Bookmarks/BookmarkNav';
+import KanbanButton from './KanbanButton';
+import ChatSSTButton from './ChatSSTButton';
+import EventsMeetButton from './EventsMeetButton';
+import AmbassadorsButton from './AmbassadorsButton';
 const WelcomePromoPopup = lazy(() => import('../Popups/WelcomePromoPopup'));
-const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
-const KanbanButton = lazy(() => import('./KanbanButton'));
-const ChatSSTButton = lazy(() => import('./ChatSSTButton'));
-const EventsMeetButton = lazy(() => import('./EventsMeetButton'));
-const AmbassadorsButton = lazy(() => import('./AmbassadorsButton'));
 
 
 const NAV_WIDTH_DESKTOP = '260px';

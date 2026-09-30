@@ -163,7 +163,7 @@ export default function Root() {
         </div>
       );
     }
-    return <Navigate to="/login" replace />;
+    return null;
   }
 
   if (user?.accountStatus === 'inactive') {

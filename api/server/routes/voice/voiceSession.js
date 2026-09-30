@@ -339,7 +339,7 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_diligenciar_formulario",
-                            description: "Diligencia, autocompleta o redacta automáticamente los campos de un formulario o aplicativo en pantalla (por ejemplo, Investigación Forense ATEL, Hoja de vida PESV, Permiso de alturas, Reporte de actos y condiciones, etc.) con datos proporcionados o inferidos.",
+                            description: "Diligencia, autocompleta o redacta automáticamente los campos de un formulario o aplicativo en pantalla (por ejemplo, Investigación ATEL, Hoja de vida PESV, Permiso de alturas, Reporte de actos y condiciones, etc.) con datos proporcionados o inferidos.",
                             parameters: {
                                 type: "object",
                                 properties: {

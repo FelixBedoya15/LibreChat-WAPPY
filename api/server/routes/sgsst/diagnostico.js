@@ -713,32 +713,7 @@ router.get('/report-history', requireJwtAuth, async (req, res) => {
             return res.status(400).json({ error: 'At least one tag is required' });
         }
 
-        // 3. Synchronously migrate legacy reports (no company tag) → assign to active company
-        if (companyId) {
-            try {
-                const companyTag = `company-${companyId}`;
-                const legacyReports = await ConversationModel.find({
-                    user: req.user.id,
-                    tags: { $in: moduleTags },
-                    $and: [
-                        { tags: { $not: /^company-/ } },
-                    ],
-                }).select('_id tags').lean();
-
-                if (legacyReports && legacyReports.length > 0) {
-                    const ids = legacyReports.map(r => r._id);
-                    await ConversationModel.updateMany(
-                        { _id: { $in: ids } },
-                        { $addToSet: { tags: companyTag } },
-                    );
-                    logger.info(`[report-history] Migrated ${legacyReports.length} legacy reports → ${companyTag}`);
-                }
-            } catch (migrateErr) {
-                logger.warn('[report-history] Migration error (non-fatal):', migrateErr.message);
-            }
-        }
-
-        // 4. Build strict filter: module tag(s) AND company tag
+        // 3. Build strict filter: module tag(s) AND company tag (fast indexed query first)
         const searchTags = companyId
             ? [...moduleTags, `company-${companyId}`]
             : moduleTags;
@@ -747,7 +722,7 @@ router.get('/report-history', requireJwtAuth, async (req, res) => {
             ? { $all: searchTags }   // AND — must have every tag
             : { $in: searchTags };   // fallback if no company
 
-        const conversations = await ConversationModel.find({
+        let conversations = await ConversationModel.find({
             user: req.user.id,
             tags: filterOp,
             $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
@@ -757,6 +732,40 @@ router.get('/report-history', requireJwtAuth, async (req, res) => {
             .sort({ updatedAt: -1 })
             .limit(100)
             .lean();
+
+        // 4. Only if 0 results found, check and migrate legacy reports (no company tag)
+        if ((!conversations || conversations.length === 0) && companyId) {
+            try {
+                const companyTag = `company-${companyId}`;
+                const legacyReports = await ConversationModel.find({
+                    user: req.user.id,
+                    tags: { $in: moduleTags },
+                    $and: [
+                        { tags: { $not: /^company-/ } },
+                    ],
+                }).select('_id tags').limit(50).lean();
+
+                if (legacyReports && legacyReports.length > 0) {
+                    const ids = legacyReports.map(r => r._id);
+                    await ConversationModel.updateMany(
+                        { _id: { $in: ids } },
+                        { $addToSet: { tags: companyTag } },
+                    );
+                    conversations = await ConversationModel.find({
+                        user: req.user.id,
+                        tags: filterOp,
+                        $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
+                        $and: [{ $or: [{ expiredAt: null }, { expiredAt: { $exists: false } }] }],
+                    })
+                        .select('conversationId title updatedAt tags')
+                        .sort({ updatedAt: -1 })
+                        .limit(100)
+                        .lean();
+                }
+            } catch (migrateErr) {
+                logger.warn('[report-history] Migration error (non-fatal):', migrateErr.message);
+            }
+        }
 
         return res.json({
             conversations: conversations || [],

@@ -59,7 +59,7 @@ import PredictivePlantComparison, { type SiteItem } from './PredictivePlantCompa
 export interface TelemetrySourceItem {
     id: string;
     name: string;
-    category: 'Humano' | 'Riesgos' | 'Operación' | 'Forense' | 'Gestión';
+    category: 'Humano' | 'Riesgos' | 'Operación' | 'Siniestralidad' | 'Forense' | 'Gestión';
     count: number;
     unit: string;
     status: string;
@@ -120,8 +120,8 @@ const ALL_TELEMETRY_DEFINITIONS = [
     { id: 'analisis_ats', name: 'Análisis de Trabajo Seguro (ATS)', tag: 'H3', category: 'Operación', desc: 'Procedimientos paso a paso para tareas no rutinarias', unit: 'formatos ATS' },
     { id: 'reportes_actos', name: 'Reportes de Actos & Condiciones', tag: 'H3', category: 'Operación', desc: 'Tarjetas de observación preventiva en campo', unit: 'tarjetas de campo' },
     { id: 'percepcion_miedo', name: 'Percepción & Miedo (Voz IPEVR)', tag: 'H3', category: 'Operación', desc: 'Voz del trabajador y riesgo percibido en campo', unit: 'percepciones recogidas' },
-    { id: 'estadisticas_atel', name: 'Gestión de Ausentismo & ATEL (Res. 0312)', tag: 'H4', category: 'Forense', desc: 'Ausentismo laboral, siniestralidad, severidad, frecuencia y costos', unit: 'eventos registrados' },
-    { id: 'investigaciones_atel', name: 'Investigación Forense (Res. 1401)', tag: 'H4', category: 'Forense', desc: 'Árbol de causas, modelo GEMA y lecciones', unit: 'árboles de causas' },
+    { id: 'estadisticas_atel', name: 'Gestión de Ausentismo & ATEL (Res. 0312)', tag: 'H4', category: 'Siniestralidad', desc: 'Ausentismo laboral, siniestralidad, severidad, frecuencia y costos', unit: 'eventos registrados' },
+    { id: 'investigaciones_atel', name: 'Investigación ATEL (Res. 1401)', tag: 'H4', category: 'Siniestralidad', desc: 'Árbol de causas, modelo GEMA y lecciones', unit: 'árboles de causas' },
     { id: 'matriz_legal', name: 'Matriz Legal & Cumplimiento', tag: 'SG', category: 'Gestión', desc: 'Normatividad colombiana y evaluación de requisitos', unit: 'artículos normativos' },
     { id: 'programa_capacitaciones', name: 'Programa de Capacitaciones', tag: 'SG', category: 'Gestión', desc: 'Cronograma anual y cobertura de inducciones', unit: 'temas programados' },
     { id: 'kanban_tasks', name: 'Compromisos & Hallazgos Kanban', tag: 'SG', category: 'Gestión', desc: 'Planes de acción, cierre de hallazgos y PHVA', unit: 'planes de acción' }
@@ -131,6 +131,7 @@ const TAG_STYLE_BY_CATEGORY: Record<string, string> = {
     Humano: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
     Riesgos: 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20',
     Operación: 'text-teal-600 dark:text-teal-400 bg-teal-500/10 border-teal-500/20',
+    Siniestralidad: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20',
     Forense: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20',
     Gestión: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20',
 };
@@ -1427,7 +1428,7 @@ const DashboardPredictivo = () => {
                                 { key: 'Humano', label: 'Humano (2)' },
                                 { key: 'Riesgos', label: 'Riesgos (2)' },
                                 { key: 'Operación', label: 'Operación (8)' },
-                                { key: 'Forense', label: 'Forense (2)' },
+                                { key: 'Siniestralidad', label: 'Siniestralidad (2)' },
                                 { key: 'Gestión', label: 'Gestión (3)' },
                             ].map(cat => (
                                 <button
