@@ -398,7 +398,7 @@ function buildCommitteeSignatureSection({ asistentes = [], companyInfo = {}, tip
         Firmas Digitales de los Miembros y Participantes Asistentes
       </h3>
       <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">
-        ${nombreComiteFull} • Validez y eficacia probatoria bajo Ley 527 de 1999
+        ${nombreComiteFull}
       </p>
     </div>
     <div style="font-size: 10px; font-weight: 700; color: #0f766e; background-color: #f0fdfa; border: 1px solid #ccfbf1; padding: 4px 10px; border-radius: 9999px;">
@@ -413,7 +413,7 @@ function buildCommitteeSignatureSection({ asistentes = [], companyInfo = {}, tip
   </table>
 
   <div style="text-align: center; margin-top: 18px; font-size: 9.5px; color: #94a3b8; line-height: 1.4; border-top: 1px solid #f1f5f9; padding-top: 10px;">
-    <strong>Certificación Electrónica:</strong> El presente documento y las firmas digitales de los asistentes estampadas desde sus portales personales gozan de plena validez jurídica conforme a la <em>Ley 527 de 1999</em> y el <em>Decreto 1072 de 2015</em>. Los firmantes declaran haber revisado y aprobado el orden del día, los compromisos y el contenido íntegro del acta.
+    <strong>Certificación Electrónica:</strong> El presente documento y las firmas digitales de los asistentes estampadas desde sus portales personales gozan de plena validez conforme al <em>Decreto 1072 de 2015</em>. Los firmantes declaran haber revisado y aprobado el orden del día, los compromisos y el contenido íntegro del acta.
   </div>
 </div>
 <!-- COMMITTEE_SIGNATURES_END -->`;

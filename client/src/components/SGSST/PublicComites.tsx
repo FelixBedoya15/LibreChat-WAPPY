@@ -924,7 +924,7 @@ export default function PublicComites() {
                   className="mt-0.5 rounded text-teal-600 focus:ring-teal-500 w-4 h-4 shrink-0"
                 />
                 <span className="leading-tight">
-                  Certifico bajo la gravedad de juramento mi asistencia y participación en la sesión paritaria, y estampo voluntariamente mi firma digital conforme a la <strong>Ley 527 de 1999</strong> y <strong>Dec. 1072/2015</strong>.
+                  Certifico bajo la gravedad de juramento mi asistencia y participación en la sesión paritaria, y estampo voluntariamente mi firma digital conforme al <strong>Dec. 1072/2015</strong>.
                 </span>
               </label>
 
