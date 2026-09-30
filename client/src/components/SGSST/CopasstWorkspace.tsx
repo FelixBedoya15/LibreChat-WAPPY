@@ -874,23 +874,6 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 Art. 2.2.4.6.8 Dec. 1072/15: Mínimo una reunión mensual con verificación de quórum y archivo por 20 años.
               </p>
             </div>
-
-            <div className="flex items-center gap-2">
-              <ExpandingButton
-                onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                label="Historial"
-                icon={History}
-                variant="secondary"
-                title="Ver historial de informes del COPASST"
-              />
-              <ExpandingButton
-                onClick={() => handleOpenNewActa()}
-                label="Nueva Acta Mensual"
-                icon={Plus}
-                variant="teal"
-                title="Registrar Nueva Acta Mensual del COPASST"
-              />
-            </div>
           </div>
 
           {/* Grid de las 12 Actas del Año */}
@@ -976,13 +959,16 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                     {actaDelMes ? (
                       <>
                         <button
-                          onClick={() => handleOpenOfficialReport(actaDelMes._id, true)}
+                          onClick={() => {
+                            handleEditActa(actaDelMes);
+                            setActaModalTab('report');
+                          }}
                           className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100"
-                          title="Generar Acta Oficial con Firmas Digitales"
+                          title="Ver Informe Oficial del Acta"
                         >
                           <Printer className="w-3.5 h-3.5" />
                           <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
-                            <span className="text-[10px] font-bold">Acta Oficial</span>
+                            <span className="text-[10px] font-bold">Informe Oficial</span>
                           </div>
                         </button>
 
@@ -1323,11 +1309,15 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 />
                 <ToolbarButton
                   id="modal-tab-report"
-                  onClick={() => handleOpenOfficialReport(selectedActa?._id || 'preview', false)}
-                  isLoading={reportLoading}
+                  onClick={() => {
+                    if (!reportHtml && selectedActa?.reporteOficialHtml) {
+                      setReportHtml(selectedActa.reporteOficialHtml);
+                    }
+                    setActaModalTab('report');
+                  }}
                   label="Informe Oficial"
                   icon={Printer}
-                  title="Generar / Ver Informe Oficial membretado con Tenshi IA"
+                  title="Ver campo de Informe Oficial del Acta"
                   variant="history"
                   active={actaModalTab === 'report'}
                 />
@@ -1356,6 +1346,15 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
 
                 {actaModalTab === 'report' ? (
                   <>
+                    <ToolbarButton
+                      id="modal-btn-generate-report-ai"
+                      onClick={() => handleOpenOfficialReport(selectedActa?._id || 'preview', false)}
+                      isLoading={reportLoading}
+                      label={reportLoading ? 'Generando...' : 'Generar Informe con Tenshi IA'}
+                      icon="sparkles"
+                      title="Generar o complementar el Informe Oficial membretado con Tenshi IA"
+                      variant="dummy"
+                    />
                     <ToolbarButton
                       id="modal-btn-save-report"
                       onClick={handleSaveReport}
@@ -1411,53 +1410,9 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
 
             {actaModalTab === 'report' ? (
               <div className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-800/80 rounded-2xl">
-                  <div className="flex items-center gap-2 text-teal-800 dark:text-teal-200 text-xs font-semibold">
-                    <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
-                    <span>Vista Oficial en Papel Membretado A4 con Firmas Digitales de los Participantes (Ley 527/1999)</span>
-                  </div>
-                  <div className="inline-flex items-center gap-1.5 p-1 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-sm">
-                    <ToolbarButton
-                      id="report-bar-back"
-                      onClick={() => setActaModalTab('form')}
-                      label="Volver al Formulario"
-                      icon={PenTool}
-                      title="Volver al formulario de campos estructurados"
-                      variant="history"
-                    />
-                    <ToolbarButton
-                      id="report-bar-history"
-                      onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                      label="Historial"
-                      icon={History}
-                      title="Consultar Historial de Informes"
-                      variant="history"
-                      active={isHistoryOpen}
-                    />
-                    <ToolbarButton
-                      id="report-bar-save-data"
-                      onClick={() => handleSaveActa(false)}
-                      isLoading={isSavingData}
-                      label="Guardar Datos"
-                      icon="database"
-                      title="Guardar datos del acta"
-                      variant="database"
-                    />
-                    <ToolbarButton
-                      id="report-bar-save-report"
-                      onClick={handleSaveReport}
-                      isLoading={isSavingReport}
-                      label="Guardar Informe"
-                      icon={Save}
-                      title="Guardar Informe Oficial en el Historial"
-                      variant="save"
-                    />
-                    <ExportDropdown
-                      content={reportHtml}
-                      fileName={reportFileName}
-                      reportType="general"
-                    />
-                  </div>
+                <div className="flex items-center gap-2 p-3.5 bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-800/80 rounded-2xl text-teal-800 dark:text-teal-200 text-xs font-semibold">
+                  <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
+                  <span>Vista Oficial en Papel Membretado A4 con Firmas Digitales de los Participantes (Ley 527/1999)</span>
                 </div>
 
                 {reportLoading ? (
@@ -1467,6 +1422,26 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                       Tenshi IA está redactando, complementando y estructurando el Informe Oficial con firmas...
                     </p>
                   </div>
+                ) : !reportHtml ? (
+                  <div className="flex flex-col items-center justify-center p-14 rounded-3xl border border-dashed border-slate-300 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 text-center space-y-3">
+                    <Sparkles className="w-10 h-10 text-amber-500" />
+                    <div>
+                      <p className="text-sm font-bold text-slate-700 dark:text-zinc-200">
+                        Aún no se ha generado el Informe Oficial para esta acta
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 max-w-md">
+                        Usa el botón superior de Tenshi IA (o haz clic abajo) para estructurar el Informe Oficial en papel membretado A4 con las firmas de los asistentes.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenOfficialReport(selectedActa?._id || 'preview', false)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Generar Informe con Tenshi IA</span>
+                    </button>
+                  </div>
                 ) : (
                   <div className="w-full bg-slate-100 dark:bg-zinc-950 p-2 sm:p-4 rounded-3xl overflow-y-auto max-h-[70vh]">
                     <LiveEditor
@@ -1474,46 +1449,9 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                       paperMode={true}
                       initialContent={reportHtml}
                       onUpdate={(html) => setReportHtml(html)}
-                      onSave={handleSaveReport}
-                      onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                     />
                   </div>
                 )}
-
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-slate-200 dark:border-zinc-800">
-                  <ExpandingButton
-                    onClick={() => setActaModalTab('form')}
-                    label="Volver al Formulario"
-                    icon={ChevronRight}
-                    variant="secondary"
-                    title="Regresar a editar los campos estructurados"
-                  />
-                  <div className="flex items-center gap-2">
-                    <ExpandingButton
-                      onClick={handleSaveReport}
-                      isLoading={isSavingReport}
-                      label={isSavingReport ? 'Guardando...' : 'Guardar Informe'}
-                      icon={Save}
-                      variant="save"
-                      title="Guardar Informe Oficial en el Historial"
-                    />
-                    <ExportDropdown
-                      content={reportHtml}
-                      fileName={reportFileName}
-                      reportType="general"
-                    />
-                    <ExpandingButton
-                      onClick={() => {
-                        setShowActaModal(false);
-                        setActaModalTab('form');
-                      }}
-                      label="Cerrar"
-                      icon={X}
-                      variant="secondary"
-                      title="Cerrar visor de informe"
-                    />
-                  </div>
-                </div>
               </div>
             ) : (
               <>
@@ -1917,46 +1855,6 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                   </div>
                 </div>
               ))}
-            </div>
-
-            {/* Footer Modal Buttons */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-zinc-800">
-              <ExpandingButton
-                onClick={() => {
-                  setShowActaModal(false);
-                  setActaModalTab('form');
-                }}
-                label="Cancelar"
-                icon={X}
-                variant="secondary"
-                title="Descartar cambios y cerrar"
-              />
-              <div className="flex items-center gap-2">
-                <ExpandingButton
-                  onClick={() => handleSaveActa(false)}
-                  isLoading={isSavingData}
-                  label={isSavingData ? 'Guardando...' : 'Guardar Datos'}
-                  icon={Database}
-                  variant="save"
-                  title="Guardar datos del acta sin cerrar la ventana"
-                />
-                <ExpandingButton
-                  onClick={() => handleOpenOfficialReport(selectedActa?._id || 'preview', false)}
-                  isLoading={reportLoading}
-                  label={reportLoading ? 'Complementando con IA...' : 'Generar / Ver Informe Oficial'}
-                  icon={Printer}
-                  variant="outline-teal"
-                  title="Complementar con Tenshi IA y exportar en papel membretado con firmas"
-                />
-                <ExpandingButton
-                  onClick={() => handleSaveActa(true)}
-                  isLoading={isSavingData}
-                  label="Guardar y Cerrar"
-                  icon={CheckCircle2}
-                  variant="teal"
-                  title="Guardar acta, registrar compromisos y cerrar"
-                />
-              </div>
             </div>
           </>
         )}
