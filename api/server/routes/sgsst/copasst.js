@@ -260,16 +260,22 @@ router.post('/actas', requireJwtAuth, async (req, res) => {
       compromisos,
       proximaReunionFecha,
       estadoActa,
+      reporteOficialHtml,
     } = req.body;
 
     let acta;
-    if (id) {
+    const currentYear = anio || new Date().getFullYear();
+    const currentMonth = mes || new Date().getMonth() + 1;
+
+    if (id && id !== 'preview') {
       acta = await SgsstCopasstActa.findOne({ _id: id, companyId: company._id });
+    }
+    if (!acta) {
+      acta = await SgsstCopasstActa.findOne({ companyId: company._id, anio: currentYear, mes: currentMonth });
     }
 
     if (!acta) {
       // Si no viene consecutivo, autogenerar
-      const currentYear = anio || new Date().getFullYear();
       const count = await SgsstCopasstActa.countDocuments({ companyId: company._id, anio: currentYear });
       const autConsecutivo = consecutivo || `ACTA-COPASST-${currentYear}-${String(count + 1).padStart(3, '0')}`;
 
@@ -277,7 +283,7 @@ router.post('/actas', requireJwtAuth, async (req, res) => {
         companyId: company._id,
         user: req.user.id,
         consecutivo: autConsecutivo,
-        mes: mes || new Date().getMonth() + 1,
+        mes: currentMonth,
         anio: currentYear,
       });
     }
@@ -297,6 +303,7 @@ router.post('/actas', requireJwtAuth, async (req, res) => {
     if (Array.isArray(compromisos)) acta.compromisos = compromisos;
     if (proximaReunionFecha !== undefined) acta.proximaReunionFecha = proximaReunionFecha;
     if (estadoActa) acta.estadoActa = estadoActa;
+    if (reporteOficialHtml !== undefined) acta.reporteOficialHtml = reporteOficialHtml;
 
     await acta.save();
 
@@ -451,7 +458,57 @@ Solo responde con el objeto JSON válido, sin bloques markdown.`;
       }
     }
 
-    res.json({ success: true, borrador: parsed });
+    // Persistir automáticamente el borrador en MongoDB para que al recargar la página no se pierda
+    let dbActa = null;
+    try {
+      const targetYear = Number(anio) || new Date().getFullYear();
+      const targetMonth = Number(mes) || new Date().getMonth() + 1;
+      const { id, consecutivo, tipo, lugar, horaInicio, horaFin, quorumVerificado, asistentes, compromisos } = req.body;
+      if (id && id !== 'preview') {
+        dbActa = await SgsstCopasstActa.findOne({ _id: id, companyId: company._id });
+      }
+      if (!dbActa) {
+        dbActa = await SgsstCopasstActa.findOne({ companyId: company._id, anio: targetYear, mes: targetMonth });
+      }
+      if (!dbActa) {
+        const count = await SgsstCopasstActa.countDocuments({ companyId: company._id, anio: targetYear });
+        const autConsecutivo = consecutivo || `ACTA-COPASST-${targetYear}-${String(count + 1).padStart(3, '0')}`;
+        dbActa = new SgsstCopasstActa({
+          companyId: company._id,
+          user: req.user.id,
+          consecutivo: autConsecutivo,
+          mes: targetMonth,
+          anio: targetYear,
+          tipo: tipo || 'ordinaria_mensual',
+          lugar: lugar || 'Sala Principal de Reuniones / Híbrida',
+          horaInicio: horaInicio || '08:00',
+          horaFin: horaFin || '10:00',
+          quorumVerificado: quorumVerificado !== false,
+          asistentes: Array.isArray(asistentes) ? asistentes : [],
+        });
+      }
+      const { compromisosSugeridos, ...desarrolloFields } = parsed;
+      dbActa.desarrollo = { ...(dbActa.desarrollo || {}), ...desarrolloActual, ...desarrolloFields };
+      const prevCompromisos = Array.isArray(compromisos) ? compromisos : (dbActa.compromisos || []);
+      const nuevosCompromisos = Array.isArray(compromisosSugeridos)
+        ? compromisosSugeridos.map((c) => ({
+            accion: c.accion,
+            responsable: c.responsable || 'COPASST',
+            fechaLimite: c.fechaLimite || new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
+            estado: 'pendiente',
+          }))
+        : [];
+      dbActa.compromisos = [...prevCompromisos, ...nuevosCompromisos];
+      if (Array.isArray(asistentes) && asistentes.length > 0) dbActa.asistentes = asistentes;
+      if (lugar) dbActa.lugar = lugar;
+      if (horaInicio) dbActa.horaInicio = horaInicio;
+      if (horaFin) dbActa.horaFin = horaFin;
+      await dbActa.save();
+    } catch (saveErr) {
+      logger.warn('[COPASST] Auto-save on generar-borrador-ia warning:', saveErr.message);
+    }
+
+    res.json({ success: true, borrador: parsed, acta: dbActa });
   } catch (error) {
     logger.error('[COPASST] POST /actas/generar-borrador-ia error:', error);
     res.status(500).json({ error: 'Error al generar borrador con IA' });
@@ -902,7 +959,39 @@ Devuelve un objeto JSON válido con dos propiedades principales:
       </div>
     `;
 
+    if (!dbActa) {
+      const targetYear = Number(acta.anio) || new Date().getFullYear();
+      const targetMonth = Number(acta.mes) || new Date().getMonth() + 1;
+      dbActa = await SgsstCopasstActa.findOne({ companyId: company._id, anio: targetYear, mes: targetMonth });
+      if (!dbActa) {
+        const count = await SgsstCopasstActa.countDocuments({ companyId: company._id, anio: targetYear });
+        const autConsecutivo =
+          acta.consecutivo && acta.consecutivo !== 'BORRADOR'
+            ? acta.consecutivo
+            : `ACTA-COPASST-${targetYear}-${String(count + 1).padStart(3, '0')}`;
+        dbActa = new SgsstCopasstActa({
+          companyId: company._id,
+          user: req.user.id,
+          consecutivo: autConsecutivo,
+          mes: targetMonth,
+          anio: targetYear,
+          tipo: acta.tipo || 'ordinaria_mensual',
+          lugar: acta.lugar || 'Sala Principal de Reuniones / Híbrida',
+          horaInicio: acta.horaInicio || '08:00',
+          horaFin: acta.horaFin || '10:00',
+          quorumVerificado: acta.quorumVerificado !== false,
+          asistentes: Array.isArray(acta.asistentes) ? acta.asistentes : [],
+          compromisos: Array.isArray(acta.compromisos) ? acta.compromisos : [],
+        });
+      }
+    }
+
     if (dbActa) {
+      if (Array.isArray(acta.asistentes)) dbActa.asistentes = acta.asistentes;
+      if (Array.isArray(acta.compromisos)) dbActa.compromisos = acta.compromisos;
+      if (acta.lugar) dbActa.lugar = acta.lugar;
+      if (acta.horaInicio) dbActa.horaInicio = acta.horaInicio;
+      if (acta.horaFin) dbActa.horaFin = acta.horaFin;
       dbActa.desarrollo = { ...dbActa.desarrollo, ...desarrolloEnriquecido };
       dbActa.reporteOficialHtml = fullHtml;
       await dbActa.save();
@@ -912,7 +1001,7 @@ Devuelve un objeto JSON válido con dos propiedades principales:
     const publicReport = new PublicReport({
       id: reportId,
       content: fullHtml,
-      fileName: `Acta-COPASST-${acta.consecutivo || 'Borrador'}`,
+      fileName: `Acta-COPASST-${dbActa?.consecutivo || acta.consecutivo || 'Borrador'}`,
       reportType: 'general',
     });
     await publicReport.save();
@@ -923,6 +1012,7 @@ Devuelve un objeto JSON válido con dos propiedades principales:
       url: `/report/${reportId}`,
       html: fullHtml,
       desarrolloEnriquecido,
+      acta: dbActa,
     });
   } catch (error) {
     logger.error('[COPASST] POST /actas/:id/reporte-oficial error:', error);

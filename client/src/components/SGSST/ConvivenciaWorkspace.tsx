@@ -32,6 +32,9 @@ import {
   RefreshCw,
   Copy,
   Check,
+  History,
+  Save,
+  Database,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
@@ -42,6 +45,7 @@ import ExpandingButton from './ExpandingButton';
 import WorkerAutocomplete from './WorkerAutocomplete';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ExportDropdown from './ExportDropdown';
+import ReportHistory from '~/components/Liva/ReportHistory';
 
 export default function ConvivenciaWorkspace() {
   const { token } = useAuthContext();
@@ -61,6 +65,14 @@ export default function ConvivenciaWorkspace() {
   const [reportLoading, setReportLoading] = useState<boolean>(false);
   const [reportFileName, setReportFileName] = useState<string>('Acta-Comite-Convivencia');
   const liveEditorRef = useRef<LiveEditorHandle>(null);
+
+  // Guardado de datos, Guardado de Informe e Historial
+  const [isSavingData, setIsSavingData] = useState(false);
+  const [isSavingReport, setIsSavingReport] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [reportMessageId, setReportMessageId] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Modal Caso State
   const [selectedCaso, setSelectedCaso] = useState<any>(null);
@@ -224,6 +236,13 @@ export default function ConvivenciaWorkspace() {
   };
 
   const handleOpenNewActa = (trimestreNum: number = 1) => {
+    const currentYear = new Date().getFullYear();
+    const existingForQuarter = actas.find((a) => Number(a.trimestre) === Number(trimestreNum) && Number(a.anio || currentYear) === currentYear);
+    if (existingForQuarter) {
+      handleEditActa(existingForQuarter);
+      return;
+    }
+
     const defaultAsistentes: any[] = [];
     const activeComite = config?.comites?.find((c: any) => c.estado === 'activo') || config?.comites?.[0];
     if (activeComite) {
@@ -251,7 +270,7 @@ export default function ConvivenciaWorkspace() {
 
     setActaForm({
       trimestre: trimestreNum,
-      anio: new Date().getFullYear(),
+      anio: currentYear,
       tipo: 'ordinaria_trimestral',
       centroTrabajo: activeComite?.centroTrabajo || 'Sede Principal',
       lugar: 'Sala Confidencial de Convivencia / Híbrida',
@@ -311,6 +330,9 @@ export default function ConvivenciaWorkspace() {
       desarrollo: acta.desarrollo || {},
       compromisos: acta.compromisos || [],
     });
+    if (acta.reporteOficialHtml) {
+      setReportHtml(acta.reporteOficialHtml);
+    }
     setActaModalTab('form');
     setShowActaModal(true);
   };
@@ -334,7 +356,7 @@ export default function ConvivenciaWorkspace() {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const isExistingId = typeof actaIdOrData === 'string' && actaIdOrData !== 'preview';
-      const actaId = isExistingId ? actaIdOrData : (selectedActa?._id || 'preview');
+      const actaId = isExistingId ? actaIdOrData : (selectedActa?._id || actaForm?.id || 'preview');
       const bodyPayload = fromTable && isExistingId ? {} : actaForm;
 
       if (fromTable && isExistingId) {
@@ -364,6 +386,15 @@ export default function ConvivenciaWorkspace() {
       }
 
       const res = await axios.post(`/api/sgsst/convivencia/actas/${actaId}/reporte-oficial`, bodyPayload, { headers });
+      if (res.data?.acta) {
+        setSelectedActa(res.data.acta);
+        setActaForm((prev: any) => ({
+          ...prev,
+          id: res.data.acta._id,
+          consecutivo: res.data.acta.consecutivo || prev.consecutivo,
+        }));
+        fetchAllData();
+      }
       if (res.data?.desarrolloEnriquecido) {
         setActaForm((prev: any) => ({
           ...prev,
@@ -377,7 +408,7 @@ export default function ConvivenciaWorkspace() {
         setReportHtml(res.data.html);
         const fileName = res.data.fileName || (selectedActa?.consecutivo ? `Acta-COCOLAB-${selectedActa.consecutivo}` : `Acta-COCOLAB-Q${actaForm.trimestre}-${actaForm.anio}`);
         setReportFileName(fileName);
-        showToast({ message: '¡Informe Oficial confidencial complementado y estructurado con Tenshi IA!', status: 'success' });
+        showToast({ message: '¡Informe Oficial confidencial complementado, estructurado y guardado con Tenshi IA!', status: 'success' });
       }
     } catch (err: any) {
       console.error('Error opening official convivencia acta report:', err);
@@ -442,15 +473,111 @@ export default function ConvivenciaWorkspace() {
     showToast({ message: 'Enlace de firma copiado. Puedes enviarlo por WhatsApp al trabajador.', status: 'success' });
   };
 
-  const handleSaveActa = async () => {
+  const handleSaveActa = async (closeModal = true) => {
+    setIsSavingData(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      await axios.post('/api/sgsst/convivencia/actas', actaForm, { headers });
-      showToast({ message: 'Acta trimestral guardada con éxito (Compromisos sincronizados con el Centro de Control)', status: 'success' });
-      setShowActaModal(false);
+      const payload = {
+        ...actaForm,
+        id: selectedActa?._id || actaForm.id,
+        reporteOficialHtml: reportHtml || actaForm.reporteOficialHtml || '',
+      };
+      const res = await axios.post('/api/sgsst/convivencia/actas', payload, { headers });
+      if (res.data?.acta) {
+        setSelectedActa(res.data.acta);
+        setActaForm((prev: any) => ({
+          ...prev,
+          id: res.data.acta._id,
+          consecutivo: res.data.acta.consecutivo || prev.consecutivo,
+        }));
+      }
+      showToast({
+        message: closeModal
+          ? 'Acta trimestral guardada con éxito (Compromisos sincronizados con el Centro de Control)'
+          : 'Datos del acta guardados en la base de datos',
+        status: 'success',
+      });
+      if (closeModal) {
+        setShowActaModal(false);
+      }
       fetchAllData();
     } catch (err: any) {
       showToast({ message: err.response?.data?.error || 'Error al guardar acta', status: 'error' });
+    } finally {
+      setIsSavingData(false);
+    }
+  };
+
+  const handleSaveReport = async () => {
+    const currentHtml = liveEditorRef.current?.getHTML() || reportHtml;
+    if (!currentHtml) {
+      showToast({ message: 'No hay informe generado para guardar', status: 'warning' });
+      return;
+    }
+    setIsSavingReport(true);
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const title = `Acta Comité Convivencia Q${actaForm.trimestre}/${actaForm.anio} - ${actaForm.consecutivo || 'Oficial'}`;
+
+      // 1. Guardar el acta y su HTML en la colección de Convivencia
+      const resActa = await axios.post(
+        '/api/sgsst/convivencia/actas',
+        {
+          ...actaForm,
+          id: selectedActa?._id || actaForm.id,
+          reporteOficialHtml: currentHtml,
+        },
+        { headers },
+      );
+      if (resActa.data?.acta) {
+        setSelectedActa(resActa.data.acta);
+        setActaForm((prev: any) => ({ ...prev, id: resActa.data.acta._id }));
+      }
+
+      // 2. Guardar en el Historial Central de Informes SGSST
+      const resHist = await axios.post(
+        '/api/sgsst/diagnostico/save-report',
+        {
+          conversationId,
+          messageId: reportMessageId,
+          content: currentHtml,
+          title,
+          tags: ['sgsst-convivencia'],
+        },
+        { headers },
+      );
+      if (resHist.data?.conversationId) setConversationId(resHist.data.conversationId);
+      if (resHist.data?.messageId) setReportMessageId(resHist.data.messageId);
+      setRefreshTrigger((prev) => prev + 1);
+      fetchAllData();
+      showToast({ message: 'Informe Oficial y datos del acta guardados en el historial', status: 'success' });
+    } catch (err: any) {
+      console.error('Error saving convivencia report:', err);
+      showToast({ message: 'Error al guardar el informe oficial', status: 'error' });
+    } finally {
+      setIsSavingReport(false);
+    }
+  };
+
+  const handleSelectReportFromHistory = async (convId: string) => {
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await axios.get(`/api/messages/${convId}`, { headers });
+      const messages = res.data;
+      if (Array.isArray(messages) && messages.length > 0) {
+        const lastMsg = messages[messages.length - 1];
+        if (lastMsg?.text) {
+          setReportHtml(lastMsg.text);
+          setConversationId(convId);
+          setReportMessageId(lastMsg.messageId);
+          setActaModalTab('report');
+          setShowActaModal(true);
+          setIsHistoryOpen(false);
+          showToast({ message: 'Informe cargado desde el historial', status: 'info' });
+        }
+      }
+    } catch (err) {
+      showToast({ message: 'Error al cargar el informe del historial', status: 'error' });
     }
   };
 
@@ -553,6 +680,8 @@ export default function ConvivenciaWorkspace() {
       const res = await axios.post(
         '/api/sgsst/convivencia/actas/generar-borrador-ia',
         {
+          ...actaForm,
+          id: selectedActa?._id || actaForm.id,
           trimestre: actaForm.trimestre,
           anio: actaForm.anio,
           desarrolloActual: actaForm.desarrollo,
@@ -561,13 +690,19 @@ export default function ConvivenciaWorkspace() {
       );
 
       if (res.data.borrador) {
+        const savedActa = res.data.acta;
+        if (savedActa) {
+          setSelectedActa(savedActa);
+        }
         setActaForm((prev: any) => ({
           ...prev,
+          id: savedActa?._id || prev.id,
+          consecutivo: savedActa?.consecutivo || prev.consecutivo,
           desarrollo: {
             ...prev.desarrollo,
             ...res.data.borrador,
           },
-          compromisos: [
+          compromisos: savedActa?.compromisos || [
             ...(prev.compromisos || []),
             ...(res.data.borrador.compromisosSugeridos || []).map((c: any) => ({
               ...c,
@@ -575,7 +710,8 @@ export default function ConvivenciaWorkspace() {
             })),
           ],
         }));
-        showToast({ message: '¡Los 7 puntos del acta trimestral fueron redactados y ampliados por Tenshi IA!', status: 'success' });
+        fetchAllData();
+        showToast({ message: '¡Los 7 puntos del acta trimestral fueron redactados por Tenshi IA y guardados automáticamente!', status: 'success' });
       }
     } catch (err) {
       showToast({ message: 'Error al generar acta con IA', status: 'error' });
@@ -667,6 +803,15 @@ export default function ConvivenciaWorkspace() {
             active: activeTab === 'elecciones',
             badge: config?.eleccionActiva ? '!' : undefined,
           },
+          {
+            id: 'tb-convivencia-history',
+            onClick: () => setIsHistoryOpen(!isHistoryOpen),
+            label: 'Historial de Informes',
+            icon: History,
+            title: 'Consultar historial de actas e informes oficiales del Comité de Convivencia',
+            variant: 'history',
+            active: isHistoryOpen,
+          },
         ]}
         customSections={[
           <div key="ccl-actions-bar" className="flex items-center gap-1.5">
@@ -684,14 +829,27 @@ export default function ConvivenciaWorkspace() {
               />
             )}
             {activeTab === 'actas' && (
-              <ToolbarButton
-                id="tb-nueva-acta"
-                onClick={() => handleOpenNewActa(1)}
-                label="Nueva Acta Trimestral"
-                icon={Plus}
-                title="Registrar Acta Trimestral Ordinaria del CCL"
-                variant="ai"
-              />
+              <>
+                <ToolbarButton
+                  id="tb-nueva-acta"
+                  onClick={() => handleOpenNewActa(1)}
+                  label="Nueva Acta Trimestral"
+                  icon={Plus}
+                  title="Registrar o Continuar Acta Trimestral Ordinaria del CCL"
+                  variant="ai"
+                />
+                {showActaModal && (
+                  <ToolbarButton
+                    id="tb-ccl-save-acta-data"
+                    onClick={() => handleSaveActa(false)}
+                    isLoading={isSavingData}
+                    label="Guardar Datos"
+                    icon="database"
+                    title="Guardar datos del acta trimestral en la base de datos"
+                    variant="database"
+                  />
+                )}
+              </>
             )}
             {activeTab === 'comites' && (
               <>
@@ -907,13 +1065,22 @@ export default function ConvivenciaWorkspace() {
               </p>
             </div>
 
-            <ExpandingButton
-              onClick={() => handleOpenNewActa(1)}
-              label="Nueva Acta Trimestral"
-              icon={Plus}
-              variant="teal"
-              title="Registrar Nueva Acta Trimestral del CCL"
-            />
+            <div className="flex items-center gap-2">
+              <ExpandingButton
+                onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                label="Historial"
+                icon={History}
+                variant="secondary"
+                title="Ver historial de informes del Comité de Convivencia"
+              />
+              <ExpandingButton
+                onClick={() => handleOpenNewActa(1)}
+                label="Nueva Acta Trimestral"
+                icon={Plus}
+                variant="teal"
+                title="Registrar Nueva Acta Trimestral del CCL"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -1551,74 +1718,101 @@ export default function ConvivenciaWorkspace() {
                 </div>
               </div>
 
-              {/* Selector de Pestaña: Diligenciamiento vs Generador de Informe */}
-              <div className="flex items-center p-1 bg-slate-100 dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700">
-                <button
-                  type="button"
+              {/* Botonera Flotante Cápsula en el Modal (WAPPY Design System) */}
+              <div className="inline-flex flex-wrap items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-lg shadow-slate-200/40 dark:shadow-none">
+                <ToolbarButton
+                  id="ccl-modal-tab-form"
                   onClick={() => setActaModalTab('form')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    actaModalTab === 'form'
-                      ? 'bg-white dark:bg-zinc-900 text-teal-600 dark:text-teal-300 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200'
-                  }`}
-                >
-                  <PenTool className="w-3.5 h-3.5" />
-                  <span>Diligenciamiento</span>
-                </button>
-                <button
-                  type="button"
+                  label="Diligenciamiento"
+                  icon={PenTool}
+                  title="Diligenciar campos estructurados del acta trimestral"
+                  variant="history"
+                  active={actaModalTab === 'form'}
+                />
+                <ToolbarButton
+                  id="ccl-modal-tab-report"
                   onClick={() => handleOpenOfficialReport(selectedActa?._id || 'preview', false)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    actaModalTab === 'report'
-                      ? 'bg-white dark:bg-zinc-900 text-teal-600 dark:text-teal-300 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200'
-                  }`}
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Informe Oficial</span>
-                </button>
-              </div>
+                  isLoading={reportLoading}
+                  label="Informe Oficial"
+                  icon={Printer}
+                  title="Generar / Ver Informe Oficial membretado con Tenshi IA"
+                  variant="history"
+                  active={actaModalTab === 'report'}
+                />
 
-              {/* Acciones en Cabecera */}
-              <div className="flex items-center gap-2">
+                <div className="h-5 w-px bg-slate-200 dark:bg-zinc-700 mx-0.5" />
+
+                <ToolbarButton
+                  id="ccl-modal-btn-history"
+                  onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                  label="Historial"
+                  icon={History}
+                  title="Ver Historial de Informes guardados"
+                  variant="history"
+                  active={isHistoryOpen}
+                />
+
+                <ToolbarButton
+                  id="ccl-modal-btn-save-data"
+                  onClick={() => handleSaveActa(false)}
+                  isLoading={isSavingData}
+                  label="Guardar Datos"
+                  icon="database"
+                  title="Guardar datos del formulario en base de datos sin cerrar"
+                  variant="database"
+                />
+
                 {actaModalTab === 'report' ? (
-                  <ExportDropdown
-                    content={reportHtml}
-                    fileName={reportFileName}
-                    reportType="general"
-                  />
+                  <>
+                    <ToolbarButton
+                      id="ccl-modal-btn-save-report"
+                      onClick={handleSaveReport}
+                      isLoading={isSavingReport}
+                      label="Guardar Informe"
+                      icon={Save}
+                      title="Guardar Informe Oficial en el Historial"
+                      variant="save"
+                    />
+                    <ExportDropdown
+                      content={reportHtml}
+                      fileName={reportFileName}
+                      reportType="general"
+                    />
+                  </>
                 ) : (
                   <>
                     {selectedActa && (
-                      <ExpandingButton
+                      <ToolbarButton
+                        id="ccl-modal-btn-share-link"
                         onClick={handleCopySigningLink}
                         label="Link de Firma"
                         icon={Share2}
-                        variant="outline-teal"
                         title="Copiar enlace para que los miembros firmen desde su portal"
+                        variant="history"
                       />
                     )}
-                    <ExpandingButton
-                      variant="orange"
-                      icon={Sparkles}
-                      label={isGeneratingIA ? 'Redactando con Tenshi...' : 'Redactar con Tenshi IA'}
+                    <ToolbarButton
+                      id="ccl-modal-btn-ai-draft"
                       onClick={handleGenerateActaIA}
-                      disabled={isGeneratingIA}
                       isLoading={isGeneratingIA}
-                      title="Redactar borrador del acta con Tenshi IA"
+                      label={isGeneratingIA ? 'Redactando...' : 'Redactar con Tenshi IA'}
+                      icon="sparkles"
+                      title="Redactar borrador del acta con Tenshi IA y guardar automáticamente"
+                      variant="dummy"
                     />
                   </>
                 )}
+
                 <button
                   type="button"
                   onClick={() => {
                     setShowActaModal(false);
                     setActaModalTab('form');
                   }}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                  className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-500 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 transition-all shadow-2xs active:scale-95"
                   title="Cerrar modal"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -1630,13 +1824,41 @@ export default function ConvivenciaWorkspace() {
                     <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
                     <span>Vista Oficial en Papel Membretado A4 con Firmas Digitales de los Participantes (Res. 3461/2025)</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <ExpandingButton
+                  <div className="inline-flex items-center gap-1.5 p-1 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-sm">
+                    <ToolbarButton
+                      id="ccl-report-bar-back"
                       onClick={() => setActaModalTab('form')}
                       label="Volver al Formulario"
                       icon={PenTool}
-                      variant="neutral"
                       title="Volver al formulario de campos estructurados"
+                      variant="history"
+                    />
+                    <ToolbarButton
+                      id="ccl-report-bar-history"
+                      onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                      label="Historial"
+                      icon={History}
+                      title="Consultar Historial de Informes"
+                      variant="history"
+                      active={isHistoryOpen}
+                    />
+                    <ToolbarButton
+                      id="ccl-report-bar-save-data"
+                      onClick={() => handleSaveActa(false)}
+                      isLoading={isSavingData}
+                      label="Guardar Datos"
+                      icon="database"
+                      title="Guardar datos del acta"
+                      variant="database"
+                    />
+                    <ToolbarButton
+                      id="ccl-report-bar-save-report"
+                      onClick={handleSaveReport}
+                      isLoading={isSavingReport}
+                      label="Guardar Informe"
+                      icon={Save}
+                      title="Guardar Informe Oficial en el Historial"
+                      variant="save"
                     />
                     <ExportDropdown
                       content={reportHtml}
@@ -1660,11 +1882,13 @@ export default function ConvivenciaWorkspace() {
                       paperMode={true}
                       initialContent={reportHtml}
                       onUpdate={(html) => setReportHtml(html)}
+                      onSave={handleSaveReport}
+                      onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                     />
                   </div>
                 )}
 
-                <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-zinc-800">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-slate-200 dark:border-zinc-800">
                   <ExpandingButton
                     onClick={() => setActaModalTab('form')}
                     label="Volver al Formulario"
@@ -1673,6 +1897,14 @@ export default function ConvivenciaWorkspace() {
                     title="Regresar a editar los campos estructurados"
                   />
                   <div className="flex items-center gap-2">
+                    <ExpandingButton
+                      onClick={handleSaveReport}
+                      isLoading={isSavingReport}
+                      label={isSavingReport ? 'Guardando...' : 'Guardar Informe'}
+                      icon={Save}
+                      variant="save"
+                      title="Guardar Informe Oficial en el Historial"
+                    />
                     <ExportDropdown
                       content={reportHtml}
                       fileName={reportFileName}

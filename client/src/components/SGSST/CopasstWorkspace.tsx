@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import {
   Award,
@@ -29,6 +29,9 @@ import {
   Copy,
   RefreshCw,
   Check,
+  History,
+  Save,
+  Database,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
@@ -38,6 +41,7 @@ import { SignaturePad } from './SignaturePad';
 import ExpandingButton from './ExpandingButton';
 import WorkerAutocomplete from './WorkerAutocomplete';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
+import ReportHistory from '~/components/Liva/ReportHistory';
 import ExportDropdown from './ExportDropdown';
 
 interface CopasstWorkspaceProps {
@@ -64,6 +68,14 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportFileName, setReportFileName] = useState('Acta-COPASST');
   const liveEditorRef = useRef<LiveEditorHandle>(null);
+
+  // Guardado e Historial de Informes / Datos
+  const [isSavingData, setIsSavingData] = useState(false);
+  const [isSavingReport, setIsSavingReport] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [conversationId, setConversationId] = useState<string>('new');
+  const [reportMessageId, setReportMessageId] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const [actaForm, setActaForm] = useState<any>({
     mes: new Date().getMonth() + 1,
@@ -160,7 +172,17 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
   }, [token]);
 
   // Handle open Acta creation
-  const handleOpenNewActa = () => {
+  const handleOpenNewActa = (targetMonth?: number) => {
+    const mesToOpen = typeof targetMonth === 'number' ? targetMonth : (new Date().getMonth() + 1);
+    const currentYear = new Date().getFullYear();
+
+    // Si ya existe un acta guardada para ese mes, abrirla en lugar de sobreescribir con blanco
+    const existingActa = actas.find((a) => Number(a.mes) === mesToOpen && Number(a.anio) === currentYear);
+    if (existingActa) {
+      handleEditActa(existingActa);
+      return;
+    }
+
     // Inicializar asistentes con los miembros del comité activo
     const defaultAsistentes: any[] = [];
     if (config?.comite) {
@@ -194,8 +216,8 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
     }
 
     setActaForm({
-      mes: new Date().getMonth() + 1,
-      anio: new Date().getFullYear(),
+      mes: mesToOpen,
+      anio: currentYear,
       tipo: 'ordinaria_mensual',
       lugar: 'Sala Principal de Reuniones / Híbrida',
       horaInicio: '08:00',
@@ -221,7 +243,9 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
         },
       ],
     });
+    setReportHtml('');
     setSelectedActa(null);
+    setActaModalTab('form');
     setShowActaModal(true);
   };
 
@@ -243,21 +267,168 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
       compromisos: acta.compromisos || [],
       estadoActa: acta.estadoActa,
     });
+    if (acta.reporteOficialHtml) {
+      setReportHtml(acta.reporteOficialHtml);
+    } else {
+      setReportHtml('');
+    }
+    setActaModalTab('form');
     setShowActaModal(true);
   };
 
-  const handleSaveActa = async () => {
+  const handleSaveActa = async (closeModal = true) => {
+    setIsSavingData(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      await axios.post('/api/sgsst/copasst/actas', actaForm, { headers });
-      showToast({ message: 'Acta guardada exitosamente', status: 'success' });
-      setShowActaModal(false);
+      const payload = {
+        ...actaForm,
+        id: actaForm.id || selectedActa?._id,
+        reporteOficialHtml: reportHtml || selectedActa?.reporteOficialHtml || undefined,
+      };
+      const res = await axios.post('/api/sgsst/copasst/actas', payload, { headers });
+      if (res.data?.acta) {
+        setSelectedActa(res.data.acta);
+        setActaForm((prev: any) => ({
+          ...prev,
+          id: res.data.acta._id,
+          consecutivo: res.data.acta.consecutivo || prev.consecutivo,
+        }));
+      }
+      showToast({ message: 'Datos del acta guardados exitosamente en la base de datos', status: 'success' });
+      if (closeModal) {
+        setShowActaModal(false);
+      }
       fetchAllData();
     } catch (err: any) {
       console.error('Error saving acta:', err);
       showToast({ message: err.response?.data?.error || 'Error al guardar el acta', status: 'error' });
+    } finally {
+      setIsSavingData(false);
     }
   };
+
+  const handleSaveReport = useCallback(async () => {
+    const currentHtml = liveEditorRef.current?.getHTML() || reportHtml;
+    if (!currentHtml) {
+      showToast({ message: 'No hay informe oficial generado para guardar', status: 'warning' });
+      return;
+    }
+    if (!token) return;
+
+    setIsSavingReport(true);
+    try {
+      // 1. Guardar el HTML en el registro del Acta en MongoDB
+      const headers = { Authorization: `Bearer ${token}` };
+      const actaPayload = {
+        ...actaForm,
+        id: actaForm.id || selectedActa?._id,
+        reporteOficialHtml: currentHtml,
+      };
+      const resActa = await axios.post('/api/sgsst/copasst/actas', actaPayload, { headers });
+      if (resActa.data?.acta) {
+        setSelectedActa(resActa.data.acta);
+        setActaForm((prev: any) => ({
+          ...prev,
+          id: resActa.data.acta._id,
+          consecutivo: resActa.data.acta.consecutivo || prev.consecutivo,
+        }));
+      }
+
+      // 2. Guardar versión en el Historial General de Informes (ReportHistory) con datos embebidos
+      const stateData = {
+        actaForm: {
+          ...actaPayload,
+          id: resActa.data?.acta?._id || actaPayload.id,
+          consecutivo: resActa.data?.acta?.consecutivo || actaPayload.consecutivo,
+        },
+      };
+      const stateComment = `<!-- SGSST_COPASST_ACTA_V1:${JSON.stringify(stateData)} -->`;
+      const contentToSave = currentHtml.replace(/<!-- SGSST_COPASST_ACTA_V1:.*? -->/g, '') + stateComment;
+      const reportTitle = `Acta COPASST ${resActa.data?.acta?.consecutivo || actaForm.consecutivo || `Mes ${actaForm.mes}-${actaForm.anio}`} - ${new Date().toLocaleDateString('es-CO')}`;
+
+      if (conversationId && conversationId !== 'new' && reportMessageId) {
+        const res = await fetch('/api/sgsst/diagnostico/save-report', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            conversationId,
+            messageId: reportMessageId,
+            content: contentToSave,
+            title: reportTitle,
+          }),
+        });
+        if (res.ok) {
+          setRefreshTrigger((prev) => prev + 1);
+        }
+      } else {
+        const res = await fetch('/api/sgsst/diagnostico/save-report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            content: contentToSave,
+            title: reportTitle,
+            tags: ['sgsst-copasst'],
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setConversationId(data.conversationId);
+          setReportMessageId(data.messageId);
+          setRefreshTrigger((prev) => prev + 1);
+        }
+      }
+
+      setReportHtml(currentHtml);
+      fetchAllData();
+      showToast({ message: 'Informe Oficial y datos del acta guardados en el historial exitosamente', status: 'success' });
+    } catch (err: any) {
+      console.error('Error saving official report:', err);
+      showToast({ message: 'Error al guardar el informe oficial', status: 'error' });
+    } finally {
+      setIsSavingReport(false);
+    }
+  }, [reportHtml, actaForm, selectedActa, token, conversationId, reportMessageId, showToast]);
+
+  const handleSelectReportFromHistory = useCallback(
+    async (selectedConvoId: string) => {
+      try {
+        const res = await fetch(`/api/messages/${selectedConvoId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Failed to load history message');
+        const messages = await res.json();
+        const lastMsg = messages[messages.length - 1];
+        if (lastMsg?.text) {
+          let loadedHtml = lastMsg.text;
+          const match = loadedHtml.match(/<!-- SGSST_COPASST_ACTA_V1:(.*?) -->/);
+          if (match && match[1]) {
+            try {
+              const parsedState = JSON.parse(match[1]);
+              if (parsedState?.actaForm) {
+                setActaForm(parsedState.actaForm);
+                if (parsedState.actaForm.id) {
+                  const existing = actas.find((a) => a._id === parsedState.actaForm.id);
+                  if (existing) setSelectedActa(existing);
+                }
+              }
+            } catch (e) {}
+            loadedHtml = loadedHtml.replace(/<!-- SGSST_COPASST_ACTA_V1:.*? -->/g, '');
+          }
+          setReportHtml(loadedHtml);
+          liveEditorRef.current?.setHTML(loadedHtml);
+          setConversationId(selectedConvoId);
+          setReportMessageId(lastMsg.messageId);
+          setIsHistoryOpen(false);
+          setActaModalTab('report');
+          setShowActaModal(true);
+          showToast({ message: 'Informe de Acta COPASST restaurado desde el historial', status: 'success' });
+        }
+      } catch (err) {
+        showToast({ message: 'Error al cargar el informe del historial', status: 'error' });
+      }
+    },
+    [token, actas, showToast]
+  );
 
   const handleDeleteActa = async (actaId: string) => {
     if (!window.confirm('¿Está seguro de eliminar esta acta mensual?')) return;
@@ -278,7 +449,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const isExistingId = typeof actaIdOrData === 'string' && actaIdOrData !== 'preview';
-      const actaId = isExistingId ? actaIdOrData : (selectedActa?._id || 'preview');
+      const actaId = isExistingId ? actaIdOrData : (selectedActa?._id || actaForm.id || 'preview');
       const bodyPayload = fromTable && isExistingId ? {} : actaForm;
 
       if (fromTable && isExistingId) {
@@ -303,6 +474,14 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
       }
 
       const res = await axios.post(`/api/sgsst/copasst/actas/${actaId}/reporte-oficial`, bodyPayload, { headers });
+      if (res.data?.acta) {
+        setSelectedActa(res.data.acta);
+        setActaForm((prev: any) => ({
+          ...prev,
+          id: res.data.acta._id,
+          consecutivo: res.data.acta.consecutivo || prev.consecutivo,
+        }));
+      }
       if (res.data?.desarrolloEnriquecido) {
         setActaForm((prev: any) => ({
           ...prev,
@@ -316,7 +495,10 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
         setReportHtml(res.data.html);
         const fileName = res.data.fileName || (selectedActa?.consecutivo ? `Acta-COPASST-${selectedActa.consecutivo}` : 'Acta-COPASST');
         setReportFileName(fileName);
-        showToast({ message: '¡Informe Oficial complementado y estructurado con Tenshi IA!', status: 'success' });
+        setConversationId('new');
+        setReportMessageId(null);
+        fetchAllData();
+        showToast({ message: '¡Informe Oficial complementado con Tenshi IA y guardado automáticamente!', status: 'success' });
       }
     } catch (err: any) {
       console.error('Error opening official acta report:', err);
@@ -339,6 +521,15 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
       const res = await axios.post(
         '/api/sgsst/copasst/actas/generar-borrador-ia',
         {
+          id: actaForm.id || selectedActa?._id,
+          consecutivo: actaForm.consecutivo,
+          tipo: actaForm.tipo,
+          lugar: actaForm.lugar,
+          horaInicio: actaForm.horaInicio,
+          horaFin: actaForm.horaFin,
+          quorumVerificado: actaForm.quorumVerificado,
+          asistentes: actaForm.asistentes,
+          compromisos: actaForm.compromisos,
           mes: actaForm.mes,
           anio: actaForm.anio,
           accidentalidadReportada: actaForm.desarrollo?.analisisAccidentalidad,
@@ -349,21 +540,28 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
       );
 
       if (res.data.borrador) {
+        const { compromisosSugeridos, ...desarrolloBorrador } = res.data.borrador;
         setActaForm((prev: any) => ({
           ...prev,
+          id: res.data.acta?._id || prev.id,
+          consecutivo: res.data.acta?.consecutivo || prev.consecutivo,
           desarrollo: {
             ...prev.desarrollo,
-            ...res.data.borrador,
+            ...desarrolloBorrador,
           },
           compromisos: [
             ...(prev.compromisos || []),
-            ...(res.data.borrador.compromisosSugeridos || []).map((c: any) => ({
+            ...(compromisosSugeridos || []).map((c: any) => ({
               ...c,
               estado: 'pendiente',
             })),
           ],
         }));
-        showToast({ message: '¡Los 8 puntos del acta fueron redactados y ampliados por Tenshi IA!', status: 'success' });
+        if (res.data.acta) {
+          setSelectedActa(res.data.acta);
+        }
+        fetchAllData();
+        showToast({ message: '¡Los 8 puntos del acta fueron redactados con Tenshi IA y guardados automáticamente!', status: 'success' });
       }
     } catch (err) {
       console.error('Error generating with AI:', err);
@@ -577,18 +775,40 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
             active: activeTab === 'elecciones',
             badge: config?.eleccionActiva ? '!' : undefined,
           },
+          {
+            id: 'tb-copasst-history',
+            onClick: () => setIsHistoryOpen(!isHistoryOpen),
+            label: 'Historial de Informes',
+            icon: History,
+            title: 'Consultar historial de actas e informes oficiales del COPASST',
+            variant: 'history',
+            active: isHistoryOpen,
+          },
         ]}
         customSections={[
           <div key="copasst-actions-bar" className="flex items-center gap-1.5">
             {activeTab === 'actas' && (
-              <ToolbarButton
-                id="tb-new-acta"
-                onClick={handleOpenNewActa}
-                label="Nueva Acta Mensual"
-                icon={Plus}
-                title="Registrar Nueva Acta Mensual del COPASST"
-                variant="ai"
-              />
+              <>
+                <ToolbarButton
+                  id="tb-new-acta"
+                  onClick={() => handleOpenNewActa()}
+                  label="Nueva Acta Mensual"
+                  icon={Plus}
+                  title="Registrar o Continuar Acta Mensual del COPASST"
+                  variant="ai"
+                />
+                {showActaModal && (
+                  <ToolbarButton
+                    id="tb-save-acta-data"
+                    onClick={() => handleSaveActa(false)}
+                    isLoading={isSavingData}
+                    label="Guardar Datos"
+                    icon="database"
+                    title="Guardar datos del acta en la base de datos"
+                    variant="database"
+                  />
+                )}
+              </>
             )}
             {activeTab === 'conformacion' && (
               <>
@@ -657,7 +877,14 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
 
             <div className="flex items-center gap-2">
               <ExpandingButton
-                onClick={handleOpenNewActa}
+                onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                label="Historial"
+                icon={History}
+                variant="secondary"
+                title="Ver historial de informes del COPASST"
+              />
+              <ExpandingButton
+                onClick={() => handleOpenNewActa()}
                 label="Nueva Acta Mensual"
                 icon={Plus}
                 variant="teal"
@@ -794,10 +1021,7 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                       </>
                     ) : (
                       <button
-                        onClick={() => {
-                          setActaForm((prev: any) => ({ ...prev, mes: mesNum }));
-                          handleOpenNewActa();
-                        }}
+                        onClick={() => handleOpenNewActa(mesNum)}
                         className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-2 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 text-teal-600 dark:text-teal-300"
                         title="Diligenciar Acta del Mes"
                       >
@@ -1086,73 +1310,101 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 </div>
               </div>
 
-              {/* Selector de Pestaña: Diligenciamiento vs Generador de Informe */}
-              <div className="flex items-center p-1 bg-slate-100 dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700">
-                <button
-                  type="button"
+              {/* Botonera Flotante Cápsula en el Modal (WAPPY Design System) */}
+              <div className="inline-flex flex-wrap items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-lg shadow-slate-200/40 dark:shadow-none">
+                <ToolbarButton
+                  id="modal-tab-form"
                   onClick={() => setActaModalTab('form')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    actaModalTab === 'form'
-                      ? 'bg-white dark:bg-zinc-900 text-teal-600 dark:text-teal-300 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200'
-                  }`}
-                >
-                  <PenTool className="w-3.5 h-3.5" />
-                  <span>Diligenciamiento</span>
-                </button>
-                <button
-                  type="button"
+                  label="Diligenciamiento"
+                  icon={PenTool}
+                  title="Diligenciar campos estructurados del acta"
+                  variant="history"
+                  active={actaModalTab === 'form'}
+                />
+                <ToolbarButton
+                  id="modal-tab-report"
                   onClick={() => handleOpenOfficialReport(selectedActa?._id || 'preview', false)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    actaModalTab === 'report'
-                      ? 'bg-white dark:bg-zinc-900 text-teal-600 dark:text-teal-300 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200'
-                  }`}
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Informe Oficial</span>
-                </button>
-              </div>
+                  isLoading={reportLoading}
+                  label="Informe Oficial"
+                  icon={Printer}
+                  title="Generar / Ver Informe Oficial membretado con Tenshi IA"
+                  variant="history"
+                  active={actaModalTab === 'report'}
+                />
 
-              {/* Botón IA Tenshi + Botones de Firma + Botón Cerrar */}
-              <div className="flex items-center gap-2">
+                <div className="h-5 w-px bg-slate-200 dark:bg-zinc-700 mx-0.5" />
+
+                <ToolbarButton
+                  id="modal-btn-history"
+                  onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                  label="Historial"
+                  icon={History}
+                  title="Ver Historial de Informes guardados"
+                  variant="history"
+                  active={isHistoryOpen}
+                />
+
+                <ToolbarButton
+                  id="modal-btn-save-data"
+                  onClick={() => handleSaveActa(false)}
+                  isLoading={isSavingData}
+                  label="Guardar Datos"
+                  icon="database"
+                  title="Guardar datos del formulario en base de datos sin cerrar"
+                  variant="database"
+                />
+
                 {actaModalTab === 'report' ? (
-                  <ExportDropdown
-                    content={reportHtml}
-                    fileName={reportFileName}
-                    reportType="general"
-                  />
+                  <>
+                    <ToolbarButton
+                      id="modal-btn-save-report"
+                      onClick={handleSaveReport}
+                      isLoading={isSavingReport}
+                      label="Guardar Informe"
+                      icon={Save}
+                      title="Guardar Informe Oficial en el Historial"
+                      variant="save"
+                    />
+                    <ExportDropdown
+                      content={reportHtml}
+                      fileName={reportFileName}
+                      reportType="general"
+                    />
+                  </>
                 ) : (
                   <>
                     {selectedActa && (
-                      <ExpandingButton
+                      <ToolbarButton
+                        id="modal-btn-share-link"
                         onClick={handleCopySigningLink}
                         label="Link de Firma"
                         icon={Share2}
-                        variant="outline-teal"
                         title="Copiar enlace para que los miembros firmen desde su portal"
+                        variant="history"
                       />
                     )}
-                    <ExpandingButton
+                    <ToolbarButton
+                      id="modal-btn-ai-draft"
                       onClick={handleGenerateWithAI}
                       isLoading={isGeneratingIA}
-                      label={isGeneratingIA ? 'Redactando con Tenshi...' : 'Redactar con Tenshi IA'}
-                      icon={Sparkles}
-                      variant="orange"
-                      title="Redactar borrador del acta con Tenshi IA"
+                      label={isGeneratingIA ? 'Redactando...' : 'Redactar con Tenshi IA'}
+                      icon="sparkles"
+                      title="Redactar borrador del acta con Tenshi IA y guardar automáticamente"
+                      variant="dummy"
                     />
                   </>
                 )}
+
                 <button
                   type="button"
                   onClick={() => {
                     setShowActaModal(false);
                     setActaModalTab('form');
                   }}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                  className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-500 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 transition-all shadow-2xs active:scale-95"
                   title="Cerrar modal"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -1164,13 +1416,41 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                     <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
                     <span>Vista Oficial en Papel Membretado A4 con Firmas Digitales de los Participantes (Ley 527/1999)</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <ExpandingButton
+                  <div className="inline-flex items-center gap-1.5 p-1 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-sm">
+                    <ToolbarButton
+                      id="report-bar-back"
                       onClick={() => setActaModalTab('form')}
                       label="Volver al Formulario"
                       icon={PenTool}
-                      variant="neutral"
                       title="Volver al formulario de campos estructurados"
+                      variant="history"
+                    />
+                    <ToolbarButton
+                      id="report-bar-history"
+                      onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                      label="Historial"
+                      icon={History}
+                      title="Consultar Historial de Informes"
+                      variant="history"
+                      active={isHistoryOpen}
+                    />
+                    <ToolbarButton
+                      id="report-bar-save-data"
+                      onClick={() => handleSaveActa(false)}
+                      isLoading={isSavingData}
+                      label="Guardar Datos"
+                      icon="database"
+                      title="Guardar datos del acta"
+                      variant="database"
+                    />
+                    <ToolbarButton
+                      id="report-bar-save-report"
+                      onClick={handleSaveReport}
+                      isLoading={isSavingReport}
+                      label="Guardar Informe"
+                      icon={Save}
+                      title="Guardar Informe Oficial en el Historial"
+                      variant="save"
                     />
                     <ExportDropdown
                       content={reportHtml}
@@ -1194,11 +1474,13 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                       paperMode={true}
                       initialContent={reportHtml}
                       onUpdate={(html) => setReportHtml(html)}
+                      onSave={handleSaveReport}
+                      onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                     />
                   </div>
                 )}
 
-                <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-zinc-800">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-slate-200 dark:border-zinc-800">
                   <ExpandingButton
                     onClick={() => setActaModalTab('form')}
                     label="Volver al Formulario"
@@ -1207,6 +1489,14 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                     title="Regresar a editar los campos estructurados"
                   />
                   <div className="flex items-center gap-2">
+                    <ExpandingButton
+                      onClick={handleSaveReport}
+                      isLoading={isSavingReport}
+                      label={isSavingReport ? 'Guardando...' : 'Guardar Informe'}
+                      icon={Save}
+                      variant="save"
+                      title="Guardar Informe Oficial en el Historial"
+                    />
                     <ExportDropdown
                       content={reportHtml}
                       fileName={reportFileName}
@@ -1643,6 +1933,14 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
               />
               <div className="flex items-center gap-2">
                 <ExpandingButton
+                  onClick={() => handleSaveActa(false)}
+                  isLoading={isSavingData}
+                  label={isSavingData ? 'Guardando...' : 'Guardar Datos'}
+                  icon={Database}
+                  variant="save"
+                  title="Guardar datos del acta sin cerrar la ventana"
+                />
+                <ExpandingButton
                   onClick={() => handleOpenOfficialReport(selectedActa?._id || 'preview', false)}
                   isLoading={reportLoading}
                   label={reportLoading ? 'Complementando con IA...' : 'Generar / Ver Informe Oficial'}
@@ -1651,11 +1949,12 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                   title="Complementar con Tenshi IA y exportar en papel membretado con firmas"
                 />
                 <ExpandingButton
-                  onClick={handleSaveActa}
-                  label="Guardar Acta Reglamentaria"
+                  onClick={() => handleSaveActa(true)}
+                  isLoading={isSavingData}
+                  label="Guardar y Cerrar"
                   icon={CheckCircle2}
                   variant="teal"
-                  title="Guardar acta y registrar compromisos"
+                  title="Guardar acta, registrar compromisos y cerrar"
                 />
               </div>
             </div>
@@ -2066,6 +2365,15 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
             showToast({ message: 'Firma registrada correctamente', status: 'success' });
           }
         }}
+      />
+
+      {/* ═══ PANEL LATERAL DE HISTORIAL DE INFORMES ═══ */}
+      <ReportHistory
+        isOpen={isHistoryOpen}
+        toggleOpen={() => setIsHistoryOpen(false)}
+        onSelectReport={handleSelectReportFromHistory}
+        refreshTrigger={refreshTrigger}
+        tags={['sgsst-copasst']}
       />
     </div>
   );

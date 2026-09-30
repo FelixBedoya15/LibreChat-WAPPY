@@ -364,16 +364,21 @@ router.post('/actas', requireJwtAuth, async (req, res) => {
       compromisos,
       proximaReunionFecha,
       estadoActa,
+      reporteOficialHtml,
     } = req.body;
 
     let acta;
-    if (id) {
+    const currentYear = anio || new Date().getFullYear();
+    const currentQuarter = trimestre || Math.ceil((new Date().getMonth() + 1) / 3);
+
+    if (id && id !== 'preview') {
       acta = await SgsstConvivenciaActa.findOne({ _id: id, companyId: company._id });
+    }
+    if (!acta) {
+      acta = await SgsstConvivenciaActa.findOne({ companyId: company._id, anio: currentYear, trimestre: currentQuarter });
     }
 
     if (!acta) {
-      const currentYear = anio || new Date().getFullYear();
-      const currentQuarter = trimestre || Math.ceil((new Date().getMonth() + 1) / 3);
       const count = await SgsstConvivenciaActa.countDocuments({ companyId: company._id, anio: currentYear });
       const autConsecutivo = consecutivo || `ACTA-CCL-${currentYear}-Q${currentQuarter}-${String(count + 1).padStart(2, '0')}`;
 
@@ -402,6 +407,7 @@ router.post('/actas', requireJwtAuth, async (req, res) => {
     if (Array.isArray(compromisos)) acta.compromisos = compromisos;
     if (proximaReunionFecha !== undefined) acta.proximaReunionFecha = proximaReunionFecha;
     if (estadoActa) acta.estadoActa = estadoActa;
+    if (reporteOficialHtml !== undefined) acta.reporteOficialHtml = reporteOficialHtml;
 
     await acta.save();
 
@@ -555,7 +561,59 @@ Solo responde con el objeto JSON válido, sin bloques markdown.`;
       }
     }
 
-    res.json({ success: true, borrador: parsed });
+    // Persistir automáticamente el borrador en MongoDB para que al recargar la página no se pierda
+    let dbActa = null;
+    try {
+      const targetYear = Number(anio) || new Date().getFullYear();
+      const targetQuarter = Number(trimestre) || Math.ceil((new Date().getMonth() + 1) / 3);
+      const { id, consecutivo, tipo, centroTrabajo, lugar, horaInicio, horaFin, quorumVerificado, asistentes, estadisticasQuejas, compromisos } = req.body;
+      if (id && id !== 'preview') {
+        dbActa = await SgsstConvivenciaActa.findOne({ _id: id, companyId: company._id });
+      }
+      if (!dbActa) {
+        dbActa = await SgsstConvivenciaActa.findOne({ companyId: company._id, anio: targetYear, trimestre: targetQuarter });
+      }
+      if (!dbActa) {
+        const count = await SgsstConvivenciaActa.countDocuments({ companyId: company._id, anio: targetYear });
+        const autConsecutivo = consecutivo || `ACTA-CCL-${targetYear}-Q${targetQuarter}-${String(count + 1).padStart(2, '0')}`;
+        dbActa = new SgsstConvivenciaActa({
+          companyId: company._id,
+          user: req.user.id,
+          consecutivo: autConsecutivo,
+          trimestre: targetQuarter,
+          anio: targetYear,
+          tipo: tipo || 'ordinaria_trimestral',
+          centroTrabajo: centroTrabajo || 'Sede Principal',
+          lugar: lugar || 'Sala Confidencial de Convivencia / Híbrida',
+          horaInicio: horaInicio || '09:00',
+          horaFin: horaFin || '11:00',
+          quorumVerificado: quorumVerificado !== false,
+          asistentes: Array.isArray(asistentes) ? asistentes : [],
+        });
+      }
+      const { compromisosSugeridos, ...desarrolloFields } = parsed;
+      dbActa.desarrollo = { ...(dbActa.desarrollo || {}), ...desarrolloActual, ...desarrolloFields };
+      const prevCompromisos = Array.isArray(compromisos) ? compromisos : (dbActa.compromisos || []);
+      const nuevosCompromisos = Array.isArray(compromisosSugeridos)
+        ? compromisosSugeridos.map((c) => ({
+            accion: c.accion,
+            responsable: c.responsable || 'Comité de Convivencia',
+            fechaLimite: c.fechaLimite || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+            estado: 'pendiente',
+          }))
+        : [];
+      dbActa.compromisos = [...prevCompromisos, ...nuevosCompromisos];
+      if (Array.isArray(asistentes) && asistentes.length > 0) dbActa.asistentes = asistentes;
+      if (estadisticasQuejas) dbActa.estadisticasQuejas = { ...dbActa.estadisticasQuejas, ...estadisticasQuejas };
+      if (lugar) dbActa.lugar = lugar;
+      if (horaInicio) dbActa.horaInicio = horaInicio;
+      if (horaFin) dbActa.horaFin = horaFin;
+      await dbActa.save();
+    } catch (saveErr) {
+      logger.warn('[CONVIVENCIA] Auto-save on generar-borrador-ia warning:', saveErr.message);
+    }
+
+    res.json({ success: true, borrador: parsed, acta: dbActa });
   } catch (error) {
     logger.error('[CONVIVENCIA] POST /actas/generar-borrador-ia error:', error);
     res.status(500).json({ error: 'Error al generar borrador con IA' });
@@ -1009,7 +1067,42 @@ Devuelve un objeto JSON válido con dos propiedades principales:
       </div>
     `;
 
+    if (!dbActa) {
+      const targetYear = Number(acta.anio) || new Date().getFullYear();
+      const targetQuarter = Number(acta.trimestre) || Math.ceil((new Date().getMonth() + 1) / 3);
+      dbActa = await SgsstConvivenciaActa.findOne({ companyId: company._id, anio: targetYear, trimestre: targetQuarter });
+      if (!dbActa) {
+        const count = await SgsstConvivenciaActa.countDocuments({ companyId: company._id, anio: targetYear });
+        const autConsecutivo =
+          acta.consecutivo && acta.consecutivo !== 'BORRADOR'
+            ? acta.consecutivo
+            : `ACTA-CCL-${targetYear}-Q${targetQuarter}-${String(count + 1).padStart(2, '0')}`;
+        dbActa = new SgsstConvivenciaActa({
+          companyId: company._id,
+          user: req.user.id,
+          consecutivo: autConsecutivo,
+          trimestre: targetQuarter,
+          anio: targetYear,
+          tipo: acta.tipo || 'ordinaria_trimestral',
+          centroTrabajo: acta.centroTrabajo || 'Sede Principal',
+          lugar: acta.lugar || 'Sala Confidencial de Convivencia / Híbrida',
+          horaInicio: acta.horaInicio || '09:00',
+          horaFin: acta.horaFin || '11:00',
+          quorumVerificado: acta.quorumVerificado !== false,
+          asistentes: Array.isArray(acta.asistentes) ? acta.asistentes : [],
+          estadisticasQuejas: acta.estadisticasQuejas || {},
+          compromisos: Array.isArray(acta.compromisos) ? acta.compromisos : [],
+        });
+      }
+    }
+
     if (dbActa) {
+      if (Array.isArray(acta.asistentes)) dbActa.asistentes = acta.asistentes;
+      if (Array.isArray(acta.compromisos)) dbActa.compromisos = acta.compromisos;
+      if (acta.estadisticasQuejas) dbActa.estadisticasQuejas = { ...dbActa.estadisticasQuejas, ...acta.estadisticasQuejas };
+      if (acta.lugar) dbActa.lugar = acta.lugar;
+      if (acta.horaInicio) dbActa.horaInicio = acta.horaInicio;
+      if (acta.horaFin) dbActa.horaFin = acta.horaFin;
       dbActa.desarrollo = { ...dbActa.desarrollo, ...desarrolloEnriquecido };
       dbActa.reporteOficialHtml = fullHtml;
       await dbActa.save();
@@ -1019,7 +1112,7 @@ Devuelve un objeto JSON válido con dos propiedades principales:
     const publicReport = new PublicReport({
       id: reportId,
       content: fullHtml,
-      fileName: `Acta-COCOLAB-${acta.consecutivo || 'Borrador'}`,
+      fileName: `Acta-COCOLAB-${dbActa?.consecutivo || acta.consecutivo || 'Borrador'}`,
       reportType: 'general',
     });
     await publicReport.save();
@@ -1030,6 +1123,7 @@ Devuelve un objeto JSON válido con dos propiedades principales:
       url: `/report/${reportId}`,
       html: fullHtml,
       desarrolloEnriquecido,
+      acta: dbActa,
     });
   } catch (error) {
     logger.error('[CONVIVENCIA] POST /actas/:id/reporte-oficial error:', error);

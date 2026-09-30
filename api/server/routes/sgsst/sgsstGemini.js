@@ -22,7 +22,7 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys, EModelEndpoint } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
-const { User } = require('~/db/models');
+const { User, Key } = require('~/db/models');
 const { logger } = require('~/config');
 const geminiPoolManager = require('~/server/services/GeminiPoolManager');
 
@@ -42,6 +42,37 @@ const LIVE_FALLBACK_MODELS = [
   'gemini-2.5-flash-native-audio-preview-09-2025',
 ];
 
+function extractKeysFromStoredString(stored) {
+  if (!stored) return [];
+  let parsed = null;
+  try {
+    parsed = JSON.parse(stored);
+  } catch {
+    /* plain string key */
+  }
+
+  let raw = '';
+  if (parsed && typeof parsed === 'object') {
+    const primary = parsed[AuthKeys?.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY || parsed.apiKey || '';
+    const extraKeys = Object.entries(parsed)
+      .filter(
+        ([k, v]) =>
+          k !== AuthKeys?.GOOGLE_API_KEY &&
+          k !== 'GOOGLE_API_KEY' &&
+          typeof v === 'string' &&
+          v.startsWith('AIza')
+      )
+      .map(([_, v]) => v);
+    raw = [primary, ...extraKeys].filter(Boolean).join(',');
+  } else if (typeof stored === 'string' && stored.length > 5) {
+    raw = stored.trim();
+  }
+
+  return raw
+    .split(',')
+    .map((k) => k.trim())
+    .filter((k) => k.length > 5 && k !== 'user_provided');
+}
 
 /**
  * Resolves all API keys for a user.
@@ -51,22 +82,27 @@ const LIVE_FALLBACK_MODELS = [
  * @returns {Promise<string[]>}
  */
 async function resolveApiKeys(userId) {
-  let rawApiKey = '';
-
   // Extraer el ID limpio en caso de que se haya pasado el objeto req.user
-  const cleanUserId = (typeof userId === 'object' && userId !== null)
-    ? (userId.subUserId || userId.id || userId._id || userId.userId || String(userId))
-    : (typeof userId === 'string' ? userId.trim() : null);
+  const cleanUserId =
+    typeof userId === 'object' && userId !== null
+      ? userId.subUserId || userId.id || userId._id || userId.userId || String(userId)
+      : typeof userId === 'string'
+        ? userId.trim()
+        : null;
 
   // 1. Consultar siempre la clave guardada por el usuario en la base de datos
   let isSubUser = false;
   let hasAiPermission = true;
   let subUserSuspended = false;
 
+  const userKeys = [];
+
   if (cleanUserId && cleanUserId !== '[object Object]') {
     try {
       if (User) {
-        const userDoc = await User.findById(cleanUserId).select('isSubUser subUserStatus subUserPermissions permissions').lean();
+        const userDoc = await User.findById(cleanUserId)
+          .select('isSubUser subUserStatus subUserPermissions permissions')
+          .lean();
         if (userDoc && userDoc.isSubUser) {
           isSubUser = true;
           if (userDoc.subUserStatus === 'suspended') {
@@ -74,7 +110,7 @@ async function resolveApiKeys(userId) {
           }
           const userPerms = [
             ...(Array.isArray(userDoc.subUserPermissions) ? userDoc.subUserPermissions : []),
-            ...(Array.isArray(userDoc.permissions) ? userDoc.permissions : [])
+            ...(Array.isArray(userDoc.permissions) ? userDoc.permissions : []),
           ];
           hasAiPermission = userPerms.some((p) =>
             ['chat:sst_specialist', 'chat:wappy_general', 'ai:live_analysis'].includes(p)
@@ -89,60 +125,40 @@ async function resolveApiKeys(userId) {
       throw new Error('Tu cuenta de sub-usuario se encuentra suspendida por el administrador principal.');
     }
 
-    try {
-      const stored = await getUserKey({ userId: cleanUserId, name: EModelEndpoint?.google || 'google' });
-      if (stored) {
-        let parsed = null;
-        try { parsed = JSON.parse(stored); } catch { /* plain string key */ }
-
-        if (parsed && typeof parsed === 'object') {
-          rawApiKey = parsed[AuthKeys?.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY || parsed.apiKey || '';
-          const extraKeys = Object.entries(parsed)
-            .filter(([k, v]) => k !== AuthKeys?.GOOGLE_API_KEY && k !== 'GOOGLE_API_KEY' && typeof v === 'string' && v.startsWith('AIza'))
-            .map(([_, v]) => v);
-          if (extraKeys.length > 0) {
-            rawApiKey = [rawApiKey, ...extraKeys].filter(Boolean).join(',');
-          }
-        } else if (typeof stored === 'string' && stored.length > 5) {
-          rawApiKey = stored.trim();
+    for (const keyName of [EModelEndpoint?.google || 'google', 'tenshi_google']) {
+      try {
+        const stored = await getUserKey({ userId: cleanUserId, name: keyName });
+        for (const k of extractKeysFromStoredString(stored)) {
+          if (!userKeys.includes(k)) userKeys.push(k);
         }
+      } catch (e) {
+        logger.debug(`[SGSST Gemini] No user key (${keyName}) in DB for ${cleanUserId}: ${e.message}`);
       }
-    } catch (e) {
-      logger.debug(`[SGSST Gemini] No user key in DB for ${cleanUserId}: ${e.message}`);
     }
   }
-
-  // 2. Extraer claves del usuario si existen
-  const userKeys = rawApiKey
-    .split(',')
-    .map(k => k.trim())
-    .filter(k => k.length > 0 && k !== 'user_provided');
 
   // Si es un sub-usuario sin permisos de IA de la empresa:
   if (isSubUser && !hasAiPermission) {
     if (userKeys.length === 0) {
       throw new Error(
         'Tu rol de sub-usuario no tiene permisos para utilizar Inteligencia Artificial. ' +
-        'Puedes registrar tu propia clave API de Google en el panel de claves o solicitar habilitación a tu administrador.'
+          'Puedes registrar tu propia clave API de Google en el panel de claves o solicitar habilitación a tu administrador.'
       );
     }
-    // Sub-usuario con clave personal registrada: usa EXCLUSIVAMENTE su clave, NUNCA cae en claves corporativas
-    logger.debug(`[SGSST Gemini] Sub-usuario ${cleanUserId} utilizando sus propias claves API personales (${userKeys.length}).`);
+    logger.debug(
+      `[SGSST Gemini] Sub-usuario ${cleanUserId} utilizando sus propias claves API personales (${userKeys.length}).`
+    );
     return userKeys;
   }
 
   // 3. Combinar con variables de entorno (GOOGLE_KEY, GEMINI_API_KEY) como respaldo
-  // para permitir rotación fluida si la cuota diaria de una clave se agota (ej. limit: 20 peticiones)
-  const envKeysRaw = [process.env.GOOGLE_KEY, process.env.GEMINI_API_KEY]
-    .filter(Boolean)
-    .join(',');
+  const envKeysRaw = [process.env.GOOGLE_KEY, process.env.GEMINI_API_KEY].filter(Boolean).join(',');
 
   const envKeys = envKeysRaw
     .split(',')
-    .map(k => k.trim())
-    .filter(k => k.length > 0 && k !== 'user_provided');
+    .map((k) => k.trim())
+    .filter((k) => k.length > 0 && k !== 'user_provided');
 
-  // Mantener prioridad de las claves del usuario pero concatenar claves del entorno sin duplicar
   const keys = [...userKeys];
   for (const ek of envKeys) {
     if (!keys.includes(ek)) {
@@ -150,10 +166,39 @@ async function resolveApiKeys(userId) {
     }
   }
 
+  // 4. Si no hay claves AIza aún (ej. entorno local con GOOGLE_KEY=user_provided o cuenta admin secundaria),
+  // buscar claves corporativas guardadas en la colección Key (tenshi_google / google)
+  if (!keys.some((k) => k.startsWith('AIza')) && Key) {
+    try {
+      const dbKeyDocs = await Key.find({ name: { $in: ['tenshi_google', 'google'] } })
+        .select('userId name')
+        .lean();
+      for (const doc of dbKeyDocs) {
+        try {
+          const stored = await getUserKey({ userId: String(doc.userId), name: doc.name });
+          for (const k of extractKeysFromStoredString(stored)) {
+            if (!keys.includes(k)) keys.push(k);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    } catch (fallbackErr) {
+      logger.debug(`[SGSST Gemini] Fallback Key lookup error: ${fallbackErr.message}`);
+    }
+  }
+
+  // Priorizar siempre claves estándar de Gemini API ('AIza...') al inicio de la lista
+  keys.sort((a, b) => {
+    const aIsAIza = a.startsWith('AIza') ? 0 : 1;
+    const bIsAIza = b.startsWith('AIza') ? 0 : 1;
+    return aIsAIza - bIsAIza;
+  });
+
   if (keys.length === 0) {
     throw new Error(
       'No hay claves API de Google configuradas. ' +
-      'Configura tu clave en "Establecer clave API para Google" en el panel del chat.'
+        'Configura tu clave en "Establecer clave API para Google" en el panel del chat.'
     );
   }
 

@@ -3608,8 +3608,8 @@ export default function LandingPage() {
           </h3>
           <p style={{ color: '#5a6470', fontSize: 14.5, margin: '0 0 20px', lineHeight: 1.5 }}>
             {lang === 'es'
-              ? 'Te mostraremos cómo Tenshi orquesta tu empresa, genera actas de COPASST y audita matrices de riesgos.'
-              : 'We will show you how Tenshi audits safety, generates committee minutes, and automates risk matrices.'}
+              ? 'Te mostraremos cómo Tenshi se encarga del trabajo pesado y repetitivo, reduciendo tu carga laboral para que lideres con más tiempo, control y cero estrés.'
+              : 'We’ll show you how Tenshi takes care of heavy, repetitive tasks—cutting your workload so you can lead with more time, full control, and zero stress.'}
           </p>
 
           <form onSubmit={handleDemoSubmit}>
