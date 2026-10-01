@@ -29,6 +29,9 @@ import {
   RefreshCw,
   Vote,
   ClipboardCheck,
+  Car,
+  Flame,
+  HeartPulse,
 } from 'lucide-react';
 import PublicWorkerHeader from './PublicWorkerHeader';
 
@@ -443,6 +446,30 @@ export default function PublicColaboradorHub() {
           color: 'from-indigo-500 to-purple-600',
         },
         {
+          title: 'Comité de Seguridad Vial (PESV)',
+          desc: 'Gestión vial, actas CSV y metas trimestrales Res. 20223040040595',
+          points: '+40 pts',
+          icon: Car,
+          path: `/sgsst-public/comites/${companyId}?tipo=pesv`,
+          color: 'from-cyan-600 to-blue-600',
+        },
+        {
+          title: 'Brigada de Emergencias & SCI',
+          desc: 'Actas de comité de crisis, simulacros y preparación Dec. 1072',
+          points: '+35 pts',
+          icon: Flame,
+          path: `/sgsst-public/comites/${companyId}?tipo=brigada`,
+          color: 'from-amber-600 to-rose-600',
+        },
+        {
+          title: 'Hoja de Vida de Brigadista',
+          desc: 'Credencial digital SCI, especialidad técnica, dotación y rol de emergencias',
+          points: '+40 pts',
+          icon: HeartPulse,
+          path: `/sgsst-public/brigadista/${companyId}`,
+          color: 'from-red-600 to-rose-700',
+        },
+        {
           title: 'Elecciones Paritarias (Voto Secreto)',
           desc: 'Elige tus representantes COPASST y Convivencia',
           points: '+20 pts',
@@ -567,6 +594,21 @@ export default function PublicColaboradorHub() {
                       <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${getNivelStyle(data.worker.nivel).badgeBg}`}>
                         {data.worker.nivel}
                       </span>
+                      {data.worker.esBrigadista === 'Sí' && (
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 flex items-center gap-1">
+                          <Flame className="w-3 h-3 text-rose-600" /> Brigadista
+                        </span>
+                      )}
+                      {data.worker.esComiteSeguridadVial === 'Sí' && (
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-cyan-100 dark:bg-cyan-950/60 text-cyan-800 dark:text-cyan-300 border border-cyan-300 flex items-center gap-1">
+                          <Car className="w-3 h-3 text-cyan-600" /> PESV
+                        </span>
+                      )}
+                      {data.worker.esCopasst === 'Sí' && (
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-300 flex items-center gap-1">
+                          <Award className="w-3 h-3 text-indigo-600" /> COPASST
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-text-secondary mt-0.5">
                       CC: {data.worker.documento} • {data.worker.cargo}

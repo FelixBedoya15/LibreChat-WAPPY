@@ -20,13 +20,70 @@ const getAllUsers = async (req, res) => {
             activityMap[item._id.toString()] = item.lastActivity;
         }
 
-        // Map legacy isApproved to accountStatus if needed
+        // Fetch UserPlan records to integrate plan details, limits and expirations
+        const UserPlan = require('~/db/models/UserPlan');
+        const userPlans = await UserPlan.find({}).lean();
+        const plansMap = {};
+        for (const p of userPlans) {
+            if (p.userId) {
+                plansMap[p.userId.toString()] = p;
+            }
+        }
+
+        const roleToPlanMap = {
+            'USER_PRO': 'pro',
+            'PRO': 'pro',
+            'USER_PLUS': 'plus',
+            'USER_GO': 'go',
+            'USER_IPEVAR': 'ipevar',
+            'IPEVAR': 'ipevar',
+            'USER': 'free',
+            'ADMIN': 'admin',
+            'USER_CUSTOM': 'custom',
+        };
+
+        // Map legacy isApproved to accountStatus and resolve plan and activation dates
         const mappedUsers = users.map(user => {
             const userObj = user.toObject();
             if (!userObj.accountStatus) {
                 userObj.accountStatus = userObj.isApproved === false ? 'pending' : 'active';
             }
             userObj.lastActivity = activityMap[userObj._id.toString()] || null;
+
+            const userPlan = plansMap[userObj._id.toString()] || null;
+            const resolvedPlan = userPlan?.plan || roleToPlanMap[userObj.role] || 'free';
+            const resolvedPlanInterval = userPlan?.planInterval || null;
+
+            // Resolved Expiration / Inactivation Date
+            let resolvedInactiveAt = null;
+            if (userObj.inactiveAt) {
+                resolvedInactiveAt = userObj.inactiveAt;
+            } else if (userPlan?.planExpiresAt) {
+                resolvedInactiveAt = userPlan.planExpiresAt;
+            }
+
+            // Resolved Activation Date:
+            // 1. Explicit user.activeAt
+            // 2. userPlan.createdAt
+            // 3. user.createdAt (if user is active or has non-free role)
+            let resolvedActiveAt = null;
+            if (userObj.activeAt) {
+                resolvedActiveAt = userObj.activeAt;
+            } else if (userPlan?.createdAt) {
+                resolvedActiveAt = userPlan.createdAt;
+            } else if (userObj.accountStatus === 'active' || userObj.isApproved !== false || userObj.role !== 'USER') {
+                resolvedActiveAt = userObj.createdAt;
+            }
+
+            userObj.plan = resolvedPlan;
+            userObj.planInterval = resolvedPlanInterval;
+            userObj.activeAt = resolvedActiveAt;
+            userObj.inactiveAt = resolvedInactiveAt;
+            userObj.planExpiresAt = resolvedInactiveAt;
+            userObj.companyLimit = userPlan?.companyLimit ?? null;
+            userObj.automationLimit = userPlan?.automationLimit ?? null;
+            userObj.subUserLimit = userPlan?.subUserLimit ?? null;
+
             return userObj;
         });
         res.status(200).json(mappedUsers);
@@ -78,11 +135,12 @@ const updateUser = async (req, res) => {
             userId, role, accountStatus, name, username, password, inactiveAt, activeAt, phoneNumber,
             departamento, ciudad, department, city,
             commercialTier, partnerSlug, partnerPaymentDetails, partnerSupportContact, pointsAdjustment,
-            companyLimit, automationLimit, subUserLimit, referredByPartner
+            companyLimit, automationLimit, subUserLimit, referredByPartner,
+            plan
         } = req.body;
         
         logger.info(`[AdminController] Updating user ${userId}:`, { 
-            role, accountStatus, inactiveAt, activeAt, commercialTier, partnerSlug, pointsAdjustment, companyLimit, automationLimit, subUserLimit, referredByPartner
+            role, plan, accountStatus, inactiveAt, activeAt, commercialTier, partnerSlug, pointsAdjustment, companyLimit, automationLimit, subUserLimit, referredByPartner
         });
 
         const updateData = {};
@@ -101,6 +159,19 @@ const updateUser = async (req, res) => {
         if (department !== undefined && !updateData.departamento) updateData.departamento = department;
         if (ciudad !== undefined) updateData.ciudad = ciudad;
         if (city !== undefined && !updateData.ciudad) updateData.ciudad = city;
+
+        const planToRoleMap = {
+            'pro': 'USER_PRO',
+            'plus': 'USER_PLUS',
+            'go': 'USER_GO',
+            'ipevar': 'USER_IPEVAR',
+            'free': 'USER',
+            'custom': 'USER_CUSTOM',
+            'admin': 'ADMIN',
+        };
+        if (plan && !role && planToRoleMap[plan]) {
+            updateData.role = planToRoleMap[plan];
+        }
 
         const user = await User.findByIdAndUpdate(userId, updateData, { new: true });
         if (!user) {
@@ -197,7 +268,9 @@ const updateUser = async (req, res) => {
         if (inactiveAt !== undefined) {
             planUpdates.planExpiresAt = inactiveAt ? new Date(inactiveAt) : null;
         }
-        if (role) {
+        if (plan) {
+            planUpdates.plan = plan;
+        } else if (role) {
             const rolePlanMap = {
                 'USER_PRO': 'pro',
                 'PRO': 'pro',
@@ -451,6 +524,23 @@ const getUserReferralDetails = async (req, res) => {
         const ReferralRecord = require('~/models/ReferralRecord');
 
         const userPlanDoc = await UserPlan.findOne({ userId }).lean();
+        const userDoc = await User.findById(userId, 'activeAt inactiveAt createdAt role accountStatus isApproved').lean();
+
+        const roleToPlanMap = {
+            'USER_PRO': 'pro',
+            'PRO': 'pro',
+            'USER_PLUS': 'plus',
+            'USER_GO': 'go',
+            'USER_IPEVAR': 'ipevar',
+            'IPEVAR': 'ipevar',
+            'USER': 'free',
+            'ADMIN': 'admin',
+            'USER_CUSTOM': 'custom',
+        };
+        const resolvedPlan = userPlanDoc?.plan || (userDoc?.role ? roleToPlanMap[userDoc.role] : 'free');
+        const resolvedActiveAt = userDoc?.activeAt || userPlanDoc?.createdAt || (userDoc?.accountStatus === 'active' || userDoc?.isApproved !== false ? userDoc?.createdAt : null);
+        const resolvedInactiveAt = userDoc?.inactiveAt || userPlanDoc?.planExpiresAt || null;
+
         const companyLimit = userPlanDoc ? userPlanDoc.companyLimit : null;
         const automationLimit = userPlanDoc ? userPlanDoc.automationLimit : null;
         const subUserLimit = userPlanDoc ? userPlanDoc.subUserLimit : null;
@@ -465,6 +555,11 @@ const getUserReferralDetails = async (req, res) => {
         const referredByPartner = referralRecord ? referralRecord.referredByPartner : null;
 
         return res.json({
+            plan: resolvedPlan,
+            planExpiresAt: resolvedInactiveAt,
+            planInterval: userPlanDoc?.planInterval || null,
+            activeAt: resolvedActiveAt,
+            inactiveAt: resolvedInactiveAt,
             pointsBalance,
             partner,
             commissionsStats,

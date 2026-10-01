@@ -110,14 +110,12 @@ export const PHASE_CATEGORIES = {
         { 
             id: 'comite_pesv', title: 'Comité de Seguridad Vial (CSV - PESV)', icon: 'Car',
             bioRationale: 'Órgano directivo y técnico encargado de diseñar, implementar, auditar siniestros viales y evaluar trimestralmente los indicadores y metas del Plan Estratégico de Seguridad Vial.', 
-            normativity: 'Hito 3: Comités, Brigadas y Gobernanza (Res. 20223040040595 Paso 1, 2 y 20 • ISO 39001)',
-            defaultDisabled: true
+            normativity: 'Hito 3: Comités, Brigadas y Gobernanza (Res. 20223040040595 Paso 1, 2 y 20 • ISO 39001)'
         },
         { 
             id: 'brigada_emergencias', title: 'Brigada de Emergencias & Comité de Crisis (SCI)', icon: 'Shield',
             bioRationale: 'Conformación del Sistema Comando de Incidentes (SCI), coordinadores de evacuación y brigadistas de primeros auxilios, control de incendios y rescate.', 
-            normativity: 'Hito 3: Comités, Brigadas y Gobernanza (Dec. 1072 Art. 2.2.4.6.25 Num. 11)',
-            defaultDisabled: true
+            normativity: 'Hito 3: Comités, Brigadas y Gobernanza (Dec. 1072 Art. 2.2.4.6.25 Num. 11)'
         }
     ],
 
@@ -267,8 +265,6 @@ export const DEFAULT_CONSTRUCTION_APPS = [
     'matriz_pesv_oficial',
     'matriz_compatibilidad_oficial',
     'plan_emergencias',
-    'comite_pesv',
-    'brigada_emergencias',
     'equipos_emergencia',
     'simulacros_emergencia',
 ];

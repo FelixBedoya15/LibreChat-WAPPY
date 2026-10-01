@@ -82,5 +82,6 @@ module.exports = {
     animo: require('./animo'),
     copasst: require('./copasst'),
     convivencia: require('./convivencia'),
+    brigada: require('./brigada'),
 };
 

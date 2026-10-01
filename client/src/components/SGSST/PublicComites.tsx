@@ -69,11 +69,19 @@ export default function PublicComites() {
   const [isDrawingActa, setIsDrawingActa] = useState(false);
   const [hasActaSignature, setHasActaSignature] = useState(false);
 
-  // Auto-fill worker details when session or URL query is available
+  // Auto-fill worker details and committee type when session or URL query is available
   useEffect(() => {
     const qCedula = searchParams.get('cedula');
     if (qCedula && !cedula) {
       setCedula(qCedula.trim());
+    }
+    const qTipo = searchParams.get('tipo');
+    if (qTipo && ['copasst', 'cocolab', 'brigada', 'pesv'].includes(qTipo)) {
+      setTipoComite(qTipo as any);
+    }
+    const qTab = searchParams.get('tab');
+    if (qTab === 'general' || qTab === 'actas') {
+      setActiveTab(qTab);
     }
   }, [searchParams]);
 

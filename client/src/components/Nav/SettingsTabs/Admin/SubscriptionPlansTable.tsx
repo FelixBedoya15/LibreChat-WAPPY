@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { Button } from '@librechat/client';
-import { Eye, EyeOff, Settings2, Save } from 'lucide-react';
+import { Eye, EyeOff, Settings2, Save, CheckCircle2 } from 'lucide-react';
 
 // Default visibility (only Pro shown, no extra sections)
 const DEFAULT_VISIBILITY = {
@@ -254,16 +254,16 @@ export default function SubscriptionPlansTable() {
 
             {/* ── PLAN PRICING CARDS ──────────────────────────────────── */}
             {plans.map((plan) => (
-                <div key={plan.planId} className="border border-border-light rounded-xl overflow-hidden bg-surface-primary shadow-sm">
-                    <div className="bg-surface-secondary px-6 py-4 flex justify-between items-center border-b border-border-light">
-                        <h3 className="text-xl font-bold capitalize text-primary">Plan {plan.planId === 'ipevar' ? 'Wappy Vital' : plan.name}</h3>
-                        <Button
-                            variant="default"
+                <div key={plan.planId} className="border border-slate-200/80 dark:border-zinc-800 rounded-2xl overflow-hidden bg-white dark:bg-zinc-900 shadow-2xs">
+                    <div className="bg-slate-50/90 dark:bg-zinc-800/80 px-6 py-4 flex justify-between items-center border-b border-slate-200/80 dark:border-zinc-800">
+                        <h3 className="text-base font-bold capitalize text-slate-800 dark:text-zinc-100">Plan {plan.planId === 'ipevar' ? 'Wappy Vital' : plan.name}</h3>
+                        <button
                             onClick={() => handleSave(plan)}
-                            className="bg-green-600 hover:bg-green-700 text-white"
+                            className="flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white cursor-pointer"
                         >
-                            Guardar Cambios
-                        </Button>
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Guardar Cambios</span>
+                        </button>
                     </div>
 
                     <div className="p-6 flex flex-row overflow-x-auto gap-6 bg-surface-primary pb-8 custom-admin-scrollbar">

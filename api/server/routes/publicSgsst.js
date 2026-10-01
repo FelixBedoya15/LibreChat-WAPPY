@@ -2366,6 +2366,12 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
         estadoPila: perfilWorker?.estadoPila || worker?.estadoPila || 'Pendiente de soporte PILA',
         arl: company.arl || perfilWorker?.arl || worker?.arl || '',
         rh: perfilWorker?.rh || perfilWorker?.grupoSanguineo || '',
+        esBrigadista: perfilWorker?.esBrigadista || 'No',
+        esComiteSeguridadVial: perfilWorker?.esComiteSeguridadVial || 'No',
+        esCopasst: perfilWorker?.esCopasst || 'No',
+        esComiteConvivencia: perfilWorker?.esComiteConvivencia || 'No',
+        emergenciaContacto: perfilWorker?.emergenciaContacto || '',
+        emergenciaTelefono: perfilWorker?.emergenciaTelefono || perfilWorker?.telefono || '',
         diagnosticoMedico: perfilWorker?.diagnosticoMedico || '',
         recomendacionesMedicas: perfilWorker?.recomendacionesMedicas || '',
         enfermedades: perfilWorker?.enfermedades || '',
@@ -3151,6 +3157,260 @@ const handleFirmarActa = async (req, res) => {
 
 router.post('/actas/:companyId/firmar', handleFirmarActa);
 router.post('/firmar-acta/:companyId', handleFirmarActa);
+
+// ─── GET /api/public-sgsst/brigadista/:companyId/:cedula? ───────────────────
+// Consulta o inicializa la Hoja de Vida de Brigadista
+router.get('/brigadista/:companyId/:cedula?', async (req, res) => {
+  try {
+    const { companyId, cedula: paramCedula } = req.params;
+    const queryCedula = req.query.cedula;
+    const targetCedula = String(paramCedula || queryCedula || '').trim();
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const SgsstBrigadista = require('~/models/SgsstBrigadista');
+
+    // 1. Si no hay cédula, listar brigadistas registrados para esta empresa
+    if (!targetCedula) {
+      const brigadistas = await SgsstBrigadista.find({ companyId: company._id })
+        .select('nombre cedula cargo grupoEspecialidad rolSCI estadoMembresia rh')
+        .sort({ nombre: 1 })
+        .lean();
+
+      return res.json({
+        success: true,
+        company: {
+          id: company._id,
+          companyName: company.companyName,
+          logoUrl: company.logoUrl || null,
+        },
+        brigadistas,
+      });
+    }
+
+    // 2. Si hay cédula, buscar brigadista existente
+    const brigadista = await SgsstBrigadista.findOne({
+      companyId: company._id,
+      cedula: targetCedula,
+    }).lean();
+
+    // 3. Obtener datos del trabajador en PerfilSociodemografico para enriquecer o precargar
+    const { worker } = await resolveCompanyAndWorker(companyId, { cedula: targetCedula });
+
+    if (brigadista) {
+      return res.json({
+        success: true,
+        company: {
+          id: company._id,
+          companyName: company.companyName,
+          logoUrl: company.logoUrl || null,
+        },
+        brigadista,
+        worker,
+        isDraft: false,
+      });
+    }
+
+    // 4. Si no existe registro formal de brigadista, preparar borrador con los datos del trabajador
+    const draft = {
+      companyId: company._id,
+      cedula: targetCedula,
+      nombre: worker?.nombre || '',
+      cargo: worker?.cargo || '',
+      sede: worker?.sede || 'Sede Principal',
+      area: worker?.area || worker?.proceso || 'Operaciones / Planta',
+      grupoEspecialidad: 'Primeros Auxilios',
+      rolSCI: 'Brigadista Operativo',
+      estadoMembresia: worker?.esBrigadista === 'Sí' ? 'Activo' : 'Aspirante / Postulado',
+      rh: worker?.rh || worker?.tipoSangre || 'O+',
+      alergiasMedicas: worker?.alergiasQuimicas || 'Ninguna conocida',
+      condicionesMedicas: worker?.enfermedades || worker?.diagnosticoMedico || '',
+      aptitudEmergencias: 'Apto sin restricciones para atención de emergencias',
+      contactoEmergenciaNombre: worker?.emergenciaContacto || '',
+      contactoEmergenciaParentesco: 'Familiar',
+      contactoEmergenciaTelefono: worker?.emergenciaTelefono || worker?.telefono || '',
+      dotacion: [
+        { item: 'Chaleco reflectivo de brigadista con distintivo', entregado: true, observacion: 'Dotación reglamentaria' },
+        { item: 'Brazalete reflectivo de brigada SCI', entregado: true, observacion: 'Identificación rápida' },
+        { item: 'Silbato de advertencia y evacuación', entregado: true, observacion: 'Señalización acústica' },
+        { item: 'Linterna táctica recargable de alta potencia', entregado: false, observacion: 'Pendiente de entrega' },
+        { item: 'Botiquín personal de primeros auxilios y trauma', entregado: false, observacion: 'Dotación por sede' },
+        { item: 'Guantes de nitrilo y protección ocular', entregado: true, observacion: 'Bioseguridad' },
+      ],
+      capacitaciones: [
+        { tema: 'Primer Respondiente & Soporte Vital Básico (SVB)', horas: 8, institucion: 'ARL / Organismo de Socorro', estado: 'Certificado' },
+        { tema: 'Prevención, Control de Conatos y Manejo de Extintores', horas: 6, institucion: 'Cuerpo de Bomberos', estado: 'Certificado' },
+        { tema: 'Procedimientos Operativos Normalizados (PON) de Evacuación', horas: 4, institucion: 'SST Empresa', estado: 'Certificado' },
+        { tema: 'Sistema Comando de Incidentes (SCI) en Terreno', horas: 8, institucion: 'Defensa Civil / Cruz Roja', estado: 'En curso' },
+      ],
+      simulacrosParticipados: [
+        { nombre: 'Simulacro Nacional de Respuesta a Emergencias', rolDesempenado: 'Coordinador de Evacuación y Conteo' },
+      ],
+      carnetEmitido: true,
+      fechaIngresoBrigada: new Date(),
+    };
+
+    return res.json({
+      success: true,
+      company: {
+        id: company._id,
+        companyName: company.companyName,
+        logoUrl: company.logoUrl || null,
+      },
+      brigadista: draft,
+      worker,
+      isDraft: true,
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] GET /brigadista error:', error);
+    res.status(500).json({ error: 'Error al consultar hoja de vida del brigadista' });
+  }
+});
+
+// ─── POST /api/public-sgsst/brigadista/:companyId ───────────────────────────
+// Guardar o actualizar la Hoja de Vida del Brigadista con firma digital y dotación
+router.post('/brigadista/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const {
+      cedula,
+      nombre,
+      cargo,
+      sede,
+      area,
+      grupoEspecialidad,
+      rolSCI,
+      estadoMembresia,
+      rh,
+      alergiasMedicas,
+      condicionesMedicas,
+      aptitudEmergencias,
+      contactoEmergenciaNombre,
+      contactoEmergenciaParentesco,
+      contactoEmergenciaTelefono,
+      dotacion,
+      capacitaciones,
+      simulacrosParticipados,
+      firmaDigital,
+      observaciones,
+    } = req.body;
+
+    if (!cedula || !nombre) {
+      return res.status(400).json({ error: 'Cédula y nombre son obligatorios' });
+    }
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const SgsstBrigadista = require('~/models/SgsstBrigadista');
+    const cleanCedula = String(cedula).trim();
+
+    const updatePayload = {
+      companyId: company._id,
+      user: company.user,
+      cedula: cleanCedula,
+      nombre: String(nombre).trim(),
+      cargo: String(cargo || '').trim(),
+      sede: String(sede || 'Sede Principal').trim(),
+      area: String(area || '').trim(),
+      grupoEspecialidad: grupoEspecialidad || 'Primeros Auxilios',
+      rolSCI: rolSCI || 'Brigadista Operativo',
+      estadoMembresia: estadoMembresia || 'Activo',
+      rh: String(rh || 'O+').trim(),
+      alergiasMedicas: String(alergiasMedicas || 'Ninguna conocida').trim(),
+      condicionesMedicas: String(condicionesMedicas || '').trim(),
+      aptitudEmergencias: aptitudEmergencias || 'Apto sin restricciones para atención de emergencias',
+      contactoEmergenciaNombre: String(contactoEmergenciaNombre || '').trim(),
+      contactoEmergenciaParentesco: String(contactoEmergenciaParentesco || 'Familiar').trim(),
+      contactoEmergenciaTelefono: String(contactoEmergenciaTelefono || '').trim(),
+      dotacion: Array.isArray(dotacion) ? dotacion : [],
+      capacitaciones: Array.isArray(capacitaciones) ? capacitaciones : [],
+      simulacrosParticipados: Array.isArray(simulacrosParticipados) ? simulacrosParticipados : [],
+      observaciones: String(observaciones || '').trim(),
+      carnetEmitido: true,
+      updatedAt: new Date(),
+    };
+
+    if (firmaDigital) {
+      updatePayload.firmaDigital = firmaDigital;
+      updatePayload.fechaFirma = new Date();
+    }
+
+    const brigadista = await SgsstBrigadista.findOneAndUpdate(
+      { companyId: company._id, cedula: cleanCedula },
+      { $set: updatePayload },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    // 1. Sincronizar en PerfilSociodemograficoData (esBrigadista = 'Sí')
+    try {
+      const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData || require('./sgsst/perfilSociodemografico');
+      const perfilDoc = await PerfilSociodemograficoData.findOne({ companyId: company._id });
+      if (perfilDoc && Array.isArray(perfilDoc.trabajadores)) {
+        const tIndex = perfilDoc.trabajadores.findIndex(
+          (t) => String(t.identificacion || '').trim().toLowerCase() === cleanCedula.toLowerCase()
+        );
+        if (tIndex !== -1) {
+          perfilDoc.trabajadores[tIndex].esBrigadista = 'Sí';
+          if (rh) perfilDoc.trabajadores[tIndex].rh = rh;
+          if (contactoEmergenciaNombre) perfilDoc.trabajadores[tIndex].emergenciaContacto = contactoEmergenciaNombre;
+          if (contactoEmergenciaTelefono) perfilDoc.trabajadores[tIndex].emergenciaTelefono = contactoEmergenciaTelefono;
+          perfilDoc.markModified('trabajadores');
+          await perfilDoc.save();
+        }
+      }
+    } catch (e) {
+      logger.warn('[Public SGSST] Error syncing esBrigadista to PerfilSociodemografico:', e.message);
+    }
+
+    // 2. Otorgar puntos de gamificación (+40 pts) en SgsstWorker
+    try {
+      const SgsstWorker = require('~/models/SgsstWorker');
+      const worker = await SgsstWorker.findOne({
+        companyId: company._id,
+        $or: [{ documento: cleanCedula }, { perfilId: cleanCedula }],
+      });
+      if (worker) {
+        worker.percepcionRiesgoScore = (Number(worker.percepcionRiesgoScore) || 0) + 40;
+        worker.percepcionRiesgoHistorial.push({
+          fecha: new Date(),
+          accion: 'Hoja de Vida de Brigadista Certificada & Credencial SCI',
+          puntos: 40,
+          modulo: 'brigada',
+          referencia: String(brigadista._id),
+        });
+        await worker.save();
+      }
+    } catch (wErr) {
+      logger.warn('[Public SGSST] Error awarding gamification points for Brigadista:', wErr.message);
+    }
+
+    // 3. Notificación al coordinador SST
+    setImmediate(async () => {
+      try {
+        await Notification.create({
+          user: new mongoose.Types.ObjectId(company.user),
+          type: 'sgsst_brigadista_actualizado',
+          title: `Hoja de Vida de Brigadista Registrada: ${nombre}`,
+          body: `${nombre} (CC: ${cleanCedula}) ha confirmado su pertenencia a la Brigada de Emergencias (${grupoEspecialidad} - ${rolSCI}).`,
+          metadata: { module: 'brigada', brigadistaId: brigadista._id },
+        });
+      } catch (nErr) {
+        logger.warn('[Public Brigadista] Notification error:', nErr.message);
+      }
+    });
+
+    res.json({
+      success: true,
+      message: '¡Hoja de Vida de Brigadista guardada exitosamente y carné digital activado! (+40 pts)',
+      brigadista,
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] POST /brigadista error:', error);
+    res.status(500).json({ error: 'Error al registrar hoja de vida del brigadista' });
+  }
+});
 
 module.exports = router;
 module.exports.releaseWorkerSession = releaseWorkerSession;

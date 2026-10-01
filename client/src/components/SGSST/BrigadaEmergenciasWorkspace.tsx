@@ -1,11 +1,11 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Users,
   Shield,
   Plus,
   Trash2,
   Save,
-  Hammer,
+  ShieldCheck,
   Flame,
   HeartPulse,
   Megaphone,
@@ -45,17 +45,73 @@ const BrigadaEmergenciasWorkspace: React.FC = () => {
   const [reportMessageId, setReportMessageId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const handleSaveLocal = () => {
+  // Cargar nómina de brigadistas desde la base de datos o borrador local
+  useEffect(() => {
+    if (!token) return;
+    fetch('/api/sgsst/brigada/brigadistas', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.brigadistas) && data.brigadistas.length > 0) {
+          setBrigadistas(
+            data.brigadistas.map((b: any) => ({
+              nombre: b.nombre || '',
+              cedula: b.cedula || '',
+              cargo: b.cargo || '',
+              especialidad: b.grupoEspecialidad || b.especialidad || 'Primeros Auxilios',
+              rolSCI: b.rolSCI || 'Brigadista Operativo',
+            }))
+          );
+        } else {
+          const draft = localStorage.getItem('wappy_brigada_emergencias_draft');
+          if (draft) {
+            try {
+              const parsed = JSON.parse(draft);
+              if (Array.isArray(parsed) && parsed.length > 0) setBrigadistas(parsed);
+            } catch (_) {}
+          }
+        }
+      })
+      .catch(() => {
+        const draft = localStorage.getItem('wappy_brigada_emergencias_draft');
+        if (draft) {
+          try {
+            const parsed = JSON.parse(draft);
+            if (Array.isArray(parsed) && parsed.length > 0) setBrigadistas(parsed);
+          } catch (_) {}
+        }
+      });
+  }, [token]);
+
+  const handleSaveLocal = async () => {
     setIsSavingLocal(true);
-    setTimeout(() => {
-      localStorage.setItem('wappy_brigada_emergencias_draft', JSON.stringify(brigadistas));
-      setIsSavingLocal(false);
+    localStorage.setItem('wappy_brigada_emergencias_draft', JSON.stringify(brigadistas));
+    try {
+      if (token) {
+        await fetch('/api/sgsst/brigada/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ brigadistas }),
+        });
+      }
       showToast({
-        message: 'Conformación de Brigada guardada localmente',
+        message: 'Nómina de Brigada guardada y sincronizada exitosamente',
         status: 'success',
         severity: 'success',
       });
-    }, 300);
+    } catch (_) {
+      showToast({
+        message: 'Conformación de Brigada guardada localmente',
+        status: 'info',
+        severity: 'info',
+      });
+    } finally {
+      setIsSavingLocal(false);
+    }
   };
 
   const handleDummy = () => {
@@ -233,8 +289,8 @@ const BrigadaEmergenciasWorkspace: React.FC = () => {
                 <h2 className="text-xl font-black tracking-tight text-text-primary">
                   Brigada de Emergencias & Sistema Comando de Incidentes (SCI)
                 </h2>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                  <Hammer className="w-3 h-3" /> En construcción
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <ShieldCheck className="w-3 h-3" /> Hito 3 Activo
                 </span>
               </div>
 

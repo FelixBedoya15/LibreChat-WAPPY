@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
-import { Button } from '@librechat/client';
-import { Trash2, Plus, Loader2, Tag } from 'lucide-react';
+import { Trash2, Plus, Loader2, Tag, CheckCircle2, XCircle } from 'lucide-react';
 
 interface PromoCode {
     _id: string;
@@ -37,7 +36,6 @@ export default function PromoCodesTable() {
 
     useEffect(() => {
         fetchCodes();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleCreate = async () => {
@@ -75,7 +73,7 @@ export default function PromoCodesTable() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!window.confirm('¿Estás seguro de que deseas eliminar este código? Se borrará también de Stripe de forma permanente.')) {
+        if (!window.confirm('¿Estás seguro de que deseas eliminar este código? Se borrará de forma permanente.')) {
             return;
         }
 
@@ -91,110 +89,126 @@ export default function PromoCodesTable() {
     if (loading) {
         return (
             <div className="flex h-48 items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-text-primary" />
+                <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
             </div>
         );
     }
 
     return (
         <div className="flex flex-col gap-6">
-            <div className="rounded-xl border border-border-light bg-surface-primary p-6 shadow-sm">
-                <h3 className="mb-4 text-lg items-center gap-2 flex font-bold text-text-primary">
-                    <Tag className="w-5 h-5" />
-                    Crear Nuevo Código de Descuento
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            {/* Create Code Card */}
+            <div className="rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/60 p-5 shadow-2xs">
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                        <Tag className="w-4 h-4" />
+                    </div>
                     <div>
-                        <label className="text-xs font-bold text-text-secondary uppercase mb-1.5 block">Código</label>
+                        <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-100">
+                            Crear Nuevo Código de Descuento
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400">
+                            Aplica descuentos automáticos a suscripciones en pasarela de pagos.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1 block">
+                            Código
+                        </label>
                         <input
                             type="text"
                             placeholder="Ej. WAPPY50"
                             value={newCode}
                             onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-                            className="w-full rounded-lg border border-border-light bg-surface-secondary px-4 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 uppercase font-mono"
+                            className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3.5 py-2 text-xs font-mono font-bold focus:border-teal-500 outline-none uppercase"
                         />
                     </div>
                     <div>
-                        <label className="text-xs font-bold text-text-secondary uppercase mb-1.5 block">% Descuento</label>
+                        <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1 block">
+                            % Descuento
+                        </label>
                         <input
                             type="number"
                             min="1"
                             max="100"
                             value={newDiscount}
                             onChange={(e) => setNewDiscount(Number(e.target.value))}
-                            className="w-full rounded-lg border border-border-light bg-surface-secondary px-4 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                            className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3.5 py-2 text-xs focus:border-teal-500 outline-none font-semibold"
                         />
                     </div>
-                    <div className="flex items-center gap-2 mb-2 md:mb-0">
+                    <div className="flex items-center gap-2 mb-2">
                         <input
                             id="welcome-code-check"
                             type="checkbox"
                             checked={isWelcomeCode}
                             onChange={(e) => setIsWelcomeCode(e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-600"
+                            className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
                         />
-                        <label htmlFor="welcome-code-check" className="text-sm text-text-secondary cursor-pointer">
-                            Es Código de Bienvenida (48h)
+                        <label htmlFor="welcome-code-check" className="text-xs font-medium text-slate-600 dark:text-zinc-300 cursor-pointer">
+                            Bienvenida (Válido 48h)
                         </label>
                     </div>
-                    <div className="md:col-span-1">
-                        <Button
-                            variant="default"
+                    <div>
+                        <button
                             onClick={handleCreate}
                             disabled={isSubmitting || !newCode.trim()}
-                            className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white disabled:opacity-50 cursor-pointer"
                         >
                             {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                            Crear Código
-                        </Button>
+                            <span>Crear Código</span>
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-border-light shadow-sm custom-admin-scrollbar">
-                <table className="w-full text-left text-sm text-text-secondary">
-                    <thead className="bg-surface-secondary text-xs uppercase text-text-primary">
+            {/* Table */}
+            <div className="overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-2xs custom-admin-scrollbar">
+                <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50/90 dark:bg-zinc-800/80 text-[11px] uppercase tracking-wider text-slate-500 dark:text-zinc-400 font-bold">
                         <tr>
-                            <th className="px-6 py-4 font-bold">Código</th>
-                            <th className="px-6 py-4 font-bold">% Descuento</th>
-                            <th className="px-6 py-4 font-bold">Estado</th>
-                            <th className="px-6 py-4 font-bold text-right">Acciones</th>
+                            <th className="px-6 py-3.5">Código Promocional</th>
+                            <th className="px-6 py-3.5">% Descuento</th>
+                            <th className="px-6 py-3.5">Estado</th>
+                            <th className="px-6 py-3.5 text-right">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-border-light bg-surface-primary">
+                    <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/80 bg-white dark:bg-zinc-900">
                         {codes.map((codeItem) => (
-                            <tr key={codeItem._id} className="hover:bg-surface-hover/50">
-                                <td className="px-6 py-4 font-mono font-bold text-text-primary">
-                                    <div className="flex flex-col gap-1">
-                                        {codeItem.code}
+                            <tr key={codeItem._id} className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/40 transition-colors">
+                                <td className="px-6 py-4 font-mono font-bold text-slate-800 dark:text-zinc-100">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm">{codeItem.code}</span>
                                         {codeItem.isWelcomeCode && (
-                                            <span className="text-[9px] w-fit bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 px-1.5 py-0.5 rounded-full uppercase font-bold tracking-tight">
+                                            <span className="text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 px-2 py-0.5 rounded-full font-bold border border-blue-200">
                                                 Bienvenida (48h)
                                             </span>
                                         )}
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 font-medium">
-                                    <span className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-md">
-                                        -{codeItem.discountPercentage}%
+                                <td className="px-6 py-4 font-bold">
+                                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 px-2.5 py-1 rounded-full text-xs">
+                                        -{codeItem.discountPercentage}% OFF
                                     </span>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2.5">
                                         <button
                                             role="switch"
                                             aria-checked={codeItem.active}
                                             onClick={() => handleToggle(codeItem._id)}
-                                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200 ease-in-out ${codeItem.active ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'
-                                                }`}
+                                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${
+                                                codeItem.active ? 'bg-teal-600' : 'bg-slate-300 dark:bg-zinc-700'
+                                            }`}
                                         >
                                             <span
-                                                aria-hidden="true"
-                                                className={`pointer-events-none absolute left-0 inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform duration-200 ease-in-out ${codeItem.active ? 'translate-x-4' : 'translate-x-0'
-                                                    }`}
+                                                className={`pointer-events-none absolute left-0 inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform duration-200 ${
+                                                    codeItem.active ? 'translate-x-4' : 'translate-x-0.5'
+                                                }`}
                                             />
                                         </button>
-                                        <span className={codeItem.active ? 'text-green-600 font-medium' : 'text-text-secondary'}>
+                                        <span className={`text-xs font-semibold ${codeItem.active ? 'text-teal-700 dark:text-teal-400' : 'text-slate-400'}`}>
                                             {codeItem.active ? 'Activo' : 'Inactivo'}
                                         </span>
                                     </div>
@@ -202,7 +216,8 @@ export default function PromoCodesTable() {
                                 <td className="px-6 py-4 text-right">
                                     <button
                                         onClick={() => handleDelete(codeItem._id)}
-                                        className="inline-flex items-center gap-1 text-red-500 hover:text-red-700 font-medium transition-colors"
+                                        className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 transition-all cursor-pointer"
+                                        title="Eliminar Código"
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </button>
@@ -211,8 +226,8 @@ export default function PromoCodesTable() {
                         ))}
                         {codes.length === 0 && (
                             <tr>
-                                <td colSpan={4} className="px-6 py-8 text-center text-text-tertiary">
-                                    No hay códigos promocionales creados.
+                                <td colSpan={4} className="px-6 py-10 text-center text-slate-400 italic">
+                                    No hay códigos promocionales registrados.
                                 </td>
                             </tr>
                         )}

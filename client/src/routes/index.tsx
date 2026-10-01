@@ -38,6 +38,7 @@ const PublicComites = lazy(() => import('~/components/SGSST/PublicComites'));
 const PublicConvivencia = lazy(() => import('~/components/SGSST/PublicConvivencia'));
 const PublicVotaciones = lazy(() => import('~/components/SGSST/PublicVotaciones'));
 const PublicInspeccionesCopasst = lazy(() => import('~/components/SGSST/PublicInspeccionesCopasst'));
+const PublicBrigadistas = lazy(() => import('~/components/SGSST/PublicBrigadistas'));
 const MoodAnalyticsDashboard = lazy(() => import('~/components/SGSST/MoodAnalyticsDashboard'));
 const PrivacyPolicyPage = lazy(() => import('~/components/Auth/PrivacyPolicyPage'));
 const TermsOfServicePage = lazy(() => import('~/components/Auth/TermsOfServicePage'));
@@ -230,6 +231,11 @@ export const router = createBrowserRouter(
     {
       path: 'sgsst-public/copasst-inspecciones/:companyId/:cedula?',
       element: withSuspense(<PublicInspeccionesCopasst />),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'sgsst-public/brigadista/:companyId/:cedula?',
+      element: withSuspense(<PublicBrigadistas />),
       errorElement: <RouteErrorBoundary />,
     },
     {
