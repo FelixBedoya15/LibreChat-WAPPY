@@ -18,8 +18,14 @@ export const PHASE_CATEGORIES = {
         },
         { 
             id: 'vulnerabilidad', title: 'Análisis de Vulnerabilidad', icon: 'Target',
-            bioRationale: 'Prepara a la comunidad y sus brigadas frente a contingencias o emergencias naturales, tecnológicas y sociales.', 
-            normativity: 'Hito 1: Gobernanza y Cimiento Legal' 
+            bioRationale: 'Evalúa las amenazas naturales, tecnológicas y sociales mediante la metodología del Diamante de Colores.', 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Dec. 1072 Art. 2.2.4.6.25)' 
+        },
+        { 
+            id: 'plan_emergencias', title: 'Plan de Emergencias y Contingencias (PPRE)', icon: 'ShieldAlert',
+            bioRationale: 'Consolida las amenazas del Diamante, la Brigada (Hito 3), el inventario de equipos (Hito 5) y los simulacros (Hito 6) en el Documento Maestro de Prevención, Preparación y Respuesta ante Emergencias, MEDEVAC y PONs.', 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Dec. 1072 Art. 2.2.4.6.25 • Res. 0312 E1.1.11)',
+            defaultDisabled: true
         },
         { 
             id: 'responsable', title: 'Responsable SG-SST', icon: 'UserCheck',
@@ -88,6 +94,12 @@ export const PHASE_CATEGORIES = {
             id: 'cocolab', title: 'Comité de Convivencia Laboral', icon: 'HeartHandshake',
             bioRationale: 'Prevención del acoso laboral, mediación de conflictos intralaborales y protección del clima psicosocial.', 
             normativity: 'Hito 3: Convivencia Laboral (Res. 3461/2025 • Ley 2365/2024)' 
+        },
+        { 
+            id: 'brigada_emergencias', title: 'Brigada de Emergencias & Comité de Crisis (SCI)', icon: 'Shield',
+            bioRationale: 'Conformación del Sistema Comando de Incidentes (SCI), coordinadores de evacuación y brigadistas de primeros auxilios, control de incendios y rescate.', 
+            normativity: 'Hito 3: Comités y Brigadas (Dec. 1072 Art. 2.2.4.6.25 Num. 11)',
+            defaultDisabled: true
         }
     ],
 
@@ -146,6 +158,12 @@ export const PHASE_CATEGORIES = {
             id: 'chemical_registry', title: 'Registro y Rótulo de Productos Químicos', icon: 'FlaskConical',
             bioRationale: 'Inventario de sustancias químicas, compatibilidad de almacenamiento, control de FDS y pictogramas SGA.',
             normativity: 'Hito 5: Dinámica Operativa y Terreno'
+        },
+        { 
+            id: 'equipos_emergencia', title: 'Inventario e Inspección de Equipos de Emergencia', icon: 'Wrench',
+            bioRationale: 'Control en terreno, hojas de vida, recargas e inspecciones periódicas de extintores portátiles (NTC 2885), botiquines, camillas y alarmas.',
+            normativity: 'Hito 5: Dinámica Operativa y Terreno (Dec. 1072 Art. 2.2.4.6.25 Num. 9)',
+            defaultDisabled: true
         }
     ],
 
@@ -160,6 +178,12 @@ export const PHASE_CATEGORIES = {
             id: 'capacitaciones', title: 'Programa de Capacitación SG-SST', icon: 'UserCheck',
             bioRationale: 'Entrenamiento técnico y conductual adaptativo para que el trabajador se defienda inteligentemente de su entorno.', 
             normativity: 'Hito 6: Cultura, Escuela e Innovación' 
+        },
+        { 
+            id: 'simulacros_emergencia', title: 'Gestión y Evaluación de Simulacros de Emergencia', icon: 'Activity',
+            bioRationale: 'Planeación de hipótesis, cronometraje de tiempos de evacuación, evaluación de respuesta comunitaria y actas de simulacro anual obligatorio.', 
+            normativity: 'Hito 6: Cultura, Escuela e Innovación (Dec. 1072 Art. 2.2.4.6.25 Num. 10)',
+            defaultDisabled: true
         },
         { 
             id: 'ruta_aprendizaje', title: 'Rutas de Aprendizaje (LMS)', icon: 'GraduationCap',
@@ -221,6 +245,13 @@ export const PHASE_CATEGORIES = {
     get fase2() { return this.hito7; }
 };
 
+export const DEFAULT_CONSTRUCTION_APPS = [
+    'plan_emergencias',
+    'brigada_emergencias',
+    'equipos_emergencia',
+    'simulacros_emergencia',
+];
+
 export const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
     // Hito 1: Gobernanza y Cimiento Legal
     diagnostico: 'hito1',
@@ -233,6 +264,7 @@ export const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
     rhs: 'hito1',
     rit: 'hito1',
     vulnerabilidad: 'hito1',
+    plan_emergencias: 'hito1',
 
     // Hito 2: Huella Biocéntrica
     perfil_socio: 'hito2',
@@ -246,6 +278,7 @@ export const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
     cocolab: 'hito3',
     convivencia: 'hito3',
     comites: 'hito3',
+    brigada_emergencias: 'hito3',
 
     // Hito 4: Evaluación Dinámica de Riesgos
     animo: 'hito4',
@@ -260,10 +293,12 @@ export const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
     vehicles_pesv: 'hito5',
     heights_lifecycle: 'hito5',
     chemical_registry: 'hito5',
+    equipos_emergencia: 'hito5',
 
     // Hito 6: Cultura, Escuela e Innovación
     reporte_actos: 'hito6',
     capacitaciones: 'hito6',
+    simulacros_emergencia: 'hito6',
     ruta_aprendizaje: 'hito6',
     app_builder: 'hito6',
     custom_html_sandbox: 'hito6',

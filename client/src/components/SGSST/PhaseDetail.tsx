@@ -15,7 +15,7 @@ import { OpenSidebar } from '~/components/Chat/Menus';
 import { Button, useToastContext } from '@librechat/client';
 import { useUploadFileMutation } from '~/data-provider';
 import { useNavigate } from 'react-router-dom';
-import { PHASE_CATEGORIES } from './constants';
+import { PHASE_CATEGORIES, DEFAULT_CONSTRUCTION_APPS } from './constants';
 import DiagnosticoChecklist from './DiagnosticoChecklist';
 import PoliticaSST from './PoliticaSST';
 import ResponsableSGSST from './ResponsableSGSST';
@@ -31,6 +31,10 @@ import AnalisisTrabajoSeguro from './AnalisisTrabajoSeguro';
 import MetodoOwas from './MetodoOwas';
 import EstudioPuestoTrabajo from './EstudioPuestoTrabajo';
 import AnalisisVulnerabilidad from './AnalisisVulnerabilidad';
+import PlanEmergenciasWorkspace from './PlanEmergenciasWorkspace';
+import BrigadaEmergenciasWorkspace from './BrigadaEmergenciasWorkspace';
+import EquiposEmergenciaWorkspace from './EquiposEmergenciaWorkspace';
+import SimulacrosEmergenciaWorkspace from './SimulacrosEmergenciaWorkspace';
 import BioIndividualHub from './BioIndividualHub';
 import ParticipacionIPEVAR from './ParticipacionIPEVAR';
 import PerfilesCargo from './PerfilesCargo';
@@ -96,7 +100,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const selectedCategoryRef = useRef<string | null>(null);
 
-    const [disabledApps, setDisabledApps] = useState<string[]>([]);
+    const [disabledApps, setDisabledApps] = useState<string[]>(DEFAULT_CONSTRUCTION_APPS);
     const isAdmin = user?.role === 'ADMIN';
     const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
 
@@ -755,6 +759,34 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                 {category.id === 'chemical_registry' && (
                                                     <div className="mb-6">
                                                         <ChemicalsWorkspace />
+                                                    </div>
+                                                )}
+
+                                                {/* Show PlanEmergenciasWorkspace for plan_emergencias category */}
+                                                {category.id === 'plan_emergencias' && (
+                                                    <div className="mb-6">
+                                                        <PlanEmergenciasWorkspace />
+                                                    </div>
+                                                )}
+
+                                                {/* Show BrigadaEmergenciasWorkspace for brigada_emergencias category */}
+                                                {category.id === 'brigada_emergencias' && (
+                                                    <div className="mb-6">
+                                                        <BrigadaEmergenciasWorkspace />
+                                                    </div>
+                                                )}
+
+                                                {/* Show EquiposEmergenciaWorkspace for equipos_emergencia category */}
+                                                {category.id === 'equipos_emergencia' && (
+                                                    <div className="mb-6">
+                                                        <EquiposEmergenciaWorkspace />
+                                                    </div>
+                                                )}
+
+                                                {/* Show SimulacrosEmergenciaWorkspace for simulacros_emergencia category */}
+                                                {category.id === 'simulacros_emergencia' && (
+                                                    <div className="mb-6">
+                                                        <SimulacrosEmergenciaWorkspace />
                                                     </div>
                                                 )}
 
