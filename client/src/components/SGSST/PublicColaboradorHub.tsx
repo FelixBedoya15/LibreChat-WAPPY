@@ -359,86 +359,122 @@ export default function PublicColaboradorHub() {
     }
   };
 
-  const appsGrid = [
+  const appCategories = [
     {
-      title: 'Reportar Peligro (IPEVR)',
-      desc: 'Alimenta la Matriz Oficial GTC-45',
-      points: '+150 pts',
-      icon: Users,
-      path: `/sgsst-public/ipevar/${companyId}`,
-      color: 'from-emerald-500 to-teal-600',
-    },
-    {
-      title: 'Reportar Acto o Condición',
-      desc: 'Alerta sobre riesgos con evidencia fotográfica',
-      points: '+50 pts',
+      id: 'prevencion',
+      title: 'Prevención y Reportes en Terreno',
+      subtitle: 'Identificación activa de peligros, condiciones inseguras e incidentes',
+      badgeColor: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20',
       icon: AlertTriangle,
-      path: `/sgsst-public/reportar/${companyId}`,
-      color: 'from-amber-500 to-orange-600',
+      apps: [
+        {
+          title: 'Reportar Peligro (IPEVR)',
+          desc: 'Alimenta la Matriz Oficial GTC-45',
+          points: '+150 pts',
+          icon: Users,
+          path: `/sgsst-public/ipevar/${companyId}`,
+          color: 'from-emerald-500 to-teal-600',
+        },
+        {
+          title: 'Reportar Acto o Condición',
+          desc: 'Alerta sobre riesgos con evidencia fotográfica',
+          points: '+50 pts',
+          icon: AlertTriangle,
+          path: `/sgsst-public/reportar/${companyId}`,
+          color: 'from-amber-500 to-orange-600',
+        },
+        {
+          title: 'Buzón de Testimonios ATEL',
+          desc: 'Declaración confidencial en investigación de incidentes y accidentes',
+          points: '+30 pts',
+          icon: MessageSquare,
+          path: `/sgsst-public/atel-testimonio/${companyId}`,
+          color: 'from-slate-600 to-teal-700',
+        },
+      ],
     },
     {
-      title: 'Termómetro Psicosocial',
-      desc: 'Check-in de bienestar y clima laboral (cada 7 días)',
-      points: '+10 pts',
+      id: 'salud',
+      title: 'Salud, Ergonomía y Perfil Bio-Individual',
+      subtitle: 'Cuidado postural, bienestar mental y actualización sociodemográfica',
+      badgeColor: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20',
       icon: Heart,
-      path: `/sgsst-public/animo/${companyId}`,
-      color: 'from-rose-500 to-pink-600',
+      apps: [
+        {
+          title: 'Termómetro Psicosocial',
+          desc: 'Check-in de bienestar y clima laboral (cada 7 días)',
+          points: '+10 pts',
+          icon: Heart,
+          path: `/sgsst-public/animo/${companyId}`,
+          color: 'from-rose-500 to-pink-600',
+        },
+        {
+          title: 'Auto-Evaluación Ergonómica',
+          desc: 'Medición postural con IA MediaPipe en puesto',
+          points: '+40 pts',
+          icon: Activity,
+          path: `/sgsst-public/estudio-puesto/${companyId}`,
+          color: 'from-blue-500 to-indigo-600',
+        },
+        {
+          title: 'Actualizar mis Datos',
+          desc: 'Ficha sociodemográfica y contactos de emergencia',
+          points: '+30 pts',
+          icon: Shield,
+          path: `/sgsst-public/perfil-update/${companyId}`,
+          color: 'from-cyan-500 to-teal-600',
+        },
+      ],
     },
     {
-      title: 'Auto-Evaluación Ergonómica',
-      desc: 'Medición postural con IA MediaPipe en puesto',
-      points: '+40 pts',
-      icon: Activity,
-      path: `/sgsst-public/estudio-puesto/${companyId}`,
-      color: 'from-blue-500 to-indigo-600',
-    },
-    {
-      title: 'Comités & Actas Oficiales',
-      desc: 'Firma digital de actas oficiales y asistencia a comités (COPASST/CCL)',
-      points: '+50 a +100 pts',
+      id: 'comites',
+      title: 'Participación, Comités y Convivencia',
+      subtitle: 'Democracia paritaria, firmas digitales de actas y canal confidencial',
+      badgeColor: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20',
       icon: UserCheck,
-      path: `/sgsst-public/comites/${companyId}`,
-      color: 'from-indigo-500 to-purple-600',
+      apps: [
+        {
+          title: 'Comités & Actas Oficiales',
+          desc: 'Firma digital de actas oficiales y asistencia a comités (COPASST/CCL)',
+          points: '+50 a +100 pts',
+          icon: UserCheck,
+          path: `/sgsst-public/comites/${companyId}`,
+          color: 'from-indigo-500 to-purple-600',
+        },
+        {
+          title: 'Elecciones Paritarias (Voto Secreto)',
+          desc: 'Elige tus representantes COPASST y Convivencia',
+          points: '+20 pts',
+          icon: Vote,
+          path: `/sgsst-public/votaciones/${companyId}`,
+          color: 'from-teal-600 to-emerald-700',
+        },
+        {
+          title: 'Canal Confidencial de Convivencia',
+          desc: 'Quejas protegidas Ley 1010 y Ley 2365 de 2024',
+          points: 'Seguro',
+          icon: Lock,
+          path: `/sgsst-public/convivencia/${companyId}`,
+          color: 'from-violet-500 to-purple-700',
+        },
+      ],
     },
     {
-      title: 'Canal Confidencial de Convivencia',
-      desc: 'Quejas protegidas Ley 1010 y Ley 2365 de 2024',
-      points: 'Seguro',
-      icon: Lock,
-      path: `/sgsst-public/convivencia/${companyId}`,
-      color: 'from-violet-500 to-purple-700',
-    },
-    {
-      title: 'Elecciones Paritarias (Voto Secreto)',
-      desc: 'Elige tus representantes COPASST y Convivencia',
-      points: '+20 pts',
-      icon: Vote,
-      path: `/sgsst-public/votaciones/${companyId}`,
-      color: 'from-teal-600 to-emerald-700',
-    },
-    {
-      title: 'Actualizar mis Datos',
-      desc: 'Ficha sociodemográfica y contactos de emergencia',
-      points: '+30 pts',
-      icon: Shield,
-      path: `/sgsst-public/perfil-update/${companyId}`,
-      color: 'from-cyan-500 to-teal-600',
-    },
-    {
-      title: 'Cursos & Capacitaciones (LMS)',
-      desc: 'Aula virtual interactiva y certificaciones',
-      points: 'Aprender',
+      id: 'escuela',
+      title: 'Escuela y Capacitación SST',
+      subtitle: 'Formación continua, rutas de aprendizaje y certificaciones',
+      badgeColor: 'bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-500/20',
       icon: GraduationCap,
-      path: `/sgsst-public/ruta-aprendizaje/${companyId}`,
-      color: 'from-fuchsia-500 to-pink-600',
-    },
-    {
-      title: 'Buzón de Testimonios ATEL',
-      desc: 'Declaración confidencial en investigación de incidentes y accidentes',
-      points: '+30 pts',
-      icon: MessageSquare,
-      path: `/sgsst-public/atel-testimonio/${companyId}`,
-      color: 'from-slate-600 to-teal-700',
+      apps: [
+        {
+          title: 'Cursos & Capacitaciones (LMS)',
+          desc: 'Aula virtual interactiva y certificaciones',
+          points: 'Aprender',
+          icon: GraduationCap,
+          path: `/sgsst-public/ruta-aprendizaje/${companyId}`,
+          color: 'from-fuchsia-500 to-pink-600',
+        },
+      ],
     },
   ];
 
@@ -770,55 +806,101 @@ export default function PublicColaboradorHub() {
               </div>
             </div>
 
-            {/* Cuadrícula de Aplicativos Disponibles */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black text-text-primary uppercase tracking-wide flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-teal-500" /> Tus Módulos & Acciones Disponibles
-                </h3>
-                <span className="text-xs text-text-secondary">Haz clic en un aplicativo</span>
+            {/* Cuadrícula de Aplicativos Disponibles Organizados por Temas */}
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border-medium/60 pb-3">
+                <div>
+                  <h3 className="text-base font-black text-text-primary uppercase tracking-wide flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-teal-500" /> Tus Módulos & Acciones Disponibles
+                  </h3>
+                  <p className="text-xs text-text-secondary mt-0.5">
+                    Organizados por áreas de gestión para facilitar tu participación en el SG-SST
+                  </p>
+                </div>
+                <span className="text-xs font-semibold text-teal-600 dark:text-teal-400">
+                  Haz clic en un aplicativo para ingresar
+                </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                {appsGrid.map((app, idx) => {
-                  const Icon = app.icon;
+              <div className="space-y-6">
+                {appCategories.map((cat) => {
+                  const CatIcon = cat.icon;
                   return (
                     <div
-                      key={idx}
-                      onClick={() => {
-                        const targetCed = activeCedula || data?.worker?.documento;
-                        const separator = app.path.includes('?') ? '&' : '?';
-                        const url = targetCed ? `${app.path}${separator}cedula=${encodeURIComponent(targetCed)}` : app.path;
-                        navigate(url);
-                      }}
-                      className="group bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-2xl p-4 hover:border-teal-400 hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col justify-between gap-3 active:scale-98"
+                      key={cat.id}
+                      className="bg-surface-primary/60 dark:bg-slate-900/50 border border-border-light dark:border-white/5 rounded-3xl p-4 sm:p-5 shadow-xs space-y-4"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className={`p-2.5 rounded-2xl bg-gradient-to-tr ${app.color} text-white shadow-xs`}>
-                          <Icon className="w-5 h-5" />
+                      {/* Encabezado de la Categoría Temática */}
+                      <div className="flex items-center justify-between gap-3 border-b border-border-light/80 dark:border-slate-800 pb-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-xl border ${cat.badgeColor}`}>
+                            <CatIcon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs sm:text-sm font-black text-text-primary uppercase tracking-wide">
+                              {cat.title}
+                            </h4>
+                            <p className="text-[11px] text-text-secondary">
+                              {cat.subtitle}
+                            </p>
+                          </div>
                         </div>
-                        <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
-                          {app.points}
+                        <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-surface-secondary dark:bg-slate-800 text-text-secondary border border-border-light dark:border-slate-700 shrink-0">
+                          {cat.apps.length} {cat.apps.length === 1 ? 'módulo' : 'módulos'}
                         </span>
                       </div>
 
-                      <div>
-                        <h4 className="font-bold text-xs text-text-primary group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
-                          {app.title}
-                        </h4>
-                        <p className="text-[11px] text-text-secondary line-clamp-2 mt-1">
-                          {app.desc}
-                        </p>
-                      </div>
+                      {/* Tarjetas de la Categoría */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                        {cat.apps.map((app, idx) => {
+                          const Icon = app.icon;
+                          return (
+                            <div
+                              key={idx}
+                              onClick={() => {
+                                const targetCed = activeCedula || data?.worker?.documento;
+                                const separator = app.path.includes('?') ? '&' : '?';
+                                const url = targetCed
+                                  ? `${app.path}${separator}cedula=${encodeURIComponent(targetCed)}`
+                                  : app.path;
+                                navigate(url);
+                              }}
+                              className="group bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-2xl p-4 hover:border-teal-400 hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col justify-between gap-3 active:scale-98"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div
+                                  className={`p-2.5 rounded-2xl bg-gradient-to-tr ${app.color} text-white shadow-xs`}
+                                >
+                                  <Icon className="w-5 h-5" />
+                                </div>
+                                <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                                  {app.points}
+                                </span>
+                              </div>
 
-                      <div className="pt-2 flex items-center justify-between border-t border-border-light/60 dark:border-slate-800/60 mt-auto">
-                        <span className="text-[10px] font-semibold text-text-tertiary uppercase tracking-wider">Módulo</span>
-                        <div className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-lg bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800 text-[11px] font-bold transition-all duration-300 group-hover:bg-teal-600 group-hover:text-white group-hover:border-teal-600 shadow-2xs">
-                          <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:mr-1 transition-all duration-300 whitespace-nowrap">
-                            Ingresar
-                          </span>
-                          <ArrowRight className="w-3.5 h-3.5 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                        </div>
+                              <div>
+                                <h5 className="font-bold text-xs text-text-primary group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                                  {app.title}
+                                </h5>
+                                <p className="text-[11px] text-text-secondary line-clamp-2 mt-1">
+                                  {app.desc}
+                                </p>
+                              </div>
+
+                              <div className="pt-2 flex items-center justify-between border-t border-border-light/60 dark:border-slate-800/60 mt-auto">
+                                <span className="text-[10px] font-semibold text-text-tertiary uppercase tracking-wider">
+                                  Módulo
+                                </span>
+                                <div className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-lg bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800 text-[11px] font-bold transition-all duration-300 group-hover:bg-teal-600 group-hover:text-white group-hover:border-teal-600 shadow-2xs">
+                                  <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:mr-1 transition-all duration-300 whitespace-nowrap">
+                                    Ingresar
+                                  </span>
+                                  <ArrowRight className="w-3.5 h-3.5 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );

@@ -78,105 +78,130 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
     rawMod === 'ruta' ? 'lms' :
     rawMod;
 
-  const modulesList = [
+  const moduleGroups = [
     {
-      id: 'colaborador',
-      name: 'Mi Pasaporte SST (Puntos & Perfil)',
-      desc: 'Consulta tu saldo de puntos, nivel y carnet 360',
-      icon: Award,
-      path: `/sgsst-public/colaborador/${companyId}${resolvedCedula ? `/${encodeURIComponent(resolvedCedula)}` : ''}`,
-      color: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800',
-      badge: 'Hub',
+      groupTitle: 'Panel Principal',
+      items: [
+        {
+          id: 'colaborador',
+          name: 'Mi Pasaporte SST (Puntos & Perfil)',
+          desc: 'Consulta tu saldo de puntos, nivel y carnet 360',
+          icon: Award,
+          path: `/sgsst-public/colaborador/${companyId}${resolvedCedula ? `/${encodeURIComponent(resolvedCedula)}` : ''}`,
+          color: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800',
+          badge: 'Hub',
+        },
+      ],
     },
     {
-      id: 'ipevar',
-      name: 'Reportar Peligro (IPEVR)',
-      desc: 'Reporta peligros que alimentan la Matriz Oficial',
-      icon: Users,
-      path: `/sgsst-public/ipevar/${companyId}`,
-      color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800',
-      badge: '+150 pts',
+      groupTitle: 'Prevención y Reportes en Terreno',
+      items: [
+        {
+          id: 'ipevar',
+          name: 'Reportar Peligro (IPEVR)',
+          desc: 'Reporta peligros que alimentan la Matriz Oficial',
+          icon: Users,
+          path: `/sgsst-public/ipevar/${companyId}`,
+          color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800',
+          badge: '+150 pts',
+        },
+        {
+          id: 'reportar',
+          name: 'Reporte de Actos y Condiciones',
+          desc: 'Alerta sobre condiciones inseguras con fotos',
+          icon: AlertTriangle,
+          path: `/sgsst-public/reportar/${companyId}`,
+          color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800',
+          badge: '+50 pts',
+        },
+        {
+          id: 'atel',
+          name: 'Buzón de Testimonios ATEL',
+          desc: 'Declaración confidencial en investigación de incidentes y accidentes',
+          icon: MessageSquare,
+          path: `/sgsst-public/atel-testimonio/${companyId}`,
+          color: 'text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800',
+          badge: '+30 pts',
+        },
+      ],
     },
     {
-      id: 'reportar',
-      name: 'Reporte de Actos y Condiciones',
-      desc: 'Alerta sobre condiciones inseguras con fotos',
-      icon: AlertTriangle,
-      path: `/sgsst-public/reportar/${companyId}`,
-      color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800',
-      badge: '+50 pts',
+      groupTitle: 'Salud, Ergonomía y Perfil Bio-Individual',
+      items: [
+        {
+          id: 'animo',
+          name: 'Termómetro Psicosocial',
+          desc: 'Check-in confidencial de bienestar, estrés y fatiga (cada 7 días)',
+          icon: Heart,
+          path: `/sgsst-public/animo/${companyId}`,
+          color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800',
+          badge: '+10 pts',
+        },
+        {
+          id: 'estudio_puesto',
+          name: 'Auto-Evaluación Ergonómica',
+          desc: 'Medición postural con IA MediaPipe en tu puesto',
+          icon: Activity,
+          path: `/sgsst-public/estudio-puesto/${companyId}`,
+          color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800',
+          badge: '+40 pts',
+        },
+        {
+          id: 'perfil_update',
+          name: 'Actualizar mis Datos',
+          desc: 'Ficha sociodemográfica y contactos de emergencia',
+          icon: Shield,
+          path: `/sgsst-public/perfil-update/${companyId}`,
+          color: 'text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/40 border-cyan-200 dark:border-cyan-800',
+          badge: '+30 pts',
+        },
+      ],
     },
     {
-      id: 'animo',
-      name: 'Termómetro Psicosocial',
-      desc: 'Check-in confidencial de bienestar, estrés y fatiga (cada 7 días)',
-      icon: Heart,
-      path: `/sgsst-public/animo/${companyId}`,
-      color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800',
-      badge: '+10 pts',
+      groupTitle: 'Participación, Comités y Convivencia',
+      items: [
+        {
+          id: 'comites',
+          name: 'Comités & Brigadas',
+          desc: 'Firma de asistencia para COPASST, COCOLAB, Brigada y PESV',
+          icon: UserCheck,
+          path: `/sgsst-public/comites/${companyId}`,
+          color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800',
+          badge: '+25 pts',
+        },
+        {
+          id: 'votaciones',
+          name: 'Votaciones Paritarias (Voto Secreto)',
+          desc: 'Elige tus representantes COPASST y Convivencia',
+          icon: Vote,
+          path: `/sgsst-public/votaciones/${companyId}`,
+          color: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800',
+          badge: '+20 pts',
+        },
+        {
+          id: 'convivencia',
+          name: 'Canal Confidencial de Convivencia',
+          desc: 'Radicación protegida de quejas (Ley 1010 y Ley 2365)',
+          icon: Lock,
+          path: `/sgsst-public/convivencia/${companyId}`,
+          color: 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/40 border-violet-200 dark:border-violet-800',
+          badge: 'Seguro',
+        },
+      ],
     },
     {
-      id: 'estudio_puesto',
-      name: 'Auto-Evaluación Ergonómica',
-      desc: 'Medición postural con IA MediaPipe en tu puesto',
-      icon: Activity,
-      path: `/sgsst-public/estudio-puesto/${companyId}`,
-      color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800',
-      badge: '+40 pts',
-    },
-    {
-      id: 'comites',
-      name: 'Comités & Brigadas',
-      desc: 'Firma de asistencia para COPASST, COCOLAB, Brigada y PESV',
-      icon: UserCheck,
-      path: `/sgsst-public/comites/${companyId}`,
-      color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800',
-      badge: '+25 pts',
-    },
-    {
-      id: 'convivencia',
-      name: 'Canal Confidencial de Convivencia',
-      desc: 'Radicación protegida de quejas (Ley 1010 y Ley 2365)',
-      icon: Lock,
-      path: `/sgsst-public/convivencia/${companyId}`,
-      color: 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/40 border-violet-200 dark:border-violet-800',
-      badge: 'Seguro',
-    },
-    {
-      id: 'votaciones',
-      name: 'Votaciones Paritarias (Voto Secreto)',
-      desc: 'Elige tus representantes COPASST y Convivencia',
-      icon: Vote,
-      path: `/sgsst-public/votaciones/${companyId}`,
-      color: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800',
-      badge: '+20 pts',
-    },
-    {
-      id: 'perfil_update',
-      name: 'Actualizar mis Datos',
-      desc: 'Ficha sociodemográfica y contactos de emergencia',
-      icon: Shield,
-      path: `/sgsst-public/perfil-update/${companyId}`,
-      color: 'text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/40 border-cyan-200 dark:border-cyan-800',
-      badge: '+30 pts',
-    },
-    {
-      id: 'lms',
-      name: 'Cursos & Capacitaciones (LMS)',
-      desc: 'Aprende y certifícate en seguridad laboral',
-      icon: GraduationCap,
-      path: `/sgsst-public/ruta-aprendizaje/${companyId}`,
-      color: 'text-fuchsia-600 dark:text-fuchsia-400 bg-fuchsia-50 dark:bg-fuchsia-950/40 border-fuchsia-200 dark:border-fuchsia-800',
-      badge: 'Aprender',
-    },
-    {
-      id: 'atel',
-      name: 'Buzón de Testimonios ATEL',
-      desc: 'Declaración confidencial en investigación de incidentes y accidentes',
-      icon: MessageSquare,
-      path: `/sgsst-public/atel-testimonio/${companyId}`,
-      color: 'text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800',
-      badge: '+30 pts',
+      groupTitle: 'Escuela y Capacitación SST',
+      items: [
+        {
+          id: 'lms',
+          name: 'Cursos & Capacitaciones (LMS)',
+          desc: 'Aprende y certifícate en seguridad laboral',
+          icon: GraduationCap,
+          path: `/sgsst-public/ruta-aprendizaje/${companyId}`,
+          color: 'text-fuchsia-600 dark:text-fuchsia-400 bg-fuchsia-50 dark:bg-fuchsia-950/40 border-fuchsia-200 dark:border-fuchsia-800',
+          badge: 'Aprender',
+        },
+      ],
     },
   ];
 
@@ -253,11 +278,11 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
                   className="fixed inset-0 z-40 bg-black/20 backdrop-blur-xs" 
                   onClick={() => setIsMenuOpen(false)} 
                 />
-                <div className="absolute right-0 mt-2 w-80 max-h-[80vh] overflow-y-auto z-50 bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-2xl shadow-2xl p-2.5 space-y-1.5 animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute right-0 mt-2 w-80 max-h-[80vh] overflow-y-auto z-50 bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-2xl shadow-2xl p-2.5 space-y-2 animate-in fade-in zoom-in-95 duration-150">
                   <div className="px-3 py-2 border-b border-border-medium flex items-center justify-between">
                     <div>
                       <p className="text-xs font-black text-text-primary uppercase tracking-wide">Ecosistema del Colaborador</p>
-                      <p className="text-[10px] text-text-secondary">Selecciona un servicio para abrirlo</p>
+                      <p className="text-[10px] text-text-secondary">Organizado por áreas temáticas SST</p>
                     </div>
                     <button 
                       onClick={() => setIsMenuOpen(false)}
@@ -267,39 +292,46 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
                     </button>
                   </div>
 
-                  <div className="space-y-1 pt-1">
-                    {modulesList.map(mod => {
-                      const Icon = mod.icon;
-                      const isCurrent = mod.id === activeModule;
-                      return (
-                        <div
-                          key={mod.id}
-                          onClick={() => navigateWithCedula(mod.path)}
-                          className={`p-2.5 rounded-xl border flex items-start gap-2.5 cursor-pointer transition-all ${
-                            isCurrent
-                              ? 'bg-teal-50/80 dark:bg-teal-950/40 border-teal-300 dark:border-teal-700'
-                              : 'hover:bg-surface-hover border-transparent hover:border-border-medium'
-                          }`}
-                        >
-                          <div className={`p-2 rounded-xl border shrink-0 ${mod.color}`}>
-                            <Icon className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-1">
-                              <p className={`text-xs font-bold truncate ${isCurrent ? 'text-teal-700 dark:text-teal-300' : 'text-text-primary'}`}>
-                                {mod.name}
-                              </p>
-                              <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-surface-secondary text-text-secondary border border-border-medium shrink-0">
-                                {mod.badge}
-                              </span>
+                  <div className="space-y-2.5 pt-1">
+                    {moduleGroups.map((group) => (
+                      <div key={group.groupTitle} className="space-y-1">
+                        <p className="px-2.5 text-[9px] font-black uppercase tracking-wider text-text-secondary/80">
+                          {group.groupTitle}
+                        </p>
+                        {group.items.map(mod => {
+                          const Icon = mod.icon;
+                          const isCurrent = mod.id === activeModule;
+                          return (
+                            <div
+                              key={mod.id}
+                              onClick={() => navigateWithCedula(mod.path)}
+                              className={`p-2 rounded-xl border flex items-start gap-2.5 cursor-pointer transition-all ${
+                                isCurrent
+                                  ? 'bg-teal-50/80 dark:bg-teal-950/40 border-teal-300 dark:border-teal-700'
+                                  : 'hover:bg-surface-hover border-transparent hover:border-border-medium'
+                              }`}
+                            >
+                              <div className={`p-2 rounded-xl border shrink-0 ${mod.color}`}>
+                                <Icon className="w-4 h-4" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-1">
+                                  <p className={`text-xs font-bold truncate ${isCurrent ? 'text-teal-700 dark:text-teal-300' : 'text-text-primary'}`}>
+                                    {mod.name}
+                                  </p>
+                                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-surface-secondary text-text-secondary border border-border-medium shrink-0">
+                                    {mod.badge}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-text-secondary line-clamp-1 mt-0.5">
+                                  {mod.desc}
+                                </p>
+                              </div>
                             </div>
-                            <p className="text-[10px] text-text-secondary line-clamp-1 mt-0.5">
-                              {mod.desc}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </>
