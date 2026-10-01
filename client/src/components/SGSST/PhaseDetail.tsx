@@ -59,8 +59,10 @@ import HeightsWorkspace from './HeightsWorkspace';
 import ChemicalsWorkspace from './ChemicalsWorkspace';
 import MatrizIPEVARWorkspace from './MatrizIPEVARWorkspace';
 import MatrizPESVWorkspace from './MatrizPESVWorkspace';
+import MatrizCompatibilidadWorkspace from './MatrizCompatibilidadWorkspace';
 import CopasstWorkspace from './CopasstWorkspace';
 import ConvivenciaWorkspace from './ConvivenciaWorkspace';
+import ComitePesvWorkspace from './ComitePesvWorkspace';
 
 // Manual Icon Map to avoid dynamic import issues
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -497,6 +499,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                     </div>
                                                 )}
 
+                                                {/* Show MatrizCompatibilidadWorkspace for matriz_compatibilidad_oficial category */}
+                                                {category.id === 'matriz_compatibilidad_oficial' && (
+                                                    <div className="mb-6">
+                                                        <MatrizCompatibilidadWorkspace />
+                                                    </div>
+                                                )}
+
                                                 {/* Show ResponsableSGSST for responsable category */}
                                                 {category.id === 'responsable' && (
                                                     <div className="mb-6">
@@ -523,6 +532,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                 {(category.id === 'cocolab' || category.id === 'convivencia') && (
                                                     <div className="mb-6">
                                                         <ConvivenciaWorkspace />
+                                                    </div>
+                                                )}
+
+                                                {/* Show ComitePesvWorkspace for comite_pesv category */}
+                                                {category.id === 'comite_pesv' && (
+                                                    <div className="mb-6">
+                                                        <ComitePesvWorkspace />
                                                     </div>
                                                 )}
 

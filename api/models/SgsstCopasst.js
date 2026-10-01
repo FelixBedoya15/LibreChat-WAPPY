@@ -311,8 +311,214 @@ const SgsstCopasstComite = mongoose.models.SgsstCopasstComite || mongoose.model(
 const SgsstCopasstActa = mongoose.models.SgsstCopasstActa || mongoose.model('SgsstCopasstActa', copasstActaSchema);
 const SgsstEleccion = mongoose.models.SgsstEleccion || mongoose.model('SgsstEleccion', sgsstEleccionSchema);
 
+// ─── 4. Modelo del Comité de Seguridad Vial (CSV - PESV Res. 20223040040595 Paso 1 y 2) ───
+const pesvComiteSchema = new mongoose.Schema(
+  {
+    companyId: {
+      type: String,
+      required: true,
+      index: true,
+      default: 'default_company',
+    },
+    periodoInicio: {
+      type: Date,
+      required: true,
+      default: Date.now,
+    },
+    periodoFin: {
+      type: Date,
+      required: true,
+    },
+    nivelPesv: {
+      type: String,
+      enum: ['Básico', 'Estándar', 'Avanzado'],
+      default: 'Estándar',
+    },
+    flotaTotal: {
+      type: Number,
+      default: 0,
+    },
+    conductoresTotal: {
+      type: Number,
+      default: 0,
+    },
+    frecuenciaReuniones: {
+      type: String,
+      enum: ['Trimestral', 'Mensual'],
+      default: 'Trimestral',
+    },
+    estado: {
+      type: String,
+      enum: ['vigente', 'vencido', 'en_conformacion'],
+      default: 'vigente',
+    },
+    // Paso 1: Líder del Diseño e Implementación del PESV (Obligatorio en Básico, Estándar y Avanzado)
+    liderPesv: {
+      nombre: { type: String, default: '' },
+      cedula: { type: String, default: '' },
+      cargo: { type: String, default: '' },
+      email: { type: String, default: '' },
+      telefono: { type: String, default: '' },
+      fechaDesignacion: { type: Date, default: Date.now },
+      nivelCompetencia: { type: String, default: 'Profesional / Especialista SST o Seguridad Vial' },
+    },
+    // Paso 2: Miembros del Comité de Seguridad Vial designados por la Alta Dirección (Mínimo 3 integrantes en Estándar/Avanzado)
+    integrantesComite: [
+      {
+        nombre: { type: String, required: true },
+        cedula: { type: String, required: true },
+        cargo: { type: String, default: '' },
+        rol: {
+          type: String,
+          enum: [
+            'Presidente del CSV (Alta Dirección)',
+            'Secretario Técnico / Líder PESV',
+            'Vocal de Mantenimiento y Flota',
+            'Vocal de Operaciones / Conductores',
+            'Vocal de SST / Talento Humano',
+            'Integrante Principal',
+            'Suplente',
+          ],
+          default: 'Integrante Principal',
+        },
+        telefono: { type: String, default: '' },
+        email: { type: String, default: '' },
+      },
+    ],
+    // Paso 20: Objetivos y Metas Anuales del PESV (Seguimiento por el Comité)
+    metasAnuales: [
+      {
+        codigo: { type: String, default: 'META-01' },
+        indicador: { type: String, default: '' },
+        metaAnual: { type: String, default: '' },
+        resultadoActual: { type: String, default: '' },
+        estado: { type: String, enum: ['Cumplida', 'En Seguimiento', 'Alerta'], default: 'En Seguimiento' },
+      },
+    ],
+    observaciones: {
+      type: String,
+      default: '',
+    },
+  },
+  { timestamps: true }
+);
+
+// ─── 5. Modelo de Actas del Comité de Seguridad Vial (Trimestrales / Mensuales) ───
+const pesvActaSchema = new mongoose.Schema(
+  {
+    companyId: {
+      type: String,
+      required: true,
+      index: true,
+      default: 'default_company',
+    },
+    comiteId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SgsstPesvComite',
+      default: null,
+    },
+    numeroActa: {
+      type: String,
+      required: true,
+    },
+    tipoSesion: {
+      type: String,
+      enum: ['Ordinaria Trimestral', 'Ordinaria Mensual', 'Extraordinaria (Siniestro Vial)'],
+      default: 'Ordinaria Trimestral',
+    },
+    trimestre: {
+      type: String,
+      enum: ['Trimestre I', 'Trimestre II', 'Trimestre III', 'Trimestre IV', 'Extraordinaria'],
+      default: 'Trimestre I',
+    },
+    mes: {
+      type: Number,
+      required: true,
+      min: 1,
+      max: 12,
+    },
+    anio: {
+      type: Number,
+      required: true,
+    },
+    fechaReunion: {
+      type: Date,
+      required: true,
+      default: Date.now,
+    },
+    horaInicio: {
+      type: String,
+      default: '09:00',
+    },
+    horaFin: {
+      type: String,
+      default: '10:30',
+    },
+    lugarModalidad: {
+      type: String,
+      default: 'Sala de Juntas / Híbrida',
+    },
+    asistentes: [
+      {
+        nombre: { type: String, required: true },
+        cedula: { type: String, default: '' },
+        cargo: { type: String, default: '' },
+        rol: { type: String, default: 'Integrante CSV' },
+        asistio: { type: Boolean, default: true },
+        firma: { type: String, default: '' },
+        firmadoEn: { type: Date, default: null },
+        firmadoDesde: { type: String, default: '' },
+      },
+    ],
+    // 8 puntos oficiales del Orden del Día del Comité de Seguridad Vial (Res. 20223040040595 Paso 2 y Paso 20)
+    ordenDelDia: {
+      verificacionQuorumActaAnterior: { type: String, default: '' },
+      seguimientoCompromisosViales: { type: String, default: '' },
+      analisisSiniestralidadInfracciones: { type: String, default: '' },
+      inspeccionesPreoperacionalesMantenimiento: { type: String, default: '' },
+      factoresHumanosVelocidadFatigaAlcohol: { type: String, default: '' },
+      capacitacionCompetenciaVial: { type: String, default: '' },
+      revisionIndicadoresPaso20: { type: String, default: '' },
+      proposicionesPresupuestoVial: { type: String, default: '' },
+    },
+    compromisos: [
+      {
+        actividad: { type: String, required: true },
+        responsable: { type: String, required: true },
+        fechaLimite: { type: Date, default: null },
+        estado: {
+          type: String,
+          enum: ['Pendiente', 'En Proceso', 'Cumplido'],
+          default: 'Pendiente',
+        },
+        kanbanTaskId: { type: String, default: null },
+      },
+    ],
+    resumenEjecutivoIA: {
+      type: String,
+      default: '',
+    },
+    estadoActa: {
+      type: String,
+      enum: ['borrador', 'firmada', 'cerrada'],
+      default: 'borrador',
+    },
+    creadoPor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+  },
+  { timestamps: true }
+);
+
+const SgsstPesvComite = mongoose.models.SgsstPesvComite || mongoose.model('SgsstPesvComite', pesvComiteSchema);
+const SgsstPesvActa = mongoose.models.SgsstPesvActa || mongoose.model('SgsstPesvActa', pesvActaSchema);
+
 module.exports = {
   SgsstCopasstComite,
   SgsstCopasstActa,
   SgsstEleccion,
+  SgsstPesvComite,
+  SgsstPesvActa,
 };
+

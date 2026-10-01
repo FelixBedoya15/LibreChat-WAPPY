@@ -384,7 +384,8 @@ function buildCommitteeSignatureSection({ asistentes = [], companyInfo = {}, tip
     copasst: 'Comité Paritario de Seguridad y Salud en el Trabajo (COPASST)',
     cocolab: 'Comité de Convivencia Laboral (COCOLAB)',
     convivencia: 'Comité de Convivencia Laboral (COCOLAB)',
-    pesv: 'Comité de Seguridad Vial (PESV)',
+    pesv: 'Comité de Seguridad Vial (CSV - PESV)',
+    comite_pesv: 'Comité de Seguridad Vial (CSV - PESV)',
     brigada: 'Brigada de Emergencias y Prevención',
   };
   const nombreComiteFull = comiteNames[String(tipoComite).toLowerCase()] || 'Comité Paritario';

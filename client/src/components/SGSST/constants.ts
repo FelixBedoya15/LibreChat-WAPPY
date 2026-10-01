@@ -23,6 +23,12 @@ export const PHASE_CATEGORIES = {
             defaultDisabled: true
         },
         { 
+            id: 'matriz_compatibilidad_oficial', title: 'Matriz de Compatibilidad Química (SGA)', icon: 'FlaskConical',
+            bioRationale: 'Evaluación técnica de compatibilidad, segregación de sustancias químicas, clasificación ONU y auditoría de Fichas de Seguridad (FDS) y rotulado SGA, sincronizada con el Inventario Químico del Hito 5 y el Centro de Control.', 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Decreto 1496 de 2018 • SGA / GHS • NTC 3966)',
+            defaultDisabled: true
+        },
+        { 
             id: 'vulnerabilidad', title: 'Análisis de Vulnerabilidad', icon: 'Target',
             bioRationale: 'Evalúa las amenazas naturales, tecnológicas y sociales mediante la metodología del Diamante de Colores.', 
             normativity: 'Hito 1: Gobernanza y Cimiento Legal (Dec. 1072 Art. 2.2.4.6.25)' 
@@ -89,22 +95,28 @@ export const PHASE_CATEGORIES = {
         }
     ],
 
-    // ─── HITO 03: COMITÉS PARITARIOS & CONVIVENCIA LABORAL ───
+    // ─── HITO 03: COMITÉS, BRIGADAS Y ÓRGANOS DE GOBERNANZA ───
     hito3: [
         { 
             id: 'copasst', title: 'COPASST / Vigía de SST', icon: 'Award',
             bioRationale: 'Órgano paritario de promoción, vigilancia y consulta para la protección de la salud y seguridad de los trabajadores.', 
-            normativity: 'Hito 3: Comités Paritarios (Res. 2013/1986 • Dec. 1072/2015)' 
+            normativity: 'Hito 3: Comités, Brigadas y Gobernanza (Res. 2013/1986 • Dec. 1072/2015)' 
         },
         { 
             id: 'cocolab', title: 'Comité de Convivencia Laboral', icon: 'HeartHandshake',
             bioRationale: 'Prevención del acoso laboral, mediación de conflictos intralaborales y protección del clima psicosocial.', 
-            normativity: 'Hito 3: Convivencia Laboral (Res. 3461/2025 • Ley 2365/2024)' 
+            normativity: 'Hito 3: Comités, Brigadas y Gobernanza (Res. 3461/2025 • Ley 2365/2024)' 
+        },
+        { 
+            id: 'comite_pesv', title: 'Comité de Seguridad Vial (CSV - PESV)', icon: 'Car',
+            bioRationale: 'Órgano directivo y técnico encargado de diseñar, implementar, auditar siniestros viales y evaluar trimestralmente los indicadores y metas del Plan Estratégico de Seguridad Vial.', 
+            normativity: 'Hito 3: Comités, Brigadas y Gobernanza (Res. 20223040040595 Paso 1, 2 y 20 • ISO 39001)',
+            defaultDisabled: true
         },
         { 
             id: 'brigada_emergencias', title: 'Brigada de Emergencias & Comité de Crisis (SCI)', icon: 'Shield',
             bioRationale: 'Conformación del Sistema Comando de Incidentes (SCI), coordinadores de evacuación y brigadistas de primeros auxilios, control de incendios y rescate.', 
-            normativity: 'Hito 3: Comités y Brigadas (Dec. 1072 Art. 2.2.4.6.25 Num. 11)',
+            normativity: 'Hito 3: Comités, Brigadas y Gobernanza (Dec. 1072 Art. 2.2.4.6.25 Num. 11)',
             defaultDisabled: true
         }
     ],
@@ -253,7 +265,9 @@ export const PHASE_CATEGORIES = {
 
 export const DEFAULT_CONSTRUCTION_APPS = [
     'matriz_pesv_oficial',
+    'matriz_compatibilidad_oficial',
     'plan_emergencias',
+    'comite_pesv',
     'brigada_emergencias',
     'equipos_emergencia',
     'simulacros_emergencia',
@@ -265,6 +279,7 @@ export const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
     participacion_ipevar: 'hito1',
     matriz_ipevar_oficial: 'hito1',
     matriz_pesv_oficial: 'hito1',
+    matriz_compatibilidad_oficial: 'hito1',
     responsable: 'hito1',
     politica: 'hito1',
     objetivos: 'hito1',
@@ -281,10 +296,11 @@ export const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
     perfil_cargo: 'hito2',
     oraculo_predictivo: 'hito2',
 
-    // Hito 3: Comités Paritarios & Convivencia Laboral
+    // Hito 3: Comités, Brigadas y Órganos de Gobernanza
     copasst: 'hito3',
     cocolab: 'hito3',
     convivencia: 'hito3',
+    comite_pesv: 'hito3',
     comites: 'hito3',
     brigada_emergencias: 'hito3',
 

@@ -22,6 +22,397 @@ async function getActiveCompanyId(userId) {
   return active ? active._id : null;
 }
 
+const KanbanTask = require('~/models/KanbanTask');
+const SgsstChemicalData = require('~/models/SgsstChemicalData');
+
+function mapHito5ProductToCompatRow(p) {
+  return {
+    id: p.id || Date.now().toString() + Math.random().toString(36).substring(7),
+    nombre: toSentenceCase(p.nombre || 'Producto Químico'),
+    fabricante: p.fabricante || 'Desconocido',
+    estado_fisico: p.estadoFisico === 'Gaseoso' ? 'Gas' : (p.estadoFisico || 'Líquido'),
+    clasificacion_onu: p.claseOnu || 'No Peligroso',
+    pictogramas_sga: Array.isArray(p.pictogramasSga) ? p.pictogramasSga : [],
+    cantidad_almacenada: p.cantidadAlmacenada || 'N/A',
+    ubicacion: toSentenceCase(p.ubicacion || 'Almacén General'),
+    tiene_fds: p.tieneFds || 'No',
+    tiene_rotulo: p.tieneRotuloSga || 'No',
+    incompatibilidades: Array.isArray(p.incompatibilidades) ? p.incompatibilidades.join(', ') : (p.incompatibilidades || 'Verificar FDS'),
+    requisitos_almacenamiento: p.requisitosAlmacenamiento || 'Almacenar en área ventilada y señalizada según SGA.'
+  };
+}
+
+// ─── GET: Obtener la Matriz Oficial de Compatibilidad Química de la empresa ─────
+router.get('/official', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const officialConvId = `official-chem-${companyId || userId}`;
+
+    let officialSession = await ChemicalCompatibilitySession.findOne({ conversationId: officialConvId });
+
+    // Si no existe sesión oficial aún o está vacía, buscar la sesión con datos más reciente de la empresa/usuario
+    if (!officialSession || !officialSession.matrixRows || officialSession.matrixRows.length === 0) {
+      const fallbackQuery = companyId ? { companyId } : { user: userId };
+      const latestWithData = await ChemicalCompatibilitySession.findOne({
+        ...fallbackQuery,
+        'matrixRows.0': { $exists: true },
+      }).sort({ updatedAt: -1 });
+
+      if (latestWithData) {
+        officialSession = await ChemicalCompatibilitySession.findOneAndUpdate(
+          { conversationId: officialConvId },
+          {
+            $set: {
+              user: userId,
+              companyId,
+              isOfficial: true,
+              matrixRows: latestWithData.matrixRows,
+              chartConclusions: latestWithData.chartConclusions || {},
+              reportHtml: latestWithData.reportHtml || '',
+              sourceConversationId: latestWithData.conversationId,
+              officialTitle: latestWithData.officialTitle || 'Matriz Oficial de Compatibilidad Química',
+              promotedAt: new Date(),
+            },
+          },
+          { upsert: true, new: true }
+        );
+      } else if (companyId) {
+        // Intentar poblar inicialmente desde el Hito 5 (Registro y Rótulo de Productos Químicos) si existe
+        const hito5Doc = await SgsstChemicalData.findOne({ user: userId, companyId }).lean();
+        if (hito5Doc && Array.isArray(hito5Doc.productos) && hito5Doc.productos.length > 0) {
+          const mappedRows = hito5Doc.productos.map(mapHito5ProductToCompatRow);
+          officialSession = await ChemicalCompatibilitySession.findOneAndUpdate(
+            { conversationId: officialConvId },
+            {
+              $set: {
+                user: userId,
+                companyId,
+                isOfficial: true,
+                matrixRows: mappedRows,
+                chartConclusions: {},
+                reportHtml: '',
+                sourceConversationId: 'hito5-chemical-registry',
+                officialTitle: 'Matriz Oficial de Compatibilidad Química (Sincronizada con Hito 5)',
+                promotedAt: new Date(),
+              },
+            },
+            { upsert: true, new: true }
+          );
+        }
+      }
+    }
+
+    if (!officialSession) {
+      return res.json({
+        conversationId: officialConvId,
+        matrixRows: [],
+        chartConclusions: {},
+        reportHtml: '',
+        officialTitle: 'Matriz Oficial de Compatibilidad Química',
+        sourceConversationId: '',
+        updatedAt: null,
+      });
+    }
+
+    return res.json({
+      conversationId: officialSession.conversationId,
+      matrixRows: officialSession.matrixRows || [],
+      chartConclusions: officialSession.chartConclusions || {},
+      reportHtml: officialSession.reportHtml || '',
+      officialTitle: officialSession.officialTitle || 'Matriz Oficial de Compatibilidad Química',
+      sourceConversationId: officialSession.sourceConversationId || '',
+      updatedAt: officialSession.updatedAt,
+      promotedAt: officialSession.promotedAt,
+    });
+  } catch (error) {
+    logger.error('[ChemicalCompatibility/official] Error fetching official matrix:', error);
+    return res.status(500).json({ error: 'Error al obtener la Matriz Oficial de Compatibilidad Química' });
+  }
+});
+
+// ─── POST: Promover / Fijar cualquier matriz de chat como Matriz Oficial Química ─
+router.post('/set-official', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { sourceConversationId, matrixRows, chartConclusions, reportHtml, officialTitle } = req.body;
+    const companyId = await getActiveCompanyId(userId);
+    const officialConvId = `official-chem-${companyId || userId}`;
+
+    let rowsToPromote = matrixRows;
+    let conclusionsToPromote = chartConclusions || {};
+    let reportToPromote = reportHtml;
+
+    if ((!rowsToPromote || !Array.isArray(rowsToPromote)) && sourceConversationId) {
+      const sourceSession = await ChemicalCompatibilitySession.findOne({ conversationId: sourceConversationId });
+      if (!sourceSession) {
+        return res.status(404).json({ error: 'No se encontró la matriz química de origen para fijar como oficial.' });
+      }
+      rowsToPromote = sourceSession.matrixRows || [];
+      conclusionsToPromote = sourceSession.chartConclusions || {};
+      if (reportToPromote === undefined) reportToPromote = sourceSession.reportHtml || '';
+    }
+
+    const normalizedRows = (rowsToPromote || []).map(row => ({
+      ...row,
+      nombre: toSentenceCase(row.nombre),
+      ubicacion: toSentenceCase(row.ubicacion)
+    }));
+
+    const updateFields = {
+      user: userId,
+      companyId,
+      isOfficial: true,
+      matrixRows: normalizedRows,
+      chartConclusions: conclusionsToPromote,
+      sourceConversationId: sourceConversationId || officialConvId,
+      officialTitle: officialTitle || 'Matriz Oficial de Compatibilidad Química',
+      promotedAt: new Date(),
+    };
+    if (reportToPromote !== undefined) {
+      updateFields.reportHtml = reportToPromote;
+    }
+
+    const officialSession = await ChemicalCompatibilitySession.findOneAndUpdate(
+      { conversationId: officialConvId },
+      { $set: updateFields },
+      { upsert: true, new: true }
+    );
+
+    logger.info(`[ChemicalCompatibility/set-official] Promoted matrix from ${sourceConversationId} to ${officialConvId} (${normalizedRows.length} rows)`);
+    return res.json({
+      success: true,
+      conversationId: officialSession.conversationId,
+      matrixRows: officialSession.matrixRows,
+      chartConclusions: officialSession.chartConclusions || {},
+      reportHtml: officialSession.reportHtml || '',
+      officialTitle: officialSession.officialTitle,
+      sourceConversationId: officialSession.sourceConversationId,
+      updatedAt: officialSession.updatedAt,
+    });
+  } catch (error) {
+    logger.error('[ChemicalCompatibility/set-official] Error setting official matrix:', error);
+    return res.status(500).json({ error: 'Error al fijar la Matriz Oficial de Compatibilidad Química' });
+  }
+});
+
+// ─── PUT: Guardar directamente en la Matriz Oficial de Compatibilidad Química ───
+router.put('/official', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { matrixRows, officialTitle, reportHtml } = req.body;
+    const companyId = await getActiveCompanyId(userId);
+    const officialConvId = `official-chem-${companyId || userId}`;
+
+    const normalizedRows = (matrixRows || []).map(row => ({
+      ...row,
+      nombre: toSentenceCase(row.nombre),
+      ubicacion: toSentenceCase(row.ubicacion)
+    }));
+
+    const updateFields = {
+      user: userId,
+      companyId,
+      isOfficial: true,
+      matrixRows: normalizedRows,
+    };
+    if (officialTitle) updateFields.officialTitle = officialTitle;
+    if (reportHtml !== undefined) updateFields.reportHtml = reportHtml;
+
+    const officialSession = await ChemicalCompatibilitySession.findOneAndUpdate(
+      { conversationId: officialConvId },
+      { $set: updateFields },
+      { upsert: true, new: true }
+    );
+
+    return res.json({
+      success: true,
+      conversationId: officialSession.conversationId,
+      matrixRows: officialSession.matrixRows,
+      reportHtml: officialSession.reportHtml || '',
+      updatedAt: officialSession.updatedAt,
+    });
+  } catch (error) {
+    logger.error('[ChemicalCompatibility/official PUT] Error saving official matrix:', error);
+    return res.status(500).json({ error: 'Error al guardar la Matriz Oficial de Compatibilidad Química' });
+  }
+});
+
+// ─── GET: Listar todas las matrices químicas creadas en chats para el selector ──
+router.get('/list-user-matrices', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+
+    const query = companyId
+      ? { $or: [{ companyId }, { user: userId }], 'matrixRows.0': { $exists: true } }
+      : { user: userId, 'matrixRows.0': { $exists: true } };
+
+    const sessions = await ChemicalCompatibilitySession.find(query)
+      .select('conversationId isOfficial officialTitle sourceConversationId matrixRows updatedAt createdAt')
+      .sort({ updatedAt: -1 })
+      .limit(30)
+      .lean();
+
+    const list = sessions.map(s => {
+      const ubicaciones = [...new Set((s.matrixRows || []).map(r => r.ubicacion).filter(Boolean))].slice(0, 3);
+      return {
+        conversationId: s.conversationId,
+        isOfficial: !!s.isOfficial || String(s.conversationId).startsWith('official-chem-'),
+        officialTitle: s.officialTitle || '',
+        rowCount: (s.matrixRows || []).length,
+        previewUbicaciones: ubicaciones.join(', ') || 'General',
+        updatedAt: s.updatedAt,
+      };
+    });
+
+    return res.json({ matrices: list });
+  } catch (error) {
+    logger.error('[ChemicalCompatibility/list-user-matrices] Error:', error);
+    return res.status(500).json({ error: 'Error al listar matrices de compatibilidad química' });
+  }
+});
+
+// ─── POST: Sincronizar inventario desde Hito 5 (Registro Químico) ──────────────
+router.post('/sync-hito5', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId } = req.body;
+    const companyId = await getActiveCompanyId(userId);
+    const targetConvId = conversationId || `official-chem-${companyId || userId}`;
+
+    const hito5Doc = await SgsstChemicalData.findOne({ user: userId, companyId }).lean();
+    if (!hito5Doc || !Array.isArray(hito5Doc.productos) || hito5Doc.productos.length === 0) {
+      return res.json({
+        success: true,
+        importedCount: 0,
+        message: 'No se encontraron productos registrados en el Inventario Químico del Hito 5.',
+      });
+    }
+
+    let session = await ChemicalCompatibilitySession.findOne({ conversationId: targetConvId });
+    if (!session) {
+      session = new ChemicalCompatibilitySession({
+        conversationId: targetConvId,
+        user: userId,
+        companyId,
+        matrixRows: [],
+      });
+    }
+
+    let importedCount = 0;
+    for (const prod of hito5Doc.productos) {
+      const mapped = mapHito5ProductToCompatRow(prod);
+      const existingIdx = (session.matrixRows || []).findIndex(
+        r => (r.nombre || '').toLowerCase() === mapped.nombre.toLowerCase()
+      );
+      if (existingIdx === -1) {
+        session.matrixRows.push(mapped);
+        importedCount++;
+      } else {
+        session.matrixRows[existingIdx] = {
+          ...session.matrixRows[existingIdx],
+          ...mapped,
+          id: session.matrixRows[existingIdx].id || mapped.id,
+        };
+      }
+    }
+
+    session.markModified('matrixRows');
+    await session.save();
+
+    return res.json({
+      success: true,
+      importedCount,
+      matrixRows: session.matrixRows,
+      message: `Se sincronizaron ${hito5Doc.productos.length} productos químicos desde el Hito 5 (${importedCount} nuevos añadidos).`,
+    });
+  } catch (error) {
+    logger.error('[ChemicalCompatibility/sync-hito5] Error:', error);
+    return res.status(500).json({ error: 'Error al sincronizar con el inventario químico del Hito 5' });
+  }
+});
+
+// ─── POST: Sincronizar controles químicos y brechas SGA con el Centro de Control (Kanban ACPM) ─
+router.post('/sync-controles-quimicos', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { matrixRows } = req.body;
+    const companyId = await getActiveCompanyId(userId);
+
+    if (!companyId) {
+      return res.status(400).json({ error: 'No se encontró una empresa activa configurada.' });
+    }
+
+    const rows = Array.isArray(matrixRows) ? matrixRows : [];
+    let createdTasks = 0;
+    let updatedTasks = 0;
+
+    for (const row of rows) {
+      const faltaFds = String(row.tiene_fds).toLowerCase() === 'no';
+      const faltaRotulo = String(row.tiene_rotulo).toLowerCase() === 'no';
+      const tieneRequisitos = row.requisitos_almacenamiento && row.requisitos_almacenamiento.trim() !== '' && row.requisitos_almacenamiento.toLowerCase() !== 'ninguno';
+
+      if (!faltaFds && !faltaRotulo && !tieneRequisitos) continue;
+
+      const taskTitle = `[Químicos SGA] ${row.nombre || 'Sustancia Química'} - ${row.ubicacion || 'Almacén'}`;
+      const gapAlerts = [];
+      if (faltaFds) gapAlerts.push('⚠️ FALTA FICHA DE DATOS DE SEGURIDAD (FDS 16 Secciones)');
+      if (faltaRotulo) gapAlerts.push('⚠️ FALTA ROTULADO Y ETIQUETADO SGA EN ENVASE');
+
+      const taskDescription = [
+        `Producto Químico: ${row.nombre || 'N/A'} (${row.fabricante || 'Proveedor no especificado'})`,
+        `Clase Peligro ONU: ${row.clasificacion_onu || 'N/A'} | Estado: ${row.estado_fisico || 'Líquido'}`,
+        `Ubicación: ${row.ubicacion || 'N/A'} | Cantidad: ${row.cantidad_almacenada || 'N/A'}`,
+        gapAlerts.length > 0 ? `Brechas Legales Decreto 1496/2018: ${gapAlerts.join(' | ')}` : '',
+        `Incompatibilidades: ${row.incompatibilidades || 'N/A'}`,
+        `Requisitos de Almacenamiento / Controles: ${row.requisitos_almacenamiento || 'Segregar según matriz de compatibilidad NTC 3966.'}`,
+      ].filter(Boolean).join('\n');
+
+      const isHighRisk = faltaFds || faltaRotulo || /Explosiv|Inflamabl|Tóxic|Corrosiv|Comburent/i.test(row.clasificacion_onu || '');
+      const priority = isHighRisk ? 'Alta' : 'Media';
+
+      const existing = await KanbanTask.findOne({
+        user: userId,
+        companyId,
+        sourceModule: 'matriz_compatibilidad',
+        title: taskTitle,
+      });
+
+      if (existing) {
+        existing.description = taskDescription;
+        existing.priority = priority;
+        await existing.save();
+        updatedTasks++;
+      } else {
+        await KanbanTask.create({
+          user: userId,
+          companyId,
+          title: taskTitle,
+          description: taskDescription,
+          status: 'pendiente',
+          priority,
+          actionType: faltaFds || faltaRotulo ? 'Correctiva' : 'Preventiva',
+          sourceModule: 'matriz_compatibilidad',
+          hitoId: 6,
+          dueDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        });
+        createdTasks++;
+      }
+    }
+
+    return res.json({
+      success: true,
+      createdTasks,
+      updatedTasks,
+      message: `Sincronización SGA completada: ${createdTasks} acciones nuevas creadas y ${updatedTasks} actualizadas en el Centro de Control.`,
+    });
+  } catch (error) {
+    logger.error('[ChemicalCompatibility/sync-controles-quimicos] Error:', error);
+    return res.status(500).json({ error: 'Error al sincronizar controles químicos con el Centro de Control' });
+  }
+});
+
 // ─── GET: Obtener matriz para una conversación ────────────────────────────────
 router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
   try {
@@ -67,10 +458,14 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
     }
 
     if (!session) {
-      return res.json({ matrixRows: [], chartConclusions: {} });
+      return res.json({ matrixRows: [], chartConclusions: {}, reportHtml: '' });
     }
 
-    res.json({ matrixRows: session.matrixRows, chartConclusions: session.chartConclusions || {} });
+    res.json({
+      matrixRows: session.matrixRows,
+      chartConclusions: session.chartConclusions || {},
+      reportHtml: session.reportHtml || '',
+    });
   } catch (error) {
     logger.error('[ChemicalCompatibility] Error fetching matrix:', error);
     res.status(500).json({ error: 'Failed to fetch chemical matrix' });
@@ -81,7 +476,7 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
 router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
   try {
     const { conversationId } = req.params;
-    const { matrixRows } = req.body;
+    const { matrixRows, reportHtml } = req.body;
     const userId = req.user.id;
     const companyId = await getActiveCompanyId(userId);
 
@@ -91,14 +486,38 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
       ubicacion: toSentenceCase(row.ubicacion)
     }));
 
+    const updateSet = { matrixRows: normalizedRows, companyId };
+    if (reportHtml !== undefined) updateSet.reportHtml = reportHtml;
+
     let session = await ChemicalCompatibilitySession.findOneAndUpdate(
       { conversationId, companyId: companyId },
       {
-        $set: { matrixRows: normalizedRows, companyId },
+        $set: updateSet,
         $setOnInsert: { user: userId },
       },
       { upsert: true, new: true },
     );
+
+    // Sincronizar también con la Matriz Oficial de Compatibilidad Química
+    const officialConvId = `official-chem-${companyId || userId}`;
+    if (conversationId !== officialConvId && normalizedRows.length > 0) {
+      const officialUpdate = {
+        matrixRows: normalizedRows,
+        isOfficial: true,
+        companyId,
+        sourceConversationId: conversationId,
+        promotedAt: new Date(),
+      };
+      if (reportHtml !== undefined) officialUpdate.reportHtml = reportHtml;
+      await ChemicalCompatibilitySession.findOneAndUpdate(
+        { conversationId: officialConvId },
+        {
+          $set: officialUpdate,
+          $setOnInsert: { user: userId, officialTitle: 'Matriz Oficial de Compatibilidad Química' },
+        },
+        { upsert: true }
+      );
+    }
 
     if (conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
       const tempId = `temp-${userId}`;
@@ -106,7 +525,7 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
       logger.info(`[ChemicalCompatibility PUT] Cleaned up temporal session for user ${userId}`);
     }
 
-    res.json({ success: true, matrixRows: session.matrixRows });
+    res.json({ success: true, matrixRows: session.matrixRows, reportHtml: session.reportHtml || '' });
   } catch (error) {
     logger.error('[ChemicalCompatibility] Error updating matrix:', error);
     res.status(500).json({ error: 'Failed to update chemical matrix' });
@@ -339,7 +758,7 @@ function buildChemicalChartsHtml(matrixRows) {
 // ─── IA: Analizar toda la matriz y generar reporte Canvas ────────────────────────
 router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
   try {
-    const { matrixRows, instruction } = req.body;
+    const { matrixRows, instruction, conversationId } = req.body;
     const userId = req.user?.id;
 
     if (!matrixRows || !matrixRows.length) {
@@ -348,7 +767,8 @@ router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
 
     let loadedCompanyInfo = null;
     try {
-      loadedCompanyInfo = await CompanyInfo.findOne({ user: userId }).lean();
+      loadedCompanyInfo = await CompanyInfo.findOne({ user: userId, isActive: true }).lean()
+        || await CompanyInfo.findOne({ user: userId }).lean();
     } catch (e) {
       logger.warn('[ChemicalCompatibility] Could not load CompanyInfo', e);
     }
@@ -401,6 +821,14 @@ ${instruction || 'Generar informe técnico estructurado de almacenamiento seguro
     let fullReport = headerHTML + chartsHTML + '<div style="margin-top:20px;">' + htmlBody + '</div>';
     if (loadedCompanyInfo) {
       fullReport += buildSignatureSection(loadedCompanyInfo);
+    }
+
+    if (conversationId) {
+      await ChemicalCompatibilitySession.findOneAndUpdate(
+        { conversationId },
+        { $set: { reportHtml: fullReport } },
+        { upsert: true }
+      );
     }
 
     logger.info(`[ChemicalCompatibility/ai-analyze-matrix] Generated HTML analysis, ${matrixRows.length} rows`);

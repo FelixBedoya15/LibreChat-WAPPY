@@ -6,7 +6,9 @@ const SgsstConfig = require('~/models/SgsstConfig');
 
 const DEFAULT_CONSTRUCTION_APPS = [
     'matriz_pesv_oficial',
+    'matriz_compatibilidad_oficial',
     'plan_emergencias',
+    'comite_pesv',
     'brigada_emergencias',
     'equipos_emergencia',
     'simulacros_emergencia',
@@ -23,12 +25,12 @@ router.get('/', requireJwtAuth, async (req, res) => {
             config = await SgsstConfig.create({ disabledApps: DEFAULT_CONSTRUCTION_APPS });
         } else {
             // Seed newly introduced construction apps once so they start in construction mode
-            const seeded = config.get('seededEmergencyAppsV2');
+            const seeded = config.get('seededEmergencyAppsV4');
             if (!seeded) {
                 const merged = Array.from(new Set([...(config.disabledApps || []), ...DEFAULT_CONSTRUCTION_APPS]));
                 config.disabledApps = merged;
-                config.set('seededEmergencyAppsV2', true, { strict: false });
-                await SgsstConfig.updateOne({ _id: config._id }, { $set: { disabledApps: merged, seededEmergencyAppsV2: true } }, { strict: false });
+                config.set('seededEmergencyAppsV4', true, { strict: false });
+                await SgsstConfig.updateOne({ _id: config._id }, { $set: { disabledApps: merged, seededEmergencyAppsV4: true } }, { strict: false });
             }
         }
         res.json(config);

@@ -30,6 +30,27 @@ const chemicalCompatibilitySessionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    reportHtml: {
+      type: String,
+      default: '',
+    },
+    isOfficial: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    officialTitle: {
+      type: String,
+      default: '',
+    },
+    sourceConversationId: {
+      type: String,
+      default: '',
+    },
+    promotedAt: {
+      type: Date,
+      required: false,
+    },
   },
   { timestamps: true }
 );

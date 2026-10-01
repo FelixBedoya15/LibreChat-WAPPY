@@ -86,6 +86,8 @@ class MatrizCompatibilidad extends Tool {
         if (!userId) { return JSON.stringify({ error: 'No autenticado para acceder al contexto.' }); }
         
         const PerfilSocioModel = mongoose.models.PerfilSociodemograficoData;
+        const PerfilCargoModel = mongoose.models.PerfilCargoData;
+        const SgsstChemicalData = require('~/models/SgsstChemicalData');
         let payload = {};
 
         if (CompanyInfo) {
@@ -104,9 +106,44 @@ class MatrizCompatibilidad extends Tool {
           }
         }
 
+        // Inventario de productos químicos registrado en Hito 5 (Registro y Rótulo de Productos Químicos)
+        if (SgsstChemicalData) {
+          const chemQuery = companyId ? { user: userId, companyId } : { user: userId };
+          const chemDoc = await SgsstChemicalData.findOne(chemQuery).lean();
+          if (chemDoc && Array.isArray(chemDoc.productos) && chemDoc.productos.length > 0) {
+            payload.inventario_quimico_hito5 = chemDoc.productos.map(p => ({
+              nombre: p.nombre,
+              fabricante: p.fabricante || 'Desconocido',
+              estado_fisico: p.estadoFisico === 'Gaseoso' ? 'Gas' : (p.estadoFisico || 'Líquido'),
+              clasificacion_onu: p.claseOnu || '',
+              pictogramas_sga: p.pictogramasSga || [],
+              ubicacion: p.ubicacion || 'N/A',
+              cantidad_almacenada: p.cantidadAlmacenada || 'N/A',
+              tiene_fds: p.tieneFds || 'No',
+              tiene_rotulo: p.tieneRotuloSga || 'No',
+              requisitos_almacenamiento: p.requisitosAlmacenamiento || '',
+              incompatibilidades: Array.isArray(p.incompatibilidades) ? p.incompatibilidades.join(', ') : (p.incompatibilidades || '')
+            }));
+          }
+        }
+
+        // Perfiles de Cargo (Hito 2)
+        if (PerfilCargoModel) {
+          const cargoQuery = companyId ? { user: userId, companyId } : { user: userId };
+          const cargoDoc = await PerfilCargoModel.findOne(cargoQuery).lean();
+          if (cargoDoc && Array.isArray(cargoDoc.perfiles)) {
+            payload.perfiles_de_cargo = cargoDoc.perfiles.map(p => ({
+              cargo: p.nombreCargo || p.cargo,
+              funciones: p.funcionesPrincipales || p.objetivoCargo || '',
+              peligros_identificados: p.peligrosExpuestos || ''
+            }));
+          }
+        }
+
         // Extraer perfiles de salud que tengan alergias químicas
         if (PerfilSocioModel) {
-          const socioDataDoc = await PerfilSocioModel.findOne({ user: userId }).lean();
+          const socioQuery = companyId ? { user: userId, companyId } : { user: userId };
+          const socioDataDoc = await PerfilSocioModel.findOne(socioQuery).lean() || await PerfilSocioModel.findOne({ user: userId }).lean();
           if (socioDataDoc && socioDataDoc.trabajadores) {
             payload.alergias_y_patologias_quimicas = socioDataDoc.trabajadores
               .filter(t => t.alergiasQuimicas && t.alergiasQuimicas !== 'Ninguna' && t.alergiasQuimicas !== '')
@@ -118,20 +155,39 @@ class MatrizCompatibilidad extends Tool {
           }
         }
 
+        // Resumen de matriz oficial de compatibilidad química si existe
+        const officialConvId = `official-chem-${companyId || userId}`;
+        const officialSession = await ChemicalCompatibilitySession.findOne({ conversationId: officialConvId }).lean();
+        if (officialSession && Array.isArray(officialSession.matrixRows) && officialSession.matrixRows.length > 0) {
+          payload.matriz_compatibilidad_oficial_resumen = {
+            total_productos: officialSession.matrixRows.length,
+            productos_registrados: officialSession.matrixRows.map(r => `${r.nombre} (${r.clasificacion_onu || 'Sin clase'}) - ${r.ubicacion || 'Sin ubicación'}`)
+          };
+        }
+
         return JSON.stringify({
-          mensaje: "Contexto SGSST de la compañía recuperado exitosamente.",
-          advertencia: "MEMORIZA ESTA INFORMACIÓN PARA EVALUAR RESTRICCIONES DE EPP O DE SALUD AL RECOMENDAR CONTROLES DE ALMACENAMIENTO.",
+          mensaje: "Contexto SGSST y Químico de la compañía recuperado exitosamente.",
+          advertencia: "MEMORIZA ESTA INFORMACIÓN PARA EVALUAR EL INVENTARIO QUÍMICO DEL HITO 5, PERFILES DE CARGO Y RESTRICCIONES DE SALUD AL DOCUMENTAR LA MATRIZ DE COMPATIBILIDAD.",
           datos: payload
         });
       }
 
       // ─── ACCION: LEER ──────────────────────────────────────────────────────────
       if (accion === 'leer') {
-        if (!session || !session.matrixRows || session.matrixRows.length === 0) {
+        let activeSession = session;
+        if ((!activeSession || !activeSession.matrixRows || activeSession.matrixRows.length === 0) && userId) {
+          const officialConvId = `official-chem-${companyId || userId}`;
+          const officialSession = await ChemicalCompatibilitySession.findOne({ conversationId: officialConvId });
+          if (officialSession && officialSession.matrixRows && officialSession.matrixRows.length > 0) {
+            activeSession = officialSession;
+          }
+        }
+
+        if (!activeSession || !activeSession.matrixRows || activeSession.matrixRows.length === 0) {
           return JSON.stringify({ mensaje: 'El inventario de productos químicos está vacío.', resultados: [] });
         }
 
-        let rows = session.matrixRows;
+        let rows = activeSession.matrixRows;
         if (filtro_nombre) {
           rows = rows.filter(r => r.nombre && r.nombre.toLowerCase().includes(filtro_nombre.toLowerCase()));
         }
@@ -144,7 +200,7 @@ class MatrizCompatibilidad extends Tool {
 
         return JSON.stringify({
           mensaje: `Se encontraron ${rows.length} productos químicos.`,
-          totalRegistros: session.matrixRows.length,
+          totalRegistros: activeSession.matrixRows.length,
           resultados: rows
         });
       }
@@ -165,8 +221,29 @@ class MatrizCompatibilidad extends Tool {
         session.markModified('matrixRows');
         await session.save();
 
+        // Sincronizar borrado con matriz oficial si existe
+        if (userId) {
+          const officialConvId = `official-chem-${companyId || userId}`;
+          if (conversationId !== officialConvId) {
+            await ChemicalCompatibilitySession.findOneAndUpdate(
+              { conversationId: officialConvId },
+              {
+                $set: {
+                  matrixRows: session.matrixRows,
+                  isOfficial: true,
+                  companyId: companyId || undefined,
+                  sourceConversationId: conversationId,
+                  promotedAt: new Date(),
+                },
+                $setOnInsert: { user: userId, officialTitle: 'Matriz Oficial de Compatibilidad Química' },
+              },
+              { upsert: true }
+            );
+          }
+        }
+
         return JSON.stringify({
-          mensaje: `Se eliminaron exitosamente ${deletedCount} productos químicos de la base de datos.`,
+          mensaje: `Se eliminaron exitosamente ${deletedCount} productos químicos de la base de datos y se sincronizó con la Matriz Oficial.`,
           totalRegistrosRestantes: session.matrixRows.length
         });
       }
@@ -218,6 +295,27 @@ class MatrizCompatibilidad extends Tool {
       session.markModified('matrixRows');
       await session.save();
 
+      // Sincronizar automáticamente en paralelo con la Matriz Oficial de Compatibilidad Química
+      if (userId) {
+        const officialConvId = `official-chem-${companyId || userId}`;
+        if (conversationId !== officialConvId) {
+          await ChemicalCompatibilitySession.findOneAndUpdate(
+            { conversationId: officialConvId },
+            {
+              $set: {
+                matrixRows: session.matrixRows,
+                isOfficial: true,
+                companyId: companyId || undefined,
+                sourceConversationId: conversationId,
+                promotedAt: new Date(),
+              },
+              $setOnInsert: { user: userId, officialTitle: 'Matriz Oficial de Compatibilidad Química' },
+            },
+            { upsert: true }
+          );
+        }
+      }
+
       // Limpiar sesión temporal si aplica
       if (conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
         const tempId = `temp-${userId}`;
@@ -226,7 +324,7 @@ class MatrizCompatibilidad extends Tool {
 
       return JSON.stringify({
         success: true,
-        message: `Operación masiva de inventario completada. Se procesaron ${productos.length} productos químicos.`,
+        message: `Operación masiva de inventario completada y sincronizada con la Matriz Oficial de Compatibilidad Química. Se procesaron ${productos.length} productos químicos.`,
         stats: { insertados: insertedCount, actualizados: updatedCount }
       });
 

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const CompanyInfo = require('../../../models/CompanyInfo');
-const { SgsstCopasstComite, SgsstCopasstActa, SgsstEleccion } = require('../../../models/SgsstCopasst');
+const { SgsstCopasstComite, SgsstCopasstActa, SgsstEleccion, SgsstPesvComite, SgsstPesvActa } = require('../../../models/SgsstCopasst');
 const { SgsstPadronVotante, SgsstVotoAnonimo } = require('../../../models/SgsstVotacion');
 const SgsstWorker = require('../../../models/SgsstWorker');
 const KanbanTask = require('../../../models/KanbanTask');
@@ -1080,4 +1080,827 @@ Devuelve un objeto JSON válido con dos propiedades principales:
   }
 });
 
+// ═════════════════════════════════════════════════════════════════════════════
+// ─── COMITÉ DE SEGURIDAD VIAL (CSV - PESV Res. 20223040040595 Paso 1 y 2) ────
+// ═════════════════════════════════════════════════════════════════════════════
+
+function calculatePesvLevel(flotaTotal = 0, conductoresTotal = 0) {
+  const f = Number(flotaTotal) || 0;
+  const c = Number(conductoresTotal) || 0;
+  if (f > 50 || c > 50) {
+    return {
+      nivel: 'Avanzado',
+      requiereComite: true,
+      minIntegrantes: 3,
+      pasosAplicables: 24,
+      descripcion: 'Más de 50 vehículos o más de 50 conductores: Nivel Avanzado (24 pasos). Requiere Líder PESV (Paso 1) y Comité de Seguridad Vial (Paso 2) con sesiones trimestrales obligatorias.',
+    };
+  }
+  if ((f >= 20 && f <= 50) || (c >= 20 && c <= 50)) {
+    return {
+      nivel: 'Estándar',
+      requiereComite: true,
+      minIntegrantes: 3,
+      pasosAplicables: 22,
+      descripcion: 'Entre 20 y 50 vehículos o entre 20 y 50 conductores: Nivel Estándar (22 pasos). Requiere Líder PESV (Paso 1) y Comité de Seguridad Vial (Paso 2) con mínimo 3 integrantes.',
+    };
+  }
+  return {
+    nivel: 'Básico',
+    requiereComite: false,
+    minIntegrantes: 1,
+    pasosAplicables: 19,
+    descripcion: 'Entre 11 y 19 vehículos o entre 2 y 19 conductores: Nivel Básico (19 pasos). Obligatorio designar Líder PESV (Paso 1); el Comité de Seguridad Vial (Paso 2) puede conformarse voluntariamente como buena práctica.',
+  };
+}
+
+// ─── 11. GET /pesv/config — Configuración, Comité CSV, Actas y Metas PESV ────
+router.get('/pesv/config', requireJwtAuth, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    if (!company) {
+      return res.status(404).json({ error: 'No se encontró una empresa activa.' });
+    }
+
+    const activeComite =
+      (await SgsstPesvComite.findOne({ companyId: company._id, estado: 'vigente' }).sort({ createdAt: -1 }).lean()) ||
+      (await SgsstPesvComite.findOne({ companyId: company._id }).sort({ createdAt: -1 }).lean());
+
+    const currentYear = Number(req.query.anio) || new Date().getFullYear();
+    const actas = await SgsstPesvActa.find({
+      companyId: company._id,
+      anio: currentYear,
+    })
+      .sort({ mes: 1, fechaReunion: 1 })
+      .lean();
+
+    const escala = calculatePesvLevel(activeComite?.flotaTotal || 15, activeComite?.conductoresTotal || 15);
+
+    res.json({
+      company: {
+        _id: company._id,
+        companyName: company.companyName,
+        nit: company.nit,
+        workerCount: Number(company.workerCount) || 1,
+        riskLevel: company.riskLevel || 'I',
+        arl: company.arl || '',
+        economicActivity: company.economicActivity || '',
+        legalRepresentative: company.legalRepresentative || '',
+        responsibleSST: company.responsibleSST || '',
+      },
+      escala,
+      activeComite,
+      actas,
+      currentYear,
+    });
+  } catch (error) {
+    logger.error('[CSV-PESV] GET /pesv/config error:', error);
+    res.status(500).json({ error: 'Error al obtener la configuración del Comité de Seguridad Vial' });
+  }
+});
+
+// ─── 12. POST /pesv/comite — Guardar / Actualizar Conformación CSV y Líder PESV ─
+router.post('/pesv/comite', requireJwtAuth, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const {
+      id,
+      periodoInicio,
+      periodoFin,
+      nivelPesv,
+      flotaTotal,
+      conductoresTotal,
+      frecuenciaReuniones,
+      liderPesv,
+      integrantesComite,
+      metasAnuales,
+      observaciones,
+    } = req.body;
+
+    const cleanIntegrantes = (Array.isArray(integrantesComite) ? integrantesComite : []).map((r) => ({
+      nombre: String(r?.nombre || '').trim() || 'Integrante CSV',
+      cedula: String(r?.cedula || '').trim() || 'S/N',
+      cargo: String(r?.cargo || '').trim(),
+      rol: r?.rol || 'Integrante Principal',
+      telefono: String(r?.telefono || '').trim(),
+      email: String(r?.email || '').trim(),
+    }));
+
+    const defaultMetas = [
+      {
+        codigo: 'TSV-01',
+        indicador: 'Tasa de Siniestros Viales por Nivel de Pérdida (TSV)',
+        metaAnual: 'Reducción ≥ 10% frente a línea base (0 fatalidades)',
+        resultadoActual: '0 siniestros mortales / En seguimiento',
+        estado: 'Cumplida',
+      },
+      {
+        codigo: 'IDP-02',
+        indicador: 'Ejecución de Inspecciones Preoperacionales Diarias (Paso 16)',
+        metaAnual: '≥ 95% de vehículos inspeccionados antes de marcha',
+        resultadoActual: 'En seguimiento trimestral',
+        estado: 'En Seguimiento',
+      },
+      {
+        codigo: 'CMP-03',
+        indicador: 'Cumplimiento del Plan de Mantenimiento Preventivo de Flota (Paso 17)',
+        metaAnual: '≥ 90% de mantenimientos preventivos ejecutados a tiempo',
+        resultadoActual: 'En seguimiento trimestral',
+        estado: 'En Seguimiento',
+      },
+      {
+        codigo: 'CAP-04',
+        indicador: 'Cobertura del Plan Anual de Formación Vial (Paso 10)',
+        metaAnual: '≥ 90% de actores viales capacitados y evaluados',
+        resultadoActual: 'En seguimiento trimestral',
+        estado: 'En Seguimiento',
+      },
+    ];
+
+    let comite;
+    const start = periodoInicio ? new Date(periodoInicio) : new Date();
+    const end = periodoFin
+      ? new Date(periodoFin)
+      : new Date(new Date(start).setFullYear(start.getFullYear() + 2));
+
+    if (id) {
+      comite = await SgsstPesvComite.findOneAndUpdate(
+        { _id: id, companyId: company._id },
+        {
+          $set: {
+            periodoInicio: start,
+            periodoFin: end,
+            nivelPesv: nivelPesv || 'Estándar',
+            flotaTotal: Number(flotaTotal) || 0,
+            conductoresTotal: Number(conductoresTotal) || 0,
+            frecuenciaReuniones: frecuenciaReuniones || 'Trimestral',
+            liderPesv: liderPesv || {},
+            integrantesComite: cleanIntegrantes,
+            metasAnuales: Array.isArray(metasAnuales) && metasAnuales.length > 0 ? metasAnuales : defaultMetas,
+            observaciones: observaciones || '',
+            estado: 'vigente',
+          },
+        },
+        { new: true }
+      );
+    } else {
+      await SgsstPesvComite.updateMany({ companyId: company._id, estado: 'vigente' }, { $set: { estado: 'vencido' } });
+      comite = await SgsstPesvComite.create({
+        companyId: company._id,
+        periodoInicio: start,
+        periodoFin: end,
+        nivelPesv: nivelPesv || 'Estándar',
+        flotaTotal: Number(flotaTotal) || 0,
+        conductoresTotal: Number(conductoresTotal) || 0,
+        frecuenciaReuniones: frecuenciaReuniones || 'Trimestral',
+        liderPesv: liderPesv || {},
+        integrantesComite: cleanIntegrantes,
+        metasAnuales: Array.isArray(metasAnuales) && metasAnuales.length > 0 ? metasAnuales : defaultMetas,
+        observaciones: observaciones || '',
+        estado: 'vigente',
+      });
+    }
+
+    res.json({ success: true, comite });
+  } catch (error) {
+    logger.error('[CSV-PESV] POST /pesv/comite error:', error);
+    res.status(500).json({ error: 'Error al guardar la conformación del Comité de Seguridad Vial' });
+  }
+});
+
+// ─── 13. GET /pesv/actas — Listar Actas del Comité Vial por Año ───────────────
+router.get('/pesv/actas', requireJwtAuth, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const anio = Number(req.query.anio) || new Date().getFullYear();
+    const actas = await SgsstPesvActa.find({ companyId: company._id, anio }).sort({ mes: 1, fechaReunion: 1 }).lean();
+    res.json({ actas });
+  } catch (error) {
+    logger.error('[CSV-PESV] GET /pesv/actas error:', error);
+    res.status(500).json({ error: 'Error al listar actas del Comité de Seguridad Vial' });
+  }
+});
+
+// ─── 14. POST /pesv/actas — Crear o Actualizar Acta del CSV y Sincronizar ACPM ─
+router.post('/pesv/actas', requireJwtAuth, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const {
+      id,
+      numeroActa,
+      consecutivo,
+      tipoSesion,
+      trimestre,
+      mes,
+      anio,
+      fechaReunion,
+      fecha,
+      horaInicio,
+      horaFin,
+      lugarModalidad,
+      lugar,
+      asistentes,
+      ordenDelDia,
+      desarrollo,
+      compromisos,
+      resumenEjecutivoIA,
+      reporteOficialHtml,
+      estadoActa,
+    } = req.body;
+
+    const targetYear = Number(anio) || new Date().getFullYear();
+    const targetMonth = Number(mes) || new Date().getMonth() + 1;
+
+    // Sincronizar compromisos con el Centro de Control ACPM (KanbanTask)
+    const syncedCompromisos = [];
+    if (Array.isArray(compromisos)) {
+      for (const comp of compromisos) {
+        const actividadTxt = String(comp.actividad || comp.accion || '').trim();
+        if (!actividadTxt) continue;
+        let taskId = comp.kanbanTaskId;
+
+        if (!taskId) {
+          try {
+            const newTask = await KanbanTask.create({
+              user: req.user.id,
+              companyId: company._id,
+              title: `[CSV-PESV] ${actividadTxt.substring(0, 90)}`,
+              description: `Compromiso emanado del Comité de Seguridad Vial (CSV - PESV) - Acta ${numeroActa || consecutivo || `${targetMonth}/${targetYear}`}.\nResponsable: ${comp.responsable || 'Líder PESV / Comité Vial'}\nFecha límite: ${comp.fechaLimite || 'Por definir'}`,
+              status: comp.estado === 'Cumplido' || comp.estado === 'cumplido' ? 'done' : comp.estado === 'En Proceso' || comp.estado === 'en_progreso' ? 'in_progress' : 'todo',
+              priority: 'high',
+              category: 'PESV - Comité de Seguridad Vial',
+              dueDate: comp.fechaLimite ? new Date(comp.fechaLimite) : undefined,
+              assignee: comp.responsable || 'Comité de Seguridad Vial',
+            });
+            taskId = newTask._id.toString();
+          } catch (kErr) {
+            logger.warn('[CSV-PESV] No se pudo crear tarea en KanbanTask:', kErr.message);
+          }
+        }
+
+        syncedCompromisos.push({
+          actividad: actividadTxt,
+          responsable: comp.responsable || 'Comité de Seguridad Vial',
+          fechaLimite: comp.fechaLimite || null,
+          estado: comp.estado === 'cumplido' ? 'Cumplido' : comp.estado === 'en_progreso' ? 'En Proceso' : comp.estado || 'Pendiente',
+          kanbanTaskId: taskId || null,
+        });
+      }
+    }
+
+    let acta;
+    const mappedOrden = ordenDelDia || {
+      verificacionQuorumActaAnterior: desarrollo?.verificacionQuorumActaAnterior || '',
+      seguimientoCompromisosViales: desarrollo?.seguimientoCompromisosViales || '',
+      analisisSiniestralidadInfracciones: desarrollo?.analisisSiniestralidadInfracciones || '',
+      inspeccionesPreoperacionalesMantenimiento: desarrollo?.inspeccionesPreoperacionalesMantenimiento || '',
+      factoresHumanosVelocidadFatigaAlcohol: desarrollo?.factoresHumanosVelocidadFatigaAlcohol || '',
+      capacitacionCompetenciaVial: desarrollo?.capacitacionCompetenciaVial || '',
+      revisionIndicadoresPaso20: desarrollo?.revisionIndicadoresPaso20 || '',
+      proposicionesPresupuestoVial: desarrollo?.proposicionesPresupuestoVial || '',
+    };
+
+    if (id) {
+      acta = await SgsstPesvActa.findOne({ _id: id, companyId: company._id });
+    }
+    if (!acta) {
+      acta = await SgsstPesvActa.findOne({ companyId: company._id, anio: targetYear, mes: targetMonth });
+    }
+
+    const count = await SgsstPesvActa.countDocuments({ companyId: company._id, anio: targetYear });
+    const autoNum =
+      numeroActa ||
+      consecutivo ||
+      `ACTA-CSV-${targetYear}-${String(count + 1).padStart(3, '0')}`;
+
+    const computedTrimestre =
+      trimestre ||
+      (targetMonth <= 3 ? 'Trimestre I' : targetMonth <= 6 ? 'Trimestre II' : targetMonth <= 9 ? 'Trimestre III' : 'Trimestre IV');
+
+    if (acta) {
+      acta.numeroActa = autoNum;
+      acta.tipoSesion = tipoSesion || acta.tipoSesion || 'Ordinaria Trimestral';
+      acta.trimestre = computedTrimestre;
+      acta.mes = targetMonth;
+      acta.anio = targetYear;
+      acta.fechaReunion = fechaReunion || fecha || acta.fechaReunion || new Date();
+      acta.horaInicio = horaInicio || acta.horaInicio || '09:00';
+      acta.horaFin = horaFin || acta.horaFin || '10:30';
+      acta.lugarModalidad = lugarModalidad || lugar || acta.lugarModalidad || 'Sala de Juntas / Híbrida';
+      if (Array.isArray(asistentes)) acta.asistentes = asistentes;
+      acta.ordenDelDia = { ...acta.ordenDelDia, ...mappedOrden };
+      acta.compromisos = syncedCompromisos;
+      if (resumenEjecutivoIA !== undefined || reporteOficialHtml !== undefined) {
+        const { updateCommitteeSignatureSectionInHtml } = require('./reportHeader');
+        const rawHtml = reporteOficialHtml !== undefined ? reporteOficialHtml : resumenEjecutivoIA;
+        acta.resumenEjecutivoIA = updateCommitteeSignatureSectionInHtml(rawHtml, {
+          asistentes: Array.isArray(asistentes) ? asistentes : acta.asistentes,
+          companyInfo: company,
+          tipoComite: 'comite_pesv',
+        });
+      }
+      if (estadoActa) acta.estadoActa = estadoActa;
+      await acta.save();
+    } else {
+      acta = await SgsstPesvActa.create({
+        companyId: company._id,
+        creadoPor: req.user.id,
+        numeroActa: autoNum,
+        tipoSesion: tipoSesion || 'Ordinaria Trimestral',
+        trimestre: computedTrimestre,
+        mes: targetMonth,
+        anio: targetYear,
+        fechaReunion: fechaReunion || fecha || new Date(),
+        horaInicio: horaInicio || '09:00',
+        horaFin: horaFin || '10:30',
+        lugarModalidad: lugarModalidad || lugar || 'Sala de Juntas / Híbrida',
+        asistentes: Array.isArray(asistentes) ? asistentes : [],
+        ordenDelDia: mappedOrden,
+        compromisos: syncedCompromisos,
+        resumenEjecutivoIA: reporteOficialHtml || resumenEjecutivoIA || '',
+        estadoActa: estadoActa || 'borrador',
+      });
+    }
+
+    res.json({ success: true, acta });
+  } catch (error) {
+    logger.error('[CSV-PESV] POST /pesv/actas error:', error);
+    res.status(500).json({ error: 'Error al guardar el acta del Comité de Seguridad Vial' });
+  }
+});
+
+// ─── 15. DELETE /pesv/actas/:id — Eliminar Acta del Comité Vial ───────────────
+router.delete('/pesv/actas/:id', requireJwtAuth, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    await SgsstPesvActa.deleteOne({ _id: req.params.id, companyId: company._id });
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('[CSV-PESV] DELETE /pesv/actas/:id error:', error);
+    res.status(500).json({ error: 'Error al eliminar el acta del Comité de Seguridad Vial' });
+  }
+});
+
+// ─── 16. POST /pesv/actas/generar-borrador-ia — Redactar 8 Puntos PESV con Tenshi IA ─
+router.post('/pesv/actas/generar-borrador-ia', requireJwtAuth, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const { mes, anio, trimestre, notasRapidas } = req.body;
+    const monthNames = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+    ];
+    const mesNombre = monthNames[(Number(mes) || 1) - 1] || 'Mes Actual';
+
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel =
+      personalization?.sstManagement ||
+      (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+
+    const prompt = `Eres un Consultor Senior en Seguridad Vial Laboral y Auditor Líder del Plan Estratégico de Seguridad Vial (PESV) en Colombia bajo la Resolución 20223040040595 de 2022 del Ministerio de Transporte, el Decreto 1072 de 2015 y la norma ISO 39001.
+
+Debes redactar el desarrollo técnico y profesional de los 8 puntos reglamentarios del Acta del Comité de Seguridad Vial (CSV - Paso 2 del PESV) correspondiente al mes de ${mesNombre} de ${anio || new Date().getFullYear()} (${trimestre || 'Sesión Trimestral'}) para la empresa "${company.companyName}" (Actividad Económica: "${company.economicActivity || 'Operación general y desplazamientos laborales'}", Nivel de Riesgo: ${company.riskLevel || 'I'}, N° Trabajadores: ${company.workerCount || 10}).
+
+Notas o contexto adicional del usuario: "${notasRapidas || 'Sesión ordinaria trimestral de seguimiento a los 24 pasos del PESV, revisión de inspecciones preoperacionales, mantenimiento preventivo de flota, control de velocidad/fatiga y metas del Paso 20.'}"
+
+Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin bloques markdown \`\`\`json) con la siguiente estructura exacta:
+{
+  "ordenDelDia": {
+    "verificacionQuorumActaAnterior": "Texto formal sobre verificación de quórum del Comité de Seguridad Vial y aprobación del acta anterior...",
+    "seguimientoCompromisosViales": "Texto formal sobre el estado de los compromisos viales previos y acciones del centro de control ACPM...",
+    "analisisSiniestralidadInfracciones": "Análisis técnico de siniestros viales, cuasi-colisiones, comparendos (SIMIT/RUNT) e investigación de incidentes viales (Paso 15)...",
+    "inspeccionesPreoperacionalesMantenimiento": "Balance de inspecciones preoperacionales diarias (Paso 16) y cumplimiento del plan de mantenimiento preventivo/correctivo de vehículos propios y contratistas (Paso 17)...",
+    "factoresHumanosVelocidadFatigaAlcohol": "Auditoría de programas críticos de gestión del comportamiento (Paso 11): gestión de velocidad segura, prevención de la fatiga, cero alcohol/sustancias psicoactivas y cero distracción...",
+    "capacitacionCompetenciaVial": "Avance del Plan Anual de Formación en Seguridad Vial (Paso 10) y evaluación de competencia de conductores y actores viales (Paso 9)...",
+    "revisionIndicadoresPaso20": "Evaluación trimestral de los indicadores del PESV (Paso 20): Tasa de Siniestros Viales (TSV), costos de siniestralidad, riesgos viales (Paso 6) y cumplimiento de metas anuales (Paso 7)...",
+    "proposicionesPresupuestoVial": "Proposiciones de mejora, ejecución presupuestal de seguridad vial y acuerdos de cierre de la sesión..."
+  },
+  "compromisosSugeridos": [
+    {
+      "actividad": "Descripción concreta del compromiso de seguridad vial",
+      "responsable": "Líder del PESV / Comité de Seguridad Vial"
+    },
+    {
+      "actividad": "Segunda acción preventiva o de verificación en flota o actores viales",
+      "responsable": "Vocal de Mantenimiento y Flota / Operaciones"
+    }
+  ]
+}`;
+
+    const result = await generateWithKeyRotation(
+      {
+        model: preferredModel,
+        generationConfig: {
+          temperature: 0.4,
+          responseMimeType: 'application/json',
+        },
+      },
+      req.user?.id || req.user,
+      prompt
+    );
+
+    const response = await result.response;
+    let rawText = response.text().replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
+    const parsed = JSON.parse(rawText);
+
+    res.json({ success: true, data: parsed });
+  } catch (error) {
+    logger.error('[CSV-PESV] POST /pesv/actas/generar-borrador-ia error:', error);
+    res.status(500).json({ error: 'Error al redactar el borrador con Tenshi IA' });
+  }
+});
+
+// ─── 17. POST /pesv/actas/:id/reporte-oficial — Informe Oficial con Membrete y Firmas ─
+router.post('/pesv/actas/:id/reporte-oficial', requireJwtAuth, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    let acta;
+    let dbActa = null;
+    if (req.params.id === 'preview') {
+      acta = req.body || {};
+      if (!acta.numeroActa) acta.numeroActa = acta.consecutivo || 'BORRADOR';
+      if (!acta.mes) acta.mes = new Date().getMonth() + 1;
+      if (!acta.anio) acta.anio = new Date().getFullYear();
+    } else {
+      dbActa = await SgsstPesvActa.findOne({ _id: req.params.id, companyId: company._id });
+      if (!dbActa) return res.status(404).json({ error: 'Acta del Comité Vial no encontrada' });
+      acta = dbActa.toObject ? dbActa.toObject() : { ...dbActa };
+      if (req.body && Object.keys(req.body).length > 0) {
+        acta = {
+          ...acta,
+          ...req.body,
+          ordenDelDia: { ...acta.ordenDelDia, ...(req.body.ordenDelDia || req.body.desarrollo || {}) },
+        };
+      }
+    }
+
+    const { buildStandardHeader, buildCommitteeSignatureSection } = require('./reportHeader');
+    const PublicReport = require('../../../models/PublicReport');
+    const { v4: uuidv4 } = require('uuid');
+
+    const rawDate = acta.fechaReunion || acta.fecha;
+    const formattedDate = rawDate
+      ? new Date(rawDate).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })
+      : new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const headerHtml = buildStandardHeader({
+      title: `ACTA DE COMITÉ DE SEGURIDAD VIAL N° ${acta.numeroActa || acta.consecutivo || 'BORRADOR'} (CSV - PESV)`,
+      companyInfo: company,
+      date: formattedDate,
+      norm: 'Resolución 20223040040595 de 2022 (Paso 1, Paso 2 y Paso 20) • Ley 1503 de 2011 • ISO 39001',
+      cargo: 'Comité de Seguridad Vial (CSV) y Líder del PESV',
+      actividad: `Sesión ${acta.tipoSesion || 'Ordinaria Trimestral'} (${acta.trimestre || `Mes ${acta.mes}`}) - Año ${acta.anio}`,
+    });
+
+    const asistentesStr =
+      Array.isArray(acta.asistentes) && acta.asistentes.length > 0
+        ? acta.asistentes
+            .map(
+              (a) =>
+                `${a.nombre || 'Miembro'} (${a.rol || 'Integrante CSV'} - CC: ${a.cedula || 'N/A'} - ${
+                  a.asistio !== false ? 'Asistió' : 'Ausente'
+                })`
+            )
+            .join('; ')
+        : 'Miembros del Comité de Seguridad Vial (CSV) y Líder del PESV';
+
+    const compromisosStr =
+      Array.isArray(acta.compromisos) && acta.compromisos.length > 0
+        ? acta.compromisos
+            .map(
+              (c, idx) =>
+                `${idx + 1}. Actividad: ${c.actividad || c.accion} | Responsable: ${c.responsable || 'CSV'} | Fecha límite: ${
+                  c.fechaLimite || 'Por definir'
+                } | Estado: ${c.estado || 'Pendiente'}`
+            )
+            .join('\n')
+        : 'Sin compromisos manuales previos registrados.';
+
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel =
+      personalization?.sstManagement ||
+      (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+
+    let aiBodyHtml = '';
+    let ordenEnriquecido = { ...(acta.ordenDelDia || {}) };
+
+    try {
+      const aiPrompt = `Eres un Consultor Experto en Seguridad Vial Laboral y Secretario Técnico del Comité de Seguridad Vial (CSV - PESV) en Colombia, especializado en la Resolución 20223040040595 de 2022 del Ministerio de Transporte (Paso 1 Líder PESV, Paso 2 Comité de Seguridad Vial, Paso 6 Riesgos Viales, Paso 11 Factores Humanos, Paso 16 Inspecciones, Paso 17 Mantenimiento y Paso 20 Indicadores) y la norma ISO 39001.
+
+Tu objetivo es tomar los apuntes registrados en el Acta N° ${acta.numeroActa || 'BORRADOR'} (${acta.trimestre || `Mes ${acta.mes}`} de ${acta.anio}) de la empresa "${company.companyName}" (Actividad Económica: ${company.economicActivity || 'General'}, Nivel de Riesgo: ${company.riskLevel || 'I'}, N° Trabajadores: ${company.workerCount || 'N/A'}) y **COMPLEMENTARLOS, EXPANDIRLOS Y ESTRUCTURARLOS** en un **INFORME OFICIAL DE ACTA DEL COMITÉ DE SEGURIDAD VIAL (CSV - PESV) DE ALTA CALIDAD AUDITORA**.
+
+**ASISTENTES CONVOCADOS A LA SESIÓN:**
+${asistentesStr}
+
+**APUNTES SUMINISTRADOS EN EL ORDEN DEL DÍA DEL ACTA:**
+1. Verificación de Quórum y Lectura del Acta Anterior: ${ordenEnriquecido.verificacionQuorumActaAnterior || '[No detallado - complementar técnicamente]'}
+2. Seguimiento a Compromisos Viales y Plan de Trabajo Anual (Paso 7): ${ordenEnriquecido.seguimientoCompromisosViales || '[No detallado - complementar técnicamente]'}
+3. Análisis de Siniestralidad Vial, Comparendos e Investigaciones (Paso 15): ${ordenEnriquecido.analisisSiniestralidadInfracciones || '[No detallado - complementar técnicamente]'}
+4. Balance de Inspecciones Preoperacionales (Paso 16) y Mantenimiento de Flota (Paso 17): ${ordenEnriquecido.inspeccionesPreoperacionalesMantenimiento || '[No detallado - complementar técnicamente]'}
+5. Auditoría de Programas de Comportamiento Seguro (Paso 11: Velocidad, Fatiga, Alcohol y Distracción): ${ordenEnriquecido.factoresHumanosVelocidadFatigaAlcohol || '[No detallado - complementar técnicamente]'}
+6. Plan Anual de Formación Vial y Competencia de Actores Viales (Pasos 9 y 10): ${ordenEnriquecido.capacitacionCompetenciaVial || '[No detallado - complementar técnicamente]'}
+7. Evaluación de Indicadores Trimestrales y Metas del PESV (Paso 20): ${ordenEnriquecido.revisionIndicadoresPaso20 || '[No detallado - complementar técnicamente]'}
+8. Proposiciones, Presupuesto de Seguridad Vial y Acuerdos de Cierre: ${ordenEnriquecido.proposicionesPresupuestoVial || '[No detallado - complementar técnicamente]'}
+
+**COMPROMISOS REGISTRADOS:**
+${compromisosStr}
+
+**INSTRUCCIONES DE SALIDA (JSON ESTRICTO):**
+Devuelve un objeto JSON válido con dos propiedades principales:
+1. \`"ordenEnriquecido"\`: Un objeto con las 8 claves exactas (\`verificacionQuorumActaAnterior\`, \`seguimientoCompromisosViales\`, \`analisisSiniestralidadInfracciones\`, \`inspeccionesPreoperacionalesMantenimiento\`, \`factoresHumanosVelocidadFatigaAlcohol\`, \`capacitacionCompetenciaVial\`, \`revisionIndicadoresPaso20\`, \`proposicionesPresupuestoVial\`), con redacción técnica formal en texto plano.
+2. \`"htmlBody"\`: Código HTML puro (sin etiquetas \`<html>\`, \`<body>\`, ni bloques markdown) con:
+   - **Sección A: Dictamen Ejecutivo Trimestral de Gobernanza Vial (Paso 2 PESV)** en bloque destacado con borde izquierdo \`#0f766e\`.
+   - **Sección B: Desarrollo Técnico y Normativo de los 8 Puntos del Comité de Seguridad Vial**, con tarjetas HTML estilizadas para cada uno de los 8 puntos.
+   - **Sección C: Tablero Técnico de Seguimiento a Indicadores del PESV (Paso 20 Res. 20223040040595)** en tabla HTML con columnas: **Indicador PESV (Paso 20)** | **Hallazgo / Estado del Periodo** | **Medida de Control Adoptada por el CSV** | **Soporte Normativo** | **Estado**.
+   - **Sección D: Plan de Acción Vial y Compromisos Adquiridos (Ciclo PHVA)** en tabla HTML detallada.
+   - **Sección E: Constancia Reglamentaria de Aprobación y Cierre** para verificación ante el Ministerio de Transporte, Superintendencia de Transporte o Ministerio del Trabajo.`;
+
+      const aiResult = await generateWithKeyRotation(
+        {
+          model: preferredModel,
+          generationConfig: {
+            temperature: 0.35,
+            responseMimeType: 'application/json',
+          },
+        },
+        req.user?.id || req.user,
+        aiPrompt
+      );
+
+      const response = await aiResult.response;
+      const rawText = response
+        .text()
+        .replace(/```json\n?/gi, '')
+        .replace(/```\n?/g, '')
+        .trim();
+
+      let parsedAi = {};
+      try {
+        parsedAi = JSON.parse(rawText);
+      } catch (parseErr) {
+        const match = rawText.match(/\{[\s\S]*\}/);
+        if (match) parsedAi = JSON.parse(match[0]);
+      }
+
+      if (parsedAi.ordenEnriquecido && typeof parsedAi.ordenEnriquecido === 'object') {
+        ordenEnriquecido = {
+          ...ordenEnriquecido,
+          ...parsedAi.ordenEnriquecido,
+        };
+        acta.ordenDelDia = ordenEnriquecido;
+      }
+
+      if (parsedAi.htmlBody && typeof parsedAi.htmlBody === 'string') {
+        aiBodyHtml = parsedAi.htmlBody
+          .replace(/```html\n?/gi, '')
+          .replace(/```\n?/g, '')
+          .trim();
+      }
+    } catch (aiErr) {
+      logger.warn('[CSV-PESV] AI enrichment fallback in reporte-oficial:', aiErr.message);
+    }
+
+    const compromisosRows =
+      Array.isArray(acta.compromisos) && acta.compromisos.length > 0
+        ? acta.compromisos
+            .map(
+              (c, idx) => `
+        <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
+          <td style="padding: 8px 10px; font-weight: bold; text-align: center; color: #64748b;">${idx + 1}</td>
+          <td style="padding: 8px 10px; color: #1e293b; font-weight: 600;">${c.actividad || c.accion}</td>
+          <td style="padding: 8px 10px; color: #0f766e; font-weight: bold;">${c.responsable || 'Comité Vial'}</td>
+          <td style="padding: 8px 10px; color: #475569;">${c.fechaLimite ? new Date(c.fechaLimite).toLocaleDateString('es-CO') : 'Por definir'}</td>
+          <td style="padding: 8px 10px; text-align: center;">
+            <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 9px; font-weight: 800; background-color: ${
+              c.estado === 'Cumplido' || c.estado === 'cumplido' ? '#dcfce7' : c.estado === 'En Proceso' ? '#e0f2fe' : '#fef3c7'
+            }; color: ${
+                c.estado === 'Cumplido' || c.estado === 'cumplido' ? '#15803d' : c.estado === 'En Proceso' ? '#0369a1' : '#b45309'
+              }; text-transform: uppercase;">
+              ${c.estado || 'Pendiente'}
+            </span>
+          </td>
+        </tr>
+      `
+            )
+            .join('')
+        : `<tr><td colspan="5" style="padding: 12px; text-align: center; color: #94a3b8; font-style: italic; font-size: 11px;">No se registraron compromisos adicionales en esta sesión.</td></tr>`;
+
+    const fallbackBodyHtml = `
+      <div style="margin-bottom: 24px;">
+        <h3 style="margin: 0 0 14px 0; font-size: 13px; font-weight: 800; color: #0f766e; text-transform: uppercase; border-bottom: 2px solid #0f766e; padding-bottom: 6px;">
+          📝 DESARROLLO Y ANÁLISIS DE LA SESIÓN DEL COMITÉ DE SEGURIDAD VIAL
+        </h3>
+        ${[
+          ['1. Verificación de Quórum y Lectura del Acta Anterior', ordenEnriquecido.verificacionQuorumActaAnterior],
+          ['2. Seguimiento a Compromisos Viales y Plan de Trabajo Anual (Paso 7)', ordenEnriquecido.seguimientoCompromisosViales],
+          ['3. Análisis de Siniestralidad Vial, Comparendos e Investigaciones (Paso 15)', ordenEnriquecido.analisisSiniestralidadInfracciones],
+          ['4. Balance de Inspecciones Preoperacionales (Paso 16) y Mantenimiento de Flota (Paso 17)', ordenEnriquecido.inspeccionesPreoperacionalesMantenimiento],
+          ['5. Auditoría de Programas Críticos de Comportamiento (Paso 11: Velocidad, Fatiga, Alcohol y Distracción)', ordenEnriquecido.factoresHumanosVelocidadFatigaAlcohol],
+          ['6. Plan Anual de Formación Vial y Competencia de Actores Viales (Pasos 9 y 10)', ordenEnriquecido.capacitacionCompetenciaVial],
+          ['7. Evaluación de Indicadores Trimestrales y Metas del PESV (Paso 20)', ordenEnriquecido.revisionIndicadoresPaso20],
+          ['8. Proposiciones, Presupuesto de Seguridad Vial y Acuerdos de Cierre', ordenEnriquecido.proposicionesPresupuestoVial],
+        ]
+          .filter(([, val]) => Boolean(val))
+          .map(
+            ([label, val]) => `
+            <div style="margin-bottom: 14px; page-break-inside: avoid;">
+              <h4 style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                ${label}
+              </h4>
+              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #334155; line-height: 1.6;">
+                ${val}
+              </div>
+            </div>
+          `
+          )
+          .join('')}
+      </div>
+
+      <div style="margin-bottom: 24px; page-break-inside: avoid;">
+        <h3 style="margin: 0 0 10px 0; font-size: 12.5px; font-weight: 800; color: #0f766e; text-transform: uppercase; letter-spacing: 0.5px;">
+          🎯 PLAN DE ACCIÓN VIAL Y COMPROMISOS ADQUIRIDOS (PASO 2 PESV)
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+          <thead>
+            <tr style="background-color: #f1f5f9; color: #475569; font-size: 10.5px; font-weight: 800; text-transform: uppercase;">
+              <th style="padding: 8px 10px; width: 6%; text-align: center;">#</th>
+              <th style="padding: 8px 10px; width: 44%; text-align: left;">Compromiso / Acción Preventiva Vial</th>
+              <th style="padding: 8px 10px; width: 22%; text-align: left;">Responsable</th>
+              <th style="padding: 8px 10px; width: 16%; text-align: left;">Fecha Límite</th>
+              <th style="padding: 8px 10px; width: 12%; text-align: center;">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${compromisosRows}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    const signaturesHtml = buildCommitteeSignatureSection({
+      asistentes: acta.asistentes,
+      companyInfo: company,
+      tipoComite: 'comite_pesv',
+    });
+
+    const fullHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 24px; color: #1e293b; background-color: #ffffff; line-height: 1.5;">
+        ${headerHtml}
+
+        <!-- Ficha de la Sesión del Comité de Seguridad Vial -->
+        <div style="margin-bottom: 24px; border: 1.5px solid #0f766e; border-radius: 12px; overflow: hidden; page-break-inside: avoid;">
+          <div style="background: linear-gradient(90deg, #0f766e, #0d9488); color: #ffffff; padding: 9px 14px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
+            🚗 DATOS GENERALES DE LA SESIÓN DEL COMITÉ DE SEGURIDAD VIAL (PASO 2 PESV)
+          </div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+            <tbody>
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; width: 25%; color: #334155;">N° de Acta:</td>
+                <td style="padding: 8px 12px; font-weight: 700; color: #0f766e; width: 25%;">${acta.numeroActa || acta.consecutivo || 'Borrador'}</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; width: 25%; color: #334155;">Trimestre / Periodo:</td>
+                <td style="padding: 8px 12px; width: 25%;">${acta.trimestre || 'Trimestral'} (Mes ${acta.mes} de ${acta.anio})</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Fecha de Reunión:</td>
+                <td style="padding: 8px 12px;">${formattedDate}</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Horario:</td>
+                <td style="padding: 8px 12px;">${acta.horaInicio || '09:00'} - ${acta.horaFin || '10:30'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Lugar / Modalidad:</td>
+                <td style="padding: 8px 12px;">${acta.lugarModalidad || acta.lugar || 'Sala de Juntas / Híbrida'}</td>
+                <td style="padding: 8px 12px; font-weight: bold; background-color: #f8fafc; color: #334155;">Tipo de Sesión:</td>
+                <td style="padding: 8px 12px; font-weight: bold; color: #0f766e;">${acta.tipoSesion || 'Ordinaria Trimestral'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        ${aiBodyHtml || fallbackBodyHtml}
+
+        <!-- Firmas Oficiales de los Miembros del Comité de Seguridad Vial -->
+        ${signaturesHtml}
+      </div>
+    `;
+
+    if (!dbActa) {
+      const targetYear = Number(acta.anio) || new Date().getFullYear();
+      const targetMonth = Number(acta.mes) || new Date().getMonth() + 1;
+      dbActa = await SgsstPesvActa.findOne({ companyId: company._id, anio: targetYear, mes: targetMonth });
+      if (!dbActa) {
+        const count = await SgsstPesvActa.countDocuments({ companyId: company._id, anio: targetYear });
+        const autNumero =
+          acta.numeroActa && acta.numeroActa !== 'BORRADOR'
+            ? acta.numeroActa
+            : `ACTA-CSV-${targetYear}-${String(count + 1).padStart(3, '0')}`;
+        dbActa = new SgsstPesvActa({
+          companyId: company._id,
+          creadoPor: req.user.id,
+          numeroActa: autNumero,
+          tipoSesion: acta.tipoSesion || 'Ordinaria Trimestral',
+          trimestre: acta.trimestre || 'Trimestre I',
+          mes: targetMonth,
+          anio: targetYear,
+          fechaReunion: acta.fechaReunion || acta.fecha || Date.now(),
+          lugarModalidad: acta.lugarModalidad || acta.lugar || 'Sala de Juntas / Híbrida',
+          horaInicio: acta.horaInicio || '09:00',
+          horaFin: acta.horaFin || '10:30',
+          asistentes: Array.isArray(acta.asistentes) ? acta.asistentes : [],
+          compromisos: Array.isArray(acta.compromisos) ? acta.compromisos : [],
+        });
+      }
+    }
+
+    if (dbActa) {
+      if (Array.isArray(acta.asistentes)) dbActa.asistentes = acta.asistentes;
+      if (Array.isArray(acta.compromisos)) dbActa.compromisos = acta.compromisos;
+      if (acta.fechaReunion || acta.fecha) dbActa.fechaReunion = acta.fechaReunion || acta.fecha;
+      if (acta.lugarModalidad || acta.lugar) dbActa.lugarModalidad = acta.lugarModalidad || acta.lugar;
+      if (acta.horaInicio) dbActa.horaInicio = acta.horaInicio;
+      if (acta.horaFin) dbActa.horaFin = acta.horaFin;
+      dbActa.ordenDelDia = { ...dbActa.ordenDelDia, ...ordenEnriquecido };
+      dbActa.resumenEjecutivoIA = fullHtml;
+      await dbActa.save();
+    }
+
+    const reportId = uuidv4();
+    const publicReport = new PublicReport({
+      id: reportId,
+      content: fullHtml,
+      fileName: `Acta-CSV-PESV-${dbActa?.numeroActa || acta.numeroActa || 'Borrador'}`,
+      reportType: 'general',
+    });
+    await publicReport.save();
+
+    // Guardar en Historial de Informes (Conversation + Message) con tag 'sgsst-comite-pesv'
+    try {
+      const { saveConvo } = require('~/models/Conversation');
+      const { saveMessage } = require('~/models/Message');
+      const { Conversation } = require('~/db/models');
+      const conversationId = uuidv4();
+      const messageId = uuidv4();
+      const reportTitle = `Acta CSV-PESV ${dbActa?.numeroActa || acta.numeroActa || ''} - Mes ${dbActa?.mes || acta.mes}/${dbActa?.anio || acta.anio}`;
+      const reportTags = ['sgsst-comite-pesv', `company-${company._id.toString()}`];
+
+      await saveConvo(
+        req,
+        {
+          conversationId,
+          title: reportTitle,
+          endpoint: 'sgsst-diagnostico',
+          model: 'sgsst-diagnostico',
+          tags: reportTags,
+        },
+        { context: 'CSV-PESV reporte-oficial history' }
+      );
+      await saveMessage(
+        req,
+        {
+          messageId,
+          conversationId,
+          text: fullHtml,
+          sender: 'CSV-PESV',
+          isCreatedByUser: false,
+          parentMessageId: '00000000-0000-0000-0000-000000000000',
+        },
+        { context: 'CSV-PESV reporte-oficial message' }
+      );
+      if (Conversation) {
+        await Conversation.findOneAndUpdate(
+          { conversationId, user: req.user.id },
+          { $addToSet: { tags: { $each: reportTags } } },
+          { new: true }
+        );
+      }
+    } catch (histErr) {
+      logger.warn('[CSV-PESV] Could not save report to Conversation history:', histErr.message);
+    }
+
+    res.json({
+      success: true,
+      reportId,
+      url: `/report/${reportId}`,
+      html: fullHtml,
+      ordenEnriquecido,
+      acta: dbActa,
+    });
+  } catch (error) {
+    logger.error('[CSV-PESV] POST /pesv/actas/:id/reporte-oficial error:', error);
+    res.status(500).json({ error: 'Error al generar el informe oficial del Comité de Seguridad Vial' });
+  }
+});
+
 module.exports = router;
+

@@ -66,6 +66,8 @@ export function buildCommitteeSignatureSectionClient(
     copasst: 'Comité Paritario de Seguridad y Salud en el Trabajo (COPASST)',
     cocolab: 'Comité de Convivencia Laboral (COCOLAB)',
     convivencia: 'Comité de Convivencia Laboral (COCOLAB)',
+    pesv: 'Comité de Seguridad Vial (CSV - PESV)',
+    comite_pesv: 'Comité de Seguridad Vial (CSV - PESV)',
   };
   const nombreComiteFull = comiteNames[String(tipoComite).toLowerCase()] || 'Comité Paritario';
 
@@ -101,10 +103,13 @@ export function buildCommitteeSignatureSectionClient(
 export function syncCommitteeSignaturesInHtml(
   html: string,
   asistentes: any[] = [],
-  tipoComite: 'copasst' | 'cocolab' | 'convivencia' | string = 'copasst',
+  tipoComite: 'copasst' | 'cocolab' | 'convivencia' | 'pesv' | 'comite_pesv' | string = 'copasst',
 ): string {
   if (!html || typeof html !== 'string') return html;
-  const normalizedTipo = String(tipoComite).toLowerCase().includes('convivencia') || String(tipoComite).toLowerCase().includes('cocolab')
+  const lower = String(tipoComite).toLowerCase();
+  const normalizedTipo = lower.includes('pesv')
+    ? 'pesv'
+    : lower.includes('convivencia') || lower.includes('cocolab')
     ? 'convivencia'
     : 'copasst';
   const newSigHtml = buildCommitteeSignatureSectionClient(asistentes, normalizedTipo);
