@@ -816,8 +816,9 @@ const startServer = async () => {
     }
   });
 
-  app.get(['/portafolio', '/portafolio.html'], (req, res) => {
-    res.sendFile(path.resolve(__dirname, '../../Agentes/portafolio.html'));
+  app.get('/portafolio.html', (req, res) => {
+    const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    return res.redirect(302, `/portafolio${qs}`);
   });
 
   app.get(['/mauricioposada', '/mauricioposada.html'], (req, res) => {

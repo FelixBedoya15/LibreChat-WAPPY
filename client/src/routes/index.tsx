@@ -37,6 +37,7 @@ const PublicColaboradorHub = lazy(() => import('~/components/SGSST/PublicColabor
 const PublicComites = lazy(() => import('~/components/SGSST/PublicComites'));
 const PublicConvivencia = lazy(() => import('~/components/SGSST/PublicConvivencia'));
 const PublicVotaciones = lazy(() => import('~/components/SGSST/PublicVotaciones'));
+const PublicInspeccionesCopasst = lazy(() => import('~/components/SGSST/PublicInspeccionesCopasst'));
 const MoodAnalyticsDashboard = lazy(() => import('~/components/SGSST/MoodAnalyticsDashboard'));
 const PrivacyPolicyPage = lazy(() => import('~/components/Auth/PrivacyPolicyPage'));
 const TermsOfServicePage = lazy(() => import('~/components/Auth/TermsOfServicePage'));
@@ -86,8 +87,12 @@ const EmbajadoresRedirect = () => {
 };
 
 const PortafolioRedirect = () => {
-  window.location.replace('/portafolio.html');
-  return null;
+  return withSuspense(
+    <AuthContextProvider>
+      <LandingPage />
+      <ApiErrorWatcher />
+    </AuthContextProvider>
+  );
 };
 
 const MauricioPosadaRedirect = () => {
@@ -98,6 +103,8 @@ const MauricioPosadaRedirect = () => {
 const RootIndexRedirect = () => {
   const { isAuthenticated } = useAuthContext();
   const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const hasRefParam = Boolean(searchParams.get('ref') || searchParams.get('referral') || searchParams.get('r'));
 
   const isStandalone =
     typeof window !== 'undefined' &&
@@ -106,7 +113,7 @@ const RootIndexRedirect = () => {
       window.matchMedia('(display-mode: minimal-ui)').matches ||
       (window.navigator as any).standalone === true ||
       document.referrer.includes('android-app://') ||
-      new URLSearchParams(location.search).get('source') === 'pwa');
+      searchParams.get('source') === 'pwa');
 
   if (isStandalone) {
     if (isAuthenticated) {
@@ -115,7 +122,7 @@ const RootIndexRedirect = () => {
     return <Navigate to={{ pathname: '/login', search: location.search }} replace={true} />;
   }
 
-  if (isAuthenticated) {
+  if (isAuthenticated && !hasRefParam) {
     return <Navigate to={{ pathname: '/c/new', search: location.search }} replace={true} />;
   }
 
@@ -218,6 +225,11 @@ export const router = createBrowserRouter(
     {
       path: 'sgsst-public/votaciones/:companyId',
       element: withSuspense(<PublicVotaciones />),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'sgsst-public/copasst-inspecciones/:companyId/:cedula?',
+      element: withSuspense(<PublicInspeccionesCopasst />),
       errorElement: <RouteErrorBoundary />,
     },
     {

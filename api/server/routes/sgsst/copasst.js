@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const CompanyInfo = require('../../../models/CompanyInfo');
-const { SgsstCopasstComite, SgsstCopasstActa, SgsstEleccion, SgsstPesvComite, SgsstPesvActa } = require('../../../models/SgsstCopasst');
+const { SgsstCopasstComite, SgsstCopasstActa, SgsstEleccion, SgsstPesvComite, SgsstPesvActa, SgsstCopasstInspeccion } = require('../../../models/SgsstCopasst');
 const { SgsstPadronVotante, SgsstVotoAnonimo } = require('../../../models/SgsstVotacion');
 const SgsstWorker = require('../../../models/SgsstWorker');
 const KanbanTask = require('../../../models/KanbanTask');
@@ -523,6 +523,280 @@ Solo responde con el objeto JSON válido, sin bloques markdown.`;
   } catch (error) {
     logger.error('[COPASST] POST /actas/generar-borrador-ia error:', error);
     res.status(500).json({ error: 'Error al generar borrador con IA' });
+  }
+});
+
+// ─── 7B. GESTIÓN DE INSPECCIONES ÁGILES DEL COPASST ────────────────────────────
+// GET /inspecciones — Obtener historial de inspecciones del COPASST y métricas
+router.get('/inspecciones', requireJwtAuth, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const inspecciones = await SgsstCopasstInspeccion.find({ companyId: company._id })
+      .populate('vinculadaActaId', 'consecutivo fecha tipo')
+      .sort({ fecha: -1, createdAt: -1 })
+      .lean();
+
+    // Métricas clave
+    let totalHallazgos = 0;
+    let hallazgosPendientes = 0;
+    let hallazgosCorregidos = 0;
+    let hallazgosCriticos = 0;
+
+    inspecciones.forEach((insp) => {
+      (insp.hallazgos || []).forEach((h) => {
+        totalHallazgos++;
+        if (h.estado === 'corregido') hallazgosCorregidos++;
+        else hallazgosPendientes++;
+        if (h.criticidad === 'critico' && h.estado !== 'corregido') hallazgosCriticos++;
+      });
+    });
+
+    res.json({
+      inspecciones,
+      stats: {
+        totalInspecciones: inspecciones.length,
+        totalHallazgos,
+        hallazgosPendientes,
+        hallazgosCorregidos,
+        hallazgosCriticos,
+      },
+    });
+  } catch (error) {
+    logger.error('[COPASST] GET /inspecciones error:', error);
+    res.status(500).json({ error: 'Error al obtener inspecciones del COPASST' });
+  }
+});
+
+// POST /inspecciones — Crear nueva inspección desde panel administrativo
+router.post('/inspecciones', requireJwtAuth, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const currentYear = new Date().getFullYear();
+    const countThisYear = await SgsstCopasstInspeccion.countDocuments({
+      companyId: company._id,
+      createdAt: {
+        $gte: new Date(currentYear, 0, 1),
+        $lte: new Date(currentYear, 11, 31, 23, 59, 59),
+      },
+    });
+    const consecutivo = `INSP-COPASST-${currentYear}-${String(countThisYear + 1).padStart(3, '0')}`;
+
+    const {
+      fecha,
+      hora,
+      sede,
+      area,
+      tipoInspeccion,
+      tipoLabel,
+      modo,
+      inspector,
+      acompanantes,
+      responsableArea,
+      hallazgos,
+      checklistItems,
+      semaforoGeneral,
+      conclusiones,
+    } = req.body;
+
+    const nuevaInspeccion = new SgsstCopasstInspeccion({
+      companyId: company._id,
+      user: req.user.id,
+      consecutivo,
+      fecha: fecha || new Date(),
+      hora: hora || new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+      sede: sede || 'Sede Principal',
+      area: area || 'Área General',
+      tipoInspeccion: tipoInspeccion || 'ronda_abierta',
+      tipoLabel: tipoLabel || 'Ronda Abierta COPASST',
+      modo: modo || 'fotografico_rapido',
+      inspector: inspector || {
+        nombre: req.user.name || 'Inspector COPASST',
+        cedula: req.user.cedula || '',
+        rolComite: 'Miembro COPASST',
+      },
+      acompanantes: Array.isArray(acompanantes) ? acompanantes : [],
+      responsableArea: responsableArea || { nombre: '', cargo: '', firma: null },
+      hallazgos: Array.isArray(hallazgos) ? hallazgos : [],
+      checklistItems: Array.isArray(checklistItems) ? checklistItems : [],
+      semaforoGeneral: semaforoGeneral || 'atencion',
+      conclusiones: conclusiones || '',
+      origen: 'admin_workspace',
+      estadoInspeccion: 'completada',
+    });
+
+    await nuevaInspeccion.save();
+    res.json({ success: true, message: 'Inspección guardada exitosamente', inspeccion: nuevaInspeccion });
+  } catch (error) {
+    logger.error('[COPASST] POST /inspecciones error:', error);
+    res.status(500).json({ error: 'Error al registrar inspección' });
+  }
+});
+
+// PUT /inspecciones/:id — Actualizar inspección o subsanar hallazgo
+router.put('/inspecciones/:id', requireJwtAuth, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const inspeccion = await SgsstCopasstInspeccion.findOne({
+      _id: req.params.id,
+      companyId: company._id,
+    });
+    if (!inspeccion) return res.status(404).json({ error: 'Inspección no encontrada' });
+
+    const fieldsToUpdate = [
+      'sede',
+      'area',
+      'tipoInspeccion',
+      'tipoLabel',
+      'inspector',
+      'acompanantes',
+      'responsableArea',
+      'hallazgos',
+      'checklistItems',
+      'semaforoGeneral',
+      'conclusiones',
+      'estadoInspeccion',
+      'analisisIa',
+    ];
+
+    fieldsToUpdate.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        inspeccion[field] = req.body[field];
+      }
+    });
+
+    // Auto-cierre si todos los hallazgos están corregidos
+    if (Array.isArray(inspeccion.hallazgos) && inspeccion.hallazgos.length > 0) {
+      const allResolved = inspeccion.hallazgos.every((h) => h.estado === 'corregido');
+      if (allResolved && inspeccion.estadoInspeccion !== 'cerrada') {
+        inspeccion.estadoInspeccion = 'cerrada';
+      }
+    }
+
+    await inspeccion.save();
+    res.json({ success: true, message: 'Inspección actualizada', inspeccion });
+  } catch (error) {
+    logger.error('[COPASST] PUT /inspecciones/:id error:', error);
+    res.status(500).json({ error: 'Error al actualizar inspección' });
+  }
+});
+
+// DELETE /inspecciones/:id — Eliminar inspección
+router.delete('/inspecciones/:id', requireJwtAuth, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    await SgsstCopasstInspeccion.findOneAndDelete({
+      _id: req.params.id,
+      companyId: company._id,
+    });
+
+    res.json({ success: true, message: 'Inspección eliminada exitosamente' });
+  } catch (error) {
+    logger.error('[COPASST] DELETE /inspecciones/:id error:', error);
+    res.status(500).json({ error: 'Error al eliminar inspección' });
+  }
+});
+
+// POST /inspecciones/:id/analizar-ia — Análisis inteligente de hallazgos con Tenshi IA
+router.post('/inspecciones/:id/analizar-ia', requireJwtAuth, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const inspeccion = await SgsstCopasstInspeccion.findOne({
+      _id: req.params.id,
+      companyId: company._id,
+    });
+    if (!inspeccion) return res.status(404).json({ error: 'Inspección no encontrada' });
+
+    const hallazgosList = (inspeccion.hallazgos || [])
+      .map(
+        (h, i) =>
+          `${i + 1}. [${(h.criticidad || 'medio').toUpperCase()}] ${h.descripcion || 'Sin descripción'} | Medida propuesta: ${h.medidaSugerida || 'Ninguna'} | Área: ${inspeccion.area}`
+      )
+      .join('\n');
+
+    const prompt = `Actúas como Tenshi, el Agente Experto y Asesor Técnico del Comité Paritario de Seguridad y Salud en el Trabajo (COPASST) bajo la normativa colombiana (Resolución 2013 de 1986, Decreto 1072 de 2015, Resolución 0312 de 2019 y GTC 45).
+
+Analiza los siguientes hallazgos observados en una inspección de seguridad:
+Empresa: ${company.companyName}
+Tipo de Inspección: ${inspeccion.tipoLabel || inspeccion.tipoInspeccion}
+Sede / Área: ${inspeccion.sede} - ${inspeccion.area}
+Fecha: ${new Date(inspeccion.fecha).toLocaleDateString('es-CO')}
+Inspector: ${inspeccion.inspector?.nombre} (${inspeccion.inspector?.rolComite})
+
+HALLAZGOS REGISTRADOS:
+${hallazgosList || 'Ronda sin hallazgos críticos específicos.'}
+
+GENERA UN DICTAMEN TÉCNICO ESTRUCTURADO EN FORMATO MARKDOWN CON:
+1. **Diagnóstico y Clasificación Normativa:** Causas inmediatas (condiciones y actos subestándar) y causas básicas (factores del trabajo/personales).
+2. **Jerarquía de Controles Aplicable (Eliminación, Sustitución, Ingeniería, Administrativos, EPP).**
+3. **Planes de Acción Prioritarios:** Tarea concreta, responsable sugerido y plazo recomendado.
+4. **Párrafo de Síntesis Ejecutiva:** Redactado en tono formal para ser copiado directamente en el Acta mensual de reunión del COPASST.`;
+
+    const iaResult = await generateWithKeyRotation(prompt, { temperature: 0.3 });
+    inspeccion.analisisIa = iaResult;
+    await inspeccion.save();
+
+    res.json({ success: true, analisisIa: iaResult });
+  } catch (error) {
+    logger.error('[COPASST] POST /inspecciones/:id/analizar-ia error:', error);
+    res.status(500).json({ error: 'Error al generar análisis con IA' });
+  }
+});
+
+// POST /inspecciones/vincular-acta — Consolidar hallazgos de inspección en un Acta del COPASST
+router.post('/inspecciones/vincular-acta', requireJwtAuth, async (req, res) => {
+  try {
+    const company = await getActiveCompany(req.user.id);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const { inspeccionIds, actaId } = req.body;
+    if (!Array.isArray(inspeccionIds) || inspeccionIds.length === 0 || !actaId) {
+      return res.status(400).json({ error: 'Faltan parámetros: inspeccionIds y actaId' });
+    }
+
+    const acta = await SgsstCopasstActa.findOne({ _id: actaId, companyId: company._id });
+    if (!acta) return res.status(404).json({ error: 'Acta no encontrada' });
+
+    const inspecciones = await SgsstCopasstInspeccion.find({
+      _id: { $in: inspeccionIds },
+      companyId: company._id,
+    });
+
+    const resumenInspecciones = inspecciones.map((insp) => {
+      const hallazgosTxt = (insp.hallazgos || [])
+        .map((h, i) => `   - Hallazgo ${i + 1} (${h.criticidad}): ${h.descripcion} -> Medida: ${h.medidaSugerida || 'Pendiente'}`)
+        .join('\n');
+      return `• Inspección ${insp.consecutivo} (${new Date(insp.fecha).toLocaleDateString('es-CO')}) - Sede/Área: ${insp.sede}/${insp.area} [${insp.tipoLabel}]:\n${hallazgosTxt || '   - Sin hallazgos anómalos.'}`;
+    }).join('\n\n');
+
+    const prevTexto = acta.desarrollo?.inspeccionesSeguridad || '';
+    const nuevoTexto = prevTexto
+      ? `${prevTexto}\n\n[INSPECCIONES CONSOLIDADAS DEL COPASST]:\n${resumenInspecciones}`
+      : `[INSPECCIONES CONSOLIDADAS DEL COPASST]:\n${resumenInspecciones}`;
+
+    if (!acta.desarrollo) acta.desarrollo = {};
+    acta.desarrollo.inspeccionesSeguridad = nuevoTexto;
+    await acta.save();
+
+    // Actualizar vinculadaActaId en cada inspección
+    await SgsstCopasstInspeccion.updateMany(
+      { _id: { $in: inspeccionIds }, companyId: company._id },
+      { $set: { vinculadaActaId: acta._id } }
+    );
+
+    res.json({ success: true, message: 'Inspecciones vinculadas exitosamente al acta', acta });
+  } catch (error) {
+    logger.error('[COPASST] POST /inspecciones/vincular-acta error:', error);
+    res.status(500).json({ error: 'Error al vincular inspecciones al acta' });
   }
 });
 

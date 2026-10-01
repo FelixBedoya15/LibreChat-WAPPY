@@ -809,12 +809,21 @@ export default function PlansPage() {
     }
     setRegLoading(true);
     try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const activeRef =
+        urlParams.get('ref') ||
+        urlParams.get('referral') ||
+        urlParams.get('r') ||
+        localStorage.getItem('wappy_ref') ||
+        undefined;
+
       await axios.post('/api/auth/register', {
         name: regData.name,
         username: regData.username,
         email: regData.email,
         password: regData.password,
         confirm_password: regData.confirmPassword,
+        ref: activeRef,
       });
 
       // Login

@@ -1,10 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '~/hooks';
 import './marketing.css';
 
+interface AmbassadorProfile {
+  name: string;
+  slug: string;
+  email?: string;
+  phone?: string;
+  phoneClean?: string;
+  type?: string;
+  typeLabel?: string;
+  avatar?: string | null;
+  profession?: string;
+  yearsExperience?: string;
+  specialties?: string[];
+  quote?: string;
+  storyParagraph1?: string;
+  storyParagraph2?: string;
+}
+
 export default function LandingPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated } = useAuthContext();
 
   const [isScrolled, setIsScrolled] = useState(false);
@@ -17,6 +35,10 @@ export default function LandingPage() {
   const [showVideo, setShowVideo] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Ambassador / Referral state
+  const [activeRef, setActiveRef] = useState<string>('');
+  const [ambassador, setAmbassador] = useState<AmbassadorProfile | null>(null);
+
   // Form states for Demo Modal
   const [demoName, setDemoName] = useState('');
   const [demoEmail, setDemoEmail] = useState('');
@@ -26,6 +48,85 @@ export default function LandingPage() {
   const [demoArlCustom, setDemoArlCustom] = useState('');
   const [demoTeamSize, setDemoTeamSize] = useState('1–10 trabajadores');
   const [isSubmittingDemo, setIsSubmittingDemo] = useState(false);
+
+  // Detect referral / ambassador slug from URL or localStorage and fetch ambassador profile
+  useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(location.search || window.location.search);
+      const urlRef = (
+        searchParams.get('ref') ||
+        searchParams.get('referral') ||
+        searchParams.get('r') ||
+        ''
+      ).trim();
+
+      let storedRef = '';
+      try {
+        storedRef = (localStorage.getItem('wappy_ref') || sessionStorage.getItem('wappy_ref') || '').trim();
+      } catch (e) {}
+
+      const isPortafolioPath = location.pathname.includes('/portafolio');
+      const resolvedRef = urlRef || (isPortafolioPath ? storedRef || 'felix-bedoya' : storedRef);
+
+      if (urlRef) {
+        try {
+          localStorage.setItem('wappy_ref', urlRef);
+          sessionStorage.setItem('wappy_ref', urlRef);
+        } catch (e) {}
+      }
+
+      if (!resolvedRef) {
+        setActiveRef('');
+        setAmbassador(null);
+        return;
+      }
+
+      setActiveRef(resolvedRef);
+
+      const formatSlugName = (slugStr: string) =>
+        slugStr
+          .split('-')
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' ');
+
+      fetch(`/api/referrals/public/ambassador-info/${encodeURIComponent(resolvedRef)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && data.name) {
+            const canonicalSlug = data.slug || resolvedRef;
+            setActiveRef(canonicalSlug);
+            try {
+              localStorage.setItem('wappy_ref', canonicalSlug);
+              sessionStorage.setItem('wappy_ref', canonicalSlug);
+            } catch (e) {}
+            setAmbassador(data);
+          } else {
+            setAmbassador({
+              name: formatSlugName(resolvedRef),
+              slug: resolvedRef,
+              typeLabel: 'Embajador Oficial WAPPY',
+              profession: 'Especialista en Seguridad y Salud en el Trabajo',
+              yearsExperience: '+5 Años de Experiencia',
+              specialties: ['Embajador Oficial', 'Especialista en SST', 'Asesor IA en SST'],
+              quote:
+                'Al unir la tecnología y la inteligencia artificial con la SST, optimizamos la gestión preventiva y transformamos los entregables normativos en prevención activa de alto impacto.',
+              storyParagraph1: `${formatSlugName(resolvedRef)} es especialista y consultor en Seguridad y Salud en el Trabajo con amplia trayectoria acompañando organizaciones en el cumplimiento normativo y la prevención de riesgos laborales.`,
+              storyParagraph2:
+                'Como Embajador Oficial de WAPPY IA, acompaña a empresas y profesionales a multiplicar su productividad automatizando matrices IPEVR, planes PESV, comités y auditorías con Inteligencia Artificial.',
+            });
+          }
+        })
+        .catch(() => {
+          setAmbassador({
+            name: formatSlugName(resolvedRef),
+            slug: resolvedRef,
+            typeLabel: 'Embajador Oficial WAPPY',
+          });
+        });
+    } catch (err) {
+      console.warn('Error loading ambassador profile on LandingPage:', err);
+    }
+  }, [location.search, location.pathname]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -60,20 +161,39 @@ export default function LandingPage() {
     }, 3500);
   };
 
+  const getRefQuery = () => {
+    const refToUse = activeRef || ambassador?.slug || localStorage.getItem('wappy_ref') || '';
+    if (refToUse) {
+      try {
+        localStorage.setItem('wappy_ref', refToUse);
+        sessionStorage.setItem('wappy_ref', refToUse);
+      } catch (e) {}
+      return `?ref=${encodeURIComponent(refToUse)}`;
+    }
+    return '';
+  };
+
   const handleStartTrial = () => {
-    if (isAuthenticated) {
+    const refQuery = getRefQuery();
+    if (isAuthenticated && !refQuery) {
       navigate('/c/new');
     } else {
-      navigate('/register');
+      navigate(`/register${refQuery}`);
     }
   };
 
   const handleLogin = () => {
-    if (isAuthenticated) {
+    const refQuery = getRefQuery();
+    if (isAuthenticated && !refQuery) {
       navigate('/c/new');
     } else {
-      navigate('/login');
+      navigate(`/login${refQuery}`);
     }
+  };
+
+  const handleGoToPlanes = () => {
+    const refQuery = getRefQuery();
+    navigate(`/planes${refQuery}`);
   };
 
   const handleDemoSubmit = async (e: React.FormEvent) => {
@@ -84,6 +204,10 @@ export default function LandingPage() {
         ? `Otra (${demoArlCustom.trim()})`
         : (demoArl || 'No especificada');
 
+      const ambassadorNote = ambassador
+        ? `\nEmbajador / Asesor Referente: ${ambassador.name} (${ambassador.slug})`
+        : '';
+
       await fetch('/api/contact/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -93,8 +217,10 @@ export default function LandingPage() {
           phone: demoPhone,
           company: demoCompany || 'No especificada',
           arl: selectedArl,
-          plan: 'Solicitud Demo Personalizada WAPPY',
-          message: `Solicitud de Demostración en vivo desde la Landing Page.\nEmpresa: ${demoCompany || 'No especificada'}\nARL: ${selectedArl}\nTeléfono/WhatsApp: ${demoPhone || 'No proporcionado'}\nTamaño de la empresa: ${demoTeamSize}\nFecha: ${new Date().toLocaleString('es-CO')}`,
+          plan: ambassador
+            ? `Solicitud Demo Personalizada WAPPY (Embajador: ${ambassador.name})`
+            : 'Solicitud Demo Personalizada WAPPY',
+          message: `Solicitud de Demostración en vivo desde la Landing Page.${ambassadorNote}\nEmpresa: ${demoCompany || 'No especificada'}\nARL: ${selectedArl}\nTeléfono/WhatsApp: ${demoPhone || 'No proporcionado'}\nTamaño de la empresa: ${demoTeamSize}\nFecha: ${new Date().toLocaleString('es-CO')}`,
         }),
       });
 
@@ -137,7 +263,9 @@ export default function LandingPage() {
       (targetId === 'vision' ? document.getElementById('movil') : null) ||
       (targetId === 'movil' ? document.getElementById('vision') : null) ||
       (targetId === 'pricing' ? document.getElementById('planes') : null) ||
-      (targetId === 'planes' ? document.getElementById('pricing') : null)
+      (targetId === 'planes' ? document.getElementById('pricing') : null) ||
+      (targetId === 'embajador' ? document.getElementById('creador') : null) ||
+      (targetId === 'creador' ? document.getElementById('embajador') : null)
     );
   };
 
@@ -239,6 +367,17 @@ export default function LandingPage() {
             <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')} title={lang === 'es' ? 'Planes Comerciales y Tarifas WAPPY Pro' : 'Pricing Plans'}>
               {lang === 'es' ? 'Planes' : 'Plans'}
             </a>
+            {ambassador && (
+              <a
+                href="#embajador"
+                onClick={(e) => scrollToSection(e, 'embajador')}
+                title={lang === 'es' ? `Conoce a tu asesor: ${ambassador.name}` : `Meet your advisor: ${ambassador.name}`}
+                style={{ color: '#0D9488', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              >
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10B981', display: 'inline-block' }}></span>
+                {lang === 'es' ? 'Tu Asesor' : 'Your Advisor'}
+              </a>
+            )}
             <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')} title={lang === 'es' ? 'Preguntas Frecuentes sobre WAPPY' : 'FAQ'}>
               FAQ
             </a>
@@ -320,6 +459,16 @@ export default function LandingPage() {
                 </div>
               </button>
 
+              {ambassador && (
+                <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('embajador')}>
+                  <span className="mkt-mobile-link-icon">🤝</span>
+                  <div className="mkt-mobile-link-info">
+                    <span className="mkt-mobile-link-title">{lang === 'es' ? `Tu Asesor: ${ambassador.name}` : `Your Advisor: ${ambassador.name}`}</span>
+                    <span className="mkt-mobile-link-desc">{ambassador.typeLabel || 'Embajador Oficial WAPPY'}</span>
+                  </div>
+                </button>
+              )}
+
               <button type="button" className="mkt-mobile-link" onClick={() => navigateToSection('faq')}>
                 <span className="mkt-mobile-link-icon">❓</span>
                 <div className="mkt-mobile-link-info">
@@ -383,6 +532,134 @@ export default function LandingPage() {
         <div className="cloud" style={{ bottom: 60, left: '18%', width: 240, height: 100, opacity: 0.5 }}></div>
 
         <div className="wrap hero-inner">
+          {/* Identificación del Embajador / Asesor en el Hero */}
+          {ambassador && (
+            <div
+              style={{
+                display: 'inline-flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 12,
+                padding: '10px 18px',
+                marginBottom: 16,
+                borderRadius: 9999,
+                background: 'rgba(255, 255, 255, 0.92)',
+                border: '1.5px solid rgba(13, 148, 136, 0.35)',
+                boxShadow: '0 10px 30px -8px rgba(13, 148, 136, 0.18)',
+                backdropFilter: 'blur(12px)',
+                maxWidth: '100%',
+              }}
+            >
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <img
+                  src={ambassador.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(ambassador.name || 'W')}&backgroundColor=0d9488`}
+                  alt={ambassador.name}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(ambassador.name || 'W')}&backgroundColor=0d9488`;
+                  }}
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '2px solid #0D9488',
+                  }}
+                />
+                <span
+                  title="Embajador Verificado WAPPY"
+                  style={{
+                    position: 'absolute',
+                    bottom: -2,
+                    right: -2,
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    background: '#10B981',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 10,
+                    fontWeight: 900,
+                    border: '2px solid #fff',
+                  }}
+                >
+                  ✓
+                </span>
+              </div>
+
+              <div style={{ textAlign: 'left', lineHeight: 1.25 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#0D9488' }}>
+                    {lang === 'es' ? 'Invitación Especial de tu Asesor' : 'Invited by your Advisor'}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 9999,
+                      background: '#F0FDFA',
+                      color: '#0F766E',
+                      border: '1px solid #99F6E4',
+                    }}
+                  >
+                    {ambassador.typeLabel || 'Embajador Oficial WAPPY'}
+                  </span>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#0F172A', marginTop: 2 }}>
+                  {ambassador.name}{' '}
+                  <span style={{ fontWeight: 500, color: '#475569', fontSize: 12.5 }}>
+                    — {ambassador.profession || 'Especialista en SG-SST'}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <a
+                  href="#embajador"
+                  onClick={(e) => scrollToSection(e, 'embajador')}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: '6px 12px',
+                    borderRadius: 9999,
+                    background: '#0F172A',
+                    color: '#fff',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  {lang === 'es' ? 'Conocer perfil ↓' : 'View profile ↓'}
+                </a>
+                {ambassador.phoneClean && (
+                  <a
+                    href={`https://wa.me/${ambassador.phoneClean}?text=${encodeURIComponent(`Hola ${ambassador.name}, estoy viendo tu portafolio de WAPPY IA y me gustaría recibir asesoría sobre el SG-SST.`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: '6px 12px',
+                      borderRadius: 9999,
+                      background: '#10B981',
+                      color: '#fff',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                    }}
+                  >
+                    <span>💬</span> WhatsApp
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
           <span className="trial">
             <span className="tdot"></span>
             {lang === 'es' ? 'Somos SST · Ecosistema de IA & Metodología del Bioindividuo' : 'Somos SST · AI Ecosystem & Bioindividual Methodology'}
@@ -3084,6 +3361,263 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Sección Completa de Identificación del Embajador / Asesor (Solo visible cuando entra con ?ref=) */}
+      {ambassador && (
+        <section id="embajador" className="band" style={{ paddingTop: 0 }}>
+          <div id="creador" style={{ position: 'relative', top: -90 }} />
+          <div className="wrap">
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #FFFFFF 0%, #F0FDFA 65%, #ECFEFF 100%)',
+                border: '1.5px solid #99F6E4',
+                borderRadius: 28,
+                padding: 'clamp(24px, 4vw, 44px)',
+                boxShadow: '0 24px 50px -16px rgba(13, 148, 136, 0.14)',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                  gap: 32,
+                  alignItems: 'center',
+                }}
+              >
+                {/* Columna Izquierda: Foto, Rol y Contacto Directo */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    textAlign: 'center',
+                    background: '#FFFFFF',
+                    borderRadius: 24,
+                    padding: '28px 24px',
+                    border: '1px solid #E2E8F0',
+                    boxShadow: '0 10px 25px -8px rgba(15, 23, 42, 0.06)',
+                  }}
+                >
+                  <div style={{ position: 'relative', marginBottom: 16 }}>
+                    <img
+                      src={
+                        ambassador.avatar ||
+                        `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(ambassador.name || 'W')}&backgroundColor=0d9488`
+                      }
+                      alt={ambassador.name}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(ambassador.name || 'W')}&backgroundColor=0d9488`;
+                      }}
+                      style={{
+                        width: 116,
+                        height: 116,
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        border: '4px solid #0D9488',
+                        boxShadow: '0 12px 24px -6px rgba(13, 148, 136, 0.35)',
+                      }}
+                    />
+                    <span
+                      style={{
+                        position: 'absolute',
+                        bottom: 4,
+                        right: 4,
+                        background: '#10B981',
+                        color: '#fff',
+                        width: 28,
+                        height: 28,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 14,
+                        fontWeight: 900,
+                        border: '3px solid #fff',
+                      }}
+                      title="Asesor Verificado WAPPY"
+                    >
+                      ✓
+                    </span>
+                  </div>
+
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '4px 12px',
+                      borderRadius: 9999,
+                      background: '#F0FDFA',
+                      color: '#0F766E',
+                      border: '1px solid #99F6E4',
+                      fontSize: 11.5,
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      marginBottom: 8,
+                    }}
+                  >
+                    🛡️ {ambassador.typeLabel || 'Embajador Oficial WAPPY'}
+                  </span>
+
+                  <h3 style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', margin: '4px 0' }}>
+                    {ambassador.name}
+                  </h3>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: '#475569', marginBottom: 14 }}>
+                    {ambassador.profession || 'Especialista en Seguridad y Salud en el Trabajo'}
+                    {ambassador.yearsExperience
+                      ? ` · ${/^\d+$/.test(ambassador.yearsExperience.trim()) ? `+${ambassador.yearsExperience.trim()} años de experiencia` : ambassador.yearsExperience}`
+                      : ''}
+                  </div>
+
+                  {/* Especialidades */}
+                  {Array.isArray(ambassador.specialties) && ambassador.specialties.length > 0 && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        justifyContent: 'center',
+                        gap: 6,
+                        marginBottom: 18,
+                      }}
+                    >
+                      {ambassador.specialties.map((spec, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            padding: '4px 10px',
+                            borderRadius: 8,
+                            background: '#F8FAFC',
+                            color: '#334155',
+                            border: '1px solid #E2E8F0',
+                          }}
+                        >
+                          {spec}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ width: '100%', justifyContent: 'center' }}
+                      onClick={handleStartTrial}
+                    >
+                      {lang === 'es' ? 'Probar WAPPY gratis con mi asesor' : 'Start free trial with my advisor'}
+                    </button>
+
+                    {ambassador.phoneClean && (
+                      <a
+                        href={`https://wa.me/${ambassador.phoneClean}?text=${encodeURIComponent(`Hola ${ambassador.name}, visité tu página en WAPPY IA y me gustaría recibir tu acompañamiento para implementar el SG-SST.`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                          width: '100%',
+                          padding: '11px 16px',
+                          borderRadius: 12,
+                          background: '#10B981',
+                          color: '#FFFFFF',
+                          fontWeight: 700,
+                          fontSize: 13.5,
+                          textDecoration: 'none',
+                          boxShadow: '0 6px 16px -4px rgba(16, 185, 129, 0.4)',
+                        }}
+                      >
+                        <span>💬</span>
+                        {lang === 'es' ? 'Hablar por WhatsApp con mi Asesor' : 'Chat on WhatsApp with my Advisor'}
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Columna Derecha: Historia, Frase e Identificación Personal */}
+                <div>
+                  <span className="eyebrow" style={{ marginBottom: 10 }}>
+                    <span className="dot"></span>
+                    {lang === 'es' ? 'Acompañamiento Humano + Inteligencia Artificial' : 'Human Guidance + Artificial Intelligence'}
+                  </span>
+                  <h2 className="display" style={{ fontSize: 'clamp(24px, 3vw, 34px)', marginBottom: 14, color: '#0F172A' }}>
+                    {lang === 'es'
+                      ? `Mucho gusto, soy ${ambassador.name}`
+                      : `Nice to meet you, I'm ${ambassador.name}`}
+                  </h2>
+
+                  {ambassador.quote && (
+                    <blockquote
+                      style={{
+                        margin: '0 0 18px 0',
+                        padding: '14px 18px',
+                        borderLeft: '4px solid #0D9488',
+                        background: 'rgba(255, 255, 255, 0.85)',
+                        borderRadius: '0 14px 14px 0',
+                        fontSize: 15,
+                        fontStyle: 'italic',
+                        fontWeight: 600,
+                        color: '#0F172A',
+                        lineHeight: 1.55,
+                      }}
+                    >
+                      “{ambassador.quote}”
+                    </blockquote>
+                  )}
+
+                  {ambassador.storyParagraph1 && (
+                    <p style={{ fontSize: 14.5, color: '#334155', lineHeight: 1.68, marginBottom: 12 }}>
+                      {ambassador.storyParagraph1}
+                    </p>
+                  )}
+
+                  {ambassador.storyParagraph2 && (
+                    <p style={{ fontSize: 14.5, color: '#334155', lineHeight: 1.68, marginBottom: 18 }}>
+                      {ambassador.storyParagraph2}
+                    </p>
+                  )}
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                      gap: 14,
+                      padding: '12px 16px',
+                      borderRadius: 14,
+                      background: '#FFFFFF',
+                      border: '1px solid #CCFBF1',
+                      fontSize: 12.5,
+                      color: '#0F766E',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span>✅ {lang === 'es' ? '7 días de prueba gratis activados con tu código de invitado:' : '7-day free trial activated with your referral code:'}</span>
+                    <code
+                      style={{
+                        padding: '3px 10px',
+                        borderRadius: 8,
+                        background: '#F0FDFA',
+                        border: '1px solid #5EEAD4',
+                        fontWeight: 800,
+                        color: '#0D9488',
+                      }}
+                    >
+                      {ambassador.slug}
+                    </code>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Pricing: Solo Plan Wappy Pro con 3 Temporalidades (Mensual, Semestral, Anual) */}
       <section id="pricing" className="band" style={{ paddingTop: 0 }}>
         <div id="planes" style={{ position: 'relative', top: -90 }} />
@@ -3174,7 +3708,7 @@ export default function LandingPage() {
                   {lang === 'es' ? '3 GB de almacenamiento (+1 GB por sede adicional)' : '3 GB storage (+1 GB per extra branch)'}
                 </li>
               </ul>
-              <button className="btn btn-glass btn-sm" style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }} onClick={() => navigate('/planes')}>
+              <button className="btn btn-glass btn-sm" style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }} onClick={handleGoToPlanes}>
                 {lang === 'es' ? 'Elegir Pro Mensual' : 'Choose Pro Monthly'}
               </button>
             </div>
@@ -3254,7 +3788,7 @@ export default function LandingPage() {
                   {lang === 'es' ? 'Soporte técnico preferencial y acompañamiento de inicio' : 'Priority technical support & onboarding assistance'}
                 </li>
               </ul>
-              <button className="btn btn-glass btn-sm" style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }} onClick={() => navigate('/planes')}>
+              <button className="btn btn-glass btn-sm" style={{ marginTop: 'auto', justifyContent: 'center', border: '1px solid var(--line)' }} onClick={handleGoToPlanes}>
                 {lang === 'es' ? 'Elegir Pro Semestral' : 'Choose Pro Semiannual'}
               </button>
             </div>
@@ -3334,7 +3868,7 @@ export default function LandingPage() {
                   {lang === 'es' ? 'Acompañamiento prioritario en migración de matrices y datos' : 'Priority assistance with data & matrix migrations'}
                 </li>
               </ul>
-              <button className="btn btn-lime btn-sm" style={{ marginTop: 'auto', justifyContent: 'center' }} onClick={() => navigate('/planes')}>
+              <button className="btn btn-lime btn-sm" style={{ marginTop: 'auto', justifyContent: 'center' }} onClick={handleGoToPlanes}>
                 {lang === 'es' ? 'Elegir Wappy Pro Anual' : 'Choose Wappy Pro Annual'}
               </button>
             </div>

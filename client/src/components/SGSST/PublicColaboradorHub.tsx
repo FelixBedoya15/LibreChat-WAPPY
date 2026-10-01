@@ -28,6 +28,7 @@ import {
   Briefcase,
   RefreshCw,
   Vote,
+  ClipboardCheck,
 } from 'lucide-react';
 import PublicWorkerHeader from './PublicWorkerHeader';
 
@@ -456,6 +457,14 @@ export default function PublicColaboradorHub() {
           icon: Lock,
           path: `/sgsst-public/convivencia/${companyId}`,
           color: 'from-violet-500 to-purple-700',
+        },
+        {
+          title: 'Inspecciones COPASST',
+          desc: 'Rondas ágiles de inspección preventiva en puestos y áreas',
+          points: '+50 pts',
+          icon: ClipboardCheck,
+          path: `/sgsst-public/copasst-inspecciones/${companyId}`,
+          color: 'from-blue-600 to-teal-600',
         },
       ],
     },

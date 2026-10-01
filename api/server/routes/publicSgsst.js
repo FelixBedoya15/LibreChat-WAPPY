@@ -2464,6 +2464,212 @@ router.post('/comites/:companyId', async (req, res) => {
   }
 });
 
+// ─── GET /api/public-sgsst/copasst-inspecciones/:companyId ─────────────────────
+// Carga contexto para realizar inspecciones: miembros de COPASST, sedes/áreas y recientes
+router.get('/copasst-inspecciones/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const { cedula } = req.query;
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const { SgsstCopasstComite, SgsstCopasstInspeccion } = require('~/models/SgsstCopasst');
+
+    // 1. Obtener comité activo para listar miembros
+    const comite = await SgsstCopasstComite.findOne({ companyId: company._id, estado: 'activo' }).lean()
+      || await SgsstCopasstComite.findOne({ companyId: company._id }).sort({ createdAt: -1 }).lean();
+
+    const miembrosComite = [];
+    if (comite) {
+      (comite.representantesEmpleador || []).forEach((r) => {
+        if (r.nombre && r.cedula) {
+          miembrosComite.push({
+            nombre: r.nombre,
+            cedula: r.cedula,
+            cargo: r.cargo || '',
+            rolComite: `${r.rol || 'Principal'} (Rep. Empleador)`,
+          });
+        }
+      });
+      (comite.representantesTrabajadores || []).forEach((r) => {
+        if (r.nombre && r.cedula) {
+          miembrosComite.push({
+            nombre: r.nombre,
+            cedula: r.cedula,
+            cargo: r.cargo || '',
+            rolComite: `${r.rol || 'Principal'} (Rep. Trabajadores)`,
+          });
+        }
+      });
+      if (comite.vigia?.nombre && comite.vigia?.cedula) {
+        miembrosComite.push({
+          nombre: comite.vigia.nombre,
+          cedula: comite.vigia.cedula,
+          cargo: comite.vigia.cargo || '',
+          rolComite: 'Vigía de SST',
+        });
+      }
+    }
+
+    // 2. Extraer sedes y áreas del perfil sociodemográfico o empresa
+    const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData || require('./sgsst/perfilSociodemografico');
+    const perfil = await PerfilSociodemograficoData.findOne({ companyId: company._id }).lean();
+    const sedesSet = new Set(['Sede Principal']);
+    const areasSet = new Set(['Operativa / Planta', 'Administración / Oficinas', 'Almacén / Bodega', 'Mantenimiento']);
+
+    if (perfil && Array.isArray(perfil.trabajadores)) {
+      perfil.trabajadores.forEach((w) => {
+        if (w.sede) sedesSet.add(String(w.sede).trim());
+        if (w.area) areasSet.add(String(w.area).trim());
+      });
+    }
+
+    // 3. Inspecciones recientes (opcionalmente filtradas por cédula del inspector)
+    const filter = { companyId: company._id };
+    if (cedula) {
+      filter['inspector.cedula'] = String(cedula).trim();
+    }
+    const recientes = await SgsstCopasstInspeccion.find(filter)
+      .select('consecutivo fecha area sede tipoLabel semaforoGeneral estadoInspeccion hallazgos.length createdAt inspector')
+      .sort({ fecha: -1, createdAt: -1 })
+      .limit(10)
+      .lean();
+
+    res.json({
+      success: true,
+      company: {
+        id: company._id,
+        companyName: company.companyName,
+        logo: company.logoUrl || null,
+        sedes: Array.from(sedesSet),
+        areas: Array.from(areasSet),
+      },
+      miembrosComite,
+      recientes,
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] GET /copasst-inspecciones error:', error);
+    res.status(500).json({ error: 'Error al cargar datos de inspección' });
+  }
+});
+
+// ─── POST /api/public-sgsst/copasst-inspeccion/:companyId ─────────────────────
+// Radicación móvil/pública de una inspección ágil por parte del COPASST o Vigía
+router.post('/copasst-inspeccion/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const {
+      fecha,
+      hora,
+      sede,
+      area,
+      tipoInspeccion,
+      tipoLabel,
+      modo,
+      inspector,
+      acompanantes,
+      responsableArea,
+      hallazgos,
+      checklistItems,
+      semaforoGeneral,
+      conclusiones,
+    } = req.body;
+
+    if (!inspector?.nombre || !inspector?.cedula || !area) {
+      return res.status(400).json({ error: 'Nombre del inspector, cédula y área a inspeccionar son obligatorios' });
+    }
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+    const { SgsstCopasstInspeccion } = require('~/models/SgsstCopasst');
+
+    const currentYear = new Date().getFullYear();
+    const countThisYear = await SgsstCopasstInspeccion.countDocuments({
+      companyId: company._id,
+      createdAt: {
+        $gte: new Date(currentYear, 0, 1),
+        $lte: new Date(currentYear, 11, 31, 23, 59, 59),
+      },
+    });
+    const consecutivo = `INSP-COPASST-${currentYear}-${String(countThisYear + 1).padStart(3, '0')}`;
+
+    const nuevaInspeccion = new SgsstCopasstInspeccion({
+      companyId: company._id,
+      user: company.user,
+      consecutivo,
+      fecha: fecha || new Date(),
+      hora: hora || new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+      sede: sede || 'Sede Principal',
+      area: String(area).trim(),
+      tipoInspeccion: tipoInspeccion || 'ronda_abierta',
+      tipoLabel: tipoLabel || 'Ronda Abierta COPASST',
+      modo: modo || 'fotografico_rapido',
+      inspector: {
+        nombre: String(inspector.nombre).trim(),
+        cedula: String(inspector.cedula).trim(),
+        cargo: String(inspector.cargo || '').trim(),
+        rolComite: inspector.rolComite || 'Miembro COPASST',
+        firma: inspector.firma || null,
+      },
+      acompanantes: Array.isArray(acompanantes) ? acompanantes : [],
+      responsableArea: responsableArea || { nombre: '', cargo: '', firma: null },
+      hallazgos: Array.isArray(hallazgos) ? hallazgos : [],
+      checklistItems: Array.isArray(checklistItems) ? checklistItems : [],
+      semaforoGeneral: semaforoGeneral || 'atencion',
+      conclusiones: conclusiones || '',
+      origen: 'portal_colaborador',
+      estadoInspeccion: 'completada',
+    });
+
+    await nuevaInspeccion.save();
+
+    // ─── Crear notificación en el sistema ───
+    setImmediate(async () => {
+      try {
+        await Notification.create({
+          user: new mongoose.Types.ObjectId(company.user),
+          type: 'sgsst_copasst_inspeccion',
+          title: `Nueva Inspección de Seguridad COPASST (${consecutivo})`,
+          body: `${inspector.nombre} ha radicado la inspección "${tipoLabel || 'Inspección de Seguridad'}" en el área ${area} con ${(hallazgos || []).length} hallazgos registrados.`,
+          metadata: { module: 'copasst', inspeccionId: nuevaInspeccion._id, consecutivo },
+        });
+      } catch (notifErr) {
+        logger.warn('[Public SGSST] Inspeccion notification error:', notifErr.message);
+      }
+    });
+
+    // ─── Gamificación Pasaporte SST: +50 Puntos al miembro del COPASST ───
+    if (company.user && inspector.cedula) {
+      try {
+        const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+        await feedWorkerEvent(
+          company.user,
+          String(inspector.cedula).trim(),
+          'comites',
+          `Ronda de inspección de seguridad COPASST (${consecutivo}) en ${area}`,
+          50,
+          nuevaInspeccion._id.toString(),
+          { tipoInspeccion: tipoLabel || tipoInspeccion, hallazgosCount: (hallazgos || []).length }
+        );
+      } catch (feedErr) {
+        logger.warn('[Public SGSST] Gamification feed error for copasst inspeccion:', feedErr.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Inspección ${consecutivo} radicada exitosamente y registrada para el COPASST.`,
+      consecutivo,
+      inspeccionId: nuevaInspeccion._id,
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] POST /copasst-inspeccion error:', error);
+    res.status(500).json({ error: 'Error al registrar la inspección del COPASST' });
+  }
+});
+
 // ─── POST /api/public-sgsst/convivencia/:companyId ───────────────────────────
 // Canal formal y confidencial de quejas bajo Ley 1010 y Ley 2365 de 2024
 router.post('/convivencia/:companyId', async (req, res) => {

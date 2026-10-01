@@ -514,11 +514,160 @@ const pesvActaSchema = new mongoose.Schema(
 const SgsstPesvComite = mongoose.models.SgsstPesvComite || mongoose.model('SgsstPesvComite', pesvComiteSchema);
 const SgsstPesvActa = mongoose.models.SgsstPesvActa || mongoose.model('SgsstPesvActa', pesvActaSchema);
 
+// ─── 4. Modelo de Inspecciones Ágiles del COPASST / Vigía de SST ─────────────
+const copasstInspeccionSchema = new mongoose.Schema(
+  {
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CompanyInfo',
+      required: true,
+      index: true,
+    },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+      index: true,
+    },
+    consecutivo: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    fecha: {
+      type: Date,
+      default: Date.now,
+      required: true,
+    },
+    hora: {
+      type: String,
+      default: '',
+    },
+    sede: {
+      type: String,
+      default: 'Sede Principal',
+    },
+    area: {
+      type: String,
+      default: '',
+      required: true,
+    },
+    tipoInspeccion: {
+      type: String,
+      enum: [
+        'locativa_orden_aseo',
+        'equipos_emergencia',
+        'riesgo_electrico',
+        'puestos_ergonomia',
+        'epp_comportamiento',
+        'maquinaria_herramientas',
+        'ronda_abierta',
+      ],
+      default: 'ronda_abierta',
+    },
+    tipoLabel: {
+      type: String,
+      default: 'Ronda Abierta COPASST',
+    },
+    modo: {
+      type: String,
+      enum: ['fotografico_rapido', 'checklist_tematico', 'mixto'],
+      default: 'fotografico_rapido',
+    },
+    inspector: {
+      nombre: { type: String, required: true },
+      cedula: { type: String, required: true },
+      cargo: { type: String, default: '' },
+      rolComite: { type: String, default: 'Miembro COPASST' },
+      firma: { type: String, default: null },
+    },
+    acompanantes: [
+      {
+        nombre: { type: String, default: '' },
+        cargo: { type: String, default: '' },
+      },
+    ],
+    responsableArea: {
+      nombre: { type: String, default: '' },
+      cargo: { type: String, default: '' },
+      firma: { type: String, default: null },
+    },
+    hallazgos: [
+      {
+        id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
+        titulo: { type: String, default: '' },
+        descripcion: { type: String, required: true },
+        ubicacionDetalle: { type: String, default: '' },
+        criticidad: {
+          type: String,
+          enum: ['bajo', 'medio', 'alto', 'critico'],
+          default: 'medio',
+        },
+        clasificacionPeligro: { type: String, default: 'Locativo' },
+        fotoEvidencia: { type: String, default: null },
+        fotoCorreccion: { type: String, default: null },
+        medidaSugerida: { type: String, default: '' },
+        responsableAccion: { type: String, default: '' },
+        fechaLimite: { type: String, default: '' },
+        estado: {
+          type: String,
+          enum: ['pendiente', 'en_gestion', 'corregido'],
+          default: 'pendiente',
+        },
+      },
+    ],
+    checklistItems: [
+      {
+        item: { type: String, required: true },
+        estado: {
+          type: String,
+          enum: ['cumple', 'no_cumple', 'no_aplica'],
+          default: 'cumple',
+        },
+        observacion: { type: String, default: '' },
+        foto: { type: String, default: null },
+      },
+    ],
+    semaforoGeneral: {
+      type: String,
+      enum: ['seguro', 'atencion', 'critico'],
+      default: 'atencion',
+    },
+    conclusiones: {
+      type: String,
+      default: '',
+    },
+    analisisIa: {
+      type: String,
+      default: '',
+    },
+    vinculadaActaId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SgsstCopasstActa',
+      default: null,
+    },
+    estadoInspeccion: {
+      type: String,
+      enum: ['completada', 'en_seguimiento', 'cerrada'],
+      default: 'completada',
+    },
+    origen: {
+      type: String,
+      enum: ['portal_colaborador', 'admin_workspace', 'qr_movil'],
+      default: 'portal_colaborador',
+    },
+  },
+  { timestamps: true }
+);
+
+const SgsstCopasstInspeccion = mongoose.models.SgsstCopasstInspeccion || mongoose.model('SgsstCopasstInspeccion', copasstInspeccionSchema);
+
 module.exports = {
   SgsstCopasstComite,
   SgsstCopasstActa,
   SgsstEleccion,
   SgsstPesvComite,
   SgsstPesvActa,
+  SgsstCopasstInspeccion,
 };
 

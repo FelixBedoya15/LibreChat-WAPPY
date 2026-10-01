@@ -32,6 +32,8 @@ import {
   History,
   Save,
   Database,
+  ClipboardCheck,
+  Camera,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
@@ -119,20 +121,55 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
   const [isGeneratingIA, setIsGeneratingIA] = useState(false);
   const [qrModalUrl, setQrModalUrl] = useState<string | null>(null);
 
+  // Estados de Inspecciones Ágiles del COPASST
+  const [inspecciones, setInspecciones] = useState<any[]>([]);
+  const [inspeccionesStats, setInspeccionesStats] = useState<{
+    totalInspecciones: number;
+    totalHallazgos: number;
+    hallazgosPendientes: number;
+    hallazgosCorregidos: number;
+    hallazgosCriticos: number;
+  }>({
+    totalInspecciones: 0,
+    totalHallazgos: 0,
+    hallazgosPendientes: 0,
+    hallazgosCorregidos: 0,
+    hallazgosCriticos: 0,
+  });
+  const [selectedInspeccion, setSelectedInspeccion] = useState<any>(null);
+  const [showInspeccionModal, setShowInspeccionModal] = useState(false);
+  const [showVincularActaModal, setShowVincularActaModal] = useState(false);
+  const [selectedInspeccionIdsToLink, setSelectedInspeccionIdsToLink] = useState<string[]>([]);
+  const [targetActaIdToLink, setTargetActaIdToLink] = useState<string>('');
+  const [isLinkingActa, setIsLinkingActa] = useState(false);
+  const [isAnalyzingIa, setIsAnalyzingIa] = useState(false);
+  const [inspeccionFilter, setInspeccionFilter] = useState<'todas' | 'criticas' | 'pendientes' | 'corregidas'>('todas');
+  const [corregirHallazgoPhoto, setCorregirHallazgoPhoto] = useState<string | null>(null);
+  const [activeCorregirHallazgoId, setActiveCorregirHallazgoId] = useState<string | null>(null);
+  const inspeccionFileInputRef = useRef<HTMLInputElement>(null);
+
   const fetchAllData = async () => {
     if (!token) return;
     setLoading(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const [resConfig, resActas, resWorkers, resElecciones] = await Promise.all([
+      const [resConfig, resActas, resWorkers, resElecciones, resInspecciones] = await Promise.all([
         axios.get('/api/sgsst/copasst/config', { headers }),
         axios.get('/api/sgsst/copasst/actas', { headers }),
         axios.get('/api/sgsst/copasst/trabajadores', { headers }),
         axios.get('/api/sgsst/copasst/elecciones', { headers }),
+        axios.get('/api/sgsst/copasst/inspecciones', { headers }).catch((e) => {
+          console.warn('[COPASST] Could not load inspecciones:', e.message);
+          return { data: { inspecciones: [], stats: {} } };
+        }),
       ]);
 
       setConfig(resConfig.data);
       setActas(resActas.data.actas || []);
+      setInspecciones(resInspecciones.data?.inspecciones || []);
+      if (resInspecciones.data?.stats) {
+        setInspeccionesStats(resInspecciones.data.stats);
+      }
       let loadedWorkers = resWorkers.data.workers || [];
 
       // Fallback a perfil sociodemográfico si workers viene vacío o con pocos registros
@@ -834,6 +871,16 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
             active: activeTab === 'conformacion',
           },
           {
+            id: 'tb-tab-inspecciones',
+            onClick: () => setActiveTab('inspecciones'),
+            label: `Inspecciones (${inspecciones.length})`,
+            icon: ClipboardCheck,
+            title: 'Rondas e Inspecciones de Seguridad del COPASST',
+            variant: 'history',
+            active: activeTab === 'inspecciones',
+            badge: inspeccionesStats?.hallazgosPendientes > 0 ? inspeccionesStats.hallazgosPendientes : undefined,
+          },
+          {
             id: 'tb-tab-elecciones',
             onClick: () => setActiveTab('elecciones'),
             label: 'Votación Secreta Digital',
@@ -864,6 +911,55 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 title="Registrar o Continuar Acta Mensual del COPASST"
                 variant="ai"
               />
+            )}
+            {activeTab === 'inspecciones' && (
+              <>
+                <ToolbarButton
+                  id="tb-nueva-ronda-movil"
+                  onClick={() => {
+                    const compId = config?.companyId || '';
+                    if (compId) {
+                      window.open(`/sgsst-public/copasst-inspecciones/${compId}`, '_blank');
+                    } else {
+                      showToast({ message: 'Empresa no configurada aún', status: 'warning' });
+                    }
+                  }}
+                  label="Abrir Ronda Móvil"
+                  icon={ExternalLink}
+                  title="Abrir formulario ágil de inspección en nueva pestaña o celular"
+                  variant="confirm"
+                />
+                <ToolbarButton
+                  id="tb-qr-inspecciones"
+                  onClick={() => {
+                    const compId = config?.companyId || '';
+                    if (compId) {
+                      const origin = window.location.origin;
+                      setQrModalUrl(`${origin}/sgsst-public/copasst-inspecciones/${compId}`);
+                    }
+                  }}
+                  label="QR para Celular"
+                  icon={QrCode}
+                  title="Mostrar Código QR para que el comité inspeccione en campo"
+                  variant="neutral"
+                />
+                <ToolbarButton
+                  id="tb-vincular-acta"
+                  onClick={() => {
+                    if (actas.length === 0) {
+                      showToast({ message: 'Primero crea un acta de reunión para vincular las inspecciones.', status: 'warning' });
+                      return;
+                    }
+                    setSelectedInspeccionIdsToLink(inspecciones.slice(0, 5).map((i) => i._id));
+                    setTargetActaIdToLink(actas[0]?._id || '');
+                    setShowVincularActaModal(true);
+                  }}
+                  label="Vincular a Acta Mensual"
+                  icon={FileText}
+                  title="Consolidar hallazgos de inspección en el punto de seguridad del acta mensual"
+                  variant="ai"
+                />
+              </>
             )}
             {activeTab === 'conformacion' && (
               <>
@@ -1188,6 +1284,319 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ═══ TAB: INSPECCIONES ÁGILES DEL COPASST ═══ */}
+      {activeTab === 'inspecciones' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Header de la sección */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                  Res. 2013/1986 (Art. 11 Lit. a) · Dec. 1072/2015
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border border-emerald-200">
+                  +50 pts Gamificación
+                </span>
+              </div>
+              <h3 className="text-lg font-black text-slate-800 dark:text-zinc-100 mt-1">
+                Rondas e Inspecciones de Seguridad del COPASST / Vigía
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 max-w-2xl">
+                Inspecciones periódicas de ambientes de trabajo, orden y aseo, equipos de emergencia e instalaciones con registro fotográfico ágil y vinculación directa al acta ordinaria mensual.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <ExpandingButton
+                onClick={() => {
+                  const compId = config?.companyId || '';
+                  if (compId) {
+                    window.open(`/sgsst-public/copasst-inspecciones/${compId}`, '_blank');
+                  } else {
+                    showToast({ message: 'Empresa no configurada aún', status: 'warning' });
+                  }
+                }}
+                label="Nueva Ronda Móvil"
+                icon={Plus}
+                variant="teal"
+                title="Abrir formulario ágil de inspección en nueva pestaña o celular"
+              />
+              <ExpandingButton
+                onClick={() => {
+                  const compId = config?.companyId || '';
+                  if (compId) {
+                    const origin = window.location.origin;
+                    setQrModalUrl(`${origin}/sgsst-public/copasst-inspecciones/${compId}`);
+                  }
+                }}
+                label="Código QR"
+                icon={QrCode}
+                variant="secondary"
+                title="Mostrar Código QR para que el comité inspeccione en campo"
+              />
+            </div>
+          </div>
+
+          {/* Tarjetas de Métricas de Inspecciones */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 block">Rondas Realizadas</span>
+                <span className="text-xl font-black text-slate-800 dark:text-zinc-100">{inspecciones.length}</span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 flex items-center justify-center text-teal-600">
+                <ClipboardCheck className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 block">Hallazgos Pendientes</span>
+                <span className="text-xl font-black text-amber-600">{inspeccionesStats?.hallazgosPendientes || 0}</span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 block">Riesgo Crítico</span>
+                <span className="text-xl font-black text-red-600">{inspeccionesStats?.hallazgosCriticos || 0}</span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 flex items-center justify-center text-red-600">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 block">Hallazgos Subsanados</span>
+                <span className="text-xl font-black text-emerald-600">{inspeccionesStats?.hallazgosCorregidos || 0}</span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+
+          {/* Filtros Rápidos */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700">
+              {[
+                { key: 'todas', label: `Todas (${inspecciones.length})` },
+                { key: 'criticas', label: `🔴 Críticas (${inspecciones.filter((i) => (i.hallazgos || []).some((h: any) => h.criticidad === 'critico')).length})` },
+                { key: 'pendientes', label: `🟡 Con Pendientes (${inspecciones.filter((i) => (i.hallazgos || []).some((h: any) => h.estado !== 'corregido')).length})` },
+                { key: 'corregidas', label: `🟢 Concluidas (${inspecciones.filter((i) => i.estadoInspeccion === 'cerrada' || (i.hallazgos || []).length === 0).length})` },
+              ].map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setInspeccionFilter(f.key as any)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    inspeccionFilter === f.key
+                      ? 'bg-white dark:bg-zinc-700 text-slate-800 dark:text-zinc-100 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {inspecciones.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (actas.length === 0) {
+                    showToast({ message: 'Primero crea un acta de reunión para vincular las inspecciones.', status: 'warning' });
+                    return;
+                  }
+                  setSelectedInspeccionIdsToLink(inspecciones.slice(0, 5).map((i) => i._id));
+                  setTargetActaIdToLink(actas[0]?._id || '');
+                  setShowVincularActaModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition-all"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Vincular Seleccionadas al Acta del Mes</span>
+              </button>
+            )}
+          </div>
+
+          {/* Listado de Inspecciones */}
+          {inspecciones.length === 0 ? (
+            <div className="p-10 rounded-3xl border border-dashed border-slate-300 dark:border-zinc-800 text-center text-slate-400 bg-white/40 dark:bg-zinc-900/40">
+              <ClipboardCheck className="w-12 h-12 mx-auto mb-2 text-slate-300 dark:text-zinc-700" />
+              <p className="text-sm font-bold text-slate-700 dark:text-zinc-300">No hay inspecciones registradas todavía.</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                Los miembros del COPASST pueden iniciar rondas desde sus celulares escaneando el código QR o abriendo el formulario móvil.
+              </p>
+              <div className="mt-4 flex justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const compId = config?.companyId || '';
+                    if (compId) window.open(`/sgsst-public/copasst-inspecciones/${compId}`, '_blank');
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition-all"
+                >
+                  + Iniciar Primera Ronda de Inspección
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {inspecciones
+                .filter((insp) => {
+                  if (inspeccionFilter === 'criticas') {
+                    return (insp.hallazgos || []).some((h: any) => h.criticidad === 'critico');
+                  }
+                  if (inspeccionFilter === 'pendientes') {
+                    return (insp.hallazgos || []).some((h: any) => h.estado !== 'corregido');
+                  }
+                  if (inspeccionFilter === 'corregidas') {
+                    return insp.estadoInspeccion === 'cerrada' || (insp.hallazgos || []).every((h: any) => h.estado === 'corregido');
+                  }
+                  return true;
+                })
+                .map((insp) => {
+                  const pendientes = (insp.hallazgos || []).filter((h: any) => h.estado !== 'corregido').length;
+                  const corregidos = (insp.hallazgos || []).filter((h: any) => h.estado === 'corregido').length;
+
+                  return (
+                    <div
+                      key={insp._id}
+                      className="p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-xs font-black text-teal-600 dark:text-teal-400">
+                            {insp.consecutivo}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                              insp.semaforoGeneral === 'seguro'
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                : insp.semaforoGeneral === 'critico'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
+                                : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                            }`}
+                          >
+                            {insp.semaforoGeneral === 'seguro' ? '🟢 Seguro' : insp.semaforoGeneral === 'critico' ? '🔴 Crítico' : '🟡 Atención'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                            {insp.area} · <span className="font-normal text-slate-500">{insp.sede}</span>
+                          </h4>
+                          <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
+                            <span>{insp.tipoLabel || 'Inspección de Seguridad'}</span>
+                            <span>•</span>
+                            <span>{new Date(insp.fecha).toLocaleDateString('es-CO')}</span>
+                          </p>
+                        </div>
+
+                        <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 text-xs space-y-1">
+                          <div className="flex items-center justify-between text-slate-600 dark:text-zinc-300">
+                            <span>Inspector COPASST:</span>
+                            <span className="font-bold">{insp.inspector?.nombre || 'No especificado'}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-slate-600 dark:text-zinc-300">
+                            <span>Estado de Hallazgos:</span>
+                            <span className="font-bold">
+                              {(insp.hallazgos || []).length === 0 ? (
+                                <span className="text-emerald-600">Sin hallazgos anómalos</span>
+                              ) : (
+                                <span>
+                                  <span className="text-amber-600">{pendientes} pendientes</span> /{' '}
+                                  <span className="text-emerald-600">{corregidos} corregidos</span>
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          {insp.vinculadaActaId && (
+                            <div className="flex items-center justify-between text-[11px] text-teal-600 dark:text-teal-400 font-bold border-t border-slate-200/50 dark:border-zinc-700/50 pt-1 mt-1">
+                              <span>Vinculada al Acta:</span>
+                              <span>{insp.vinculadaActaId.consecutivo || 'Acta Oficial'}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Botones de Acción de Fila */}
+                      <div className="flex items-center justify-between gap-2 border-t border-slate-100 dark:border-zinc-800 pt-3">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedInspeccion(insp);
+                              setShowInspeccionModal(true);
+                            }}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 hover:bg-teal-100 transition-all active:scale-95"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Examinar y Subsanar</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isAnalyzingIa}
+                            onClick={async () => {
+                              try {
+                                setIsAnalyzingIa(true);
+                                const headers = { Authorization: `Bearer ${token}` };
+                                const resIa = await axios.post(
+                                  `/api/sgsst/copasst/inspecciones/${insp._id}/analizar-ia`,
+                                  {},
+                                  { headers }
+                                );
+                                showToast({ message: 'Dictamen de Tenshi IA generado exitosamente', status: 'success' });
+                                fetchAllData();
+                                setSelectedInspeccion({ ...insp, analisisIa: resIa.data?.analisisIa });
+                                setShowInspeccionModal(true);
+                              } catch (e: any) {
+                                showToast({ message: 'Error al generar análisis con IA', status: 'error' });
+                              } finally {
+                                setIsAnalyzingIa(false);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-xs transition-all active:scale-95"
+                            title="Analizar hallazgos y generar plan de acción con Tenshi IA"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>Tenshi IA</span>
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!window.confirm(`¿Estás seguro de eliminar la inspección ${insp.consecutivo}?`)) return;
+                            try {
+                              const headers = { Authorization: `Bearer ${token}` };
+                              await axios.delete(`/api/sgsst/copasst/inspecciones/${insp._id}`, { headers });
+                              showToast({ message: 'Inspección eliminada exitosamente', status: 'success' });
+                              fetchAllData();
+                            } catch (e: any) {
+                              showToast({ message: 'Error al eliminar inspección', status: 'error' });
+                            }
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+                          title="Eliminar inspección"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
       )}
 
@@ -2303,6 +2712,448 @@ export default function CopasstWorkspace({}: CopasstWorkspaceProps) {
                 variant="secondary"
                 title="Cerrar ventana de QR"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MODAL DETALLE Y SUBSANACIÓN DE INSPECCIÓN COPASST ═══ */}
+      {showInspeccionModal && selectedInspeccion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header del Modal */}
+            <div className="p-5 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-3 bg-slate-50/50 dark:bg-zinc-800/40">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 flex items-center justify-center text-teal-600">
+                  <ClipboardCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-black text-teal-600 dark:text-teal-400">
+                      {selectedInspeccion.consecutivo}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                        selectedInspeccion.semaforoGeneral === 'seguro'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : selectedInspeccion.semaforoGeneral === 'critico'
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {selectedInspeccion.semaforoGeneral === 'seguro' ? '🟢 Seguro' : selectedInspeccion.semaforoGeneral === 'critico' ? '🔴 Crítico' : '🟡 Atención'}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    {selectedInspeccion.area} · <span className="font-normal text-slate-500">{selectedInspeccion.sede}</span>
+                  </h3>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowInspeccionModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-zinc-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Input oculto para subir foto de subsanación */}
+            <input
+              type="file"
+              ref={inspeccionFileInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file || !activeCorregirHallazgoId || !selectedInspeccion) return;
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                  const b64 = reader.result as string;
+                  try {
+                    const headers = { Authorization: `Bearer ${token}` };
+                    const updatedHallazgos = (selectedInspeccion.hallazgos || []).map((h: any) => {
+                      if (h.id === activeCorregirHallazgoId || h._id === activeCorregirHallazgoId) {
+                        return { ...h, estado: 'corregido', fotoCorreccion: b64 };
+                      }
+                      return h;
+                    });
+                    const res = await axios.put(
+                      `/api/sgsst/copasst/inspecciones/${selectedInspeccion._id}`,
+                      { hallazgos: updatedHallazgos },
+                      { headers }
+                    );
+                    showToast({ message: 'Hallazgo marcado como corregido con evidencia', status: 'success' });
+                    setSelectedInspeccion(res.data.inspeccion);
+                    fetchAllData();
+                  } catch (err: any) {
+                    showToast({ message: 'Error al subsanar hallazgo', status: 'error' });
+                  } finally {
+                    setActiveCorregirHallazgoId(null);
+                    if (inspeccionFileInputRef.current) inspeccionFileInputRef.current.value = '';
+                  }
+                };
+                reader.readAsDataURL(file);
+              }}
+            />
+
+            {/* Contenido scrolleable */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+              {/* Metadatos */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800">
+                  <span className="text-[10px] text-slate-400 block">Tipo de Inspección</span>
+                  <span className="font-bold text-slate-800 dark:text-zinc-200">{selectedInspeccion.tipoLabel || 'Seguridad'}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800">
+                  <span className="text-[10px] text-slate-400 block">Fecha y Hora</span>
+                  <span className="font-bold text-slate-800 dark:text-zinc-200">
+                    {new Date(selectedInspeccion.fecha).toLocaleDateString('es-CO')} ({selectedInspeccion.hora || 'S/H'})
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800">
+                  <span className="text-[10px] text-slate-400 block">Inspector</span>
+                  <span className="font-bold text-slate-800 dark:text-zinc-200">{selectedInspeccion.inspector?.nombre || 'Inspector'}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800">
+                  <span className="text-[10px] text-slate-400 block">Rol del Inspector</span>
+                  <span className="font-bold text-teal-600">{selectedInspeccion.inspector?.rolComite || 'COPASST'}</span>
+                </div>
+              </div>
+
+              {/* Hallazgos y Evidencias */}
+              <div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-teal-600" />
+                    Hallazgos Registrados ({(selectedInspeccion.hallazgos || []).length})
+                  </span>
+                </h4>
+
+                {(selectedInspeccion.hallazgos || []).length === 0 ? (
+                  <div className="p-6 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800 text-center text-slate-400">
+                    Sin hallazgos anómalos reportados en esta inspección.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedInspeccion.hallazgos.map((h: any, idx: number) => {
+                      const isCorregido = h.estado === 'corregido';
+                      const hId = h.id || h._id;
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-4 rounded-2xl border transition-all ${
+                            isCorregido
+                              ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
+                              : 'bg-white dark:bg-zinc-800/50 border-slate-200 dark:border-zinc-700/80'
+                          }`}
+                        >
+                          <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
+                            <div className="flex-1 space-y-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900 dark:text-white">
+                                  #{idx + 1} {h.titulo || 'Hallazgo'}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                    h.criticidad === 'critico'
+                                      ? 'bg-red-100 text-red-700'
+                                      : h.criticidad === 'medio'
+                                      ? 'bg-amber-100 text-amber-700'
+                                      : 'bg-emerald-100 text-emerald-700'
+                                  }`}
+                                >
+                                  {h.criticidad}
+                                </span>
+                                {isCorregido ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                                    <CheckCircle2 className="w-3 h-3" /> Subsanado
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                                    Pendiente
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className="text-xs text-slate-700 dark:text-zinc-300">{h.descripcion}</p>
+
+                              {h.medidaSugerida && (
+                                <div className="text-[11px] text-teal-700 dark:text-teal-300 font-semibold bg-teal-50/60 dark:bg-teal-950/40 p-2 rounded-lg border border-teal-100 dark:border-teal-900/40">
+                                  💡 <strong>Medida propuesta:</strong> {h.medidaSugerida}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Fotos Antes / Después */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              {h.fotoEvidencia && (
+                                <div className="text-center">
+                                  <span className="text-[9px] font-bold text-slate-400 block mb-0.5">Evidencia</span>
+                                  <img
+                                    src={h.fotoEvidencia}
+                                    alt="Evidencia"
+                                    onClick={() => window.open(h.fotoEvidencia, '_blank')}
+                                    className="w-16 h-16 object-cover rounded-xl border border-slate-200 dark:border-zinc-700 cursor-pointer hover:scale-105 transition-transform"
+                                  />
+                                </div>
+                              )}
+
+                              {h.fotoCorreccion && (
+                                <div className="text-center">
+                                  <span className="text-[9px] font-bold text-emerald-600 block mb-0.5">Subsanado</span>
+                                  <img
+                                    src={h.fotoCorreccion}
+                                    alt="Corrección"
+                                    onClick={() => window.open(h.fotoCorreccion, '_blank')}
+                                    className="w-16 h-16 object-cover rounded-xl border-2 border-emerald-500 cursor-pointer hover:scale-105 transition-transform"
+                                  />
+                                </div>
+                              )}
+
+                              {!isCorregido && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveCorregirHallazgoId(hId);
+                                    inspeccionFileInputRef.current?.click();
+                                  }}
+                                  className="px-2.5 py-2 rounded-xl text-[11px] font-bold border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 flex flex-col items-center gap-1"
+                                >
+                                  <Camera className="w-3.5 h-3.5" />
+                                  <span>Subsanar</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Dictamen y Análisis de Tenshi IA */}
+              <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-amber-600" />
+                    Dictamen Técnico y Plan de Acción con Tenshi IA
+                  </h4>
+
+                  {selectedInspeccion.analisisIa && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedInspeccion.analisisIa);
+                        showToast({ message: 'Dictamen copiado al portapapeles', status: 'success' });
+                      }}
+                      className="px-2 py-1 rounded-md text-[10px] font-bold bg-white dark:bg-zinc-800 border border-amber-300 text-amber-800 dark:text-amber-200 hover:bg-amber-100 flex items-center gap-1"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>Copiar para el Acta</span>
+                    </button>
+                  )}
+                </div>
+
+                {selectedInspeccion.analisisIa ? (
+                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-900/80 border border-amber-200/50 dark:border-zinc-800 text-xs text-slate-700 dark:text-zinc-200 whitespace-pre-line leading-relaxed">
+                    {selectedInspeccion.analisisIa}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      Aún no has generado el dictamen con IA para esta inspección.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={isAnalyzingIa}
+                      onClick={async () => {
+                        try {
+                          setIsAnalyzingIa(true);
+                          const headers = { Authorization: `Bearer ${token}` };
+                          const resIa = await axios.post(
+                            `/api/sgsst/copasst/inspecciones/${selectedInspeccion._id}/analizar-ia`,
+                            {},
+                            { headers }
+                          );
+                          showToast({ message: 'Dictamen generado con éxito', status: 'success' });
+                          setSelectedInspeccion({ ...selectedInspeccion, analisisIa: resIa.data?.analisisIa });
+                          fetchAllData();
+                        } catch (e: any) {
+                          showToast({ message: 'Error al generar dictamen con IA', status: 'error' });
+                        } finally {
+                          setIsAnalyzingIa(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl font-bold text-xs bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 text-white shadow-xs"
+                    >
+                      {isAnalyzingIa ? 'Analizando...' : '✨ Generar Dictamen IA'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Firmas Digitales Estampadas */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-center">
+                  <span className="text-[10px] font-bold text-slate-400 block mb-1">
+                    Firma Inspector COPASST: {selectedInspeccion.inspector?.nombre}
+                  </span>
+                  {selectedInspeccion.inspector?.firma ? (
+                    <img src={selectedInspeccion.inspector.firma} alt="Firma" className="h-16 mx-auto object-contain" />
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">Sin firma registrada</span>
+                  )}
+                </div>
+
+                <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-center">
+                  <span className="text-[10px] font-bold text-slate-400 block mb-1">
+                    Responsable de Área: {selectedInspeccion.responsableArea?.nombre || 'No registrado'}
+                  </span>
+                  {selectedInspeccion.responsableArea?.firma ? (
+                    <img src={selectedInspeccion.responsableArea.firma} alt="Firma" className="h-16 mx-auto object-contain" />
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">Sin firma de responsable</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer del Modal */}
+            <div className="p-4 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between bg-slate-50/50 dark:bg-zinc-800/40">
+              <span className="text-[11px] text-slate-400 font-mono">
+                ID: {selectedInspeccion._id}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowInspeccionModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MODAL VINCULAR INSPECCIONES A UN ACTA DEL COPASST ═══ */}
+      {showVincularActaModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-2xl max-w-lg w-full p-6 space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-teal-600" />
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Vincular Inspecciones a un Acta Mensual
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVincularActaModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Selecciona el acta ordinaria del COPASST en la cual deseas consolidar los hallazgos y evidencias inspeccionadas (Punto 4 del Orden del Día: Estado de Inspecciones Planeadas):
+            </p>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                Selecciona el Acta Destino:
+              </label>
+              <select
+                value={targetActaIdToLink}
+                onChange={(e) => setTargetActaIdToLink(e.target.value)}
+                className="w-full text-xs font-semibold px-3 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              >
+                {actas.map((a) => (
+                  <option key={a._id} value={a._id}>
+                    {a.consecutivo} - Mes {a.mes}/{a.anio} ({new Date(a.fecha).toLocaleDateString('es-CO')})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                Inspecciones a Consolidar:
+              </label>
+              <div className="max-h-48 overflow-y-auto space-y-2 border border-slate-200 dark:border-zinc-800 rounded-xl p-2 bg-slate-50/50 dark:bg-zinc-800/40">
+                {inspecciones.map((insp) => {
+                  const isChecked = selectedInspeccionIdsToLink.includes(insp._id);
+                  return (
+                    <label
+                      key={insp._id}
+                      className="flex items-center gap-2 p-2 rounded-lg bg-white dark:bg-zinc-800 text-xs cursor-pointer hover:bg-slate-100"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedInspeccionIdsToLink([...selectedInspeccionIdsToLink, insp._id]);
+                          } else {
+                            setSelectedInspeccionIdsToLink(selectedInspeccionIdsToLink.filter((id) => id !== insp._id));
+                          }
+                        }}
+                        className="rounded text-teal-600 focus:ring-teal-500"
+                      />
+                      <span className="font-mono font-bold text-teal-600">{insp.consecutivo}</span>
+                      <span className="text-slate-600 dark:text-zinc-300">{insp.area} ({insp.tipoLabel})</span>
+                      <span className="text-slate-400 text-[10px] ml-auto">
+                        {(insp.hallazgos || []).length} hallazgos
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowVincularActaModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-zinc-700 text-slate-600"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                disabled={isLinkingActa || selectedInspeccionIdsToLink.length === 0}
+                onClick={async () => {
+                  try {
+                    setIsLinkingActa(true);
+                    const headers = { Authorization: `Bearer ${token}` };
+                    await axios.post(
+                      '/api/sgsst/copasst/inspecciones/vincular-acta',
+                      {
+                        inspeccionIds: selectedInspeccionIdsToLink,
+                        actaId: targetActaIdToLink,
+                      },
+                      { headers }
+                    );
+                    showToast({
+                      message: 'Inspecciones consolidadas exitosamente en el acta del mes',
+                      status: 'success',
+                    });
+                    setShowVincularActaModal(false);
+                    fetchAllData();
+                  } catch (e: any) {
+                    showToast({ message: 'Error al vincular inspecciones al acta', status: 'error' });
+                  } finally {
+                    setIsLinkingActa(false);
+                  }
+                }}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-sm disabled:opacity-50"
+              >
+                {isLinkingActa ? 'Vinculando...' : 'Consolidar e Insertar en el Acta'}
+              </button>
             </div>
           </div>
         </div>

@@ -18,20 +18,25 @@ export default function AmbassadorLandingBanner() {
   useEffect(() => {
     try {
       const searchParams = new URLSearchParams(location.search);
-      const urlRef = (searchParams.get('ref') || searchParams.get('referral') || '').trim();
+      const urlRef = (searchParams.get('ref') || searchParams.get('referral') || searchParams.get('r') || '').trim();
+      let storedRef = '';
+      try {
+        storedRef = (localStorage.getItem('wappy_ref') || sessionStorage.getItem('wappy_ref') || '').trim();
+      } catch (e) {}
 
-      if (!urlRef) {
+      const activeRef = urlRef || storedRef;
+
+      if (!activeRef) {
         setAmbassador(null);
-        try {
-          localStorage.removeItem('wappy_ref');
-        } catch (e) {}
         return;
       }
 
-      const activeRef = urlRef;
-      try {
-        localStorage.setItem('wappy_ref', activeRef);
-      } catch (e) {}
+      if (urlRef) {
+        try {
+          localStorage.setItem('wappy_ref', urlRef);
+          sessionStorage.setItem('wappy_ref', urlRef);
+        } catch (e) {}
+      }
 
       const formatSlugName = (slugStr: string) => {
         return slugStr
