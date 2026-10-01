@@ -19,6 +19,9 @@ import {
     ChevronUp,
     MapPin,
     Briefcase,
+    Building2,
+    Building,
+    Layers,
     AlertOctagon,
     ThumbsUp,
     Lightbulb,
@@ -29,39 +32,183 @@ import PublicWorkerHeader from './PublicWorkerHeader';
 import useWorkerSession from '~/hooks/useWorkerSession';
 import WorkerSessionBadge from './WorkerSessionBadge';
 
-const CHIPS_EFECTOS = [
-    { label: 'Caída de alturas', icon: '🧗' },
-    { label: 'Golpes / Fracturas', icon: '🔨' },
-    { label: 'Cortes / Heridas', icon: '🩹' },
-    { label: 'Atrapamiento en máquinas', icon: '⚙️' },
-    { label: 'Dolor de espalda / Esfuerzo', icon: '🏋️' },
-    { label: 'Descarga eléctrica', icon: '⚡' },
-    { label: 'Caída de objetos / Aplastamiento', icon: '🧱' },
-    { label: 'Inhalación de polvos / gases', icon: '😷' },
+// Ciudades principales de Colombia para el Centro de Trabajo
+const CIUDADES_COLOMBIA = [
+    'Bogotá D.C.',
+    'Medellín (Antioquia)',
+    'Cali (Valle del Cauca)',
+    'Barranquilla (Atlántico)',
+    'Cartagena (Bolívar)',
+    'Bucaramanga (Santander)',
+    'Cúcuta (Norte de Santander)',
+    'Pereira (Risaralda)',
+    'Santa Marta (Magdalena)',
+    'Ibagué (Tolima)',
+    'Manizales (Caldas)',
+    'Pasto (Nariño)',
+    'Villavicencio (Meta)',
+    'Montería (Córdoba)',
+    'Neiva (Huila)',
+    'Armenia (Quindío)',
+    'Popayán (Cauca)',
+    'Valledupar (Cesar)',
+    'Tunja (Boyacá)',
+    'Sincelejo (Sucre)',
+    'Riohacha (La Guajira)',
+    'Yopal (Casanare)',
+    'Florencia (Caquetá)',
+    'Quibdó (Chocó)',
+    'San Andrés Isla',
+    'Palmira (Valle)',
+    'Buenaventura (Valle)',
+    'Bello (Antioquia)',
+    'Itagüí (Antioquia)',
+    'Envigado (Antioquia)',
+    'Soacha (Cundinamarca)',
+    'Dosquebradas (Risaralda)',
+    'Floridablanca (Santander)',
+    'Barrancabermeja (Santander)',
+    'Duitama (Boyacá)',
+    'Sogamoso (Boyacá)',
+    'Rionegro (Antioquia)',
+    'Chía (Cundinamarca)',
+    'Zipaquirá (Cundinamarca)'
 ];
 
-function deducirClasificacionPeligro(peligroText: string, efectosText: string, actual: string): string {
-    const combined = `${peligroText} ${efectosText}`.toLowerCase();
-    if (combined.match(/andamio|altura|caída|caida|piso|escalera|tablón|tablon|máquina|maquina|polea|guarda|atrap|corte|herramienta|mecánic|mecanic|locativ|choque|volcam/)) {
-        return 'Condiciones de Seguridad';
+// Sugerencias para el Área (casilla manual)
+const SUGERENCIAS_AREA = [
+    'Auditoría y revisoría Fiscal',
+    'Servicios legales',
+    'BPO',
+    'Impuestos',
+    'Administración',
+    'Cumplimiento',
+    'Dirección',
+    'Operaciones / Producción',
+    'Mantenimiento e Infraestructura',
+    'Logística y Almacén',
+    'Comercial y Ventas',
+    'Talento Humano / SST',
+    'Tecnología y Sistemas',
+    'Financiera y Contable',
+    'Obras y Proyectos'
+];
+
+// Sugerencias para la Actividad (casilla manual)
+const SUGERENCIAS_ACTIVIDAD = [
+    'Administrativa',
+    'Operativa',
+    'Servicios generales',
+    'Mantenimiento a infraestructura',
+    'Atención al cliente / Ventas',
+    'Logística y mensajería',
+    'Auditoría y revisión',
+    'Obras civiles y campo'
+];
+
+// Sugerencias para la Tarea del PDF (casilla manual asistida)
+const SUGERENCIAS_TAREA = [
+    'Planificar, controlar y hacer seguimiento a actividades.',
+    'Digitar, elaborar informes, verificar datos.',
+    'Coordinar, dirigir y asignar funciones.',
+    'Atender clientes.',
+    'Labores administrativas, propias del ejercicio.',
+    'Diligencias administrativas, (mensajería).',
+    'Visitar empresas.',
+    'Limpieza de instalaciones.',
+    'Servicio de mantenimiento a infraestructura.',
+    'Cargue y descargue de materiales y suministros.'
+];
+
+// Catálogo GTC-45 Oficial del PDF (Preguntas 8 a 14)
+const CATALOGO_PELIGROS_GTC45: Record<string, { label: string; icon: string; items: string[] }> = {
+    'Biomecánicos': {
+        label: 'Biomecánicos',
+        icon: '🦴',
+        items: [
+            'Postura (prolongada mantenida, forzada, antigravitaciones)',
+            'Esfuerzo',
+            'Movimiento repetitivo',
+            'Manipulación manual de cargas (Levantamiento o tracción de cargas)'
+        ]
+    },
+    'Condiciones de Seguridad': {
+        label: 'Condiciones de Seguridad',
+        icon: '🦺',
+        items: [
+            'Mecánico (Herramienta manual de oficina / equipos)',
+            'Eléctrico: Baja tensión',
+            'Locativo: Superficies de trabajo, Mobiliario, Instalaciones, orden y aseo',
+            'Público: Robos, atracos, asaltos, atentados de orden público',
+            'Accidentes de tránsito',
+            'Tecnológico: Incendio',
+            'Alturas: caída libre / distintos niveles'
+        ]
+    },
+    'Físico': {
+        label: 'Físico',
+        icon: '🔊',
+        items: [
+            'Ruido (De impacto, continuo)',
+            'Iluminación deficiente o excesiva',
+            'Temperaturas Extremas (Calor o frío)',
+            'Radiaciones no ionizantes (Rayos ultravioletas)'
+        ]
+    },
+    'Biológico': {
+        label: 'Biológico',
+        icon: '🦠',
+        items: [
+            'Virus (Coronavirus / virus respiratorios)',
+            'Bacterias',
+            'Hongos',
+            'Parásitos',
+            'Picaduras'
+        ]
+    },
+    'Psicosociales': {
+        label: 'Psicosociales',
+        icon: '🧠',
+        items: [
+            'Relaciones humanas: Relación con jefe y compañeros',
+            'Condiciones de la tarea (Comunicación, tecnología, organización del trabajo)',
+            'Gestión organizacional (Remuneración, estilo de mando, contratación, participación, manejo de cambios)'
+        ]
+    },
+    'Químico': {
+        label: 'Químico',
+        icon: '🧪',
+        items: [
+            'Polvos (orgánicos e inorgánicos)',
+            'Líquidos (nieblas y rocíos)'
+        ]
+    },
+    'Fenómenos Naturales': {
+        label: 'Fenómenos Naturales',
+        icon: '⛈️',
+        items: [
+            'Tormenta eléctrica',
+            'Sismo',
+            'Vendaval',
+            'Inundación'
+        ]
     }
-    if (combined.match(/carga|peso|bulto|espalda|lumbar|postura|fuerza|ergonóm|ergonom|biomecán|biomecan/)) {
-        return 'Biomecánico';
-    }
-    if (combined.match(/ruido|calor|frío|frio|temperatura|vibrac|iluminac|sol|uv/)) {
-        return 'Físico';
-    }
-    if (combined.match(/químic|quimic|polvo|cemento|humo|gas|vapor|solvente|pintura/)) {
-        return 'Químico';
-    }
-    if (combined.match(/estrés|estres|sobrecarga|turno|acoso|fatiga/)) {
-        return 'Psicosocial';
-    }
-    if (combined.match(/virus|bacteria|hongo|picadura|animal|infecc/)) {
-        return 'Biológico';
-    }
-    return actual || 'Condiciones de Seguridad';
-}
+};
+
+const CHIPS_EFECTOS = [
+    { label: 'Fatiga / Dolor lumbar / Espalda', icon: '🏋️' },
+    { label: 'Túnel del carpo / Lesión repetitiva', icon: '🖐️' },
+    { label: 'Estrés laboral / Agotamiento', icon: '🧠' },
+    { label: 'Caída de alturas / Distinto nivel', icon: '🧗' },
+    { label: 'Golpes / Fracturas / Traumatismo', icon: '🔨' },
+    { label: 'Cortes / Heridas con herramientas', icon: '🩹' },
+    { label: 'Atrapamiento en equipos o muebles', icon: '⚙️' },
+    { label: 'Descarga eléctrica / Contacto', icon: '⚡' },
+    { label: 'Fatiga visual / Cefalea por luz', icon: '👁️' },
+    { label: 'Hipoacusia / Molestia por ruido', icon: '🔊' },
+    { label: 'Alergias / Inhalación de polvo', icon: '😷' },
+    { label: 'Accidente de tránsito en diligencia', icon: '🚗' },
+];
 
 export default function PublicParticipacionIPEVAR() {
     const { companyId } = useParams<{ companyId: string }>();
@@ -72,29 +219,40 @@ export default function PublicParticipacionIPEVAR() {
     const [loadingCompany, setLoadingCompany] = useState(true);
     const [step, setStep] = useState(1);
     
-    // Form State - Identificación
+    // Form State - Identificación y Ubicación
     const [nombre, setNombre] = useState('');
     const [cedula, setCedula] = useState('');
+    const [centroTrabajo, setCentroTrabajo] = useState('Bogotá D.C.');
+    const [otraCiudad, setOtraCiudad] = useState('');
+    const [area, setArea] = useState('');
+    const [cargo, setCargo] = useState('');
 
     // Auto-advance if authenticated worker arrives
     useEffect(() => {
         if (isAuthenticated && worker) {
-            setNombre(worker.nombre);
-            setCedula(worker.cedula);
+            setNombre(worker.nombre || '');
+            setCedula(worker.cedula || '');
+            if (worker.cargo) setCargo(worker.cargo);
+            if ((worker as any).area) setArea((worker as any).area);
+            if ((worker as any).centroTrabajo || (worker as any).ciudad) {
+                setCentroTrabajo((worker as any).centroTrabajo || (worker as any).ciudad);
+            }
             setStep((prev) => (prev === 1 ? 2 : prev));
         }
     }, [isAuthenticated, worker]);
     
-    // Step 2 Data - Lugar y Peligro
-    const [proceso, setProceso] = useState('');
+    // Step 2 Data - Lugar, Actividad, Tarea y Peligros
     const [zona, setZona] = useState('');
     const [actividad, setActividad] = useState('');
     const [tarea, setTarea] = useState('');
     const [rutinaria, setRutinaria] = useState<'Sí' | 'No'>('Sí');
+    
+    // GTC-45 Catálogo del PDF
+    const [categoriaPeligroActiva, setCategoriaPeligroActiva] = useState<string>('Biomecánicos');
+    const [factoresSeleccionados, setFactoresSeleccionados] = useState<string[]>([]);
     const [peligros, setPeligros] = useState('');
-    const [efectosPosibles, setEfectosPosibles] = useState('');
+    const [consecuencias, setConsecuencias] = useState('');
     const [severidadPercibida, setSeveridadPercibida] = useState<'Baja' | 'Media' | 'Alta' | 'Crítica'>('Media');
-    const [peligroClasificacion, setPeligroClasificacion] = useState('Condiciones de Seguridad');
     
     // Evidencia Fotográfica
     const [images, setImages] = useState<{ [key: string]: string | null }>({
@@ -103,17 +261,9 @@ export default function PublicParticipacionIPEVAR() {
         foto3: null
     });
 
-    // Step 3 Data - Protección y Solución
+    // Step 3 Data - Sustitución de Controles: Solo 2 Descripciones
     const [controlesExistentes, setControlesExistentes] = useState('');
-    const [suficientes, setSuficientes] = useState(false);
-    const [propuestaMejora, setPropuestaMejora] = useState('');
-    
-    // Desglose técnico avanzado (opcional)
-    const [showAdvancedHierarchy, setShowAdvancedHierarchy] = useState(false);
-    const [sugeridoEliminacion, setSugeridoEliminacion] = useState('');
-    const [sugeridoIngenieria, setSugeridoIngenieria] = useState('');
-    const [sugeridoAdministrativo, setSugeridoAdministrativo] = useState('');
-    const [sugeridoEPP, setSugeridoEPP] = useState('');
+    const [propuestaControl, setPropuestaControl] = useState('');
     
     // Estado de envío y voz
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -122,7 +272,7 @@ export default function PublicParticipacionIPEVAR() {
 
     // Reconocimiento de Voz
     const [isListening, setIsListening] = useState(false);
-    const [activeVoiceField, setActiveVoiceField] = useState<'peligros' | 'controlesExistentes' | 'propuestaMejora' | null>(null);
+    const [activeVoiceField, setActiveVoiceField] = useState<'peligros' | 'consecuencias' | 'controlesExistentes' | 'propuestaMejora' | null>(null);
     const recognitionRef = useRef<any>(null);
 
     useEffect(() => {
@@ -176,7 +326,7 @@ export default function PublicParticipacionIPEVAR() {
         setImages(prev => ({ ...prev, [field]: null }));
     };
 
-    const startVoiceDictation = (field: 'peligros' | 'controlesExistentes' | 'propuestaMejora') => {
+    const startVoiceDictation = (field: 'peligros' | 'consecuencias' | 'controlesExistentes' | 'propuestaMejora') => {
         // @ts-ignore
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
@@ -215,10 +365,12 @@ export default function PublicParticipacionIPEVAR() {
                 if (finalTrans) {
                     if (field === 'peligros') {
                         setPeligros(prev => (prev ? `${prev.trim()} ${finalTrans.trim()}` : finalTrans.trim()));
+                    } else if (field === 'consecuencias') {
+                        setConsecuencias(prev => (prev ? `${prev.trim()} ${finalTrans.trim()}` : finalTrans.trim()));
                     } else if (field === 'controlesExistentes') {
                         setControlesExistentes(prev => (prev ? `${prev.trim()} ${finalTrans.trim()}` : finalTrans.trim()));
                     } else if (field === 'propuestaMejora') {
-                        setPropuestaMejora(prev => (prev ? `${prev.trim()} ${finalTrans.trim()}` : finalTrans.trim()));
+                        setPropuestaControl(prev => (prev ? `${prev.trim()} ${finalTrans.trim()}` : finalTrans.trim()));
                     }
                 }
             };
@@ -241,7 +393,7 @@ export default function PublicParticipacionIPEVAR() {
     };
 
     const toggleEfectoChip = (label: string) => {
-        setEfectosPosibles(prev => {
+        setConsecuencias(prev => {
             if (!prev) return label;
             if (prev.includes(label)) {
                 return prev.replace(label, '').replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '').trim();
@@ -286,21 +438,34 @@ export default function PublicParticipacionIPEVAR() {
 
     const validateStep2 = () => {
         if (!zona.trim()) {
-            alert("Por favor indica el lugar o zona donde trabajas (ej: Torre 2 - Piso 4).");
+            alert("Por favor indica el lugar o zona donde trabajas.");
+            return;
+        }
+        if (!actividad.trim()) {
+            alert("Por favor indica la actividad relacionada a tu función.");
             return;
         }
         if (!tarea.trim()) {
-            alert("Por favor indica la labor o trabajo que estabas realizando.");
+            alert("Por favor indica la tarea recurrente que realizas.");
             return;
         }
-        if (!peligros.trim()) {
-            alert("Por favor describe el peligro o condición insegura que observaste.");
+        if (factoresSeleccionados.length === 0 && !peligros.trim()) {
+            alert("Por favor selecciona al menos un factor de peligro o describe la condición observada.");
             return;
         }
         setStep(3);
     };
 
     async function handleSubmit() {
+        if (!controlesExistentes.trim()) {
+            alert("Por favor completa los Controles Existentes (lo que hace la empresa actualmente).");
+            return;
+        }
+        if (!propuestaControl.trim()) {
+            alert("Por favor completa tu Propuesta de Control (lo que consideras necesario implementar).");
+            return;
+        }
+
         if (isListening && recognitionRef.current) {
             try { recognitionRef.current.stop(); } catch (e) {}
             setIsListening(false);
@@ -309,29 +474,42 @@ export default function PublicParticipacionIPEVAR() {
         setIsSubmitting(true);
         setSubmitResult(null);
 
-        const clasificacionCalculada = deducirClasificacionPeligro(peligros, efectosPosibles, peligroClasificacion);
+        const ciudadFinal = centroTrabajo === 'Otra' && otraCiudad.trim() ? otraCiudad.trim() : centroTrabajo;
+
+        const textoPeligrosFinal = [
+            factoresSeleccionados.length > 0 ? `Factores identificados (${categoriaPeligroActiva}): ${factoresSeleccionados.join(', ')}.` : '',
+            peligros.trim()
+        ].filter(Boolean).join(' ');
 
         try {
             const payload = {
                 cedula,
                 nombre,
                 data: {
-                    proceso: proceso.trim() || (worker?.cargo ? `Operativo / ${worker.cargo}` : 'Operativo / Obra Civil'),
+                    fecha: new Date().toISOString(),
+                    centroTrabajo: ciudadFinal,
+                    area: area.trim(),
+                    cargo: cargo.trim() || worker?.cargo || '',
+                    proceso: area.trim() || 'General',
                     zona: zona.trim(),
-                    actividad: actividad.trim() || tarea.trim(),
+                    actividad: actividad.trim(),
                     tarea: tarea.trim(),
                     rutinaria,
-                    peligroClasificacion: clasificacionCalculada,
-                    peligros: peligros.trim(),
-                    efectosPosibles: efectosPosibles.trim() || 'Riesgo de accidente con incapacidad',
+                    peligroClasificacion: categoriaPeligroActiva,
+                    factoresSeleccionados,
+                    peligros: textoPeligrosFinal,
+                    consecuencias: consecuencias.trim(),
+                    efectosPosibles: consecuencias.trim() || 'Riesgo de accidente o afectación de salud',
                     severidadPercibida,
                     ...images,
-                    controlesExistentes: controlesExistentes.trim() || 'Sin controles específicos observados',
-                    suficientes,
-                    sugeridoEliminacion: sugeridoEliminacion.trim(),
-                    sugeridoIngenieria: propuestaMejora.trim() || sugeridoIngenieria.trim(),
-                    sugeridoAdministrativo: sugeridoAdministrativo.trim(),
-                    sugeridoEPP: sugeridoEPP.trim()
+                    controlesExistentes: controlesExistentes.trim(),
+                    suficientes: true,
+                    propuestaMejora: propuestaControl.trim(),
+                    // Campos de compatibilidad interna para que la matriz general mantenga coherencia:
+                    sugeridoIngenieria: propuestaControl.trim(),
+                    sugeridoEliminacion: '',
+                    sugeridoAdministrativo: '',
+                    sugeridoEPP: ''
                 }
             };
             const targetCompanyId = company?._id || companyId;
@@ -389,9 +567,9 @@ export default function PublicParticipacionIPEVAR() {
                         ></div>
                         
                         {[
-                            { num: 1, label: 'Identidad' },
-                            { num: 2, label: 'Peligro' },
-                            { num: 3, label: 'Solución' }
+                            { num: 1, label: 'Identidad y Ubicación' },
+                            { num: 2, label: 'Peligro GTC-45' },
+                            { num: 3, label: 'Controles y Solución' }
                         ].map(({ num, label }) => (
                             <div key={num} className="flex flex-col items-center gap-1 bg-slate-50 dark:bg-slate-950 px-2">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${
@@ -414,7 +592,7 @@ export default function PublicParticipacionIPEVAR() {
                 {/* Wizard Container */}
                 <div className="bg-surface-primary dark:bg-zinc-900 rounded-3xl p-5 sm:p-6 shadow-xl border border-border-medium flex-1 relative overflow-hidden flex flex-col">
                     
-                    {/* ────────────────── STEP 1: IDENTIFICACIÓN ────────────────── */}
+                    {/* ────────────────── STEP 1: IDENTIFICACIÓN Y UBICACIÓN ────────────────── */}
                     {step === 1 && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col h-full">
                             <div className="flex items-center gap-2 flex-wrap mb-3">
@@ -422,36 +600,36 @@ export default function PublicParticipacionIPEVAR() {
                                     <Award className="w-3.5 h-3.5" /> +150 pts Pasaporte SST
                                 </span>
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 text-[10px] font-bold border border-border-medium">
-                                    Dec. 1072/15 Art. 2.2.4.6.15
+                                    GTC-45 / Dec. 1072
                                 </span>
                             </div>
 
-                            <div className="mb-5 flex items-center gap-3 text-teal-600 dark:text-teal-400">
+                            <div className="mb-4 flex items-center gap-3 text-teal-600 dark:text-teal-400">
                                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-teal-600 to-teal-700 flex items-center justify-center text-white shadow-md shadow-teal-600/20">
                                     <UserCircle className="w-7 h-7" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-black text-text-primary leading-tight">Reportar Peligro</h2>
-                                    <p className="text-xs text-text-secondary">Tu reporte ayuda a prevenir accidentes en el trabajo</p>
+                                    <h2 className="text-xl font-black text-text-primary leading-tight">Actualización Matriz de Peligros</h2>
+                                    <p className="text-xs text-text-secondary">Identificación y reporte de condiciones de trabajo (GTC-45)</p>
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
+                            <div className="space-y-3.5 overflow-y-auto pr-1 flex-1">
                                 <div>
-                                    <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1.5">
-                                        Nombre Completo
+                                    <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                                        Nombre y Apellidos *
                                     </label>
                                     <input 
                                         type="text" 
                                         className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium" 
-                                        placeholder="Ej: Carlos Pérez"
+                                        placeholder="Ej: Carlos Alberto Ramírez"
                                         value={nombre}
                                         onChange={(e) => setNombre(e.target.value)}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-2">
-                                        <Key className="w-4 h-4 text-teal-600" /> Cédula de Ciudadanía
+                                    <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1 flex items-center gap-2">
+                                        <Key className="w-4 h-4 text-teal-600" /> No. de Documento (Cédula) *
                                     </label>
                                     <input 
                                         type="number" 
@@ -461,16 +639,81 @@ export default function PublicParticipacionIPEVAR() {
                                         onChange={(e) => setCedula(e.target.value)}
                                     />
                                 </div>
+
+                                {/* Centro de Trabajo (Ciudades Principales de Colombia) */}
+                                <div>
+                                    <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                        <Building2 className="w-3.5 h-3.5 text-teal-600" /> Centro de Trabajo (Ciudad / Sede) *
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            value={centroTrabajo}
+                                            onChange={(e) => setCentroTrabajo(e.target.value)}
+                                            className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all font-medium appearance-none cursor-pointer"
+                                        >
+                                            {CIUDADES_COLOMBIA.map((ciudad) => (
+                                                <option key={ciudad} value={ciudad}>
+                                                    {ciudad}
+                                                </option>
+                                            ))}
+                                            <option value="Otra">Otra ciudad / Sede específica...</option>
+                                        </select>
+                                        <ChevronDown className="w-4 h-4 text-text-secondary absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    </div>
+                                    {centroTrabajo === 'Otra' && (
+                                        <input
+                                            type="text"
+                                            placeholder="Escribe el nombre de la ciudad o sede"
+                                            value={otraCiudad}
+                                            onChange={(e) => setOtraCiudad(e.target.value)}
+                                            className="w-full mt-2 rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 text-text-primary px-4 py-2.5 text-sm font-medium"
+                                        />
+                                    )}
+                                </div>
+
+                                {/* Área (Casilla manual) */}
+                                <div>
+                                    <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                        <Building className="w-3.5 h-3.5 text-teal-600" /> Área a la que pertenece *
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        list="lista-areas-sugeridas"
+                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium" 
+                                        placeholder="Ej: Auditoría y revisoría Fiscal, Impuestos, Operaciones..."
+                                        value={area}
+                                        onChange={(e) => setArea(e.target.value)}
+                                    />
+                                    <datalist id="lista-areas-sugeridas">
+                                        {SUGERENCIAS_AREA.map((sug, i) => (
+                                            <option key={i} value={sug} />
+                                        ))}
+                                    </datalist>
+                                </div>
+
+                                {/* Cargo */}
+                                <div>
+                                    <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                        <Briefcase className="w-3.5 h-3.5 text-teal-600" /> Cargo *
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium" 
+                                        placeholder="Ej: Auditor Senior, Auxiliar Administrativo, Analista..."
+                                        value={cargo}
+                                        onChange={(e) => setCargo(e.target.value)}
+                                    />
+                                </div>
                             </div>
                             
                             {submitResult && !submitResult.success && step === 1 && (
-                                <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-950/40 border-l-4 border-rose-500 text-xs text-rose-700 dark:text-rose-300 rounded-r border-y border-r border-rose-200 dark:border-rose-800">
+                                <div className="mt-3 p-3 bg-rose-50 dark:bg-rose-950/40 border-l-4 border-rose-500 text-xs text-rose-700 dark:text-rose-300 rounded-r border-y border-r border-rose-200 dark:border-rose-800">
                                     <strong className="block mb-1">Autorización Denegada</strong>
                                     {submitResult.message}
                                 </div>
                             )}
 
-                            <div className="mt-auto pt-6">
+                            <div className="mt-auto pt-4">
                                 <button 
                                     onClick={validateIdentity}
                                     disabled={isValidatingWorker}
@@ -482,7 +725,7 @@ export default function PublicParticipacionIPEVAR() {
                                         </>
                                     ) : (
                                         <>
-                                            <span>Comenzar Reporte</span>
+                                            <span>Comenzar Participación</span>
                                             <ArrowRight className="w-4 h-4" />
                                         </>
                                     )}
@@ -498,7 +741,7 @@ export default function PublicParticipacionIPEVAR() {
                                 <WorkerSessionBadge
                                     nombre={nombre}
                                     cedula={cedula}
-                                    cargo={worker?.cargo}
+                                    cargo={cargo || worker?.cargo}
                                     companyName={company?.companyName}
                                     onClear={() => {
                                         clearSession();
@@ -515,14 +758,14 @@ export default function PublicParticipacionIPEVAR() {
                                     <AlertOctagon className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h2 className="text-base font-extrabold text-text-primary leading-tight">¿Qué peligro o riesgo viste?</h2>
-                                    <p className="text-[11px] text-text-secondary">Cuéntanos con tus propias palabras o con tu voz</p>
+                                    <h2 className="text-base font-extrabold text-text-primary leading-tight">Identificación de Peligros (GTC-45)</h2>
+                                    <p className="text-[11px] text-text-secondary">Selecciona los factores que aplican a tu actividad y describe la situación</p>
                                 </div>
                             </div>
                             
                             <div className="space-y-3.5 overflow-y-auto pr-1 flex-1 pb-2 text-xs">
                                 
-                                {/* Lugar y Labor */}
+                                {/* Lugar y Actividad (Manuales) */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                     <div>
                                         <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1 flex items-center gap-1">
@@ -531,35 +774,77 @@ export default function PublicParticipacionIPEVAR() {
                                         <input 
                                             type="text" 
                                             list="zonas-sugeridas"
-                                            placeholder="Ej: Torre 2 - Piso 4, Bodega, Taller..." 
+                                            placeholder="Ej: Oficina 402, Archivo central, Bodega..." 
                                             value={zona} 
                                             onChange={e => setZona(e.target.value)} 
                                             className="w-full border border-border-medium rounded-xl text-xs bg-surface-secondary/40 py-2.5 px-3 focus:ring-2 focus:ring-teal-500 text-text-primary font-medium" 
                                         />
                                         <datalist id="zonas-sugeridas">
-                                            <option value="Torre 2 - Piso 4" />
-                                            <option value="Planta Principal" />
+                                            <option value="Oficina Principal" />
+                                            <option value="Área de Sistemas / Servidores" />
+                                            <option value="Archivo y Documentación" />
+                                            <option value="Recepción / Atención al Público" />
                                             <option value="Bodega / Almacén" />
-                                            <option value="Taller de Mantenimiento" />
-                                            <option value="Fachada Exterior" />
-                                            <option value="Área de Vaciado de Concreto" />
+                                            <option value="Puesto de Trabajo Remoto / Casa" />
+                                            <option value="Trabajo de Campo / Visita a Clientes" />
                                         </datalist>
                                     </div>
 
                                     <div>
                                         <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1 flex items-center gap-1">
-                                            <Briefcase className="w-3 h-3 text-teal-600" /> ¿Qué trabajo realizabas? *
+                                            <Layers className="w-3 h-3 text-teal-600" /> Actividad (Relacionada a su función) *
                                         </label>
                                         <input 
                                             type="text" 
-                                            placeholder="Ej: Vaciado de mezcla sobre andamio..." 
-                                            value={tarea} 
-                                            onChange={e => {
-                                                setTarea(e.target.value);
-                                                if (!actividad) setActividad(e.target.value);
-                                            }} 
+                                            list="actividades-sugeridas"
+                                            placeholder="Ej: Administrativa, Operativa, Servicios generales..." 
+                                            value={actividad} 
+                                            onChange={e => setActividad(e.target.value)} 
                                             className="w-full border border-border-medium rounded-xl text-xs bg-surface-secondary/40 py-2.5 px-3 focus:ring-2 focus:ring-teal-500 text-text-primary font-medium" 
                                         />
+                                        <datalist id="actividades-sugeridas">
+                                            {SUGERENCIAS_ACTIVIDAD.map((act, i) => (
+                                                <option key={i} value={act} />
+                                            ))}
+                                        </datalist>
+                                    </div>
+                                </div>
+
+                                {/* TAREA (Casilla manual con sugerencias del PDF) */}
+                                <div>
+                                    <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1 flex items-center gap-1">
+                                        <Briefcase className="w-3 h-3 text-teal-600" /> Tarea (Seleccione o escriba la más recurrente) *
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        list="tareas-sugeridas"
+                                        placeholder="Ej: Digitar, elaborar informes, verificar datos..." 
+                                        value={tarea} 
+                                        onChange={e => setTarea(e.target.value)} 
+                                        className="w-full border border-border-medium rounded-xl text-xs bg-surface-secondary/40 py-2.5 px-3 focus:ring-2 focus:ring-teal-500 text-text-primary font-medium mb-1.5" 
+                                    />
+                                    <datalist id="tareas-sugeridas">
+                                        {SUGERENCIAS_TAREA.map((tar, i) => (
+                                            <option key={i} value={tar} />
+                                        ))}
+                                    </datalist>
+                                    
+                                    {/* Botones de selección rápida del PDF */}
+                                    <div className="flex flex-wrap gap-1">
+                                        {SUGERENCIAS_TAREA.slice(0, 5).map((sug, i) => (
+                                            <button
+                                                key={i}
+                                                type="button"
+                                                onClick={() => setTarea(sug)}
+                                                className={`px-2 py-0.5 rounded-md text-[10px] font-medium border transition-all cursor-pointer ${
+                                                    tarea === sug
+                                                        ? 'bg-teal-50 dark:bg-teal-950/60 border-teal-500 text-teal-700 dark:text-teal-300 font-bold'
+                                                        : 'bg-surface-secondary/60 border-border-medium text-text-secondary hover:border-teal-400'
+                                                }`}
+                                            >
+                                                {sug.split(',')[0]}...
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
 
@@ -594,6 +879,78 @@ export default function PublicParticipacionIPEVAR() {
                                     </div>
                                 </div>
 
+                                {/* PELIGROS Y FACTORES DE RIESGO: Catálogo GTC-45 del PDF */}
+                                <div className="pt-2 border-t border-border-medium/60">
+                                    <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Clasificación del Peligro (GTC-45) *
+                                    </label>
+                                    {/* Selector de Familias de Peligro */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mb-2.5">
+                                        {Object.keys(CATALOGO_PELIGROS_GTC45).map((catKey) => {
+                                            const cat = CATALOGO_PELIGROS_GTC45[catKey];
+                                            const isSelected = categoriaPeligroActiva === catKey;
+                                            const countSelectedInCat = factoresSeleccionados.filter(f => cat.items.includes(f)).length;
+                                            return (
+                                                <button
+                                                    key={catKey}
+                                                    type="button"
+                                                    onClick={() => setCategoriaPeligroActiva(catKey)}
+                                                    className={`p-2 rounded-xl border text-left transition-all active:scale-95 flex items-center justify-between cursor-pointer ${
+                                                        isSelected
+                                                            ? 'bg-teal-50 dark:bg-teal-950/60 border-teal-500 text-teal-800 dark:text-teal-200 font-bold shadow-xs'
+                                                            : 'bg-surface-secondary/40 border-border-medium text-text-secondary hover:bg-surface-hover'
+                                                    }`}
+                                                >
+                                                    <span className="flex items-center gap-1.5 truncate">
+                                                        <span>{cat.icon}</span>
+                                                        <span className="text-[10px] font-bold truncate">{cat.label}</span>
+                                                    </span>
+                                                    {countSelectedInCat > 0 && (
+                                                        <span className="w-4 h-4 rounded-full bg-teal-600 text-white text-[9px] font-black flex items-center justify-center shrink-0">
+                                                            {countSelectedInCat}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Factores específicos de la familia seleccionada (Casillas interactivas del PDF) */}
+                                    <div className="p-3 bg-teal-50/30 dark:bg-teal-950/20 border border-teal-200/60 dark:border-teal-800/40 rounded-2xl mb-3 space-y-1.5">
+                                        <p className="text-[10px] font-black uppercase tracking-wider text-teal-800 dark:text-teal-300 mb-1 flex items-center gap-1">
+                                            <span>{CATALOGO_PELIGROS_GTC45[categoriaPeligroActiva]?.icon}</span>
+                                            <span>Factores específicos: {CATALOGO_PELIGROS_GTC45[categoriaPeligroActiva]?.label}</span>
+                                        </p>
+                                        <div className="space-y-1.5">
+                                            {CATALOGO_PELIGROS_GTC45[categoriaPeligroActiva]?.items.map((item, idx) => {
+                                                const isChecked = factoresSeleccionados.includes(item);
+                                                return (
+                                                    <label
+                                                        key={idx}
+                                                        className={`flex items-start gap-2.5 p-2 rounded-xl border transition-all cursor-pointer ${
+                                                            isChecked
+                                                                ? 'bg-teal-100/70 dark:bg-teal-900/50 border-teal-400 text-teal-900 dark:text-teal-100 font-semibold shadow-2xs'
+                                                                : 'bg-surface-primary dark:bg-zinc-800/80 border-border-medium/70 text-text-secondary hover:bg-surface-hover'
+                                                        }`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isChecked}
+                                                            onChange={() => {
+                                                                setFactoresSeleccionados(prev => 
+                                                                    prev.includes(item) ? prev.filter(f => f !== item) : [...prev, item]
+                                                                );
+                                                            }}
+                                                            className="mt-0.5 rounded text-teal-600 focus:ring-teal-500 w-4 h-4"
+                                                        />
+                                                        <span className="text-[11px] leading-tight flex-1">{item}</span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {/* Descripción del Peligro con Dictado de Voz */}
                                 <div>
                                     <div className="flex items-center justify-between mb-1">
@@ -611,7 +968,7 @@ export default function PublicParticipacionIPEVAR() {
                                         >
                                             {isListening && activeVoiceField === 'peligros' ? (
                                                 <>
-                                                    <MicOff className="w-3.5 h-3.5 animate-spin" /> Escuchando... (Tocar para parar)
+                                                    <MicOff className="w-3.5 h-3.5 animate-spin" /> Escuchando...
                                                 </>
                                             ) : (
                                                 <>
@@ -623,26 +980,35 @@ export default function PublicParticipacionIPEVAR() {
                                     <textarea 
                                         rows={3} 
                                         className="w-full border border-border-medium rounded-xl bg-surface-secondary/40 text-xs p-3 focus:ring-2 focus:ring-teal-500 text-text-primary resize-none font-medium leading-relaxed placeholder:text-text-tertiary" 
-                                        placeholder="Ej: La plataforma del andamio no tiene pasadores de seguridad y los tablones se mueven al caminar cargando baldes con mezcla..."
+                                        placeholder="Ej: La silla de trabajo tiene el espaldar vencido y la pantalla del computador genera reflejos molestos en los ojos..."
                                         value={peligros}
                                         onChange={e => setPeligros(e.target.value)}
                                     ></textarea>
                                 </div>
 
-                                {/* Daño o Efectos Posibles con Chips Rápidos */}
+                                {/* Consecuencias (Pregunta 17 del PDF) */}
                                 <div>
-                                    <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1.5">
-                                        ¿Qué podría pasar si no se controla? (Toca los que apliquen)
-                                    </label>
-                                    <div className="flex flex-wrap gap-1.5 mb-2">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider">
+                                            Consecuencias: posibles daños causados por la actividad *
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={() => startVoiceDictation('consecuencias')}
+                                            className="text-[10px] font-bold text-teal-600 hover:underline flex items-center gap-1 cursor-pointer"
+                                        >
+                                            <Mic className="w-3 h-3" /> Dictar
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1 mb-2">
                                         {CHIPS_EFECTOS.map(({ label, icon }) => {
-                                            const isSelected = efectosPosibles.includes(label);
+                                            const isSelected = consecuencias.includes(label);
                                             return (
                                                 <button
                                                     key={label}
                                                     type="button"
                                                     onClick={() => toggleEfectoChip(label)}
-                                                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all active:scale-95 flex items-center gap-1 cursor-pointer ${
+                                                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all active:scale-95 flex items-center gap-1 cursor-pointer ${
                                                         isSelected
                                                             ? 'bg-teal-600 text-white border-teal-600 shadow-2xs'
                                                             : 'bg-surface-secondary/80 border-border-medium text-text-secondary hover:border-teal-400'
@@ -656,9 +1022,9 @@ export default function PublicParticipacionIPEVAR() {
                                     </div>
                                     <input 
                                         type="text" 
-                                        placeholder="O escribe otros efectos: ej: Caída de altura (piso 4), golpe en la cabeza..." 
-                                        value={efectosPosibles} 
-                                        onChange={e => setEfectosPosibles(e.target.value)} 
+                                        placeholder="O escribe otras consecuencias: ej: Fatiga visual, dolor en cuello y hombros..." 
+                                        value={consecuencias} 
+                                        onChange={e => setConsecuencias(e.target.value)} 
                                         className="w-full border border-border-medium rounded-xl text-xs bg-surface-secondary/40 py-2 px-3 focus:ring-2 focus:ring-teal-500 text-text-primary font-medium" 
                                     />
                                 </div>
@@ -749,33 +1115,33 @@ export default function PublicParticipacionIPEVAR() {
                                     onClick={validateStep2} 
                                     className="flex-1 py-3 px-6 rounded-2xl font-bold bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md active:scale-95 transition-all text-xs flex items-center justify-center gap-2 cursor-pointer"
                                 >
-                                    <span>Continuar: Protección y Solución</span>
+                                    <span>Continuar: Controles y Solución</span>
                                     <ArrowRight className="w-4 h-4" />
                                 </button>
                             </div>
                         </div>
                     )}
 
-                    {/* ────────────────── STEP 3: PROTECCIÓN Y PROPUESTA DE MEJORA ────────────────── */}
+                    {/* ────────────────── STEP 3: CONTROLES EXISTENTES Y PROPUESTA DE CONTROL ────────────────── */}
                     {step === 3 && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col h-full">
-                            <div className="mb-3 flex items-center gap-2.5 text-amber-500 shrink-0">
-                                <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
+                            <div className="mb-3 flex items-center gap-2.5 text-teal-600 dark:text-teal-400 shrink-0">
+                                <div className="w-9 h-9 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0">
                                     <Shield className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h2 className="text-base font-extrabold text-text-primary leading-tight">Protección y Solución</h2>
-                                    <p className="text-[11px] text-text-secondary">Tu experiencia es clave para prevenir accidentes</p>
+                                    <h2 className="text-base font-extrabold text-text-primary leading-tight">Controles y Solución</h2>
+                                    <p className="text-[11px] text-text-secondary">Tu criterio ayuda a definir mejoras reales en tu puesto</p>
                                 </div>
                             </div>
                             
                             <div className="space-y-4 overflow-y-auto pr-1 flex-1 pb-2 text-xs">
                                 
-                                {/* Controles Existentes */}
-                                <div>
+                                {/* 18. CONTROLES EXISTENTES */}
+                                <div className="space-y-1.5 p-3.5 bg-surface-secondary/40 border border-border-medium rounded-2xl">
                                     <div className="flex items-center justify-between mb-1">
-                                        <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider">
-                                            ¿Con qué te estás protegiendo hoy en esa labor?
+                                        <label className="block text-xs font-bold text-text-primary uppercase tracking-wider">
+                                            18. Controles Existentes *
                                         </label>
                                         <button
                                             type="button"
@@ -797,150 +1163,55 @@ export default function PublicParticipacionIPEVAR() {
                                             )}
                                         </button>
                                     </div>
+                                    <p className="text-[11px] text-text-secondary mb-1">
+                                        Lo que evidencia que hace la empresa actualmente para controlar el riesgo:
+                                    </p>
                                     <textarea 
                                         rows={3} 
-                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 text-text-primary px-3.5 py-2.5 text-xs transition-all placeholder:text-text-tertiary font-medium resize-none leading-relaxed" 
-                                        placeholder="Ej: Tengo casco y botas, pero la plataforma de madera está improvisada sin fijación y no hay línea de vida conectada..."
+                                        className="w-full rounded-xl border border-border-medium bg-surface-primary text-text-primary px-3.5 py-2.5 text-xs transition-all placeholder:text-text-tertiary font-medium resize-none leading-relaxed focus:ring-2 focus:ring-teal-500" 
+                                        placeholder="Ej: Se realizan pausas activas y se entregaron elementos básicos, pero no hay apoya-muñecas ni revisión ergonómica del puesto..."
                                         value={controlesExistentes}
                                         onChange={e => setControlesExistentes(e.target.value)}
                                     ></textarea>
                                 </div>
 
-                                {/* ¿Son suficientes? */}
-                                <div className="p-3.5 bg-surface-secondary/60 rounded-2xl border border-border-medium">
-                                    <label className="block text-xs font-bold text-text-primary mb-2">
-                                        ¿Consideras que la protección actual es suficiente o segura?
-                                    </label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button 
+                                {/* 19. PROPUESTA DE CONTROL */}
+                                <div className="space-y-1.5 p-3.5 bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-800/60 rounded-2xl">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="block text-xs font-bold text-teal-900 dark:text-teal-200 uppercase tracking-wider flex items-center gap-1.5">
+                                            <Lightbulb className="w-4 h-4 text-amber-500" /> 19. Propuesta de Control *
+                                        </label>
+                                        <button
                                             type="button"
-                                            onClick={() => setSuficientes(true)}
-                                            className={`py-2.5 px-3 font-bold text-xs rounded-xl border transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer ${
-                                                suficientes 
-                                                    ? 'bg-gradient-to-r from-teal-600 to-teal-700 border-teal-600 text-white shadow-md' 
-                                                    : 'bg-surface-primary border-border-medium text-text-secondary hover:bg-surface-hover'
+                                            onClick={() => startVoiceDictation('propuestaMejora')}
+                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all border active:scale-95 cursor-pointer ${
+                                                isListening && activeVoiceField === 'propuestaMejora'
+                                                    ? 'bg-rose-500 text-white border-rose-600 animate-pulse shadow-sm'
+                                                    : 'bg-white dark:bg-zinc-800 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-700 hover:bg-teal-50'
                                             }`}
                                         >
-                                            <ThumbsUp className="w-4 h-4" />
-                                            <span>Sí, es seguro</span>
-                                        </button>
-                                        <button 
-                                            type="button"
-                                            onClick={() => setSuficientes(false)}
-                                            className={`py-2.5 px-3 font-bold text-xs rounded-xl border transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer ${
-                                                !suficientes 
-                                                    ? 'bg-gradient-to-r from-rose-500 to-red-600 border-rose-500 text-white shadow-md' 
-                                                    : 'bg-surface-primary border-border-medium text-text-secondary hover:bg-surface-hover'
-                                            }`}
-                                        >
-                                            <AlertTriangle className="w-4 h-4" />
-                                            <span>No, falta protección</span>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Propuesta de Mejora (Campo Humano Directo) */}
-                                {!suficientes && (
-                                    <div className="space-y-3 p-3.5 bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-800/60 rounded-2xl animate-in fade-in duration-300">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <label className="block text-xs font-extrabold text-teal-900 dark:text-teal-200 flex items-center gap-1.5">
-                                                <Lightbulb className="w-4 h-4 text-amber-500" /> ¿Qué propones para solucionar este peligro?
-                                            </label>
-                                            <button
-                                                type="button"
-                                                onClick={() => startVoiceDictation('propuestaMejora')}
-                                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all border active:scale-95 cursor-pointer ${
-                                                    isListening && activeVoiceField === 'propuestaMejora'
-                                                        ? 'bg-rose-500 text-white border-rose-600 animate-pulse shadow-sm'
-                                                        : 'bg-white dark:bg-zinc-800 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-700 hover:bg-teal-50'
-                                                }`}
-                                            >
-                                                {isListening && activeVoiceField === 'propuestaMejora' ? (
-                                                    <>
-                                                        <MicOff className="w-3.5 h-3.5 animate-spin" /> Escuchando...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Mic className="w-3.5 h-3.5 text-teal-600" /> Dictar Solución
-                                                    </>
-                                                )}
-                                            </button>
-                                        </div>
-                                        <textarea 
-                                            rows={3} 
-                                            className="w-full rounded-xl border border-teal-300 dark:border-teal-700 bg-surface-primary text-text-primary px-3.5 py-2.5 text-xs transition-all placeholder:text-text-tertiary font-medium resize-none leading-relaxed focus:ring-2 focus:ring-teal-500" 
-                                            placeholder="Ej: Instalar tablones metálicos con pasadores de seguridad, barandas perimetrales y habilitar línea de vida anclada para el arnés..."
-                                            value={propuestaMejora}
-                                            onChange={e => {
-                                                setPropuestaMejora(e.target.value);
-                                                if (!sugeridoIngenieria) setSugeridoIngenieria(e.target.value);
-                                            }}
-                                        ></textarea>
-                                        <p className="text-[10.5px] text-teal-700 dark:text-teal-300 flex items-start gap-1">
-                                            <Sparkles className="w-3.5 h-3.5 shrink-0 text-amber-500 mt-0.5" />
-                                            <span>
-                                                El equipo SST y la IA de WAPPY categorizarán tu propuesta en la Matriz Oficial GTC-45 (Ingeniería, Procedimientos y EPP).
-                                            </span>
-                                        </p>
-
-                                        {/* Acordeón Opcional para Supervisores o Técnicos */}
-                                        <div className="pt-2 border-t border-teal-200/60 dark:border-teal-800/60">
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowAdvancedHierarchy(!showAdvancedHierarchy)}
-                                                className="w-full flex items-center justify-between text-[11px] font-bold text-text-secondary hover:text-teal-600 transition-colors py-1 cursor-pointer"
-                                            >
-                                                <span>¿Deseas desglosar por jerarquía técnica GTC-45? (Opcional)</span>
-                                                {showAdvancedHierarchy ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                                            </button>
-
-                                            {showAdvancedHierarchy && (
-                                                <div className="space-y-2 mt-2 pt-2 border-t border-border-medium animate-in fade-in duration-200">
-                                                    <div>
-                                                        <label className="block text-[10px] font-bold text-text-secondary mb-0.5">1. Eliminación / Sustitución</label>
-                                                        <input 
-                                                            type="text" 
-                                                            value={sugeridoEliminacion} 
-                                                            onChange={e => setSugeridoEliminacion(e.target.value)} 
-                                                            placeholder="Ej: Reemplazar andamio tubular por andamio certificado multidireccional" 
-                                                            className="w-full rounded-lg border border-border-medium px-2.5 py-1.5 text-xs bg-surface-primary"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-[10px] font-bold text-text-secondary mb-0.5">2. Controles de Ingeniería</label>
-                                                        <input 
-                                                            type="text" 
-                                                            value={sugeridoIngenieria} 
-                                                            onChange={e => setSugeridoIngenieria(e.target.value)} 
-                                                            placeholder="Ej: Pasadores de bloqueo, rodapiés y barandas" 
-                                                            className="w-full rounded-lg border border-border-medium px-2.5 py-1.5 text-xs bg-surface-primary"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-[10px] font-bold text-text-secondary mb-0.5">3. Controles Administrativos</label>
-                                                        <input 
-                                                            type="text" 
-                                                            value={sugeridoAdministrativo} 
-                                                            onChange={e => setSugeridoAdministrativo(e.target.value)} 
-                                                            placeholder="Ej: Permiso de trabajo en alturas e inspección diaria" 
-                                                            className="w-full rounded-lg border border-border-medium px-2.5 py-1.5 text-xs bg-surface-primary"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-[10px] font-bold text-text-secondary mb-0.5">4. Elementos de Protección Personal (EPP)</label>
-                                                        <input 
-                                                            type="text" 
-                                                            value={sugeridoEPP} 
-                                                            onChange={e => setSugeridoEPP(e.target.value)} 
-                                                            placeholder="Ej: Arnés de 4 argollas con eslinga de posicionamiento" 
-                                                            className="w-full rounded-lg border border-border-medium px-2.5 py-1.5 text-xs bg-surface-primary"
-                                                        />
-                                                    </div>
-                                                </div>
+                                            {isListening && activeVoiceField === 'propuestaMejora' ? (
+                                                <>
+                                                    <MicOff className="w-3.5 h-3.5 animate-spin" /> Escuchando...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Mic className="w-3.5 h-3.5 text-teal-600" /> Dictar Solución
+                                                </>
                                             )}
-                                        </div>
+                                        </button>
                                     </div>
-                                )}
+                                    <p className="text-[11px] text-teal-700 dark:text-teal-300 mb-1">
+                                        Lo que considera necesario implementar para reforzar o mejorar el control existente:
+                                    </p>
+                                    <textarea 
+                                        rows={3} 
+                                        className="w-full rounded-xl border border-teal-300 dark:border-teal-700 bg-surface-primary text-text-primary px-3.5 py-2.5 text-xs transition-all placeholder:text-text-tertiary font-medium resize-none leading-relaxed focus:ring-2 focus:ring-teal-500" 
+                                        placeholder="Ej: Suministrar pad mouse ergonómico, programar mantenimiento de luminarias y realizar inspección de puesto de trabajo..."
+                                        value={propuestaControl}
+                                        onChange={e => setPropuestaControl(e.target.value)}
+                                    ></textarea>
+                                </div>
                             </div>
 
                             {submitResult && !submitResult.success && (
@@ -1015,16 +1286,12 @@ export default function PublicParticipacionIPEVAR() {
                                         setTarea('');
                                         setActividad('');
                                         setPeligros('');
-                                        setEfectosPosibles('');
+                                        setFactoresSeleccionados([]);
+                                        setConsecuencias('');
                                         setSeveridadPercibida('Media');
                                         setImages({ foto1: null, foto2: null, foto3: null }); 
                                         setControlesExistentes('');
-                                        setSuficientes(false);
-                                        setPropuestaMejora('');
-                                        setSugeridoEliminacion('');
-                                        setSugeridoIngenieria('');
-                                        setSugeridoAdministrativo('');
-                                        setSugeridoEPP('');
+                                        setPropuestaControl('');
                                         setSubmitResult(null);
                                     }} 
                                     className="w-full rounded-2xl border border-border-medium bg-surface-primary dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 py-3 font-bold text-text-secondary transition-colors text-xs active:scale-95 cursor-pointer shadow-2xs"

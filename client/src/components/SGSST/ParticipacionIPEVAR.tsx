@@ -23,8 +23,10 @@ import {
     Download,
     QrCode,
     Info,
-    RefreshCcw
+    RefreshCcw,
+    BarChart3
 } from 'lucide-react';
+import ParticipacionEstadisticasDashboard from './ParticipacionEstadisticasDashboard';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
@@ -248,6 +250,7 @@ const ParticipacionIPEVAR = () => {
     const [inboxPublico, setInboxPublico] = useState<any[]>([]);
     const [isInboxOpen, setIsInboxOpen] = useState(false);
     const [showQrModal, setShowQrModal] = useState(false);
+    const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
 
     // Apply to Matrix Modal State
     const [showApplyModal, setShowApplyModal] = useState(false);
@@ -485,19 +488,19 @@ const ParticipacionIPEVAR = () => {
         const fData = isFromInbox ? (target.data || {}) : (target.formData || {});
 
         setApplyFormData({
-            proceso: fData.proceso || 'Operativo',
+            proceso: fData.area || fData.proceso || 'Operativo',
             zona: fData.zona || 'Área de trabajo',
             actividad: fData.actividad || fData.tarea || '',
             tarea: fData.tarea || '',
             rutinaria: fData.rutinaria || 'Sí',
             peligroClasificacion: fData.peligroClasificacion || 'Condiciones de Seguridad',
             peligros: fData.peligros || fData.descripcion || '',
-            efectosPosibles: fData.efectosPosibles || '',
+            efectosPosibles: fData.consecuencias || fData.efectosPosibles || '',
             severidadPercibida: fData.severidadPercibida || 'Media',
             controlesExistentes: fData.controlesExistentes || '',
             suficientes: fData.suficientes ?? true,
             sugeridoEliminacion: fData.sugeridoEliminacion || '',
-            sugeridoIngenieria: fData.sugeridoIngenieria || '',
+            sugeridoIngenieria: fData.propuestaMejora || fData.sugeridoIngenieria || '',
             sugeridoAdministrativo: fData.sugeridoAdministrativo || '',
             sugeridoEPP: fData.sugeridoEPP || '',
             trabajadorNombre: workerNombre || '',
@@ -507,6 +510,24 @@ const ParticipacionIPEVAR = () => {
 
         setItemToApply({ ...target, isInbox: isFromInbox });
         setApplyAction('create_new');
+        setShowApplyModal(true);
+        fetchOfficialMatrixRows();
+    };
+
+    const handleApplyConsolidadoFromStats = (consolidadoData: any) => {
+        setApplyFormData(consolidadoData);
+        setItemToApply({
+            id: 'consolidado-' + Date.now(),
+            trabajador: {
+                nombre: consolidadoData.trabajadorNombre,
+                cedula: consolidadoData.trabajadorCedula,
+                cargo: consolidadoData.cargo
+            },
+            data: consolidadoData,
+            isInbox: false
+        });
+        setApplyAction('create_new');
+        setShowAnalyticsModal(false);
         setShowApplyModal(true);
         fetchOfficialMatrixRows();
     };
@@ -1020,6 +1041,13 @@ const ParticipacionIPEVAR = () => {
                             active={isInboxOpen}
                         />
                         <ToolbarButton
+                            id="analytics-dashboard"
+                            onClick={() => setShowAnalyticsModal(true)}
+                            label="Base Estadística"
+                            icon={BarChart3}
+                            active={showAnalyticsModal}
+                        />
+                        <ToolbarButton
                             id="qr-portal"
                             onClick={() => setShowQrModal(true)}
                             label="Portal Público"
@@ -1148,6 +1176,11 @@ const ParticipacionIPEVAR = () => {
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
+                                    {(item.data?.centroTrabajo || item.data?.area) && (
+                                        <div className="text-[10px] text-teal-600 dark:text-teal-400 font-bold mb-1 truncate">
+                                            {item.data?.centroTrabajo ? `🏢 ${item.data.centroTrabajo}` : ''} {item.data?.area ? `• ${item.data.area}` : ''}
+                                        </div>
+                                    )}
                                     <p className={`text-xs line-clamp-3 my-2 flex-grow italic ${isProcessed ? 'text-gray-500 dark:text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}>"{item.data?.tarea || item.data?.descripcion}"</p>
                                     <div className="text-[10px] text-gray-400 mb-3 flex justify-between">
                                         <span>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}</span>
@@ -1905,6 +1938,25 @@ const ParticipacionIPEVAR = () => {
                                     />
                                 </div>
 
+                                {(itemToApply?.data?.propuestaMejora || itemToApply?.data?.controlesExistentes) && (
+                                    <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl space-y-1.5 text-xs">
+                                        {itemToApply?.data?.controlesExistentes && (
+                                            <div>
+                                                <span className="font-bold text-amber-900 dark:text-amber-200 text-[11px] block">Controles Existentes reportados por el Trabajador:</span>
+                                                <p className="text-text-secondary text-[11px] italic">"{itemToApply.data.controlesExistentes}"</p>
+                                            </div>
+                                        )}
+                                        {itemToApply?.data?.propuestaMejora && (
+                                            <div>
+                                                <span className="font-bold text-teal-800 dark:text-teal-300 text-[11px] block">Propuesta de Control del Trabajador:</span>
+                                                <p className="text-teal-900 dark:text-teal-100 text-[11px] font-medium bg-white/70 dark:bg-zinc-800 p-2 rounded-lg border border-teal-200 dark:border-teal-700">
+                                                    "{itemToApply.data.propuestaMejora}"
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 <div className="border-t border-border-medium pt-3 space-y-2">
                                     <h5 className="font-bold text-text-primary text-[11px] uppercase">Medidas de Control Propuestas (Jerarquía GTC-45)</h5>
                                     <div className="grid grid-cols-2 gap-2">
@@ -1991,6 +2043,16 @@ const ParticipacionIPEVAR = () => {
                     </div>
                 </div>,
                 document.body
+            )}
+
+            {/* Modal de Dashboard Estadístico y Analítica de Participación */}
+            {showAnalyticsModal && (
+                <ParticipacionEstadisticasDashboard
+                    inboxPublico={inboxPublico}
+                    participacionesList={participacionesList}
+                    onApplyConsolidadoToMatrix={handleApplyConsolidadoFromStats}
+                    onClose={() => setShowAnalyticsModal(false)}
+                />
             )}
         </div>
     );
