@@ -5,6 +5,7 @@ const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const SgsstConfig = require('~/models/SgsstConfig');
 
 const DEFAULT_CONSTRUCTION_APPS = [
+    'matriz_pesv_oficial',
     'plan_emergencias',
     'brigada_emergencias',
     'equipos_emergencia',
@@ -22,12 +23,12 @@ router.get('/', requireJwtAuth, async (req, res) => {
             config = await SgsstConfig.create({ disabledApps: DEFAULT_CONSTRUCTION_APPS });
         } else {
             // Seed newly introduced construction apps once so they start in construction mode
-            const seeded = config.get('seededEmergencyAppsV1');
+            const seeded = config.get('seededEmergencyAppsV2');
             if (!seeded) {
                 const merged = Array.from(new Set([...(config.disabledApps || []), ...DEFAULT_CONSTRUCTION_APPS]));
                 config.disabledApps = merged;
-                config.set('seededEmergencyAppsV1', true, { strict: false });
-                await SgsstConfig.updateOne({ _id: config._id }, { $set: { disabledApps: merged, seededEmergencyAppsV1: true } }, { strict: false });
+                config.set('seededEmergencyAppsV2', true, { strict: false });
+                await SgsstConfig.updateOne({ _id: config._id }, { $set: { disabledApps: merged, seededEmergencyAppsV2: true } }, { strict: false });
             }
         }
         res.json(config);

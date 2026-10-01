@@ -17,6 +17,12 @@ export const PHASE_CATEGORIES = {
             normativity: 'Hito 1: Gobernanza y Cimiento Legal (GTC 45:2012 / Dec. 1072 / Res. 0312)' 
         },
         { 
+            id: 'matriz_pesv_oficial', title: 'Matriz de Riesgos Viales (PESV)', icon: 'Car',
+            bioRationale: 'Identificación, evaluación y valoración de riesgos de seguridad vial por actor vial y factor de riesgo (Humano, Vehicular, Infraestructura y Entorno), sincronizada con Perfiles de Cargo, Flota y ACPM.', 
+            normativity: 'Hito 1: Gobernanza y Cimiento Legal (Res. 20223040040595 Paso 6 • ISO 39001)',
+            defaultDisabled: true
+        },
+        { 
             id: 'vulnerabilidad', title: 'Análisis de Vulnerabilidad', icon: 'Target',
             bioRationale: 'Evalúa las amenazas naturales, tecnológicas y sociales mediante la metodología del Diamante de Colores.', 
             normativity: 'Hito 1: Gobernanza y Cimiento Legal (Dec. 1072 Art. 2.2.4.6.25)' 
@@ -246,6 +252,7 @@ export const PHASE_CATEGORIES = {
 };
 
 export const DEFAULT_CONSTRUCTION_APPS = [
+    'matriz_pesv_oficial',
     'plan_emergencias',
     'brigada_emergencias',
     'equipos_emergencia',
@@ -257,6 +264,7 @@ export const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
     diagnostico: 'hito1',
     participacion_ipevar: 'hito1',
     matriz_ipevar_oficial: 'hito1',
+    matriz_pesv_oficial: 'hito1',
     responsable: 'hito1',
     politica: 'hito1',
     objetivos: 'hito1',

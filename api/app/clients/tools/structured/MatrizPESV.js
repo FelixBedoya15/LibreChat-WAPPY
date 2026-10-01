@@ -13,13 +13,14 @@ class MatrizPESV extends Tool {
     this.req = fields.req;
     this.schema = z.object({
       accion: z.enum(['leer', 'escribir', 'borrar', 'consultar_contexto_sgsst']).describe('Usa consultar_contexto_sgsst para datos de la empresa, leer para consultar, escribir para guardar, borrar para eliminar.'),
-      filtro_proceso: z.string().optional().describe('Filtro para leer, o cargo a buscar en el contexto sgsst.'),
+      filtro_proceso: z.string().optional().describe('Filtro para leer por grupo de trabajo o proceso, o cargo a buscar en el contexto sgsst.'),
+      filtro_cargo: z.string().optional().describe('Filtro por cargo para leer.'),
       filtro_actor_vial: z.string().optional().describe('Filtro por actor vial (ej: peatón, conductor).'),
       filtro_peligro: z.string().optional().describe('Filtro para leer.'),
       ids_a_borrar: z.array(z.string()).optional().describe('Arreglo de IDs de los riesgos que deseas eliminar. Solamente usado cuando accion="borrar".'),
       riesgos: z.array(z.object({
         grupo_trabajo: z.string().describe('Clasificación Grupos de trabajo (ej. OPERATIVO, ADMINISTRATIVO).'),
-        cargo: z.string().describe('Cargo individual del trabajador.'),
+        cargo: z.string().describe('Cargo individual del trabajador (ej. "Conductor de Reparto", "Mensajero Motorizado", "Auxiliar Logístico"). CRÍTICO: Parametriza directamente con el módulo de Perfiles de Cargo.'),
         tipo_desplazamiento: z.string().describe('Tipo de desplazamiento ("Misional" o "In itinere").'),
         rol_via: z.string().describe('Rol en la vía (Conductor de vehículo pesado, Conductor de vehículo liviano, Conductor de motocicleta, Peatón, Pasajero, Ciclista, Otro).'),
         factor_riesgo: z.string().describe('Factor de riesgo (Factor Humano, Factor Vehicular, Factor Infraestructura, Entorno/Otros).'),
@@ -55,7 +56,7 @@ class MatrizPESV extends Tool {
         return JSON.stringify({ error: errorMsg });
       }
 
-      const { accion, riesgos, filtro_proceso, filtro_actor_vial, filtro_peligro, ids_a_borrar } = input;
+      const { accion, riesgos, filtro_proceso, filtro_cargo, filtro_actor_vial, filtro_peligro, ids_a_borrar } = input;
 
       const userId = this.req?.user?.id;
       let companyId = null;
@@ -69,6 +70,7 @@ class MatrizPESV extends Tool {
       if (session && !session.companyId && companyId) {
         session.companyId = companyId;
         await session.save();
+        console.log(`[MatrizPESV Tool] Populated missing companyId ${companyId} for session ${conversationId}`);
       }
       
       if (!session && userId && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
@@ -79,14 +81,17 @@ class MatrizPESV extends Tool {
           if (companyId) tempSession.companyId = companyId;
           await tempSession.save();
           session = tempSession;
+          console.log(`[MatrizPESV Tool] Migrated temporal PESV matrix session (${tempSession.matrixRows.length} rows) for user ${userId} to conversation ${conversationId}`);
         }
       }
 
       if (accion === 'consultar_contexto_sgsst') {
          if (!userId) { return JSON.stringify({ error: 'No autenticado para acceder al contexto.' }); }
+         console.log(`[MatrizPESV Tool] CONTEXTO SGSST solicitado para convo: ${conversationId}`);
          
          const PerfilCargoModel = mongoose.models.PerfilCargoData;
          const PerfilSocioModel = mongoose.models.PerfilSociodemograficoData;
+         const VehiclesDataModel = mongoose.models.VehiclesData;
 
          let payload = {};
 
@@ -103,23 +108,28 @@ class MatrizPESV extends Tool {
                      sector: companyConf.sector || 'N/A',
                      descripcion_actividades: companyConf.generalActivities || 'N/A',
                      sedes_adicionales: companyConf.sedes || [],
+                     nivel_riesgo: companyConf.riskLevel || 'N/A',
+                     arl: companyConf.arl || 'N/A',
                      numero_trabajadores: companyConf.workerCount || 'N/A',
-                     responsable_sst: companyConf.responsibleSST || 'N/A'
+                     responsable_sst: companyConf.responsibleSST || 'N/A',
+                     licencia_sst: companyConf.licenseNumber || 'N/A',
                  };
              }
          }
 
          if (PerfilCargoModel) {
              const cargoDataDoc = await PerfilCargoModel.findOne({ user: userId }).lean();
-             if (cargoDataDoc && cargoDataDoc.perfiles) {
-                 let perfiles = cargoDataDoc.perfiles;
+             if (cargoDataDoc && (cargoDataDoc.perfiles || cargoDataDoc.perfilesList)) {
+                 let perfiles = cargoDataDoc.perfilesList || cargoDataDoc.perfiles || [];
                  if (filtro_proceso) {
                      perfiles = perfiles.filter(p => p.nombreCargo && p.nombreCargo.toLowerCase().includes(filtro_proceso.toLowerCase()));
                  }
                  payload.perfiles_cargo_encontrados = perfiles.map(p => ({
                      cargo: p.nombreCargo,
+                     area: p.area || 'General',
                      responsabilidadesSST: p.responsabilidadesSST || 'Ninguna definida',
-                     epp_estricto: p.elementosProteccion || 'No documentado'
+                     epp_estricto: p.elementosProteccion || 'No documentado',
+                     restricciones: p.restricciones || 'Ninguna'
                  }));
              }
          }
@@ -133,6 +143,8 @@ class MatrizPESV extends Tool {
                  }
                  payload.frecuencia_patologias_y_habitos = trabajadores.map(t => ({
                      cargo_del_trabajador: t.cargo,
+                     medio_transporte: t.medioTransporte || '',
+                     tiempo_desplazamiento: t.tiempoDesplazamiento || '',
                      diagnosticoOcupacional: t.diagnosticoMedico || '',
                      recomendaciones: t.recomendacionesMedicas || '',
                      limitacionesBiomecanicas: t.limitacionesBiomecanicas || ''
@@ -140,14 +152,33 @@ class MatrizPESV extends Tool {
              }
          }
 
+         if (VehiclesDataModel) {
+             try {
+                 const vehDoc = await VehiclesDataModel.findOne({ user: userId }).lean();
+                 if (vehDoc && Array.isArray(vehDoc.vehicles)) {
+                     payload.flota_vehicular_registrada = vehDoc.vehicles.map(v => ({
+                         placa: v.placa,
+                         tipo: v.tipo,
+                         marca_modelo: `${v.marca || ''} ${v.modelo || ''}`.trim(),
+                         conductor: v.conductorNombre || 'No asignado',
+                         soatVencimiento: v.soatVencimiento || 'N/A',
+                         tecnomecanicaVencimiento: v.tecnomecanicaVencimiento || 'N/A',
+                     }));
+                 }
+             } catch (e) {
+                 // ignore if model not registered yet
+             }
+         }
+
          return JSON.stringify({
-            mensaje: "Contexto SGSST de la compañía recuperado exitosamente para la matriz PESV.",
-            advertencia: "MEMORIZA ESTA INFORMACIÓN PARA EVALUAR CONDUCTORES, VEHÍCULOS Y CONTROLES VIALES AL ESCRIBIR TUS FILAS.",
+            mensaje: "Contexto SGSST y Flota PESV de la compañía recuperado exitosamente.",
+            advertencia: "MEMORIZA ESTA INFORMACIÓN PARA EVALUAR CONDUCTORES, ACTORES VIALES, VEHÍCULOS Y CONTROLES VIALES AL ESCRIBIR TUS FILAS DE LA MATRIZ PESV.",
             datos: payload
          });
       }
 
       if (accion === 'leer') {
+        console.log(`[MatrizPESV Tool] LECTURA para convo: ${conversationId}`);
         if (!session || !session.matrixRows || session.matrixRows.length === 0) {
           return JSON.stringify({ mensaje: 'La matriz PESV está vacía. No hay riesgos viales registrados aún.', resultados: [] });
         }
@@ -159,11 +190,17 @@ class MatrizPESV extends Tool {
             (r.cargo && r.cargo.toLowerCase().includes(filtro_proceso.toLowerCase()))
           );
         }
+        if (filtro_cargo) {
+          rows = rows.filter(r => r.cargo && r.cargo.toLowerCase().includes(filtro_cargo.toLowerCase()));
+        }
         if (filtro_actor_vial) {
           rows = rows.filter(r => r.rol_via && r.rol_via.toLowerCase().includes(filtro_actor_vial.toLowerCase()));
         }
         if (filtro_peligro) {
-          rows = rows.filter(r => r.peligro_descripcion && r.peligro_descripcion.toLowerCase().includes(filtro_peligro.toLowerCase()));
+          rows = rows.filter(r =>
+            (r.peligro_descripcion && r.peligro_descripcion.toLowerCase().includes(filtro_peligro.toLowerCase())) ||
+            (r.factor_riesgo && r.factor_riesgo.toLowerCase().includes(filtro_peligro.toLowerCase()))
+          );
         }
         
         return JSON.stringify({
@@ -186,6 +223,24 @@ class MatrizPESV extends Tool {
         
         session.markModified('matrixRows');
         await session.save();
+
+        // Sincronización en paralelo con Somos SST (Matriz PESV Oficial) al borrar
+        if (conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
+          const officialConvoId = `official-pesv-${companyId || userId}`;
+          const isOfficialSource = session.isOfficial || (await PESVMatrix.exists({ conversationId: officialConvoId, sourceConversationId: conversationId }));
+          if (isOfficialSource && conversationId !== officialConvoId) {
+            await PESVMatrix.findOneAndUpdate(
+              { conversationId: officialConvoId },
+              {
+                $set: {
+                  matrixRows: session.matrixRows,
+                  updatedAt: new Date(),
+                },
+              }
+            );
+            console.log(`[MatrizPESV Tool] Borrado sincronizado en paralelo con la Matriz PESV Oficial ("${officialConvoId}")`);
+          }
+        }
         
         return JSON.stringify({
           mensaje: `Se eliminaron exitosamente ${deletedCount} riesgos viales de la base de datos PESV.`,
@@ -196,6 +251,8 @@ class MatrizPESV extends Tool {
       if (!riesgos || !Array.isArray(riesgos)) {
         return JSON.stringify({ error: "El objeto debe contener un array 'riesgos' para escribir." });
       }
+
+      console.log(`[MatrizPESV Tool] Procesando ${riesgos.length} riesgos viales para convo: ${conversationId}`);
 
       if (!session) {
         session = new PESVMatrix({
@@ -324,9 +381,27 @@ class MatrizPESV extends Tool {
       // Clean up temporary session if this is a real conversation
       if (conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
         const tempId = `temp-${userId}`;
-        await mongoose.models.PESVWorkspaceSession.deleteOne({ conversationId: tempId, user: userId });
+        await PESVMatrix.deleteOne({ conversationId: tempId, user: userId });
         console.log(`[MatrizPESV Tool] Cleaned up temporary session for user ${userId}`);
+
+        // Sincronización en paralelo con Somos SST (Matriz PESV Oficial)
+        const officialConvoId = `official-pesv-${companyId || userId}`;
+        const isOfficialSource = session.isOfficial || (await PESVMatrix.exists({ conversationId: officialConvoId, sourceConversationId: conversationId }));
+        if (isOfficialSource && conversationId !== officialConvoId) {
+          await PESVMatrix.findOneAndUpdate(
+            { conversationId: officialConvoId },
+            {
+              $set: {
+                matrixRows: session.matrixRows,
+                updatedAt: new Date(),
+              },
+            }
+          );
+          console.log(`[MatrizPESV Tool] Sincronizada en paralelo con la Matriz PESV Oficial ("${officialConvoId}")`);
+        }
       }
+
+      console.log(`[MatrizPESV Tool] Transacción Masiva Exitosa. Insertados: ${insertedCount}, Actualizados: ${updatedCount}`);
 
       return JSON.stringify({
         success: true,

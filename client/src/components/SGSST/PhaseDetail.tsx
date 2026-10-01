@@ -58,6 +58,7 @@ import VehiclesWorkspace from './VehiclesWorkspace';
 import HeightsWorkspace from './HeightsWorkspace';
 import ChemicalsWorkspace from './ChemicalsWorkspace';
 import MatrizIPEVARWorkspace from './MatrizIPEVARWorkspace';
+import MatrizPESVWorkspace from './MatrizPESVWorkspace';
 import CopasstWorkspace from './CopasstWorkspace';
 import ConvivenciaWorkspace from './ConvivenciaWorkspace';
 
@@ -486,6 +487,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                 {category.id === 'matriz_ipevar_oficial' && (
                                                     <div className="mb-6">
                                                         <MatrizIPEVARWorkspace />
+                                                    </div>
+                                                )}
+
+                                                {/* Show MatrizPESVWorkspace for matriz_pesv_oficial category */}
+                                                {category.id === 'matriz_pesv_oficial' && (
+                                                    <div className="mb-6">
+                                                        <MatrizPESVWorkspace />
                                                     </div>
                                                 )}
 

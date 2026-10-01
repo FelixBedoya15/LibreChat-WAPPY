@@ -30,6 +30,27 @@ const pesvWorkspaceSessionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    reportHtml: {
+      type: String,
+      default: '',
+    },
+    isOfficial: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    officialTitle: {
+      type: String,
+      default: 'Matriz PESV SG-SST',
+    },
+    sourceConversationId: {
+      type: String,
+      default: null,
+    },
+    promotedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

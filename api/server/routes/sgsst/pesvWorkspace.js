@@ -2,12 +2,15 @@
 
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const { logger } = require('@librechat/data-schemas');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const PESVWorkspaceSession = require('~/models/PESVWorkspaceSession');
 const CompanyInfo = require('~/models/CompanyInfo');
+const KanbanTask = require('~/models/KanbanTask');
 const { buildSignatureSection } = require('./reportHeader');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, cleanRawRows } = require('./sgsstGemini');
+const { ensurePerfilExists } = require('./perfilesCargo');
 
 function toSentenceCase(str) {
   if (!str) return '';
@@ -21,6 +24,272 @@ async function getActiveCompanyId(userId) {
   if (!active) active = await CompanyInfo.findOne({ user: userId });
   return active ? active._id : null;
 }
+
+// ─── OFICIAL: Obtener la matriz PESV oficial del SG-SST ───────────────────────
+router.get('/official', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const officialConvoId = `official-pesv-${companyId || userId}`;
+
+    // 1. Buscar sesión marcada explícitamente como oficial
+    let session = await PESVWorkspaceSession.findOne({
+      user: userId,
+      ...(companyId ? { companyId } : {}),
+      isOfficial: true,
+    });
+
+    // 2. Fallback a la sesión maestra 'official-pesv-*'
+    if (!session) {
+      session = await PESVWorkspaceSession.findOne({ conversationId: officialConvoId });
+    }
+
+    // 3. Fallback a la última sesión del usuario o empresa que tenga filas de matriz PESV
+    if (!session) {
+      session = await PESVWorkspaceSession.findOne({
+        user: userId,
+        ...(companyId ? { companyId } : {}),
+        'matrixRows.0': { $exists: true },
+      }).sort({ updatedAt: -1 });
+    }
+    if (!session) {
+      session = await PESVWorkspaceSession.findOne({
+        user: userId,
+        'matrixRows.0': { $exists: true },
+      }).sort({ updatedAt: -1 });
+    }
+
+    if (!session) {
+      return res.json({
+        hasOfficial: false,
+        conversationId: officialConvoId,
+        matrixRows: [],
+        chartConclusions: {},
+        reportHtml: '',
+        officialTitle: 'Matriz PESV SG-SST',
+        sourceConversationId: null,
+      });
+    }
+
+    res.json({
+      hasOfficial: true,
+      conversationId: session.conversationId,
+      matrixRows: session.matrixRows || [],
+      chartConclusions: session.chartConclusions || {},
+      reportHtml: session.reportHtml || '',
+      officialTitle: session.officialTitle ? session.officialTitle.replace(/\bOficial\s*/gi, '').trim() : 'Matriz PESV SG-SST',
+      sourceConversationId: session.sourceConversationId || null,
+      promotedAt: session.promotedAt || session.updatedAt,
+      updatedAt: session.updatedAt,
+    });
+  } catch (error) {
+    logger.error('[PESVWorkspace GET /official] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch official PESV matrix' });
+  }
+});
+
+// ─── OFICIAL: Establecer / Promover una matriz PESV a Oficial del Sistema ─────
+router.post('/set-official', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const { sourceConversationId, officialTitle, matrixRows, chartConclusions } = req.body;
+
+    const officialConvoId = `official-pesv-${companyId || userId}`;
+
+    // 1. Desmarcar cualquier otra matriz PESV oficial de esta empresa
+    await PESVWorkspaceSession.updateMany(
+      { user: userId, ...(companyId ? { companyId } : {}), isOfficial: true },
+      { $set: { isOfficial: false } }
+    );
+
+    let rowsToSave = matrixRows;
+    let conclusionsToSave = chartConclusions;
+    let sourceTitle = officialTitle;
+
+    // Si viene desde un chat específico, obtener datos de esa sesión
+    if (sourceConversationId && (!rowsToSave || rowsToSave.length === 0)) {
+      const sourceSession = await PESVWorkspaceSession.findOne({ conversationId: sourceConversationId });
+      if (sourceSession) {
+        rowsToSave = sourceSession.matrixRows;
+        conclusionsToSave = sourceSession.chartConclusions;
+        sourceSession.promotedAt = new Date();
+        if (officialTitle) sourceSession.officialTitle = officialTitle;
+        await sourceSession.save();
+      }
+
+      if (!sourceTitle) {
+        const ConversationModel = mongoose.models.Conversation || require('~/db/models').Conversation;
+        if (ConversationModel) {
+          const cDoc = await ConversationModel.findOne({ conversationId: sourceConversationId }).lean();
+          if (cDoc?.title) sourceTitle = cDoc.title;
+        }
+      }
+    }
+
+    const normalizedRows = (rowsToSave || []).map(row => ({
+      ...row,
+      grupo_trabajo: toSentenceCase(row.grupo_trabajo || ''),
+      cargo: toSentenceCase(row.cargo || '')
+    }));
+
+    // 2. Guardar o actualizar la sesión oficial maestra
+    const officialSession = await PESVWorkspaceSession.findOneAndUpdate(
+      { conversationId: officialConvoId },
+      {
+        $set: {
+          user: userId,
+          companyId,
+          matrixRows: normalizedRows,
+          chartConclusions: conclusionsToSave || {},
+          isOfficial: true,
+          officialTitle: (sourceTitle ? sourceTitle.replace(/\bOficial\s*/gi, '').trim() : '') || 'Matriz PESV SG-SST',
+          sourceConversationId: sourceConversationId || null,
+          promotedAt: new Date(),
+        },
+      },
+      { upsert: true, new: true }
+    );
+
+    logger.info(`[PESVWorkspace /set-official] Official PESV matrix established. Rows: ${normalizedRows.length}, user: ${userId}`);
+
+    res.json({
+      success: true,
+      officialSession: {
+        conversationId: officialSession.conversationId,
+        matrixRows: officialSession.matrixRows,
+        chartConclusions: officialSession.chartConclusions,
+        officialTitle: officialSession.officialTitle,
+        sourceConversationId: officialSession.sourceConversationId,
+        promotedAt: officialSession.promotedAt,
+      },
+    });
+  } catch (error) {
+    logger.error('[PESVWorkspace POST /set-official] Error:', error);
+    res.status(500).json({ error: 'Failed to set official PESV matrix' });
+  }
+});
+
+// ─── OFICIAL: Modificar la matriz PESV oficial directamente desde el aplicativo ─
+router.put('/official', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const { matrixRows, chartConclusions, reportHtml, officialTitle } = req.body;
+
+    const officialConvoId = `official-pesv-${companyId || userId}`;
+
+    const normalizedRows = (matrixRows || []).map(row => ({
+      ...row,
+      grupo_trabajo: toSentenceCase(row.grupo_trabajo || ''),
+      cargo: toSentenceCase(row.cargo || '')
+    }));
+
+    const updateFields = {
+      user: userId,
+      companyId,
+      matrixRows: normalizedRows,
+      isOfficial: true,
+    };
+    if (chartConclusions !== undefined) updateFields.chartConclusions = chartConclusions;
+    if (reportHtml !== undefined) updateFields.reportHtml = reportHtml;
+    if (officialTitle) updateFields.officialTitle = officialTitle;
+
+    const session = await PESVWorkspaceSession.findOneAndUpdate(
+      { conversationId: officialConvoId },
+      { $set: updateFields },
+      { upsert: true, new: true }
+    );
+
+    // Sincronización en paralelo con el chat fuente si existe
+    if (session && session.sourceConversationId) {
+      await PESVWorkspaceSession.findOneAndUpdate(
+        { conversationId: session.sourceConversationId },
+        {
+          $set: {
+            matrixRows: normalizedRows,
+            ...(chartConclusions !== undefined ? { chartConclusions } : {}),
+            ...(reportHtml !== undefined ? { reportHtml } : {}),
+            updatedAt: new Date(),
+          },
+        }
+      );
+      logger.info(`[PESVWorkspace PUT /official] Sincronizada en paralelo con el chat fuente "${session.sourceConversationId}"`);
+    }
+
+    res.json({
+      success: true,
+      matrixRows: session.matrixRows,
+      chartConclusions: session.chartConclusions,
+      reportHtml: session.reportHtml,
+      officialTitle: session.officialTitle,
+      updatedAt: session.updatedAt,
+    });
+  } catch (error) {
+    logger.error('[PESVWorkspace PUT /official] Error:', error);
+    res.status(500).json({ error: 'Failed to update official PESV matrix' });
+  }
+});
+
+// ─── OFICIAL: Listar todas las matrices PESV de los chats para el selector ────
+router.get('/list-user-matrices', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const tempId = `temp-${userId}`;
+    const officialConvoId = `official-pesv-${companyId || userId}`;
+
+    const sessions = await PESVWorkspaceSession.find({
+      user: userId,
+      conversationId: { $ne: tempId },
+      'matrixRows.0': { $exists: true },
+    }).sort({ updatedAt: -1 }).lean();
+
+    const ConversationModel = mongoose.models.Conversation || require('~/db/models').Conversation;
+    const convoIds = sessions
+      .map(s => s.conversationId)
+      .filter(id => id && !id.startsWith('official-'));
+
+    let titleMap = {};
+    if (ConversationModel && convoIds.length > 0) {
+      try {
+        const convos = await ConversationModel.find({ conversationId: { $in: convoIds } }).select('conversationId title').lean();
+        convos.forEach(c => {
+          titleMap[c.conversationId] = c.title || 'Chat PESV sin título';
+        });
+      } catch (err) {
+        logger.warn('[PESVWorkspace /list-user-matrices] Error fetching titles:', err.message);
+      }
+    }
+
+    const items = sessions.map(s => {
+      const isMasterOfficial = s.conversationId === officialConvoId;
+      let displayTitle = s.officialTitle ? s.officialTitle.replace(/\bOficial\s*/gi, '').trim() : (titleMap[s.conversationId] || 'Matriz de Riesgos Viales PESV');
+      if (s.conversationId === officialConvoId) {
+        displayTitle = displayTitle || '⭐ Matriz PESV Activa del Sistema';
+      }
+
+      const rows = s.matrixRows || [];
+      const criticalCount = rows.filter(r => (Number(r.calificacion) || 0) >= 12).length;
+
+      return {
+        conversationId: s.conversationId,
+        title: displayTitle,
+        isOfficial: isMasterOfficial,
+        rowCount: rows.length,
+        criticalCount,
+        sourceConversationId: s.sourceConversationId || null,
+        promotedAt: s.promotedAt || null,
+        updatedAt: s.updatedAt,
+      };
+    });
+
+    res.json({ matrices: items });
+  } catch (error) {
+    logger.error('[PESVWorkspace GET /list-user-matrices] Error:', error);
+    res.status(500).json({ error: 'Failed to list user PESV matrices' });
+  }
+});
 
 // GET matrix
 router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
@@ -59,10 +328,14 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
     }
 
     if (!session) {
-      return res.json({ matrixRows: [], chartConclusions: {} });
+      return res.json({ matrixRows: [], chartConclusions: {}, reportHtml: '' });
     }
 
-    res.json({ matrixRows: session.matrixRows, chartConclusions: session.chartConclusions || {} });
+    res.json({
+      matrixRows: session.matrixRows,
+      chartConclusions: session.chartConclusions || {},
+      reportHtml: session.reportHtml || '',
+    });
   } catch (error) {
     logger.error('[PESVWorkspace] Error fetching matrix:', error);
     res.status(500).json({ error: 'Failed to fetch PESV matrix' });
@@ -73,7 +346,7 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
 router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
   try {
     const { conversationId } = req.params;
-    const { matrixRows } = req.body;
+    const { matrixRows, chartConclusions, reportHtml } = req.body;
     const userId = req.user.id;
     const companyId = await getActiveCompanyId(userId);
 
@@ -83,10 +356,14 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
       cargo: toSentenceCase(row.cargo)
     }));
 
+    const setUpdate = { matrixRows: normalizedRows, companyId };
+    if (chartConclusions !== undefined) setUpdate.chartConclusions = chartConclusions;
+    if (reportHtml !== undefined) setUpdate.reportHtml = reportHtml;
+
     let session = await PESVWorkspaceSession.findOneAndUpdate(
       { conversationId, companyId: companyId },
       {
-        $set: { matrixRows: normalizedRows, companyId },
+        $set: setUpdate,
         $setOnInsert: { user: userId },
       },
       { upsert: true, new: true },
@@ -96,6 +373,24 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
       const tempId = `temp-${userId}`;
       await PESVWorkspaceSession.deleteOne({ conversationId: tempId, user: userId });
       logger.info(`[PESVWorkspace PUT] Deleted temporary session for user ${userId} since real session was created.`);
+    }
+
+    // Sincronización en paralelo con Somos SST (Matriz PESV Oficial)
+    const officialConvoId = `official-pesv-${companyId || userId}`;
+    const isOfficialSource = session.isOfficial || (await PESVWorkspaceSession.exists({ conversationId: officialConvoId, sourceConversationId: conversationId }));
+    if (isOfficialSource && conversationId !== officialConvoId) {
+      await PESVWorkspaceSession.findOneAndUpdate(
+        { conversationId: officialConvoId },
+        {
+          $set: {
+            matrixRows: normalizedRows,
+            ...(chartConclusions !== undefined ? { chartConclusions } : {}),
+            ...(reportHtml !== undefined ? { reportHtml } : {}),
+            updatedAt: new Date(),
+          },
+        }
+      );
+      logger.info(`[PESVWorkspace PUT /:conversationId] Sincronizada en paralelo con la Matriz PESV Oficial de Somos SST ("${officialConvoId}")`);
     }
 
     res.json({ success: true, matrixRows: session.matrixRows });
@@ -603,6 +898,319 @@ ${JSON.stringify(chunk, null, 2)}`;
   } catch (error) {
     logger.error('[PESV/ai-parse-matrix] Error:', error.message);
     return res.status(500).json({ error: error.message });
+  }
+});
+
+// ─── OFICIAL / CHAT: Auto-asignar Cargos a las filas de la matriz PESV con IA ──
+router.post('/auto-assign-cargos', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
+    const { matrixRows, conversationId } = req.body;
+
+    if (!matrixRows || !Array.isArray(matrixRows) || matrixRows.length === 0) {
+      return res.status(400).json({ error: 'No se enviaron filas de la matriz PESV para procesar.' });
+    }
+
+    const PerfilCargoModel = mongoose.models.PerfilCargoData;
+    let availableCargos = [];
+    let perfilesDetallados = [];
+    if (PerfilCargoModel) {
+      try {
+        const cargoDoc = await PerfilCargoModel.findOne({
+          user: userId,
+          ...(companyId ? { companyId } : {}),
+        }).lean();
+        if (cargoDoc && Array.isArray(cargoDoc.perfilesList)) {
+          perfilesDetallados = cargoDoc.perfilesList
+            .filter((p) => p && p.nombreCargo)
+            .map((p) => ({
+              nombreCargo: toSentenceCase(p.nombreCargo),
+              area: p.area || '',
+              nivelCargo: p.nivelCargo || '',
+              descripcion: (
+                p.contextoAdicional ||
+                (p.report ? p.report.replace(/<[^>]+>/g, ' ').substring(0, 400) : '') ||
+                ''
+              ).trim(),
+            }));
+          availableCargos = perfilesDetallados.map((p) => p.nombreCargo);
+        }
+      } catch (err) {
+        logger.warn('[PESVWorkspace /auto-assign-cargos] Error loading PerfilCargoData:', err.message);
+      }
+    }
+
+    let companyContext = '';
+    const company = await CompanyInfo.findOne({ user: userId, ...(companyId ? { _id: companyId } : {}) }).lean();
+    if (company) {
+      companyContext = `Empresa: ${company.companyName || ''}, Actividad: ${company.economicActivity || ''}, Sector: ${company.sector || ''}`;
+    }
+
+    const perfilesFormatText = perfilesDetallados.length > 0
+      ? perfilesDetallados
+          .map(
+            (p, i) =>
+              `${i + 1}. CARGO: "${p.nombreCargo}"
+   - Área: ${p.area || 'General'} | Nivel: ${p.nivelCargo || 'Operativo'}
+   - DESCRIPCIÓN Y ACTIVIDADES DEL PERFIL: ${p.descripcion || 'Sin descripción detallada'}`
+          )
+          .join('\n\n')
+      : 'No hay cargos registrados previamente en el aplicativo de Perfiles de la empresa.';
+
+    const rowsSummary = matrixRows.map((r, index) => ({
+      index,
+      grupo_trabajo: r.grupo_trabajo || '',
+      cargoActual: r.cargo || '',
+      tipo_desplazamiento: r.tipo_desplazamiento || '',
+      rol_via: r.rol_via || '',
+      factor_riesgo: r.factor_riesgo || '',
+      peligro: r.peligro_descripcion || '',
+    }));
+
+    const prompt = `Eres un Director Senior de Seguridad Vial (PESV Res. 40595 de 2022) y SG-SST experto en perfiles de cargo viales y matrices de peligros viales.
+Tu misión es ASIGNAR con la máxima precisión el CARGO o puesto de trabajo correspondiente a cada fila de la matriz PESV.
+
+CONTEXTO EMPRESARIAL:
+${companyContext || 'No especificado'}
+
+CATÁLOGO DE PERFILES DE CARGO REGISTRADOS EN LA EMPRESA:
+${perfilesFormatText}
+
+FILAS DE LA MATRIZ PESV A CLASIFICAR (Array JSON):
+${JSON.stringify(rowsSummary, null, 2)}
+
+REGLAS:
+1. Analiza el "rol_via", "tipo_desplazamiento", "grupo_trabajo" y "peligro" de cada fila y compáralo con los perfiles registrados de la empresa.
+2. Si coincide o se relaciona con un perfil registrado en el catálogo, asigna exactamente ese "nombreCargo".
+3. Si no coincide con ningún perfil existente o el catálogo está vacío, asigna un nombre de cargo formal y específico acorde al rol vial (ej. "Conductor de Reparto", "Mensajero Motorizado", "Asesor Comercial", "Auxiliar Logístico", "Coordinador Administrativo").
+4. Responde ÚNICAMENTE con un JSON array válido con este formato exacto:
+[
+  { "index": 0, "cargo": "Nombre del Cargo Exacto" },
+  { "index": 1, "cargo": "Nombre del Cargo Exacto" }
+]`;
+
+    const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });
+    let text = result.response.text().trim();
+    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+    let assignedList = [];
+    try {
+      assignedList = JSON.parse(text);
+    } catch (e) {
+      const startIdx = text.indexOf('[');
+      const endIdx = text.lastIndexOf(']');
+      if (startIdx !== -1 && endIdx !== -1) {
+        try {
+          assignedList = JSON.parse(text.substring(startIdx, endIdx + 1));
+        } catch (e2) {
+          logger.error('[PESVWorkspace /auto-assign-cargos] Repair failed:', e2.message);
+        }
+      }
+    }
+
+    if (!Array.isArray(assignedList)) {
+      throw new Error('La respuesta de la IA no tuvo el formato esperado.');
+    }
+
+    const assignedMap = new Map();
+    assignedList.forEach(item => {
+      if (item && item.index !== undefined && item.cargo) {
+        assignedMap.set(Number(item.index), toSentenceCase(item.cargo));
+      }
+    });
+
+    const updatedRows = matrixRows.map((row, idx) => {
+      const assignedCargo = assignedMap.get(idx);
+      return {
+        ...row,
+        cargo: assignedCargo || toSentenceCase(row.cargo || 'Conductor / Actor Vial'),
+        grupo_trabajo: toSentenceCase(row.grupo_trabajo || 'Operativo'),
+      };
+    });
+
+    const targetConvoId = (!conversationId || conversationId === 'official' || conversationId.startsWith('official-'))
+      ? `official-pesv-${companyId || userId}`
+      : conversationId;
+
+    await PESVWorkspaceSession.findOneAndUpdate(
+      { conversationId: targetConvoId },
+      { $set: { matrixRows: updatedRows } }
+    );
+
+    if (typeof ensurePerfilExists === 'function') {
+      try {
+        const uniqueCargoMap = new Map();
+        for (const r of updatedRows) {
+          if (r.cargo && r.cargo.trim()) {
+            const key = r.cargo.trim().toLowerCase();
+            if (!uniqueCargoMap.has(key)) {
+              uniqueCargoMap.set(key, r);
+            }
+          }
+        }
+        for (const [, r] of uniqueCargoMap) {
+          await ensurePerfilExists(userId, companyId, r.cargo, {
+            proceso: r.grupo_trabajo || 'Seguridad Vial PESV',
+            actividad: `Desplazamiento ${r.tipo_desplazamiento || 'Misional'} como ${r.rol_via || 'Actor Vial'}`,
+            tareas: r.peligro_descripcion || '',
+            medida_administrativa: r.plan_accion_individuo || '',
+            medida_ingenieria: r.plan_accion_vehiculo || '',
+          });
+        }
+      } catch (e) {
+        logger.warn('[PESVWorkspace /auto-assign-cargos] Error asegurando perfiles:', e.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Se asignaron cargos automáticamente a ${updatedRows.length} riesgos viales con IA.`,
+      matrixRows: updatedRows,
+      availableCargosCount: availableCargos.length,
+    });
+  } catch (error) {
+    logger.error('[PESVWorkspace POST /auto-assign-cargos] Error:', error);
+    res.status(500).json({ error: error.message || 'Error al auto-asignar cargos con IA' });
+  }
+});
+
+// ─── OFICIAL / CHAT: Sincronizar Planes de Acción PESV con Centro de Control (Kanban ACPM) ──
+router.post('/sync-controles-pesv', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
+    const { matrixRows, conversationId } = req.body;
+
+    if (!matrixRows || !Array.isArray(matrixRows) || matrixRows.length === 0) {
+      return res.status(400).json({ error: 'No se enviaron filas de la matriz PESV para sincronizar.' });
+    }
+
+    const cleanControlText = (val) => {
+      if (!val || typeof val !== 'string') return '';
+      const trimmed = val.trim();
+      const lower = trimmed.toLowerCase();
+      if (['ninguno', 'ninguna', 'no aplica', 'n/a', 'na', 'ninguno.', 'no'].includes(lower)) return '';
+      return trimmed;
+    };
+
+    const addDays = (date, days) => {
+      const result = new Date(date);
+      result.setDate(result.getDate() + days);
+      return result;
+    };
+
+    const today = new Date();
+    let syncedCount = 0;
+
+    if (KanbanTask) {
+      const activePesvRefs = new Set();
+
+      for (let i = 0; i < matrixRows.length; i++) {
+        const row = matrixRows[i];
+        const rowId = row.id || `pesv-row-${i}`;
+
+        const controls = [];
+        const veh = cleanControlText(row.plan_accion_vehiculo);
+        if (veh) controls.push({ category: 'Vehículo Seguro', text: veh, actionType: 'correctiva' });
+
+        const infra = cleanControlText(row.plan_accion_infraestructura);
+        if (infra) controls.push({ category: 'Vía / Infraestructura', text: infra, actionType: 'preventiva' });
+
+        const medio = cleanControlText(row.plan_accion_medio);
+        if (medio) controls.push({ category: 'Entorno / Medio', text: medio, actionType: 'preventiva' });
+
+        const ind = cleanControlText(row.plan_accion_individuo);
+        if (ind) controls.push({ category: 'Actor Vial / Comportamiento', text: ind, actionType: 'preventiva' });
+
+        const calif = Number(row.calificacion) || 9;
+        const isCritical = calif >= 12 || String(row.aceptabilidad || '').toUpperCase().includes('NO ACEPTABLE');
+        const isHigh = calif >= 8;
+
+        if (controls.length > 0 || isCritical || isHigh) {
+          const bestControl = controls[0] || {
+            category: 'Intervención Vial PESV',
+            text: 'Implementar plan de control vial inmediato según Paso 6 y Paso 8 de la Res. 40595/2022',
+            actionType: 'correctiva',
+          };
+
+          const otherControls = controls.filter((c) => c !== bestControl);
+          const dueDate = isCritical ? addDays(today, 15) : isHigh ? addDays(today, 30) : addDays(today, 60);
+          const priority = isCritical ? 'alta' : 'media';
+          const actionType = bestControl.actionType || 'preventiva';
+
+          const cleanText = bestControl.text.replace(/^[*•-]\s*/, '').trim();
+          const title = `[PESV · ${bestControl.category}] ${cleanText.length > 70 ? cleanText.substring(0, 67) + '…' : cleanText}`;
+
+          const description = `Plan de Acción Vial sincronizado desde la Matriz PESV (Res. 20223040040595 - Paso 6).
+• Grupo de Trabajo: ${row.grupo_trabajo || 'Operativo'} | Cargo: ${row.cargo || 'Actor Vial'}
+• Actor Vial: ${row.rol_via || 'Conductor'} (${row.tipo_desplazamiento || 'Misional'})
+• Factor de Riesgo: ${row.factor_riesgo || 'Factor Humano'} — ${row.peligro_descripcion || ''}
+• Evaluación Vial: Calificación ${calif}/15 (${row.nivel_riesgo || ''}) — ${row.aceptabilidad || ''}
+• Control Principal [${bestControl.category}]: ${bestControl.text}
+${otherControls.length > 0 ? `• Controles Complementarios: ${otherControls.map((c) => `[${c.category}] ${c.text}`).join(' | ')}\n` : ''}• Responsable PESV: ${row.responsable || 'Coordinador PESV'} (${row.fecha_programacion || 'Permanente'})`;
+
+          const referenceId = `pesv-control-${rowId}`;
+          const referenceName = `Matriz PESV (${row.rol_via || 'Seguridad Vial'})`;
+
+          activePesvRefs.add(referenceId);
+
+          let task = await KanbanTask.findOne({
+            user: userId,
+            companyId,
+            referenceId,
+          });
+
+          if (!task) {
+            await KanbanTask.create({
+              user: userId,
+              companyId,
+              title,
+              description,
+              dueDate,
+              status: row.estado === 'CERRADA' ? 'done' : 'todo',
+              type: 'ipevar_finding',
+              priority,
+              actionType,
+              assignedTo: row.responsable || row.cargo || 'Coordinador PESV',
+              sourceModule: 'matriz_pesv',
+              referenceId,
+              referenceName,
+            });
+            syncedCount++;
+          } else if (task.status !== 'done' && task.status !== 'dismissed') {
+            task.title = title;
+            task.description = description;
+            task.priority = priority;
+            task.actionType = actionType;
+            if (row.estado === 'CERRADA') task.status = 'done';
+            await task.save();
+            syncedCount++;
+          }
+        }
+      }
+
+      if (activePesvRefs.size > 0) {
+        await KanbanTask.deleteMany({
+          user: userId,
+          companyId,
+          sourceModule: 'matriz_pesv',
+          status: { $in: ['todo', 'due_soon'] },
+          referenceId: { $nin: Array.from(activePesvRefs) },
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Se sincronizaron ${syncedCount} planes de acción viales de la Matriz PESV con el Centro de Control (Kanban ACPM).`,
+      matrixRows,
+      syncedCount,
+    });
+  } catch (error) {
+    logger.error('[PESVWorkspace POST /sync-controles-pesv] Error:', error);
+    res.status(500).json({ error: error.message || 'Error al sincronizar planes PESV con Centro de Control' });
   }
 });
 
