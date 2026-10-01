@@ -75,51 +75,6 @@ const CIUDADES_COLOMBIA = [
     'Zipaquirá (Cundinamarca)'
 ];
 
-// Sugerencias para el Área (casilla manual)
-const SUGERENCIAS_AREA = [
-    'Auditoría y revisoría Fiscal',
-    'Servicios legales',
-    'BPO',
-    'Impuestos',
-    'Administración',
-    'Cumplimiento',
-    'Dirección',
-    'Operaciones / Producción',
-    'Mantenimiento e Infraestructura',
-    'Logística y Almacén',
-    'Comercial y Ventas',
-    'Talento Humano / SST',
-    'Tecnología y Sistemas',
-    'Financiera y Contable',
-    'Obras y Proyectos'
-];
-
-// Sugerencias para la Actividad (casilla manual)
-const SUGERENCIAS_ACTIVIDAD = [
-    'Administrativa',
-    'Operativa',
-    'Servicios generales',
-    'Mantenimiento a infraestructura',
-    'Atención al cliente / Ventas',
-    'Logística y mensajería',
-    'Auditoría y revisión',
-    'Obras civiles y campo'
-];
-
-// Sugerencias para la Tarea del PDF (casilla manual asistida)
-const SUGERENCIAS_TAREA = [
-    'Planificar, controlar y hacer seguimiento a actividades.',
-    'Digitar, elaborar informes, verificar datos.',
-    'Coordinar, dirigir y asignar funciones.',
-    'Atender clientes.',
-    'Labores administrativas, propias del ejercicio.',
-    'Diligencias administrativas, (mensajería).',
-    'Visitar empresas.',
-    'Limpieza de instalaciones.',
-    'Servicio de mantenimiento a infraestructura.',
-    'Cargue y descargue de materiales y suministros.'
-];
-
 // Catálogo GTC-45 Oficial del PDF (Preguntas 8 a 14)
 const CATALOGO_PELIGROS_GTC45: Record<string, { label: string; icon: string; items: string[] }> = {
     'Biomecánicos': {
@@ -678,17 +633,11 @@ export default function PublicParticipacionIPEVAR() {
                                     </label>
                                     <input 
                                         type="text" 
-                                        list="lista-areas-sugeridas"
                                         className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium" 
-                                        placeholder="Ej: Auditoría y revisoría Fiscal, Impuestos, Operaciones..."
+                                        placeholder="Ej: Administración, Operaciones, Ventas, Mantenimiento..."
                                         value={area}
                                         onChange={(e) => setArea(e.target.value)}
                                     />
-                                    <datalist id="lista-areas-sugeridas">
-                                        {SUGERENCIAS_AREA.map((sug, i) => (
-                                            <option key={i} value={sug} />
-                                        ))}
-                                    </datalist>
                                 </div>
 
                                 {/* Cargo */}
@@ -765,87 +714,50 @@ export default function PublicParticipacionIPEVAR() {
                             
                             <div className="space-y-3.5 overflow-y-auto pr-1 flex-1 pb-2 text-xs">
                                 
-                                {/* Lugar y Actividad (Manuales) */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                    <div>
-                                        <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1 flex items-center gap-1">
-                                            <MapPin className="w-3 h-3 text-teal-600" /> ¿En qué lugar o zona? *
+                                {/* Lugar y Actividad (Manuales y Alineados) */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                                    <div className="flex flex-col">
+                                        <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5 min-h-[32px] sm:min-h-[28px] leading-tight">
+                                            <MapPin className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                                            <span>¿En qué lugar o zona? *</span>
                                         </label>
                                         <input 
                                             type="text" 
-                                            list="zonas-sugeridas"
-                                            placeholder="Ej: Oficina 402, Archivo central, Bodega..." 
+                                            placeholder="Ej: Oficina 402, Archivo central, Bodega, Taller..." 
                                             value={zona} 
                                             onChange={e => setZona(e.target.value)} 
-                                            className="w-full border border-border-medium rounded-xl text-xs bg-surface-secondary/40 py-2.5 px-3 focus:ring-2 focus:ring-teal-500 text-text-primary font-medium" 
+                                            className="w-full h-11 border border-border-medium rounded-xl text-xs bg-surface-secondary/40 px-3.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary font-medium transition-all" 
                                         />
-                                        <datalist id="zonas-sugeridas">
-                                            <option value="Oficina Principal" />
-                                            <option value="Área de Sistemas / Servidores" />
-                                            <option value="Archivo y Documentación" />
-                                            <option value="Recepción / Atención al Público" />
-                                            <option value="Bodega / Almacén" />
-                                            <option value="Puesto de Trabajo Remoto / Casa" />
-                                            <option value="Trabajo de Campo / Visita a Clientes" />
-                                        </datalist>
                                     </div>
 
-                                    <div>
-                                        <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1 flex items-center gap-1">
-                                            <Layers className="w-3 h-3 text-teal-600" /> Actividad (Relacionada a su función) *
+                                    <div className="flex flex-col">
+                                        <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5 min-h-[32px] sm:min-h-[28px] leading-tight">
+                                            <Layers className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                                            <span>Actividad (Relacionada a su función) *</span>
                                         </label>
                                         <input 
                                             type="text" 
-                                            list="actividades-sugeridas"
-                                            placeholder="Ej: Administrativa, Operativa, Servicios generales..." 
+                                            placeholder="Ej: Administrativa, Operativa, Logística, etc..." 
                                             value={actividad} 
                                             onChange={e => setActividad(e.target.value)} 
-                                            className="w-full border border-border-medium rounded-xl text-xs bg-surface-secondary/40 py-2.5 px-3 focus:ring-2 focus:ring-teal-500 text-text-primary font-medium" 
+                                            className="w-full h-11 border border-border-medium rounded-xl text-xs bg-surface-secondary/40 px-3.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary font-medium transition-all" 
                                         />
-                                        <datalist id="actividades-sugeridas">
-                                            {SUGERENCIAS_ACTIVIDAD.map((act, i) => (
-                                                <option key={i} value={act} />
-                                            ))}
-                                        </datalist>
                                     </div>
                                 </div>
 
-                                {/* TAREA (Casilla manual con sugerencias del PDF) */}
+                                {/* TAREA (Casilla manual sin desplegables) */}
                                 <div>
-                                    <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1 flex items-center gap-1">
-                                        <Briefcase className="w-3 h-3 text-teal-600" /> Tarea (Seleccione o escriba la más recurrente) *
+                                    <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                        <Briefcase className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                                        <span>Tarea que realiza (Específica) *</span>
                                     </label>
                                     <input 
                                         type="text" 
-                                        list="tareas-sugeridas"
-                                        placeholder="Ej: Digitar, elaborar informes, verificar datos..." 
+                                        placeholder="Ej: Digitar informes, operar maquinaria, archivar, atender clientes..." 
                                         value={tarea} 
                                         onChange={e => setTarea(e.target.value)} 
-                                        className="w-full border border-border-medium rounded-xl text-xs bg-surface-secondary/40 py-2.5 px-3 focus:ring-2 focus:ring-teal-500 text-text-primary font-medium mb-1.5" 
+                                        className="w-full h-11 border border-border-medium rounded-xl text-xs bg-surface-secondary/40 px-3.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary font-medium transition-all" 
                                     />
-                                    <datalist id="tareas-sugeridas">
-                                        {SUGERENCIAS_TAREA.map((tar, i) => (
-                                            <option key={i} value={tar} />
-                                        ))}
-                                    </datalist>
-                                    
-                                    {/* Botones de selección rápida del PDF */}
-                                    <div className="flex flex-wrap gap-1">
-                                        {SUGERENCIAS_TAREA.slice(0, 5).map((sug, i) => (
-                                            <button
-                                                key={i}
-                                                type="button"
-                                                onClick={() => setTarea(sug)}
-                                                className={`px-2 py-0.5 rounded-md text-[10px] font-medium border transition-all cursor-pointer ${
-                                                    tarea === sug
-                                                        ? 'bg-teal-50 dark:bg-teal-950/60 border-teal-500 text-teal-700 dark:text-teal-300 font-bold'
-                                                        : 'bg-surface-secondary/60 border-border-medium text-text-secondary hover:border-teal-400'
-                                                }`}
-                                            >
-                                                {sug.split(',')[0]}...
-                                            </button>
-                                        ))}
-                                    </div>
                                 </div>
 
                                 {/* ¿Es Rutinaria? */}

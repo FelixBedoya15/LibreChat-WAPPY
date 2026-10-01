@@ -113,6 +113,11 @@ const WorkerEntrySchema = new mongoose.Schema({
   bioScoreIADate: { type: Date, default: null },         // fecha de última evaluación IA
   bioTagsIA: { type: Array, default: [] },               // etiquetas clínicas detectadas por la IA (ej: ['Lumbalgia', 'Estrés Moderado'])
   bioScoreIAAptitud: { type: String, default: '' },      // "Apto", "Apto con Restricciones", "No Apto"
+
+  // Estado Laboral & Trazabilidad SG-SST (Activo vs Retirado)
+  estadoLaboral: { type: String, enum: ['Activo', 'Retirado'], default: 'Activo' },
+  fechaRetiro: { type: String, default: '' },
+  motivoRetiro: { type: String, default: '' },
 }, { _id: false });
 
 const PerfilSociodemograficoDataSchema = new mongoose.Schema({

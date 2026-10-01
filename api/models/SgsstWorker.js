@@ -99,6 +99,11 @@ const SgsstWorkerSchema = new mongoose.Schema({
   condicionesSalud: { type: String, default: '' },
   observaciones: { type: String, default: '' },
 
+  // Estado Laboral & Trazabilidad SG-SST (Activo vs Retirado)
+  estadoLaboral: { type: String, enum: ['Activo', 'Retirado'], default: 'Activo' },
+  fechaRetiro: { type: Date },
+  motivoRetiro: { type: String, default: '' },
+
   // Seguridad Social & PILA
   eps: { type: String, default: '' },
   afp: { type: String, default: '' },
