@@ -24,7 +24,9 @@ import {
     Inbox,
     Eye,
     Calendar,
-    CheckCircle2
+    CheckCircle2,
+    Flame,
+    Target
 } from 'lucide-react';
 
 interface ParticipacionEstadisticasDashboardProps {
@@ -44,7 +46,7 @@ export default function ParticipacionEstadisticasDashboard({
 }: ParticipacionEstadisticasDashboardProps) {
 
     const [filterSource, setFilterSource] = useState<'all' | 'inbox' | 'local'>('all');
-    const [isAuditListOpen, setIsAuditListOpen] = useState(true);
+    const [isAuditListOpen, setIsAuditListOpen] = useState(false);
 
     // ─── 1. EXTRACCIÓN, FILTRADO DE BORRADORES Y DEDUPLICACIÓN ──────────────────
     const unifiedReports = useMemo(() => {
@@ -94,9 +96,9 @@ export default function ParticipacionEstadisticasDashboard({
                 status: item.status || 'pending',
                 nombre: nombre || 'Colaborador Anónimo',
                 cedula: cedula || '',
-                cargo: item.trabajador?.cargo || 'Colaborador',
+                cargo: item.trabajador?.cargo || 'Colaborador Operativo',
                 centroTrabajo: item.data?.centroTrabajo || 'Bogotá D.C.',
-                area: item.data?.area || item.data?.proceso || 'Operativo / Administrativo',
+                area: item.data?.area || item.data?.proceso || 'Operaciones',
                 actividad: actividad || 'General',
                 tarea: tarea || '',
                 peligroClasificacion: cat,
@@ -121,8 +123,7 @@ export default function ParticipacionEstadisticasDashboard({
             const actividad = item.formData?.actividad?.trim() || '';
             const isDefaultBlankTitle = item.title === 'Nueva Participación';
 
-            // ⚠️ FILTRAR BORRADORES VACÍOS:
-            // Si no tiene nombre, ni cédula, ni peligros, ni tarea -> es un formulario en blanco, NO contar!
+            // Filtrar borradores vacíos
             if (!nombre && !cedula && !peligros && !tarea && !actividad) {
                 return;
             }
@@ -130,8 +131,7 @@ export default function ParticipacionEstadisticasDashboard({
                 return;
             }
 
-            // ⚠️ DEDUPLICACIÓN INTELIGENTE:
-            // 1. Coincidencia por ID de Inbox explícito
+            // Deduplicación inteligente por ID o Cédula
             if (item.inboxItemId && reportMap.has(String(item.inboxItemId))) {
                 const existing = reportMap.get(String(item.inboxItemId));
                 reportMap.set(String(item.inboxItemId), {
@@ -146,7 +146,6 @@ export default function ParticipacionEstadisticasDashboard({
                 return;
             }
 
-            // 2. Coincidencia por cédula o nombre con un reporte existente del inbox
             let matchedKey: string | null = null;
             for (const [key, existing] of reportMap.entries()) {
                 const sameCedula = cedula && existing.cedula && cedula === existing.cedula;
@@ -171,7 +170,6 @@ export default function ParticipacionEstadisticasDashboard({
                 return;
             }
 
-            // 3. Es un reporte local genuino nuevo
             const rawCat = item.formData?.peligroClasificacion?.trim();
             let cat = 'Condiciones de Seguridad';
             if (rawCat) {
@@ -193,9 +191,9 @@ export default function ParticipacionEstadisticasDashboard({
                 status: item.status || 'pending',
                 nombre: nombre || 'Colaborador Registrado',
                 cedula: cedula || '',
-                cargo: trabajador.cargo || 'Operativo',
+                cargo: trabajador.cargo || 'Personal Operativo',
                 centroTrabajo: item.formData?.centroTrabajo || 'Bogotá D.C.',
-                area: item.formData?.proceso || 'Operativo / Administrativo',
+                area: item.formData?.proceso || 'Operaciones',
                 actividad: actividad || 'General',
                 tarea: tarea || '',
                 peligroClasificacion: cat,
@@ -220,13 +218,115 @@ export default function ParticipacionEstadisticasDashboard({
         return unifiedReports;
     }, [unifiedReports, filterSource]);
 
-    // ─── 2. CÁLCULOS ESTADÍSTICOS CONSOLIDADOS ──────────────────────────────────
+    // ─── 2. AGRUPACIÓN Y PONDERACIÓN POR CARGO, ÁREA, ZONA Y PELIGRO GTC-45 ──────
+    const weightedClusters = useMemo(() => {
+        const clusterMap = new Map<string, any>();
+
+        filteredReports.forEach(r => {
+            const cargo = r.cargo?.trim() || 'Personal Operativo';
+            const area = r.area?.trim() || 'Operaciones';
+            const cat = r.peligroClasificacion || 'Condiciones de Seguridad';
+
+            const clusterKey = `${cargo.toLowerCase()}__${area.toLowerCase()}__${cat.toLowerCase()}`;
+
+            if (!clusterMap.has(clusterKey)) {
+                clusterMap.set(clusterKey, {
+                    key: clusterKey,
+                    cargo,
+                    area,
+                    zonas: new Set<string>(),
+                    peligroClasificacion: cat,
+                    reportes: [],
+                    reportIds: [],
+                    factoresSet: new Set<string>(),
+                    actividadesList: [],
+                    tareasList: [],
+                    severidades: [],
+                    controlesList: [],
+                    propuestasList: []
+                });
+            }
+
+            const c = clusterMap.get(clusterKey);
+            c.reportes.push(r);
+            if (r.id) c.reportIds.push(r.id);
+            if (r.inboxId) c.reportIds.push(r.inboxId);
+            if (r.centroTrabajo) c.zonas.add(r.centroTrabajo);
+            if (r.actividad) c.actividadesList.push(r.actividad);
+            if (r.tarea) c.tareasList.push(r.tarea);
+            if (r.severidadPercibida) c.severidades.push(r.severidadPercibida);
+            if (r.controlesExistentes) c.controlesList.push(r.controlesExistentes);
+            if (r.propuestaMejora) c.propuestasList.push(r.propuestaMejora);
+
+            if (Array.isArray(r.factoresSeleccionados)) {
+                r.factoresSeleccionados.forEach((f: string) => c.factoresSet.add(f));
+            }
+        });
+
+        // Convertir y calcular puntuación de ponderación (Riesgo Alto / Crítico + Repetición)
+        const clusters = Array.from(clusterMap.values()).map((c, idx) => {
+            const reportesCount = c.reportes.length;
+
+            // Severidad máxima
+            let maxSeveridad: 'Crítica' | 'Alta' | 'Media' | 'Baja' = 'Baja';
+            if (c.severidades.includes('Crítica')) maxSeveridad = 'Crítica';
+            else if (c.severidades.includes('Alta')) maxSeveridad = 'Alta';
+            else if (c.severidades.includes('Media')) maxSeveridad = 'Media';
+
+            // Puntuación ponderada:
+            // Crítica: 50 pts | Alta: 35 pts | Media: 20 pts | Baja: 5 pts
+            // + Repetición por cargo: (reportesCount * 12 pts)
+            let severidadScore = 20;
+            if (maxSeveridad === 'Crítica') severidadScore = 55;
+            else if (maxSeveridad === 'Alta') severidadScore = 38;
+            else if (maxSeveridad === 'Media') severidadScore = 22;
+            else severidadScore = 8;
+
+            const ponderacionScore = severidadScore + (reportesCount * 12);
+
+            // Actividad y tarea principal
+            const actividad = c.actividadesList.find((a: string) => a && a !== 'General') || c.actividadesList[0] || `Actividades del área de ${c.area}`;
+            const tarea = c.tareasList.find(Boolean) || `Labores propias de ${c.cargo}`;
+            const zona = Array.from(c.zonas).join(', ') || 'Sedes principales';
+            const factores = Array.from(c.factoresSet);
+
+            const isFullyApplied = c.reportes.every((r: any) => r.status === 'applied_to_matrix');
+
+            // Síntesis de controles y propuestas
+            const controlesExistentes = c.controlesList.filter(Boolean).slice(0, 3).join('. ') || 'Pausas activas y medidas básicas reportadas en puesto.';
+            const propuestasMejora = c.propuestasList.filter(Boolean).slice(0, 3).join('. ') || 'Implementar controles ergonómicos, mantenimiento de áreas y capacitación continua.';
+
+            return {
+                id: `cluster-${idx}`,
+                key: c.key,
+                cargo: c.cargo,
+                area: c.area,
+                zona,
+                peligroClasificacion: c.peligroClasificacion,
+                reportesCount,
+                reportes: c.reportes,
+                reportIds: c.reportIds,
+                factores,
+                maxSeveridad,
+                ponderacionScore,
+                actividad,
+                tarea,
+                controlesExistentes,
+                propuestasMejora,
+                isFullyApplied
+            };
+        });
+
+        // Ordenar: primero los de mayor puntuación (Riesgo Alto / Crítico y mayor repetición)
+        return clusters.sort((a, b) => b.ponderacionScore - a.ponderacionScore);
+    }, [filteredReports]);
+
+    // ─── 3. CÁLCULOS ESTADÍSTICOS GENERALES ─────────────────────────────────────
     const stats = useMemo(() => {
         const totalReportes = filteredReports.length;
         const uniqueWorkers = new Set(filteredReports.map(r => r.cedula || r.nombre).filter(Boolean));
         const totalTrabajadores = uniqueWorkers.size || (totalReportes > 0 ? totalReportes : 0);
 
-        // 1. Conteo por Clasificación GTC-45
         const clasificacionCounts: Record<string, number> = {
             'Biomecánicos': 0,
             'Condiciones de Seguridad': 0,
@@ -258,36 +358,6 @@ export default function ParticipacionEstadisticasDashboard({
             ? rankingClasificaciones[0] 
             : { cat: 'Sin reportes aún', count: 0, porcentaje: 0 };
 
-        // 2. Conteo de Factores Específicos
-        const factorCounts: Record<string, number> = {};
-        filteredReports.forEach(r => {
-            if (Array.isArray(r.factoresSeleccionados) && r.factoresSeleccionados.length > 0) {
-                r.factoresSeleccionados.forEach((f: string) => {
-                    factorCounts[f] = (factorCounts[f] || 0) + 1;
-                });
-            } else if (r.peligros) {
-                const pLower = r.peligros.toLowerCase();
-                if (pLower.includes('postura') || pLower.includes('ergon')) factorCounts['Postura prolongada / mantenida'] = (factorCounts['Postura prolongada / mantenida'] || 0) + 1;
-                if (pLower.includes('repetitiv')) factorCounts['Movimiento repetitivo'] = (factorCounts['Movimiento repetitivo'] || 0) + 1;
-                if (pLower.includes('carga') || pLower.includes('peso')) factorCounts['Manipulación manual de cargas'] = (factorCounts['Manipulación manual de cargas'] || 0) + 1;
-                if (pLower.includes('altura') || pLower.includes('andamio')) factorCounts['Trabajo en Alturas / Caídas'] = (factorCounts['Trabajo en Alturas / Caídas'] || 0) + 1;
-                if (pLower.includes('orden') || pLower.includes('locativ') || pLower.includes('piso')) factorCounts['Condiciones Locativas / Orden y Aseo'] = (factorCounts['Condiciones Locativas / Orden y Aseo'] || 0) + 1;
-                if (pLower.includes('iluminac') || pLower.includes('luz')) factorCounts['Iluminación deficiente o excesiva'] = (factorCounts['Iluminación deficiente o excesiva'] || 0) + 1;
-                if (pLower.includes('ruido')) factorCounts['Ruido continuo o de impacto'] = (factorCounts['Ruido continuo o de impacto'] || 0) + 1;
-                if (pLower.includes('estrés') || pLower.includes('estres')) factorCounts['Carga mental / Psicosocial'] = (factorCounts['Carga mental / Psicosocial'] || 0) + 1;
-            }
-        });
-
-        const rankingFactores = Object.entries(factorCounts)
-            .map(([factor, count]) => ({
-                factor,
-                count,
-                porcentaje: totalReportes > 0 ? Math.round((count / totalReportes) * 100) : 0
-            }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 5);
-
-        // 3. Distribución de Severidad
         const severidadCounts: Record<string, number> = {
             'Crítica': 0,
             'Alta': 0,
@@ -305,54 +375,13 @@ export default function ParticipacionEstadisticasDashboard({
             ? Math.round(((severidadCounts['Crítica'] + severidadCounts['Alta']) / totalReportes) * 100)
             : 0;
 
-        const severidadPredominante = Object.entries(severidadCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Media';
-
-        // 4. Centros de Trabajo / Sedes
-        const sedesCounts: Record<string, number> = {};
-        filteredReports.forEach(r => {
-            const s = r.centroTrabajo || 'Bogotá D.C.';
-            sedesCounts[s] = (sedesCounts[s] || 0) + 1;
-        });
-
-        const rankingSedes = Object.entries(sedesCounts)
-            .map(([sede, count]) => ({ sede, count, porcentaje: totalReportes > 0 ? Math.round((count / totalReportes) * 100) : 0 }))
-            .sort((a, b) => b.count - a.count);
-
-        const sedeMasReportada = rankingSedes[0]?.sede || 'Principal';
-
-        // 5. Áreas
-        const areasCounts: Record<string, number> = {};
-        filteredReports.forEach(r => {
-            const a = r.area || 'Operaciones';
-            areasCounts[a] = (areasCounts[a] || 0) + 1;
-        });
-
-        const rankingAreas = Object.entries(areasCounts)
-            .map(([area, count]) => ({ area, count, porcentaje: totalReportes > 0 ? Math.round((count / totalReportes) * 100) : 0 }))
-            .sort((a, b) => b.count - a.count);
-
-        const areaMasReportada = rankingAreas[0]?.area || 'General';
-
-        // 6. Textos de propuestas
-        const propuestasTextos = filteredReports
-            .map(r => r.propuestaMejora)
-            .filter(Boolean)
-            .slice(0, 5);
-
         return {
             totalReportes,
             totalTrabajadores,
             rankingClasificaciones,
             riesgoMasReportado,
-            rankingFactores,
             severidadCounts,
-            porcentajeCriticoAlto,
-            severidadPredominante,
-            rankingSedes,
-            sedeMasReportada,
-            rankingAreas,
-            areaMasReportada,
-            propuestasTextos
+            porcentajeCriticoAlto
         };
     }, [filteredReports]);
 
@@ -368,37 +397,36 @@ export default function ParticipacionEstadisticasDashboard({
         }
     };
 
-    // ─── 3. ENVIAR CONSOLIDADO ESTADÍSTICO A LA MATRIZ IPEVR ─────────────────
-    const handleSendConsolidado = () => {
-        if (stats.totalReportes === 0) return;
+    // ─── 4. DISPARAR APROBACIÓN DE UN CLUSTER PONDERADO ESPECÍFICO ────────────
+    const handleApplyCluster = (cluster: any) => {
+        const topFactoresStr = cluster.factores.length > 0 
+            ? cluster.factores.join(', ') 
+            : cluster.tarea;
 
-        const topFactoresStr = stats.rankingFactores.length > 0 
-            ? stats.rankingFactores.map(f => `${f.factor} (${f.porcentaje}%)`).join(', ') 
-            : 'Múltiples factores identificados en la evaluación colectiva';
-
-        const resumenPropuestasStr = stats.propuestasTextos.length > 0
-            ? stats.propuestasTextos.join('. ')
-            : 'Implementar medidas preventivas y controles ergonómicos/locativos conforme a la percepción laboral.';
-
+        // Construir datos estructurados para la Matriz Oficial
         const consolidadoData = {
-            proceso: stats.areaMasReportada || 'Consolidado Poblacional',
-            zona: `Sedes principales (${stats.rankingSedes.slice(0, 3).map(s => s.sede).join(', ')})`,
-            actividad: 'Actividades representativas de la población trabajadora',
-            tarea: `Consolidado de tareas con mayor frecuencia (${stats.areaMasReportada})`,
+            id: cluster.id,
+            reportIds: cluster.reportIds,
+            proceso: cluster.area,
+            cargo: cluster.cargo,
+            zona: cluster.zona,
+            actividad: cluster.actividad,
+            tarea: cluster.tarea,
             rutinaria: 'Sí',
-            peligroClasificacion: stats.riesgoMasReportado.cat || 'Condiciones de Seguridad',
-            peligros: `Consolidado Estadístico de Participación (N = ${stats.totalTrabajadores} colaboradores evaluados). El ${stats.riesgoMasReportado.porcentaje}% de la población reportó exposición a: ${topFactoresStr}.`,
-            efectosPosibles: `Impacto en la salud reportado por la comunidad laboral: Fatiga física, molestias osteomusculares y riesgo de ausentismo.`,
-            severidadPercibida: stats.severidadPredominante,
-            controlesExistentes: `Controles actuales registrados por la población: Pausas activas y medidas básicas evidenciadas por los colaboradores.`,
+            peligroClasificacion: cluster.peligroClasificacion,
+            severidadPercibida: cluster.maxSeveridad,
+            nro_expuestos: cluster.reportesCount,
+            peligros: `Consolidado de ${cluster.reportesCount} reportes en el cargo ${cluster.cargo} (${cluster.area}). Factores recurrentes: ${topFactoresStr}.`,
+            efectosPosibles: `Impacto en la salud: Fatiga física, molestias musculares y riesgo de incapacidad identificados por el personal expuesto.`,
+            controlesExistentes: cluster.controlesExistentes,
             suficientes: false,
-            sugeridoIngenieria: `Propuesta de Mejora Colectiva: ${resumenPropuestasStr}`,
             sugeridoEliminacion: '',
-            sugeridoAdministrativo: `Programa de Vigilancia Epidemiológica enfocado en ${stats.riesgoMasReportado.cat} con seguimiento periódico a las áreas prioritarias.`,
-            sugeridoEPP: 'Verificación y dotación oportuna de elementos de confort ergonómico y protección personal.',
-            trabajadorNombre: `Consolidado Estadístico Comunitario (N = ${stats.totalTrabajadores} Colaboradores)`,
-            trabajadorCedula: 'ESTADISTICA-COMUNITARIA',
-            cargo: 'Población Trabajadora General'
+            sugeridoIngenieria: `Propuesta de Mejora Colectiva: ${cluster.propuestasMejora}`,
+            sugeridoAdministrativo: `Programa de Vigilancia Epidemiológica enfocado en ${cluster.peligroClasificacion} con seguimiento bimensual al cargo ${cluster.cargo}.`,
+            sugeridoEPP: 'Verificación, recambio y dotación oportuna de elementos de protección personal y confort.',
+            peorConsecuencia: 'Accidente de trabajo o enfermedad laboral con incapacidad permanente parcial',
+            trabajadorNombre: `Consolidado Ponderado: ${cluster.cargo} (N = ${cluster.reportesCount} Colaboradores)`,
+            trabajadorCedula: 'ESTADISTICA-GTC45'
         };
 
         onApplyConsolidadoToMatrix(consolidadoData);
@@ -412,17 +440,17 @@ export default function ParticipacionEstadisticasDashboard({
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-900/60 backdrop-blur-sm shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center shadow-md shadow-teal-500/20 shrink-0">
-                            <BarChart3 size={20} className="stroke-[2.2]" />
+                            <Target size={20} className="stroke-[2.2]" />
                         </div>
                         <div>
                             <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight flex items-center gap-2">
-                                Base Estadística de Participación IPEVR
+                                Base Estadística y Ponderación GTC-45
                                 <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 border border-teal-300/40">
-                                    Anonimizada
+                                    Matriz Oficial
                                 </span>
                             </h2>
                             <p className="text-xs text-slate-500 dark:text-zinc-400 font-normal">
-                                Análisis cuantitativo deduplicado sin borradores vacíos para la Matriz Oficial
+                                Agrupación por Cargo, Área y Repetición de Riesgos Altos para Aprobación Colectiva
                             </p>
                         </div>
                     </div>
@@ -464,7 +492,7 @@ export default function ParticipacionEstadisticasDashboard({
                     </div>
                 </div>
 
-                {/* ── Contenido con Métricas y Gráficas ── */}
+                {/* ── Contenido con Ponderación y Gráficas ── */}
                 <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 text-xs">
                     
                     {/* 1. KPI Cards */}
@@ -483,50 +511,225 @@ export default function ParticipacionEstadisticasDashboard({
                             </div>
                         </div>
 
+                        <div className="p-3.5 rounded-2xl border border-rose-200/80 dark:border-rose-800/60 bg-rose-50/50 dark:bg-rose-950/20 shadow-xs flex flex-col justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1.5">
+                                <Flame className="w-3.5 h-3.5 text-rose-600" /> Riesgo Crítico / Alto
+                            </span>
+                            <div className="mt-2">
+                                <span className="text-2xl font-black text-rose-900 dark:text-rose-200">
+                                    {stats.porcentajeCriticoAlto}%
+                                </span>
+                                <span className="text-[11px] text-rose-700 dark:text-rose-300 ml-1.5 font-medium">
+                                    prioridad en Matriz GTC-45
+                                </span>
+                            </div>
+                        </div>
+
                         <div className="p-3.5 rounded-2xl border border-teal-200/80 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/20 shadow-xs flex flex-col justify-between">
                             <span className="text-[10px] font-black uppercase tracking-wider text-teal-700 dark:text-teal-400 flex items-center gap-1.5">
-                                <TrendingUp className="w-3.5 h-3.5 text-teal-600" /> Riesgo #1 Más Reportado
+                                <TrendingUp className="w-3.5 h-3.5 text-teal-600" /> Peligro Más Frecuente
                             </span>
                             <div className="mt-2">
                                 <span className="text-lg font-black text-teal-900 dark:text-teal-200 block truncate" title={stats.riesgoMasReportado.cat}>
                                     {stats.riesgoMasReportado.cat}
                                 </span>
                                 <span className="text-[11px] font-bold text-teal-700 dark:text-teal-300">
-                                    {stats.totalReportes > 0 ? `${stats.riesgoMasReportado.porcentaje}% del total` : 'Sin datos'}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="p-3.5 rounded-2xl border border-amber-200/80 dark:border-amber-800/60 bg-amber-50/50 dark:bg-amber-950/20 shadow-xs flex flex-col justify-between">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> Severidad Crítica / Alta
-                            </span>
-                            <div className="mt-2">
-                                <span className="text-2xl font-black text-amber-900 dark:text-amber-200">
-                                    {stats.porcentajeCriticoAlto}%
-                                </span>
-                                <span className="text-[11px] text-amber-700 dark:text-amber-300 ml-1.5 font-medium">
-                                    nivel prioritario GTC-45
+                                    {stats.totalReportes > 0 ? `${stats.riesgoMasReportado.porcentaje}% de recurrencia` : 'Sin datos'}
                                 </span>
                             </div>
                         </div>
 
                         <div className="p-3.5 rounded-2xl border border-blue-200/80 dark:border-blue-800/60 bg-blue-50/50 dark:bg-blue-950/20 shadow-xs flex flex-col justify-between">
                             <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
-                                <Building2 className="w-3.5 h-3.5 text-blue-600" /> Sede / Área Clave
+                                <Layers className="w-3.5 h-3.5 text-blue-600" /> Peligros Ponderados
                             </span>
                             <div className="mt-2">
-                                <span className="text-base font-black text-blue-900 dark:text-blue-200 block truncate" title={stats.sedeMasReportada}>
-                                    {stats.sedeMasReportada.split('(')[0]}
+                                <span className="text-2xl font-black text-blue-900 dark:text-blue-200">
+                                    {weightedClusters.length}
                                 </span>
-                                <span className="text-[11px] text-blue-700 dark:text-blue-300 font-medium truncate block">
-                                    Área: {stats.areaMasReportada}
+                                <span className="text-[11px] text-blue-700 dark:text-blue-300 ml-1.5 font-medium">
+                                    grupos por Cargo / Área
                                 </span>
                             </div>
                         </div>
                     </div>
 
-                    {/* 2. Sección de Auditoría y Detalle de Reportes Analizados */}
+                    {/* 2. SECCIÓN PRINCIPAL: PELIGROS PRIORITARIOS PONDERADOS PARA LA MATRIZ */}
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-sm font-black text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                                    <Target className="w-4 h-4 text-teal-600" />
+                                    Peligros Prioritarios Ponderados por Cargo, Área y Repetición (GTC-45)
+                                </h3>
+                                <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                                    Solo se aprueban e integran a la matriz oficial los peligros colectivos con mayor ponderación y severidad
+                                </p>
+                            </div>
+                            <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 px-2.5 py-1 rounded-xl border border-teal-200 dark:border-teal-800">
+                                Ordenado por Ponderación GTC-45
+                            </span>
+                        </div>
+
+                        {weightedClusters.length === 0 ? (
+                            <div className="text-center py-8 rounded-3xl border border-dashed border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/30 text-slate-400">
+                                <Inbox className="w-8 h-8 mx-auto mb-2 opacity-40 text-teal-500" />
+                                <p className="font-semibold text-xs">No hay peligros reportados aún para ponderar</p>
+                                <p className="text-[11px] mt-0.5">Comparte el código QR o registra participaciones del personal para generar la base estadística.</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 gap-3.5">
+                                {weightedClusters.map((cluster, idx) => {
+                                    const isPriority1 = idx === 0;
+                                    const isCritical = cluster.maxSeveridad === 'Crítica' || cluster.maxSeveridad === 'Alta';
+
+                                    return (
+                                        <div
+                                            key={cluster.id}
+                                            className={`p-4 rounded-3xl border transition-all shadow-xs ${
+                                                isPriority1
+                                                    ? 'bg-gradient-to-r from-teal-50/70 via-white to-emerald-50/40 dark:from-teal-950/30 dark:via-zinc-900 dark:to-emerald-950/20 border-teal-300/80 dark:border-teal-700/80 shadow-md shadow-teal-500/5'
+                                                    : 'bg-white dark:bg-zinc-900/80 border-slate-200/80 dark:border-zinc-800'
+                                            }`}
+                                        >
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-zinc-800/80">
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider ${
+                                                            isPriority1 
+                                                                ? 'bg-rose-500 text-white shadow-xs' 
+                                                                : 'bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300'
+                                                        }`}>
+                                                            Prioridad #{idx + 1} • Ponderación: {cluster.ponderacionScore} pts
+                                                        </span>
+
+                                                        <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase border ${getCatColor(cluster.peligroClasificacion)}`}>
+                                                            {cluster.peligroClasificacion}
+                                                        </span>
+
+                                                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold ${
+                                                            cluster.maxSeveridad === 'Crítica' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' :
+                                                            cluster.maxSeveridad === 'Alta' ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300' :
+                                                            'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                                                        }`}>
+                                                            Severidad: {cluster.maxSeveridad}
+                                                        </span>
+
+                                                        {cluster.isFullyApplied && (
+                                                            <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[9px] font-black flex items-center gap-1">
+                                                                <CheckCircle2 size={11} /> Integrado en Matriz
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                                                        <span>Cargo: {cluster.cargo}</span>
+                                                        <span className="text-slate-400 font-normal">• Área: {cluster.area}</span>
+                                                        <span className="text-slate-400 font-normal">• Sede: {cluster.zona}</span>
+                                                    </h4>
+                                                </div>
+
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <span className="text-[11px] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-3 py-1 rounded-xl border border-teal-200/60 dark:border-teal-800/60">
+                                                        👥 {cluster.reportesCount} {cluster.reportesCount === 1 ? 'reporte coincidente' : 'reportes coincidentes'}
+                                                    </span>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleApplyCluster(cluster)}
+                                                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer ${
+                                                            cluster.isFullyApplied
+                                                                ? 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 hover:bg-slate-200'
+                                                                : 'bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-teal-600/25'
+                                                        }`}
+                                                    >
+                                                        <Sparkles className="w-3.5 h-3.5" />
+                                                        <span>{cluster.isFullyApplied ? 'Re-integrar a Matriz' : 'Aprobar e Integrar a Matriz'}</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Detalles específicos del grupo */}
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 text-[11px]">
+                                                <div className="space-y-0.5">
+                                                    <span className="font-bold text-slate-500 dark:text-zinc-400 block uppercase text-[10px]">Labor / Tarea Expuesta:</span>
+                                                    <p className="text-slate-800 dark:text-zinc-200 font-medium">"{cluster.tarea}"</p>
+                                                </div>
+
+                                                <div className="space-y-0.5">
+                                                    <span className="font-bold text-slate-500 dark:text-zinc-400 block uppercase text-[10px]">Factores Específicos Reportados:</span>
+                                                    <div className="flex flex-wrap gap-1 mt-0.5">
+                                                        {cluster.factores.length > 0 ? (
+                                                            cluster.factores.map((f: string, i: number) => (
+                                                                <span key={i} className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-[10px] font-semibold">
+                                                                    {f}
+                                                                </span>
+                                                            ))
+                                                        ) : (
+                                                            <span className="text-slate-400 italic">Condición general identificada</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-0.5">
+                                                    <span className="font-bold text-teal-700 dark:text-teal-400 block uppercase text-[10px]">Propuesta de Mejora Colectiva:</span>
+                                                    <p className="text-teal-900 dark:text-teal-200 italic font-medium line-clamp-2">
+                                                        "{cluster.propuestasMejora}"
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 3. Gráfica de Familias de Peligro GTC-45 */}
+                    <div className="p-5 rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/30">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                                    <BarChart3 className="w-4 h-4 text-teal-600" />
+                                    Distribución de Peligros Reportados por Categoría GTC-45
+                                </h3>
+                                <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                                    Porcentaje acumulado de la comunidad laboral por clasificación de riesgo
+                                </p>
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400">Total: {stats.totalReportes} reportes</span>
+                        </div>
+
+                        <div className="space-y-3">
+                            {stats.rankingClasificaciones.map(({ cat, count, porcentaje }, idx) => (
+                                <div key={cat} className="space-y-1">
+                                    <div className="flex justify-between items-center text-xs">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-5 text-slate-400 font-black text-[10px]">#{idx + 1}</span>
+                                            <span className="font-bold text-slate-800 dark:text-zinc-200">{cat}</span>
+                                            {idx === 0 && count > 0 && (
+                                                <span className="px-1.5 py-0.2 rounded-md bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 text-[9px] font-black uppercase">
+                                                    Mayor Incidencia
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2 font-mono">
+                                            <span className="text-slate-500 dark:text-zinc-400 text-[11px]">{count} {count === 1 ? 'voto' : 'votos'}</span>
+                                            <span className="font-bold text-slate-900 dark:text-zinc-100 text-xs w-10 text-right">{porcentaje}%</span>
+                                        </div>
+                                    </div>
+                                    <div className="w-full h-3 rounded-full bg-slate-200/70 dark:bg-zinc-800 overflow-hidden relative">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-500 bg-gradient-to-r ${getCatColor(cat)}`}
+                                            style={{ width: `${Math.max(porcentaje, count > 0 ? 5 : 0)}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* 4. Sección Desplegable de Auditoría de Reportes Individuales */}
                     <div className="rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/30 overflow-hidden">
                         <button
                             type="button"
@@ -536,15 +739,15 @@ export default function ParticipacionEstadisticasDashboard({
                             <div className="flex items-center gap-2.5">
                                 <Layers className="w-4 h-4 text-teal-600" />
                                 <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs">
-                                    Detalle de Reportes Analizados ({filteredReports.length})
+                                    Auditoría de Reportes de Origen ({filteredReports.length} reportes evaluados)
                                 </span>
                                 <span className="text-[10px] text-slate-400">
-                                    (Excluye borradores vacíos y duplicados unificados)
+                                    (Permite inspeccionar y descartar pruebas residuales)
                                 </span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400">
-                                    {isAuditListOpen ? 'Ocultar detalle' : 'Ver detalle'}
+                                    {isAuditListOpen ? 'Ocultar auditoría' : 'Ver detalle individual'}
                                 </span>
                                 {isAuditListOpen ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
                             </div>
@@ -556,7 +759,6 @@ export default function ParticipacionEstadisticasDashboard({
                                     <div className="text-center py-6 text-slate-400">
                                         <Inbox className="w-8 h-8 mx-auto mb-2 opacity-40 text-teal-500" />
                                         <p className="font-semibold text-xs">No hay reportes válidos disponibles</p>
-                                        <p className="text-[11px] mt-0.5">Comparte el enlace o código QR para que los trabajadores participen.</p>
                                     </div>
                                 ) : (
                                     filteredReports.map((r, idx) => {
@@ -571,6 +773,11 @@ export default function ParticipacionEstadisticasDashboard({
                                                         <span className="font-extrabold text-slate-900 dark:text-zinc-100 text-xs">
                                                             {r.nombre}
                                                         </span>
+                                                        {r.cargo && (
+                                                            <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold">
+                                                                • {r.cargo}
+                                                            </span>
+                                                        )}
                                                         {r.cedula && (
                                                             <span className="text-[10px] font-mono text-slate-400">
                                                                 (CC: {r.cedula})
@@ -636,151 +843,22 @@ export default function ParticipacionEstadisticasDashboard({
                         )}
                     </div>
 
-                    {/* 3. Gráfica de Familias de Peligro GTC-45 */}
-                    <div className="p-5 rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/30">
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                                <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-                                    <BarChart3 className="w-4 h-4 text-teal-600" />
-                                    Distribución de Peligros Reportados por Categoría GTC-45
-                                </h3>
-                                <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-                                    Porcentaje de colaboradores que identificaron cada familia de riesgo
-                                </p>
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-400">Total: {stats.totalReportes} reportes</span>
-                        </div>
-
-                        <div className="space-y-3">
-                            {stats.rankingClasificaciones.map(({ cat, count, porcentaje }, idx) => (
-                                <div key={cat} className="space-y-1">
-                                    <div className="flex justify-between items-center text-xs">
-                                        <div className="flex items-center gap-2">
-                                            <span className="w-5 text-slate-400 font-black text-[10px]">#{idx + 1}</span>
-                                            <span className="font-bold text-slate-800 dark:text-zinc-200">{cat}</span>
-                                            {idx === 0 && count > 0 && (
-                                                <span className="px-1.5 py-0.2 rounded-md bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 text-[9px] font-black uppercase">
-                                                    Mayor Incidencia
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-2 font-mono">
-                                            <span className="text-slate-500 dark:text-zinc-400 text-[11px]">{count} {count === 1 ? 'voto' : 'votos'}</span>
-                                            <span className="font-bold text-slate-900 dark:text-zinc-100 text-xs w-10 text-right">{porcentaje}%</span>
-                                        </div>
-                                    </div>
-                                    {/* Barra horizontal de porcentaje */}
-                                    <div className="w-full h-3 rounded-full bg-slate-200/70 dark:bg-zinc-800 overflow-hidden relative">
-                                        <div
-                                            className={`h-full rounded-full transition-all duration-500 bg-gradient-to-r ${getCatColor(cat)}`}
-                                            style={{ width: `${Math.max(porcentaje, count > 0 ? 5 : 0)}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* 4. Top Factores de Peligro Específicos & Severidad */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        
-                        {/* Top Factores Específicos */}
-                        <div className="p-4 rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/30 flex flex-col justify-between">
-                            <div>
-                                <h4 className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                                    <Activity className="w-3.5 h-3.5 text-teal-600" /> Top Factores de Peligro Más Frecuentes
-                                </h4>
-                                <p className="text-[11px] text-slate-500 dark:text-zinc-400 mb-3">
-                                    Condiciones específicas señaladas en los formularios
-                                </p>
-
-                                <div className="space-y-2">
-                                    {stats.rankingFactores.length > 0 ? (
-                                        stats.rankingFactores.map(({ factor, count, porcentaje }, idx) => (
-                                            <div key={idx} className="p-2.5 rounded-xl bg-white dark:bg-zinc-800/80 border border-slate-200/70 dark:border-zinc-700/70 flex items-center justify-between">
-                                                <div className="flex items-center gap-2 truncate pr-2">
-                                                    <span className="w-4 h-4 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 text-[10px] font-black flex items-center justify-center shrink-0">
-                                                        {idx + 1}
-                                                    </span>
-                                                    <span className="font-semibold text-slate-800 dark:text-zinc-200 truncate text-[11px]">{factor}</span>
-                                                </div>
-                                                <span className="font-mono font-bold text-teal-600 dark:text-teal-400 shrink-0 text-xs">
-                                                    {count} ({porcentaje}%)
-                                                </span>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="p-4 text-center text-slate-400 text-xs italic">
-                                            No hay factores específicos registrados aún.
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Distribución de Severidad Percibida */}
-                        <div className="p-4 rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/30 flex flex-col justify-between">
-                            <div>
-                                <h4 className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                                    <PieChart className="w-3.5 h-3.5 text-teal-600" /> Percepción de Severidad y Urgencia
-                                </h4>
-                                <p className="text-[11px] text-slate-500 dark:text-zinc-400 mb-3">
-                                    Calificación otorgada por los colaboradores
-                                </p>
-
-                                {/* Barra segmentada de Severidad */}
-                                <div className="w-full h-4 rounded-full bg-slate-200/80 dark:bg-zinc-800 overflow-hidden flex mb-3 shadow-inner">
-                                    {stats.totalReportes > 0 ? (
-                                        <>
-                                            <div style={{ width: `${(stats.severidadCounts['Crítica'] / stats.totalReportes) * 100}%` }} className="bg-rose-500 h-full transition-all" title="Crítica" />
-                                            <div style={{ width: `${(stats.severidadCounts['Alta'] / stats.totalReportes) * 100}%` }} className="bg-orange-500 h-full transition-all" title="Alta" />
-                                            <div style={{ width: `${(stats.severidadCounts['Media'] / stats.totalReportes) * 100}%` }} className="bg-amber-500 h-full transition-all" title="Media" />
-                                            <div style={{ width: `${(stats.severidadCounts['Baja'] / stats.totalReportes) * 100}%` }} className="bg-emerald-500 h-full transition-all" title="Baja" />
-                                        </>
-                                    ) : (
-                                        <div className="w-full bg-slate-300 dark:bg-zinc-700 h-full" />
-                                    )}
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div className="p-2.5 rounded-xl bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200/70 dark:border-rose-800/40 flex justify-between items-center">
-                                        <span className="font-bold text-rose-800 dark:text-rose-300 text-[11px]">Crítica</span>
-                                        <span className="font-mono font-black text-rose-700 dark:text-rose-400">{stats.severidadCounts['Crítica']} ({stats.totalReportes > 0 ? Math.round((stats.severidadCounts['Crítica'] / stats.totalReportes) * 100) : 0}%)</span>
-                                    </div>
-                                    <div className="p-2.5 rounded-xl bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200/70 dark:border-orange-800/40 flex justify-between items-center">
-                                        <span className="font-bold text-orange-800 dark:text-orange-300 text-[11px]">Alta</span>
-                                        <span className="font-mono font-black text-orange-700 dark:text-orange-400">{stats.severidadCounts['Alta']} ({stats.totalReportes > 0 ? Math.round((stats.severidadCounts['Alta'] / stats.totalReportes) * 100) : 0}%)</span>
-                                    </div>
-                                    <div className="p-2.5 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 flex justify-between items-center">
-                                        <span className="font-bold text-amber-800 dark:text-amber-300 text-[11px]">Media</span>
-                                        <span className="font-mono font-black text-amber-700 dark:text-amber-400">{stats.severidadCounts['Media']} ({stats.totalReportes > 0 ? Math.round((stats.severidadCounts['Media'] / stats.totalReportes) * 100) : 0}%)</span>
-                                    </div>
-                                    <div className="p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/40 flex justify-between items-center">
-                                        <span className="font-bold text-emerald-800 dark:text-emerald-300 text-[11px]">Baja</span>
-                                        <span className="font-mono font-black text-emerald-700 dark:text-emerald-400">{stats.severidadCounts['Baja']} ({stats.totalReportes > 0 ? Math.round((stats.severidadCounts['Baja'] / stats.totalReportes) * 100) : 0}%)</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    {/* 5. Banner Normativo y Metodológico */}
+                    {/* 5. Banner Normativo */}
                     <div className="p-4 rounded-2xl bg-teal-50/70 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/60 flex items-start gap-3">
                         <Sparkles className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
                         <div>
                             <h4 className="font-bold text-teal-900 dark:text-teal-200 text-xs">
-                                Integración Estadística Anonimizada (Dec. 1072/15 Art. 2.2.4.6.15)
+                                Integración Colectiva Ponderada a la Matriz IPEVR (Dec. 1072/15 Art. 2.2.4.6.15)
                             </h4>
                             <p className="text-[11px] text-teal-800/80 dark:text-teal-300/80 mt-0.5 leading-relaxed">
-                                Al enviar el <strong>Consolidado Estadístico</strong>, la Matriz IPEVR Oficial no registrará nombres individuales de los colaboradores, sino el hallazgo colectivo representativo de los <strong>{stats.totalTrabajadores} trabajadores participantes</strong>. Esto garantiza la confidencialidad y cumple con los estándares de auditoría del SG-SST.
+                                Ya no se integran registros individuales con nombres propios. El sistema pondera automáticamente la repetición de los peligros más críticos por cargo y área, integrando hallazgos estadísticos consolidados para alimentar de forma técnica la Matriz Oficial y su Plan de Trabajo.
                             </p>
                         </div>
                     </div>
 
                 </div>
 
-                {/* ── Footer con Botón Primario de Envío Estadístico a la Matriz ── */}
+                {/* ── Footer ── */}
                 <div className="px-6 py-4 border-t border-slate-100 dark:border-zinc-800/80 bg-slate-50/80 dark:bg-zinc-900/60 flex items-center justify-between shrink-0">
                     <button
                         type="button"
@@ -790,20 +868,17 @@ export default function ParticipacionEstadisticasDashboard({
                         Cerrar Analítica
                     </button>
 
-                    <button
-                        type="button"
-                        onClick={handleSendConsolidado}
-                        disabled={stats.totalReportes === 0}
-                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs text-white transition-all shadow-md active:scale-95 ${
-                            stats.totalReportes === 0 
-                                ? 'bg-slate-400 cursor-not-allowed opacity-60' 
-                                : 'bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 shadow-teal-600/25 cursor-pointer'
-                        }`}
-                    >
-                        <Sparkles className="w-4 h-4" />
-                        <span>Enviar Consolidado Estadístico a la Matriz IPEVR</span>
-                        <ArrowRight className="w-4 h-4" />
-                    </button>
+                    {weightedClusters.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => handleApplyCluster(weightedClusters[0])}
+                            className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs text-white bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 shadow-md shadow-teal-600/25 active:scale-95 transition-all cursor-pointer"
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            <span>Integrar Peligro #1 Más Crítico a la Matriz</span>
+                            <ArrowRight className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
 
             </div>

@@ -516,9 +516,31 @@ const ParticipacionIPEVAR = () => {
     };
 
     const handleApplyConsolidadoFromStats = (consolidadoData: any) => {
-        setApplyFormData(consolidadoData);
+        setApplyFormData({
+            proceso: consolidadoData.proceso || 'Operaciones',
+            zona: consolidadoData.zona || 'Sede Principal',
+            cargo: consolidadoData.cargo || 'Personal Operativo',
+            actividad: consolidadoData.actividad || '',
+            tarea: consolidadoData.tarea || '',
+            rutinaria: consolidadoData.rutinaria || 'Sí',
+            peligroClasificacion: consolidadoData.peligroClasificacion || 'Condiciones de Seguridad',
+            peligros: consolidadoData.peligros || '',
+            efectosPosibles: consolidadoData.efectosPosibles || '',
+            severidadPercibida: consolidadoData.severidadPercibida || 'Media',
+            controlesExistentes: consolidadoData.controlesExistentes || '',
+            suficientes: false,
+            sugeridoEliminacion: consolidadoData.sugeridoEliminacion || '',
+            sugeridoIngenieria: consolidadoData.sugeridoIngenieria || '',
+            sugeridoAdministrativo: consolidadoData.sugeridoAdministrativo || '',
+            sugeridoEPP: consolidadoData.sugeridoEPP || '',
+            nro_expuestos: consolidadoData.nro_expuestos || consolidadoData.reportesCount || 1,
+            peorConsecuencia: consolidadoData.peorConsecuencia || consolidadoData.efectosPosibles || '',
+            trabajadorNombre: consolidadoData.trabajadorNombre || `Ponderado: ${consolidadoData.cargo}`,
+            trabajadorCedula: consolidadoData.trabajadorCedula || 'ESTADISTICA-GTC45'
+        });
         setItemToApply({
-            id: 'consolidado-' + Date.now(),
+            id: consolidadoData.id || ('consolidado-' + Date.now()),
+            reportIds: consolidadoData.reportIds || [],
             trabajador: {
                 nombre: consolidadoData.trabajadorNombre,
                 cedula: consolidadoData.trabajadorCedula,
@@ -545,6 +567,7 @@ const ParticipacionIPEVAR = () => {
                 },
                 body: JSON.stringify({
                     reportId: itemToApply.id,
+                    reportIds: itemToApply.reportIds,
                     action: applyAction,
                     targetRowId: applyAction === 'update_existing' ? applyTargetRowId : undefined,
                     matrixData: applyFormData
@@ -559,18 +582,25 @@ const ParticipacionIPEVAR = () => {
                     severity: 'success'
                 });
 
+                const allTargetIds = new Set([
+                    String(itemToApply.id),
+                    ...(Array.isArray(itemToApply.reportIds) ? itemToApply.reportIds.map(String) : [])
+                ]);
+
                 // Update active participacion status if applies
-                setActiveParticipacion(prev => ({
-                    ...prev,
-                    status: 'applied_to_matrix',
-                    matrixAction: applyAction,
-                    matrixRowId: data.targetRowId,
-                    appliedAt: new Date()
-                }));
+                if (allTargetIds.has(String(activeParticipacion.id)) || (activeParticipacion.inboxItemId && allTargetIds.has(String(activeParticipacion.inboxItemId)))) {
+                    setActiveParticipacion(prev => ({
+                        ...prev,
+                        status: 'applied_to_matrix',
+                        matrixAction: applyAction,
+                        matrixRowId: data.targetRowId,
+                        appliedAt: new Date()
+                    }));
+                }
 
                 // Update participacionesList
                 setParticipacionesList(prev => prev.map(p => {
-                    if (p.id === itemToApply.id) {
+                    if (allTargetIds.has(String(p.id)) || (p.inboxItemId && allTargetIds.has(String(p.inboxItemId)))) {
                         return {
                             ...p,
                             status: 'applied_to_matrix',
@@ -584,7 +614,7 @@ const ParticipacionIPEVAR = () => {
 
                 // Update inboxPublico
                 setInboxPublico(prev => prev.map(item => {
-                    if (item.id === itemToApply.id) {
+                    if (allTargetIds.has(String(item.id))) {
                         return {
                             ...item,
                             status: 'applied_to_matrix',
@@ -603,10 +633,10 @@ const ParticipacionIPEVAR = () => {
                 setShowApplyModal(false);
             } else {
                 const errData = await res.json();
-                showToast({ message: errData.error || 'Error al aplicar a la matriz', status: 'error' });
+                showToast({ message: errData.error || 'Error al integrar a la matriz', status: 'error' });
             }
-        } catch (error: any) {
-            showToast({ message: 'Error de conexión al aplicar a la matriz', status: 'error' });
+        } catch (err) {
+            showToast({ message: 'Error de conexión con el servidor', status: 'error' });
         } finally {
             setIsApplyingToMatrix(false);
         }
@@ -1067,27 +1097,10 @@ const ParticipacionIPEVAR = () => {
                         <span className="text-xs font-black text-text-secondary uppercase tracking-widest">Listado de Participaciones</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        {activeParticipacion.status === 'applied_to_matrix' ? (
+                        {activeParticipacion.status === 'applied_to_matrix' && (
                             <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-xl text-xs font-bold border border-emerald-300 dark:border-emerald-800 shadow-sm">
                                 <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> Integrado en Matriz IPEVR
                             </span>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={() => handleOpenApplyModal(activeParticipacion)}
-                                title="Aprobar e Integrar a Matriz IPEVR"
-                                aria-label="Aprobar e Integrar a Matriz IPEVR"
-                                className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-2 shadow-sm outline-none transition-all duration-300 hover:scale-105 active:scale-95 sm:h-9 sm:min-w-[36px] sm:px-2.5"
-                            >
-                                <div className="relative flex shrink-0 items-center justify-center">
-                                    <Sparkles className="h-4 w-4 text-white" />
-                                </div>
-                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
-                                    <span className="text-xs font-bold tracking-wide">
-                                        Aprobar e Integrar a Matriz IPEVR
-                                    </span>
-                                </div>
-                            </button>
                         )}
                         <button
                             type="button"
@@ -1145,9 +1158,22 @@ const ParticipacionIPEVAR = () => {
             {isInboxOpen && (
                 <div className="rounded-xl border border-blue-200 bg-blue-50/30 dark:bg-blue-900/10 overflow-hidden shadow-inner p-4 animate-in fade-in slide-in-from-top-4">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-bold text-lg text-blue-800 dark:text-blue-400 flex items-center gap-2">
-                            <Inbox className="w-5 h-5" /> Bandeja de Reportes Públicos
-                        </h3>
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <h3 className="font-bold text-lg text-blue-800 dark:text-blue-400 flex items-center gap-2">
+                                <Inbox className="w-5 h-5" /> Bandeja de Reportes Públicos
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsInboxOpen(false);
+                                    setShowAnalyticsModal(true);
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white text-xs font-bold shadow-sm transition-all active:scale-95"
+                            >
+                                <BarChart3 className="w-3.5 h-3.5" />
+                                <span>Base Estadística y Ponderación GTC-45</span>
+                            </button>
+                        </div>
                         <button onClick={() => setIsInboxOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                             <X className="w-5 h-5" />
                         </button>
@@ -1194,14 +1220,7 @@ const ParticipacionIPEVAR = () => {
                                             className={`w-full py-1.5 rounded-lg font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 ${isProcessed ? 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300' : 'bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-800/50'}`}
                                         >
                                             {isProcessed ? <CheckCircle className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />} 
-                                            {isProcessed ? 'Cargar en formulario' : 'Cargar en formulario'}
-                                        </button>
-                                        <button
-                                            onClick={() => handleOpenApplyModal(item, true)}
-                                            className="w-full py-1.5 rounded-lg font-bold text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 flex items-center justify-center gap-1.5 transition-colors border border-emerald-200 dark:border-emerald-800"
-                                        >
-                                            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                                            {isApplied ? 'Re-integrar a Matriz' : 'Aprobar e Integrar a Matriz'}
+                                            {isProcessed ? 'Cargado en formulario' : 'Cargar en formulario'}
                                         </button>
                                     </div>
                                 </div>
@@ -1725,28 +1744,32 @@ const ParticipacionIPEVAR = () => {
                     </div>
                 </div>
             )}
-            {/* Modal de Aprobación e Integración a Matriz IPEVAR */}
+            {/* Modal de Aprobación e Integración a Matriz IPEVR Oficial */}
             {showApplyModal && itemToApply && ReactDOM.createPortal(
                 <div
-                    className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                    className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
                     onClick={() => !isApplyingToMatrix && setShowApplyModal(false)}
                 >
                     <div
-                        className="bg-surface-primary border border-border-medium rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+                        className="bg-surface-primary border border-border-medium rounded-3xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
                         onClick={e => e.stopPropagation()}
                     >
                         {/* Header */}
-                        <div className="px-6 py-4 border-b border-border-medium flex items-center justify-between bg-gradient-to-r from-teal-500/10 via-emerald-500/5 to-transparent">
+                        <div className="px-6 py-4 border-b border-border-medium flex items-center justify-between bg-gradient-to-r from-teal-500/10 via-emerald-500/5 to-transparent shrink-0">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-2xl bg-teal-500/20 text-teal-600 dark:text-teal-400 flex items-center justify-center font-bold">
+                                <div className="w-10 h-10 rounded-2xl bg-teal-500/20 text-teal-600 dark:text-teal-400 flex items-center justify-center font-bold shrink-0">
                                     <Sparkles className="w-5 h-5" />
                                 </div>
                                 <div>
                                     <h3 className="font-extrabold text-base text-text-primary">
-                                        Aprobar e Integrar a Matriz IPEVR Oficial
+                                        Aprobar e Integrar Peligro Ponderado a Matriz IPEVR Oficial
                                     </h3>
-                                    <p className="text-xs text-text-secondary">
-                                        Colaborador: <span className="font-semibold text-text-primary">{applyFormData.trabajadorNombre || 'Sin nombre'}</span> {applyFormData.trabajadorCedula ? `(CC ${applyFormData.trabajadorCedula})` : ''} {applyFormData.cargo ? <span className="ml-1 text-teal-600 dark:text-teal-400 font-bold">• Cargo: {applyFormData.cargo}</span> : ''}
+                                    <p className="text-xs text-text-secondary flex items-center gap-1.5 flex-wrap">
+                                        <span className="font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded-md border border-teal-200 dark:border-teal-800">
+                                            {applyFormData.peligroClasificacion}
+                                        </span>
+                                        <span>• Cargo: <strong className="text-text-primary">{applyFormData.cargo || 'Personal'}</strong></span>
+                                        <span>• Expuestos: <strong className="text-text-primary">{applyFormData.nro_expuestos || 1} colaboradores</strong></span>
                                     </p>
                                 </div>
                             </div>
@@ -1760,7 +1783,7 @@ const ParticipacionIPEVAR = () => {
                         </div>
 
                         {/* Tabs: Crear Nuevo vs Actualizar Existente */}
-                        <div className="px-6 pt-4 pb-2 border-b border-border-medium bg-surface-secondary/40 flex gap-2">
+                        <div className="px-6 pt-3 pb-2 border-b border-border-medium bg-surface-secondary/40 flex gap-2 shrink-0">
                             <button
                                 type="button"
                                 onClick={() => setApplyAction('create_new')}
@@ -1770,7 +1793,7 @@ const ParticipacionIPEVAR = () => {
                                         : 'bg-surface-primary text-text-secondary border-border-medium hover:bg-surface-hover'
                                 }`}
                             >
-                                <Plus className="w-4 h-4" /> 1. Crear Nuevo Peligro en Matriz
+                                <Plus className="w-4 h-4" /> 1. Crear Nuevo Peligro Ponderado en Matriz
                             </button>
                             <button
                                 type="button"
@@ -1781,16 +1804,16 @@ const ParticipacionIPEVAR = () => {
                                         : 'bg-surface-primary text-text-secondary border-border-medium hover:bg-surface-hover'
                                 }`}
                             >
-                                <RefreshCcw className="w-4 h-4" /> 2. Actualizar Peligro Existente
+                                <RefreshCcw className="w-4 h-4" /> 2. Actualizar / Complementar Fila Existente
                             </button>
                         </div>
 
-                        {/* Body */}
+                        {/* Body - Organizado por Columnas de la Matriz GTC-45 */}
                         <div className="p-6 overflow-y-auto space-y-4 flex-1 text-xs">
                             {applyAction === 'update_existing' && (
                                 <div className="p-3.5 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-2xl space-y-2">
                                     <label className="block font-bold text-blue-900 dark:text-blue-300 text-xs">
-                                        Selecciona el Peligro Existente a Complementar:
+                                        Selecciona el Peligro Existente en la Matriz a Complementar:
                                     </label>
                                     {isLoadingOfficialRows ? (
                                         <div className="flex items-center gap-2 text-blue-600 py-2">
@@ -1798,7 +1821,7 @@ const ParticipacionIPEVAR = () => {
                                         </div>
                                     ) : officialMatrixRows.length === 0 ? (
                                         <div className="text-gray-500 py-2">
-                                            No se encontraron peligros en la matriz oficial. Se recomienda crear como nuevo peligro.
+                                            No se encontraron peligros en la matriz oficial. Se creará como nueva fila.
                                         </div>
                                     ) : (
                                         <select
@@ -1813,22 +1836,24 @@ const ParticipacionIPEVAR = () => {
                                             ))}
                                         </select>
                                     )}
-                                    <p className="text-[11px] text-blue-700 dark:text-blue-300">
-                                        ℹ️ Se añadirán los aportes del colaborador y controles propuestos al peligro seleccionado sin duplicar la fila.
-                                    </p>
                                 </div>
                             )}
 
-                            {/* Detalle y revisión de campos GTC-45 */}
-                            <div className="space-y-3">
-                                <div className="grid grid-cols-2 gap-3">
+                            {/* BLOQUE 1: PROCESO, ZONA Y CARGO (Columnas 1-6 de la Matriz) */}
+                            <div className="p-4 rounded-2xl border border-border-medium bg-surface-secondary/30 space-y-3">
+                                <h4 className="font-black text-text-primary uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                                    <Building2 className="w-3.5 h-3.5 text-teal-600" />
+                                    1. Localización y Cargo Expuesto (Matriz GTC-45)
+                                </h4>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
-                                        <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Proceso</label>
+                                        <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Proceso / Área</label>
                                         <input
                                             type="text"
                                             value={applyFormData.proceso}
                                             onChange={e => setApplyFormData({ ...applyFormData, proceso: e.target.value })}
-                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary"
+                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary font-medium"
                                         />
                                     </div>
                                     <div>
@@ -1837,15 +1862,14 @@ const ParticipacionIPEVAR = () => {
                                             type="text"
                                             value={applyFormData.cargo}
                                             onChange={e => setApplyFormData({ ...applyFormData, cargo: e.target.value })}
-                                            placeholder="Ej. Ayudante de Obra, Operario..."
-                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary"
+                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary font-medium"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
-                                        <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Zona / Lugar</label>
+                                        <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Zona / Sede / Lugar</label>
                                         <input
                                             type="text"
                                             value={applyFormData.zona}
@@ -1859,7 +1883,6 @@ const ParticipacionIPEVAR = () => {
                                             type="text"
                                             value={applyFormData.actividad}
                                             onChange={e => setApplyFormData({ ...applyFormData, actividad: e.target.value })}
-                                            placeholder="Ej. Transporte y vaciado de mezclas..."
                                             className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary"
                                         />
                                     </div>
@@ -1880,48 +1903,57 @@ const ParticipacionIPEVAR = () => {
                                         <select
                                             value={applyFormData.rutinaria}
                                             onChange={e => setApplyFormData({ ...applyFormData, rutinaria: e.target.value })}
-                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary"
+                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary font-bold"
                                         >
                                             <option value="Sí">Sí</option>
                                             <option value="No">No</option>
                                         </select>
                                     </div>
                                 </div>
+                            </div>
 
-                                <div className="grid grid-cols-2 gap-3">
+                            {/* BLOQUE 2: IDENTIFICACIÓN DEL PELIGRO Y EVALUACIÓN (Columnas 7-9 y ND/NC) */}
+                            <div className="p-4 rounded-2xl border border-border-medium bg-surface-secondary/30 space-y-3">
+                                <h4 className="font-black text-text-primary uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                                    2. Identificación del Peligro y Consecuencias (GTC-45)
+                                </h4>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
-                                        <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Clasificación Peligro (GTC-45)</label>
+                                        <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Clasificación del Peligro (GTC-45)</label>
                                         <select
                                             value={applyFormData.peligroClasificacion}
                                             onChange={e => setApplyFormData({ ...applyFormData, peligroClasificacion: e.target.value })}
-                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary"
+                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary font-bold"
                                         >
+                                            <option value="Biomecánicos">Biomecánicos</option>
                                             <option value="Condiciones de Seguridad">Condiciones de Seguridad</option>
-                                            <option value="Biomecánico">Biomecánico</option>
                                             <option value="Físico">Físico</option>
-                                            <option value="Químico">Químico</option>
-                                            <option value="Psicosocial">Psicosocial</option>
+                                            <option value="Psicosociales">Psicosociales</option>
                                             <option value="Biológico">Biológico</option>
+                                            <option value="Químico">Químico</option>
                                             <option value="Fenómenos Naturales">Fenómenos Naturales</option>
                                         </select>
                                     </div>
+
                                     <div>
-                                        <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Severidad Percibida</label>
+                                        <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Severidad Percibida / Nivel de Deficiencia</label>
                                         <select
                                             value={applyFormData.severidadPercibida}
                                             onChange={e => setApplyFormData({ ...applyFormData, severidadPercibida: e.target.value })}
-                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary"
+                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary font-bold"
                                         >
                                             <option value="Crítica">Crítica (ND:10, NC:60 -&gt; Nivel I No Aceptable)</option>
-                                            <option value="Alta">Alta (ND:6, NC:25 -&gt; Nivel II Aceptable con Control)</option>
-                                            <option value="Media">Media (ND:6, NC:25 -&gt; Nivel II Aceptable con Control)</option>
+                                            <option value="Alta">Alta (ND:6, NC:25 -&gt; Nivel II Aceptable con Control Específico)</option>
+                                            <option value="Media">Media (ND:6, NC:25 -&gt; Nivel II Aceptable con Control Específico)</option>
                                             <option value="Baja">Baja (ND:2, NC:10 -&gt; Nivel III Mejorable)</option>
                                         </select>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Descripción del Peligro</label>
+                                    <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Descripción del Peligro (Consolidado Colectivo)</label>
                                     <textarea
                                         rows={2}
                                         value={applyFormData.peligros}
@@ -1931,7 +1963,7 @@ const ParticipacionIPEVAR = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Efectos Posibles en la Salud</label>
+                                    <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Efectos Posibles en la Salud (Consecuencias)</label>
                                     <input
                                         type="text"
                                         value={applyFormData.efectosPosibles}
@@ -1939,78 +1971,94 @@ const ParticipacionIPEVAR = () => {
                                         className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary"
                                     />
                                 </div>
+                            </div>
 
-                                {(itemToApply?.data?.propuestaMejora || itemToApply?.data?.controlesExistentes) && (
-                                    <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl space-y-1.5 text-xs">
-                                        {itemToApply?.data?.controlesExistentes && (
-                                            <div>
-                                                <span className="font-bold text-amber-900 dark:text-amber-200 text-[11px] block">Controles Existentes reportados por el Trabajador:</span>
-                                                <p className="text-text-secondary text-[11px] italic">"{itemToApply.data.controlesExistentes}"</p>
-                                            </div>
-                                        )}
-                                        {itemToApply?.data?.propuestaMejora && (
-                                            <div>
-                                                <span className="font-bold text-teal-800 dark:text-teal-300 text-[11px] block">Propuesta de Control del Trabajador:</span>
-                                                <p className="text-teal-900 dark:text-teal-100 text-[11px] font-medium bg-white/70 dark:bg-zinc-800 p-2 rounded-lg border border-teal-200 dark:border-teal-700">
-                                                    "{itemToApply.data.propuestaMejora}"
-                                                </p>
-                                            </div>
-                                        )}
+                            {/* BLOQUE 3: CONTROLES EXISTENTES Y CRITERIOS (Columnas 10-12 y 16) */}
+                            <div className="p-4 rounded-2xl border border-border-medium bg-surface-secondary/30 space-y-3">
+                                <h4 className="font-black text-text-primary uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                                    <Shield className="w-3.5 h-3.5 text-blue-600" />
+                                    3. Controles Existentes y Población Expuesta
+                                </h4>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div className="sm:col-span-2">
+                                        <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Controles Existentes (Fuente / Medio / Individuo)</label>
+                                        <input
+                                            type="text"
+                                            value={applyFormData.controlesExistentes}
+                                            onChange={e => setApplyFormData({ ...applyFormData, controlesExistentes: e.target.value })}
+                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary"
+                                        />
                                     </div>
-                                )}
+                                    <div>
+                                        <label className="block font-bold text-text-secondary text-[11px] uppercase mb-1">Nº Trabajadores Expuestos</label>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            value={applyFormData.nro_expuestos || 1}
+                                            onChange={e => setApplyFormData({ ...applyFormData, nro_expuestos: e.target.value })}
+                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary font-mono font-bold"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
 
-                                <div className="border-t border-border-medium pt-3 space-y-2">
-                                    <h5 className="font-bold text-text-primary text-[11px] uppercase">Medidas de Control Propuestas (Jerarquía GTC-45)</h5>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <span className="text-[10px] text-text-secondary font-semibold">1. Eliminación / Sustitución:</span>
-                                            <input
-                                                type="text"
-                                                value={applyFormData.sugeridoEliminacion}
-                                                onChange={e => setApplyFormData({ ...applyFormData, sugeridoEliminacion: e.target.value })}
-                                                placeholder="Ninguna sugerida"
-                                                className="w-full rounded-lg border border-border-medium px-2.5 py-1.5 text-xs bg-surface-primary text-text-primary mt-0.5"
-                                            />
-                                        </div>
-                                        <div>
-                                            <span className="text-[10px] text-text-secondary font-semibold">2. Ingeniería:</span>
-                                            <input
-                                                type="text"
-                                                value={applyFormData.sugeridoIngenieria}
-                                                onChange={e => setApplyFormData({ ...applyFormData, sugeridoIngenieria: e.target.value })}
-                                                placeholder="Ninguna sugerida"
-                                                className="w-full rounded-lg border border-border-medium px-2.5 py-1.5 text-xs bg-surface-primary text-text-primary mt-0.5"
-                                            />
-                                        </div>
-                                        <div>
-                                            <span className="text-[10px] text-text-secondary font-semibold">3. Administrativos:</span>
-                                            <input
-                                                type="text"
-                                                value={applyFormData.sugeridoAdministrativo}
-                                                onChange={e => setApplyFormData({ ...applyFormData, sugeridoAdministrativo: e.target.value })}
-                                                placeholder="Ninguna sugerida"
-                                                className="w-full rounded-lg border border-border-medium px-2.5 py-1.5 text-xs bg-surface-primary text-text-primary mt-0.5"
-                                            />
-                                        </div>
-                                        <div>
-                                            <span className="text-[10px] text-text-secondary font-semibold">4. EPP:</span>
-                                            <input
-                                                type="text"
-                                                value={applyFormData.sugeridoEPP}
-                                                onChange={e => setApplyFormData({ ...applyFormData, sugeridoEPP: e.target.value })}
-                                                placeholder="Ninguna sugerida"
-                                                className="w-full rounded-lg border border-border-medium px-2.5 py-1.5 text-xs bg-surface-primary text-text-primary mt-0.5"
-                                            />
-                                        </div>
+                            {/* BLOQUE 4: MEDIDAS DE INTERVENCIÓN (Jerarquía GTC-45 - Columnas 19-23) */}
+                            <div className="p-4 rounded-2xl border border-border-medium bg-surface-secondary/30 space-y-3">
+                                <h4 className="font-black text-text-primary uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                                    <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+                                    4. Medidas de Intervención Prioritarias (Jerarquía GTC-45)
+                                </h4>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <span className="text-[10px] text-text-secondary font-bold uppercase block mb-1">1. Eliminación / Sustitución:</span>
+                                        <input
+                                            type="text"
+                                            value={applyFormData.sugeridoEliminacion}
+                                            onChange={e => setApplyFormData({ ...applyFormData, sugeridoEliminacion: e.target.value })}
+                                            placeholder="No aplica o viable a largo plazo"
+                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary"
+                                        />
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-teal-700 dark:text-teal-400 font-bold uppercase block mb-1">2. Control de Ingeniería (Propuesta de Colaboradores):</span>
+                                        <input
+                                            type="text"
+                                            value={applyFormData.sugeridoIngenieria}
+                                            onChange={e => setApplyFormData({ ...applyFormData, sugeridoIngenieria: e.target.value })}
+                                            placeholder="Medidas de ingeniería y adecuación"
+                                            className="w-full rounded-xl border border-teal-300 dark:border-teal-700 px-3 py-2 text-xs bg-surface-primary text-text-primary font-medium"
+                                        />
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-text-secondary font-bold uppercase block mb-1">3. Controles Administrativos / PVE:</span>
+                                        <input
+                                            type="text"
+                                            value={applyFormData.sugeridoAdministrativo}
+                                            onChange={e => setApplyFormData({ ...applyFormData, sugeridoAdministrativo: e.target.value })}
+                                            placeholder="Capacitaciones, rotación, PVE"
+                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary"
+                                        />
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-text-secondary font-bold uppercase block mb-1">4. Elementos de Protección Personal (EPP):</span>
+                                        <input
+                                            type="text"
+                                            value={applyFormData.sugeridoEPP}
+                                            onChange={e => setApplyFormData({ ...applyFormData, sugeridoEPP: e.target.value })}
+                                            placeholder="Dotación y verificación de EPP"
+                                            className="w-full rounded-xl border border-border-medium px-3 py-2 text-xs bg-surface-primary text-text-primary"
+                                        />
                                     </div>
                                 </div>
                             </div>
 
                             {/* Banner Informativo */}
-                            <div className="p-3 bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/60 rounded-2xl flex items-start gap-2.5 text-[11px] text-teal-900 dark:text-teal-200">
+                            <div className="p-3 bg-teal-50/70 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/60 rounded-2xl flex items-start gap-2.5 text-[11px] text-teal-900 dark:text-teal-200">
                                 <Info className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
                                 <div>
-                                    <span className="font-bold">Efecto Inmediato:</span> Se sincronizará la Matriz IPEVR Oficial ({officialMatrixTitle}) y los Controles Propuestos se enviarán como tareas al <strong>Centro de Control (Kanban)</strong>. El trabajador recibirá <strong>+150 puntos</strong> en su Hoja de Vida Bio-Individual.
+                                    <span className="font-bold">Efecto en SG-SST:</span> Este peligro ponderado se registrará en la <strong>Matriz IPEVR Oficial ({officialMatrixTitle})</strong> consolidando la representatividad de <strong>{applyFormData.nro_expuestos || 1} colaboradores</strong>. Los controles propuestos se sincronizarán como tareas al <strong>Centro de Control (Kanban)</strong>.
                                 </div>
                             </div>
                         </div>
@@ -2029,11 +2077,11 @@ const ParticipacionIPEVAR = () => {
                                 type="button"
                                 onClick={handleConfirmApplyToMatrix}
                                 disabled={isApplyingToMatrix || (applyAction === 'update_existing' && !applyTargetRowId)}
-                                className="px-5 py-2.5 rounded-xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-md active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
+                                className="px-6 py-2.5 rounded-xl font-black bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
                             >
                                 {isApplyingToMatrix ? (
                                     <>
-                                        <Loader2 className="w-4 h-4 animate-spin" /> Integrando...
+                                        <Loader2 className="w-4 h-4 animate-spin" /> Integrando a Matriz...
                                     </>
                                 ) : (
                                     <>

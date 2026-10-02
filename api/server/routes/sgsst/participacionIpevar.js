@@ -101,7 +101,7 @@ router.post('/apply-to-matrix', requireJwtAuth, async (req, res) => {
     try {
         const userId = req.user.id;
         const companyId = await getActiveCompanyId(userId);
-        const { reportId, action, targetRowId, matrixData } = req.body;
+        const { reportId, reportIds, action, targetRowId, matrixData } = req.body;
 
         if (!matrixData) {
             return res.status(400).json({ error: 'Datos del peligro requeridos' });
@@ -223,9 +223,9 @@ router.post('/apply-to-matrix', requireJwtAuth, async (req, res) => {
                 medida_eppu: matrixData.sugeridoEPP || '',
                 factores_reduccion: 'Técnicamente viable y altamente costo-efectiva según Anexo E de la GTC-45. La implementación de medidas en fuente/medio reduce el nivel de deficiencia y la probabilidad del riesgo.',
                 origen_reporte: `Aporte participativo de ${matrixData.trabajadorNombre || 'Colaborador'}${matrixData.cargo ? ` (${matrixData.cargo})` : ''}${matrixData.trabajadorCedula ? ` [CC ${matrixData.trabajadorCedula}]` : ''}: reporte en fuente/medio para prevenir ${matrixData.efectosPosibles || 'accidentes o enfermedades'}.`,
-                nro_expuestos: 1,
-                peor_consecuencia: matrixData.efectosPosibles || 'Accidente de trabajo con incapacidad',
-                requisito_legal: 'Sí'
+                nro_expuestos: Number(matrixData.nro_expuestos) || 1,
+                peor_consecuencia: matrixData.peorConsecuencia || matrixData.efectosPosibles || 'Accidente de trabajo con incapacidad',
+                requisito_legal: matrixData.requisitoLegal || 'Sí'
             };
 
             session.matrixRows.push(newRow);
@@ -234,12 +234,17 @@ router.post('/apply-to-matrix', requireJwtAuth, async (req, res) => {
         session.markModified('matrixRows');
         await session.save();
 
-        // Actualizar el estado del reporte en ParticipacionIpevarData
+        // Actualizar el estado del reporte(s) en ParticipacionIpevarData
         const partDoc = await ParticipacionIpevarData.findOne({ user: userId, companyId });
         if (partDoc) {
+            const allTargetIds = new Set([
+                ...(reportId ? [String(reportId)] : []),
+                ...(Array.isArray(reportIds) ? reportIds.map(String) : [])
+            ]);
+
             if (Array.isArray(partDoc.participacionesList)) {
                 partDoc.participacionesList = partDoc.participacionesList.map(p => {
-                    if (String(p.id) === String(reportId)) {
+                    if (allTargetIds.has(String(p.id)) || (p.inboxItemId && allTargetIds.has(String(p.inboxItemId)))) {
                         p.status = 'applied_to_matrix';
                         p.matrixAction = action;
                         p.matrixRowId = resultingRowId;
@@ -251,7 +256,7 @@ router.post('/apply-to-matrix', requireJwtAuth, async (req, res) => {
             }
             if (Array.isArray(partDoc.inboxPublico)) {
                 partDoc.inboxPublico = partDoc.inboxPublico.map(item => {
-                    if (String(item.id) === String(reportId)) {
+                    if (allTargetIds.has(String(item.id))) {
                         item.status = 'applied_to_matrix';
                         item.matrixAction = action;
                         item.matrixRowId = resultingRowId;
