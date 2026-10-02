@@ -494,9 +494,10 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
   {
     key: 'proceso',
     label: 'Proceso',
-    required: true,
+    required: false,
+    defaultValue: 'Operativo',
     description: 'Proceso estratégico, misional o de apoyo',
-    synonyms: ['macroproceso', 'procesoempresa'],
+    synonyms: ['macroproceso', 'procesoempresa', 'procesos'],
     type: 'string',
   },
   {
@@ -504,7 +505,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Zona / Lugar',
     required: false,
     description: 'Área física o locación donde se realiza la actividad',
-    synonyms: ['lugar', 'area', 'ubicacion', 'sitio', 'zonalugar'],
+    synonyms: ['lugar', 'area', 'ubicacion', 'sitio', 'zonalugar', 'instalacion', 'sede'],
     type: 'string',
   },
   {
@@ -512,7 +513,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Actividad',
     required: true,
     description: 'Nombre de la actividad evaluada',
-    synonyms: ['nombreactividad', 'labor'],
+    synonyms: ['nombreactividad', 'labor', 'actividades', 'actividadevaluada'],
     type: 'string',
   },
   {
@@ -520,7 +521,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Tareas Específicas',
     required: false,
     description: 'Detalle de las tareas que componen la actividad',
-    synonyms: ['tarea', 'tareasespecificas', 'pasos'],
+    synonyms: ['tarea', 'tareasespecificas', 'pasos', 'operaciones'],
     type: 'string',
   },
   {
@@ -528,7 +529,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: '¿Es Rutinaria? (Sí / No)',
     required: false,
     description: 'Frecuencia rutinaria de la labor',
-    synonyms: ['rutina', 'esrutinaria', 'frecuente'],
+    synonyms: ['rutina', 'esrutinaria', 'frecuente', 'rutinario', 'rutinariiosino', 'rutinariosino'],
     type: 'string',
   },
   {
@@ -536,7 +537,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Clasificación del Peligro (GTC-45)',
     required: true,
     description: 'Biológico, Físico, Químico, Biomecánico, Psicosocial, Condiciones de seguridad, Fenómenos naturales',
-    synonyms: ['clasificacion', 'tipopeligro', 'categoriapeligro', 'clasificacionpeligro'],
+    synonyms: ['clasificacion', 'tipopeligro', 'categoriapeligro', 'clasificacionpeligro', 'peligroclasificacion', 'clasificaciondelpeligro', 'clasificacionpeligros'],
     type: 'string',
   },
   {
@@ -544,7 +545,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Descripción del Peligro',
     required: true,
     description: 'Fuente, situación o acto con potencial de daño',
-    synonyms: ['peligro', 'factorriesgo', 'riesgo', 'descripcionpeligro', 'descripciondelpeligro'],
+    synonyms: ['peligro', 'factorriesgo', 'riesgo', 'descripcionpeligro', 'descripciondelpeligro', 'peligrodescripcion', 'detallepeligro'],
     type: 'string',
   },
   {
@@ -552,7 +553,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Efectos Posibles en la Salud',
     required: false,
     description: 'Lesiones, enfermedades o consecuencias para los trabajadores',
-    synonyms: ['efectos', 'consecuencias', 'danos', 'efectossalud', 'efectosposibles'],
+    synonyms: ['efectos', 'consecuencias', 'danos', 'efectossalud', 'efectosposibles', 'posiblesefectos', 'efectosposiblesenlasalud'],
     type: 'string',
   },
   {
@@ -560,7 +561,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Cargo / Rol Expuesto',
     required: false,
     description: 'Puesto de trabajo expuesto a este riesgo',
-    synonyms: ['puestoexpuesto', 'cargos', 'ocupacion', 'cargo'],
+    synonyms: ['puestoexpuesto', 'cargos', 'ocupacion', 'cargo', 'puesto', 'actividadcargo', 'cargorolexpuesto'],
     type: 'string',
   },
   {
@@ -568,7 +569,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Controles en la Fuente',
     required: false,
     description: 'Controles existentes en el origen del peligro',
-    synonyms: ['fuente', 'controlfuente', 'controlesfuente'],
+    synonyms: ['fuente', 'controlfuente', 'controlesfuente', 'controlesenlafuente'],
     type: 'string',
   },
   {
@@ -576,7 +577,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Controles en el Medio',
     required: false,
     description: 'Controles existentes en la transmisión o ambiente',
-    synonyms: ['medio', 'controlmedio', 'controlesmedio'],
+    synonyms: ['medio', 'controlmedio', 'controlesmedio', 'controlesenelmedio'],
     type: 'string',
   },
   {
@@ -584,7 +585,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Controles en el Individuo / EPP',
     required: false,
     description: 'Controles en el trabajador (capacitación, EPP, procedimientos)',
-    synonyms: ['individuo', 'trabajador', 'epp', 'controlindividuo', 'controlesindividuo'],
+    synonyms: ['individuo', 'trabajador', 'epp', 'controlindividuo', 'controlesindividuo', 'controlesenelindividuo', 'persona'],
     type: 'string',
   },
   {
@@ -592,7 +593,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Nivel de Deficiencia (ND)',
     required: false,
     description: 'Valores GTC-45: 10, 6, 2 o 0',
-    synonyms: ['deficiencia', 'valordeficiencia', 'nd'],
+    synonyms: ['deficiencia', 'dificiencia', 'valordeficiencia', 'nd', 'niveldeficiencia', 'niveldedificiencia', 'niveldedeficiencia'],
     type: 'number',
   },
   {
@@ -600,7 +601,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Nivel de Exposición (NE)',
     required: false,
     description: 'Valores GTC-45: 4, 3, 2 o 1',
-    synonyms: ['exposicion', 'valorexposicion', 'ne'],
+    synonyms: ['exposicion', 'valorexposicion', 'ne', 'nivelexposicion', 'niveldeexposicion'],
     type: 'number',
   },
   {
@@ -608,7 +609,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Nivel de Consecuencia (NC)',
     required: false,
     description: 'Valores GTC-45: 100, 60, 25 o 10',
-    synonyms: ['consecuencia', 'valorconsecuencia', 'nc'],
+    synonyms: ['consecuencia', 'valorconsecuencia', 'nc', 'nivelconsecuencia', 'niveldeconsecuencia'],
     type: 'number',
   },
   {
@@ -616,7 +617,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Medida de Eliminación',
     required: false,
     description: 'Medida propuesta para eliminar el peligro',
-    synonyms: ['eliminacion', 'medidaeliminacion'],
+    synonyms: ['eliminacion', 'medidaeliminacion', 'eliminac'],
     type: 'string',
   },
   {
@@ -624,7 +625,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Medida de Sustitución',
     required: false,
     description: 'Medida propuesta para sustituir el peligro',
-    synonyms: ['sustitucion', 'medidasustitucion'],
+    synonyms: ['sustitucion', 'medidasustitucion', 'sustituc'],
     type: 'string',
   },
   {
@@ -632,7 +633,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Controles de Ingeniería',
     required: false,
     description: 'Medidas técnicas o de ingeniería propuestas',
-    synonyms: ['ingenieria', 'controlingenieria', 'medidaingenieria'],
+    synonyms: ['ingenieria', 'controlingenieria', 'medidaingenieria', 'controlesdeingenieria', 'controloesdeingenieria'],
     type: 'string',
   },
   {
@@ -640,7 +641,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Controles Administrativos',
     required: false,
     description: 'Procedimientos, señalización o capacitaciones propuestas',
-    synonyms: ['administrativo', 'controladministrativo', 'medidaadministrativa', 'senializacion'],
+    synonyms: ['administrativo', 'controladministrativo', 'medidaadministrativa', 'controlesadministrativos', 'senializacion'],
     type: 'string',
   },
   {
@@ -648,7 +649,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Medida de EPP / Equipos de Protección',
     required: false,
     description: 'Equipos de protección personal propuestos',
-    synonyms: ['epppropuesto', 'medidaepp', 'medidaeppu'],
+    synonyms: ['epppropuesto', 'medidaepp', 'medidaeppu', 'equiposdeproteccionpersonal', 'elementosdeproteccionpersonal', 'elementosdeprteccionpersonal', 'elementosdeprteccionpersona', 'prteccionpersonal', 'epp'],
     type: 'string',
   },
   {
@@ -656,7 +657,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Número de Expuestos',
     required: false,
     description: 'Cantidad de personas expuestas al peligro',
-    synonyms: ['expuestos', 'numeroexpuestos', 'nroexpuestos', 'cantidadexpuestos'],
+    synonyms: ['expuestos', 'numeroexpuestos', 'nroexpuestos', 'cantidadexpuestos', 'ndeexpuestos', 'nodeexpuestos'],
     type: 'number',
   },
   {
@@ -672,7 +673,7 @@ export const MATRIZ_IPEVAR_FIELDS: TargetFieldDef[] = [
     label: 'Requisito Legal Específico',
     required: false,
     description: 'Norma colombiana o técnica aplicable (ej. Res. 0312, Res. 2400)',
-    synonyms: ['requisitolegal', 'normatividad', 'legal'],
+    synonyms: ['requisitolegal', 'normatividad', 'legal', 'requisitoslegales', 'existenciarequisitolegalesp'],
     type: 'string',
   },
 ];

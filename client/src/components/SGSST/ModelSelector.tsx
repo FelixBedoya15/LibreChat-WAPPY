@@ -27,7 +27,13 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   disabled,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
+  const [dropdownPos, setDropdownPos] = useState<{
+    top?: number;
+    bottom?: number;
+    right?: number;
+    isUp?: boolean;
+    maxHeight?: number;
+  }>({ top: 0, right: 0, isUp: false });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { data: endpointsConfig } = useGetEndpointsQuery();
@@ -79,14 +85,36 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   const calcPos = () => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      setDropdownPos({
-        top: rect.bottom + 8,
-        right: window.innerWidth - rect.right,
-      });
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const estimatedHeight = 260; // 5 models + header
+      const openUpwards = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+
+      // Ensure right offset doesn't push the 256px wide menu off the left of the screen
+      const rightOffset = Math.max(8, Math.min(window.innerWidth - rect.right, window.innerWidth - 270));
+
+      if (openUpwards) {
+        setDropdownPos({
+          top: undefined,
+          bottom: Math.max(8, window.innerHeight - rect.top + 8),
+          right: rightOffset,
+          isUp: true,
+          maxHeight: Math.max(160, Math.min(spaceAbove - 20, 320)),
+        });
+      } else {
+        setDropdownPos({
+          top: rect.bottom + 8,
+          bottom: undefined,
+          right: rightOffset,
+          isUp: false,
+          maxHeight: Math.max(160, Math.min(spaceBelow - 20, 320)),
+        });
+      }
     }
   };
 
-  const openDropdown = () => {
+  const openDropdown = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (disabled) return;
     calcPos();
     setIsOpen((o) => !o);
@@ -116,33 +144,51 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   const dropdown = isOpen ? (
     <div
       ref={dropdownRef}
-      style={{ position: 'fixed', top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999999 }}
-      className="w-64 overflow-hidden rounded-xl border border-border-medium bg-surface-primary shadow-xl duration-200 animate-in fade-in slide-in-from-top-2"
+      style={{
+        position: 'fixed',
+        ...(dropdownPos.isUp
+          ? { bottom: `${dropdownPos.bottom}px` }
+          : { top: `${dropdownPos.top}px` }),
+        right: `${dropdownPos.right}px`,
+        maxHeight: dropdownPos.maxHeight ? `${dropdownPos.maxHeight}px` : undefined,
+        zIndex: 9999999,
+      }}
+      className={cn(
+        'w-64 overflow-hidden rounded-xl border border-border-medium bg-surface-primary shadow-2xl duration-200 animate-in fade-in flex flex-col',
+        dropdownPos.isUp ? 'slide-in-from-bottom-2' : 'slide-in-from-top-2',
+      )}
     >
-      <div className="bg-surface-tertiary/30 border-b border-border-light p-2">
+      <div className="bg-surface-tertiary/40 border-b border-border-light p-2.5 shrink-0">
         {/* eslint-disable-next-line i18next/no-literal-string */}
-        <span className="px-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
+        <span className="px-1 text-[11px] font-bold uppercase tracking-wider text-text-secondary">
           Modelo de Inteligencia Artificial
         </span>
       </div>
-      <div className="max-h-60 overflow-y-auto p-1">
+      <div
+        className="overflow-y-auto p-1.5 flex-1 divide-y divide-border-light/20"
+        style={{
+          maxHeight: dropdownPos.maxHeight ? `${dropdownPos.maxHeight - 44}px` : '240px',
+        }}
+      >
         {availableModels.map((model) => (
           <button
             key={model.id}
-            onClick={() => {
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
               onSelectModel(model.id);
               setIsOpen(false);
             }}
             className={cn(
-              'flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-colors',
+              'flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs transition-colors cursor-pointer',
               selectedModel === model.id
-                ? 'bg-teal-50 font-medium text-teal-700 dark:bg-teal-900/20 dark:text-teal-300'
-                : 'text-text-primary hover:bg-surface-hover',
+                ? 'bg-teal-50 font-bold text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'
+                : 'text-text-primary hover:bg-surface-hover font-medium',
             )}
           >
-            <span>{model.name}</span>
+            <span className="truncate pr-2">{model.name}</span>
             {selectedModel === model.id && (
-              <Check className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+              <Check className="h-3.5 w-3.5 shrink-0 text-teal-600 dark:text-teal-400" />
             )}
           </button>
         ))}

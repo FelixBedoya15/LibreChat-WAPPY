@@ -2942,13 +2942,13 @@ export default function MatrizIPEVARTable({
                     }}
                     className="group relative flex flex-col items-start gap-2 rounded-2xl border-2 border-teal-500 bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-teal-500/5 p-4 text-left transition-all hover:border-teal-600 hover:shadow-lg shadow-sm"
                   >
-                    <div className="flex w-full items-center justify-between">
+                    <div className="flex w-full items-center justify-between gap-3">
                       <div className="flex items-center gap-2 font-bold text-teal-700 dark:text-teal-300 text-sm">
-                        <Columns3 className="h-4 w-4 text-teal-600 animate-pulse" />
-                        Paralelo de Casillas (Homologador Visual - Recomendado)
+                        <Columns3 className="h-4 w-4 text-teal-600 animate-pulse shrink-0" />
+                        <span>Paralelo de Casillas (Homologador Visual)</span>
                       </div>
-                      <span className="rounded-full bg-gradient-to-r from-teal-600 to-cyan-600 px-2 py-0.5 text-[10px] font-black text-white uppercase tracking-wider">
-                        100% Preciso
+                      <span className="shrink-0 whitespace-nowrap rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-500/30 px-2.5 py-0.5 text-[11px] font-black text-teal-700 dark:text-teal-300 shadow-2xs">
+                        Recomendado
                       </span>
                     </div>
                     <p className="text-xs text-text-secondary leading-relaxed">

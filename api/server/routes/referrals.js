@@ -10,6 +10,7 @@ const PartnerCommission = require('~/models/PartnerCommission');
 const ReferralRecord = require('~/models/ReferralRecord');
 const PointTransaction = require('~/models/PointTransaction');
 const PayoutRequest = require('~/models/PayoutRequest');
+const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
 
 /**
  * GET /api/referrals/public/ambassador-info/:slug
@@ -1378,19 +1379,8 @@ router.post('/email/generate', requireJwtAuth, async (req, res) => {
     }
 
     try {
-        const { getSystemGoogleKey } = require('~/server/controllers/AdminMarketingController');
-        const { GoogleGenerativeAI } = require('@google/generative-ai');
-
-        const apiKey = await getSystemGoogleKey();
-        if (!apiKey) {
-            return res.status(400).json({ message: 'No hay claves API de Google / Gemini configuradas en el servidor.' });
-        }
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const chosenModel = model || 'gemini-3.7-flash';
-        const modelInstance = genAI.getGenerativeModel({
-            model: chosenModel,
-            systemInstruction: `Eres un consultor comercial y especialista de éxito del cliente en WAPPY IA (wappy.club), la plataforma SaaS líder en Colombia para la automatización de la Seguridad y Salud en el Trabajo (SG-SST) con Inteligencia Artificial.
+        const chosenModel = (model || 'gemini-3.8-flash').trim();
+        const systemInstruction = `Eres un consultor comercial y especialista de éxito del cliente en WAPPY IA (wappy.club), la plataforma SaaS líder en Colombia para la automatización de la Seguridad y Salud en el Trabajo (SG-SST) con Inteligencia Artificial.
 Tu objetivo es redactar un mensaje ${channel === 'whatsapp' ? 'de WhatsApp cercano, empático, altamente persuasivo y con emojis adecuados' : 'de correo electrónico profesional, claro, personalizado y con alto impacto'} dirigido a un usuario específico (${targetUserName || 'Usuario'}).
 
 Contexto del usuario en la plataforma:
@@ -1421,18 +1411,26 @@ Devuelve un JSON válido con la estructura:
   "buttonUrl": "https://wappy.club/planes"
 }
 `}
-Asegúrate de retornar únicamente el JSON parseable sin bloques de código markdown fuera del JSON.`,
-        });
+Asegúrate de retornar únicamente el JSON parseable sin bloques de código markdown fuera del JSON.`;
 
         const promptText = `Instrucción: "${prompt}". Canal: ${channel}. Usuario: ${targetUserName || 'Usuario'}. Estado: ${targetUserPlan}. Días Inactivo: ${daysInactive}. Días a Expirar: ${daysToExpiry}.`;
-        const result = await modelInstance.generateContent({
-            contents: [{ role: 'user', parts: [{ text: promptText }] }],
-            generationConfig: {
-                responseMimeType: 'application/json',
+        
+        const result = await generateWithKeyRotation(
+            chosenModel,
+            req.user?.id || req.user?._id,
+            promptText,
+            {
+                systemInstruction,
+                generationConfig: {
+                    responseMimeType: 'application/json',
+                }
             }
-        });
+        );
 
-        const responseText = result.response.text();
+        let responseText = result.response.text().trim();
+        if (responseText.startsWith('```')) {
+            responseText = responseText.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+        }
         const parsedData = JSON.parse(responseText);
 
         return res.status(200).json(parsedData);
@@ -1453,22 +1451,12 @@ router.post('/profile/generate-bio', requireJwtAuth, async (req, res) => {
         yearsExperience, 
         sstExperience, 
         rawBio,
-        model = 'gemini-3.7-flash' 
+        model = 'gemini-3.8-flash' 
     } = req.body;
 
     try {
-        const { getSystemGoogleKey } = require('~/server/controllers/AdminMarketingController');
-        const { GoogleGenerativeAI } = require('@google/generative-ai');
-
-        const apiKey = await getSystemGoogleKey();
-        if (!apiKey) {
-            return res.status(400).json({ message: 'No hay claves API de Google / Gemini configuradas en el servidor.' });
-        }
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const modelInstance = genAI.getGenerativeModel({
-            model: model || 'gemini-3.7-flash',
-            systemInstruction: `Eres un redactor ejecutivo y estratega de posicionamiento profesional para consultores y embajadores de WAPPY IA (wappy.club), la plataforma SaaS líder en Colombia para la automatización de la Seguridad y Salud en el Trabajo (SG-SST) con Inteligencia Artificial.
+        const chosenModel = (model || 'gemini-3.8-flash').trim();
+        const systemInstruction = `Eres un redactor ejecutivo y estratega de posicionamiento profesional para consultores y embajadores de WAPPY IA (wappy.club), la plataforma SaaS líder en Colombia para la automatización de la Seguridad y Salud en el Trabajo (SG-SST) con Inteligencia Artificial.
 
 Tu misión es transformar los datos y la experiencia laboral en SST de un embajador en una presentación personal de ALTO IMPACTO que aparecerá en su Landing Page de referidos en la sección:
 "Mucho gusto, soy [Nombre]".
@@ -1489,22 +1477,29 @@ DEBES responder EXCLUSIVAMENTE en formato JSON válido con la siguiente estructu
   "quote": string,
   "storyParagraph1": string,
   "storyParagraph2": string
-}`
-        });
+}`;
 
         const promptInput = `Nombre del Embajador: ${name || req.user.name || 'Embajador'}
 Profesión declarada: ${profession || 'Profesional SST'}
 Años de experiencia: ${yearsExperience || 'Varios años'}
 Experiencia / Trayectoria redactada por el usuario: ${sstExperience || rawBio || 'Especialista en Seguridad y Salud en el Trabajo asesorando empresas en Colombia.'}`;
 
-        const result = await modelInstance.generateContent({
-            contents: [{ role: 'user', parts: [{ text: promptInput }] }],
-            generationConfig: {
-                responseMimeType: 'application/json',
+        const result = await generateWithKeyRotation(
+            chosenModel,
+            req.user?.id || req.user?._id,
+            promptInput,
+            {
+                systemInstruction,
+                generationConfig: {
+                    responseMimeType: 'application/json',
+                }
             }
-        });
+        );
 
-        const responseText = result.response.text();
+        let responseText = result.response.text().trim();
+        if (responseText.startsWith('```')) {
+            responseText = responseText.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+        }
         const parsedData = JSON.parse(responseText);
 
         return res.status(200).json({
@@ -1748,14 +1743,6 @@ router.post('/proposal/generate', requireJwtAuth, async (req, res) => {
     }
 
     try {
-        const { getSystemGoogleKey } = require('~/server/controllers/AdminMarketingController');
-        const { GoogleGenerativeAI } = require('@google/generative-ai');
-
-        const apiKey = await getSystemGoogleKey();
-        if (!apiKey) {
-            return res.status(400).json({ message: 'No hay claves API de Google / Gemini configuradas en el servidor.' });
-        }
-
         const numAdditionalCompanies = Math.max(0, parseInt(additionalCompanies, 10) || 0);
         
         // Support both additionalAutomations and legacy automationPacks
@@ -1772,11 +1759,8 @@ router.post('/proposal/generate', requireJwtAuth, async (req, res) => {
         const remainderUnits = numAdditionalAutomations % 5;
         const monthlyAdditionalAutomationsPrice = (packsOf5 * 40000) + (remainderUnits * 10000);
 
-        const chosenModel = (req.body.modelName || req.body.model || 'gemini-3.7-flash').trim();
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const modelInstance = genAI.getGenerativeModel({
-            model: chosenModel,
-            systemInstruction: `Eres el Director Comercial Senior y Consultor Líder en SST de WAPPY IA (wappy.club), el ecosistema SaaS líder en Colombia para la automatización de la Seguridad y Salud en el Trabajo mediante Inteligencia Artificial y Agentes Autónomos.
+        const chosenModel = (req.body.modelName || req.body.model || 'gemini-3.8-flash').trim();
+        const systemInstruction = `Eres el Director Comercial Senior y Consultor Líder en SST de WAPPY IA (wappy.club), el ecosistema SaaS líder en Colombia para la automatización de la Seguridad y Salud en el Trabajo mediante Inteligencia Artificial y Agentes Autónomos.
 
 Tu misión es generar una PROPUESTA COMERCIAL EJECUTIVA, DE ALTO VALOR, TÉCNICAMENTE IMPECABLE, 100% PERSONALIZADA Y SIEMPRE CON EXACTAMENTE 6 MÓDULOS DE ALCANCE TECNOLÓGICO.
 
@@ -1871,8 +1855,7 @@ Devuelve EXCLUSIVAMENTE un JSON válido con esta estructura exacta:
   ],
   "closingMessage": "Mensaje final profesional invitando a la activación del servicio."
 }
-Solo entrega el JSON parseable sin explicaciones adicionales.`,
-        });
+Solo entrega el JSON parseable sin explicaciones adicionales.`;
 
         const promptText = `
 ══════════════════════════════════════════════════════════════════════════════
@@ -1895,14 +1878,22 @@ REGLA ESTRICTA:
 Genera en "includedModules" EXACTAMENTE 6 MÓDULOS, TODOS enfocados y desglosando la solución a lo solicitado en "OBSERVACIONES ESPECÍFICAS / NECESIDADES" ("${customObservations}").
 `;
 
-        const result = await modelInstance.generateContent({
-            contents: [{ role: 'user', parts: [{ text: promptText }] }],
-            generationConfig: {
-                responseMimeType: 'application/json',
+        const result = await generateWithKeyRotation(
+            chosenModel,
+            req.user?.id || req.user?._id,
+            promptText,
+            {
+                systemInstruction,
+                generationConfig: {
+                    responseMimeType: 'application/json',
+                }
             }
-        });
+        );
 
-        const responseText = result.response.text();
+        let responseText = result.response.text().trim();
+        if (responseText.startsWith('```')) {
+            responseText = responseText.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+        }
         const parsedData = JSON.parse(responseText);
 
         // Base Pricing Catalog

@@ -188,6 +188,19 @@ async function resolveApiKeys(userId) {
     }
   }
 
+  // 5. Fallback a la clave del sistema (Admin Google Key)
+  if (!keys.some((k) => k.startsWith('AIza'))) {
+    try {
+      const { getSystemGoogleKey } = require('~/server/controllers/AdminMarketingController');
+      const sysKey = await getSystemGoogleKey();
+      if (sysKey && !keys.includes(sysKey)) {
+        keys.push(sysKey);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
   // Priorizar siempre claves estándar de Gemini API ('AIza...') al inicio de la lista
   keys.sort((a, b) => {
     const aIsAIza = a.startsWith('AIza') ? 0 : 1;
@@ -289,10 +302,20 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         const mergedGenConfig = {
           maxOutputTokens: maxOut,
           temperature: 0.1,
-          ...genConfig
+          ...genConfig,
+          ...(options.generationConfig || {}),
         };
 
+        if (options.responseMimeType && !mergedGenConfig.responseMimeType) {
+          mergedGenConfig.responseMimeType = options.responseMimeType;
+        }
+
         const modelParams = { model: currentModel, generationConfig: mergedGenConfig };
+
+        const systemInstruction = options.systemInstruction || (modelInstance && modelInstance.systemInstruction);
+        if (systemInstruction) {
+          modelParams.systemInstruction = systemInstruction;
+        }
         
         if (options.useWebSearch) {
           modelParams.tools = [{ googleSearch: {} }];
@@ -303,6 +326,8 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         let contentPayload = promptText;
         if (Array.isArray(promptText) && promptText.length > 0 && promptText[0] && typeof promptText[0] === 'object' && promptText[0].role) {
           contentPayload = { contents: promptText };
+        } else if (typeof promptText === 'string') {
+          contentPayload = { contents: [{ role: 'user', parts: [{ text: promptText }] }] };
         }
 
         const result = await model.generateContent(contentPayload);
