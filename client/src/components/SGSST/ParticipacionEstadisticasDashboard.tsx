@@ -34,7 +34,8 @@ interface ParticipacionEstadisticasDashboardProps {
     participacionesList: any[];
     onApplyConsolidadoToMatrix: (consolidadoData: any) => void;
     onDismissInbox?: (reportId: string) => void;
-    onClose: () => void;
+    onClose?: () => void;
+    isEmbedded?: boolean;
 }
 
 export default function ParticipacionEstadisticasDashboard({
@@ -42,11 +43,13 @@ export default function ParticipacionEstadisticasDashboard({
     participacionesList,
     onApplyConsolidadoToMatrix,
     onDismissInbox,
-    onClose
+    onClose,
+    isEmbedded = true
 }: ParticipacionEstadisticasDashboardProps) {
 
     const [filterSource, setFilterSource] = useState<'all' | 'inbox' | 'local'>('all');
     const [isAuditListOpen, setIsAuditListOpen] = useState(false);
+    const [isSectionExpanded, setIsSectionExpanded] = useState(true);
 
     // ─── 1. EXTRACCIÓN, FILTRADO DE BORRADORES Y DEDUPLICACIÓN ──────────────────
     const unifiedReports = useMemo(() => {
@@ -432,13 +435,19 @@ export default function ParticipacionEstadisticasDashboard({
         onApplyConsolidadoToMatrix(consolidadoData);
     };
 
-    return (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-zinc-950 w-full max-w-4xl h-[92vh] max-h-[900px] rounded-3xl shadow-2xl border border-slate-200/80 dark:border-zinc-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-                
-                {/* ── Header ── */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-900/60 backdrop-blur-sm shrink-0">
-                    <div className="flex items-center gap-3">
+    const renderCard = (
+        <div className={isEmbedded ? "w-full overflow-hidden rounded-3xl border border-teal-500/30 bg-surface-secondary shadow-md transition-all duration-300" : "bg-white dark:bg-zinc-950 w-full max-w-4xl h-[92vh] max-h-[900px] rounded-3xl shadow-2xl border border-slate-200/80 dark:border-zinc-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"}>
+            {/* ── Header ── */}
+            <div className={`flex flex-wrap items-center justify-between px-5 py-4 border-b border-border-light gap-3 shrink-0 ${isEmbedded ? 'bg-surface-tertiary/60' : 'bg-slate-50/70 dark:bg-zinc-900/60 backdrop-blur-sm'}`}>
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => isEmbedded && setIsSectionExpanded(!isSectionExpanded)}
+                        className={`flex items-center gap-2.5 text-left font-semibold text-text-primary ${isEmbedded ? 'hover:text-teal-600 transition-colors cursor-pointer' : 'cursor-default'}`}
+                    >
+                        {isEmbedded && (
+                            isSectionExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />
+                        )}
                         <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center shadow-md shadow-teal-500/20 shrink-0">
                             <Target size={20} className="stroke-[2.2]" />
                         </div>
@@ -453,47 +462,67 @@ export default function ParticipacionEstadisticasDashboard({
                                 Agrupación por Cargo, Área y Repetición de Riesgos Altos para Aprobación Colectiva
                             </p>
                         </div>
+                    </button>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                    {/* Selector de Fuente */}
+                    <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-surface-primary border border-border-medium text-[11px] font-bold">
+                        <button
+                            type="button"
+                            onClick={() => setFilterSource('all')}
+                            className={`px-2.5 py-1 rounded-lg transition-all ${filterSource === 'all' ? 'bg-teal-600 text-white shadow-2xs font-extrabold' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'}`}
+                        >
+                            Todos ({unifiedReports.length})
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setFilterSource('inbox')}
+                            className={`px-2.5 py-1 rounded-lg transition-all ${filterSource === 'inbox' ? 'bg-teal-600 text-white shadow-2xs font-extrabold' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'}`}
+                        >
+                            Inbox ({unifiedReports.filter(r => r.source === 'inbox' || r.source === 'synced').length})
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setFilterSource('local')}
+                            className={`px-2.5 py-1 rounded-lg transition-all ${filterSource === 'local' ? 'bg-teal-600 text-white shadow-2xs font-extrabold' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'}`}
+                        >
+                            Locales ({unifiedReports.filter(r => r.source === 'local' || r.source === 'synced').length})
+                        </button>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        {/* Selector de Fuente */}
-                        <div className="hidden sm:inline-flex items-center gap-1 p-1 rounded-xl bg-slate-200/60 dark:bg-zinc-800/80 text-[11px] font-bold">
-                            <button
-                                type="button"
-                                onClick={() => setFilterSource('all')}
-                                className={`px-2.5 py-1 rounded-lg transition-all ${filterSource === 'all' ? 'bg-white dark:bg-zinc-700 text-teal-700 dark:text-teal-300 shadow-2xs font-extrabold' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'}`}
-                            >
-                                Todos ({unifiedReports.length})
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setFilterSource('inbox')}
-                                className={`px-2.5 py-1 rounded-lg transition-all ${filterSource === 'inbox' ? 'bg-white dark:bg-zinc-700 text-teal-700 dark:text-teal-300 shadow-2xs font-extrabold' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'}`}
-                            >
-                                Inbox ({unifiedReports.filter(r => r.source === 'inbox' || r.source === 'synced').length})
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setFilterSource('local')}
-                                className={`px-2.5 py-1 rounded-lg transition-all ${filterSource === 'local' ? 'bg-white dark:bg-zinc-700 text-teal-700 dark:text-teal-300 shadow-2xs font-extrabold' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'}`}
-                            >
-                                Locales ({unifiedReports.filter(r => r.source === 'local' || r.source === 'synced').length})
-                            </button>
-                        </div>
+                    {isEmbedded && weightedClusters.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => handleApplyCluster(weightedClusters[0])}
+                            title="Integrar Peligro #1 Más Crítico a la Matriz"
+                            className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-sm transition-all duration-300 px-2.5 sm:px-3.5 active:scale-95 cursor-pointer"
+                        >
+                            <Sparkles className="w-4 h-4 shrink-0" />
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                                <span className="text-xs font-black">Integrar Peligro #1 Crítico</span>
+                            </div>
+                            <ArrowRight className="w-3.5 h-3.5 shrink-0 ml-1.5" />
+                            <span className="text-xs font-black ml-1 sm:hidden">Peligro #1</span>
+                        </button>
+                    )}
 
+                    {onClose && (
                         <button
                             type="button"
                             onClick={onClose}
-                            className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all active:scale-95 shadow-2xs shrink-0"
-                            title="Cerrar"
+                            className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all active:scale-95 shadow-2xs shrink-0 cursor-pointer"
+                            title={isEmbedded ? "Ocultar Base Estadística" : "Cerrar"}
                         >
                             <X size={18} />
                         </button>
-                    </div>
+                    )}
                 </div>
+            </div>
 
-                {/* ── Contenido con Ponderación y Gráficas ── */}
-                <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 text-xs">
+            {/* ── Contenido con Ponderación y Gráficas ── */}
+            {(!isEmbedded || isSectionExpanded) && (
+                <div className={isEmbedded ? "p-5 sm:p-6 bg-surface-primary/30 space-y-6 text-xs" : "flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 text-xs"}>
                     
                     {/* 1. KPI Cards */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -864,29 +893,33 @@ export default function ParticipacionEstadisticasDashboard({
                         </div>
                     </div>
 
-                </div>
+            </div>
+            )}
 
-                {/* ── Footer ── */}
+            {/* ── Footer Modal (solo si no es embebido) ── */}
+            {!isEmbedded && (
                 <div className="px-6 py-4 border-t border-slate-100 dark:border-zinc-800/80 bg-slate-50/80 dark:bg-zinc-900/60 flex items-center justify-between shrink-0">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        title="Cerrar Analítica"
-                        className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all duration-300 px-2 sm:px-3 shadow-2xs active:scale-95 cursor-pointer"
-                    >
-                        <X className="w-4 h-4 shrink-0" />
-                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[120px] group-hover:opacity-100 sm:flex">
-                            <span className="text-xs font-bold">Cerrar Analítica</span>
-                        </div>
-                        <span className="text-xs font-bold ml-1.5 sm:hidden">Cerrar</span>
-                    </button>
+                    {onClose && (
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            title="Cerrar Analítica"
+                            className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all duration-300 px-2 sm:px-3 shadow-2xs active:scale-95 cursor-pointer"
+                        >
+                            <X className="w-4 h-4 shrink-0" />
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[120px] group-hover:opacity-100 sm:flex">
+                                <span className="text-xs font-bold">Cerrar Analítica</span>
+                            </div>
+                            <span className="text-xs font-bold ml-1.5 sm:hidden">Cerrar</span>
+                        </button>
+                    )}
 
                     {weightedClusters.length > 0 && (
                         <button
                             type="button"
                             onClick={() => handleApplyCluster(weightedClusters[0])}
                             title="Integrar Peligro #1 Más Crítico a la Matriz"
-                            className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-md shadow-teal-600/25 transition-all duration-300 px-2.5 sm:px-3.5 active:scale-95 cursor-pointer"
+                            className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-md shadow-teal-600/25 transition-all duration-300 px-2.5 sm:px-3.5 active:scale-95 cursor-pointer ml-auto"
                         >
                             <Sparkles className="w-4 h-4 shrink-0" />
                             <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[280px] group-hover:opacity-100 sm:flex">
@@ -897,8 +930,17 @@ export default function ParticipacionEstadisticasDashboard({
                         </button>
                     )}
                 </div>
+            )}
+        </div>
+    );
 
-            </div>
+    if (isEmbedded) {
+        return renderCard;
+    }
+
+    return (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+            {renderCard}
         </div>
     );
 }

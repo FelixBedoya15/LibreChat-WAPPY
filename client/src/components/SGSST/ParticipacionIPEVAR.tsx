@@ -26,7 +26,12 @@ import {
     RefreshCcw,
     BarChart3,
     Building2,
-    Shield
+    Shield,
+    Star,
+    Target,
+    Users,
+    Scale,
+    FileSpreadsheet
 } from 'lucide-react';
 import ParticipacionEstadisticasDashboard from './ParticipacionEstadisticasDashboard';
 import { useToastContext } from '@librechat/client';
@@ -253,7 +258,24 @@ const ParticipacionIPEVAR = () => {
     const [inboxPublico, setInboxPublico] = useState<any[]>([]);
     const [isInboxOpen, setIsInboxOpen] = useState(false);
     const [showQrModal, setShowQrModal] = useState(false);
-    const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
+    const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(true);
+
+    const bannerStats = useMemo(() => {
+        const workers = new Set<string>();
+        (Array.isArray(inboxPublico) ? inboxPublico : []).forEach(item => {
+            const id = item.trabajador?.cedula || item.trabajador?.nombre;
+            if (id) workers.add(id);
+        });
+        (Array.isArray(participacionesList) ? participacionesList : []).forEach(item => {
+            const id = item.trabajadoresList?.[0]?.cedula || item.trabajadoresList?.[0]?.nombre;
+            if (id) workers.add(id);
+        });
+        return {
+            totalWorkers: workers.size > 0 ? workers.size : (inboxPublico.length + participacionesList.length > 0 ? 1 : 0),
+            inboxCount: inboxPublico.filter(i => i.status !== 'processed').length,
+            totalParticipaciones: participacionesList.length + inboxPublico.length,
+        };
+    }, [inboxPublico, participacionesList]);
 
     // Apply to Matrix Modal State
     const [showApplyModal, setShowApplyModal] = useState(false);
@@ -652,7 +674,6 @@ const ParticipacionIPEVAR = () => {
             data: consolidadoData,
             isInbox: false
         });
-        setShowAnalyticsModal(false);
         setShowApplyModal(true);
         fetchOfficialMatrixRows(newFormData);
     };
@@ -1151,7 +1172,133 @@ const ParticipacionIPEVAR = () => {
     });
 
     return (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-6 w-full">
+            {/* ─── BANNER DE CONTROL Y ESTADO DE PARTICIPACIÓN IPEVR (Estilo Matriz IPEVR) ─── */}
+            <div className="relative overflow-hidden rounded-3xl border border-teal-500/30 bg-gradient-to-br from-surface-primary via-surface-secondary to-teal-500/5 p-6 shadow-xl backdrop-blur-md">
+                {/* Glow de fondo */}
+                <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl dark:bg-teal-400/10" />
+
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    {/* Lado Izquierdo: Información y Estado */}
+                    <div className="flex items-start gap-4">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-400 text-white shadow-lg shadow-teal-500/20">
+                            <Target className="h-7 w-7 stroke-[2.2]" />
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h2 className="text-xl font-black tracking-tight text-text-primary">
+                                    Participación IPEVR & Base Estadística Colectiva
+                                </h2>
+                                <div
+                                    title="Sincronización Oficial Activa"
+                                    className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                                >
+                                    <div className="relative flex flex-shrink-0 items-center justify-center">
+                                        <Star className="h-3.5 w-3.5 fill-emerald-500 text-emerald-500 shrink-0" />
+                                        <span className="absolute -right-1 -top-1 flex h-2 w-2">
+                                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                                            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                                        </span>
+                                    </div>
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-xs font-black uppercase tracking-wider">Matriz Oficial Conectada</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Badges de Métricas Conectadas con Estilo Expansible Estándar */}
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                                {/* Población Evaluada */}
+                                <div
+                                    title={`${bannerStats.totalWorkers} ${bannerStats.totalWorkers === 1 ? 'Colaborador Participante' : 'Colaboradores Participantes'}`}
+                                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                                >
+                                    <div className="relative flex flex-shrink-0 items-center justify-center">
+                                        <Users className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                                        <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                                            {bannerStats.totalWorkers}
+                                        </span>
+                                    </div>
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-sm font-bold tracking-wide">
+                                            {bannerStats.totalWorkers} {bannerStats.totalWorkers === 1 ? 'Colaborador Participante' : 'Colaboradores Participantes'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Reportes Registrados */}
+                                <div
+                                    title={`${bannerStats.totalParticipaciones} Reportes Registrados`}
+                                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                                >
+                                    <div className="relative flex flex-shrink-0 items-center justify-center">
+                                        <FileSpreadsheet className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 shrink-0" />
+                                        <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                                            {bannerStats.totalParticipaciones}
+                                        </span>
+                                    </div>
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-sm font-bold tracking-wide">
+                                            {bannerStats.totalParticipaciones} {bannerStats.totalParticipaciones === 1 ? 'Reporte Registrado' : 'Reportes Registrados'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Ponderación Estadística GTC-45 Activa */}
+                                <div
+                                    title="Ponderación Estadística GTC-45 Activa"
+                                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                                >
+                                    <div className="relative flex flex-shrink-0 items-center justify-center">
+                                        <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 dark:text-purple-400 shrink-0" />
+                                    </div>
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-sm font-bold tracking-wide">
+                                            Ponderación GTC-45 Activa
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Res. 0312: CUMPLE */}
+                                <div
+                                    title="Res. 0312: CUMPLE (Estándares 4.1.1 y 4.1.2)"
+                                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                                >
+                                    <div className="relative flex flex-shrink-0 items-center justify-center">
+                                        <Scale className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                    </div>
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-sm font-bold tracking-wide">
+                                            Res. 0312: CUMPLE
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Lado Derecho: Acceso al Portal QR */}
+                    <div className="flex md:flex-col items-end justify-center gap-1.5 shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => setShowQrModal(true)}
+                            title="Portal Público QR"
+                            aria-label="Portal Público QR"
+                            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 px-2 shadow-sm outline-none transition-all duration-300 sm:h-10 sm:min-w-[40px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105"
+                        >
+                            <div className="relative flex flex-shrink-0 items-center justify-center">
+                                <QrCode className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                            </div>
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+                                <span className="text-sm font-bold tracking-wide">Portal Público QR</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* ── 2. Barra Flotante de Herramientas SGSST ── */}
             <SGSSTToolbar
                 onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                 isHistoryOpen={isHistoryOpen}
@@ -1167,19 +1314,19 @@ const ParticipacionIPEVAR = () => {
                 customSections={[
                     <div className="flex items-center gap-2">
                         <ToolbarButton
+                            id="analytics-dashboard"
+                            onClick={() => setIsAnalyticsOpen(!isAnalyticsOpen)}
+                            label="Base Estadística"
+                            icon={BarChart3}
+                            active={isAnalyticsOpen}
+                        />
+                        <ToolbarButton
                             id="inbox-public"
                             onClick={() => setIsInboxOpen(!isInboxOpen)}
                             label={`Reportes (${inboxPublico.filter(i => i.status !== 'processed').length})`}
                             icon="inbox"
                             badge={inboxPublico.filter(i => i.status !== 'processed').length || undefined}
                             active={isInboxOpen}
-                        />
-                        <ToolbarButton
-                            id="analytics-dashboard"
-                            onClick={() => setShowAnalyticsModal(true)}
-                            label="Base Estadística"
-                            icon={BarChart3}
-                            active={showAnalyticsModal}
                         />
                         <ToolbarButton
                             id="qr-portal"
@@ -1190,6 +1337,18 @@ const ParticipacionIPEVAR = () => {
                     </div>
                 ]}
             />
+
+            {/* ── 3. Base Estadística y Ponderación GTC-45 (Integrada directamente en el Aplicativo) ── */}
+            {isAnalyticsOpen && (
+                <ParticipacionEstadisticasDashboard
+                    inboxPublico={inboxPublico}
+                    participacionesList={participacionesList}
+                    onApplyConsolidadoToMatrix={handleApplyConsolidadoFromStats}
+                    onDismissInbox={handleDismissInbox}
+                    onClose={() => setIsAnalyticsOpen(false)}
+                    isEmbedded={true}
+                />
+            )}
 
             {/* ── Participaciones Quick Access ── */}
             <div className="rounded-2xl border border-border-medium bg-surface-tertiary p-4 shadow-sm">
@@ -2280,17 +2439,6 @@ const ParticipacionIPEVAR = () => {
                     </div>
                 </div>,
                 document.body
-            )}
-
-            {/* Modal de Dashboard Estadístico y Analítica de Participación */}
-            {showAnalyticsModal && (
-                <ParticipacionEstadisticasDashboard
-                    inboxPublico={inboxPublico}
-                    participacionesList={participacionesList}
-                    onApplyConsolidadoToMatrix={handleApplyConsolidadoFromStats}
-                    onDismissInbox={handleDismissInbox}
-                    onClose={() => setShowAnalyticsModal(false)}
-                />
             )}
         </div>
     );
