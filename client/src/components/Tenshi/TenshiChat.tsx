@@ -12,7 +12,7 @@ import Markdown from '~/components/Chat/Messages/Content/Markdown';
 import { getDehydratedDOM, executeGUIAction, getVisibleScreenContent } from '../Chat/TenshiPageController';
 import { useVoiceSession } from '~/hooks/useVoiceSession';
 import { cn } from '~/utils';
-import { TenshiCanvas, TenshiMood } from './TenshiCanvas';
+import { TenshiAvatar } from './TenshiAvatar';
 import { tenshiAudio } from './tenshiAudio';
 
 const normalizeStr = (s: string) =>
@@ -341,13 +341,6 @@ export default function TenshiChat() {
     setIsSFXMuted(next);
   }, []);
 
-  // Emoción y estado procedural dinámico de Tenshi
-  const tenshiMood: TenshiMood = useMemo(() => {
-    if (isTenshiSpeaking) return 'speaking';
-    if (isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)) return 'thinking';
-    if (isVoiceActive) return 'listening';
-    return 'idle';
-  }, [isTenshiSpeaking, isTyping, isChatSubmitting, isWaitingConsultation, tenshiStatus, isVoiceActive]);
 
   const latestChatMessage = useRecoilValue(store.latestMessageFamily(0));
   const latestChatMessageRef = useRef(latestChatMessage);
@@ -1959,15 +1952,13 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
             )}
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-emerald-200 bg-emerald-50 shadow-inner">
-                <TenshiCanvas
-                  size={38}
-                  mood={tenshiMood}
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-emerald-200 bg-white p-0.5 shadow-inner">
+                <TenshiAvatar
+                  size={36}
                   isSpeaking={isTenshiSpeaking}
                   outputAmplitude={outputAmplitude}
                   interactive={false}
-                  showHalo={false}
-                  showWings={false}
+                  showHaloEffect={false}
                 />
               </div>
               <div>
@@ -2045,23 +2036,21 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
                   }}
                 />
 
-                {/* Avatar Interactivo y Expresivo de Tenshi (Canvas 2D con física y seguimiento ocular) */}
+                {/* Avatar Interactivo y Expresivo de Tenshi (3D interactivo con físicas y mirada) */}
                 <div
                   className={cn(
                     'relative flex items-center justify-center transition-all duration-300',
                     isFullscreen ? 'h-48 w-48 sm:h-56 sm:w-56' : 'h-36 w-36 sm:h-44 sm:w-44'
                   )}
                 >
-                  <TenshiCanvas
-                    size={isFullscreen ? 200 : 154}
-                    mood={tenshiMood}
+                  <TenshiAvatar
+                    size={isFullscreen ? 180 : 140}
                     isSpeaking={isTenshiSpeaking}
                     outputAmplitude={outputAmplitude}
-                    isListening={isVoiceActive}
-                    voiceAmplitude={voiceAmplitude}
+                    isVoiceActive={isVoiceActive}
+                    isTyping={isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)}
                     interactive={true}
-                    showHalo={true}
-                    showWings={true}
+                    showHaloEffect={true}
                   />
                 </div>
 
@@ -2456,12 +2445,13 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
         >
           {/* Ripple effect */}
           <span className="absolute h-full w-full animate-ping rounded-full bg-emerald-400 opacity-20 pointer-events-none"></span>
-          <TenshiCanvas
+          <TenshiAvatar
             size={48}
-            mood={isVoiceActive ? 'listening' : 'idle'}
+            isVoiceActive={isVoiceActive}
+            isSpeaking={isTenshiSpeaking}
+            outputAmplitude={outputAmplitude}
             interactive={false}
-            showHalo={true}
-            showWings={true}
+            showHaloEffect={false}
           />
         </button>
       )}
