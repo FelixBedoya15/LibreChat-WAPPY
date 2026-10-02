@@ -637,14 +637,22 @@ export default function ParticipacionEstadisticasDashboard({
                                                     <button
                                                         type="button"
                                                         onClick={() => handleApplyCluster(cluster)}
-                                                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer ${
+                                                        title={cluster.isFullyApplied ? 'Re-integrar a Matriz' : 'Aprobar e Integrar a Matriz'}
+                                                        className={`group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl transition-all duration-300 px-2 sm:px-2.5 shadow-sm active:scale-95 cursor-pointer shrink-0 ${
                                                             cluster.isFullyApplied
                                                                 ? 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 hover:bg-slate-200'
-                                                                : 'bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-teal-600/25'
+                                                                : 'bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-teal-600/20'
                                                         }`}
                                                     >
-                                                        <Sparkles className="w-3.5 h-3.5" />
-                                                        <span>{cluster.isFullyApplied ? 'Re-integrar a Matriz' : 'Aprobar e Integrar a Matriz'}</span>
+                                                        <Sparkles className="w-4 h-4 shrink-0" />
+                                                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                                                            <span className="text-xs font-bold tracking-wide">
+                                                                {cluster.isFullyApplied ? 'Re-integrar a Matriz' : 'Aprobar e Integrar a Matriz'}
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-[11px] font-bold ml-1.5 sm:hidden">
+                                                            {cluster.isFullyApplied ? 'Re-integrar' : 'Aprobar'}
+                                                        </span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -863,20 +871,29 @@ export default function ParticipacionEstadisticasDashboard({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-5 py-2.5 rounded-xl font-bold border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all text-xs active:scale-95 shadow-2xs cursor-pointer"
+                        title="Cerrar Analítica"
+                        className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all duration-300 px-2 sm:px-3 shadow-2xs active:scale-95 cursor-pointer"
                     >
-                        Cerrar Analítica
+                        <X className="w-4 h-4 shrink-0" />
+                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[120px] group-hover:opacity-100 sm:flex">
+                            <span className="text-xs font-bold">Cerrar Analítica</span>
+                        </div>
+                        <span className="text-xs font-bold ml-1.5 sm:hidden">Cerrar</span>
                     </button>
 
                     {weightedClusters.length > 0 && (
                         <button
                             type="button"
                             onClick={() => handleApplyCluster(weightedClusters[0])}
-                            className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs text-white bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 shadow-md shadow-teal-600/25 active:scale-95 transition-all cursor-pointer"
+                            title="Integrar Peligro #1 Más Crítico a la Matriz"
+                            className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-md shadow-teal-600/25 transition-all duration-300 px-2.5 sm:px-3.5 active:scale-95 cursor-pointer"
                         >
-                            <Sparkles className="w-4 h-4" />
-                            <span>Integrar Peligro #1 Más Crítico a la Matriz</span>
-                            <ArrowRight className="w-4 h-4" />
+                            <Sparkles className="w-4 h-4 shrink-0" />
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[280px] group-hover:opacity-100 sm:flex">
+                                <span className="text-xs font-black">Integrar Peligro #1 Más Crítico a la Matriz</span>
+                            </div>
+                            <ArrowRight className="w-4 h-4 shrink-0 ml-1.5" />
+                            <span className="text-xs font-black ml-1.5 sm:hidden">Integrar Peligro #1</span>
                         </button>
                     )}
                 </div>

@@ -24,7 +24,9 @@ import {
     QrCode,
     Info,
     RefreshCcw,
-    BarChart3
+    BarChart3,
+    Building2,
+    Shield
 } from 'lucide-react';
 import ParticipacionEstadisticasDashboard from './ParticipacionEstadisticasDashboard';
 import { useToastContext } from '@librechat/client';
@@ -1168,14 +1170,25 @@ const ParticipacionIPEVAR = () => {
                                     setIsInboxOpen(false);
                                     setShowAnalyticsModal(true);
                                 }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white text-xs font-bold shadow-sm transition-all active:scale-95"
+                                title="Base Estadística y Ponderación GTC-45"
+                                className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-sm transition-all duration-300 px-2 sm:px-2.5 active:scale-95 cursor-pointer"
                             >
-                                <BarChart3 className="w-3.5 h-3.5" />
-                                <span>Base Estadística y Ponderación GTC-45</span>
+                                <BarChart3 className="w-4 h-4 shrink-0" />
+                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[280px] group-hover:opacity-100 sm:flex">
+                                    <span className="text-xs font-bold">Base Estadística y Ponderación GTC-45</span>
+                                </div>
+                                <span className="text-xs font-bold ml-1.5 sm:hidden">Base Estadística</span>
                             </button>
                         </div>
-                        <button onClick={() => setIsInboxOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                            <X className="w-5 h-5" />
+                        <button
+                            onClick={() => setIsInboxOpen(false)}
+                            title="Cerrar Bandeja"
+                            className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-300 px-2 shadow-2xs active:scale-95 cursor-pointer"
+                        >
+                            <X className="w-4 h-4 shrink-0" />
+                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[60px] group-hover:opacity-100 sm:flex">
+                                <span className="text-xs font-bold">Cerrar</span>
+                            </div>
                         </button>
                     </div>
                     
@@ -2069,23 +2082,34 @@ const ParticipacionIPEVAR = () => {
                                 type="button"
                                 onClick={() => setShowApplyModal(false)}
                                 disabled={isApplyingToMatrix}
-                                className="px-4 py-2.5 rounded-xl font-semibold text-text-secondary hover:bg-surface-hover transition-colors"
+                                title="Cancelar"
+                                className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl border border-border-medium bg-surface-primary text-text-secondary hover:bg-surface-hover transition-all duration-300 px-2 sm:px-3 shadow-2xs active:scale-95 cursor-pointer disabled:opacity-50"
                             >
-                                Cancelar
+                                <X className="w-4 h-4 shrink-0" />
+                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[80px] group-hover:opacity-100 sm:flex">
+                                    <span className="text-xs font-semibold">Cancelar</span>
+                                </div>
+                                <span className="text-xs font-semibold ml-1.5 sm:hidden">Cancelar</span>
                             </button>
                             <button
                                 type="button"
                                 onClick={handleConfirmApplyToMatrix}
                                 disabled={isApplyingToMatrix || (applyAction === 'update_existing' && !applyTargetRowId)}
-                                className="px-6 py-2.5 rounded-xl font-black bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                                title="Aprobar e Integrar a Matriz IPEVR"
+                                className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-md active:scale-95 transition-all duration-300 px-2.5 sm:px-3.5 disabled:opacity-50 cursor-pointer"
                             >
                                 {isApplyingToMatrix ? (
                                     <>
-                                        <Loader2 className="w-4 h-4 animate-spin" /> Integrando a Matriz...
+                                        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                                        <span className="text-xs font-bold ml-1.5">Integrando...</span>
                                     </>
                                 ) : (
                                     <>
-                                        <CheckCircle className="w-4 h-4" /> Aprobar e Integrar a Matriz IPEVR
+                                        <CheckCircle className="w-4 h-4 shrink-0" />
+                                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[280px] group-hover:opacity-100 sm:flex">
+                                            <span className="text-xs font-black">Aprobar e Integrar a Matriz IPEVR</span>
+                                        </div>
+                                        <span className="text-xs font-black ml-1.5 sm:hidden">Integrar a Matriz</span>
                                     </>
                                 )}
                             </button>
