@@ -34,13 +34,13 @@ export default function ChatSSTButton({
                   whileTap={{ scale: 0.95 }}
                   onClick={handleClick}
                   className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-xl border transition-all duration-200 shadow-sm",
+                    "w-9 h-9 flex items-center justify-center rounded-xl border transition-all duration-200 shadow-2xs mb-1 active:scale-95 cursor-pointer",
                     isActive
-                      ? "bg-green-100/50 border-green-500 text-green-600"
-                      : "bg-surface-primary border-border-medium/50 hover:bg-surface-hover hover:border-green-500 text-text-primary"
+                      ? "bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold shadow-xs"
+                      : "border-slate-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 hover:border-teal-400"
                   )}
                 >
-                  <MessageCircle className="h-5 w-5 text-green-500" />
+                  <MessageCircle className="h-4.5 w-4.5" />
                 </motion.button>
               }
             />
@@ -52,14 +52,14 @@ export default function ChatSSTButton({
             whileTap={{ scale: 0.98 }}
             onClick={handleClick}
             className={cn(
-                "group flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition-all duration-200 shadow-sm",
+                "group flex h-10 w-full items-center gap-2.5 rounded-xl border px-3 text-xs transition-all duration-200 shadow-2xs cursor-pointer active:scale-98",
                 isActive
-                    ? "bg-green-50/50 border-green-500/50 text-green-700 dark:bg-green-950/20 dark:text-green-400"
-                    : "bg-white dark:bg-surface-primary border-border-medium/30 hover:bg-surface-hover hover:border-green-500 text-text-secondary hover:text-green-600"
+                    ? "bg-teal-50/90 dark:bg-teal-950/60 border-teal-500/40 text-teal-800 dark:text-teal-200 font-bold shadow-xs"
+                    : "bg-white/80 dark:bg-zinc-900/60 border-slate-200/80 dark:border-zinc-800/80 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:border-teal-400 text-slate-700 dark:text-zinc-300 hover:text-teal-600"
             )}
         >
-            <MessageCircle className="h-4 w-4 shrink-0 text-green-500" />
-            <span className="font-semibold text-text-primary text-[13px]">Comunidad</span>
+            <MessageCircle className={cn("h-4 w-4 shrink-0 transition-colors", isActive ? "text-teal-600 dark:text-teal-400" : "text-slate-500 dark:text-zinc-400 group-hover:text-teal-500")} />
+            <span className={cn("font-bold text-xs", isActive ? "text-teal-800 dark:text-teal-200" : "text-slate-800 dark:text-zinc-200")}>Comunidad</span>
         </motion.button>
     );
 }

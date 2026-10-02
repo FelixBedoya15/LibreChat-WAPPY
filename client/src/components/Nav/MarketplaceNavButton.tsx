@@ -75,14 +75,14 @@ const MarketplaceNavButton = ({
       whileTap={{ scale: 0.98 }}
       onClick={handleClick}
       className={cn(
-        'group flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-xs transition-all duration-200 shadow-2xs cursor-pointer active:scale-98',
+        'group flex h-10 w-full items-center gap-2.5 rounded-xl border px-3 text-xs transition-all duration-200 shadow-2xs cursor-pointer active:scale-98',
         isActive
           ? 'bg-teal-50/90 dark:bg-teal-950/60 border-teal-500/40 text-teal-800 dark:text-teal-200 font-bold shadow-xs'
           : 'bg-white/80 dark:bg-zinc-900/60 border-slate-200/80 dark:border-zinc-800/80 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:border-teal-400 text-slate-700 dark:text-zinc-300 hover:text-teal-600'
       )}
     >
       <ShoppingBag className={cn("h-4 w-4 shrink-0 transition-colors", isActive ? "text-teal-600 dark:text-teal-400" : "text-slate-500 dark:text-zinc-400 group-hover:text-teal-500")} />
-      <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs flex-1 text-left">Marketplace</span>
+      <span className={cn("font-bold text-xs flex-1 text-left", isActive ? "text-teal-800 dark:text-teal-200" : "text-slate-800 dark:text-zinc-200")}>Marketplace</span>
       {!hasVisited && (
         <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-teal-500 text-white animate-pulse">
           NUEVO

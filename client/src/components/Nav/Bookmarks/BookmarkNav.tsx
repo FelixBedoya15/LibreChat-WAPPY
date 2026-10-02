@@ -56,14 +56,14 @@ const BookmarkNav: FC<BookmarkNavProps> = ({ tags, setTags, isSmallScreen, isCol
               aria-label={localize('com_ui_bookmarks')}
               data-testid="bookmark-menu"
               className={cn(
-                "group flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-xs transition-all duration-200 shadow-2xs cursor-pointer active:scale-98",
+                "group flex h-10 w-full items-center gap-2.5 rounded-xl border px-3 text-xs transition-all duration-200 shadow-2xs cursor-pointer active:scale-98",
                 isActive || open
                   ? "bg-teal-50/90 dark:bg-teal-950/60 border-teal-500/40 text-teal-800 dark:text-teal-200 font-bold shadow-xs"
                   : "bg-white/80 dark:bg-zinc-900/60 border-slate-200/80 dark:border-zinc-800/80 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:border-teal-400 text-slate-700 dark:text-zinc-300 hover:text-teal-600"
               )}
             >
               <Bookmark className={cn("h-4 w-4 shrink-0 transition-colors", (isActive || open) ? "text-teal-600 dark:text-teal-400" : "text-slate-500 dark:text-zinc-400 group-hover:text-teal-500")} />
-              <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs">{label}</span>
+              <span className={cn("font-bold text-xs", (isActive || open) ? "text-teal-800 dark:text-teal-200" : "text-slate-800 dark:text-zinc-200")}>{label}</span>
             </MenuButton>
           )}
           <MenuItems

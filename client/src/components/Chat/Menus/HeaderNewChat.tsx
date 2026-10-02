@@ -24,14 +24,14 @@ export default function HeaderNewChat() {
     <TooltipAnchor
       description={localize('com_ui_new_chat')}
       render={
-        <button
-          type="button"
-          className="inline-flex size-9 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 hover:border-teal-400 active:scale-95 shadow-2xs transition-all cursor-pointer"
+        <Button
+          size="icon"
+          variant="outline"
+          className="inline-flex size-10 flex-shrink-0 items-center justify-center rounded-xl border border-border-light bg-transparent text-text-primary transition-all ease-in-out hover:bg-surface-tertiary disabled:pointer-events-none disabled:opacity-50 md:size-icon md:bg-surface-secondary md:p-2 md:hover:bg-surface-hover"
           onClick={clickHandler}
-          title={localize('com_ui_new_chat')}
         >
-          <NewChatIcon className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" />
-        </button>
+          <NewChatIcon />
+        </Button>
       }
     />
   );

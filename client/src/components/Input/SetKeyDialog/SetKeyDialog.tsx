@@ -335,7 +335,7 @@ const SetKeyDialog = ({
 
   return (
     <OGDialog open={open} onOpenChange={onOpenChange}>
-      <OGDialogContent className="w-11/12 max-w-2xl rounded-3xl border border-slate-200/90 dark:border-zinc-800/90 bg-white dark:bg-zinc-950 shadow-2xl backdrop-blur-2xl p-0 overflow-hidden flex flex-col">
+      <OGDialogContent showCloseButton={false} className="w-11/12 max-w-2xl rounded-3xl border border-slate-200/90 dark:border-zinc-800/90 bg-white dark:bg-zinc-950 shadow-2xl backdrop-blur-2xl p-0 overflow-hidden flex flex-col">
         {/* Header estilo Somos SST / WAPPY */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-900/60 backdrop-blur-sm shrink-0">
           <div className="flex items-center gap-3">
