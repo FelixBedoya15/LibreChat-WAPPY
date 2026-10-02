@@ -121,6 +121,7 @@ const WorkerAutocomplete = ({
 
 interface ParticipacionData {
     id: string;
+    inboxItemId?: string;
     title: string;
     status?: 'pending' | 'applied_to_matrix';
     matrixAction?: 'create_new' | 'update_existing';
@@ -614,6 +615,7 @@ const ParticipacionIPEVAR = () => {
     const handleLoadInboxItem = (item: any) => {
         const newPart = createInitialParticipacion();
         newPart.id = crypto.randomUUID();
+        newPart.inboxItemId = item.id;
         newPart.title = `Reporte: ${item.trabajador.nombre}`;
         newPart.status = item.status === 'applied_to_matrix' ? 'applied_to_matrix' : 'pending';
         newPart.formData = {
@@ -2051,6 +2053,7 @@ const ParticipacionIPEVAR = () => {
                     inboxPublico={inboxPublico}
                     participacionesList={participacionesList}
                     onApplyConsolidadoToMatrix={handleApplyConsolidadoFromStats}
+                    onDismissInbox={handleDismissInbox}
                     onClose={() => setShowAnalyticsModal(false)}
                 />
             )}
