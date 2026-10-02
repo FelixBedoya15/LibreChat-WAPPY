@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { UpgradeWall } from './UpgradeWall';
 import { QRCodeSVG } from 'qrcode.react';
 import ReactDOM from 'react-dom';
