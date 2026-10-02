@@ -263,6 +263,7 @@ const ParticipacionIPEVAR = () => {
     const [isLoadingOfficialRows, setIsLoadingOfficialRows] = useState(false);
     const [applyAction, setApplyAction] = useState<'create_new' | 'update_existing'>('create_new');
     const [applyTargetRowId, setApplyTargetRowId] = useState('');
+    const [aiMatchResult, setAiMatchResult] = useState<any>(null);
     const [applyFormData, setApplyFormData] = useState<any>({
         proceso: '',
         zona: '',
@@ -460,7 +461,97 @@ const ParticipacionIPEVAR = () => {
         }
     };
 
-    const fetchOfficialMatrixRows = async () => {
+    const evaluateAIMatrixMatch = (currentData: any, rows: any[]) => {
+        if (!rows || rows.length === 0) {
+            return {
+                action: 'create_new' as 'create_new' | 'update_existing',
+                bestMatchRow: null,
+                score: 0,
+                status: 'no_rows',
+                title: 'Nuevo Peligro en Matriz Oficial',
+                summary: 'La Matriz Oficial aún no cuenta con filas registradas. Se creará como el primer peligro oficial del sistema.'
+            };
+        }
+
+        const cargoNorm = (currentData.cargo || '').toLowerCase().trim();
+        const clasifNorm = (currentData.peligroClasificacion || '').toLowerCase().trim();
+        const procesoNorm = (currentData.proceso || '').toLowerCase().trim();
+        const tareaNorm = (currentData.tarea || '').toLowerCase().trim();
+
+        let bestRow: any = null;
+        let highestScore = 0;
+
+        for (const row of rows) {
+            let score = 0;
+            const rCargo = (row.cargo || '').toLowerCase().trim();
+            const rClasif = (row.peligro_clasificacion || '').toLowerCase().trim();
+            const rProceso = (row.proceso || '').toLowerCase().trim();
+            const rTarea = (row.tarea || row.peligro_descripcion || '').toLowerCase().trim();
+
+            // 1. Clasificación GTC-45 (Peso: 40%)
+            if (clasifNorm && rClasif) {
+                if (clasifNorm === rClasif) {
+                    score += 40;
+                } else if (clasifNorm.includes(rClasif) || rClasif.includes(clasifNorm)) {
+                    score += 30;
+                }
+            }
+
+            // 2. Cargo Expuesto (Peso: 35%)
+            if (cargoNorm && rCargo) {
+                if (cargoNorm === rCargo) {
+                    score += 35;
+                } else if (cargoNorm.includes(rCargo) || rCargo.includes(cargoNorm)) {
+                    score += 25;
+                }
+            }
+
+            // 3. Proceso / Área (Peso: 15%)
+            if (procesoNorm && rProceso) {
+                if (procesoNorm === rProceso || procesoNorm.includes(rProceso) || rProceso.includes(procesoNorm)) {
+                    score += 15;
+                }
+            }
+
+            // 4. Tarea / Labor (Peso: 10%)
+            if (tareaNorm && rTarea) {
+                if (tareaNorm === rTarea) {
+                    score += 10;
+                } else if (tareaNorm.includes(rTarea) || rTarea.includes(tareaNorm)) {
+                    score += 6;
+                }
+            }
+
+            if (score > highestScore) {
+                highestScore = score;
+                bestRow = row;
+            }
+        }
+
+        if (highestScore >= 55 && bestRow) {
+            return {
+                action: 'update_existing' as 'create_new' | 'update_existing',
+                bestMatchRow: bestRow,
+                score: highestScore,
+                status: 'match_found',
+                title: 'Coincidencia Identificada en Matriz Oficial',
+                summary: `La IA detectó una coincidencia del ${highestScore}% con el peligro evaluado para ${bestRow.cargo || 'este cargo'} en ${bestRow.proceso || 'este proceso'}. Se complementarán los controles propuestos y se sumará la población expuesta.`
+            };
+        }
+
+        return {
+            action: 'create_new' as 'create_new' | 'update_existing',
+            bestMatchRow: bestRow,
+            score: highestScore,
+            status: 'no_match',
+            title: 'Nuevo Peligro Inédito Detectado',
+            summary: highestScore > 0
+                ? `La IA auditó la matriz oficial y no encontró un peligro equivalente (similitud máxima baja de ${highestScore}%). Se creará una nueva fila técnica para registrar este hallazgo colectivo.`
+                : 'La IA auditó la matriz oficial y confirmó que este peligro no tiene evaluaciones previas. Se registrará como una nueva fila técnica oficial.'
+        };
+    };
+
+    const fetchOfficialMatrixRows = async (formDataForMatch?: any) => {
         if (!token) return;
         setIsLoadingOfficialRows(true);
         try {
@@ -469,10 +560,18 @@ const ParticipacionIPEVAR = () => {
             });
             if (res.ok) {
                 const data = await res.json();
-                setOfficialMatrixRows(data.rows || []);
+                const rows = data.rows || [];
+                setOfficialMatrixRows(rows);
                 if (data.officialTitle) setOfficialMatrixTitle(data.officialTitle);
-                if (data.rows && data.rows.length > 0 && !applyTargetRowId) {
-                    setApplyTargetRowId(data.rows[0].id);
+                
+                const dataToEvaluate = formDataForMatch || applyFormData;
+                const matchResult = evaluateAIMatrixMatch(dataToEvaluate, rows);
+                setAiMatchResult(matchResult);
+                setApplyAction(matchResult.action);
+                if (matchResult.action === 'update_existing' && matchResult.bestMatchRow) {
+                    setApplyTargetRowId(matchResult.bestMatchRow.id);
+                } else if (rows.length > 0 && !applyTargetRowId) {
+                    setApplyTargetRowId(rows[0].id);
                 }
             }
         } catch (err) {
@@ -490,7 +589,7 @@ const ParticipacionIPEVAR = () => {
 
         const fData = isFromInbox ? (target.data || {}) : (target.formData || {});
 
-        setApplyFormData({
+        const newFormData = {
             proceso: fData.area || fData.proceso || 'Operativo',
             zona: fData.zona || 'Área de trabajo',
             actividad: fData.actividad || fData.tarea || '',
@@ -509,16 +608,16 @@ const ParticipacionIPEVAR = () => {
             trabajadorNombre: workerNombre || '',
             trabajadorCedula: workerCedula || '',
             cargo: workerCargo || ''
-        });
+        };
 
+        setApplyFormData(newFormData);
         setItemToApply({ ...target, isInbox: isFromInbox });
-        setApplyAction('create_new');
         setShowApplyModal(true);
-        fetchOfficialMatrixRows();
+        fetchOfficialMatrixRows(newFormData);
     };
 
     const handleApplyConsolidadoFromStats = (consolidadoData: any) => {
-        setApplyFormData({
+        const newFormData = {
             proceso: consolidadoData.proceso || 'Operaciones',
             zona: consolidadoData.zona || 'Sede Principal',
             cargo: consolidadoData.cargo || 'Personal Operativo',
@@ -539,7 +638,9 @@ const ParticipacionIPEVAR = () => {
             peorConsecuencia: consolidadoData.peorConsecuencia || consolidadoData.efectosPosibles || '',
             trabajadorNombre: consolidadoData.trabajadorNombre || `Ponderado: ${consolidadoData.cargo}`,
             trabajadorCedula: consolidadoData.trabajadorCedula || 'ESTADISTICA-GTC45'
-        });
+        };
+
+        setApplyFormData(newFormData);
         setItemToApply({
             id: consolidadoData.id || ('consolidado-' + Date.now()),
             reportIds: consolidadoData.reportIds || [],
@@ -551,10 +652,9 @@ const ParticipacionIPEVAR = () => {
             data: consolidadoData,
             isInbox: false
         });
-        setApplyAction('create_new');
         setShowAnalyticsModal(false);
         setShowApplyModal(true);
-        fetchOfficialMatrixRows();
+        fetchOfficialMatrixRows(newFormData);
     };
 
     const handleConfirmApplyToMatrix = async () => {
@@ -1795,42 +1895,102 @@ const ParticipacionIPEVAR = () => {
                             </button>
                         </div>
 
-                        {/* Tabs: Crear Nuevo vs Actualizar Existente */}
-                        <div className="px-6 pt-3 pb-2 border-b border-border-medium bg-surface-secondary/40 flex gap-2 shrink-0">
-                            <button
-                                type="button"
-                                onClick={() => setApplyAction('create_new')}
-                                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border ${
-                                    applyAction === 'create_new'
-                                        ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                                        : 'bg-surface-primary text-text-secondary border-border-medium hover:bg-surface-hover'
-                                }`}
-                            >
-                                <Plus className="w-4 h-4" /> 1. Crear Nuevo Peligro Ponderado en Matriz
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setApplyAction('update_existing')}
-                                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border ${
-                                    applyAction === 'update_existing'
-                                        ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                                        : 'bg-surface-primary text-text-secondary border-border-medium hover:bg-surface-hover'
-                                }`}
-                            >
-                                <RefreshCcw className="w-4 h-4" /> 2. Actualizar / Complementar Fila Existente
-                            </button>
+                        {/* Diagnóstico Inteligente de IA: Detección Automática de Matriz Oficial */}
+                        <div className="px-6 py-3.5 border-b border-border-medium bg-gradient-to-r from-teal-50/80 via-emerald-50/50 to-teal-50/30 dark:from-teal-950/40 dark:via-emerald-950/20 dark:to-teal-950/10 shrink-0">
+                            {isLoadingOfficialRows ? (
+                                <div className="flex items-center gap-2.5 py-1 text-xs text-teal-700 dark:text-teal-300">
+                                    <Loader2 className="w-4 h-4 animate-spin text-teal-600" />
+                                    <span className="font-semibold">La IA está auditando las filas de la Matriz Oficial para cotejar coincidencias...</span>
+                                </div>
+                            ) : (
+                                <div className="space-y-2.5">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide uppercase shadow-2xs border bg-white dark:bg-zinc-800 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-700">
+                                                <Sparkles className="w-3.5 h-3.5 text-teal-600 animate-pulse" />
+                                                {applyAction === 'update_existing' ? 'IA: Peligro Coincidente Detectado' : 'IA: Peligro Inédito Detectado'}
+                                            </span>
+                                            {aiMatchResult?.score > 0 && (
+                                                <span className="text-[11px] font-bold text-slate-500 dark:text-zinc-400">
+                                                    (Cotejo: {aiMatchResult.score}% similitud)
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Alternador manual discreto por si el usuario desea forzar la acción opuesta */}
+                                        <div className="flex items-center gap-1 bg-surface-primary/80 dark:bg-zinc-800/80 p-1 rounded-xl border border-border-medium text-[11px]">
+                                            <button
+                                                type="button"
+                                                onClick={() => setApplyAction('update_existing')}
+                                                disabled={officialMatrixRows.length === 0}
+                                                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                                                    applyAction === 'update_existing'
+                                                        ? 'bg-teal-600 text-white shadow-2xs'
+                                                        : 'text-text-secondary hover:text-text-primary'
+                                                }`}
+                                                title="Complementar controles y sumar expuestos a fila existente"
+                                            >
+                                                Complementar Existente
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setApplyAction('create_new')}
+                                                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                                                    applyAction === 'create_new'
+                                                        ? 'bg-teal-600 text-white shadow-2xs'
+                                                        : 'text-text-secondary hover:text-text-primary'
+                                                }`}
+                                                title="Crear una nueva fila independiente en la matriz oficial"
+                                            >
+                                                Crear Fila Nueva
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Explicación de la acción automatizada */}
+                                    <div className="text-xs text-text-secondary leading-relaxed bg-white/70 dark:bg-zinc-900/60 p-2.5 rounded-xl border border-teal-100 dark:border-teal-900/50 flex items-start gap-2.5">
+                                        <CheckCircle className="w-4 h-4 text-teal-600 dark:text-teal-400 mt-0.5 shrink-0" />
+                                        <div className="flex-1">
+                                            {applyAction === 'update_existing' ? (
+                                                <div>
+                                                    <p className="font-semibold text-text-primary">
+                                                        {aiMatchResult?.summary || 'Se integrará con la fila existente detectada en la Matriz Oficial.'}
+                                                    </p>
+                                                    <p className="text-[11px] text-teal-700 dark:text-teal-300 mt-0.5">
+                                                        ✓ Se complementarán los controles existentes y se acumulará la población expuesta (+{applyFormData.nro_expuestos || 1} personas) sin duplicar filas.
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <p className="font-semibold text-text-primary">
+                                                        {aiMatchResult?.summary || 'No se identificaron coincidencias previas para este peligro y cargo.'}
+                                                    </p>
+                                                    <p className="text-[11px] text-teal-700 dark:text-teal-300 mt-0.5">
+                                                        ✓ Se creará una nueva fila técnica oficial en la Matriz IPEVR (GTC-45) con la valoración ponderada.
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Body - Organizado por Columnas de la Matriz GTC-45 */}
                         <div className="p-6 overflow-y-auto space-y-4 flex-1 text-xs">
                             {applyAction === 'update_existing' && (
-                                <div className="p-3.5 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-2xl space-y-2">
-                                    <label className="block font-bold text-blue-900 dark:text-blue-300 text-xs">
-                                        Selecciona el Peligro Existente en la Matriz a Complementar:
-                                    </label>
+                                <div className="p-3.5 bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/60 rounded-2xl space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <label className="block font-bold text-teal-900 dark:text-teal-200 text-xs">
+                                            Fila Seleccionada de la Matriz Oficial para Complementar:
+                                        </label>
+                                        <span className="text-[10px] text-teal-700 dark:text-teal-400 font-semibold">
+                                            {officialMatrixRows.length} filas analizadas en Matriz Oficial
+                                        </span>
+                                    </div>
                                     {isLoadingOfficialRows ? (
-                                        <div className="flex items-center gap-2 text-blue-600 py-2">
-                                            <Loader2 className="w-4 h-4 animate-spin" /> Cargando filas de la matriz oficial...
+                                        <div className="flex items-center gap-2 text-teal-600 py-2">
+                                            <Loader2 className="w-4 h-4 animate-spin" /> Auditando filas de la matriz oficial...
                                         </div>
                                     ) : officialMatrixRows.length === 0 ? (
                                         <div className="text-gray-500 py-2">
@@ -1840,13 +2000,16 @@ const ParticipacionIPEVAR = () => {
                                         <select
                                             value={applyTargetRowId}
                                             onChange={e => setApplyTargetRowId(e.target.value)}
-                                            className="w-full rounded-xl border border-blue-300 dark:border-blue-700 bg-surface-primary text-text-primary p-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                            className="w-full rounded-xl border border-teal-300 dark:border-teal-700 bg-surface-primary text-text-primary p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs"
                                         >
-                                            {officialMatrixRows.map(row => (
-                                                <option key={row.id} value={row.id}>
-                                                    [{row.proceso || 'Proc.'} - {row.cargo ? `${row.cargo} - ` : ''}{row.zona || 'Zona'}] {row.peligro_clasificacion || 'Peligro'}: {row.peligro_descripcion ? row.peligro_descripcion.substring(0, 60) + '...' : row.tarea} (NR: {row.interpretacion_nr || row.nr || 'N/A'})
-                                                </option>
-                                            ))}
+                                            {officialMatrixRows.map(row => {
+                                                const isAiPick = aiMatchResult?.bestMatchRow?.id === row.id;
+                                                return (
+                                                    <option key={row.id} value={row.id}>
+                                                        {isAiPick ? '⭐ [IA SELECCIONADO] ' : ''}[{row.proceso || 'Proc.'} - {row.cargo ? `${row.cargo} - ` : ''}{row.zona || 'Zona'}] {row.peligro_clasificacion || 'Peligro'}: {row.peligro_descripcion ? row.peligro_descripcion.substring(0, 60) + '...' : row.tarea} (NR: {row.interpretacion_nr || row.nr || 'N/A'})
+                                                    </option>
+                                                );
+                                            })}
                                         </select>
                                     )}
                                 </div>

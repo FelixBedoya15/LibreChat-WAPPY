@@ -168,6 +168,12 @@ router.post('/apply-to-matrix', requireJwtAuth, async (req, res) => {
             if (matrixData.efectosPosibles && !row.efectos_posibles?.includes(matrixData.efectosPosibles)) {
                 row.efectos_posibles = row.efectos_posibles ? `${row.efectos_posibles} | ${matrixData.efectosPosibles}` : matrixData.efectosPosibles;
             }
+            if (matrixData.nro_expuestos) {
+                row.nro_expuestos = (Number(row.nro_expuestos) || 0) + (Number(matrixData.nro_expuestos) || 1);
+            }
+            if (matrixData.peorConsecuencia && !row.peor_consecuencia?.includes(matrixData.peorConsecuencia)) {
+                row.peor_consecuencia = row.peor_consecuencia ? `${row.peor_consecuencia} | ${matrixData.peorConsecuencia}` : matrixData.peorConsecuencia;
+            }
             if (matrixData.trabajadorNombre) {
                 const workerTag = `Aporte participativo de ${matrixData.trabajadorNombre}${matrixData.cargo ? ` (${matrixData.cargo})` : ''}: ${matrixData.peligros || 'Actualización de controles'}`;
                 row.origen_reporte = row.origen_reporte ? `${row.origen_reporte} | ${workerTag}` : workerTag;
