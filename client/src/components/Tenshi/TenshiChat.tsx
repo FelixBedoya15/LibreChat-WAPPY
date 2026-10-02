@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw, Mic, Volume2, MessageSquare, Bot, Activity, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw, Mic, Volume2, VolumeX, MessageSquare, Bot, Activity, Maximize2, Minimize2 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useChatContext } from '~/Providers';
 import { useListAgentsQuery } from '~/data-provider';
@@ -12,6 +12,8 @@ import Markdown from '~/components/Chat/Messages/Content/Markdown';
 import { getDehydratedDOM, executeGUIAction, getVisibleScreenContent } from '../Chat/TenshiPageController';
 import { useVoiceSession } from '~/hooks/useVoiceSession';
 import { cn } from '~/utils';
+import { TenshiCanvas, TenshiMood } from './TenshiCanvas';
+import { tenshiAudio } from './tenshiAudio';
 
 const normalizeStr = (s: string) =>
   (s || '')
@@ -331,6 +333,22 @@ export default function TenshiChat() {
   }, [isChatSubmitting]);
   const [isWaitingConsultation, setIsWaitingConsultation] = useState(false);
   const consultationTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Estado de efectos de sonido procedurales de Tenshi (SFX)
+  const [isSFXMuted, setIsSFXMuted] = useState(() => tenshiAudio.getMuted());
+  const handleToggleSFX = useCallback(() => {
+    const next = tenshiAudio.toggleMuted();
+    setIsSFXMuted(next);
+  }, []);
+
+  // Emoción y estado procedural dinámico de Tenshi
+  const tenshiMood: TenshiMood = useMemo(() => {
+    if (isTenshiSpeaking) return 'speaking';
+    if (isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)) return 'thinking';
+    if (isVoiceActive) return 'listening';
+    return 'idle';
+  }, [isTenshiSpeaking, isTyping, isChatSubmitting, isWaitingConsultation, tenshiStatus, isVoiceActive]);
+
   const latestChatMessage = useRecoilValue(store.latestMessageFamily(0));
   const latestChatMessageRef = useRef(latestChatMessage);
   latestChatMessageRef.current = latestChatMessage;
@@ -1941,14 +1959,15 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
             )}
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-emerald-200 bg-white p-0.5 shadow-inner">
-                <img
-                  src="/assets/tenshi.png"
-                  alt="Tenshi"
-                  className="h-full w-full rounded-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = '/assets/logo.svg';
-                  }}
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-emerald-200 bg-emerald-50 shadow-inner">
+                <TenshiCanvas
+                  size={38}
+                  mood={tenshiMood}
+                  isSpeaking={isTenshiSpeaking}
+                  outputAmplitude={outputAmplitude}
+                  interactive={false}
+                  showHalo={false}
+                  showWings={false}
                 />
               </div>
               <div>
@@ -1957,6 +1976,15 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
               </div>
             </div>
             <div className="flex items-center gap-1">
+              {/* Botón Silenciar/Activar Efectos SFX de Tenshi */}
+              <button
+                type="button"
+                onClick={handleToggleSFX}
+                title={isSFXMuted ? 'Activar efectos de sonido de Tenshi' : 'Silenciar efectos de sonido de Tenshi'}
+                className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
+              >
+                {isSFXMuted ? <VolumeX className="h-4 w-4 text-emerald-200" /> : <Volume2 className="h-4 w-4" />}
+              </button>
               {/* Botón Pantalla Completa */}
               <button
                 type="button"
@@ -2017,34 +2045,24 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
                   }}
                 />
 
-                {/* Avatar de Tenshi con movimiento al hablar */}
+                {/* Avatar Interactivo y Expresivo de Tenshi (Canvas 2D con física y seguimiento ocular) */}
                 <div
                   className={cn(
-                    'relative rounded-full p-1 border-2 transition-all duration-300 bg-white dark:bg-gray-800',
-                    isFullscreen ? 'h-40 w-40 sm:h-48 sm:w-48' : 'h-32 w-32 sm:h-36 sm:w-36',
-                    isTenshiSpeaking
-                      ? 'animate-tenshi-speaking border-emerald-500 shadow-[0_0_25px_rgba(16,185,129,0.5)]'
-                      : isTyping
-                      ? 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] animate-pulse'
-                      : 'animate-tenshi-float border-emerald-500/40 shadow-lg'
+                    'relative flex items-center justify-center transition-all duration-300',
+                    isFullscreen ? 'h-48 w-48 sm:h-56 sm:w-56' : 'h-36 w-36 sm:h-44 sm:w-44'
                   )}
-                  style={{
-                    transform: isTenshiSpeaking
-                      ? `scale(${1 + Math.min(outputAmplitude * 0.25, 0.15)})`
-                      : undefined,
-                  }}
                 >
-                  <img
-                    src="/assets/tenshi.png"
-                    alt="Tenshi"
-                    className="h-full w-full rounded-full object-cover shadow-inner pointer-events-none"
-                    onError={(e) => {
-                      e.currentTarget.src = '/assets/logo.svg';
-                    }}
+                  <TenshiCanvas
+                    size={isFullscreen ? 200 : 154}
+                    mood={tenshiMood}
+                    isSpeaking={isTenshiSpeaking}
+                    outputAmplitude={outputAmplitude}
+                    isListening={isVoiceActive}
+                    voiceAmplitude={voiceAmplitude}
+                    interactive={true}
+                    showHalo={true}
+                    showWings={true}
                   />
-                  {isTenshiSpeaking && (
-                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-2.5 w-8 rounded-full bg-emerald-400/80 blur-[2px] animate-pulse pointer-events-none" />
-                  )}
                 </div>
 
                 {/* Ecualizador dinámico de 7 barras estilo WAPPY */}
@@ -2433,17 +2451,17 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
           onMouseDown={handleMouseDown}
           onTouchStart={handleTouchStart}
           onClick={handleButtonClick}
-          className="animate-bounce-short relative flex h-14 w-14 cursor-grab items-center justify-center overflow-hidden rounded-full border-2 border-white bg-emerald-600 p-1 text-white shadow-xl transition-all duration-300 hover:scale-105 hover:bg-emerald-500 hover:shadow-2xl active:cursor-grabbing"
+          title="Abrir asistente Tenshi IA"
+          className="animate-bounce-short relative flex h-14 w-14 cursor-grab items-center justify-center overflow-hidden rounded-full border-2 border-white bg-emerald-600 p-0.5 text-white shadow-xl transition-all duration-300 hover:scale-105 hover:bg-emerald-500 hover:shadow-2xl active:cursor-grabbing"
         >
           {/* Ripple effect */}
-          <span className="absolute h-full w-full animate-ping rounded-full bg-emerald-400 opacity-20"></span>
-          <img
-            src="/assets/tenshi.png"
-            alt="Tenshi"
-            className="h-full w-full rounded-full object-cover"
-            onError={(e) => {
-              e.currentTarget.src = '/assets/logo.svg';
-            }}
+          <span className="absolute h-full w-full animate-ping rounded-full bg-emerald-400 opacity-20 pointer-events-none"></span>
+          <TenshiCanvas
+            size={48}
+            mood={isVoiceActive ? 'listening' : 'idle'}
+            interactive={false}
+            showHalo={true}
+            showWings={true}
           />
         </button>
       )}

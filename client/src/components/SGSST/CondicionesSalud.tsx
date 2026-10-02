@@ -48,6 +48,8 @@ import { exportPerfilSociodemograficoToExcel, type LicenciaConduccionItem } from
 import CollapsibleReportBox from './CollapsibleReportBox';
 import BioFitAuditModal from './BioFitAuditModal';
 import { smartMapExcelToWorkers } from './excelWorkerMapper';
+import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import { CONDICIONES_SALUD_FIELDS } from './moduleFieldDefinitions';
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface WorkerEntry {
@@ -362,6 +364,47 @@ const CondicionesSalud = () => {
     const [isAiImportLoading, setIsAiImportLoading] = useState(false);
     const [pendingFileData, setPendingFileData] = useState<{ dataUrl: string; name: string; type: string } | null>(null);
 
+    // ─── Homologador Visual de Casillas (Paralelo de Casillas) ───
+    const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
+    const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
+
+    const handleConfirmColumnMapping = (mappedRows: any[]) => {
+        if (!mappedRows || mappedRows.length === 0) {
+            showToast({ message: 'No se encontraron filas con datos para importar.', severity: NotificationSeverity.WARNING });
+            return;
+        }
+        const validRows = mappedRows.filter(r => (r.nombre && String(r.nombre).trim()) || (r.identificacion && String(r.identificacion).trim()));
+        let rowsToImport = validRows.length > 0 ? validRows : mappedRows;
+
+        // Validar límites de versión Pro
+        if (!isPro) {
+            const remainingSlots = Math.max(0, 3 - trabajadores.length);
+            if (remainingSlots === 0) {
+                setShowUpgradeModal(true);
+                return;
+            }
+            if (rowsToImport.length > remainingSlots) {
+                rowsToImport = rowsToImport.slice(0, remainingSlots);
+                setTimeout(() => setShowUpgradeModal(true), 500);
+            }
+        }
+
+        const nuevosTrabajadores = rowsToImport.map((t: any) => ({
+            ...EMPTY_WORKER,
+            ...t,
+            id: t.id || crypto.randomUUID(),
+            firmaDigital: null,
+            completedByAI: false,
+        }));
+        setTrabajadores(prev => [...prev, ...nuevosTrabajadores]);
+        setIsColumnMapperOpen(false);
+        setColumnMapperBuffer(null);
+        showToast({
+            message: `¡${nuevosTrabajadores.length} trabajadores importados exitosamente con el Paralelo de Casillas!`,
+            severity: NotificationSeverity.SUCCESS,
+        });
+    };
+
     const handleExportExcel = async () => {
         try {
             await exportPerfilSociodemograficoToExcel(
@@ -455,51 +498,20 @@ const CondicionesSalud = () => {
             return;
         }
 
-        // Si es Excel (.xlsx, .xls), procesamos con mapeador inteligente y fallback a IA
-        const reader = new FileReader();
-        reader.onload = (eEvent) => {
-            try {
-                const data = eEvent.target?.result;
-                const workbook = XLSX.read(data, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
-                const importedData = XLSX.utils.sheet_to_json<any>(sheet);
-
-                if (!importedData || importedData.length === 0) {
-                    throw new Error("El archivo no contiene datos.");
+        // Si es Excel (.xlsx, .xls) o CSV, abrimos el homologador visual de casillas
+        if (['xlsx', 'xls', 'csv'].includes(extension || '')) {
+            const reader = new FileReader();
+            reader.onload = (eEvent) => {
+                const buffer = eEvent.target?.result as ArrayBuffer;
+                if (buffer) {
+                    setColumnMapperBuffer(buffer);
+                    setIsColumnMapperOpen(true);
                 }
-
-                // Normalización inteligente de columnas
-                let newWorkers: WorkerEntry[] = smartMapExcelToWorkers(importedData, EMPTY_WORKER);
-                let validWorkers = newWorkers.filter(w => (w.nombre && w.nombre.trim()) || (w.identificacion && w.identificacion.trim()));
-
-                if (validWorkers.length > 0) {
-                    // Validar límites de versión Pro
-                    if (!isPro) {
-                        const remainingSlots = Math.max(0, 3 - trabajadores.length);
-                        if (remainingSlots === 0) {
-                            setShowUpgradeModal(true);
-                            return;
-                        }
-                        if (validWorkers.length > remainingSlots) {
-                            validWorkers = validWorkers.slice(0, remainingSlots);
-                            setTimeout(() => setShowUpgradeModal(true), 500);
-                        }
-                    }
-
-                    setTrabajadores(prev => [...prev, ...validWorkers]);
-                    showToast({ message: `${validWorkers.length} trabajadores importados correctamente`, severity: NotificationSeverity.SUCCESS });
-                } else {
-                    // Ruta B: Excel No Estándar -> Procesar con IA
-                    requestAiImport();
-                }
-            } catch (err) {
-                console.error("Error importing Excel:", err);
-                showToast({ message: 'Error al importar archivo Excel. Verifica el formato.', severity: NotificationSeverity.ERROR });
-            }
-        };
-        reader.readAsArrayBuffer(file);
-        if (e.target) e.target.value = '';
+            };
+            reader.readAsArrayBuffer(file);
+            if (e.target) e.target.value = '';
+            return;
+        }
     };
 
     // Nueva función para ejecutar la importación por IA
@@ -2024,8 +2036,23 @@ const CondicionesSalud = () => {
                 type="file"
                 ref={fileInputRef}
                 onChange={handleImportExcel}
-                accept=".xlsx, .xls, .docx, .doc, .pdf, .txt, .json"
+                accept=".xlsx, .xls, .csv, .docx, .doc, .pdf, .txt, .json"
                 className="hidden"
+            />
+
+            {/* ── MODAL HOMOLOGADOR UNIVERSAL DE CASILLAS (PARALELO DE EXCEL) ── */}
+            <UniversalColumnMapperModal
+                isOpen={isColumnMapperOpen}
+                onClose={() => {
+                    setIsColumnMapperOpen(false);
+                    setColumnMapperBuffer(null);
+                }}
+                moduleKey="condiciones-salud"
+                moduleTitle="Condiciones de Salud"
+                targetFields={CONDICIONES_SALUD_FIELDS}
+                fileData={columnMapperBuffer}
+                onConfirmImport={handleConfirmColumnMapping}
+                emptyTemplate={EMPTY_WORKER}
             />
 
             {/* ── MODAL IMPORT CONFIRMATION IA ── */}

@@ -27,10 +27,10 @@ interface VisibilitySettings {
 
 const VISIBILITY_ITEMS: Array<{ key: keyof VisibilitySettings; label: string; description: string; color: string }> = [
     { key: 'showPlanFree',          label: 'Plan Gratis',              description: 'Muestra el plan gratuito en la página (Oculto en esta versión)', color: 'text-gray-500' },
-    { key: 'showPlanGo',            label: 'Plan Go',                  description: 'Muestra el plan Go ($49.200/mes)',                  color: 'text-blue-500' },
-    { key: 'showPlanPlus',          label: 'Plan Plus',                description: 'Muestra el plan Plus ($57.800/mes)',                color: 'text-green-500' },
-    { key: 'showPlanPro',           label: 'Plan Wappy Pro ⭐',        description: 'Muestra el plan Wappy Pro ($39.800/mes) — Recomendado', color: 'text-amber-500' },
-    { key: 'showSectionAppPlans',   label: 'Sección: Wappy Vital',     description: 'Muestra la sección del plan Wappy Vital (Pago único de por vida)', color: 'text-emerald-500' },
+    { key: 'showPlanGo',            label: 'Plan Go',                  description: 'Muestra el plan Go',                                color: 'text-blue-500' },
+    { key: 'showPlanPlus',          label: 'Plan Plus',                description: 'Muestra el plan Plus',                              color: 'text-green-500' },
+    { key: 'showPlanPro',           label: 'Plan Wappy Pro ⭐',        description: 'Muestra el plan Wappy Pro — Recomendado',            color: 'text-amber-500' },
+    { key: 'showSectionAppPlans',   label: 'Sección: Wappy Vital',     description: 'Muestra la sección del plan Wappy Vital',           color: 'text-emerald-500' },
     { key: 'showSectionCustomPlan', label: 'Sección: Plan a la Medida',description: 'Muestra el constructor de plan personalizado',     color: 'text-fuchsia-500' },
     { key: 'showSectionEnterprise', label: 'Sección: Planes Corporativos', description: 'Muestra los planes empresariales y asesores', color: 'text-violet-500' },
 ];

@@ -53,6 +53,8 @@ import CollapsibleReportBox from './CollapsibleReportBox';
 import WorkersProfileList from './WorkersProfileList';
 import BioIndividuoDashboard from './BioIndividuoDashboard';
 import * as XLSX from 'xlsx';
+import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import { PERFILES_CARGO_FIELDS } from './moduleFieldDefinitions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface PerfilCargoData {
@@ -541,6 +543,10 @@ const PerfilesCargo = () => {
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [isAiImportLoading, setIsAiImportLoading] = useState(false);
     const [pendingFileData, setPendingFileData] = useState<{ dataUrl: string; name: string; type: string } | null>(null);
+
+    // ─── Homologador Visual de Casillas (Paralelo de Casillas) ───
+    const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
+    const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
 
     // ─── Drag and Drop State (Reordenar Perfiles) ───
     const [draggedPerfilIndex, setDraggedPerfilIndex] = useState<number | null>(null);
@@ -1172,6 +1178,73 @@ const PerfilesCargo = () => {
         }
     };
 
+    const handleConfirmColumnMapping = (mappedRows: any[]) => {
+        if (!mappedRows || mappedRows.length === 0) {
+            showToast({ message: 'No se encontraron perfiles para importar.', severity: NotificationSeverity.WARNING });
+            return;
+        }
+        const validRows = mappedRows.filter(r => r.nombreCargo && String(r.nombreCargo).trim());
+        const rowsToImport = validRows.length > 0 ? validRows : mappedRows;
+
+        const newPerfiles: PerfilCargoData[] = rowsToImport.map((row: any) => {
+            const rawEpp = row.eppSeleccionados;
+            const rawEntrenamientos = row.entrenamientosSeleccionados;
+            const eppArr = Array.isArray(rawEpp)
+                ? rawEpp
+                : typeof rawEpp === 'string'
+                    ? rawEpp.split(',').map(s => s.trim()).filter(Boolean)
+                    : [];
+            const entrenamientosArr = Array.isArray(rawEntrenamientos)
+                ? rawEntrenamientos
+                : typeof rawEntrenamientos === 'string'
+                    ? rawEntrenamientos.split(',').map(s => s.trim()).filter(Boolean)
+                    : [];
+
+            return {
+                ...createInitialPerfil(),
+                ...row,
+                id: row.id || crypto.randomUUID(),
+                nombreCargo: row.nombreCargo || 'Cargo Importado',
+                area: row.area || '',
+                nivelCargo: row.nivelCargo || 'Operativo',
+                sectorOrganizacion: row.sectorOrganizacion || 'Sector privado',
+                tipoContrato: normalizeVinculacion(row.tipoContrato || 'Contrato laboral a término indefinido'),
+                jornada: row.jornada || 'Tiempo completo (8 horas/día)',
+                jefeInmediato: row.jefeInmediato || '',
+                escalasSalarial: row.escalasSalarial || '',
+                numVacantes: row.numVacantes ? String(row.numVacantes) : '1',
+                contextoAdicional: row.contextoAdicional || '',
+                exigenciaFisica: row.exigenciaFisica || 'Media',
+                exigenciaMental: row.exigenciaMental || 'Media',
+                eppSeleccionados: eppArr,
+                entrenamientosSeleccionados: entrenamientosArr,
+                images: {},
+                video: null,
+            };
+        });
+
+        setPerfiles(prev => {
+            const cleanPrev = (prev.length === 1 && !prev[0].nombreCargo) ? [] : prev;
+            const combined = [...cleanPrev, ...newPerfiles];
+            if (combined.length > 0 && (!activePerfilId || !prev.find(p => p.id === activePerfilId)?.nombreCargo)) {
+                setActivePerfilId(combined[0].id);
+                setFormData(combined[0]);
+                setGeneratedReport(combined[0].report || null);
+                editorContentRef.current = combined[0].report || '';
+                liveEditorRef.current?.setHTML(combined[0].report || '');
+            }
+            saveImportedPerfiles(combined);
+            return combined;
+        });
+
+        setIsColumnMapperOpen(false);
+        setColumnMapperBuffer(null);
+        showToast({
+            message: `¡${newPerfiles.length} perfiles de cargo importados exitosamente con el Paralelo de Casillas!`,
+            severity: NotificationSeverity.SUCCESS,
+        });
+    };
+
     const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -1250,111 +1323,20 @@ const PerfilesCargo = () => {
             return;
         }
 
-        // Si es Excel (.xlsx, .xls), validamos si tiene cabeceras válidas para la ruta tradicional o si va a IA
-        const reader = new FileReader();
-        reader.onload = (eEvent) => {
-            try {
-                const data = eEvent.target?.result;
-                const workbook = XLSX.read(data, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
-                const importedData = XLSX.utils.sheet_to_json<any>(sheet);
-
-                if (!importedData || importedData.length === 0) {
-                    throw new Error("El archivo no contiene datos.");
+        // Si es Excel (.xlsx, .xls) o CSV, abrimos el homologador visual de casillas
+        if (['xlsx', 'xls', 'csv'].includes(extension || '')) {
+            const reader = new FileReader();
+            reader.onload = (eEvent) => {
+                const buffer = eEvent.target?.result as ArrayBuffer;
+                if (buffer) {
+                    setColumnMapperBuffer(buffer);
+                    setIsColumnMapperOpen(true);
                 }
-
-                // Validamos si hay cabeceras estándar en el primer registro
-                const firstRow = importedData[0];
-                const keys = Object.keys(firstRow).map(k => k.toLowerCase().replace(/\s+/g, ''));
-                const isStandard = keys.some(k => 
-                    k.includes('cargo') || 
-                    k.includes('epp') || 
-                    k.includes('entrenamiento') || 
-                    k.includes('area') ||
-                    k.includes('contrato') ||
-                    k.includes('vinculacion')
-                );
-
-                if (isStandard) {
-                    // Ruta A: Mapeo Tradicional Directo
-                    const newPerfiles: PerfilCargoData[] = importedData.map((row: any) => {
-                        const eppStr = row['EPP Requeridos'] || row['EPP'] || row.eppSeleccionados || '';
-                        const entrenamientosStr = row['Entrenamientos Requeridos'] || row['Entrenamientos'] || row.entrenamientosSeleccionados || '';
-                        const controlesFuenteStr = row['Controles en la Fuente'] || row['Controles Fuente'] || row.controlesFuenteSeleccionados || '';
-                        const controlesMedioStr = row['Controles en el Medio'] || row['Controles Medio'] || row.controlesMedioSeleccionados || '';
-
-                        const descValue = 
-                            row['Descripción Detallada'] || 
-                            row['Descripcion Detallada'] || 
-                            row['Descripción detallada'] || 
-                            row['Descripcion detallada'] || 
-                            row['Descripción'] || 
-                            row['Descripcion'] || 
-                            row['contextoAdicional'] || 
-                            row.contextoAdicional || 
-                            '';
-
-                        const rawVinculacion = 
-                            row['Tipo de Vinculación'] || 
-                            row['Tipo de vinculación'] || 
-                            row['Vinculación'] || 
-                            row['Tipo de Contrato'] || 
-                            row['Tipo de contrato'] || 
-                            row.tipoContrato || 
-                            'Contrato laboral a término indefinido';
-
-                        return {
-                            id: crypto.randomUUID(),
-                            nombreCargo: row['Nombre del Cargo'] || row['Nombre de Cargo'] || row['Cargo'] || row.nombreCargo || '',
-                            area: row['Área'] || row['Area'] || row.area || '',
-                            nivelCargo: row['Nivel del Cargo'] || row['Nivel de Cargo'] || row.nivelCargo || 'Operativo',
-                            sectorOrganizacion: row['Sector Organización'] || row['Sector de la Organización'] || row['Sector'] || row.sectorOrganizacion || 'Sector privado',
-                            tipoContrato: normalizeVinculacion(rawVinculacion),
-                            jornada: row['Jornada'] || row.jornada || 'Tiempo completo (8 horas/día)',
-                            jefeInmediato: row['Jefe Inmediato'] || row['Jefe inmediato'] || row.jefeInmediato || '',
-                            escalasSalarial: row['Escala Salarial'] || row['Escala salarial'] || row.escalasSalarial || '',
-                            numVacantes: row['Número de Vacantes'] || row['Numero de Vacantes'] || row['Nº de Vacantes'] || row['Nº Vacantes'] || row.numVacantes || '',
-                            contextoAdicional: descValue,
-                            exigenciaFisica: row['Exigencia Física'] || row['Exigencia Fisica'] || row.exigenciaFisica || '',
-                            exigenciaMental: row['Exigencia Mental'] || row.exigenciaMental || '',
-                            operaMaquinaria: row['Opera Maquinaria'] || row['Opera maquinaria'] || row.operaMaquinaria || '',
-                            eppSeleccionados: eppStr ? eppStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-                            entrenamientosSeleccionados: entrenamientosStr ? entrenamientosStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-                            controlesFuenteSeleccionados: controlesFuenteStr ? controlesFuenteStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-                            controlesMedioSeleccionados: controlesMedioStr ? controlesMedioStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-                            report: row['Reporte Generado'] || row.report || '',
-                            images: {},
-                            video: null
-                        };
-                    });
-
-                    setPerfiles(prev => {
-                        const cleanPrev = (prev.length === 1 && !prev[0].nombreCargo) ? [] : prev;
-                        const combined = [...cleanPrev, ...newPerfiles];
-                        if (combined.length > 0 && (!activePerfilId || !prev.find(p => p.id === activePerfilId)?.nombreCargo)) {
-                            setActivePerfilId(combined[0].id);
-                            setFormData(combined[0]);
-                            setGeneratedReport(combined[0].report || null);
-                            editorContentRef.current = combined[0].report || '';
-                            liveEditorRef.current?.setHTML(combined[0].report || '');
-                        }
-                        saveImportedPerfiles(combined);
-                        return combined;
-                    });
-
-                    showToast({ message: `${newPerfiles.length} perfiles de cargo importados correctamente`, severity: NotificationSeverity.SUCCESS });
-                } else {
-                    // Ruta B: Excel No Estándar -> Procesar con IA
-                    requestAiImport();
-                }
-            } catch (err) {
-                console.error("Error importing Excel:", err);
-                showToast({ message: 'Error al importar archivo Excel. Verifica el formato.', severity: NotificationSeverity.ERROR });
-            }
-        };
-        reader.readAsArrayBuffer(file);
-        if (e.target) e.target.value = '';
+            };
+            reader.readAsArrayBuffer(file);
+            if (e.target) e.target.value = '';
+            return;
+        }
     };
 
     // Nueva función para ejecutar la importación por IA
@@ -2505,8 +2487,23 @@ const PerfilesCargo = () => {
                 type="file"
                 ref={fileInputRef}
                 onChange={handleImportExcel}
-                accept=".xlsx, .xls, .docx, .doc, .pdf, .txt, .json"
+                accept=".xlsx, .xls, .csv, .docx, .doc, .pdf, .txt, .json"
                 className="hidden"
+            />
+
+            {/* ── MODAL HOMOLOGADOR UNIVERSAL DE CASILLAS (PARALELO DE EXCEL) ── */}
+            <UniversalColumnMapperModal
+                isOpen={isColumnMapperOpen}
+                onClose={() => {
+                    setIsColumnMapperOpen(false);
+                    setColumnMapperBuffer(null);
+                }}
+                moduleKey="perfiles-cargo"
+                moduleTitle="Perfiles de Cargo"
+                targetFields={PERFILES_CARGO_FIELDS}
+                fileData={columnMapperBuffer}
+                onConfirmImport={handleConfirmColumnMapping}
+                emptyTemplate={createInitialPerfil()}
             />
 
             {/* ── MODAL IMPORT CONFIRMATION IA ── */}

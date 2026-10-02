@@ -28,6 +28,7 @@ import {
   FileSpreadsheet,
   Briefcase,
   CheckSquare,
+  Columns3,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuthContext } from '~/hooks';
@@ -46,6 +47,8 @@ import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/Live
 import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import SGSSTToolbar from './SGSSTToolbar';
+import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import { MATRIZ_IPEVAR_FIELDS } from './moduleFieldDefinitions';
 
 // ── FilterSelect: dropdown con estilo del sistema (reemplaza <select> nativo) ────────────────
 const FilterSelect = ({
@@ -1203,6 +1206,88 @@ export default function MatrizIPEVARTable({
   const [isAiImportLoading, setIsAiImportLoading] = useState(false);
   const handleAutoAssignCargosRef = useRef<((rows?: MatrixRow[]) => Promise<void>) | null>(null);
 
+  // ─── Homologador Visual de Casillas (Paralelo de Casillas GTC-45) ───
+  const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
+  const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
+
+  const handleConfirmColumnMapping = (mappedRows: any[]) => {
+    if (!mappedRows || mappedRows.length === 0) {
+      showToast({ message: 'No se encontraron filas válidas para importar.', status: 'warning', severity: 'warning' });
+      return;
+    }
+    const withIds = mappedRows.map((r: any) => {
+      const row: MatrixRow = {
+        cargo: toSentenceCase(r.cargo || ''),
+        proceso: toSentenceCase(r.proceso || ''),
+        zona: toSentenceCase(r.zona || ''),
+        actividad: r.actividad || '',
+        tareas: r.tareas || '',
+        rutinaria: r.rutinaria || 'Sí',
+        peligro_descripcion: r.peligro_descripcion || '',
+        peligro_clasificacion: r.peligro_clasificacion || '',
+        efectos_posibles: r.efectos_posibles || '',
+        controles_fuente: r.controles_fuente || 'Ninguno',
+        controles_medio: r.controles_medio || 'Ninguno',
+        controles_individuo: r.controles_individuo || 'Ninguno',
+        nd: Number(r.nd) || 0,
+        ne: Number(r.ne) || 0,
+        np: Number(r.np) || 0,
+        nc: Number(r.nc) || 0,
+        nr: Number(r.nr) || 0,
+        interpretacion_nr: r.interpretacion_nr || '',
+        aceptabilidad: r.aceptabilidad || '',
+        medida_eliminacion: r.medida_eliminacion || 'Ninguno',
+        medida_sustitucion: r.medida_sustitucion || 'Ninguno',
+        medida_ingenieria: r.medida_ingenieria || 'Ninguno',
+        medida_administrativa: r.medida_administrativa || 'Ninguno',
+        medida_eppu: r.medida_eppu || 'Ninguno',
+        factores_reduccion: r.factores_reduccion || 'Técnicamente viable según Anexo E GTC-45',
+        origen_reporte: r.origen_reporte || 'Identificación Técnica SG-SST',
+        nd_cualitativo: null,
+        interpretacion_np: '',
+        nro_expuestos: Number(r.nro_expuestos) || 1,
+        peor_consecuencia: r.peor_consecuencia || '',
+        requisito_legal: r.requisito_legal || '',
+        id: r.id || Date.now().toString() + Math.random().toString(36).substring(7),
+      };
+      recalcRowFormulas(row);
+      return row;
+    });
+
+    let combined = withIds;
+    if (matrixRows.length > 0) {
+      const shouldReplace = window.confirm(
+        '¿Deseas REEMPLAZAR la matriz existente con los riesgos del archivo?\n\n• Aceptar: Reemplazar completamente la matriz actual.\n• Cancelar: Mantener los riesgos existentes y agregar los nuevos al final.'
+      );
+      combined = shouldReplace ? withIds : [...matrixRows, ...withIds];
+    }
+    setMatrixRows(combined);
+    isDirtyRef.current = true;
+    saveMatrixData(combined);
+    setIsColumnMapperOpen(false);
+    setColumnMapperBuffer(null);
+    showToast({
+      message: `¡Éxito! Se importaron ${withIds.length} riesgos con el Paralelo de Casillas GTC-45.`,
+      status: 'success',
+      severity: 'success',
+    });
+
+    // Verificar si hay filas sin perfil de cargo asignado
+    const hasUnassignedCargos = combined.some(
+      (r) => !r.cargo || r.cargo.trim() === '' || r.cargo.toLowerCase().includes('cargo / rol')
+    );
+    if (hasUnassignedCargos) {
+      setTimeout(() => {
+        const doAutoAssign = window.confirm(
+          'Se detectaron riesgos sin Perfil de Cargo asignado en la matriz.\n\n¿Deseas que la IA clasifique y asigne automáticamente los Perfiles de Cargo de tu empresa a cada riesgo, comparando cada actividad con la descripción del perfil?'
+        );
+        if (doAutoAssign && handleAutoAssignCargosRef.current) {
+          handleAutoAssignCargosRef.current(combined);
+        }
+      }, 400);
+    }
+  };
+
   const handleDirectImport = () => {
     if (pendingDirectRows.length === 0) return;
     setIsConfirmModalOpen(false);
@@ -1391,7 +1476,16 @@ export default function MatrizIPEVARTable({
           } else {
             alert('El archivo JSON debe contener un arreglo de objetos.');
           }
-        } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv')) {
+          // Guardar buffer para el Homologador Visual (Paralelo de Casillas)
+          const bufferReader = new FileReader();
+          bufferReader.onload = (bufEvt) => {
+            if (bufEvt.target?.result) {
+              setColumnMapperBuffer(bufEvt.target.result as ArrayBuffer);
+            }
+          };
+          bufferReader.readAsArrayBuffer(file);
+
           const wb = XLSX.read(data, { type: 'binary' });
           
           let allSheetRows: any[] = [];
@@ -2763,8 +2857,22 @@ export default function MatrizIPEVARTable({
         type="file"
         ref={fileInputRef}
         className="hidden"
-        accept=".xlsx,.xls,.json"
+        accept=".xlsx,.xls,.json,.csv"
         onChange={handleImportFile}
+      />
+
+      {/* ── Universal Column Mapper Modal (Paralelo de Casillas) ─────────── */}
+      <UniversalColumnMapperModal
+        isOpen={isColumnMapperOpen}
+        onClose={() => {
+          setIsColumnMapperOpen(false);
+          setColumnMapperBuffer(null);
+        }}
+        moduleKey="matriz-ipevar"
+        moduleTitle="Matriz IPEVR (GTC-45)"
+        targetFields={MATRIZ_IPEVAR_FIELDS}
+        fileData={columnMapperBuffer}
+        onConfirmImport={handleConfirmColumnMapping}
       />
 
       {/* ── AI Adapt Loading Overlay ────────────────────────────────────── */}
@@ -2786,7 +2894,7 @@ export default function MatrizIPEVARTable({
         </div>
       )}
 
-      {/* ── Import Choice Modal (Direct vs AI) ────────────────────────────── */}
+      {/* ── Import Choice Modal (Direct vs AI vs Paralelo de Casillas) ────── */}
       {isConfirmModalOpen && (
         <div className="fixed inset-0 z-[999998] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-border-medium bg-surface-primary shadow-2xl transition-all">
@@ -2811,6 +2919,7 @@ export default function MatrizIPEVARTable({
                     setIsConfirmModalOpen(false);
                     setPendingRawRows([]);
                     setPendingDirectRows([]);
+                    setColumnMapperBuffer(null);
                   }}
                   className="rounded-xl p-2 text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all"
                 >
@@ -2823,19 +2932,44 @@ export default function MatrizIPEVARTable({
               </p>
 
               <div className="grid grid-cols-1 gap-3">
-                {/* Opción 1: Reconstrucción Inteligente con IA */}
+                {/* Opción 1: Paralelo de Casillas (Homologador Visual) */}
+                {columnMapperBuffer && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsConfirmModalOpen(false);
+                      setIsColumnMapperOpen(true);
+                    }}
+                    className="group relative flex flex-col items-start gap-2 rounded-2xl border-2 border-teal-500 bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-teal-500/5 p-4 text-left transition-all hover:border-teal-600 hover:shadow-lg shadow-sm"
+                  >
+                    <div className="flex w-full items-center justify-between">
+                      <div className="flex items-center gap-2 font-bold text-teal-700 dark:text-teal-300 text-sm">
+                        <Columns3 className="h-4 w-4 text-teal-600 animate-pulse" />
+                        Paralelo de Casillas (Homologador Visual - Recomendado)
+                      </div>
+                      <span className="rounded-full bg-gradient-to-r from-teal-600 to-cyan-600 px-2 py-0.5 text-[10px] font-black text-white uppercase tracking-wider">
+                        100% Preciso
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-secondary leading-relaxed">
+                      Compara las columnas de tu Excel frente al formato técnico GTC-45 en tiempo real. Previsualiza las filas, guarda plantillas de la empresa y procesa miles de filas al instante sin límites de IA.
+                    </p>
+                  </button>
+                )}
+
+                {/* Opción 2: Reconstrucción Inteligente con IA */}
                 <button
                   type="button"
                   onClick={handleAiImport}
-                  className="group relative flex flex-col items-start gap-2 rounded-2xl border-2 border-teal-500/40 bg-teal-500/5 p-4 text-left transition-all hover:border-teal-500 hover:bg-teal-500/10 shadow-sm"
+                  className="group relative flex flex-col items-start gap-2 rounded-2xl border border-border-medium bg-surface-secondary/40 p-4 text-left transition-all hover:border-teal-500/50 hover:bg-surface-hover shadow-sm"
                 >
                   <div className="flex w-full items-center justify-between">
                     <div className="flex items-center gap-2 font-bold text-teal-700 dark:text-teal-400 text-sm">
-                      <Sparkles className="h-4 w-4 text-teal-600 animate-pulse" />
-                      Reconstrucción Inteligente con IA (Recomendado)
+                      <Sparkles className="h-4 w-4 text-teal-600" />
+                      Reconstrucción Inteligente con IA
                     </div>
-                    <span className="rounded-full bg-teal-600 px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
-                      Completo
+                    <span className="rounded-full bg-surface-tertiary px-2 py-0.5 text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+                      IA
                     </span>
                   </div>
                   <p className="text-xs text-text-secondary leading-relaxed">
@@ -2843,7 +2977,7 @@ export default function MatrizIPEVARTable({
                   </p>
                 </button>
 
-                {/* Opción 2: Carga Directa / Rápida */}
+                {/* Opción 3: Carga Directa / Rápida */}
                 <button
                   type="button"
                   onClick={handleDirectImport}
@@ -2872,6 +3006,7 @@ export default function MatrizIPEVARTable({
                   setIsConfirmModalOpen(false);
                   setPendingRawRows([]);
                   setPendingDirectRows([]);
+                  setColumnMapperBuffer(null);
                 }}
                 className="rounded-xl px-4 py-2 text-xs font-semibold text-text-secondary hover:text-text-primary transition-all"
               >

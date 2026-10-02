@@ -410,10 +410,10 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
                                                     className="w-full rounded-xl border border-amber-300 dark:border-amber-700/60 bg-white dark:bg-zinc-800 px-3 py-2 text-xs font-bold text-slate-800 dark:text-zinc-100 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none cursor-pointer"
                                                 >
                                                     <option value="free">Gratis (Invitado)</option>
-                                                    <option value="go">Go ($49.200 / mes)</option>
-                                                    <option value="plus">Plus ($57.800 / mes)</option>
-                                                    <option value="pro">Wappy Pro ⭐ ($39.800 / mes)</option>
-                                                    <option value="ipevar">Wappy Vital (Pago único de por vida)</option>
+                                                    <option value="go">Go</option>
+                                                    <option value="plus">Plus</option>
+                                                    <option value="pro">Wappy Pro ⭐</option>
+                                                    <option value="ipevar">Wappy Vital</option>
                                                     <option value="custom">A la Medida</option>
                                                     <option value="admin">Administrador del Sistema</option>
                                                 </select>
