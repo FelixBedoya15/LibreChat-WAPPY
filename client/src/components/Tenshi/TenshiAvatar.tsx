@@ -40,7 +40,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   interactive = true,
   className = '',
   onClick,
-  showHaloEffect = true,
+  showHaloEffect = false,
   showHUD = true,
   statusText,
 }) => {
@@ -200,7 +200,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     const eyeOffsetY = tilt.lookY * 4;
 
     return (
-      <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden rounded-full">
+      <div className="absolute inset-0 pointer-events-none z-10">
         {/* Lente Izquierdo */}
         <div
           className="absolute flex items-center justify-center transition-transform duration-100 ease-out"
@@ -368,45 +368,17 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         />
       )}
 
-      {/* 2. Halo Celestial Dorado Flotante 3D */}
-      {showHaloEffect && size >= 44 && (
-        <div
-          className="absolute -top-3 left-1/2 pointer-events-none transition-transform duration-200 ease-out z-20"
-          style={{
-            width: size * 0.64,
-            height: size * 0.22,
-            animation: isSpeaking ? 'tenshi-halo-pulse 1.1s infinite ease-in-out' : 'tenshi-halo-pulse 3.2s infinite ease-in-out',
-            transformOrigin: 'center center',
-          }}
-        >
-          {/* Rayo de luz celestial hacia la cabeza */}
-          <div className="absolute inset-0 bg-gradient-to-b from-amber-300/20 to-transparent blur-sm rounded-full" />
-          <div
-            className={cn(
-              'h-full w-full rounded-full border-2 transition-all duration-300',
-              isSpeaking
-                ? 'border-emerald-400 shadow-[0_0_24px_rgba(52,211,153,0.95)] bg-emerald-400/15'
-                : activeMood === 'thinking'
-                ? 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.85)] bg-amber-400/15'
-                : isVoiceActive
-                ? 'border-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.6)] bg-emerald-400/15'
-                : 'border-amber-300 shadow-[0_0_14px_rgba(252,211,77,0.55)] bg-amber-300/10'
-            )}
-          />
-        </div>
-      )}
-
-      {/* 3. Contenedor 3D del Avatar con Física de Rebote (Squash & Stretch) */}
+      {/* 2. Contenedor 3D del Avatar con Física de Rebote (Squash & Stretch) - Flotando Libre con Aureola Original y fondo transparente */}
       <div
         className={cn(
-          'relative h-full w-full rounded-full p-1 border-2 transition-all duration-200 ease-out overflow-hidden shadow-lg',
+          'relative h-full w-full flex items-center justify-center transition-all duration-200 ease-out select-none',
           isSpeaking
-            ? 'border-emerald-500 shadow-[0_0_32px_rgba(16,185,129,0.55)]'
+            ? 'drop-shadow-[0_0_24px_rgba(16,185,129,0.75)]'
             : activeMood === 'thinking'
-            ? 'border-amber-400 shadow-[0_0_22px_rgba(251,191,36,0.5)]'
+            ? 'drop-shadow-[0_0_20px_rgba(251,191,36,0.65)]'
             : isVoiceActive
-            ? 'border-emerald-400/90 shadow-[0_0_20px_rgba(52,211,153,0.4)]'
-            : 'border-emerald-500/40 hover:border-emerald-500/80',
+            ? 'drop-shadow-[0_0_18px_rgba(52,211,153,0.55)]'
+            : 'drop-shadow-[0_4px_12px_rgba(0,0,0,0.18)] hover:drop-shadow-[0_6px_20px_rgba(16,185,129,0.35)]',
           forcedDizzy && 'animate-spin',
           !isSpeaking && !isClicked && !forcedDizzy && 'animate-tenshi-float'
         )}
@@ -422,11 +394,11 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
             : 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}
       >
-        {/* Imagen Oficial de Tenshi (El gato con traje y gafas de sol) */}
+        {/* Imagen Oficial de Tenshi sin fondo (removebg) */}
         <img
           src="/assets/tenshi.png"
           alt="Tenshi"
-          className="h-full w-full rounded-full object-cover object-center pointer-events-none select-none transition-transform duration-300"
+          className="h-full w-full object-contain object-center pointer-events-none select-none transition-transform duration-300"
           onError={(e) => {
             e.currentTarget.src = '/assets/logo.svg';
           }}
@@ -434,15 +406,6 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
 
         {/* 4. Capa HUD Cibernética sobre los cristales de las gafas de sol */}
         {renderHUDLenses()}
-
-        {/* 5. Reflejo de luz dinámico (Specular Glare en las gafas de sol) */}
-        <div
-          className="absolute inset-0 rounded-full pointer-events-none transition-opacity duration-300 z-10"
-          style={{
-            background: `radial-gradient(circle at ${tilt.glareX}% ${tilt.glareY}%, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0) 58%)`,
-            opacity: isHovered || isSpeaking ? 0.95 : 0.45,
-          }}
-        />
 
         {/* Indicador brillante inferior cuando habla */}
         {isSpeaking && (

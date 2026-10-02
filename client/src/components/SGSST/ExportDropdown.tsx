@@ -13,6 +13,7 @@ interface ExportDropdownProps {
   fileName: string;
   reportType?: 'checklist' | 'general';
   onExportExcel?: () => void;
+  onDownloadTemplate?: () => void;
   onlyExcel?: boolean;
 }
 
@@ -26,6 +27,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
   fileName,
   reportType = 'general',
   onExportExcel,
+  onDownloadTemplate,
   onlyExcel,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -101,7 +103,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
     };
   }, [isOpen]);
 
-  if (onlyExcel && onExportExcel) {
+  if (onlyExcel && onExportExcel && !onDownloadTemplate) {
     return (
       <>
         <button
@@ -891,7 +893,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
     setIsOpen(false);
   };
 
-  const exportOptions = [
+  const exportOptions = onlyExcel ? [] : [
     {
       label: 'Abrir en Navegador (HTML)',
       icon: Globe,
@@ -924,7 +926,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
 
   if (onExportExcel) {
     exportOptions.unshift({
-      label: 'Exportar Matriz a Excel (.xlsx)',
+      label: 'Exportar Registros a Excel (.xlsx)',
       icon: FileText,
       handler: () => {
         onExportExcel();
@@ -932,7 +934,21 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
       },
       description: 'Datos crudos de la tabla en Excel',
       disabled: false,
-      premium: true,
+      premium: false,
+    });
+  }
+
+  if (onDownloadTemplate) {
+    exportOptions.unshift({
+      label: 'Descargar Formato / Plantilla (.xlsx)',
+      icon: Download,
+      handler: () => {
+        onDownloadTemplate();
+        setIsOpen(false);
+      },
+      description: 'Plantilla oficial vacía para diligenciar',
+      disabled: false,
+      premium: false,
     });
   }
 

@@ -28,6 +28,7 @@ import SGSSTToolbar from './SGSSTToolbar';
 import { MATRIZ_LEGAL_ITEMS, MatrizLegalItem } from './matrizLegalData';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import { MATRIZ_LEGAL_FIELDS } from './moduleFieldDefinitions';
+import { exportModuleDataToExcel } from './columnMapperEngine';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
@@ -231,6 +232,51 @@ const MatrizLegal = () => {
         setColumnMapperBuffer(null);
         showToast({
             message: `¡${mappedRows.length} requerimientos legales procesados con el Paralelo de Casillas!`,
+            status: 'success',
+            severity: 'success',
+        });
+    };
+
+    const handleExportExcel = () => {
+        const rows = allLegalItems.map(item => {
+            const st = statuses.find(s => s.itemId === item.id)?.status || 'pendiente';
+            const estadoLabel = st === 'cumple' ? 'Cumple' : st === 'no_cumple' ? 'No Cumple' : st === 'no_aplica' ? 'No Aplica' : 'Pendiente';
+            return {
+                norma: item.norma || '',
+                articulo: item.articulo || '',
+                descripcion: item.descripcion || '',
+                evidencia: item.evidencia || '',
+                categoria: item.categoria || 'Normas Aplicables Generales',
+                estado: estadoLabel,
+                seguimiento: seguimientos[item.id] || '',
+            };
+        });
+
+        exportModuleDataToExcel({
+            targetFields: MATRIZ_LEGAL_FIELDS,
+            data: rows,
+            fileName: 'Matriz_Legal_SGSST',
+            sheetName: 'Matriz Legal',
+            isTemplate: false,
+        });
+
+        showToast({
+            message: `¡${rows.length} normas de la Matriz Legal exportadas a Excel exitosamente!`,
+            status: 'success',
+            severity: 'success',
+        });
+    };
+
+    const handleDownloadTemplate = () => {
+        exportModuleDataToExcel({
+            targetFields: MATRIZ_LEGAL_FIELDS,
+            data: [],
+            fileName: 'Plantilla_Formato_Matriz_Legal',
+            sheetName: 'Formato Matriz Legal',
+            isTemplate: true,
+        });
+        showToast({
+            message: 'Plantilla de Matriz Legal descargada en Excel.',
             status: 'success',
             severity: 'success',
         });
@@ -540,6 +586,8 @@ const MatrizLegal = () => {
                     onImportExcel={() => fileInputRef.current?.click()}
                     importExcelLabel="Importar Matriz"
                     importExcelTitle="Homologar casillas y cargar matriz legal corporativa desde Excel"
+                    onExportExcel={handleExportExcel}
+                    onDownloadTemplate={handleDownloadTemplate}
                     hasContent={!!(editorContentRef.current || generatedMatrix)}
                     exportContent={editorContentRef.current || generatedMatrix || ''}
                     exportFileName="Matriz_Legal_SGSST"

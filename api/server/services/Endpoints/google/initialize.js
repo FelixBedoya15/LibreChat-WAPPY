@@ -11,17 +11,65 @@ const initializeClient = async ({ req, res, endpointOption, overrideModel, optio
 
   let userKey = null;
   if (isUserProvided) {
-    userKey = await getUserKey({ userId: req.user.id, name: EModelEndpoint.google });
-    if (expiresAt) {
-      checkUserKeyExpiry(expiresAt, EModelEndpoint.google);
+    try {
+      userKey = await getUserKey({ userId: req.user.id, name: EModelEndpoint.google });
+      if (expiresAt) {
+        checkUserKeyExpiry(expiresAt, EModelEndpoint.google);
+      }
+    } catch (_err) {
+      // User does not have a personal key saved
+      userKey = null;
     }
   }
 
   let serviceKey = {};
 
-  /** Check if GOOGLE_KEY is provided at all (including 'user_provided') */
-  const isGoogleKeyProvided =
-    (GOOGLE_KEY && GOOGLE_KEY.trim() !== '') || (isUserProvided && userKey != null);
+  // Check fallbacks for Google key:
+  // 1. Agent or endpointOption apiKey
+  const agentApiKey = endpointOption?.model_parameters?.apiKey || req.body?.agent?.model_parameters?.apiKey;
+
+  // 2. Environment keys (GEMINI_API_KEY, GOOGLE_API_KEY, or GOOGLE_KEY if not 'user_provided')
+  const envKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || (GOOGLE_KEY !== 'user_provided' ? GOOGLE_KEY : null) || '')
+    .split(',')[0]
+    ?.trim();
+
+  let resolvedApiKey = agentApiKey || (envKey && envKey !== 'user_provided' ? envKey : null);
+
+  // 3. Fallback: Search Key collection in database for admin/platform keys (tenshi_google, google)
+  if (!userKey && !resolvedApiKey) {
+    try {
+      const { Key } = require('~/db/models');
+      if (Key) {
+        const adminKeyDoc = await Key.findOne({ name: { $in: ['tenshi_google', 'google'] } }).lean();
+        if (adminKeyDoc) {
+          const stored = await getUserKey({ userId: String(adminKeyDoc.userId), name: adminKeyDoc.name });
+          if (stored) {
+            resolvedApiKey = stored.includes(',') ? stored.split(',')[0].trim() : stored.trim();
+          }
+        }
+      }
+    } catch (_e) {
+      // ignore
+    }
+  }
+
+  // 4. If optionsOnly is true and still no key, use a safe placeholder so getGoogleConfig can parse options without throwing
+  if (!userKey && !resolvedApiKey && optionsOnly) {
+    resolvedApiKey = 'AIzaSy-placeholder-for-options-only';
+  }
+
+  if (isUserProvided && !userKey && !resolvedApiKey && !optionsOnly) {
+    throw new Error(
+      JSON.stringify({
+        type: 'no_user_key',
+      }),
+    );
+  }
+
+  /** Check if GOOGLE_KEY is provided at all (including 'user_provided' with resolved key) */
+  const isGoogleKeyProvided = Boolean(
+    userKey || resolvedApiKey || (GOOGLE_KEY && GOOGLE_KEY.trim() !== '' && GOOGLE_KEY !== 'user_provided'),
+  );
 
   if (!isGoogleKeyProvided) {
     /** Only attempt to load service key if GOOGLE_KEY is not provided */
@@ -39,12 +87,26 @@ const initializeClient = async ({ req, res, endpointOption, overrideModel, optio
     }
   }
 
-  const credentials = isUserProvided
-    ? userKey
-    : {
-        [AuthKeys.GOOGLE_SERVICE_KEY]: serviceKey,
-        [AuthKeys.GOOGLE_API_KEY]: GOOGLE_KEY,
-      };
+  let credentials;
+  if (userKey && typeof userKey === 'object') {
+    credentials = userKey;
+  } else if (userKey && typeof userKey === 'string') {
+    try {
+      credentials = JSON.parse(userKey);
+    } catch {
+      credentials = { [AuthKeys.GOOGLE_API_KEY]: userKey };
+    }
+  } else if (resolvedApiKey) {
+    credentials = {
+      [AuthKeys.GOOGLE_SERVICE_KEY]: serviceKey,
+      [AuthKeys.GOOGLE_API_KEY]: resolvedApiKey,
+    };
+  } else {
+    credentials = {
+      [AuthKeys.GOOGLE_SERVICE_KEY]: serviceKey,
+      [AuthKeys.GOOGLE_API_KEY]: GOOGLE_KEY,
+    };
+  }
 
   let clientOptions = {};
 

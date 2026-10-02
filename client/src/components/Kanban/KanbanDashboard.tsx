@@ -28,12 +28,15 @@ import {
   Wrench,
   Activity,
   Layers,
+  Download,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 import UniversalColumnMapperModal from '~/components/SGSST/UniversalColumnMapperModal';
 import { KANBAN_ACPM_FIELDS } from '~/components/SGSST/moduleFieldDefinitions';
+import { exportModuleDataToExcel } from '~/components/SGSST/columnMapperEngine';
 
 interface KanbanTask {
   _id: string;
@@ -267,6 +270,43 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     } finally {
       setIsImporting(false);
     }
+  };
+
+  const handleExportExcel = () => {
+    const mappedTasks = tasks.map((t) => ({
+      descripcion: t.title + (t.description ? ` - ${t.description}` : ''),
+      responsable: t.assignedTo || '',
+      fechaLimite: t.dueDate ? new Date(t.dueDate).toISOString().split('T')[0] : '',
+      estado: t.columnId === 'done' ? 'Cerrada / Ejecutada' : t.columnId === 'in_progress' ? 'En Ejecución' : 'Pendiente / Abierta',
+      prioridad: t.priority === 'urgent' ? 'Crítica' : t.priority === 'high' ? 'Alta' : t.priority === 'medium' ? 'Media' : 'Baja',
+      origen: t.source || 'ACPM SG-SST',
+      tipoAccion: t.tags?.includes('correctiva') ? 'Acción Correctiva' : t.tags?.includes('mejora') ? 'Acción de Mejora' : 'Acción Preventiva',
+    }));
+    exportModuleDataToExcel(
+      KANBAN_ACPM_FIELDS,
+      mappedTasks,
+      `Tablero_Kanban_ACPM_${new Date().toISOString().split('T')[0]}.xlsx`,
+      false,
+    );
+    showToast({
+      message: 'Actividades del tablero exportadas a Excel exitosamente',
+      status: 'success',
+      severity: 'success',
+    });
+  };
+
+  const handleDownloadTemplate = () => {
+    exportModuleDataToExcel(
+      KANBAN_ACPM_FIELDS,
+      [],
+      'Plantilla_Kanban_ACPM.xlsx',
+      true,
+    );
+    showToast({
+      message: 'Plantilla de Actividades ACPM descargada exitosamente',
+      status: 'success',
+      severity: 'success',
+    });
   };
   
   // Modal states
@@ -852,6 +892,32 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
             className="hidden"
             accept=".xlsx, .xls, .pdf, .docx, .doc, .txt"
           />
+
+          <button
+            onClick={handleDownloadTemplate}
+            className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-md hover:shadow-lg shrink-0 cursor-pointer border border-border-medium outline-none rounded-xl bg-surface-primary hover:bg-surface-hover text-text-primary sm:hover:-rotate-2 sm:hover:scale-105 active:scale-95"
+            title="Descargar Formato / Plantilla Oficial (.xlsx)"
+          >
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+              <Download className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
+            </div>
+            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+              <span className="text-xs sm:text-sm font-bold tracking-wide">Descargar Formato</span>
+            </div>
+          </button>
+
+          <button
+            onClick={handleExportExcel}
+            className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-md hover:shadow-lg shrink-0 cursor-pointer border border-border-medium outline-none rounded-xl bg-surface-primary hover:bg-surface-hover text-text-primary sm:hover:rotate-2 sm:hover:scale-105 active:scale-95"
+            title="Exportar Actividades a Excel (.xlsx)"
+          >
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+              <FileSpreadsheet className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
+            </div>
+            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+              <span className="text-xs sm:text-sm font-bold tracking-wide">Exportar Excel</span>
+            </div>
+          </button>
 
           <button
             onClick={openCreateModal}

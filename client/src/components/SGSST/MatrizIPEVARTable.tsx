@@ -3124,6 +3124,7 @@ export default function MatrizIPEVARTable({
             hasContent={!!reportContent || matrixRows.length > 0}
             onImportExcel={() => fileInputRef.current?.click()}
             onExportExcel={handleExportExcel}
+            onDownloadTemplate={handleExportTemplate}
             exportContent={reportContent || ''}
             exportFileName={`Informe_IPEVR_GTC45_${new Date().toISOString().slice(0, 10)}`}
             onDummy={handleDummyData}

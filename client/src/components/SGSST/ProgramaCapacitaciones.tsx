@@ -40,6 +40,7 @@ import {
 import SGSSTToolbar from './SGSSTToolbar';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import { PROGRAMA_CAPACITACION_FIELDS } from './moduleFieldDefinitions';
+import { exportModuleDataToExcel } from './columnMapperEngine';
 
 interface Trabajador {
   nombre: string;
@@ -173,6 +174,34 @@ export default function ProgramaCapacitaciones() {
     setColumnMapperBuffer(null);
     showToast({
       message: `¡${newSesiones.length} sesiones de capacitación importadas exitosamente con el Paralelo de Casillas!`,
+      status: 'success',
+      severity: 'success',
+    });
+  };
+
+  const handleExportExcel = () => {
+    exportModuleDataToExcel(
+      PROGRAMA_CAPACITACION_FIELDS,
+      sesiones,
+      `Cronograma_Capacitaciones_${new Date().toISOString().split('T')[0]}.xlsx`,
+      false,
+    );
+    showToast({
+      message: 'Cronograma exportado a Excel exitosamente',
+      status: 'success',
+      severity: 'success',
+    });
+  };
+
+  const handleDownloadTemplate = () => {
+    exportModuleDataToExcel(
+      PROGRAMA_CAPACITACION_FIELDS,
+      [],
+      'Plantilla_Cronograma_Capacitaciones.xlsx',
+      true,
+    );
+    showToast({
+      message: 'Plantilla de Cronograma descargada exitosamente',
       status: 'success',
       severity: 'success',
     });
@@ -1134,6 +1163,20 @@ export default function ProgramaCapacitaciones() {
                 title="Homologar casillas y cargar cronograma de capacitaciones desde Excel"
               >
                 <Upload className="h-4 w-4" /> Importar Excel
+              </Button>
+              <Button
+                onClick={handleDownloadTemplate}
+                className="flex items-center gap-1.5 rounded-xl border border-border-light bg-surface-primary px-3.5 py-2 text-xs font-bold text-text-primary hover:bg-surface-hover transition-all active:scale-95 shadow-xs"
+                title="Descargar formato / plantilla oficial en blanco (.xlsx)"
+              >
+                <Download className="h-4 w-4 text-teal-600" /> Descargar Formato
+              </Button>
+              <Button
+                onClick={handleExportExcel}
+                className="flex items-center gap-1.5 rounded-xl border border-border-light bg-surface-primary px-3.5 py-2 text-xs font-bold text-text-primary hover:bg-surface-hover transition-all active:scale-95 shadow-xs"
+                title="Exportar sesiones del cronograma a Excel (.xlsx)"
+              >
+                <FileText className="h-4 w-4 text-emerald-600" /> Exportar Excel
               </Button>
               <Button
                 onClick={handleAddSesion}

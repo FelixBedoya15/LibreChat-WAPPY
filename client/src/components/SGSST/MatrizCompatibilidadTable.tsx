@@ -694,6 +694,16 @@ export default function MatrizCompatibilidadTable({
     }
   };
 
+  const handleDownloadTemplate = async () => {
+    try {
+      await exportCompatibilidadToExcel([]);
+      showToast({ message: 'Plantilla de Compatibilidad Química descargada exitosamente.', status: 'success' });
+    } catch (e) {
+      console.error(e);
+      showToast({ message: 'Error al descargar la plantilla Excel.', status: 'error' });
+    }
+  };
+
   // Paginación
   const paginatedRows = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -1027,6 +1037,7 @@ export default function MatrizCompatibilidadTable({
           isSaving={isSaving}
           onImportExcel={triggerExcelImport}
           onExportExcel={handleExportExcel}
+          onDownloadTemplate={handleDownloadTemplate}
           onDummy={handleFillDummy}
           selectedModel={selectedModel}
           onSelectModel={setSelectedModel}

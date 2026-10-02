@@ -1533,9 +1533,9 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       }
       initialKeys = initialKeys.filter(Boolean);
 
-      // CRITICAL FALLBACK: Merge environment keys (GOOGLE_KEY, GEMINI_API_KEY) so that
+      // CRITICAL FALLBACK: Merge environment keys (GOOGLE_KEY, GEMINI_API_KEY, GOOGLE_API_KEY) so that
       // when a single user/agent key hits daily quota (429 limit: 20), rotation can try other available keys!
-      const envKeys = [process.env.GOOGLE_KEY, process.env.GEMINI_API_KEY]
+      const envKeys = [process.env.GOOGLE_KEY, process.env.GEMINI_API_KEY, process.env.GOOGLE_API_KEY]
         .filter(Boolean)
         .flatMap((k) => k.split(','))
         .map((k) => k.trim())
@@ -1547,6 +1547,46 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
           keys.push(ek);
         }
       }
+
+      // If no valid AIza keys found yet, fall back to active user's key and database Key collection (tenshi_google, google)
+      if (!keys.some((k) => k && k.startsWith('AIza'))) {
+        if (this.options.req?.user?.id) {
+          try {
+            const userKey = await getUserKey({ userId: this.options.req.user.id, name: EModelEndpoint.google });
+            if (userKey && userKey !== 'user_provided') {
+              const parsedKeys = userKey.includes(',') ? userKey.split(',').map((k) => k.trim()).filter(Boolean) : [userKey.trim()];
+              for (const uk of parsedKeys) {
+                if (uk && !keys.includes(uk)) keys.push(uk);
+              }
+            }
+          } catch (_e) {}
+        }
+
+        if (!keys.some((k) => k && k.startsWith('AIza'))) {
+          try {
+            const { Key } = require('~/db/models');
+            if (Key) {
+              const dbKeyDocs = await Key.find({ name: { $in: ['tenshi_google', 'google'] } }).lean();
+              for (const doc of dbKeyDocs) {
+                try {
+                  const stored = await getUserKey({ userId: String(doc.userId), name: doc.name });
+                  if (stored) {
+                    const parsed = stored.includes(',') ? stored.split(',').map((k) => k.trim()).filter(Boolean) : [stored.trim()];
+                    for (const pk of parsed) {
+                      if (pk && pk.startsWith('AIza') && !keys.includes(pk)) {
+                        keys.push(pk);
+                      }
+                    }
+                  }
+                } catch (_e) {}
+              }
+            }
+          } catch (_err) {
+            logger.debug('[AgentClient] Fallback Key lookup error:', _err?.message);
+          }
+        }
+      }
+
       if (!keys.length) {
         keys = [null];
       }

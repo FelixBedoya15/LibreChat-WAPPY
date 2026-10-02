@@ -34,6 +34,7 @@ import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import { VULNERABILIDAD_FIELDS } from './moduleFieldDefinitions';
+import { exportModuleDataToExcel } from './columnMapperEngine';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SingleSelect from './SingleSelect';
@@ -375,6 +376,34 @@ const AnalisisVulnerabilidad = () => {
     setColumnMapperBuffer(null);
     showToast({
       message: `¡${newThreats.length} amenazas importadas exitosamente con el Paralelo de Casillas!`,
+      status: 'success',
+      severity: 'success',
+    });
+  };
+
+  const handleExportExcel = () => {
+    exportModuleDataToExcel(
+      VULNERABILIDAD_FIELDS,
+      amenazasList,
+      `Analisis_Vulnerabilidad_Amenazas_${new Date().toISOString().split('T')[0]}.xlsx`,
+      false,
+    );
+    showToast({
+      message: 'Amenazas exportadas a Excel exitosamente',
+      status: 'success',
+      severity: 'success',
+    });
+  };
+
+  const handleDownloadTemplate = () => {
+    exportModuleDataToExcel(
+      VULNERABILIDAD_FIELDS,
+      [],
+      'Plantilla_Analisis_Vulnerabilidad.xlsx',
+      true,
+    );
+    showToast({
+      message: 'Plantilla de Análisis de Vulnerabilidad descargada exitosamente',
       status: 'success',
       severity: 'success',
     });
@@ -1003,6 +1032,8 @@ const AnalisisVulnerabilidad = () => {
         hasContent={!!(editorContentRef.current || generatedReport)}
         exportContent={editorContentRef.current || generatedReport || ''}
         exportFileName={`Analisis_Vulnerabilidad_${new Date().getTime()}`}
+        onExportExcel={handleExportExcel}
+        onDownloadTemplate={handleDownloadTemplate}
         onDummy={handleDummyData}
         onImportExcel={() => fileInputRef.current?.click()}
         importExcelLabel="Importar Amenazas"
@@ -1794,14 +1825,15 @@ const AnalisisVulnerabilidad = () => {
 
       <UniversalColumnMapperModal
         isOpen={isColumnMapperOpen}
-        fileBuffer={columnMapperBuffer}
+        moduleKey="analisis-vulnerabilidad"
+        fileData={columnMapperBuffer}
         targetFields={VULNERABILIDAD_FIELDS}
         moduleTitle="Análisis de Vulnerabilidad y Emergencias"
         onClose={() => {
           setIsColumnMapperOpen(false);
           setColumnMapperBuffer(null);
         }}
-        onConfirm={handleConfirmColumnMapping}
+        onConfirmImport={handleConfirmColumnMapping}
       />
     </div>
   );

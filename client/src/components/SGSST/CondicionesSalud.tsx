@@ -419,6 +419,20 @@ const CondicionesSalud = () => {
         }
     };
 
+    const handleDownloadTemplate = async () => {
+        try {
+            await exportPerfilSociodemograficoToExcel(
+                [],
+                'Plantilla_Condiciones_Salud_Perfil.xlsx',
+                cargosDisponibles.map(c => c.nombreCargo)
+            );
+            showToast({ message: 'Plantilla de Condiciones de Salud descargada exitosamente', severity: NotificationSeverity.SUCCESS });
+        } catch (error: any) {
+            console.error('Error descargando plantilla:', error);
+            showToast({ message: `Error al descargar plantilla: ${error?.message || error}`, severity: NotificationSeverity.ERROR });
+        }
+    };
+
     const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -1121,6 +1135,7 @@ const CondicionesSalud = () => {
                 importExcelLabel="Importar Archivo"
                 importExcelTitle="Importar desde Excel, PDF, Word o Concepto Médico"
                 onExportExcel={handleExportExcel}
+                onDownloadTemplate={handleDownloadTemplate}
                 hasData={trabajadores.length > 0}
                 customSections={[
                     <div className="flex items-center gap-2">

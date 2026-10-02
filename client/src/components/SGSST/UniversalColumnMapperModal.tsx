@@ -15,6 +15,7 @@ import {
   Eye,
   Columns3,
   Layers,
+  Download,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -27,16 +28,19 @@ import {
   getSavedTemplates,
   deleteSavedTemplate,
   SavedTemplate,
+  exportModuleDataToExcel,
 } from './columnMapperEngine';
 
 interface UniversalColumnMapperModalProps {
   isOpen: boolean;
   onClose: () => void;
-  moduleKey: string;
+  moduleKey?: string;
   moduleTitle: string;
   targetFields: TargetFieldDef[];
   fileData?: ArrayBuffer | null;
-  onConfirmImport: (mappedRows: any[], summary: { total: number; valid: number; skipped: number }) => void;
+  fileBuffer?: ArrayBuffer | null;
+  onConfirmImport?: (mappedRows: any[], summary: { total: number; valid: number; skipped: number }) => void;
+  onConfirm?: (mappedRows: any[]) => void;
   emptyTemplate?: Record<string, any>;
 }
 
@@ -47,9 +51,14 @@ export default function UniversalColumnMapperModal({
   moduleTitle,
   targetFields,
   fileData,
+  fileBuffer,
   onConfirmImport,
+  onConfirm,
   emptyTemplate = {},
 }: UniversalColumnMapperModalProps) {
+  const effectiveFileData = fileData || fileBuffer;
+  const effectiveModuleKey = moduleKey || moduleTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
   // ─── Estados Principales ──────────────────────────────────────────────────
   const [sheets, setSheets] = useState<SheetInfo[]>([]);
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
@@ -70,7 +79,7 @@ export default function UniversalColumnMapperModal({
 
   // ─── 1. Procesar archivo Excel al abrir ────────────────────────────────────
   useEffect(() => {
-    if (!isOpen || !fileData) {
+    if (!isOpen || !effectiveFileData) {
       setSheets([]);
       setWorkbook(null);
       setMapping({});
@@ -78,7 +87,7 @@ export default function UniversalColumnMapperModal({
     }
 
     try {
-      const parsed = parseWorkbookSheets(fileData);
+      const parsed = parseWorkbookSheets(effectiveFileData);
       setWorkbook(parsed.workbook);
       setSheets(parsed.sheets);
       setSelectedSheetIndex(0);
@@ -89,12 +98,12 @@ export default function UniversalColumnMapperModal({
       }
 
       // Cargar plantillas previas de este módulo
-      const templates = getSavedTemplates(moduleKey);
+      const templates = getSavedTemplates(effectiveModuleKey);
       setSavedTemplates(templates);
     } catch (err) {
       console.error('Error al procesar el archivo Excel para mapeo:', err);
     }
-  }, [isOpen, fileData, moduleKey, targetFields]);
+  }, [isOpen, effectiveFileData, effectiveModuleKey, targetFields]);
 
   // Hoja activa actual
   const currentSheet = sheets[selectedSheetIndex] || null;
@@ -226,11 +235,15 @@ export default function UniversalColumnMapperModal({
         const rawSheet = workbook.Sheets[currentSheet.name];
         const result = transformRowsWithMapping(rawSheet, targetFields, mapping, emptyTemplate);
 
-        onConfirmImport(result.mappedRows, {
-          total: result.totalRows,
-          valid: result.validCount,
-          skipped: result.skippedCount,
-        });
+        if (onConfirmImport) {
+          onConfirmImport(result.mappedRows, {
+            total: result.totalRows,
+            valid: result.validCount,
+            skipped: result.skippedCount,
+          });
+        } else if (onConfirm) {
+          onConfirm(result.mappedRows);
+        }
         onClose();
       } catch (err) {
         console.error('Error durante la transformación de datos:', err);
@@ -358,6 +371,25 @@ export default function UniversalColumnMapperModal({
             >
               <Sparkles size={13} />
               <span>Auto-emparejar</span>
+            </button>
+
+            {/* Botón Descargar Plantilla Oficial Excel */}
+            <button
+              type="button"
+              onClick={() => {
+                exportModuleDataToExcel({
+                  targetFields,
+                  data: [],
+                  fileName: `Plantilla_${moduleTitle.replace(/[^a-zA-Z0-9]/g, '_')}`,
+                  sheetName: 'Formato Oficial',
+                  isTemplate: true,
+                });
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs shadow-2xs bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 active:scale-95 transition-all cursor-pointer"
+              title="Descargar archivo Excel en blanco con las columnas oficiales listas para diligenciar"
+            >
+              <Download size={13} className="text-teal-600 dark:text-teal-400" />
+              <span>Descargar Formato</span>
             </button>
 
             {/* Selector / Guardar Plantilla de Empresa */}

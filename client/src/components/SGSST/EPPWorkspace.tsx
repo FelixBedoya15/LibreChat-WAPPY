@@ -54,6 +54,7 @@ import { saveAs } from 'file-saver';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import { EPP_TRACKING_FIELDS } from './moduleFieldDefinitions';
+import { exportModuleDataToExcel } from './columnMapperEngine';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
@@ -1314,6 +1315,20 @@ export default function EPPWorkspace() {
     }
   };
 
+  const handleDownloadTemplate = () => {
+    exportModuleDataToExcel(
+      EPP_TRACKING_FIELDS,
+      [],
+      'Plantilla_Entregas_EPP.xlsx',
+      true,
+    );
+    showToast({
+      message: 'Plantilla de Entregas de EPP descargada exitosamente',
+      status: 'success',
+      severity: 'success',
+    });
+  };
+
   // Filters workers list based on search
   const filteredWorkers = workers.filter(w => 
     (w.nombre || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1437,6 +1452,7 @@ export default function EPPWorkspace() {
         ) : ''}
         exportFileName={selectedWorker ? `Acta_Entrega_EPP_${selectedWorker.nombre.replace(/\s+/g, '_')}` : 'Registro_EPP'}
         onExportExcel={handleExportExcel}
+        onDownloadTemplate={handleDownloadTemplate}
       />
 
       {/* ─── ENCABEZADO DE SECCIÓN ACTIVA (WAPPY DESIGN SYSTEM) ───────────── */}

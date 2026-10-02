@@ -2307,6 +2307,7 @@ export default function MatrizPESVTable({
             hasContent={!!reportContent || matrixRows.length > 0}
             onImportExcel={() => fileInputRef.current?.click()}
             onExportExcel={handleExportExcel}
+            onDownloadTemplate={handleExportTemplate}
             exportContent={reportContent || ''}
             exportFileName={`Informe_PESV_Res40595_${new Date().toISOString().slice(0, 10)}`}
             onDummy={handleDummyData}

@@ -41,6 +41,7 @@ import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import { AUSENTISMO_FIELDS } from './moduleFieldDefinitions';
+import { exportModuleDataToExcel } from './columnMapperEngine';
 import EventLogger, { ATELContext, calculateEventFinancials } from './EventLogger';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
@@ -323,6 +324,61 @@ const EstadisticasATEL = () => {
         setColumnMapperBuffer(null);
         showToast({
             message: `¡${importedCount} registros de incapacidad/ausentismo importados exitosamente con el Paralelo de Casillas!`,
+            status: 'success',
+            severity: 'success',
+        });
+    };
+
+    const handleExportExcel = () => {
+        const allEvents: any[] = [];
+        Object.entries(annualData).forEach(([mIdx, m]) => {
+            (m.events || []).forEach(e => {
+                allEvents.push({
+                    fecha: e.fecha || '',
+                    fechaFin: e.fechaFin || '',
+                    tipo: e.tipo || '',
+                    diasIncapacidad: e.diasIncapacidad || 0,
+                    horasAusencia: e.horasAusencia || 0,
+                    cie10: e.cie10 || '',
+                    descripcion: e.descripcion || '',
+                    nombre: e.nombre || '',
+                    cedula: e.cedula || '',
+                    cargo: e.cargo || '',
+                    salario: e.salario || 0,
+                    entidad: e.entidad || '',
+                    observaciones: e.observaciones || '',
+                    mes: MONTHS[parseInt(mIdx, 10)] || mIdx,
+                });
+            });
+        });
+
+        exportModuleDataToExcel({
+            targetFields: AUSENTISMO_FIELDS,
+            data: allEvents,
+            fileName: `Ausentismo_ATEL_${year}`,
+            sheetName: `Ausentismo ${year}`,
+            isTemplate: false,
+        });
+
+        showToast({
+            message: allEvents.length > 0 
+                ? `¡${allEvents.length} registros de ausentismo exportados a Excel exitosamente!`
+                : 'Archivo Excel generado con la estructura estándar de ausentismo.',
+            status: 'success',
+            severity: 'success',
+        });
+    };
+
+    const handleDownloadTemplate = () => {
+        exportModuleDataToExcel({
+            targetFields: AUSENTISMO_FIELDS,
+            data: [],
+            fileName: `Plantilla_Formato_Ausentismo_${year}`,
+            sheetName: 'Formato Ausentismo',
+            isTemplate: true,
+        });
+        showToast({
+            message: 'Plantilla de ausentismo e incapacidades descargada en Excel.',
             status: 'success',
             severity: 'success',
         });
@@ -1012,6 +1068,8 @@ const EstadisticasATEL = () => {
                     onImportExcel={() => fileInputRef.current?.click()}
                     importExcelLabel="Importar Ausentismo"
                     importExcelTitle="Homologar casillas y cargar novedades de ausentismo e incapacidades desde Excel"
+                    onExportExcel={handleExportExcel}
+                    onDownloadTemplate={handleDownloadTemplate}
                     hasContent={!!(editorContentRef.current || generatedReport)}
                     exportContent={editorContentRef.current || generatedReport || ''}
                     exportFileName={`Informe_Ausentismo_ATEL_${MONTHS[currentMonthIndex]}_${year}`}

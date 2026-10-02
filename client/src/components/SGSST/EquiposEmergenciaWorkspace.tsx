@@ -18,6 +18,7 @@ import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import { EQUIPOS_EMERGENCIA_FIELDS } from './moduleFieldDefinitions';
+import { exportModuleDataToExcel } from './columnMapperEngine';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import ExpandingButton from './ExpandingButton';
 import { useAutoLoadReport } from './useAutoLoadReport';
@@ -257,6 +258,34 @@ const EquiposEmergenciaWorkspace: React.FC = () => {
     [token, showToast],
   );
 
+  const handleExportExcel = () => {
+    exportModuleDataToExcel(
+      EQUIPOS_EMERGENCIA_FIELDS,
+      equipos,
+      `Inventario_Equipos_Emergencia_${new Date().toISOString().split('T')[0]}.xlsx`,
+      false,
+    );
+    showToast({
+      message: 'Inventario de equipos exportado a Excel exitosamente',
+      status: 'success',
+      severity: 'success',
+    });
+  };
+
+  const handleDownloadTemplate = () => {
+    exportModuleDataToExcel(
+      EQUIPOS_EMERGENCIA_FIELDS,
+      [],
+      'Plantilla_Equipos_Emergencia.xlsx',
+      true,
+    );
+    showToast({
+      message: 'Plantilla de Equipos de Emergencia descargada exitosamente',
+      status: 'success',
+      severity: 'success',
+    });
+  };
+
   useAutoLoadReport({
     token,
     tags: ['sgsst-equipos-emergencia'],
@@ -364,6 +393,8 @@ const EquiposEmergenciaWorkspace: React.FC = () => {
         hasContent={!!(editorContentRef.current || generatedReport)}
         exportContent={editorContentRef.current || generatedReport || ''}
         exportFileName={`Inspeccion_Equipos_Emergencia_${new Date().getTime()}`}
+        onExportExcel={handleExportExcel}
+        onDownloadTemplate={handleDownloadTemplate}
         onDummy={handleDummy}
       />
 

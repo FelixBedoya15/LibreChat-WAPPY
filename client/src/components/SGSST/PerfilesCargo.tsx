@@ -1165,6 +1165,16 @@ const PerfilesCargo = () => {
         }
     };
 
+    const handleDownloadTemplate = async () => {
+        try {
+            await exportPerfilesCargoToExcel([], 'Plantilla_Perfiles_de_Cargo.xlsx');
+            showToast({ message: 'Plantilla de Perfiles de Cargo descargada exitosamente', severity: NotificationSeverity.SUCCESS });
+        } catch (error: any) {
+            console.error('Error al descargar plantilla:', error);
+            showToast({ message: `Error al descargar plantilla: ${error.message || error}`, severity: NotificationSeverity.ERROR });
+        }
+    };
+
     const saveImportedPerfiles = async (list: PerfilCargoData[]) => {
         if (!token) return;
         try {
@@ -1633,6 +1643,7 @@ const PerfilesCargo = () => {
                 importExcelLabel="Importar Archivo"
                 importExcelTitle="Importar desde Excel, PDF o Word"
                 onExportExcel={handleExportExcel}
+                onDownloadTemplate={handleDownloadTemplate}
                 hasData={perfiles.length > 0}
             />
 

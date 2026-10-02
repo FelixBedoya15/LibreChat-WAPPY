@@ -44,6 +44,7 @@ interface SGSSTToolbarProps {
   importExcelLabel?: string;
   importExcelTitle?: string;
   onExportExcel?: () => void;
+  onDownloadTemplate?: () => void;
   hasData?: boolean;
 
   // Model Selector (Special item)
@@ -83,6 +84,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
   importExcelLabel,
   importExcelTitle,
   onExportExcel,
+  onDownloadTemplate,
   hasData,
 
   selectedModel,
@@ -168,16 +170,17 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
       id: 'export',
       buttons: exportButtons,
       extra:
-        exportContent || onExportExcel ? (
+        exportContent || onExportExcel || onDownloadTemplate ? (
           <div>
             <ExportDropdown
               content={exportContent || ''}
               fileName={exportFileName || 'Documento_SGSST'}
               onExportExcel={onExportExcel}
+              onDownloadTemplate={onDownloadTemplate}
               onlyExcel={onlyExcel}
             />
           </div>
-        ) : !exportContent && !onExportExcel && (onSave || effectivePersistence.length > 0) ? (
+        ) : !exportContent && !onExportExcel && !onDownloadTemplate && (onSave || effectivePersistence.length > 0) ? (
           <button
             disabled
             className="group flex h-8 min-w-[32px] shrink-0 cursor-not-allowed items-center justify-center rounded-xl border border-border-medium bg-surface-primary px-2 text-text-tertiary opacity-30 shadow-sm sm:h-9 sm:min-w-[36px] sm:px-2"

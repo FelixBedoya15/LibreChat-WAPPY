@@ -1955,12 +1955,10 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
           >
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-emerald-200 bg-white p-0.5 shadow-inner">
-                <TenshiAvatar
-                  size={36}
-                  isSpeaking={isTenshiSpeaking}
-                  outputAmplitude={outputAmplitude}
-                  interactive={false}
-                  showHaloEffect={false}
+                <img
+                  src="/assets/tenshi.png"
+                  alt="Tenshi"
+                  className="h-full w-full rounded-full object-cover select-none pointer-events-none"
                 />
               </div>
               <div>
@@ -2017,23 +2015,14 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
                 {/* Resplandor suave con los colores de WAPPY */}
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.12)_0%,transparent_70%)] pointer-events-none" />
 
-                {/* Anillo concéntrico reactivo a la voz */}
+                {/* Resplandor ambiental de voz */}
                 <div
-                  className={cn(
-                    'absolute rounded-full border transition-all duration-100 pointer-events-none',
-                    isFullscreen ? 'h-52 w-52 sm:h-60 sm:w-60' : 'h-40 w-40 sm:h-44 sm:w-44'
-                  )}
+                  className="absolute inset-0 pointer-events-none transition-opacity duration-300"
                   style={{
-                    transform: `scale(${1 + Math.min((isTenshiSpeaking ? outputAmplitude : (isVoiceActive ? voiceAmplitude : 0)) * 0.45, 0.28)})`,
-                    borderColor: isTenshiSpeaking
-                      ? 'rgba(16, 185, 129, 0.65)'
+                    background: isTenshiSpeaking
+                      ? 'radial-gradient(circle at center, rgba(16,185,129,0.18) 0%, transparent 65%)'
                       : isVoiceActive
-                      ? 'rgba(16, 185, 129, 0.4)'
-                      : 'rgba(16, 185, 129, 0.15)',
-                    boxShadow: isTenshiSpeaking
-                      ? '0 0 25px rgba(16, 185, 129, 0.35)'
-                      : isVoiceActive
-                      ? '0 0 15px rgba(16, 185, 129, 0.2)'
+                      ? 'radial-gradient(circle at center, rgba(52,211,153,0.12) 0%, transparent 65%)'
                       : 'none',
                   }}
                 />
@@ -2052,7 +2041,7 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
                     isVoiceActive={isVoiceActive}
                     isTyping={isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)}
                     interactive={true}
-                    showHaloEffect={true}
+                    showHaloEffect={false}
                     showHUD={true}
                     statusText={
                       isTenshiSpeaking
@@ -2463,7 +2452,7 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
             isSpeaking={isTenshiSpeaking}
             outputAmplitude={outputAmplitude}
             interactive={false}
-            showHaloEffect={true}
+            showHaloEffect={false}
             showHUD={true}
           />
           <div className="flex flex-col items-start leading-tight pr-1 select-none">

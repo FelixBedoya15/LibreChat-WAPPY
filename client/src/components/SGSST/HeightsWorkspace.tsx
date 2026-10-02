@@ -37,6 +37,7 @@ import { saveAs } from 'file-saver';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import { EQUIPOS_ALTURAS_FIELDS } from './moduleFieldDefinitions';
+import { exportModuleDataToExcel } from './columnMapperEngine';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
@@ -516,6 +517,20 @@ export default function HeightsWorkspace() {
     }
   };
 
+  const handleDownloadTemplate = () => {
+    exportModuleDataToExcel(
+      EQUIPOS_ALTURAS_FIELDS,
+      [],
+      'Plantilla_Equipos_Alturas.xlsx',
+      true,
+    );
+    showToast({
+      message: 'Plantilla de Equipos de Alturas descargada exitosamente',
+      status: 'success',
+      severity: 'success',
+    });
+  };
+
   const buildHtmlFicha = (worker: SocioWorker, doc: WorkerHeightsDoc) => {
     let tableRows = '';
     doc.equipos.forEach(eq => {
@@ -723,6 +738,7 @@ export default function HeightsWorkspace() {
         exportContent={selectedWorker && selectedDoc && selectedDoc.equipos && selectedDoc.equipos.length > 0 ? buildHtmlFicha(selectedWorker, selectedDoc) : ''}
         exportFileName={selectedWorker ? `Ficha_Vida_Alturas_${selectedWorker.nombre.replace(/\s+/g, '_')}` : 'Registro_Alturas'}
         onExportExcel={handleExportExcel}
+        onDownloadTemplate={handleDownloadTemplate}
       />
 
       {/* ─── ENCABEZADO DE SECCIÓN ACTIVA (WAPPY DESIGN SYSTEM) ───────────── */}

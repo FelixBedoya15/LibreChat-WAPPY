@@ -364,3 +364,77 @@ export function deleteSavedTemplate(moduleKey: string, templateName: string): vo
     console.error('Error eliminando plantilla de mapeo:', err);
   }
 }
+
+/**
+ * Genera y descarga un archivo Excel (.xlsx) para cualquier módulo SGSST,
+ * ya sea con las columnas formateadas vacías (Plantilla/Formato) o con los datos reales existentes.
+ */
+export function exportModuleDataToExcel({
+  targetFields,
+  data = [],
+  fileName,
+  sheetName = 'Datos',
+  isTemplate = false,
+}: {
+  targetFields: TargetFieldDef[];
+  data?: any[];
+  fileName: string;
+  sheetName?: string;
+  isTemplate?: boolean;
+}): void {
+  let rowsToExport: Record<string, any>[] = [];
+
+  if (isTemplate || !data || data.length === 0) {
+    const exampleRow: Record<string, any> = {};
+    targetFields.forEach((field) => {
+      if (field.defaultValue !== undefined) {
+        exampleRow[field.label] = field.defaultValue;
+      } else if (field.type === 'number') {
+        exampleRow[field.label] = 1;
+      } else if (field.type === 'date') {
+        exampleRow[field.label] = new Date().toISOString().split('T')[0];
+      } else if (field.type === 'select' && field.options?.length) {
+        exampleRow[field.label] = field.options[0];
+      } else {
+        const descSample = field.description ? field.description.split('.')[0].trim() : 'Dato de ejemplo';
+        exampleRow[field.label] = descSample;
+      }
+    });
+    rowsToExport = [exampleRow];
+  } else {
+    rowsToExport = data.map((item) => {
+      const row: Record<string, any> = {};
+      targetFields.forEach((field) => {
+        let val = item[field.key];
+        if (val === undefined || val === null) {
+          val = item[field.label] ?? '';
+        }
+        if (typeof val === 'object' && val !== null) {
+          if (Array.isArray(val)) {
+            val = val.join(', ');
+          } else {
+            val = JSON.stringify(val);
+          }
+        }
+        row[field.label] = val;
+      });
+      return row;
+    });
+  }
+
+  const worksheet = XLSX.utils.json_to_sheet(rowsToExport);
+
+  // Auto-ajustar ancho de columnas
+  const colWidths = targetFields.map((f) => ({
+    wch: Math.max(f.label.length, 20),
+  }));
+  worksheet['!cols'] = colWidths;
+
+  const workbook = XLSX.utils.book_new();
+  const cleanSheetName = (sheetName || 'Datos').replace(/[\\/?*:[\]]/g, '').substring(0, 31);
+  XLSX.utils.book_append_sheet(workbook, worksheet, cleanSheetName);
+
+  const finalName = fileName.endsWith('.xlsx') ? fileName : `${fileName}.xlsx`;
+  XLSX.writeFile(workbook, finalName);
+}
+

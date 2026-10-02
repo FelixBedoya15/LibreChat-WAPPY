@@ -19,11 +19,17 @@ const checkAccountStatus = async (req, res, next) => {
             const inactiveAt = new Date(req.user.inactiveAt);
 
             if (now >= inactiveAt) {
-                logger.info(`[checkAccountStatus] Auto-downgrading expired user ${req.user.id} (expired on ${inactiveAt.toISOString()}) to free tier.`);
                 const resDowngrade = await downgradeUserIfExpired(req.user.id || req.user._id);
                 if (resDowngrade.downgraded) {
+                    logger.info(`[checkAccountStatus] Auto-downgrading expired user ${req.user.id} (expired on ${inactiveAt.toISOString()}) to ${resDowngrade.role || 'free tier'}.`);
                     req.user.role = resDowngrade.role;
                     req.user.inactiveAt = null;
+                } else {
+                    // User was already downgraded in DB, but JWT payload in token/cookie is stale
+                    req.user.inactiveAt = null;
+                    if (resDowngrade.role) {
+                        req.user.role = resDowngrade.role;
+                    }
                 }
             }
         }

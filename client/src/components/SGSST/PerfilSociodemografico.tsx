@@ -530,6 +530,20 @@ const PerfilSociodemografico = () => {
         }
     };
 
+    const handleDownloadTemplate = async () => {
+        try {
+            await exportPerfilSociodemograficoToExcel(
+                [],
+                'Plantilla_Perfil_Sociodemografico.xlsx',
+                cargosDisponibles.map(c => c.nombreCargo)
+            );
+            showToast({ message: 'Plantilla de Perfil Sociodemográfico descargada exitosamente', status: 'success', severity: 'success' });
+        } catch (error: any) {
+            console.error('Error descargando plantilla:', error);
+            showToast({ message: `Error al descargar plantilla: ${error?.message || error}`, status: 'error', severity: 'error' });
+        }
+    };
+
     const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -1043,6 +1057,7 @@ const PerfilSociodemografico = () => {
                 importExcelLabel="Importar Archivo"
                 importExcelTitle="Importar desde Excel, PDF, Word o Concepto Médico"
                 onExportExcel={handleExportExcel}
+                onDownloadTemplate={handleDownloadTemplate}
                 hasData={trabajadores.length > 0}
                 customSections={[
                     <div className="flex items-center gap-2">

@@ -67,7 +67,7 @@ const downgradeUserIfExpired = async (userId) => {
             if (userPlan && (!userPlan.planExpiresAt || new Date(userPlan.planExpiresAt).getTime() !== new Date(user.inactiveAt).getTime())) {
                 await UserPlan.updateOne({ userId: user._id }, { $set: { planExpiresAt: new Date(user.inactiveAt) } });
             }
-            return { downgraded: false };
+            return { downgraded: false, role: user.role };
         }
 
         const isUserExpired = user.inactiveAt && new Date(user.inactiveAt) <= now;
@@ -107,7 +107,7 @@ const downgradeUserIfExpired = async (userId) => {
             return { downgraded: true, plan, role };
         }
 
-        return { downgraded: false };
+        return { downgraded: false, role: user.role };
     } catch (err) {
         console.error(`[PlanExpiration] Error checking/downgrading user ${userId}:`, err.message);
         return { downgraded: false };
