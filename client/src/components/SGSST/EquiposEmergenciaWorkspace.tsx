@@ -16,6 +16,8 @@ import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/Live
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
+import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import { EQUIPOS_EMERGENCIA_FIELDS } from './moduleFieldDefinitions';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import ExpandingButton from './ExpandingButton';
 import { useAutoLoadReport } from './useAutoLoadReport';
@@ -48,6 +50,48 @@ const EquiposEmergenciaWorkspace: React.FC = () => {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [reportMessageId, setReportMessageId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Homologador Visual de Casillas (Paralelo de Excel)
+  const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
+  const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (eEvent) => {
+      const buffer = eEvent.target?.result as ArrayBuffer;
+      if (buffer) {
+        setColumnMapperBuffer(buffer);
+        setIsColumnMapperOpen(true);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    if (e.target) e.target.value = '';
+  };
+
+  const handleConfirmColumnMapping = (mappedRows: any[]) => {
+    if (!mappedRows || mappedRows.length === 0) {
+      showToast({ message: 'No se encontraron filas con datos para importar.', status: 'warning' });
+      return;
+    }
+    const newEquipos = mappedRows.map((r) => ({
+      categoria: String(r.categoria || 'Extintor Multipropósito ABC').trim(),
+      capacidad: String(r.capacidad || '10 lbs').trim(),
+      ubicacion: String(r.ubicacion || 'Instalaciones Principales').trim(),
+      vencimiento: r.vencimiento ? String(r.vencimiento).trim() : new Date().toISOString().split('T')[0],
+      estado: String(r.estado || 'Operativo').trim(),
+    }));
+    setEquipos((prev) => [...prev, ...newEquipos]);
+    setIsColumnMapperOpen(false);
+    setColumnMapperBuffer(null);
+    showToast({
+      message: `¡${newEquipos.length} equipos de emergencia importados exitosamente con el Paralelo de Casillas!`,
+      status: 'success',
+      severity: 'success',
+    });
+  };
 
   const handleSaveLocal = () => {
     setIsSavingLocal(true);
@@ -314,6 +358,9 @@ const EquiposEmergenciaWorkspace: React.FC = () => {
         onSelectModel={setSelectedModel}
         onSaveLocal={handleSaveLocal}
         isSavingLocal={isSavingLocal}
+        onImportExcel={() => fileInputRef.current?.click()}
+        importExcelLabel="Importar Inventario"
+        importExcelTitle="Homologar casillas y cargar inventario de equipos de emergencia desde Excel"
         hasContent={!!(editorContentRef.current || generatedReport)}
         exportContent={editorContentRef.current || generatedReport || ''}
         exportFileName={`Inspeccion_Equipos_Emergencia_${new Date().getTime()}`}
@@ -453,6 +500,29 @@ const EquiposEmergenciaWorkspace: React.FC = () => {
           />
         </div>
       </CollapsibleReportBox>
+
+      {/* Input oculto para carga de Excel */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx, .xls, .csv"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
+      {/* Modal Homologador Universal de Casillas (Paralelo de Excel) */}
+      <UniversalColumnMapperModal
+        isOpen={isColumnMapperOpen}
+        onClose={() => {
+          setIsColumnMapperOpen(false);
+          setColumnMapperBuffer(null);
+        }}
+        moduleKey="equipos-emergencia"
+        moduleTitle="Inventario e Inspección de Equipos de Emergencia"
+        targetFields={EQUIPOS_EMERGENCIA_FIELDS}
+        fileData={columnMapperBuffer}
+        onConfirmImport={handleConfirmColumnMapping}
+      />
     </div>
   );
 };

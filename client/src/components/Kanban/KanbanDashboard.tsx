@@ -32,6 +32,8 @@ import {
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
+import UniversalColumnMapperModal from '~/components/SGSST/UniversalColumnMapperModal';
+import { KANBAN_ACPM_FIELDS } from '~/components/SGSST/moduleFieldDefinitions';
 
 interface KanbanTask {
   _id: string;
@@ -111,6 +113,79 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     fileInputRef.current?.click();
   };
 
+  // Homologador Visual de Casillas (Paralelo de Excel)
+  const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
+  const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
+
+  const handleConfirmColumnMapping = (mappedRows: any[]) => {
+    if (!mappedRows || mappedRows.length === 0) {
+      showToast({ message: 'No se encontraron filas con datos para importar.', status: 'warning' });
+      return;
+    }
+
+    const parsedTasks: any[] = [];
+    mappedRows.forEach((row: any) => {
+      const title = row.title ? String(row.title).trim() : '';
+      if (!title) return;
+
+      const description = row.description ? String(row.description).trim() : '';
+      let dueDate = row.dueDate ? String(row.dueDate).trim() : '';
+
+      if (!dueDate) {
+        const defaultDate = new Date();
+        defaultDate.setDate(defaultDate.getDate() + 7);
+        dueDate = defaultDate.toISOString().split('T')[0];
+      }
+
+      let status: 'todo' | 'due_soon' | 'overdue' | 'done' = 'todo';
+      if (row.status) {
+        const statusStr = String(row.status).toLowerCase().trim();
+        if (statusStr.includes('complet') || statusStr.includes('hecha') || statusStr.includes('done') || statusStr.includes('terminada') || statusStr.includes('cerrad')) {
+          status = 'done';
+        } else if (statusStr.includes('vencid') || statusStr.includes('overdue') || statusStr.includes('alerta') || statusStr.includes('retrasad')) {
+          status = 'overdue';
+        } else if (statusStr.includes('proxim') || statusStr.includes('próxim') || statusStr.includes('due_soon')) {
+          status = 'due_soon';
+        }
+      }
+
+      let actionType: 'correctiva' | 'preventiva' | 'mejora' = 'correctiva';
+      if (row.actionType) {
+        const atStr = String(row.actionType).toLowerCase().trim();
+        if (atStr.includes('prev')) actionType = 'preventiva';
+        else if (atStr.includes('mej')) actionType = 'mejora';
+      }
+
+      let priority: 'alta' | 'media' | 'baja' = 'media';
+      if (row.priority) {
+        const pStr = String(row.priority).toLowerCase().trim();
+        if (pStr.includes('alt')) priority = 'alta';
+        else if (pStr.includes('baj')) priority = 'baja';
+      }
+
+      parsedTasks.push({
+        title,
+        description,
+        dueDate,
+        status,
+        actionType,
+        priority,
+        assignedTo: row.assignedTo ? String(row.assignedTo).trim() : undefined,
+        sourceModule: row.sourceModule ? String(row.sourceModule).trim() : 'Plan ACPM Excel',
+        type: 'manual'
+      });
+    });
+
+    if (parsedTasks.length === 0) {
+      showToast({ message: 'No se encontraron actividades válidas en el Excel. Asegúrate de mapear el Título o Actividad.', status: 'warning' });
+      return;
+    }
+
+    setIsColumnMapperOpen(false);
+    setColumnMapperBuffer(null);
+    setImportPreview(parsedTasks);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -137,136 +212,19 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
       return;
     }
 
-    // If Excel, read and validate headers
-    if (extension === 'xlsx' || extension === 'xls') {
+    // If Excel or CSV, open UniversalColumnMapperModal
+    if (['xlsx', 'xls', 'csv'].includes(extension || '')) {
       const reader = new FileReader();
-      reader.onload = async (eEvent) => {
-        try {
-          const data = eEvent.target?.result;
-          const workbook = XLSX.read(data, { type: 'array' });
-          const sheetName = workbook.SheetNames[0];
-          const sheet = workbook.Sheets[sheetName];
-          const importedData = XLSX.utils.sheet_to_json<any>(sheet);
-
-          if (!importedData || importedData.length === 0) {
-            showToast({ message: 'El archivo Excel no contiene filas con datos.', status: 'warning' });
-            return;
-          }
-
-          // Check if there are standard headers in the first row
-          const firstRow = importedData[0];
-          const keys = Object.keys(firstRow).map(k => k.toLowerCase().replace(/\s+/g, ''));
-          const isStandard = keys.some(k => 
-            k.includes('actividad') || 
-            k.includes('tarea') || 
-            k.includes('titulo') || 
-            k.includes('nombre') || 
-            k.includes('activity') || 
-            k.includes('title')
-          );
-
-          if (isStandard) {
-            // Local Excel mapping
-            const parsedTasks: any[] = [];
-            importedData.forEach((row: any) => {
-              const getVal = (possibleKeys: string[]): any => {
-                const rowKeys = Object.keys(row);
-                const foundKey = rowKeys.find(rk => {
-                  const cleaned = rk.toLowerCase().trim().replace(/\s+/g, '');
-                  return possibleKeys.some(pk => cleaned.includes(pk));
-                });
-                return foundKey ? row[foundKey] : undefined;
-              };
-
-              const title = getVal(['actividad', 'tarea', 'titulo', 'nombre', 'activity', 'title']);
-              if (!title) return;
-
-              const description = getVal(['descripcion', 'detalles', 'detalle', 'description', 'notes']);
-
-              let dueDateRaw = getVal(['fechalimite', 'fecha', 'vencimiento', 'duedate', 'fechaentrega']);
-              let dueDate = '';
-
-              if (dueDateRaw) {
-                if (typeof dueDateRaw === 'number') {
-                  const dateObj = new Date((dueDateRaw - 25569) * 86400 * 1000);
-                  dueDate = dateObj.toISOString().split('T')[0];
-                } else {
-                  try {
-                    const dateObj = new Date(dueDateRaw);
-                    if (!isNaN(dateObj.getTime())) {
-                      dueDate = dateObj.toISOString().split('T')[0];
-                    }
-                  } catch {
-                    dueDate = '';
-                  }
-                }
-              }
-
-              if (!dueDate) {
-                const defaultDate = new Date();
-                defaultDate.setDate(defaultDate.getDate() + 7);
-                dueDate = defaultDate.toISOString().split('T')[0];
-              }
-
-              const statusRaw = getVal(['estado', 'status', 'columna']);
-              let status: 'todo' | 'due_soon' | 'overdue' | 'done' = 'todo';
-              if (statusRaw) {
-                const statusStr = String(statusRaw).toLowerCase().trim();
-                if (statusStr.includes('completada') || statusStr.includes('hecha') || statusStr.includes('done') || statusStr.includes('terminada')) {
-                  status = 'done';
-                } else if (statusStr.includes('vencida') || statusStr.includes('overdue') || statusStr.includes('alerta')) {
-                  status = 'overdue';
-                } else if (statusStr.includes('proxima') || statusStr.includes('próxima') || statusStr.includes('due_soon')) {
-                  status = 'due_soon';
-                }
-              }
-
-              const typeRaw = getVal(['categoria', 'categoría', 'tipo', 'type']);
-              let type = 'manual';
-              if (typeRaw) {
-                const typeStr = String(typeRaw).toLowerCase().trim();
-                if (typeStr.includes('capacitacion') || typeStr.includes('capacitación') || typeStr.includes('training')) {
-                  type = 'training';
-                } else if (typeStr.includes('examen') || typeStr.includes('medical')) {
-                  type = 'medical_exam';
-                } else if (typeStr.includes('soat')) {
-                  type = 'soat';
-                } else if (typeStr.includes('rtm') || typeStr.includes('tecnomecanica')) {
-                  type = 'rtm';
-                } else if (typeStr.includes('licencia')) {
-                  type = 'driver_license';
-                } else if (typeStr.includes('otro') || typeStr.includes('other')) {
-                  type = 'other';
-                }
-              }
-
-              parsedTasks.push({
-                title: String(title).trim(),
-                description: description ? String(description).trim() : '',
-                dueDate,
-                status,
-                type
-              });
-            });
-
-            if (parsedTasks.length === 0) {
-              showToast({ message: 'No se encontraron actividades válidas en el Excel. Asegúrate de incluir una columna "Actividad" o "Tarea".', status: 'warning' });
-              return;
-            }
-
-            setImportPreview(parsedTasks);
-          } else {
-            // Non-standard Excel, go to AI import
-            requestAiImport();
-          }
-        } catch (err) {
-          console.error('Error importing Excel:', err);
-          showToast({ message: 'Error al leer el archivo Excel. Verifica el formato.', status: 'error' });
-        } finally {
-          if (e.target) e.target.value = '';
+      reader.onload = (eEvent) => {
+        const buffer = eEvent.target?.result as ArrayBuffer;
+        if (buffer) {
+          setColumnMapperBuffer(buffer);
+          setIsColumnMapperOpen(true);
         }
       };
       reader.readAsArrayBuffer(file);
+      if (e.target) e.target.value = '';
+      return;
     }
   };
 
@@ -1579,6 +1537,20 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
           </div>
         </div>
       )}
+
+      {/* Modal Homologador Universal de Casillas (Paralelo de Excel) */}
+      <UniversalColumnMapperModal
+        isOpen={isColumnMapperOpen}
+        onClose={() => {
+          setIsColumnMapperOpen(false);
+          setColumnMapperBuffer(null);
+        }}
+        moduleKey="kanban-acpm"
+        moduleTitle="Tablero Kanban ACPM"
+        targetFields={KANBAN_ACPM_FIELDS}
+        fileData={columnMapperBuffer}
+        onConfirmImport={handleConfirmColumnMapping}
+      />
     </div>
   );
 }

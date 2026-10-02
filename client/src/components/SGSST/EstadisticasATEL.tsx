@@ -29,6 +29,7 @@ import {
     AlertTriangle,
     Layers,
     Coins,
+    Upload,
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { useAuthContext } from '~/hooks/AuthContext';
@@ -38,6 +39,8 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
+import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import { AUSENTISMO_FIELDS } from './moduleFieldDefinitions';
 import EventLogger, { ATELContext, calculateEventFinancials } from './EventLogger';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
@@ -230,6 +233,100 @@ const EstadisticasATEL = () => {
     const [conversationId, setConversationId] = useState('new');
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+    // Homologador Visual de Casillas (Paralelo de Excel)
+    const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
+    const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (eEvent) => {
+            const buffer = eEvent.target?.result as ArrayBuffer;
+            if (buffer) {
+                setColumnMapperBuffer(buffer);
+                setIsColumnMapperOpen(true);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        if (e.target) e.target.value = '';
+    };
+
+    const handleConfirmColumnMapping = async (mappedRows: any[]) => {
+        if (!mappedRows || mappedRows.length === 0) {
+            showToast({ message: 'No se encontraron filas con datos para importar.', status: 'warning' });
+            return;
+        }
+
+        const newAnnualData = { ...annualData };
+        let importedCount = 0;
+
+        mappedRows.forEach((r) => {
+            const fechaStr = r.fecha ? String(r.fecha).trim() : '';
+            const nombreStr = r.nombre ? String(r.nombre).trim() : '';
+            if (!fechaStr && !nombreStr) return;
+
+            let mIdx = currentMonthIndex;
+            if (fechaStr) {
+                const parsedDate = new Date(fechaStr);
+                if (!isNaN(parsedDate.getTime())) {
+                    mIdx = parsedDate.getMonth();
+                }
+            }
+
+            const currentEvents = newAnnualData[mIdx]?.events || [];
+
+            const newEvent: ATELContext = {
+                id: crypto.randomUUID(),
+                fecha: fechaStr || new Date().toISOString().split('T')[0],
+                fechaFin: r.fechaFin ? String(r.fechaFin).trim() : undefined,
+                tipo: (r.tipo && ['AT', 'EL', 'EG_EPS', 'ACC_COMUN', 'CITA_MED', 'LIC_MAT', 'LIC_PAT', 'LUTO', 'CALAMIDAD', 'SUFRAGIO', 'LEY_2174', 'SINDICAL', 'PERM_REM', 'LIC_NO_REM', 'SANCION_DISC', 'NO_JUSTIF', 'Ausentismo'].includes(r.tipo))
+                    ? r.tipo
+                    : 'Ausentismo',
+                diasIncapacidad: Number(r.diasIncapacidad) || 1,
+                horasAusencia: Number(r.horasAusencia) || 0,
+                consecuencia: r.descripcion ? String(r.descripcion).trim() : (r.cie10 ? `CIE-10: ${r.cie10}` : undefined),
+                peligro: r.cie10 ? String(r.cie10).trim() : undefined,
+                colaborador: {
+                    nombre: nombreStr || 'Colaborador',
+                    cedula: r.cedula ? String(r.cedula).trim() : undefined,
+                    cargo: r.cargo ? String(r.cargo).trim() : undefined,
+                    area: r.entidad ? String(r.entidad).trim() : undefined,
+                    ibcMensual: Number(r.salario) || 1300000,
+                },
+            };
+
+            newAnnualData[mIdx] = {
+                ...newAnnualData[mIdx],
+                events: [...currentEvents, newEvent],
+            };
+            importedCount++;
+        });
+
+        setAnnualData(newAnnualData);
+
+        if (token) {
+            try {
+                await fetch('/api/sgsst/atel-data/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ year, annualData: newAnnualData }),
+                });
+            } catch (err) {
+                console.error('Error auto-saving imported ausentismo events:', err);
+            }
+        }
+
+        setIsColumnMapperOpen(false);
+        setColumnMapperBuffer(null);
+        showToast({
+            message: `¡${importedCount} registros de incapacidad/ausentismo importados exitosamente con el Paralelo de Casillas!`,
+            status: 'success',
+            severity: 'success',
+        });
+    };
 
     // Dynamic list of selectable years
     const currentCalYear = new Date().getFullYear();
@@ -912,6 +1009,9 @@ const EstadisticasATEL = () => {
                     onSelectModel={setSelectedModel}
                     onSaveLocal={handleSaveData}
                     isSavingLocal={isSavingData}
+                    onImportExcel={() => fileInputRef.current?.click()}
+                    importExcelLabel="Importar Ausentismo"
+                    importExcelTitle="Homologar casillas y cargar novedades de ausentismo e incapacidades desde Excel"
                     hasContent={!!(editorContentRef.current || generatedReport)}
                     exportContent={editorContentRef.current || generatedReport || ''}
                     exportFileName={`Informe_Ausentismo_ATEL_${MONTHS[currentMonthIndex]}_${year}`}
@@ -2019,6 +2119,29 @@ const EstadisticasATEL = () => {
                     </div>
                 </div>
             )}
+
+            {/* Input oculto para carga de Excel */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx, .xls, .csv"
+                onChange={handleFileSelect}
+                className="hidden"
+            />
+
+            {/* Modal Homologador Universal de Casillas (Paralelo de Excel) */}
+            <UniversalColumnMapperModal
+                isOpen={isColumnMapperOpen}
+                onClose={() => {
+                    setIsColumnMapperOpen(false);
+                    setColumnMapperBuffer(null);
+                }}
+                moduleKey="estadisticas-atel"
+                moduleTitle="Gestión Integral de Ausentismo y ATEL"
+                targetFields={AUSENTISMO_FIELDS}
+                fileData={columnMapperBuffer}
+                onConfirmImport={handleConfirmColumnMapping}
+            />
         </div>
     );
 };

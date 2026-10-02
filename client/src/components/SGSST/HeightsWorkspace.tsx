@@ -27,13 +27,16 @@ import {
   ShieldCheck,
   Sparkles,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Upload
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { SignaturePad } from './SignaturePad';
 import { exportHeightsToExcel } from './exportHeights';
 import { saveAs } from 'file-saver';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
+import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import { EQUIPOS_ALTURAS_FIELDS } from './moduleFieldDefinitions';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
@@ -121,6 +124,111 @@ export default function HeightsWorkspace() {
   
   const liveEditorRef = useRef<LiveEditorHandle>(null);
   const editorContentRef = useRef<string | null>(null);
+
+  // Homologador Visual de Casillas (Paralelo de Excel)
+  const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
+  const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (eEvent) => {
+      const buffer = eEvent.target?.result as ArrayBuffer;
+      if (buffer) {
+        setColumnMapperBuffer(buffer);
+        setIsColumnMapperOpen(true);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    if (e.target) e.target.value = '';
+  };
+
+  const handleConfirmColumnMapping = async (mappedRows: any[]) => {
+    if (!mappedRows || mappedRows.length === 0) {
+      showToast({ message: 'No se encontraron filas con datos para importar.', status: 'warning' });
+      return;
+    }
+
+    const newHeightsDocs = [...heightsDocs];
+    let importedCount = 0;
+
+    for (const row of mappedRows) {
+      const nombre = String(row.nombre || '').trim();
+      const serial = String(row.serial || '').trim();
+      const ident = String(row.identificacion || '').trim();
+      const trabajador = String(row.nombreTrabajador || '').trim();
+
+      if (!nombre && !serial) continue;
+
+      const matchedWorker = workers.find(w => {
+        const matchId = ident && w.identificacion && String(w.identificacion).trim() === ident;
+        const matchName = trabajador && w.nombre && w.nombre.toLowerCase().trim() === trabajador.toLowerCase().trim();
+        return matchId || matchName;
+      }) || (selectedWorker ? selectedWorker : null);
+
+      const workerId = matchedWorker ? matchedWorker.id : `worker_${ident || 'general'}`;
+      const docIndex = newHeightsDocs.findIndex(d => d.workerId === workerId);
+
+      const newEquip: EquipoAlturas = {
+        id: crypto.randomUUID(),
+        nombre: nombre || 'Equipo Contra Caídas',
+        marca: row.marca ? String(row.marca).trim() : '',
+        referencia: row.referencia ? String(row.referencia).trim() : '',
+        serial: serial || `S/N-${Date.now()}`,
+        fechaFabricacion: row.fechaFabricacion ? String(row.fechaFabricacion).trim() : '',
+        fechaCompra: row.fechaCompra ? String(row.fechaCompra).trim() : '',
+        fechaUltimaInspeccion: row.fechaUltimaInspeccion ? String(row.fechaUltimaInspeccion).trim() : '',
+        fechaProximaInspeccion: row.fechaProximaInspeccion ? String(row.fechaProximaInspeccion).trim() : '',
+        inspeccionadoPor: row.inspeccionadoPor ? String(row.inspeccionadoPor).trim() : 'Persona Calificada SST',
+        resultadoInspeccion: (row.resultadoInspeccion && ['Aprobado', 'Rechazado', 'N/A'].includes(row.resultadoInspeccion))
+          ? row.resultadoInspeccion 
+          : 'Aprobado',
+        estado: (row.estado && ['Vigente', 'Vencido', 'Requiere Inspección', 'Retirado'].includes(row.estado))
+          ? row.estado
+          : 'Vigente',
+        observaciones: row.observaciones ? String(row.observaciones).trim() : undefined,
+      };
+
+      if (docIndex >= 0) {
+        newHeightsDocs[docIndex] = {
+          ...newHeightsDocs[docIndex],
+          equipos: [...(newHeightsDocs[docIndex].equipos || []), newEquip]
+        };
+      } else {
+        newHeightsDocs.push({
+          workerId,
+          nombreTrabajador: trabajador || matchedWorker?.nombre || 'Colaborador Autorizado',
+          cargo: matchedWorker?.cargo || 'Trabajador en Alturas',
+          equipos: [newEquip]
+        });
+      }
+      importedCount++;
+    }
+
+    setHeightsDocs(newHeightsDocs);
+
+    try {
+      for (const doc of newHeightsDocs) {
+        await fetch('/api/sgsst/heights/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(doc),
+        });
+      }
+    } catch (err) {
+      console.error('Error auto-saving imported heights docs:', err);
+    }
+
+    setIsColumnMapperOpen(false);
+    setColumnMapperBuffer(null);
+    showToast({
+      message: `¡${importedCount} equipos de alturas importados exitosamente con el Paralelo de Casillas!`,
+      status: 'success',
+      severity: 'success',
+    });
+  };
 
   const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
   const selectedDoc = heightsDocs.find(d => d.workerId === selectedWorker?.id);
@@ -592,6 +700,14 @@ export default function HeightsWorkspace() {
                 variant="ai"
               />
             )}
+            <ToolbarButton
+              id="tb-import-excel-heights"
+              onClick={() => fileInputRef.current?.click()}
+              label="Importar Excel"
+              icon={Upload}
+              title="Homologar casillas y cargar equipos de alturas desde Excel"
+              variant="default"
+            />
             <ToolbarButton
               id="tb-export-excel-heights"
               onClick={handleExportExcel}
@@ -1214,6 +1330,29 @@ export default function HeightsWorkspace() {
           </div>
         </div>
       )}
+
+      {/* Input oculto para carga de Excel */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx, .xls, .csv"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
+      {/* Modal Homologador Universal de Casillas (Paralelo de Excel) */}
+      <UniversalColumnMapperModal
+        isOpen={isColumnMapperOpen}
+        onClose={() => {
+          setIsColumnMapperOpen(false);
+          setColumnMapperBuffer(null);
+        }}
+        moduleKey="equipos-alturas"
+        moduleTitle="Hoja de Vida Equipos en Alturas"
+        targetFields={EQUIPOS_ALTURAS_FIELDS}
+        fileData={columnMapperBuffer}
+        onConfirmImport={handleConfirmColumnMapping}
+      />
     </div>
   );
 }

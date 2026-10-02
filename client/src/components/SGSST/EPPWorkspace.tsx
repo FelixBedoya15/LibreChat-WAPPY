@@ -44,13 +44,16 @@ import {
   Check,
   RotateCw,
   Save,
-  Sparkles
+  Sparkles,
+  Upload
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { SignaturePad } from './SignaturePad';
 import { exportEppToExcel, type EppInventoryItem } from './exportEpp';
 import { saveAs } from 'file-saver';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
+import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import { EPP_TRACKING_FIELDS } from './moduleFieldDefinitions';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
@@ -229,6 +232,106 @@ export default function EPPWorkspace() {
   
   const liveEditorRef = useRef<LiveEditorHandle>(null);
   const editorContentRef = useRef<string | null>(null);
+
+  // Homologador Visual de Casillas (Paralelo de Excel)
+  const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
+  const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (eEvent) => {
+      const buffer = eEvent.target?.result as ArrayBuffer;
+      if (buffer) {
+        setColumnMapperBuffer(buffer);
+        setIsColumnMapperOpen(true);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    if (e.target) e.target.value = '';
+  };
+
+  const handleConfirmColumnMapping = async (mappedRows: any[]) => {
+    if (!mappedRows || mappedRows.length === 0) {
+      showToast({ message: 'No se encontraron filas con datos para importar.', status: 'warning' });
+      return;
+    }
+
+    const newEppDocs = [...eppDocs];
+    let importedCount = 0;
+
+    for (const row of mappedRows) {
+      const ident = String(row.identificacion || '').trim();
+      const nombre = String(row.nombreTrabajador || '').trim();
+      const elemento = String(row.elemento || '').trim();
+      if (!elemento && !ident && !nombre) continue;
+
+      const matchedWorker = workers.find(w => {
+        const matchId = ident && w.identificacion && String(w.identificacion).trim() === ident;
+        const matchName = nombre && w.nombre && w.nombre.toLowerCase().trim() === nombre.toLowerCase().trim();
+        return matchId || matchName;
+      }) || (selectedWorker ? selectedWorker : null);
+
+      const workerId = matchedWorker ? matchedWorker.id : `worker_${ident || Date.now()}`;
+      const docIndex = newEppDocs.findIndex(d => d.workerId === workerId);
+
+      const newEppItem: EppItem = {
+        id: crypto.randomUUID(),
+        nombre: elemento || 'Elemento de Protección Personal',
+        tipo: (row.tipo && String(row.tipo).toLowerCase().includes('altura')) ? 'Alturas' : 'Regular',
+        marca: row.marca ? String(row.marca).trim() : undefined,
+        referencia: row.referencia ? String(row.referencia).trim() : undefined,
+        serial: row.serial ? String(row.serial).trim() : undefined,
+        cantidad: Number(row.cantidad) || 1,
+        fechaEntrega: row.fechaEntrega ? String(row.fechaEntrega).trim() : new Date().toISOString().split('T')[0],
+        fechaVencimiento: row.fechaVencimiento ? String(row.fechaVencimiento).trim() : undefined,
+        estado: (row.estado && ['Entregado', 'Vencido', 'Inspección Requerida', 'Fuera de Servicio'].includes(row.estado)) 
+          ? row.estado 
+          : 'Entregado',
+        observaciones: row.observaciones ? String(row.observaciones).trim() : undefined,
+      };
+
+      if (docIndex >= 0) {
+        newEppDocs[docIndex] = {
+          ...newEppDocs[docIndex],
+          entregas: [...(newEppDocs[docIndex].entregas || []), newEppItem]
+        };
+      } else {
+        newEppDocs.push({
+          workerId,
+          documento: ident || matchedWorker?.identificacion || 'S/N',
+          nombreTrabajador: nombre || matchedWorker?.nombre || 'Colaborador',
+          cargo: (row.cargo ? String(row.cargo).trim() : matchedWorker?.cargo) || 'Sin cargo',
+          entregas: [newEppItem]
+        });
+      }
+      importedCount++;
+    }
+
+    setEppDocs(newEppDocs);
+
+    try {
+      for (const doc of newEppDocs) {
+        await fetch('/api/sgsst/epp/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(doc),
+        });
+      }
+    } catch (err) {
+      console.error('Error auto-saving imported EPP docs:', err);
+    }
+
+    setIsColumnMapperOpen(false);
+    setColumnMapperBuffer(null);
+    showToast({
+      message: `¡${importedCount} entregas de EPP importadas exitosamente con el Paralelo de Casillas!`,
+      status: 'success',
+      severity: 'success',
+    });
+  };
 
   const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
 
@@ -1272,6 +1375,14 @@ export default function EPPWorkspace() {
                     )}
                   </>
                 )}
+                <ToolbarButton
+                  id="tb-import-excel-workers"
+                  onClick={() => fileInputRef.current?.click()}
+                  label="Importar Excel"
+                  icon={Upload}
+                  title="Homologar casillas e importar entregas de EPP desde Excel"
+                  variant="default"
+                />
                 <ToolbarButton
                   id="tb-export-excel-workers"
                   onClick={handleExportExcel}
@@ -3306,6 +3417,29 @@ export default function EPPWorkspace() {
           </div>
         </div>
       )}
+
+      {/* Input oculto para carga de Excel */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx, .xls, .csv"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
+      {/* Modal Homologador Universal de Casillas (Paralelo de Excel) */}
+      <UniversalColumnMapperModal
+        isOpen={isColumnMapperOpen}
+        onClose={() => {
+          setIsColumnMapperOpen(false);
+          setColumnMapperBuffer(null);
+        }}
+        moduleKey="epp-tracking"
+        moduleTitle="Entrega y Seguimiento de EPP"
+        targetFields={EPP_TRACKING_FIELDS}
+        fileData={columnMapperBuffer}
+        onConfirmImport={handleConfirmColumnMapping}
+      />
     </div>
   );
 }

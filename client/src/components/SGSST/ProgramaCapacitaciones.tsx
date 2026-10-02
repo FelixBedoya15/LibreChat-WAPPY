@@ -34,9 +34,12 @@ import {
   Eye,
   Download,
   X,
-  Printer
+  Printer,
+  Upload
 } from 'lucide-react';
 import SGSSTToolbar from './SGSSTToolbar';
+import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import { PROGRAMA_CAPACITACION_FIELDS } from './moduleFieldDefinitions';
 
 interface Trabajador {
   nombre: string;
@@ -114,6 +117,66 @@ export default function ProgramaCapacitaciones() {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const editorContentRef = useRef<string>('');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  // Homologador Visual de Casillas (Paralelo de Excel)
+  const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
+  const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (eEvent) => {
+      const buffer = eEvent.target?.result as ArrayBuffer;
+      if (buffer) {
+        setColumnMapperBuffer(buffer);
+        setIsColumnMapperOpen(true);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    if (e.target) e.target.value = '';
+  };
+
+  const handleConfirmColumnMapping = async (mappedRows: any[]) => {
+    if (!mappedRows || mappedRows.length === 0) {
+      showToast({ message: 'No se encontraron filas con datos para importar.', status: 'warning' });
+      return;
+    }
+
+    const newSesiones: SesionCapacitacion[] = mappedRows.map((r) => {
+      const estadoStr = String(r.estado || '').toLowerCase();
+      let estado: 'Programada' | 'Completada' | 'Cancelada' = 'Programada';
+      if (estadoStr.includes('complet') || estadoStr.includes('ejecut') || estadoStr.includes('realiz')) {
+        estado = 'Completada';
+      } else if (estadoStr.includes('cancel')) {
+        estado = 'Cancelada';
+      }
+
+      return {
+        id: crypto.randomUUID(),
+        tema: String(r.tema || 'Capacitación SG-SST').trim(),
+        descripcion: r.descripcion ? String(r.descripcion).trim() : (r.publicoObjetivo ? `Público: ${r.publicoObjetivo}` : ''),
+        fecha: r.fecha ? String(r.fecha).trim() : new Date().toISOString().split('T')[0],
+        hora: r.hora ? String(r.hora).trim() : '08:00 AM',
+        duracion: r.duracion ? String(r.duracion).trim() : '1 hora',
+        responsable: r.responsable ? String(r.responsable).trim() : 'Responsable SG-SST',
+        estado,
+        trabajadoresRegistrados: [],
+        evidencias: [],
+      };
+    });
+
+    const updated = [...sesiones, ...newSesiones];
+    await handleSave(updated);
+    setIsColumnMapperOpen(false);
+    setColumnMapperBuffer(null);
+    showToast({
+      message: `¡${newSesiones.length} sesiones de capacitación importadas exitosamente con el Paralelo de Casillas!`,
+      status: 'success',
+      severity: 'success',
+    });
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -1066,6 +1129,13 @@ export default function ProgramaCapacitaciones() {
                 />
               </div>
               <Button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 rounded-xl border border-teal-500/30 bg-teal-50 dark:bg-teal-950/40 px-3.5 py-2 text-xs font-bold text-teal-700 dark:text-teal-300 hover:bg-teal-100 transition-all active:scale-95 shadow-xs"
+                title="Homologar casillas y cargar cronograma de capacitaciones desde Excel"
+              >
+                <Upload className="h-4 w-4" /> Importar Excel
+              </Button>
+              <Button
                 onClick={handleAddSesion}
                 className="flex items-center gap-1.5 rounded-xl border-none bg-teal-600 px-4 py-2 text-xs font-black text-white hover:bg-teal-700 transition-all hover:scale-102 hover:shadow-lg hover:shadow-teal-500/10"
               >
@@ -1250,6 +1320,29 @@ export default function ProgramaCapacitaciones() {
         {activeTab === 'cronograma' && renderCronograma()}
         {activeTab === 'generar' && renderGenerar()}
       </div>
+
+      {/* Input oculto para carga de Excel */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx, .xls, .csv"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
+      {/* Modal Homologador Universal de Casillas (Paralelo de Excel) */}
+      <UniversalColumnMapperModal
+        isOpen={isColumnMapperOpen}
+        onClose={() => {
+          setIsColumnMapperOpen(false);
+          setColumnMapperBuffer(null);
+        }}
+        moduleKey="programa-capacitaciones"
+        moduleTitle="Programa de Capacitaciones SG-SST"
+        targetFields={PROGRAMA_CAPACITACION_FIELDS}
+        fileData={columnMapperBuffer}
+        onConfirmImport={handleConfirmColumnMapping}
+      />
     </div>
   );
 }

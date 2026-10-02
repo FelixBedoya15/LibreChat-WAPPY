@@ -32,6 +32,8 @@ import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/Live
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
+import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import { VULNERABILIDAD_FIELDS } from './moduleFieldDefinitions';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SingleSelect from './SingleSelect';
@@ -295,6 +297,88 @@ const AnalisisVulnerabilidad = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [isFormExpanded, setIsFormExpanded] = useState(true);
+
+  // Homologador Visual de Casillas (Paralelo de Excel)
+  const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
+  const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (eEvent) => {
+      const buffer = eEvent.target?.result as ArrayBuffer;
+      if (buffer) {
+        setColumnMapperBuffer(buffer);
+        setIsColumnMapperOpen(true);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    if (e.target) e.target.value = '';
+  };
+
+  const handleConfirmColumnMapping = (mappedRows: any[]) => {
+    if (!mappedRows || mappedRows.length === 0) {
+      showToast({ message: 'No se encontraron filas con datos para importar.', status: 'warning' });
+      return;
+    }
+    const newThreats: AmenazaNode[] = mappedRows
+      .filter((r) => r.amenaza && String(r.amenaza).trim().length > 0)
+      .map((r) => {
+        const rawOrigen = String(r.origenAmenaza || '').trim();
+        const matched = matchOrigen(rawOrigen);
+
+        let nivel = 'Probable';
+        const rawNivel = String(r.nivelAmenaza || '').toLowerCase();
+        if (rawNivel.includes('posible') || rawNivel.includes('baja') || rawNivel.includes('verde')) {
+          nivel = 'Posible';
+        } else if (rawNivel.includes('inminente') || rawNivel.includes('alta') || rawNivel.includes('rojo')) {
+          nivel = 'Inminente';
+        }
+
+        let desc = String(r.descripcionGlobal || '').trim();
+        if (r.medidasExistentes && String(r.medidasExistentes).trim()) {
+          desc = desc
+            ? `${desc}\nMedidas existentes: ${String(r.medidasExistentes).trim()}`
+            : `Medidas existentes: ${String(r.medidasExistentes).trim()}`;
+        }
+
+        return {
+          id: crypto.randomUUID(),
+          amenaza: String(r.amenaza).trim(),
+          origenAmenaza: matched,
+          nivelAmenaza: nivel,
+          descripcionGlobal: desc,
+          answers: {},
+        };
+      });
+
+    if (newThreats.length === 0) {
+      showToast({
+        message: 'No se encontraron amenazas válidas con nombre definido en el archivo.',
+        status: 'warning',
+      });
+      return;
+    }
+
+    setAmenazasList((prev) => {
+      if (prev.length === 1 && !prev[0].amenaza.trim()) {
+        return newThreats;
+      }
+      return [...prev, ...newThreats];
+    });
+
+    setActiveAmenazaId(newThreats[0].id);
+    setIsFormExpanded(true);
+    setIsColumnMapperOpen(false);
+    setColumnMapperBuffer(null);
+    showToast({
+      message: `¡${newThreats.length} amenazas importadas exitosamente con el Paralelo de Casillas!`,
+      status: 'success',
+      severity: 'success',
+    });
+  };
 
   useEffect(() => {
     if (amenazasList.length > 0 && !activeAmenazaId) {
@@ -920,6 +1004,9 @@ const AnalisisVulnerabilidad = () => {
         exportContent={editorContentRef.current || generatedReport || ''}
         exportFileName={`Analisis_Vulnerabilidad_${new Date().getTime()}`}
         onDummy={handleDummyData}
+        onImportExcel={() => fileInputRef.current?.click()}
+        importExcelLabel="Importar Amenazas"
+        importExcelTitle="Cargar Amenazas desde Excel con Paralelo de Casillas"
       />
 
       {isHistoryOpen && (
@@ -1695,6 +1782,27 @@ const AnalisisVulnerabilidad = () => {
           </div>
         </div>
       )}
+
+      {/* Homologador Visual de Casillas (Paralelo de Excel) */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx, .xls, .csv"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+
+      <UniversalColumnMapperModal
+        isOpen={isColumnMapperOpen}
+        fileBuffer={columnMapperBuffer}
+        targetFields={VULNERABILIDAD_FIELDS}
+        moduleTitle="Análisis de Vulnerabilidad y Emergencias"
+        onClose={() => {
+          setIsColumnMapperOpen(false);
+          setColumnMapperBuffer(null);
+        }}
+        onConfirm={handleConfirmColumnMapping}
+      />
     </div>
   );
 };

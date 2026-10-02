@@ -26,6 +26,8 @@ import ModelSelector, { AI_MODELS } from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
 import { MATRIZ_LEGAL_ITEMS, MatrizLegalItem } from './matrizLegalData';
+import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import { MATRIZ_LEGAL_FIELDS } from './moduleFieldDefinitions';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
@@ -125,14 +127,123 @@ const MatrizLegal = () => {
         loadInitialData();
     }, [token]);
 
+    // Custom items from Excel imports
+    const [customItems, setCustomItems] = useState<MatrizLegalItem[]>(() => {
+        try {
+            const saved = localStorage.getItem('wappy_matriz_legal_custom_items');
+            return saved ? JSON.parse(saved) : [];
+        } catch {
+            return [];
+        }
+    });
+
+    const allLegalItems = useMemo(() => [...MATRIZ_LEGAL_ITEMS, ...customItems], [customItems]);
+
+    // Homologador Visual de Casillas (Paralelo de Excel)
+    const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
+    const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (eEvent) => {
+            const buffer = eEvent.target?.result as ArrayBuffer;
+            if (buffer) {
+                setColumnMapperBuffer(buffer);
+                setIsColumnMapperOpen(true);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        if (e.target) e.target.value = '';
+    };
+
+    const handleConfirmColumnMapping = (mappedRows: any[]) => {
+        if (!mappedRows || mappedRows.length === 0) {
+            showToast({ message: 'No se encontraron filas con datos para importar.', status: 'warning' });
+            return;
+        }
+        const newCustom: MatrizLegalItem[] = [];
+        const newStatuses = [...statuses];
+        const newSeguimientos = { ...seguimientos };
+
+        mappedRows.forEach((row, idx) => {
+            const norma = String(row.norma || '').trim();
+            const articulo = String(row.articulo || '').trim();
+            const descripcion = String(row.descripcion || '').trim();
+            const evidencia = String(row.evidencia || '').trim();
+            const categoria = String(row.categoria || 'Normas Aplicables Generales').trim();
+            const estadoRaw = String(row.estado || '').toLowerCase().trim();
+            const seguimiento = String(row.seguimiento || '').trim();
+
+            if (!norma && !descripcion) return;
+
+            const existing = [...MATRIZ_LEGAL_ITEMS, ...customItems, ...newCustom].find(item => {
+                const sameNorma = item.norma.toLowerCase().replace(/\s+/g, '') === norma.toLowerCase().replace(/\s+/g, '');
+                const sameArt = articulo ? item.articulo.toLowerCase().replace(/\s+/g, '') === articulo.toLowerCase().replace(/\s+/g, '') : false;
+                return sameNorma && (sameArt || !articulo);
+            });
+
+            let targetId = existing?.id;
+            if (!targetId) {
+                targetId = `custom_ml_${Date.now()}_${idx}`;
+                newCustom.push({
+                    id: targetId,
+                    norma: norma || 'Norma Corporativa',
+                    articulo: articulo || 'General',
+                    descripcion: descripcion || norma,
+                    evidencia: evidencia || 'Registros y soportes documentales',
+                    categoria: categoria || 'Matriz Legal de la Empresa',
+                });
+            }
+
+            let targetStatus: ComplianceStatus['status'] = 'pendiente';
+            if (estadoRaw.includes('no_cumple') || estadoRaw.includes('no cumple') || estadoRaw.includes('incumple')) {
+                targetStatus = 'no_cumple';
+            } else if (estadoRaw.includes('no_aplica') || estadoRaw.includes('no aplica') || estadoRaw.includes('n/a')) {
+                targetStatus = 'no_aplica';
+            } else if (estadoRaw.includes('cumple') || estadoRaw.includes('si') || estadoRaw.includes('conforme')) {
+                targetStatus = 'cumple';
+            }
+
+            if (targetStatus !== 'pendiente') {
+                const stIdx = newStatuses.findIndex(s => s.itemId === targetId);
+                if (stIdx >= 0) newStatuses[stIdx] = { itemId: targetId, status: targetStatus };
+                else newStatuses.push({ itemId: targetId, status: targetStatus });
+            }
+
+            if (seguimiento) {
+                newSeguimientos[targetId] = seguimiento;
+            }
+        });
+
+        if (newCustom.length > 0) {
+            setCustomItems(prev => {
+                const updated = [...prev, ...newCustom];
+                localStorage.setItem('wappy_matriz_legal_custom_items', JSON.stringify(updated));
+                return updated;
+            });
+        }
+        setStatuses(newStatuses);
+        setSeguimientos(newSeguimientos);
+        setIsColumnMapperOpen(false);
+        setColumnMapperBuffer(null);
+        showToast({
+            message: `¡${mappedRows.length} requerimientos legales procesados con el Paralelo de Casillas!`,
+            status: 'success',
+            severity: 'success',
+        });
+    };
+
     // Filter out any orphaned statuses
     const validStatuses = useMemo(() => {
-        const itemIds = new Set(MATRIZ_LEGAL_ITEMS.map(i => i.id));
+        const itemIds = new Set(allLegalItems.map(i => i.id));
         return statuses.filter(s => itemIds.has(s.itemId));
-    }, [statuses]);
+    }, [statuses, allLegalItems]);
 
     // Calculate progress
-    const totalItems = MATRIZ_LEGAL_ITEMS.length;
+    const totalItems = allLegalItems.length;
     const completedCount = useMemo(() => {
         return validStatuses.filter(s => s.status !== 'pendiente').length;
     }, [validStatuses]);
@@ -149,12 +260,12 @@ const MatrizLegal = () => {
 
     // Group items by category
     const itemsByCategory = useMemo(() => {
-        return MATRIZ_LEGAL_ITEMS.reduce((acc, item) => {
+        return allLegalItems.reduce((acc, item) => {
             if (!acc[item.categoria]) acc[item.categoria] = [];
             acc[item.categoria].push(item);
             return acc;
         }, {} as Record<string, MatrizLegalItem[]>);
-    }, []);
+    }, [allLegalItems]);
 
     const getItemStatus = useCallback((id: string) => {
         return validStatuses.find(s => s.itemId === id)?.status || 'pendiente';
@@ -231,7 +342,7 @@ const MatrizLegal = () => {
                     location,
                     entityType,
                     statuses: validStatuses.map(s => {
-                        const definition = MATRIZ_LEGAL_ITEMS.find(i => i.id === s.itemId) || {};
+                        const definition = allLegalItems.find(i => i.id === s.itemId) || {};
                         return { ...s, ...definition };
                     }),
                     seguimientos,
@@ -426,6 +537,9 @@ const MatrizLegal = () => {
                     selectedModel={selectedModel}
                     onSelectModel={setSelectedModel}
                     onSaveLocal={handleSaveData}
+                    onImportExcel={() => fileInputRef.current?.click()}
+                    importExcelLabel="Importar Matriz"
+                    importExcelTitle="Homologar casillas y cargar matriz legal corporativa desde Excel"
                     hasContent={!!(editorContentRef.current || generatedMatrix)}
                     exportContent={editorContentRef.current || generatedMatrix || ''}
                     exportFileName="Matriz_Legal_SGSST"
@@ -650,6 +764,28 @@ const MatrizLegal = () => {
                     </div>
                 </div>
             )}
+            {/* Input oculto para carga de Excel */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx, .xls, .csv"
+                onChange={handleFileSelect}
+                className="hidden"
+            />
+
+            {/* Modal Homologador Universal de Casillas (Paralelo de Excel) */}
+            <UniversalColumnMapperModal
+                isOpen={isColumnMapperOpen}
+                onClose={() => {
+                    setIsColumnMapperOpen(false);
+                    setColumnMapperBuffer(null);
+                }}
+                moduleKey="matriz-legal"
+                moduleTitle="Matriz Legal SG-SST"
+                targetFields={MATRIZ_LEGAL_FIELDS}
+                fileData={columnMapperBuffer}
+                onConfirmImport={handleConfirmColumnMapping}
+            />
         </div>
     );
 };
