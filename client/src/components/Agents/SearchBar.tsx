@@ -73,7 +73,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ value, onSearch, className = '' }
         value={searchTerm}
         onChange={handleChange}
         placeholder={localize('com_agents_search_placeholder')}
-        className="h-12 rounded-xl border-border-medium bg-transparent pl-12 pr-12 text-lg text-text-primary shadow-md transition-[border-color,box-shadow] duration-200 placeholder:text-text-secondary focus:border-border-heavy focus:shadow-lg focus:ring-0"
+        className="h-12 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 pl-12 pr-12 text-sm text-slate-900 dark:text-zinc-100 shadow-sm placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 transition-all backdrop-blur-md"
         aria-label={localize('com_agents_search_aria')}
         aria-describedby="search-instructions search-results-count"
         autoComplete="off"
@@ -81,7 +81,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ value, onSearch, className = '' }
       />
 
       <div className="absolute inset-y-0 left-0 flex items-center pl-4" aria-hidden="true">
-        <Search className="size-5 text-text-secondary" />
+        <Search className="size-5 text-teal-600 dark:text-teal-400" />
       </div>
       {/* Hidden instructions for screen readers */}
       <div id="search-instructions" className="sr-only">

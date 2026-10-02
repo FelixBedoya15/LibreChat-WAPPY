@@ -163,11 +163,11 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
             onClick={() => onChange(category.value)}
             onKeyDown={(e) => handleKeyDown(e, category.value)}
             className={cn(
-              'relative cursor-pointer select-none whitespace-nowrap px-4 py-2 text-sm font-medium transition-all duration-200 rounded-full',
+              'relative cursor-pointer select-none whitespace-nowrap px-3.5 py-1.5 text-xs font-bold transition-all duration-200 rounded-xl active:scale-95 shadow-2xs',
               isSmallScreen ? 'min-w-fit flex-shrink-0' : '',
               activeTab === category.value
-                ? 'bg-teal-600 text-white shadow-md shadow-teal-500/20'
-                : 'bg-surface-secondary text-text-secondary hover:bg-surface-tertiary hover:text-text-primary active:scale-95',
+                ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md shadow-teal-600/20'
+                : 'bg-white/80 dark:bg-zinc-900/80 text-slate-600 dark:text-zinc-400 border border-slate-200/80 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:text-teal-600 dark:hover:text-teal-400 hover:border-teal-400/50',
             )}
             role="tab"
             aria-selected={activeTab === category.value}

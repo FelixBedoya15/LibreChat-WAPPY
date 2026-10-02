@@ -19,15 +19,13 @@ const InputWithLabel: FC<InputWithLabelProps> = forwardRef((props, ref) => {
   const { id, value, label, subLabel, onChange, labelClassName = '', inputClassName = '' } = props;
   const localize = useLocalize();
   return (
-    <>
-      <div className={cn('mt-4 flex flex-row', labelClassName)}>
-        <Label htmlFor={id} className="text-left text-sm font-medium">
+    <div className="mt-3">
+      <div className={cn('flex items-center justify-between mb-1.5', labelClassName)}>
+        <Label htmlFor={id} className="text-left text-xs font-bold text-slate-700 dark:text-zinc-200">
           {label}
         </Label>
-        {Label && <Label className="mx-1 text-right text-sm text-text-secondary">{subLabel}</Label>}
-        <br />
+        {subLabel && <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500">{subLabel}</span>}
       </div>
-      <div className="h-1" />
       <Input
         id={id}
         data-testid={`input-${id}`}
@@ -35,9 +33,12 @@ const InputWithLabel: FC<InputWithLabelProps> = forwardRef((props, ref) => {
         onChange={onChange}
         ref={ref}
         placeholder={`${localize('com_endpoint_config_value')} ${label}`}
-        className={cn('flex h-10 max-h-10 w-full resize-none px-3 py-2')}
+        className={cn(
+          'flex h-10 w-full rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-900 px-3 py-2 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500 transition-all shadow-2xs',
+          inputClassName,
+        )}
       />
-    </>
+    </div>
   );
 });
 

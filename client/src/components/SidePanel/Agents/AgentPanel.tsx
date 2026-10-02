@@ -345,11 +345,10 @@ export default function AgentPanel() {
           </div>
           {/* Create + Select Button */}
           {agent_id && (
-            <div className="flex w-full flex-col gap-2">
-              <Button
+            <div className="flex w-full flex-col gap-2 mt-1">
+              <button
                 type="button"
-                variant="outline"
-                className="w-full justify-center"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 shadow-md shadow-teal-600/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                 onClick={() => {
                   reset(getDefaultAgentFormValues());
                   setCurrentAgentId(undefined);
@@ -363,17 +362,18 @@ export default function AgentPanel() {
                   localize('com_ui_agent')
                 }
               >
-                <Plus className="mr-1 h-4 w-4" />
-                {localize('com_ui_create') +
-                  ' ' +
-                  localize('com_ui_new') +
-                  ' ' +
-                  localize('com_ui_agent')}
-              </Button>
-              <Button
+                <Plus className="h-4 w-4" />
+                <span>
+                  {localize('com_ui_create') +
+                    ' ' +
+                    localize('com_ui_new') +
+                    ' ' +
+                    localize('com_ui_agent')}
+                </span>
+              </button>
+              <button
                 type="button"
-                variant="outline"
-                className="w-full justify-center"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-bold text-xs text-slate-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700/80 shadow-2xs active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                 onClick={() => {
                   const currentValues = methods.getValues();
                   const newValues = {
@@ -392,38 +392,36 @@ export default function AgentPanel() {
                 disabled={agentQuery.isInitialLoading}
                 aria-label="Duplicar agente"
               >
-                <Copy className="mr-1 h-4 w-4" />
-                Duplicar Agente
-              </Button>
+                <Copy className="h-3.5 w-3.5 text-slate-500 dark:text-zinc-400" />
+                <span>Duplicar Agente</span>
+              </button>
               {user?.role === SystemRoles.ADMIN && (
                 <div className="flex flex-col gap-2 w-full">
-                  <Button
+                  <button
                     type="button"
-                    variant="outline"
-                    className="w-full justify-center border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 transition-all duration-300 ease-in-out shadow-sm"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-bold text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800/60 shadow-2xs active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                     onClick={handleExportBackup}
                     disabled={agentQuery.isInitialLoading}
                     aria-label="Exportar Copia de Seguridad"
                   >
-                    <Download className="mr-1 h-4 w-4 animate-bounce" style={{ animationDuration: '2s' }} />
-                    Exportar Agentes
-                  </Button>
-                  <Button
+                    <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Exportar Agentes</span>
+                  </button>
+                  <button
                     type="button"
-                    variant="outline"
-                    className="w-full justify-center border-cyan-500/30 hover:border-cyan-500/50 hover:bg-cyan-500/5 text-cyan-600 dark:text-cyan-400 transition-all duration-300 ease-in-out shadow-sm"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-bold text-xs text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-950/40 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 border border-cyan-200 dark:border-cyan-800/60 shadow-2xs active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                     onClick={handleSyncPrompts}
                     disabled={agentQuery.isInitialLoading}
                     aria-label="Sincronizar Prompts Locales"
                   >
-                    <RefreshCw className="mr-1 h-4 w-4" />
-                    Sincronizar Prompts
-                  </Button>
+                    <RefreshCw className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
+                    <span>Sincronizar Prompts</span>
+                  </button>
                 </div>
               )}
-              <Button
-                variant="submit"
-                className="w-full justify-center"
+              <button
+                type="button"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 shadow-md shadow-teal-600/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                 disabled={isEphemeralAgent(agent_id) || agentQuery.isInitialLoading}
                 onClick={(e) => {
                   e.preventDefault();
@@ -431,8 +429,8 @@ export default function AgentPanel() {
                 }}
                 aria-label={localize('com_ui_select') + ' ' + localize('com_ui_agent')}
               >
-                {localize('com_ui_select')}
-              </Button>
+                <span>{localize('com_ui_select')}</span>
+              </button>
             </div>
           )}
         </div>

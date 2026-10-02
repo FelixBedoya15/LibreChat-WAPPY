@@ -91,7 +91,7 @@ export default function AgentFooter({
         {agent && agent.author === user?.id && <DuplicateAgent agent_id={agent_id} />}
         {/* Submit Button */}
         <button
-          className="btn btn-primary focus:shadow-outline flex h-9 w-full items-center justify-center px-4 py-2 font-semibold text-white hover:bg-green-600 focus:border-green-500"
+          className="flex h-10 w-full items-center justify-center px-4 py-2 font-bold text-xs text-white rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 shadow-md shadow-teal-600/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
           type="submit"
           disabled={createMutation.isLoading || updateMutation.isLoading}
           aria-busy={createMutation.isLoading || updateMutation.isLoading}

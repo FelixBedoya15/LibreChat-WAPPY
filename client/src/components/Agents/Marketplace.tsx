@@ -288,7 +288,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
             >
               {/* Simplified header for agents marketplace - only show nav controls when needed */}
               {!isSmallScreen && (
-                <div className="sticky top-0 z-20 flex items-center justify-between bg-surface-secondary p-2 font-semibold text-text-primary md:h-14">
+                <div className="sticky top-0 z-20 flex items-center justify-between bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-slate-200/60 dark:border-zinc-800/60 px-4 py-2 font-semibold text-text-primary md:h-14">
                   <div className="mx-1 flex items-center gap-2">
                     {!navVisible && (
                       <>
@@ -296,16 +296,15 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                         <TooltipAnchor
                           description={localize('com_ui_new_chat')}
                           render={
-                            <Button
-                              size="icon"
-                              variant="outline"
+                            <button
+                              type="button"
                               data-testid="agents-new-chat-button"
                               aria-label={localize('com_ui_new_chat')}
-                              className="rounded-xl border border-border-light bg-surface-secondary p-2 hover:bg-surface-hover max-md:hidden"
+                              className="inline-flex size-9 items-center justify-center rounded-xl border border-slate-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 hover:border-teal-400 active:scale-95 shadow-2xs transition-all cursor-pointer max-md:hidden"
                               onClick={handleNewChat}
                             >
-                              <NewChatIcon />
-                            </Button>
+                              <NewChatIcon className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" />
+                            </button>
                           }
                         />
                       </>
@@ -316,11 +315,14 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
               {/* Hero Section - SST Header */}
               {!isSmallScreen && (
                 <div className="container mx-auto max-w-4xl px-4">
-                  <div className={cn('mb-8 text-center', 'mt-12')}>
-                    <h1 className="mb-3 text-3xl font-bold tracking-tight text-text-primary md:text-5xl">
+                  <div className={cn('mb-6 text-center', 'mt-8 sm:mt-10')}>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/50 border border-teal-500/30 text-teal-700 dark:text-teal-300 text-xs font-bold mb-3 shadow-2xs">
+                      <span>⚡ INTELIGENCIA ARTIFICIAL ESPECIALIZADA</span>
+                    </div>
+                    <h1 className="mb-2 text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-zinc-100">
                       AGENTES SST
                     </h1>
-                    <p className="mx-auto mb-6 max-w-2xl text-base sm:text-lg text-text-secondary">
+                    <p className="mx-auto max-w-2xl text-xs sm:text-sm font-medium text-slate-500 dark:text-zinc-400">
                       Potencia la gestión de Seguridad y Salud en el Trabajo con nuestros agentes de Inteligencia Artificial especializados.
                     </p>
                   </div>

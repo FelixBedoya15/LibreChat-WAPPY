@@ -14,13 +14,12 @@ export default function OpenSidebar({
     <TooltipAnchor
       description={localize('com_nav_open_sidebar')}
       render={
-        <Button
-          size="icon"
-          variant="outline"
+        <button
+          type="button"
           data-testid="open-sidebar-button"
           aria-label={localize('com_nav_open_sidebar')}
           className={cn(
-            'rounded-xl border border-border-light bg-surface-secondary p-2 hover:bg-surface-hover',
+            'inline-flex size-9 items-center justify-center rounded-xl border border-slate-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 hover:border-teal-400 active:scale-95 shadow-2xs transition-all cursor-pointer',
             className,
           )}
           onClick={() =>
@@ -30,8 +29,8 @@ export default function OpenSidebar({
             })
           }
         >
-          <Sidebar />
-        </Button>
+          <Sidebar className="h-4.5 w-4.5" />
+        </button>
       }
     />
   );

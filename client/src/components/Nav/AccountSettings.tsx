@@ -75,8 +75,7 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
           {isCollapsed ? (
             // Collapsed: avatar only
             <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
+              whileTap={{ scale: 0.95 }}
               className="relative flex h-10 w-10 items-center justify-center"
             >
               <button
@@ -85,22 +84,21 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
                   e.preventDefault();
                   setShowNotifications(prev => !prev);
                 }}
-                className="focus:outline-none"
+                className="focus:outline-none cursor-pointer"
               >
-                <Avatar user={user} size={38} className="rounded-xl shadow-sm border border-border-medium/30 hover:border-teal-400/50 transition-all duration-200" />
+                <Avatar user={user} size={36} className="rounded-xl shadow-2xs border border-slate-200/80 dark:border-zinc-700/80 hover:border-teal-400/80 transition-all duration-200" />
               </button>
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 z-10 min-w-[16px] h-[16px] px-0.5 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none shadow-lg ring-2 ring-white">
+                <span className="absolute -top-1 -right-1 z-10 min-w-[16px] h-[16px] px-0.5 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none shadow-sm ring-2 ring-white dark:ring-zinc-900">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
             </motion.div>
           ) : (
           <motion.div 
-            whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             style={{ zIndex: 100 }}
-            className="flex h-full w-full items-center gap-3 bg-surface-secondary border border-border-medium group-hover:bg-surface-hover group-hover:border-teal-400 shadow-sm overflow-hidden rounded-xl p-2"
+            className="flex h-full w-full items-center gap-2.5 bg-white/80 dark:bg-zinc-900/60 border border-slate-200/80 dark:border-zinc-800/80 hover:bg-slate-50 dark:hover:bg-zinc-800/80 hover:border-teal-400 shadow-2xs overflow-hidden rounded-2xl p-2 transition-all cursor-pointer"
           >
              <div className={cn("relative flex-shrink-0 flex items-center justify-center")}>
              <div className="h-9 w-9 flex-shrink-0 flex items-center justify-center relative">
@@ -110,9 +108,9 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
                    e.preventDefault();
                    setShowNotifications(prev => !prev);
                  }}
-                 className="z-50 focus:outline-none"
+                 className="z-50 focus:outline-none cursor-pointer"
                >
-                 <Avatar user={user} size={34} className="rounded-lg shadow-sm border border-border-medium/30 group-hover:border-teal-400/50 transition-all duration-200" />
+                 <Avatar user={user} size={34} className="rounded-xl shadow-2xs border border-slate-200/60 dark:border-zinc-700/60 group-hover:border-teal-400/50 transition-all duration-200" />
                </button>
                {unreadCount > 0 && (
                  <button

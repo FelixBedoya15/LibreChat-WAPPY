@@ -84,16 +84,13 @@ export default function DeleteButton({
   return (
     <OGDialog>
       <OGDialogTrigger asChild>
-        <Button
-          size="sm"
-          variant="outline"
+        <button
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-200/80 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 hover:border-red-300 shadow-2xs active:scale-95 transition-all cursor-pointer"
           aria-label={localize('com_ui_delete') + ' ' + localize('com_ui_agent')}
           type="button"
         >
-          <div className="flex w-full items-center justify-center gap-2 text-red-500">
-            <TrashIcon />
-          </div>
-        </Button>
+          <TrashIcon className="h-4 w-4" />
+        </button>
       </OGDialogTrigger>
       <OGDialogTemplate
         title={localize('com_ui_delete') + ' ' + localize('com_ui_agent')}

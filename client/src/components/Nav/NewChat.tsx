@@ -58,7 +58,7 @@ export default function NewChat({
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={clickHandler}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent bg-teal-600 hover:bg-teal-700 text-white transition-all duration-300 shadow-sm mb-1 sm:hover:scale-105 sm:hover:-rotate-3"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-md shadow-teal-600/25 active:scale-95 transition-all mb-1.5 cursor-pointer"
           >
             <Plus className="h-5 w-5" />
           </motion.button>
@@ -70,14 +70,13 @@ export default function NewChat({
   // Expanded: full-width teal button with icon left-aligned + label
   return (
     <>
-      <div className="flex py-2 mb-1 px-1 w-full">
+      <div className="flex py-1.5 mb-1 px-1 w-full">
         <motion.button
-          whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
           onClick={clickHandler}
-          className="group flex w-full items-center justify-center gap-3 rounded-xl border border-transparent bg-teal-600 hover:bg-teal-700 px-4 py-3 text-sm font-semibold text-white transition-all duration-300 shadow-sm"
+          className="group flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-teal-600/20 active:scale-95 transition-all cursor-pointer"
         >
-          <Plus className="h-5 w-5 shrink-0" />
+          <Plus className="h-4 w-4 shrink-0" />
           <span>{localize('com_ui_new_chat')}</span>
         </motion.button>
       </div>

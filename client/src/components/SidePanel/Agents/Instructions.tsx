@@ -10,9 +10,7 @@ import { cn, defaultTextProps, removeFocusOutlines } from '~/utils';
 import { useLocalize } from '~/hooks';
 
 const inputClass = cn(
-  defaultTextProps,
-  'flex w-full px-3 py-2 border-border-light bg-surface-secondary focus-visible:ring-2 focus-visible:ring-ring-primary',
-  removeFocusOutlines,
+  'flex w-full rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-900 px-3.5 py-2.5 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500 shadow-2xs transition-all',
 );
 
 interface VariableOption {

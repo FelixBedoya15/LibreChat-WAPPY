@@ -65,7 +65,7 @@ export default function Header() {
   };
 
   return (
-    <div className="sticky top-0 z-10 flex h-14 w-full items-center justify-between bg-surface-primary p-2 font-semibold text-text-primary">
+    <div className="sticky top-0 z-10 flex h-14 w-full items-center justify-between bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-slate-200/60 dark:border-zinc-800/60 px-3 py-2 font-semibold text-text-primary">
       <div className="hide-scrollbar flex w-full items-center justify-between gap-2 overflow-x-auto">
         <div className="mx-1 flex items-center gap-2">
           <div

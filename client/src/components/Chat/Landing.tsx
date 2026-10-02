@@ -151,7 +151,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
         <div
           className={`flex ${textHasMultipleLines ? 'flex-col' : 'flex-col md:flex-row'} items-center justify-center gap-2`}
         >
-          <div className={`relative size-10 justify-center ${textHasMultipleLines ? 'mb-2' : ''}`}>
+          <div className={`relative p-1.5 rounded-2xl bg-gradient-to-tr from-teal-500/20 via-emerald-500/10 to-teal-500/30 border border-teal-500/20 shadow-md shadow-teal-500/10 flex items-center justify-center ${textHasMultipleLines ? 'mb-2' : ''}`}>
             <ConvoIcon
               agentsMap={agentsMap}
               assistantMap={assistantMap}
@@ -176,7 +176,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
               <SplitText
                 key={`split-text-${name}`}
                 text={name}
-                className={`${getTextSizeClass(name)} font-medium text-text-primary`}
+                className={`${getTextSizeClass(name)} font-bold tracking-tight text-slate-900 dark:text-zinc-100`}
                 delay={50}
                 textAlign="center"
                 animationFrom={{ opacity: 0, transform: 'translate3d(0,50px,0)' }}
@@ -191,7 +191,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
             <SplitText
               key={`split-text-${greetingText}${user?.name ? '-user' : ''}`}
               text={greetingText}
-              className={`${getTextSizeClass(greetingText)} font-medium text-text-primary`}
+              className={`${getTextSizeClass(greetingText)} font-bold tracking-tight text-slate-900 dark:text-zinc-100`}
               delay={50}
               textAlign="center"
               animationFrom={{ opacity: 0, transform: 'translate3d(0,50px,0)' }}
@@ -204,7 +204,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
           )}
         </div>
         {description && (
-          <div className="animate-fadeIn mt-4 max-w-md text-center text-sm font-normal text-text-primary">
+          <div className="animate-fadeIn mt-3 max-w-lg text-center text-xs sm:text-sm font-medium text-slate-500 dark:text-zinc-400 px-4 py-2 rounded-2xl bg-slate-50/70 dark:bg-zinc-900/60 border border-slate-200/60 dark:border-zinc-800/60 shadow-2xs">
             {description}
           </div>
         )}
