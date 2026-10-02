@@ -714,35 +714,34 @@ export default function PublicParticipacionIPEVAR() {
                             
                             <div className="space-y-3.5 overflow-y-auto pr-1 flex-1 pb-2 text-xs">
                                 
-                                {/* Lugar y Actividad (Manuales y Alineados) */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
-                                    <div className="flex flex-col">
-                                        <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5 min-h-[32px] sm:min-h-[28px] leading-tight">
-                                            <MapPin className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-                                            <span>¿En qué lugar o zona? *</span>
-                                        </label>
-                                        <input 
-                                            type="text" 
-                                            placeholder="Ej: Oficina 402, Archivo central, Bodega, Taller..." 
-                                            value={zona} 
-                                            onChange={e => setZona(e.target.value)} 
-                                            className="w-full h-11 border border-border-medium rounded-xl text-xs bg-surface-secondary/40 px-3.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary font-medium transition-all" 
-                                        />
-                                    </div>
+                                {/* Lugar o Zona (Línea completa) */}
+                                <div>
+                                    <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                        <MapPin className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                                        <span>¿En qué lugar o zona? *</span>
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Ej: Oficina 402, Archivo central, Bodega, Taller..." 
+                                        value={zona} 
+                                        onChange={e => setZona(e.target.value)} 
+                                        className="w-full h-11 border border-border-medium rounded-xl text-xs bg-surface-secondary/40 px-3.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary font-medium transition-all" 
+                                    />
+                                </div>
 
-                                    <div className="flex flex-col">
-                                        <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5 min-h-[32px] sm:min-h-[28px] leading-tight">
-                                            <Layers className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-                                            <span>Actividad (Relacionada a su función) *</span>
-                                        </label>
-                                        <input 
-                                            type="text" 
-                                            placeholder="Ej: Administrativa, Operativa, Logística, etc..." 
-                                            value={actividad} 
-                                            onChange={e => setActividad(e.target.value)} 
-                                            className="w-full h-11 border border-border-medium rounded-xl text-xs bg-surface-secondary/40 px-3.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary font-medium transition-all" 
-                                        />
-                                    </div>
+                                {/* Actividad (Línea completa) */}
+                                <div>
+                                    <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                        <Layers className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                                        <span>Actividad (Relacionada a su función) *</span>
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Ej: Administrativa, Operativa, Logística, etc..." 
+                                        value={actividad} 
+                                        onChange={e => setActividad(e.target.value)} 
+                                        className="w-full h-11 border border-border-medium rounded-xl text-xs bg-surface-secondary/40 px-3.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary font-medium transition-all" 
+                                    />
                                 </div>
 
                                 {/* TAREA (Casilla manual sin desplegables) */}
