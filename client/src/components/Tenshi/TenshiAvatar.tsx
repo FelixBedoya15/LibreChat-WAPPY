@@ -1,8 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn } from '~/utils';
+import { tenshiAudio } from './tenshiAudio';
+
+export type TenshiAvatarMood = 'idle' | 'thinking' | 'speaking' | 'listening' | 'success' | 'dizzy';
 
 export interface TenshiAvatarProps {
-  size?: number; // en píxeles (ej. 180, 140, 48, 36)
+  size?: number; // en píxeles (ej. 180, 140, 56, 48, 36)
+  mood?: TenshiAvatarMood;
   isSpeaking?: boolean;
   outputAmplitude?: number; // 0..1
   isVoiceActive?: boolean;
@@ -11,10 +15,24 @@ export interface TenshiAvatarProps {
   className?: string;
   onClick?: () => void;
   showHaloEffect?: boolean;
+  showHUD?: boolean;
+  statusText?: string; // Texto de estado opcional estilo píldora Coucou
+}
+
+interface Particle {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  alpha: number;
+  color: string;
 }
 
 export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   size = 140,
+  mood: explicitMood,
   isSpeaking = false,
   outputAmplitude = 0,
   isVoiceActive = false,
@@ -23,13 +41,84 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   className = '',
   onClick,
   showHaloEffect = true,
+  showHUD = true,
+  statusText,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [tilt, setTilt] = useState({ rx: 0, ry: 0, rz: 0, glareX: 50, glareY: 50 });
+  const [tilt, setTilt] = useState({ rx: 0, ry: 0, rz: 0, lookX: 0, lookY: 0, glareX: 50, glareY: 50 });
   const [isHovered, setIsHovered] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
+  const [isBlinking, setIsBlinking] = useState(false);
+  const [forcedDizzy, setForcedDizzy] = useState(false);
+  const [particles, setParticles] = useState<Particle[]>([]);
 
-  // Seguimiento suave del ratón (Mirada 3D interactiva inspirada en Coucou)
+  // Contador de clics rápidos (Poking detector de Coucou)
+  const pokeCountRef = useRef(0);
+  const lastPokeTimeRef = useRef(0);
+  const dizzyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Determinar emoción activa
+  const activeMood: TenshiAvatarMood = useMemo(() => {
+    if (forcedDizzy) return 'dizzy';
+    if (explicitMood) return explicitMood;
+    if (isSpeaking) return 'speaking';
+    if (isTyping) return 'thinking';
+    if (isVoiceActive) return 'listening';
+    return 'idle';
+  }, [forcedDizzy, explicitMood, isSpeaking, isTyping, isVoiceActive]);
+
+  // Sonidos según cambio de estado
+  const prevMoodRef = useRef(activeMood);
+  useEffect(() => {
+    if (prevMoodRef.current !== activeMood) {
+      if (activeMood === 'thinking') {
+        tenshiAudio.playThink();
+      } else if (activeMood === 'success') {
+        tenshiAudio.playSuccess();
+        // Generar partículas de celebración
+        const newParts: Particle[] = Array.from({ length: 8 }, (_, i) => ({
+          id: Date.now() + i,
+          x: 50 + (Math.random() - 0.5) * 40,
+          y: 40 + (Math.random() - 0.5) * 30,
+          vx: (Math.random() - 0.5) * 5,
+          vy: -3 - Math.random() * 4,
+          size: 4 + Math.random() * 5,
+          alpha: 1,
+          color: Math.random() > 0.5 ? '#10B981' : '#FBBF24',
+        }));
+        setParticles(newParts);
+      }
+      prevMoodRef.current = activeMood;
+    }
+  }, [activeMood]);
+
+  // Limpieza de partículas
+  useEffect(() => {
+    if (particles.length === 0) return;
+    const timer = setTimeout(() => {
+      setParticles([]);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [particles]);
+
+  // Parpadeo natural autónomo cada 2.5 - 4.5 segundos
+  useEffect(() => {
+    let blinkTimer: NodeJS.Timeout;
+    const scheduleNextBlink = () => {
+      const delay = 2200 + Math.random() * 2500;
+      blinkTimer = setTimeout(() => {
+        setIsBlinking(true);
+        setTimeout(() => {
+          setIsBlinking(false);
+          scheduleNextBlink();
+        }, 140);
+      }, delay);
+    };
+    scheduleNextBlink();
+    return () => clearTimeout(blinkTimer);
+  }, []);
+
+  // Seguimiento suave del cursor del ratón (Mirada 3D Coucou)
   useEffect(() => {
     if (!interactive) return;
 
@@ -47,22 +136,19 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
       const dx = Math.max(-1, Math.min(1, (e.clientX - cx) / Math.max(window.innerWidth / 2, 350)));
       const dy = Math.max(-1, Math.min(1, (e.clientY - cy) / Math.max(window.innerHeight / 2, 350)));
 
-      // Ángulos de rotación 3D para mirar al cursor
-      const ry = dx * 16; // Giro lateral (-16° a +16°)
-      const rx = -dy * 14; // Inclinación arriba/abajo (-14° a +14°)
-      const rz = isTyping ? 3.5 : dx * 2; // Ligera inclinación curiosa al pensar
+      const ry = dx * 15;
+      const rx = -dy * 13;
+      const rz = activeMood === 'thinking' ? 4 : dx * 2;
 
-      // Posición del reflejo de luz (glare) en las gafas y superficie
-      const glareX = 50 + dx * 40;
-      const glareY = 50 + dy * 40;
+      const glareX = 50 + dx * 38;
+      const glareY = 50 + dy * 38;
 
-      setTilt({ rx, ry, rz, glareX, glareY });
+      setTilt({ rx, ry, rz, lookX: dx, lookY: dy, glareX, glareY });
 
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
-        // Vuelve suavemente a reposo
-        setTilt({ rx: 0, ry: 0, rz: isTyping ? 3 : 0, glareX: 50, glareY: 50 });
-      }, 3000);
+        setTilt({ rx: 0, ry: 0, rz: activeMood === 'thinking' ? 3 : 0, lookX: 0, lookY: 0, glareX: 50, glareY: 50 });
+      }, 3200);
     };
 
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
@@ -70,16 +156,147 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
       window.removeEventListener('mousemove', handleMouseMove);
       clearTimeout(timeoutId);
     };
-  }, [interactive, isTyping]);
+  }, [interactive, activeMood]);
 
+  // Manejador del Clic (Detección de "Poke" y mareo)
   const handleClick = useCallback(() => {
+    const now = Date.now();
+    if (now - lastPokeTimeRef.current < 900) {
+      pokeCountRef.current += 1;
+    } else {
+      pokeCountRef.current = 1;
+    }
+    lastPokeTimeRef.current = now;
+
     setIsClicked(true);
-    setTimeout(() => setIsClicked(false), 350);
+    setTimeout(() => setIsClicked(false), 300);
+
+    // Si le das 4 clics seguidos: se marea y gira 360°
+    if (pokeCountRef.current >= 4) {
+      pokeCountRef.current = 0;
+      setForcedDizzy(true);
+      tenshiAudio.playDizzy();
+      if (dizzyTimeoutRef.current) clearTimeout(dizzyTimeoutRef.current);
+      dizzyTimeoutRef.current = setTimeout(() => {
+        setForcedDizzy(false);
+      }, 2500);
+    } else {
+      tenshiAudio.playBlip();
+    }
+
     if (onClick) onClick();
   }, [onClick]);
 
-  // Escala reactiva a la amplitud de voz
+  // Escala reactiva a la voz
   const voiceScale = isSpeaking ? 1 + Math.min(outputAmplitude * 0.28, 0.18) : isHovered ? 1.04 : 1;
+
+  // Renderizado del HUD en los cristales de las gafas de sol
+  // Coordenadas calculadas: Lente Izquierdo x=36.4%, y=45.7% | Lente Derecho x=64.8%, y=46.3%
+  const renderHUDLenses = () => {
+    if (!showHUD || size < 44) return null;
+
+    // Desplazamiento de los ojos digitales según la mirada (-6 a 6 px normalizado)
+    const eyeOffsetX = tilt.lookX * 5;
+    const eyeOffsetY = tilt.lookY * 4;
+
+    return (
+      <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden rounded-full">
+        {/* Lente Izquierdo */}
+        <div
+          className="absolute flex items-center justify-center transition-transform duration-100 ease-out"
+          style={{
+            left: '25%',
+            top: '36%',
+            width: '24%',
+            height: '20%',
+          }}
+        >
+          {renderEyeContent(eyeOffsetX, eyeOffsetY, 'left')}
+        </div>
+
+        {/* Lente Derecho */}
+        <div
+          className="absolute flex items-center justify-center transition-transform duration-100 ease-out"
+          style={{
+            left: '52%',
+            top: '36%',
+            width: '24%',
+            height: '20%',
+          }}
+        >
+          {renderEyeContent(eyeOffsetX, eyeOffsetY, 'right')}
+        </div>
+      </div>
+    );
+  };
+
+  const renderEyeContent = (offsetX: number, offsetY: number, side: 'left' | 'right') => {
+    // 1. Estado Mareado (@ @ espiral girando)
+    if (activeMood === 'dizzy') {
+      return (
+        <span className="text-emerald-400 font-black text-sm animate-spin select-none drop-shadow-[0_0_8px_rgba(52,211,153,0.9)]">
+          🌀
+        </span>
+      );
+    }
+
+    // 2. Estado Éxito (^ ^ sonriente)
+    if (activeMood === 'success') {
+      return (
+        <span className="text-emerald-400 font-black text-sm select-none drop-shadow-[0_0_8px_rgba(52,211,153,0.9)] scale-y-125">
+          ^
+        </span>
+      );
+    }
+
+    // 3. Estado Hablando (Mini Ecualizador Digital dentro del lente)
+    if (isSpeaking) {
+      const baseAmp = Math.max(0.2, outputAmplitude);
+      return (
+        <div className="flex items-center justify-center gap-0.5 h-3">
+          <span
+            className="w-0.5 bg-emerald-400 rounded-full transition-all duration-75"
+            style={{ height: `${Math.min(12, Math.max(3, baseAmp * 12 * (side === 'left' ? 0.9 : 1.1)))}px` }}
+          />
+          <span
+            className="w-0.5 bg-emerald-300 rounded-full transition-all duration-75"
+            style={{ height: `${Math.min(14, Math.max(4, baseAmp * 15))}px` }}
+          />
+          <span
+            className="w-0.5 bg-emerald-400 rounded-full transition-all duration-75"
+            style={{ height: `${Math.min(12, Math.max(3, baseAmp * 11 * (side === 'left' ? 1.1 : 0.8)))}px` }}
+          />
+        </div>
+      );
+    }
+
+    // 4. Parpadeo activo (Línea fina horizontal)
+    if (isBlinking) {
+      return <span className="h-0.5 w-3.5 bg-emerald-400/90 rounded-full shadow-[0_0_6px_rgba(52,211,153,0.8)]" />;
+    }
+
+    // 5. Estado Pensando (Escáner horizontal o ceja arqueada)
+    if (activeMood === 'thinking') {
+      return (
+        <div className="relative w-4 h-1 overflow-hidden">
+          <span className="absolute inset-0 bg-amber-400/40 rounded-full" />
+          <span className="absolute inset-y-0 w-2 bg-amber-300 rounded-full animate-tenshi-scanner shadow-[0_0_8px_rgba(251,191,36,0.9)]" />
+        </div>
+      );
+    }
+
+    // 6. Estado Reposo / Mirada normal (Ojo digital ciber-gaze)
+    return (
+      <div
+        className="relative transition-transform duration-150 ease-out"
+        style={{
+          transform: `translate(${offsetX}px, ${offsetY}px)`,
+        }}
+      >
+        <span className="block h-2 w-2 rounded-full bg-emerald-400/90 shadow-[0_0_8px_rgba(52,211,153,0.85)] ring-1 ring-emerald-300/60" />
+      </div>
+    );
+  };
 
   return (
     <div
@@ -88,7 +305,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={cn(
-        'relative inline-flex items-center justify-center select-none group',
+        'relative inline-flex flex-col items-center justify-center select-none group',
         interactive && 'cursor-pointer',
         className
       )}
@@ -97,54 +314,83 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         height: size,
         perspective: '800px',
       }}
-      title={interactive ? 'Tenshi - Asistente WAPPY' : undefined}
+      title={interactive ? 'Tenshi - Asistente WAPPY (Haz clic para interactuar)' : undefined}
     >
       <style>{`
         @keyframes tenshi-halo-pulse {
-          0%, 100% { transform: translateX(-50%) rotateX(68deg) translateY(0) scale(1); opacity: 0.85; }
-          50% { transform: translateX(-50%) rotateX(68deg) translateY(-4px) scale(1.08); opacity: 1; }
+          0%, 100% { transform: translateX(-50%) rotateX(68deg) translateY(0) scale(1); opacity: 0.88; }
+          50% { transform: translateX(-50%) rotateX(68deg) translateY(-5px) scale(1.08); opacity: 1; }
         }
         @keyframes tenshi-aura-wave {
-          0% { transform: scale(0.95); opacity: 0.6; }
-          50% { transform: scale(1.12); opacity: 0.15; }
-          100% { transform: scale(0.95); opacity: 0.6; }
+          0% { transform: scale(0.95); opacity: 0.65; }
+          50% { transform: scale(1.14); opacity: 0.15; }
+          100% { transform: scale(0.95); opacity: 0.65; }
+        }
+        @keyframes tenshi-spin-360 {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes tenshi-scanner {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .animate-tenshi-scanner {
+          animation: tenshi-scanner 0.9s infinite ease-in-out;
         }
       `}</style>
+
+      {/* Partículas de Éxito / Alegría */}
+      {particles.map((p) => (
+        <span
+          key={p.id}
+          className="absolute pointer-events-none rounded-full animate-ping z-30"
+          style={{
+            left: `${p.x}%`,
+            top: `${p.y}%`,
+            width: p.size,
+            height: p.size,
+            backgroundColor: p.color,
+            boxShadow: `0 0 10px ${p.color}`,
+          }}
+        />
+      ))}
 
       {/* 1. Ondas de Aura Expansiva (Voz o Micrófono Activo) */}
       {(isSpeaking || isVoiceActive) && size >= 60 && (
         <div
           className="absolute inset-0 rounded-full pointer-events-none"
           style={{
-            animation: 'tenshi-aura-wave 2s infinite ease-in-out',
+            animation: 'tenshi-aura-wave 1.8s infinite ease-in-out',
             background: isSpeaking
-              ? 'radial-gradient(circle, rgba(16,185,129,0.35) 0%, rgba(16,185,129,0) 70%)'
-              : 'radial-gradient(circle, rgba(52,211,153,0.25) 0%, rgba(52,211,153,0) 70%)',
+              ? 'radial-gradient(circle, rgba(16,185,129,0.4) 0%, rgba(16,185,129,0) 70%)'
+              : 'radial-gradient(circle, rgba(52,211,153,0.3) 0%, rgba(52,211,153,0) 70%)',
           }}
         />
       )}
 
-      {/* 2. Halo Celestial Dorado Flotante (Efecto Ángel Tenshi) */}
-      {showHaloEffect && size >= 50 && (
+      {/* 2. Halo Celestial Dorado Flotante 3D */}
+      {showHaloEffect && size >= 44 && (
         <div
           className="absolute -top-3 left-1/2 pointer-events-none transition-transform duration-200 ease-out z-20"
           style={{
-            width: size * 0.62,
+            width: size * 0.64,
             height: size * 0.22,
-            animation: isSpeaking ? 'tenshi-halo-pulse 1.2s infinite ease-in-out' : 'tenshi-halo-pulse 3.5s infinite ease-in-out',
+            animation: isSpeaking ? 'tenshi-halo-pulse 1.1s infinite ease-in-out' : 'tenshi-halo-pulse 3.2s infinite ease-in-out',
             transformOrigin: 'center center',
           }}
         >
+          {/* Rayo de luz celestial hacia la cabeza */}
+          <div className="absolute inset-0 bg-gradient-to-b from-amber-300/20 to-transparent blur-sm rounded-full" />
           <div
             className={cn(
               'h-full w-full rounded-full border-2 transition-all duration-300',
               isSpeaking
-                ? 'border-emerald-400 shadow-[0_0_22px_rgba(52,211,153,0.9)] bg-emerald-400/10'
-                : isTyping
-                ? 'border-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.7)] bg-amber-400/10'
+                ? 'border-emerald-400 shadow-[0_0_24px_rgba(52,211,153,0.95)] bg-emerald-400/15'
+                : activeMood === 'thinking'
+                ? 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.85)] bg-amber-400/15'
                 : isVoiceActive
-                ? 'border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.5)] bg-emerald-400/10'
-                : 'border-amber-300 shadow-[0_0_12px_rgba(252,211,77,0.5)] bg-amber-300/10'
+                ? 'border-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.6)] bg-emerald-400/15'
+                : 'border-amber-300 shadow-[0_0_14px_rgba(252,211,77,0.55)] bg-amber-300/10'
             )}
           />
         </div>
@@ -153,50 +399,63 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
       {/* 3. Contenedor 3D del Avatar con Física de Rebote (Squash & Stretch) */}
       <div
         className={cn(
-          'relative h-full w-full rounded-full p-1 border-2 transition-all duration-200 ease-out overflow-hidden shadow-md',
+          'relative h-full w-full rounded-full p-1 border-2 transition-all duration-200 ease-out overflow-hidden shadow-lg',
           isSpeaking
-            ? 'border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.5)]'
-            : isTyping
-            ? 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.45)]'
+            ? 'border-emerald-500 shadow-[0_0_32px_rgba(16,185,129,0.55)]'
+            : activeMood === 'thinking'
+            ? 'border-amber-400 shadow-[0_0_22px_rgba(251,191,36,0.5)]'
             : isVoiceActive
-            ? 'border-emerald-400/80 shadow-[0_0_18px_rgba(52,211,153,0.35)]'
-            : 'border-emerald-500/40 hover:border-emerald-500/70',
-          !isSpeaking && !isClicked && 'animate-tenshi-float'
+            ? 'border-emerald-400/90 shadow-[0_0_20px_rgba(52,211,153,0.4)]'
+            : 'border-emerald-500/40 hover:border-emerald-500/80',
+          forcedDizzy && 'animate-spin',
+          !isSpeaking && !isClicked && !forcedDizzy && 'animate-tenshi-float'
         )}
         style={{
-          transform: `perspective(800px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) rotateZ(${tilt.rz}deg) scale(${
-            isClicked ? 0.9 : voiceScale
-          })`,
+          transform: forcedDizzy
+            ? 'scale(0.92)'
+            : `perspective(800px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) rotateZ(${tilt.rz}deg) scale(${
+                isClicked ? 0.88 : voiceScale
+              })`,
           transformStyle: 'preserve-3d',
           transition: isClicked
-            ? 'transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            ? 'transform 0.08s cubic-bezier(0.34, 1.56, 0.64, 1)'
             : 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}
       >
-        {/* Imagen Oficial de Tenshi (El gato con gafas de sol) */}
+        {/* Imagen Oficial de Tenshi (El gato con traje y gafas de sol) */}
         <img
           src="/assets/tenshi.png"
           alt="Tenshi"
-          className="h-full w-full rounded-full object-cover object-center pointer-events-none transition-transform duration-300 select-none"
+          className="h-full w-full rounded-full object-cover object-center pointer-events-none select-none transition-transform duration-300"
           onError={(e) => {
             e.currentTarget.src = '/assets/logo.svg';
           }}
         />
 
-        {/* Reflejo de luz dinámico (Specular Glare en las gafas de sol) */}
+        {/* 4. Capa HUD Cibernética sobre los cristales de las gafas de sol */}
+        {renderHUDLenses()}
+
+        {/* 5. Reflejo de luz dinámico (Specular Glare en las gafas de sol) */}
         <div
-          className="absolute inset-0 rounded-full pointer-events-none transition-opacity duration-300"
+          className="absolute inset-0 rounded-full pointer-events-none transition-opacity duration-300 z-10"
           style={{
-            background: `radial-gradient(circle at ${tilt.glareX}% ${tilt.glareY}%, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0) 60%)`,
-            opacity: isHovered || isSpeaking ? 0.95 : 0.4,
+            background: `radial-gradient(circle at ${tilt.glareX}% ${tilt.glareY}%, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0) 58%)`,
+            opacity: isHovered || isSpeaking ? 0.95 : 0.45,
           }}
         />
 
         {/* Indicador brillante inferior cuando habla */}
         {isSpeaking && (
-          <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-2 w-12 rounded-full bg-emerald-400 blur-[2px] animate-pulse pointer-events-none" />
+          <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-2 w-14 rounded-full bg-emerald-400 blur-[2px] animate-pulse pointer-events-none z-10" />
         )}
       </div>
+
+      {/* Píldora de Estado Opcional Flotante (Estilo Coucou Capsule) */}
+      {statusText && (
+        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-zinc-900/90 backdrop-blur-md px-2.5 py-0.5 text-[10px] font-medium text-emerald-300 border border-emerald-500/30 shadow-md pointer-events-none transition-all duration-300">
+          {statusText}
+        </div>
+      )}
     </div>
   );
 };

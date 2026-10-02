@@ -1397,12 +1397,14 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
       e.stopPropagation();
       return;
     }
+    tenshiAudio.playBlip();
     setIsOpen(true);
     setViewMode('live');
     startVoiceMode();
   };
 
   const handleClose = useCallback(() => {
+    tenshiAudio.playBlip();
     setIsOpen(false);
     setIsFullscreen(false);
     if (isVoiceActive) {
@@ -2051,6 +2053,16 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
                     isTyping={isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)}
                     interactive={true}
                     showHaloEffect={true}
+                    showHUD={true}
+                    statusText={
+                      isTenshiSpeaking
+                        ? 'Hablando...'
+                        : isVoiceActive
+                        ? 'Escuchando tu voz...'
+                        : isTyping || isChatSubmitting
+                        ? 'Pensando...'
+                        : undefined
+                    }
                   />
                 </div>
 
@@ -2440,19 +2452,29 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
           onMouseDown={handleMouseDown}
           onTouchStart={handleTouchStart}
           onClick={handleButtonClick}
-          title="Abrir asistente Tenshi IA"
-          className="animate-bounce-short relative flex h-14 w-14 cursor-grab items-center justify-center overflow-hidden rounded-full border-2 border-white bg-emerald-600 p-0.5 text-white shadow-xl transition-all duration-300 hover:scale-105 hover:bg-emerald-500 hover:shadow-2xl active:cursor-grabbing"
+          title="Tenshi IA - Asistente WAPPY (Arrastra o haz clic)"
+          className="group relative flex items-center gap-2 rounded-full border-2 border-emerald-400/80 bg-zinc-900/95 p-1 pr-3 text-white shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-105 hover:border-emerald-300 hover:shadow-emerald-950/50 cursor-grab active:cursor-grabbing"
         >
           {/* Ripple effect */}
-          <span className="absolute h-full w-full animate-ping rounded-full bg-emerald-400 opacity-20 pointer-events-none"></span>
+          <span className="absolute -inset-1 animate-ping rounded-full bg-emerald-400 opacity-15 pointer-events-none"></span>
           <TenshiAvatar
             size={48}
             isVoiceActive={isVoiceActive}
             isSpeaking={isTenshiSpeaking}
             outputAmplitude={outputAmplitude}
             interactive={false}
-            showHaloEffect={false}
+            showHaloEffect={true}
+            showHUD={true}
           />
+          <div className="flex flex-col items-start leading-tight pr-1 select-none">
+            <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+              Tenshi
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            </span>
+            <span className="text-[10px] text-zinc-400 font-medium">
+              {isTenshiSpeaking ? 'Hablando...' : isVoiceActive ? 'En vivo' : 'Asistente IA'}
+            </span>
+          </div>
         </button>
       )}
     </div>

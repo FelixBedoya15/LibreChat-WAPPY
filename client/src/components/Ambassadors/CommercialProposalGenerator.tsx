@@ -26,6 +26,9 @@ import {
   Bot
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
+import { useAuthContext } from '~/hooks';
+import { cn } from '~/utils';
+import ModelSelector from '~/components/SGSST/ModelSelector';
 
 interface ProposalModule {
   title: string;
@@ -134,6 +137,10 @@ export default function CommercialProposalGenerator({
   const [advisorEmail, setAdvisorEmail] = useState(ambassadorEmail);
 
   // Proposal State
+  const { user } = useAuthContext();
+  const [selectedModel, setSelectedModel] = useState<string>(
+    () => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.7-flash',
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [proposal, setProposal] = useState<GeneratedProposal | null>(null);
@@ -199,7 +206,9 @@ export default function CommercialProposalGenerator({
         ambassadorName: advisorName,
         ambassadorPhone: advisorPhone,
         ambassadorEmail: advisorEmail,
-        referralLink: referralLink || 'https://wappy.club'
+        referralLink: referralLink || 'https://wappy.club',
+        modelName: selectedModel,
+        model: selectedModel,
       });
 
       setProposal(response.data);
@@ -1089,25 +1098,56 @@ export default function CommercialProposalGenerator({
               </div>
             </div>
 
-            {/* Generate Button */}
-            <button
-              type="button"
-              onClick={handleGenerateProposal}
-              disabled={isGenerating || !companyName.trim()}
-              className="group relative w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 hover:from-teal-500 hover:to-emerald-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 hover:scale-[1.01] active:scale-95 disabled:opacity-50 transition-all duration-300 cursor-pointer overflow-hidden"
-            >
-              <div className="relative flex-shrink-0 flex items-center justify-center transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110">
-                {isGenerating ? (
-                  <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-teal-200 group-hover:text-white" />
-                )}
+            {/* Generate Action Toolbar with ModelSelector & Expanding Button */}
+            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-border-medium/30">
+              <div className="flex items-center gap-1.5 text-xs text-text-secondary font-medium">
+                <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-text-tertiary">
+                  Generación Comercial con IA
+                </span>
               </div>
-              <span className="tracking-wide">
-                {isGenerating ? 'Generando Propuesta con IA...' : 'Generar Propuesta con IA'}
-              </span>
-              <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
-            </button>
+
+              {/* Botonera Cápsula WAPPY con Micro-Botones Expansibles al Hover */}
+              <div className="inline-flex items-center justify-end gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-md shadow-slate-200/30 dark:shadow-none self-end sm:self-auto">
+                <ModelSelector
+                  selectedModel={selectedModel}
+                  onSelectModel={setSelectedModel}
+                  disabled={isGenerating}
+                />
+
+                <button
+                  type="button"
+                  onClick={handleGenerateProposal}
+                  disabled={isGenerating || !companyName.trim()}
+                  title={!companyName.trim() ? 'Ingresa el nombre o razón social de la empresa cliente' : 'Generar Propuesta Comercial con IA'}
+                  aria-label="Generar Propuesta con IA"
+                  className={cn(
+                    'group relative flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl px-2 sm:px-2.5 font-bold shadow-sm outline-none transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 overflow-hidden',
+                    'bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white border border-teal-600/80 shadow-teal-600/20'
+                  )}
+                >
+                  <div className="relative flex shrink-0 items-center justify-center">
+                    {isGenerating ? (
+                      <RefreshCw className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-teal-200 group-hover:text-white" />
+                    )}
+                  </div>
+                  <div
+                    className={cn(
+                      'flex items-center overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out',
+                      isGenerating
+                        ? 'ml-2 max-w-[280px] opacity-100'
+                        : 'max-w-0 opacity-0 group-hover:ml-2 group-hover:max-w-[280px] group-hover:opacity-100'
+                    )}
+                  >
+                    <span className="text-xs font-bold tracking-wide">
+                      {isGenerating ? 'Generando Propuesta...' : 'Generar Propuesta con IA'}
+                    </span>
+                  </div>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1527,7 +1567,7 @@ export default function CommercialProposalGenerator({
                   Configura los Datos de tu Cliente
                 </h3>
                 <p className="text-xs text-text-secondary mt-1">
-                  Ingresa el nombre de la empresa, NIT y sector en el panel izquierdo. Al hacer clic en <strong>Generar Propuesta con IA</strong>, Gemini 3.5 construirá un documento comercial completo con diagnóstico sectorial, catálogo de agentes, tablas de inversión y cálculo de ROI listo para descargar en PDF.
+                  Ingresa el nombre de la empresa, NIT y sector en el panel izquierdo. Al hacer clic en <strong>Generar Propuesta con IA</strong>, el motor de IA seleccionado construirá un documento comercial completo con diagnóstico sectorial, catálogo de agentes, tablas de inversión y cálculo de ROI listo para descargar en PDF.
                 </p>
               </div>
             </div>

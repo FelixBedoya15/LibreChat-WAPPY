@@ -166,7 +166,12 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         <div className="relative flex flex-shrink-0 items-center justify-center">
           <Brain className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
-        <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100">
+        <div
+          className={cn(
+            'flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100',
+            isOpen && 'ml-2 max-w-[200px] opacity-100',
+          )}
+        >
           <span className="mr-1 text-xs font-bold tracking-wide">
             {currentModelName.replace('Gemini ', '')}
           </span>

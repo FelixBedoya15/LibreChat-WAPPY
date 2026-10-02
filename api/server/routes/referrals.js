@@ -1772,9 +1772,10 @@ router.post('/proposal/generate', requireJwtAuth, async (req, res) => {
         const remainderUnits = numAdditionalAutomations % 5;
         const monthlyAdditionalAutomationsPrice = (packsOf5 * 40000) + (remainderUnits * 10000);
 
+        const chosenModel = (req.body.modelName || req.body.model || 'gemini-3.7-flash').trim();
         const genAI = new GoogleGenerativeAI(apiKey);
         const modelInstance = genAI.getGenerativeModel({
-            model: 'gemini-3.7-flash',
+            model: chosenModel,
             systemInstruction: `Eres el Director Comercial Senior y Consultor Líder en SST de WAPPY IA (wappy.club), el ecosistema SaaS líder en Colombia para la automatización de la Seguridad y Salud en el Trabajo mediante Inteligencia Artificial y Agentes Autónomos.
 
 Tu misión es generar una PROPUESTA COMERCIAL EJECUTIVA, DE ALTO VALOR, TÉCNICAMENTE IMPECABLE, 100% PERSONALIZADA Y SIEMPRE CON EXACTAMENTE 6 MÓDULOS DE ALCANCE TECNOLÓGICO.
