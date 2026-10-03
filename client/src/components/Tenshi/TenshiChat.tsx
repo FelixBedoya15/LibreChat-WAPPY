@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw, Mic, Volume2, VolumeX, MessageSquare, Bot, Activity, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw, Mic, Volume2, VolumeX, MessageSquare, Bot, Activity, Maximize2, Minimize2, Paperclip } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useChatContext } from '~/Providers';
 import { useListAgentsQuery } from '~/data-provider';
@@ -315,6 +315,7 @@ export default function TenshiChat() {
   const lastUserTranscriptionRef = useRef<string>('');
   const inactivityIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const disconnectVoiceRef = useRef<() => void>(() => {});
+  const sendVoiceInterruptRef = useRef<() => void>(() => {});
 
   // Monitoreo de chat y agentes para que Tenshi aprenda y responda al usuario
   const pendingAgentConsultationRef = useRef<{
@@ -462,9 +463,7 @@ export default function TenshiChat() {
       source.onended = () => {
         activeSourcesRef.current = activeSourcesRef.current.filter((s) => s !== source);
         if (activeSourcesRef.current.length === 0) {
-          // Hangover de 350ms antes de desmutear el micrófono:
-          // 1. Evita que micro-pausas entre paquetes desmuteen el micro y corten la voz
-          // 2. Absorbe la reverberación acústica del altavoz para que Gemini Live no detecte falso barge-in
+          // Hangover ágil de 80ms antes de desmutear el micrófono:
           if (playbackEndTimeoutRef.current) clearTimeout(playbackEndTimeoutRef.current);
           playbackEndTimeoutRef.current = setTimeout(() => {
             if (activeSourcesRef.current.length === 0) {
@@ -473,7 +472,7 @@ export default function TenshiChat() {
               setIsTenshiSpeaking(false);
               setOutputAmplitude(0);
             }
-          }, 350);
+          }, 80);
         }
       };
 
@@ -494,6 +493,24 @@ export default function TenshiChat() {
         lastActivityRef.current = Date.now();
         if (isUserTranscription) {
           lastUserTranscriptionRef.current = text;
+
+          // CRÍTICO: Si el usuario vuelve a hablar mientras Tenshi esperaba a un especialista o hablaba:
+          // abortar de inmediato la espera previa para priorizar y responder a la nueva consulta sin trabas
+          if (pendingAgentConsultationRef.current?.active) {
+            console.log('[Tenshi Voice] Nueva intervención del usuario detectada. Cancelando espera de especialista previa.');
+            pendingAgentConsultationRef.current.active = false;
+            setIsWaitingConsultation(false);
+            if (consultationTimerRef.current) {
+              clearTimeout(consultationTimerRef.current);
+              consultationTimerRef.current = null;
+            }
+          }
+          if (activeSourcesRef.current.length > 0 || isTenshiSpeaking) {
+            clearAudioQueue();
+            sendVoiceInterruptRef.current();
+          }
+
+          setVoiceStatusText('Tenshi procesando...');
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             if (last && last.role === 'user' && (last as any).isLiveVoice) {
@@ -858,21 +875,19 @@ export default function TenshiChat() {
     sendWappyActionResult,
     setIsPlayingAudio: setVoiceIsPlayingAudio,
     setMuted: setVoiceMuted,
+    sendInterrupt: sendVoiceInterrupt,
     status: voiceStatus,
   } = useVoiceSession(sessionOptions);
   disconnectVoiceRef.current = disconnectVoice;
   setIsPlayingAudioRef.current = setVoiceIsPlayingAudio;
+  sendVoiceInterruptRef.current = sendVoiceInterrupt;
 
-  // Silenciar el micrófono de Tenshi Live ÚNICAMENTE mientras espera la conclusión de una consulta delegada
+  // Tenshi mantiene siempre el micrófono activo para escuchar al usuario sin bloqueos ni silenciamientos
   useEffect(() => {
     if (isVoiceActive) {
-      if (isWaitingConsultation) {
-        setVoiceMuted(true);
-      } else {
-        setVoiceMuted(false);
-      }
+      setVoiceMuted(false);
     }
-  }, [isWaitingConsultation, isVoiceActive, setVoiceMuted]);
+  }, [isVoiceActive, setVoiceMuted]);
 
   const stopVoiceMode = useCallback(() => {
     setIsVoiceActive(false);
@@ -1014,19 +1029,19 @@ export default function TenshiChat() {
           Boolean(isWaitingConsultation);
 
         if (isWaiting) {
-          // Timeout de seguridad de 45 segundos por si el agente falla silenciosamente o la red se congela
+          // Timeout de seguridad ágil de 12 segundos por si el agente tarda o no responde
           if (
             pendingAgentConsultationRef.current &&
-            Date.now() - pendingAgentConsultationRef.current.timestamp > 45 * 1000
+            Date.now() - pendingAgentConsultationRef.current.timestamp > 12 * 1000
           ) {
-            console.warn('[Tenshi Voice] Timeout de seguridad (45s) esperando respuesta del especialista.');
+            console.warn('[Tenshi Voice] Timeout de seguridad (12s) esperando respuesta del especialista.');
             const timedOutAgent = pendingAgentConsultationRef.current.agentName;
             pendingAgentConsultationRef.current.active = false;
             setIsWaitingConsultation(false);
             if (isVoiceActive) {
               lastActivityRef.current = Date.now();
               setVoiceStatusText('Tenshi te escucha...');
-              sendTextMessage(`[SISTEMA INTERNO WAPPY]: La respuesta del especialista ${timedOutAgent} está tardando más de lo habitual en la pantalla. INSTRUCCIÓN: Con voz tranquila y fresca, dile al usuario en una sola frase breve que la respuesta sigue procesándose en pantalla pero que tú estás lista para cualquier otra consulta.`);
+              sendTextMessage(`[SISTEMA INTERNO WAPPY]: La consulta a ${timedOutAgent} ya quedó abierta en la pantalla. Dile al usuario con tono fresco y amigable en una sola frase breve que el especialista está procesando la respuesta en el chat y que tú estás atenta a cualquier otra pregunta.`);
             }
           } else {
             // Mantener actividad fresca y el contador en cero mientras el especialista genera su dictamen
@@ -1220,8 +1235,16 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
     }
   }, [latestChatMessage, isChatSubmitting, isVoiceActive, sendTextMessage]);
 
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(() => {
+    if (typeof window !== 'undefined') {
+      return {
+        x: Math.max(16, window.innerWidth - 88),
+        y: Math.max(16, window.innerHeight - 110),
+      };
+    }
+    return null;
+  });
+  const tenshiRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{
     mouseX: number;
     mouseY: number;
@@ -1230,9 +1253,28 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
   } | null>(null);
   const hasMovedRef = useRef<boolean>(false);
 
+  // Estado con periodo de gracia para el micro-dock flotante de Tenshi
+  const [isHoveringTenshi, setIsHoveringTenshi] = useState(false);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = useCallback(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setIsHoveringTenshi(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsHoveringTenshi(false);
+    }, 450);
+  }, []);
+
   const startDrag = (clientX: number, clientY: number) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
+    if (!tenshiRef.current) return;
+    const rect = tenshiRef.current.getBoundingClientRect();
     dragStartRef.current = {
       mouseX: clientX,
       mouseY: clientY,
@@ -1271,13 +1313,12 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
       let newX = dragStartRef.current.elemX + dx;
       let newY = dragStartRef.current.elemY + dy;
 
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        newX = Math.max(0, Math.min(newX, viewportWidth - rect.width));
-        newY = Math.max(0, Math.min(newY, viewportHeight - rect.height));
-      }
+      const tenshiW = tenshiRef.current?.offsetWidth || 70;
+      const tenshiH = tenshiRef.current?.offsetHeight || 92;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      newX = Math.max(8, Math.min(newX, viewportWidth - tenshiW - 8));
+      newY = Math.max(8, Math.min(newY, viewportHeight - tenshiH - 8));
 
       setPosition({ x: newX, y: newY });
     };
@@ -1296,13 +1337,12 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
       let newX = dragStartRef.current.elemX + dx;
       let newY = dragStartRef.current.elemY + dy;
 
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        newX = Math.max(0, Math.min(newX, viewportWidth - rect.width));
-        newY = Math.max(0, Math.min(newY, viewportHeight - rect.height));
-      }
+      const tenshiW = tenshiRef.current?.offsetWidth || 70;
+      const tenshiH = tenshiRef.current?.offsetHeight || 92;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      newX = Math.max(8, Math.min(newX, viewportWidth - tenshiW - 8));
+      newY = Math.max(8, Math.min(newY, viewportHeight - tenshiH - 8));
 
       setPosition({ x: newX, y: newY });
     };
@@ -1328,89 +1368,107 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
     };
   }, []);
 
-  // Ensure the chat window stays inside screen bounds when toggled open/closed
-  useEffect(() => {
-    if (!position || !containerRef.current) return;
-    const timer = setTimeout(() => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-
-      let adjustedX = rect.left;
-      let adjustedY = rect.top;
-
-      if (rect.right > viewportWidth) {
-        adjustedX = Math.max(0, viewportWidth - rect.width);
-      }
-      if (rect.left < 0) {
-        adjustedX = 0;
-      }
-      if (rect.bottom > viewportHeight) {
-        adjustedY = Math.max(0, viewportHeight - rect.height);
-      }
-      if (rect.top < 0) {
-        adjustedY = 0;
-      }
-
-      if (adjustedX !== rect.left || adjustedY !== rect.top) {
-        setPosition({ x: adjustedX, y: adjustedY });
-      }
-    }, 50);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
-
-  // Handle screen resize
+  // Responsive safe-guard: Asegura que Tenshi no se salga si cambia el tamaño de la ventana
   useEffect(() => {
     const handleResize = () => {
-      if (!position || !containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-
-      let adjustedX = rect.left;
-      let adjustedY = rect.top;
-
-      if (rect.right > viewportWidth) {
-        adjustedX = Math.max(0, viewportWidth - rect.width);
-      }
-      if (rect.left < 0) {
-        adjustedX = 0;
-      }
-      if (rect.bottom > viewportHeight) {
-        adjustedY = Math.max(0, viewportHeight - rect.height);
-      }
-      if (rect.top < 0) {
-        adjustedY = 0;
-      }
-
-      setPosition({ x: adjustedX, y: adjustedY });
+      setPosition((prev) => {
+        if (!prev) return prev;
+        const tenshiW = 70;
+        const tenshiH = 92;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        return {
+          x: Math.max(8, Math.min(prev.x, viewportWidth - tenshiW - 8)),
+          y: Math.max(8, Math.min(prev.y, viewportHeight - tenshiH - 8)),
+        };
+      });
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [position]);
+  }, []);
 
-  const handleButtonClick = (e: React.MouseEvent | React.TouchEvent) => {
+  // Cálculo de posición dinámica del chat hacia el cuadrante con mayor espacio en pantalla
+  const getChatPositionStyle = (): React.CSSProperties => {
+    if (isFullscreen) {
+      return {};
+    }
+    const tenshiW = 70;
+    const tenshiH = 92;
+    const chatW = Math.min(350, window.innerWidth - 24);
+    const chatH = Math.min(440, window.innerHeight - 32);
+
+    const curX = position ? position.x : (typeof window !== 'undefined' ? window.innerWidth - 88 : 0);
+    const curY = position ? position.y : (typeof window !== 'undefined' ? window.innerHeight - 110 : 0);
+
+    const spaceLeft = curX;
+    const spaceRight = window.innerWidth - (curX + tenshiW);
+    const spaceTop = curY;
+    const spaceBottom = window.innerHeight - (curY + tenshiH);
+
+    let left = 0;
+    let top = 0;
+
+    // Horizontal: Si hay más espacio a la izquierda, abrir a la izquierda de Tenshi
+    if (spaceLeft >= chatW + 12 || spaceLeft > spaceRight) {
+      left = Math.max(12, curX - chatW - 12);
+    } else {
+      left = Math.min(window.innerWidth - chatW - 12, curX + tenshiW + 12);
+    }
+
+    // Vertical: Si hay más espacio arriba, alinear hacia arriba de Tenshi
+    if (spaceTop >= chatH || spaceTop > spaceBottom) {
+      top = Math.max(12, curY + tenshiH - chatH);
+    } else {
+      top = Math.min(window.innerHeight - chatH - 12, curY);
+    }
+
+    return {
+      position: 'fixed',
+      left: `${left}px`,
+      top: `${top}px`,
+      width: `${chatW}px`,
+      height: `${chatH}px`,
+      zIndex: 10000,
+    };
+  };
+
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleTenshiInteraction = (e: React.MouseEvent | React.TouchEvent) => {
     if (hasMovedRef.current) {
       e.preventDefault();
       e.stopPropagation();
       return;
     }
-    tenshiAudio.playBlip();
-    setIsOpen(true);
-    setViewMode('live');
-    startVoiceMode();
+
+    if (clickTimeoutRef.current) {
+      // 💬 Doble Clic Rápido: Alternar Ventana de Modo Chat
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+      tenshiAudio.playBlip();
+      setIsOpen((prev) => !prev);
+    } else {
+      // 🎙️ Un Clic Simple (espera 260ms para descartar doble clic): Alternar Modo Live (Voz) SIN abrir nada
+      clickTimeoutRef.current = setTimeout(() => {
+        clickTimeoutRef.current = null;
+        if (isVoiceActive) {
+          tenshiAudio.playBlip();
+          stopVoiceMode();
+        } else {
+          tenshiAudio.playSuccess();
+          startVoiceMode();
+        }
+      }, 260);
+    }
   };
+
+  const handleButtonClick = handleTenshiInteraction;
 
   const handleClose = useCallback(() => {
     tenshiAudio.playBlip();
     setIsOpen(false);
     setIsFullscreen(false);
-    if (isVoiceActive) {
-      stopVoiceMode();
-    }
-  }, [isVoiceActive, stopVoiceMode]);
+  }, []);
 
   const { data: config } = useQuery(
     ['tenshiConfig', token],
@@ -1750,6 +1808,18 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
     const textToSend = (typeof customText === 'string' ? customText : input).trim();
     if (!textToSend || isTyping) return;
 
+    // Si había una consulta de especialista pendiente o audio en curso, abortarla de inmediato
+    if (pendingAgentConsultationRef.current?.active) {
+      pendingAgentConsultationRef.current.active = false;
+      setIsWaitingConsultation(false);
+      if (consultationTimerRef.current) {
+        clearTimeout(consultationTimerRef.current);
+        consultationTimerRef.current = null;
+      }
+    }
+    clearAudioQueue();
+    sendVoiceInterruptRef.current();
+
     setGuiSteps([]); // Limpiar logs de automatización anteriores
     const userMsg = { role: 'user', content: textToSend };
     setMessages((prev) => [...prev, userMsg]);
@@ -1893,28 +1963,7 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
   };
 
   return (
-    <div
-      ref={containerRef}
-      style={
-        isFullscreen
-          ? {}
-          : position
-          ? {
-              position: 'fixed',
-              left: `${position.x}px`,
-              top: `${position.y}px`,
-              bottom: 'auto',
-              right: 'auto',
-            }
-          : {}
-      }
-      className={cn(
-        'tenshi-widget-container z-[9999]',
-        isFullscreen
-          ? 'fixed inset-2 sm:inset-4 md:inset-8 flex flex-col items-center justify-center pointer-events-auto'
-          : `fixed ${position ? '' : floatPosition} flex flex-col items-end`
-      )}
-    >
+    <>
       {/* Dynamic Keyframes for Tenshi Live Avatar */}
       <style>{`
         @keyframes tenshiFloat {
@@ -1935,161 +1984,93 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
         }
       `}</style>
 
+      {/* 1. BURBUJA FLOTANTE DE CHAT (Independiente y anclada al mejor espacio de pantalla) */}
       {isOpen && (
         <div
+          style={getChatPositionStyle()}
           className={cn(
-            'flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl transition-all duration-200 dark:border-gray-700 dark:bg-gray-800',
+            'flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 shadow-2xl backdrop-blur-xl transition-all duration-300 animate-in fade-in zoom-in-95',
             isFullscreen
-              ? 'h-full w-full max-w-5xl animate-in zoom-in-95'
-              : 'mb-4 h-[520px] max-h-[85vh] w-[calc(100vw-32px)] sm:w-[400px] animate-in slide-in-from-bottom-5'
+              ? 'fixed inset-3 sm:inset-6 z-[10000] w-auto h-auto'
+              : ''
           )}
         >
-          {/* Header compartido con el estilo original de WAPPY (Imagen 3) */}
-          <div
-            onMouseDown={isFullscreen ? undefined : handleMouseDown}
-            onTouchStart={isFullscreen ? undefined : handleTouchStart}
-            className={cn(
-              'flex shrink-0 select-none items-center justify-between bg-gradient-to-r from-green-600 to-emerald-500 p-4 text-white',
-              !isFullscreen && 'cursor-move'
-            )}
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-emerald-200 bg-white p-0.5 shadow-inner">
+          {/* Cabecera Glassmorphic Minimalista Compacta */}
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200/60 bg-slate-50/80 px-3.5 py-2.5 dark:border-zinc-800/80 dark:bg-zinc-800/60 select-none">
+            <div className="flex items-center gap-2">
+              <div className="relative flex h-7 w-7 items-center justify-center">
                 <img
                   src="/assets/tenshi.png"
                   alt="Tenshi"
-                  className="h-full w-full rounded-full object-cover select-none pointer-events-none"
+                  className="h-full w-full object-contain pointer-events-none"
+                />
+                <span
+                  className={cn(
+                    'absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-white dark:ring-zinc-900',
+                    isVoiceActive ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-400'
+                  )}
                 />
               </div>
               <div>
-                <h3 className="text-lg font-bold leading-none">{config?.name || 'Tenshi'}</h3>
-                <p className="mt-1 text-xs text-green-100">{config?.description || 'Asistente virtual de WAPPY'}</p>
+                <h3 className="text-xs font-bold text-slate-800 dark:text-zinc-100 leading-none">
+                  {config?.name || 'Tenshi'}
+                </h3>
+                <p className="mt-0.5 text-[9px] font-medium text-slate-500 dark:text-zinc-400">
+                  {isTenshiSpeaking
+                    ? 'Hablando contigo...'
+                    : isVoiceActive
+                    ? 'Voz en vivo activa'
+                    : 'Asistente WAPPY IA'}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-1">
-              {/* Botón Silenciar/Activar Efectos SFX de Tenshi */}
+
+            <div className="flex items-center gap-0.5">
+              {/* Botón SFX */}
               <button
                 type="button"
                 onClick={handleToggleSFX}
-                title={isSFXMuted ? 'Activar efectos de sonido de Tenshi' : 'Silenciar efectos de sonido de Tenshi'}
-                className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
+                title={isSFXMuted ? 'Activar efectos de sonido' : 'Silenciar efectos de sonido'}
+                className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               >
-                {isSFXMuted ? <VolumeX className="h-4 w-4 text-emerald-200" /> : <Volume2 className="h-4 w-4" />}
+                {isSFXMuted ? <VolumeX className="h-3.5 w-3.5 text-emerald-500" /> : <Volume2 className="h-3.5 w-3.5" />}
               </button>
+
               {/* Botón Pantalla Completa */}
               <button
                 type="button"
                 onClick={() => setIsFullscreen((prev) => !prev)}
-                title={isFullscreen ? 'Restaurar tamaño normal' : 'Pantalla completa'}
-                className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
+                title={isFullscreen ? 'Restaurar' : 'Pantalla completa'}
+                className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               >
-                {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
               </button>
+
               {/* Botón Reiniciar conversación */}
               <button
                 type="button"
                 onClick={handleClearHistory}
-                title="Reiniciar conversación"
-                className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
+                title="Reiniciar chat"
+                className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               >
-                <RotateCcw className="h-4 w-4" />
+                <RotateCcw className="h-3.5 w-3.5" />
               </button>
-              {/* Botón Cerrar */}
+
+              {/* Botón Cerrar Burbuja */}
               <button
                 type="button"
                 onClick={handleClose}
-                title="Cerrar asistente"
-                className="rounded-full p-1.5 text-white transition-colors hover:bg-white/20"
+                title="Cerrar chat (Dejar solo a Tenshi)"
+                className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/40"
               >
-                <X className="h-5 w-5" />
+                <X className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
 
-          {/* Vistas: Modo Live o Modo Chat */}
-          {viewMode === 'live' ? (
-            /* ─── MODO LIVE (Avatar interactivo con movimiento mientras habla y voz en vivo) ─── */
-            <div className="flex flex-1 flex-col justify-between overflow-hidden bg-gray-50 p-4 dark:bg-gray-900">
-              {/* Escenario Central del Avatar */}
-              <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden py-2 select-none">
-                {/* Resplandor suave con los colores de WAPPY */}
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.12)_0%,transparent_70%)] pointer-events-none" />
-
-                {/* Resplandor ambiental de voz */}
-                <div
-                  className="absolute inset-0 pointer-events-none transition-opacity duration-300"
-                  style={{
-                    background: isTenshiSpeaking
-                      ? 'radial-gradient(circle at center, rgba(16,185,129,0.18) 0%, transparent 65%)'
-                      : isVoiceActive
-                      ? 'radial-gradient(circle at center, rgba(52,211,153,0.12) 0%, transparent 65%)'
-                      : 'none',
-                  }}
-                />
-
-                {/* Avatar Interactivo y Expresivo de Tenshi (3D interactivo con físicas y mirada) */}
-                <div
-                  className={cn(
-                    'relative flex items-center justify-center transition-all duration-300',
-                    isFullscreen ? 'h-48 w-48 sm:h-56 sm:w-56' : 'h-36 w-36 sm:h-44 sm:w-44'
-                  )}
-                >
-                  <TenshiAvatar
-                    size={isFullscreen ? 180 : 140}
-                    isSpeaking={isTenshiSpeaking}
-                    outputAmplitude={outputAmplitude}
-                    isVoiceActive={isVoiceActive}
-                    isTyping={isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)}
-                    interactive={true}
-                    showHaloEffect={false}
-                    showHUD={true}
-                  />
-                </div>
-              </div>
-
-              {/* Pie con el Interruptor Modo Live para regresar a Modo Chat */}
-              <div className="mt-2 flex items-center justify-between border-t border-gray-200 bg-white px-3 py-2.5 rounded-xl dark:border-gray-700 dark:bg-gray-800/90 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      stopVoiceMode();
-                      setViewMode('chat');
-                      refetchHistory();
-                    }}
-                    className="group relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-emerald-500 transition-colors duration-200 ease-in-out focus:outline-none"
-                    title="Desactivar Modo Live y cambiar a Modo Chat"
-                  >
-                    <span className="pointer-events-none inline-block h-5 w-5 transform translate-x-5 rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out" />
-                  </button>
-                  <div className="flex items-center gap-1.5 text-[11px] font-medium select-none">
-                    <Mic className="h-3.5 w-3.5 text-emerald-500 animate-pulse" />
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                      Modo Live Activo
-                    </span>
-                  </div>
-                </div>
-
-                {/* Botón Ver Chat */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    stopVoiceMode();
-                    setViewMode('chat');
-                    refetchHistory();
-                  }}
-                  className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-400 transition-colors"
-                  title="Ver historial completo en Modo Chat"
-                >
-                  <MessageSquare className="h-3.5 w-3.5" />
-                  <span>Ver Chat</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* ─── MODO CHAT: HISTORIAL COMPLETO CON INTERRUPTOR MODO LIVE ─── */
-            <div className="flex flex-1 flex-col overflow-hidden">
-              <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4 dark:bg-gray-900">
+          {/* Historial de conversación */}
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/50 p-3 text-xs dark:bg-zinc-950/50">
                 {(() => {
                   const visibleMessages = messages.filter(
                     (msg) => !msg.content?.startsWith('[RESULTADO_GUI]') && !(msg as any).isIntermediate
@@ -2280,22 +2261,44 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
                 )}
 
                 {/* Input Box */}
-                <div className="group flex items-center gap-2 rounded-2xl border border-gray-200 bg-transparent px-4 py-3 shadow-inner transition-all focus-within:ring-2 focus-within:ring-green-500/30 dark:border-gray-700">
+                <div className="group flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 shadow-2xs transition-all focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 dark:border-zinc-700 dark:bg-zinc-800/80 dark:focus-within:bg-zinc-800">
+                  <input
+                    type="file"
+                    id="tenshi-file-input"
+                    accept=".xlsx,.xls,.csv,.pdf,.docx,.txt"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setInput((prev) => `${prev ? prev + ' ' : ''}[Archivo: ${file.name}] `);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById('tenshi-file-input')?.click()}
+                    title="Adjuntar archivo (Excel, CSV, PDF, Word)"
+                    className="shrink-0 p-1.5 rounded-xl text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </button>
+
                   <input
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder={isVoiceActive ? 'Habla por el micrófono o escribe aquí...' : 'Escribe tu consulta...'}
-                    className="flex-1 border-none bg-transparent text-sm placeholder-gray-400 outline-none focus:outline-none focus:ring-0 dark:text-gray-100"
+                    placeholder={isVoiceActive ? 'Habla por el micrófono o escribe...' : 'Escribe tu consulta o pide una acción...'}
+                    className="flex-1 border-none bg-transparent text-xs text-slate-800 placeholder-slate-400 outline-none focus:outline-none focus:ring-0 dark:text-zinc-100"
                     disabled={isTyping}
                   />
+
                   <button
                     onClick={() => handleSend()}
                     disabled={isTyping || !input.trim()}
-                    className="shrink-0 rounded-full bg-green-500 p-1.5 text-white shadow-sm transition-all hover:bg-green-600 active:scale-95 disabled:bg-gray-300"
+                    title="Enviar mensaje"
+                    className="shrink-0 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 p-1.5 text-white shadow-sm transition-all hover:from-emerald-500 hover:to-teal-500 active:scale-95 disabled:opacity-40"
                   >
-                    <Send className="ml-0.5 h-4 w-4" />
+                    <Send className="ml-0.5 h-3.5 w-3.5" />
                   </button>
                 </div>
 
@@ -2305,21 +2308,29 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
                     <button
                       type="button"
                       onClick={() => {
-                        setViewMode('live');
-                        startVoiceMode();
+                        if (isVoiceActive) {
+                          stopVoiceMode();
+                        } else {
+                          startVoiceMode();
+                        }
                       }}
                       className={cn(
                         'group relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500/50',
-                        'bg-gray-200 dark:bg-gray-700'
+                        isVoiceActive ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-gray-700'
                       )}
-                      title="Activar Modo Live (Avatar con voz en vivo)"
+                      title="Activar o pausar Modo Live (Voz en vivo)"
                     >
-                      <span className="pointer-events-none inline-block h-5 w-5 transform translate-x-0 rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out" />
+                      <span
+                        className={cn(
+                          'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out',
+                          isVoiceActive ? 'transform translate-x-5' : 'transform translate-x-0'
+                        )}
+                      />
                     </button>
                     <div className="flex items-center gap-1.5 text-[11px] font-medium select-none">
-                      <Mic className="h-3.5 w-3.5 text-gray-400" />
-                      <span className="text-gray-500 dark:text-gray-400">
-                        Modo Live
+                      <Mic className={cn('h-3.5 w-3.5', isVoiceActive ? 'text-emerald-500 animate-pulse' : 'text-gray-400')} />
+                      <span className={cn('font-semibold', isVoiceActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400')}>
+                        {isVoiceActive ? 'Modo Live Activo' : 'Modo Live'}
                       </span>
                     </div>
                   </div>
@@ -2351,40 +2362,102 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
                 </div>
               </div>
             </div>
-          )}
         </div>
       )}
 
-      {!isOpen && (
-        <button
-          onMouseDown={handleMouseDown}
-          onTouchStart={handleTouchStart}
-          onClick={handleButtonClick}
-          title="Tenshi IA - Asistente WAPPY (Arrastra o haz clic)"
-          className="group relative flex items-center gap-2 rounded-full border-2 border-emerald-400/80 bg-zinc-900/95 p-1 pr-3 text-white shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-105 hover:border-emerald-300 hover:shadow-emerald-950/50 cursor-grab active:cursor-grabbing"
+      {/* 2. 🌟 COMPAÑERO TENSHI FLOTANTE PURO (Posición fija en pantalla) */}
+      <div
+        ref={tenshiRef}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        onClick={handleTenshiInteraction}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          position: 'fixed',
+          left: `${position ? position.x : (typeof window !== 'undefined' ? window.innerWidth - 88 : 0)}px`,
+          top: `${position ? position.y : (typeof window !== 'undefined' ? window.innerHeight - 110 : 0)}px`,
+          zIndex: 9999,
+        }}
+        className="group relative cursor-grab active:cursor-grabbing select-none transition-transform duration-200 hover:scale-105 active:scale-95"
+        title="Tenshi • 1 Clic: Modo Live (Voz) | Doble Clic: Modo Chat | Arrastra para mover"
+      >
+        {/* Micro-dock flotante en Hover (Estable con puente interactivo y estado de gracia) */}
+        <div
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          className={cn(
+            'absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-40 transition-all duration-200 select-none',
+            'bg-zinc-900/90 backdrop-blur-md px-2.5 py-1 rounded-full border border-emerald-500/30 shadow-xl',
+            'before:absolute before:-bottom-3 before:inset-x-0 before:h-4 before:content-[""]',
+            isHoveringTenshi ? 'opacity-100 pointer-events-auto scale-100' : 'opacity-0 pointer-events-none scale-95'
+          )}
         >
-          {/* Ripple effect */}
-          <span className="absolute -inset-1 animate-ping rounded-full bg-emerald-400 opacity-15 pointer-events-none"></span>
-          <TenshiAvatar
-            size={48}
-            isVoiceActive={isVoiceActive}
-            isSpeaking={isTenshiSpeaking}
-            outputAmplitude={outputAmplitude}
-            interactive={false}
-            showHaloEffect={false}
-            showHUD={true}
-          />
-          <div className="flex flex-col items-start leading-tight pr-1 select-none">
-            <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-              Tenshi
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            </span>
-            <span className="text-[10px] text-zinc-400 font-medium">
-              {isTenshiSpeaking ? 'Hablando...' : isVoiceActive ? 'En vivo' : 'Asistente IA'}
-            </span>
-          </div>
-        </button>
-      )}
-    </div>
+          {/* Botón 1: Chat de texto */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              tenshiAudio.playBlip();
+              setIsOpen((prev) => !prev);
+            }}
+            title={isOpen ? 'Cerrar chat' : 'Abrir chat de texto'}
+            className={cn(
+              'p-1.5 rounded-full transition-colors active:scale-90',
+              isOpen ? 'text-emerald-400 bg-white/10' : 'text-zinc-300 hover:text-white hover:bg-white/10'
+            )}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+          </button>
+
+          {/* Botón 2: Micrófono / Modo Live */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isVoiceActive) {
+                tenshiAudio.playBlip();
+                stopVoiceMode();
+              } else {
+                tenshiAudio.playSuccess();
+                startVoiceMode();
+              }
+            }}
+            title={isVoiceActive ? 'Pausar modo voz' : 'Activar modo voz (Live)'}
+            className={cn(
+              'p-1.5 rounded-full transition-colors active:scale-90',
+              isVoiceActive ? 'text-emerald-400 bg-white/15 animate-pulse' : 'text-zinc-300 hover:text-white hover:bg-white/10'
+            )}
+          >
+            <Mic className="h-3.5 w-3.5" />
+          </button>
+
+          {/* Botón 3: Silenciar SFX */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleToggleSFX();
+            }}
+            title={isSFXMuted ? 'Activar efectos de sonido' : 'Silenciar efectos de sonido'}
+            className="p-1.5 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 transition-colors active:scale-90"
+          >
+            {isSFXMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+          </button>
+        </div>
+
+        {/* Avatar interactivo de Tenshi Flotando */}
+        <TenshiAvatar
+          size={92}
+          isSpeaking={isTenshiSpeaking}
+          outputAmplitude={outputAmplitude}
+          isVoiceActive={isVoiceActive}
+          isTyping={isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)}
+          interactive={false}
+          showHaloEffect={true}
+          showHUD={true}
+        />
+      </div>
+    </>
   );
 }

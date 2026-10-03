@@ -40,7 +40,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   interactive = true,
   className = '',
   onClick,
-  showHaloEffect = false,
+  showHaloEffect = true,
   showHUD = true,
   statusText,
 }) => {
@@ -56,6 +56,17 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   const pokeCountRef = useRef(0);
   const lastPokeTimeRef = useRef(0);
   const dizzyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Determinar si está en conversación activa (voz, habla, pensamiento o chat)
+  const isInConversation =
+    isSpeaking ||
+    isVoiceActive ||
+    isTyping ||
+    explicitMood === 'thinking' ||
+    explicitMood === 'speaking' ||
+    explicitMood === 'listening' ||
+    explicitMood === 'success' ||
+    forcedDizzy;
 
   // Determinar emoción activa
   const activeMood: TenshiAvatarMood = useMemo(() => {
@@ -190,40 +201,106 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   // Escala reactiva a la voz
   const voiceScale = isSpeaking ? 1 + Math.min(outputAmplitude * 0.28, 0.18) : isHovered ? 1.04 : 1;
 
-  // Renderizado del HUD en los cristales de las gafas de sol
-  // Coordenadas calculadas: Lente Izquierdo x=36.4%, y=45.7% | Lente Derecho x=64.8%, y=46.3%
+  // Renderizado del HUD en los cristales de las gafas de sol de Tenshi
+  // En reposo: lentes oscuros naturales con sutil parpadeo/destello de luz sobre el cristal (sin ojos visibles).
+  // En conversación activa: se encienden los visores cibernéticos circulares concéntricos (referencia del usuario).
   const renderHUDLenses = () => {
-    if (!showHUD || size < 44) return null;
+    if (!showHUD || size < 40) return null;
 
-    // Desplazamiento de los ojos digitales según la mirada (-6 a 6 px normalizado)
-    const eyeOffsetX = tilt.lookX * 5;
-    const eyeOffsetY = tilt.lookY * 4;
+    // Desplazamiento de los ojos digitales según la mirada (-3 a 3 px normalizado)
+    const eyeOffsetX = tilt.lookX * 2.8;
+    const eyeOffsetY = tilt.lookY * 2.2;
 
+    // ── MODO 1: REPOSO (NO EN CONVERSACIÓN) ──────────────────────────────────
+    // Los lentes se ven oscuros y naturales como en la imagen original. No se ven ojos.
+    // Solo un parpadeo de reflejo de luz elegante (gleam) cada 3.5 segundos como pidió el usuario.
+    if (!isInConversation) {
+      return (
+        <div className="absolute inset-0 pointer-events-none z-10">
+          {/* Lente Izquierdo en reposo (destello de luz suave sobre el cristal oscuro) */}
+          <div
+            className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none overflow-hidden rounded-[48%_48%_54%_54%]"
+            style={{
+              left: '30.7%',
+              top: '31.8%',
+              width: '25.6%',
+              height: '15.4%',
+            }}
+          >
+            <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/35 to-transparent animate-tenshi-lens-gleam pointer-events-none" />
+          </div>
+
+          {/* Lente Derecho en reposo (destello de luz suave sobre el cristal oscuro) */}
+          <div
+            className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none overflow-hidden rounded-[48%_48%_54%_54%]"
+            style={{
+              left: '68.4%',
+              top: '31.7%',
+              width: '25.6%',
+              height: '15.2%',
+            }}
+          >
+            <span
+              className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/35 to-transparent animate-tenshi-lens-gleam pointer-events-none"
+              style={{ animationDelay: '0.18s' }}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // ── MODO 2: EN CONVERSACIÓN (ACTIVO) ────────────────────────────────────
+    // Se activan los visores circulares concéntricos cibernéticos esmeralda neón (idénticos a la referencia)
     return (
-      <div className="absolute inset-0 pointer-events-none z-10">
-        {/* Lente Izquierdo */}
+      <div className="absolute inset-0 pointer-events-none z-10 transition-opacity duration-300">
+        {/* Halo de resplandor ambiental sobre el rostro alrededor de las gafas */}
         <div
-          className="absolute flex items-center justify-center transition-transform duration-100 ease-out"
+          className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-400/25 blur-lg pointer-events-none animate-pulse"
           style={{
-            left: '25%',
-            top: '36%',
-            width: '24%',
-            height: '20%',
+            left: '49.5%',
+            top: '31.8%',
+            width: '68%',
+            height: '24%',
+          }}
+        />
+
+        {/* Lente Izquierdo Cibernético Activo */}
+        <div
+          className={cn(
+            'absolute flex items-center justify-center -translate-x-1/2 -translate-y-1/2 pointer-events-none overflow-hidden transition-all duration-200',
+            'rounded-[48%_48%_54%_54%] border border-emerald-300/90 shadow-[0_0_14px_rgba(52,211,153,0.95),inset_0_0_6px_rgba(6,78,59,0.5)]',
+            'bg-zinc-950/85 backdrop-blur-xs',
+            isBlinking ? 'scale-y-[0.1] opacity-75' : 'scale-y-100 opacity-100'
+          )}
+          style={{
+            left: '30.7%',
+            top: '31.8%',
+            width: '25.6%',
+            height: '15.4%',
           }}
         >
+          {/* Reflejo de cristal HUD */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none" />
           {renderEyeContent(eyeOffsetX, eyeOffsetY, 'left')}
         </div>
 
-        {/* Lente Derecho */}
+        {/* Lente Derecho Cibernético Activo */}
         <div
-          className="absolute flex items-center justify-center transition-transform duration-100 ease-out"
+          className={cn(
+            'absolute flex items-center justify-center -translate-x-1/2 -translate-y-1/2 pointer-events-none overflow-hidden transition-all duration-200',
+            'rounded-[48%_48%_54%_54%] border border-emerald-300/90 shadow-[0_0_14px_rgba(52,211,153,0.95),inset_0_0_6px_rgba(6,78,59,0.5)]',
+            'bg-zinc-950/85 backdrop-blur-xs',
+            isBlinking ? 'scale-y-[0.1] opacity-75' : 'scale-y-100 opacity-100'
+          )}
           style={{
-            left: '52%',
-            top: '36%',
-            width: '24%',
-            height: '20%',
+            left: '68.4%',
+            top: '31.7%',
+            width: '25.6%',
+            height: '15.2%',
           }}
         >
+          {/* Reflejo de cristal HUD */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none" />
           {renderEyeContent(eyeOffsetX, eyeOffsetY, 'right')}
         </div>
       </div>
@@ -234,7 +311,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     // 1. Estado Mareado (@ @ espiral girando)
     if (activeMood === 'dizzy') {
       return (
-        <span className="text-emerald-400 font-black text-sm animate-spin select-none drop-shadow-[0_0_8px_rgba(52,211,153,0.9)]">
+        <span className="text-emerald-400 font-black text-sm animate-spin select-none z-10 drop-shadow-[0_0_8px_#34d399]">
           🌀
         </span>
       );
@@ -243,57 +320,60 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     // 2. Estado Éxito (^ ^ sonriente)
     if (activeMood === 'success') {
       return (
-        <span className="text-emerald-400 font-black text-sm select-none drop-shadow-[0_0_8px_rgba(52,211,153,0.9)] scale-y-125">
+        <span className="text-emerald-300 font-black text-base select-none scale-y-125 z-10 drop-shadow-[0_0_10px_#34d399]">
           ^
         </span>
       );
     }
 
-    // 3. Estado Hablando (Mini Ecualizador Digital dentro del lente)
+    // 3. Estado Hablando (Mini Ecualizador Digital cibernético de alto contraste)
     if (isSpeaking) {
-      const baseAmp = Math.max(0.2, outputAmplitude);
+      const baseAmp = Math.max(0.25, outputAmplitude);
       return (
-        <div className="flex items-center justify-center gap-0.5 h-3">
+        <div className="flex items-center justify-center gap-0.5 h-full py-0.5 z-10">
           <span
-            className="w-0.5 bg-emerald-400 rounded-full transition-all duration-75"
+            className="w-1 rounded-full bg-emerald-400 transition-all duration-75 shadow-[0_0_6px_#34d399]"
             style={{ height: `${Math.min(12, Math.max(3, baseAmp * 12 * (side === 'left' ? 0.9 : 1.1)))}px` }}
           />
           <span
-            className="w-0.5 bg-emerald-300 rounded-full transition-all duration-75"
+            className="w-1.5 rounded-full bg-white transition-all duration-75 shadow-[0_0_8px_#ffffff]"
             style={{ height: `${Math.min(14, Math.max(4, baseAmp * 15))}px` }}
           />
           <span
-            className="w-0.5 bg-emerald-400 rounded-full transition-all duration-75"
+            className="w-1 rounded-full bg-emerald-400 transition-all duration-75 shadow-[0_0_6px_#34d399]"
             style={{ height: `${Math.min(12, Math.max(3, baseAmp * 11 * (side === 'left' ? 1.1 : 0.8)))}px` }}
           />
         </div>
       );
     }
 
-    // 4. Parpadeo activo (Línea fina horizontal)
+    // 4. Parpadeo activo (Línea fina horizontal cerrada)
     if (isBlinking) {
-      return <span className="h-0.5 w-3.5 bg-emerald-400/90 rounded-full shadow-[0_0_6px_rgba(52,211,153,0.8)]" />;
+      return <span className="h-0.5 w-3/4 bg-emerald-300 rounded-full shadow-[0_0_8px_#34d399] z-10" />;
     }
 
-    // 5. Estado Pensando (Escáner horizontal o ceja arqueada)
+    // 5. Estado Pensando (Escáner horizontal cibernético blanco)
     if (activeMood === 'thinking') {
       return (
-        <div className="relative w-4 h-1 overflow-hidden">
-          <span className="absolute inset-0 bg-amber-400/40 rounded-full" />
-          <span className="absolute inset-y-0 w-2 bg-amber-300 rounded-full animate-tenshi-scanner shadow-[0_0_8px_rgba(251,191,36,0.9)]" />
+        <div className="relative w-full h-full flex items-center justify-center z-10">
+          <span className="absolute inset-y-1 w-2.5 bg-white rounded-full animate-tenshi-scanner shadow-[0_0_10px_#ffffff]" />
         </div>
       );
     }
 
-    // 6. Estado Reposo / Mirada normal (Ojo digital ciber-gaze)
+    // 6. Estado Conversación / Escuchando (Círculos concéntricos idénticos a la referencia del usuario)
     return (
       <div
-        className="relative transition-transform duration-150 ease-out"
+        className="relative flex items-center justify-center transition-transform duration-100 ease-out z-10"
         style={{
           transform: `translate(${offsetX}px, ${offsetY}px)`,
         }}
       >
-        <span className="block h-2 w-2 rounded-full bg-emerald-400/90 shadow-[0_0_8px_rgba(52,211,153,0.85)] ring-1 ring-emerald-300/60" />
+        {/* Anillo exterior concéntrico luminoso */}
+        <div className="relative flex h-6 w-6 items-center justify-center rounded-full border-2 border-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.9)]">
+          {/* Pupila central luminosa */}
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-200 shadow-[0_0_8px_#a7f3d0]" />
+        </div>
       </div>
     );
   };
@@ -310,7 +390,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         className
       )}
       style={{
-        width: size,
+        width: Math.round(size * 0.75),
         height: size,
         perspective: '800px',
       }}
@@ -336,6 +416,15 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         }
         .animate-tenshi-scanner {
           animation: tenshi-scanner 0.9s infinite ease-in-out;
+        }
+        @keyframes tenshi-lens-gleam {
+          0%, 65% { transform: translateX(-150%) skewX(-25deg); opacity: 0; }
+          72% { opacity: 0.85; }
+          82% { transform: translateX(180%) skewX(-25deg); opacity: 0; }
+          100% { transform: translateX(180%) skewX(-25deg); opacity: 0; }
+        }
+        .animate-tenshi-lens-gleam {
+          animation: tenshi-lens-gleam 3.5s infinite ease-in-out;
         }
       `}</style>
 
@@ -394,6 +483,35 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
             : 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}
       >
+        {/* Halo Celestial Dorado Flotante (Aureola de Ángel Tenshi) */}
+        {showHaloEffect && size >= 45 && (
+          <div
+            className="absolute -top-3 left-1/2 pointer-events-none transition-transform duration-200 ease-out z-20"
+            style={{
+              width: '54%',
+              height: '16%',
+              transform: 'translateX(-50%) rotateX(68deg)',
+              animation: isSpeaking
+                ? 'tenshi-halo-pulse 1.2s infinite ease-in-out'
+                : 'tenshi-halo-pulse 3.5s infinite ease-in-out',
+              transformOrigin: 'center center',
+            }}
+          >
+            <div
+              className={cn(
+                'h-full w-full rounded-[50%] border-2 transition-all duration-300',
+                isSpeaking
+                  ? 'border-emerald-400 shadow-[0_0_22px_rgba(52,211,153,0.95),inset_0_0_8px_rgba(52,211,153,0.5)] bg-emerald-400/20'
+                  : isTyping || activeMood === 'thinking'
+                  ? 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.85),inset_0_0_8px_rgba(251,191,36,0.4)] bg-amber-400/20'
+                  : isVoiceActive
+                  ? 'border-emerald-300 shadow-[0_0_18px_rgba(52,211,153,0.75),inset_0_0_6px_rgba(52,211,153,0.3)] bg-emerald-300/15'
+                  : 'border-amber-300 shadow-[0_0_15px_rgba(252,211,77,0.75),inset_0_0_6px_rgba(252,211,77,0.35)] bg-amber-300/15'
+              )}
+            />
+          </div>
+        )}
+
         {/* Imagen Oficial de Tenshi sin fondo (removebg) */}
         <img
           src="/assets/tenshi.png"
@@ -407,11 +525,13 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         {/* 4. Capa HUD Cibernética sobre los cristales de las gafas de sol */}
         {renderHUDLenses()}
 
-        {/* Indicador brillante inferior cuando habla */}
+        {/* Indicador brillante en corbata/pecho cuando habla */}
         {isSpeaking && (
-          <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-2 w-14 rounded-full bg-emerald-400 blur-[2px] animate-pulse pointer-events-none z-10" />
+          <span className="absolute top-[66%] left-1/2 -translate-x-1/2 h-1.5 w-6 rounded-full bg-emerald-400 blur-[2px] animate-pulse pointer-events-none z-10" />
         )}
       </div>
+
+
 
       {/* Píldora de Estado Opcional Flotante (Estilo Coucou Capsule) */}
       {statusText && (

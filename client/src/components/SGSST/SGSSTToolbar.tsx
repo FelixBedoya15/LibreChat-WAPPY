@@ -276,6 +276,7 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
   active,
   variant = 'default',
   isLoading,
+  loading,
   badge,
 }) => {
   const variantStyles = {
@@ -311,7 +312,7 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
       )}
     >
       <div className="relative flex flex-shrink-0 items-center justify-center">
-        {isLoading || (arguments[0] as any)?.loading ? (
+        {isLoading || loading ? (
           <Loader2 className="h-4 w-4 animate-spin sm:h-5 sm:w-5" />
         ) : (
           <>

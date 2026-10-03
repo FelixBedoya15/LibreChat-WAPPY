@@ -128,8 +128,30 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             let resamplePhase = 0;
 
             const sendPCMChunk = (float32Array: Float32Array) => {
-                if (isHardwareMutedRef.current || isPlayingAudioRef.current) return;
+                if (isHardwareMutedRef.current) return;
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+
+                // Detección de habla del usuario durante la reproducción de Tenshi (Barge-In instantáneo)
+                if (isPlayingAudioRef.current) {
+                    let sumSq = 0;
+                    for (let i = 0; i < float32Array.length; i++) {
+                        sumSq += float32Array[i] * float32Array[i];
+                    }
+                    const rms = Math.sqrt(sumSq / float32Array.length);
+                    // Si el usuario comienza a hablar (energía sobre el umbral acústico), interrumpir a Tenshi de inmediato
+                    if (rms > 0.042) {
+                        console.log(`[VoiceSession] 🗣️ Barge-in / interrupción detectada (RMS: ${rms.toFixed(4)}). Deteniendo voz de Tenshi.`);
+                        isPlayingAudioRef.current = false;
+                        isAutoMutedRef.current = false;
+                        sendInterrupt();
+                        statusRef.current = 'listening';
+                        setStatus('listening');
+                        optionsRef.current.onStatusChange?.('interrupted');
+                    } else {
+                        // Descartar bajo ruido ambiente para evitar que el altavoz cause eco en el micrófono
+                        return;
+                    }
+                }
 
                 const currentSampleRate = audioContext?.sampleRate || 16000;
                 let dataToEncode = float32Array;
@@ -504,14 +526,14 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                         clearTimeout(autoMuteTimeoutRef.current);
                     }
                     autoMuteTimeoutRef.current = setTimeout(() => {
-                        console.log('[VoiceSession] Safety auto-unmute timeout');
+                        console.log('[VoiceSession] Safety auto-unmute timeout (1.2s)');
                         isAutoMutedRef.current = false;
                         isPlayingAudioRef.current = false;
                         statusRef.current = 'listening';
                         setStatus('listening');
                         optionsRef.current.onStatusChange?.('listening');
                         autoMuteTimeoutRef.current = null;
-                    }, 4000);
+                    }, 1200);
                 }
                 break;
 
