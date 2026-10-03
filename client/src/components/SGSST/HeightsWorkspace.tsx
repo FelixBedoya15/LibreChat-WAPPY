@@ -237,9 +237,28 @@ export default function HeightsWorkspace() {
       };
 
       if (docIndex >= 0) {
+        const currentEquipos = [...(newHeightsDocs[docIndex].equipos || [])];
+        const existingEquipIdx = currentEquipos.findIndex(e => {
+          const matchSerial = serial && e.serial && e.serial.toLowerCase().trim() === serial.toLowerCase().trim();
+          const matchName = e.nombre.toLowerCase().trim() === newEquip.nombre.toLowerCase().trim() && (e.marca || '').toLowerCase().trim() === (newEquip.marca || '').toLowerCase().trim();
+          return matchSerial || matchName;
+        });
+
+        if (existingEquipIdx >= 0) {
+          currentEquipos[existingEquipIdx] = {
+            ...currentEquipos[existingEquipIdx],
+            ...newEquip,
+            id: currentEquipos[existingEquipIdx].id,
+          };
+          actualizados++;
+        } else {
+          currentEquipos.push(newEquip);
+          nuevos++;
+        }
+
         newHeightsDocs[docIndex] = {
           ...newHeightsDocs[docIndex],
-          equipos: [...(newHeightsDocs[docIndex].equipos || []), newEquip]
+          equipos: currentEquipos,
         };
       } else {
         newHeightsDocs.push({
@@ -248,8 +267,8 @@ export default function HeightsWorkspace() {
           cargo: matchedWorker?.cargo || 'Trabajador en Alturas',
           equipos: [newEquip]
         });
+        nuevos++;
       }
-      importedCount++;
     }
 
     setHeightsDocs(newHeightsDocs);
@@ -269,7 +288,7 @@ export default function HeightsWorkspace() {
     setIsColumnMapperOpen(false);
     setColumnMapperBuffer(null);
     showToast({
-      message: `¡${importedCount} equipos de alturas importados exitosamente con el Paralelo de Casillas!`,
+      message: `¡Equipos de alturas procesados con el Paralelo de Casillas (${actualizados} actualizados, ${nuevos} nuevos)!`,
       status: 'success',
       severity: 'success',
     });

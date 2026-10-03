@@ -703,11 +703,38 @@ export default function MatrizCompatibilidadTable({
     }
 
     let combined = mapped;
+    let actualizados = 0;
+    let nuevos = 0;
+
     if (matrixRows.length > 0) {
       const shouldReplace = window.confirm(
-        `Ya existen ${matrixRows.length} productos en el inventario químico.\n\n¿Deseas REEMPLAZAR todo el inventario con las ${mapped.length} nuevas sustancias?\n\n(Aceptar: Reemplazar / Cancelar: Anexar al final)`,
+        `Ya existen ${matrixRows.length} productos en el inventario químico.\n\n¿Deseas REEMPLAZAR todo el inventario con las ${mapped.length} nuevas sustancias?\n\n• Aceptar: Reemplazar completamente.\n• Cancelar: Actualizar productos existentes y agregar los nuevos sin duplicar.`,
       );
-      combined = shouldReplace ? mapped : [...matrixRows, ...mapped];
+      if (shouldReplace) {
+        combined = mapped;
+        nuevos = mapped.length;
+      } else {
+        const list = [...matrixRows];
+        mapped.forEach((newChem) => {
+          const chemName = newChem.nombre.trim().toLowerCase();
+          const existingIdx = list.findIndex((c) => c.nombre.trim().toLowerCase() === chemName);
+          if (existingIdx >= 0) {
+            const existing = list[existingIdx];
+            list[existingIdx] = {
+              ...existing,
+              ...newChem,
+              id: existing.id, // preserve id
+            };
+            actualizados++;
+          } else {
+            list.push(newChem);
+            nuevos++;
+          }
+        });
+        combined = list;
+      }
+    } else {
+      nuevos = mapped.length;
     }
 
     setMatrixRows(combined);
@@ -715,7 +742,7 @@ export default function MatrizCompatibilidadTable({
     setIsColumnMapperOpen(false);
     setColumnMapperBuffer(null);
     showToast({
-      message: `¡Se importaron ${mapped.length} productos químicos exitosamente con el Homologador Visual!`,
+      message: `¡${mapped.length} productos químicos procesados con el Homologador Visual (${actualizados} actualizados, ${nuevos} nuevos)!`,
       status: 'success',
     });
   };
@@ -1347,16 +1374,18 @@ export default function MatrizCompatibilidadTable({
           analyzeLabel="Auditar Matriz Química con IA"
           aiButtons={[
             {
+              id: 'btn-sync-hito5',
               label: 'Traer Inventario Químico del Hito 5',
               onClick: handleSyncFromHito5,
-              loading: isSyncingHito5,
-              icon: <RefreshCw className="w-4 h-4 text-teal-600 dark:text-teal-400" />,
+              isLoading: isSyncingHito5,
+              icon: RefreshCw,
             },
             {
+              id: 'btn-sync-kanban',
               label: 'Sincronizar Controles SGA con Centro de Control',
               onClick: handleSyncControlesQuimicos,
-              loading: isSyncingKanban,
-              icon: <CheckSquare className="w-4 h-4 text-orange-500 dark:text-orange-400" />,
+              isLoading: isSyncingKanban,
+              icon: CheckSquare,
             },
           ]}
           onSaveLocal={() => saveMatrix(matrixRows, true)}

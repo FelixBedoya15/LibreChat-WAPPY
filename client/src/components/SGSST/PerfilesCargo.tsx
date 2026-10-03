@@ -1192,24 +1192,47 @@ const PerfilesCargo = () => {
             };
         });
 
+        let actualizados = 0;
+        let nuevos = 0;
+
         setPerfiles(prev => {
-            const cleanPrev = (prev.length === 1 && !prev[0].nombreCargo) ? [] : prev;
-            const combined = [...cleanPrev, ...newPerfiles];
-            if (combined.length > 0 && (!activePerfilId || !prev.find(p => p.id === activePerfilId)?.nombreCargo)) {
-                setActivePerfilId(combined[0].id);
-                setFormData(combined[0]);
-                setGeneratedReport(combined[0].report || null);
-                editorContentRef.current = combined[0].report || '';
-                liveEditorRef.current?.setHTML(combined[0].report || '');
+            const cleanPrev = (prev.length === 1 && !prev[0].nombreCargo) ? [] : [...prev];
+            newPerfiles.forEach(np => {
+                const npName = np.nombreCargo.trim().toLowerCase();
+                const existingIdx = cleanPrev.findIndex(p => p.nombreCargo.trim().toLowerCase() === npName);
+                if (existingIdx >= 0) {
+                    const existing = cleanPrev[existingIdx];
+                    const merged: any = { ...existing };
+                    Object.keys(np).forEach(k => {
+                        if (k === 'id' || k === 'images' || k === 'video') return;
+                        const val = (np as any)[k];
+                        if (Array.isArray(val) ? val.length > 0 : (val !== undefined && val !== null && String(val).trim() !== '')) {
+                            merged[k] = val;
+                        }
+                    });
+                    cleanPrev[existingIdx] = merged;
+                    actualizados++;
+                } else {
+                    cleanPrev.push(np);
+                    nuevos++;
+                }
+            });
+
+            if (cleanPrev.length > 0 && (!activePerfilId || !cleanPrev.find(p => p.id === activePerfilId)?.nombreCargo)) {
+                setActivePerfilId(cleanPrev[0].id);
+                setFormData(cleanPrev[0]);
+                setGeneratedReport(cleanPrev[0].report || null);
+                editorContentRef.current = cleanPrev[0].report || '';
+                liveEditorRef.current?.setHTML(cleanPrev[0].report || '');
             }
-            saveImportedPerfiles(combined);
-            return combined;
+            saveImportedPerfiles(cleanPrev);
+            return cleanPrev;
         });
 
         setIsColumnMapperOpen(false);
         setColumnMapperBuffer(null);
         showToast({
-            message: `¡${newPerfiles.length} perfiles de cargo importados exitosamente con el Paralelo de Casillas!`,
+            message: `¡${newPerfiles.length} perfiles procesados con el Paralelo de Casillas (${actualizados} actualizados, ${nuevos} nuevos)!`,
             severity: NotificationSeverity.SUCCESS,
         });
     };

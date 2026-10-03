@@ -1629,11 +1629,41 @@ export default function MatrizPESVTable({
     }
 
     let combined = mapped;
+    let actualizados = 0;
+    let nuevos = 0;
+
     if (matrixRows.length > 0) {
       const shouldReplace = window.confirm(
-        `Ya existen ${matrixRows.length} registros en la matriz vial.\n\n¿Deseas REEMPLAZAR toda la matriz con las ${mapped.length} nuevas filas homologadas?\n\n(Aceptar: Reemplazar / Cancelar: Agregar al final)`,
+        `Ya existen ${matrixRows.length} registros en la matriz vial.\n\n¿Deseas REEMPLAZAR toda la matriz con las ${mapped.length} nuevas filas homologadas?\n\n• Aceptar: Reemplazar completamente.\n• Cancelar: Actualizar riesgos coincidentes y agregar los nuevos sin duplicar.`,
       );
-      combined = shouldReplace ? mapped : [...matrixRows, ...mapped];
+      if (shouldReplace) {
+        combined = mapped;
+        nuevos = mapped.length;
+      } else {
+        const list = [...matrixRows];
+        const makeKey = (r: MatrixRow) =>
+          `${(r.grupo_trabajo || '').trim().toLowerCase()}|${(r.cargo || '').trim().toLowerCase()}|${(r.rol_via || '').trim().toLowerCase()}|${(r.peligro_descripcion || '').trim().toLowerCase()}`;
+
+        mapped.forEach((newRow) => {
+          const key = makeKey(newRow);
+          const existingIdx = list.findIndex((r) => makeKey(r) === key);
+          if (existingIdx >= 0) {
+            const existing = list[existingIdx];
+            list[existingIdx] = {
+              ...existing,
+              ...newRow,
+              id: existing.id, // preserve id
+            };
+            actualizados++;
+          } else {
+            list.push(newRow);
+            nuevos++;
+          }
+        });
+        combined = list;
+      }
+    } else {
+      nuevos = mapped.length;
     }
 
     setMatrixRows(combined);
@@ -1641,7 +1671,7 @@ export default function MatrizPESVTable({
     setIsColumnMapperOpen(false);
     setColumnMapperBuffer(null);
     showToast({
-      message: `¡Se importaron ${mapped.length} riesgos viales exitosamente con el Homologador Visual!`,
+      message: `¡${mapped.length} riesgos viales procesados con el Homologador Visual (${actualizados} actualizados, ${nuevos} nuevos)!`,
       status: 'success',
     });
   };

@@ -7,15 +7,16 @@ import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 
 export interface ToolbarButtonConfig {
-  id: string;
+  id?: string;
   onClick: () => void;
   title?: string;
   label: string;
-  icon: IconName | string | React.ComponentType<any>;
+  icon: IconName | string | React.ComponentType<any> | React.ReactNode;
   variant?: 'ai' | 'history' | 'database' | 'save' | 'dummy' | 'excel' | 'default';
   disabled?: boolean;
   active?: boolean;
   isLoading?: boolean;
+  loading?: boolean;
   badge?: number | string;
 }
 
@@ -310,15 +311,17 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
       )}
     >
       <div className="relative flex flex-shrink-0 items-center justify-center">
-        {isLoading ? (
+        {isLoading || (arguments[0] as any)?.loading ? (
           <Loader2 className="h-4 w-4 animate-spin sm:h-5 sm:w-5" />
         ) : (
           <>
-            {typeof icon === 'string' ? (
+            {React.isValidElement(icon) ? (
+              icon
+            ) : typeof icon === 'string' ? (
               <AnimatedIcon name={icon as IconName} size={18} className="sm:h-5 sm:w-5" />
-            ) : (
+            ) : typeof icon === 'function' || (typeof icon === 'object' && icon !== null && '$$typeof' in icon) ? (
               React.createElement(icon as any, { className: 'w-4 h-4 sm:w-5 sm:h-5' })
-            )}
+            ) : null}
             {badge !== undefined && (
               <span className="absolute -right-3 -top-3 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
                 {badge}

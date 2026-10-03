@@ -214,12 +214,38 @@ export default function ProgramaCapacitaciones() {
       };
     });
 
-    const updated = [...sesiones, ...newSesiones];
-    await handleSave(updated);
+    let actualizados = 0;
+    let nuevos = 0;
+    const list = [...sesiones];
+
+    newSesiones.forEach((ns) => {
+      const temaKey = ns.tema.toLowerCase().trim();
+      const fechaKey = ns.fecha.trim();
+      const existingIdx = list.findIndex(
+        (s) => s.tema.toLowerCase().trim() === temaKey && s.fecha.trim() === fechaKey
+      );
+
+      if (existingIdx >= 0) {
+        list[existingIdx] = {
+          ...list[existingIdx],
+          descripcion: ns.descripcion || list[existingIdx].descripcion,
+          hora: ns.hora || list[existingIdx].hora,
+          duracion: ns.duracion || list[existingIdx].duracion,
+          responsable: ns.responsable || list[existingIdx].responsable,
+          estado: ns.estado || list[existingIdx].estado,
+        };
+        actualizados++;
+      } else {
+        list.push(ns);
+        nuevos++;
+      }
+    });
+
+    await handleSave(list);
     setIsColumnMapperOpen(false);
     setColumnMapperBuffer(null);
     showToast({
-      message: `¡${newSesiones.length} sesiones de capacitación importadas exitosamente con el Paralelo de Casillas!`,
+      message: `¡${newSesiones.length} sesiones de capacitación procesadas con el Paralelo de Casillas (${actualizados} actualizadas, ${nuevos} nuevas)!`,
       status: 'success',
       severity: 'success',
     });

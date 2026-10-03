@@ -1030,23 +1030,42 @@ router.post('/bulk-save', requireJwtAuth, async (req, res) => {
       return res.status(400).json({ error: 'Se requiere una lista de tareas' });
     }
 
-    const createdTasks = [];
+    const processedTasks = [];
     for (const t of tasks) {
       if (!t.title || !t.dueDate) continue;
 
-      const created = await KanbanTask.create({
-        user: userId,
-        companyId,
-        title: t.title,
-        description: t.description || '',
-        dueDate: new Date(t.dueDate),
-        status: t.status || 'todo',
-        type: t.type || 'manual',
-      });
-      createdTasks.push(created);
+      const trimmedTitle = String(t.title).trim();
+      const existing = await KanbanTask.findOne({ companyId, title: trimmedTitle });
+      if (existing) {
+        existing.description = t.description || existing.description;
+        existing.dueDate = new Date(t.dueDate);
+        existing.status = t.status || existing.status;
+        existing.type = t.type || existing.type;
+        if (t.priority) existing.priority = t.priority;
+        if (t.actionType) existing.actionType = t.actionType;
+        if (t.sourceModule) existing.sourceModule = t.sourceModule;
+        if (t.assignedTo) existing.assignedTo = t.assignedTo;
+        await existing.save();
+        processedTasks.push(existing);
+      } else {
+        const created = await KanbanTask.create({
+          user: userId,
+          companyId,
+          title: trimmedTitle,
+          description: t.description || '',
+          dueDate: new Date(t.dueDate),
+          status: t.status || 'todo',
+          type: t.type || 'manual',
+          priority: t.priority || 'media',
+          actionType: t.actionType || 'correctiva',
+          sourceModule: t.sourceModule || 'Plan ACPM Excel',
+          assignedTo: t.assignedTo || '',
+        });
+        processedTasks.push(created);
+      }
     }
 
-    res.json({ success: true, count: createdTasks.length, tasks: createdTasks });
+    res.json({ success: true, count: processedTasks.length, tasks: processedTasks });
   } catch (error) {
     logger.error('[SGSST Kanban] Bulk save error:', error);
     res.status(500).json({ error: 'Error al importar tareas en lote' });

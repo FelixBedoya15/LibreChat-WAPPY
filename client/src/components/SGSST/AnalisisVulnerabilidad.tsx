@@ -407,11 +407,29 @@ const AnalisisVulnerabilidad = () => {
       return;
     }
 
+    let actualizados = 0;
+    let nuevos = 0;
+
     setAmenazasList((prev) => {
-      if (prev.length === 1 && !prev[0].amenaza.trim()) {
-        return newThreats;
-      }
-      return [...prev, ...newThreats];
+      const list = prev.length === 1 && !prev[0].amenaza.trim() ? [] : [...prev];
+
+      newThreats.forEach((nt) => {
+        const nameKey = nt.amenaza.toLowerCase().trim();
+        const existingIdx = list.findIndex((a) => a.amenaza.toLowerCase().trim() === nameKey);
+        if (existingIdx >= 0) {
+          list[existingIdx] = {
+            ...list[existingIdx],
+            origenAmenaza: nt.origenAmenaza || list[existingIdx].origenAmenaza,
+            nivelAmenaza: nt.nivelAmenaza || list[existingIdx].nivelAmenaza,
+            descripcionGlobal: nt.descripcionGlobal || list[existingIdx].descripcionGlobal,
+          };
+          actualizados++;
+        } else {
+          list.push(nt);
+          nuevos++;
+        }
+      });
+      return list;
     });
 
     setActiveAmenazaId(newThreats[0].id);
@@ -419,7 +437,7 @@ const AnalisisVulnerabilidad = () => {
     setIsColumnMapperOpen(false);
     setColumnMapperBuffer(null);
     showToast({
-      message: `¡${newThreats.length} amenazas importadas exitosamente con el Paralelo de Casillas!`,
+      message: `¡${newThreats.length} amenazas procesadas con el Paralelo de Casillas (${actualizados} actualizadas, ${nuevos} nuevas)!`,
       status: 'success',
       severity: 'success',
     });

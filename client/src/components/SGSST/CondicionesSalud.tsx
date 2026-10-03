@@ -400,18 +400,51 @@ const CondicionesSalud = () => {
             }
         }
 
-        const nuevosTrabajadores = rowsToImport.map((t: any) => ({
-            ...EMPTY_WORKER,
-            ...t,
-            id: t.id || crypto.randomUUID(),
-            firmaDigital: null,
-            completedByAI: false,
-        }));
-        setTrabajadores(prev => [...prev, ...nuevosTrabajadores]);
+        let actualizados = 0;
+        let nuevos = 0;
+
+        setTrabajadores(prev => {
+            const list = [...prev];
+            rowsToImport.forEach((t: any) => {
+                const incomingId = String(t.identificacion || '').trim();
+                const incomingNombre = String(t.nombre || '').trim().toLowerCase();
+
+                const existingIndex = list.findIndex(w => {
+                    const wId = String(w.identificacion || '').trim();
+                    const wNombre = String(w.nombre || '').trim().toLowerCase();
+                    if (incomingId && wId && incomingId === wId) return true;
+                    if (incomingNombre && wNombre && incomingNombre === wNombre) return true;
+                    return false;
+                });
+
+                if (existingIndex >= 0) {
+                    const existing = list[existingIndex];
+                    const merged: any = { ...existing };
+                    Object.keys(t).forEach(k => {
+                        if (t[k] !== undefined && t[k] !== null && String(t[k]).trim() !== '') {
+                            merged[k] = t[k];
+                        }
+                    });
+                    list[existingIndex] = merged;
+                    actualizados++;
+                } else {
+                    list.push({
+                        ...EMPTY_WORKER,
+                        ...t,
+                        id: t.id || crypto.randomUUID(),
+                        firmaDigital: null,
+                        completedByAI: false,
+                    });
+                    nuevos++;
+                }
+            });
+            return list;
+        });
+
         setIsColumnMapperOpen(false);
         setColumnMapperBuffer(null);
         showToast({
-            message: `¡${nuevosTrabajadores.length} trabajadores importados exitosamente con el Paralelo de Casillas!`,
+            message: `¡${rowsToImport.length} trabajadores procesados con el Paralelo de Casillas (${actualizados} actualizados, ${nuevos} nuevos)!`,
             severity: NotificationSeverity.SUCCESS,
         });
     };

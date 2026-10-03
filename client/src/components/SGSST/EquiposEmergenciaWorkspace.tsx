@@ -128,11 +128,39 @@ const EquiposEmergenciaWorkspace: React.FC = () => {
       vencimiento: r.vencimiento ? String(r.vencimiento).trim() : new Date().toISOString().split('T')[0],
       estado: String(r.estado || 'Operativo').trim(),
     }));
-    setEquipos((prev) => [...prev, ...newEquipos]);
+    let actualizados = 0;
+    let nuevos = 0;
+
+    setEquipos((prev) => {
+      const list = prev.length === 1 && prev[0].ubicacion === '' ? [] : [...prev];
+
+      newEquipos.forEach((neq) => {
+        const catKey = neq.categoria.toLowerCase().trim();
+        const ubiKey = neq.ubicacion.toLowerCase().trim();
+        const existingIdx = list.findIndex(
+          (eq) => eq.categoria.toLowerCase().trim() === catKey && eq.ubicacion.toLowerCase().trim() === ubiKey
+        );
+
+        if (existingIdx >= 0) {
+          list[existingIdx] = {
+            ...list[existingIdx],
+            capacidad: neq.capacidad || list[existingIdx].capacidad,
+            vencimiento: neq.vencimiento || list[existingIdx].vencimiento,
+            estado: neq.estado || list[existingIdx].estado,
+          };
+          actualizados++;
+        } else {
+          list.push(neq);
+          nuevos++;
+        }
+      });
+      return list;
+    });
+
     setIsColumnMapperOpen(false);
     setColumnMapperBuffer(null);
     showToast({
-      message: `¡${newEquipos.length} equipos de emergencia importados exitosamente con el Paralelo de Casillas!`,
+      message: `¡${newEquipos.length} equipos de emergencia procesados con el Paralelo de Casillas (${actualizados} actualizados, ${nuevos} nuevos)!`,
       status: 'success',
       severity: 'success',
     });

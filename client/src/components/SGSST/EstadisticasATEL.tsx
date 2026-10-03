@@ -323,33 +323,34 @@ const EstadisticasATEL = () => {
                 }
             }
 
-            const currentEvents = newAnnualData[mIdx]?.events || [];
+            const currentEvents = [...(newAnnualData[mIdx]?.events || [])];
+            const eventWorkerCedula = (newEvent.colaborador?.cedula || '').trim();
+            const eventWorkerNombre = (newEvent.colaborador?.nombre || '').toLowerCase().trim();
 
-            const newEvent: ATELContext = {
-                id: crypto.randomUUID(),
-                fecha: fechaStr || new Date().toISOString().split('T')[0],
-                fechaFin: r.fechaFin ? String(r.fechaFin).trim() : undefined,
-                tipo: (r.tipo && ['AT', 'EL', 'EG_EPS', 'ACC_COMUN', 'CITA_MED', 'LIC_MAT', 'LIC_PAT', 'LUTO', 'CALAMIDAD', 'SUFRAGIO', 'LEY_2174', 'SINDICAL', 'PERM_REM', 'LIC_NO_REM', 'SANCION_DISC', 'NO_JUSTIF', 'Ausentismo'].includes(r.tipo))
-                    ? r.tipo
-                    : 'Ausentismo',
-                diasIncapacidad: Number(r.diasIncapacidad) || 1,
-                horasAusencia: Number(r.horasAusencia) || 0,
-                consecuencia: r.descripcion ? String(r.descripcion).trim() : (r.cie10 ? `CIE-10: ${r.cie10}` : undefined),
-                peligro: r.cie10 ? String(r.cie10).trim() : undefined,
-                colaborador: {
-                    nombre: nombreStr || 'Colaborador',
-                    cedula: r.cedula ? String(r.cedula).trim() : undefined,
-                    cargo: r.cargo ? String(r.cargo).trim() : undefined,
-                    area: r.entidad ? String(r.entidad).trim() : undefined,
-                    ibcMensual: Number(r.salario) || 1300000,
-                },
-            };
+            const existingEventIdx = currentEvents.findIndex(e => {
+                const sameCedula = eventWorkerCedula && e.colaborador?.cedula && e.colaborador.cedula.trim() === eventWorkerCedula;
+                const sameNombre = eventWorkerNombre && e.colaborador?.nombre && e.colaborador.nombre.toLowerCase().trim() === eventWorkerNombre;
+                const matchPerson = sameCedula || sameNombre;
+                const sameFecha = e.fecha === newEvent.fecha;
+                return matchPerson && sameFecha;
+            });
+
+            if (existingEventIdx >= 0) {
+                currentEvents[existingEventIdx] = {
+                    ...currentEvents[existingEventIdx],
+                    ...newEvent,
+                    id: currentEvents[existingEventIdx].id,
+                };
+                actualizados++;
+            } else {
+                currentEvents.push(newEvent);
+                nuevos++;
+            }
 
             newAnnualData[mIdx] = {
                 ...newAnnualData[mIdx],
-                events: [...currentEvents, newEvent],
+                events: currentEvents,
             };
-            importedCount++;
         });
 
         setAnnualData(newAnnualData);
@@ -369,7 +370,7 @@ const EstadisticasATEL = () => {
         setIsColumnMapperOpen(false);
         setColumnMapperBuffer(null);
         showToast({
-            message: `¡${importedCount} registros de incapacidad/ausentismo importados exitosamente con el Paralelo de Casillas!`,
+            message: `¡${mappedRows.length} registros de incapacidad/ausentismo procesados con el Paralelo de Casillas (${actualizados} actualizados, ${nuevos} nuevos)!`,
             status: 'success',
             severity: 'success',
         });

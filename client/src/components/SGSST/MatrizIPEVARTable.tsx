@@ -1256,19 +1256,52 @@ export default function MatrizIPEVARTable({
     });
 
     let combined = withIds;
+    let actualizados = 0;
+    let nuevos = 0;
+
     if (matrixRows.length > 0) {
       const shouldReplace = window.confirm(
-        '¿Deseas REEMPLAZAR la matriz existente con los riesgos del archivo?\n\n• Aceptar: Reemplazar completamente la matriz actual.\n• Cancelar: Mantener los riesgos existentes y agregar los nuevos al final.'
+        '¿Deseas REEMPLAZAR la matriz existente con los riesgos del archivo?\n\n• Aceptar: Reemplazar completamente la matriz actual.\n• Cancelar: Actualizar riesgos coincidentes y agregar los nuevos sin duplicar.'
       );
-      combined = shouldReplace ? withIds : [...matrixRows, ...withIds];
+      if (shouldReplace) {
+        combined = withIds;
+        nuevos = withIds.length;
+      } else {
+        const list = [...matrixRows];
+        const makeKey = (r: MatrixRow) =>
+          `${(r.proceso || '').trim().toLowerCase()}|${(r.cargo || '').trim().toLowerCase()}|${(r.actividad || '').trim().toLowerCase()}|${(r.peligro_descripcion || '').trim().toLowerCase()}`;
+
+        withIds.forEach((newRow) => {
+          const key = makeKey(newRow);
+          const existingIdx = list.findIndex((r) => makeKey(r) === key);
+          if (existingIdx >= 0) {
+            const existing = list[existingIdx];
+            const updated: MatrixRow = {
+              ...existing,
+              ...newRow,
+              id: existing.id, // preserve id
+            };
+            recalcRowFormulas(updated);
+            list[existingIdx] = updated;
+            actualizados++;
+          } else {
+            list.push(newRow);
+            nuevos++;
+          }
+        });
+        combined = list;
+      }
+    } else {
+      nuevos = withIds.length;
     }
+
     setMatrixRows(combined);
     isDirtyRef.current = true;
     saveMatrixData(combined);
     setIsColumnMapperOpen(false);
     setColumnMapperBuffer(null);
     showToast({
-      message: `¡Éxito! Se importaron ${withIds.length} riesgos con el Paralelo de Casillas GTC-45.`,
+      message: `¡Éxito! ${withIds.length} riesgos procesados con el Paralelo de Casillas GTC-45 (${actualizados} actualizados, ${nuevos} nuevos).`,
       status: 'success',
       severity: 'success',
     });

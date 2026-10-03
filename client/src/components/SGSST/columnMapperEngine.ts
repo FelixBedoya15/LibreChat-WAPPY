@@ -70,28 +70,30 @@ export function calculateMatchScore(candidate: string, targetKey: string, target
     return 1.0;
   }
 
-  // Coincidencia exacta con algún sinónimo
   for (const syn of synonyms) {
     const normSyn = normalizeColumnName(syn);
+    if (!normSyn) continue;
+
+    // Coincidencia exacta con el sinónimo
     if (normCandidate === normSyn) {
       return 0.98;
     }
-  }
 
-  // Contención exacta
-  if (normCandidate.includes(normKey) && normKey.length >= 3) {
-    return 0.90;
-  }
-  if (normCandidate.includes(normLabel) && normLabel.length >= 4) {
-    return 0.92;
-  }
+    // Prefijo o sufijo exacto
+    if (normCandidate.startsWith(normSyn) || normCandidate.endsWith(normSyn)) {
+      if (normSyn.length >= 4) return 0.92;
+    }
 
-  for (const syn of synonyms) {
-    const normSyn = normalizeColumnName(syn);
-    if (normSyn.length >= 3) {
-      if (normCandidate.includes(normSyn) || normSyn.includes(normCandidate)) {
+    // Contención de sinónimo en candidato o viceversa
+    if (normCandidate.includes(normSyn)) {
+      if (normSyn.length >= 6 || normCandidate.length <= normSyn.length + 5) {
         return 0.88;
       }
+      if (normSyn.length >= 4) {
+        return 0.75;
+      }
+    } else if (normSyn.includes(normCandidate) && normCandidate.length >= 4) {
+      return 0.85;
     }
   }
 

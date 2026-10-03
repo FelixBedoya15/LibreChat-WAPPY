@@ -243,6 +243,19 @@ const MatrizLegal = () => {
                     evidencia: evidencia || 'Registros y soportes documentales',
                     categoria: categoria || 'Matriz Legal de la Empresa',
                 });
+            } else {
+                // Actualizar item existente si es personalizado
+                setCustomItems(prev => prev.map(c => {
+                    if (c.id === targetId) {
+                        return {
+                            ...c,
+                            descripcion: descripcion || c.descripcion,
+                            evidencia: evidencia || c.evidencia,
+                            categoria: categoria || c.categoria,
+                        };
+                    }
+                    return c;
+                }));
             }
 
             let targetStatus: ComplianceStatus['status'] = 'pendiente';

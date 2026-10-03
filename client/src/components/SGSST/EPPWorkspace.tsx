@@ -307,7 +307,8 @@ export default function EPPWorkspace() {
     }
 
     const newEppDocs = [...eppDocs];
-    let importedCount = 0;
+    let actualizados = 0;
+    let nuevos = 0;
 
     for (const row of mappedRows) {
       const ident = String(row.identificacion || '').trim();
@@ -338,12 +339,39 @@ export default function EPPWorkspace() {
           ? row.estado 
           : 'Entregado',
         observaciones: row.observaciones ? String(row.observaciones).trim() : undefined,
+        fechaUltimaInspeccion: row.fechaUltimaInspeccion ? String(row.fechaUltimaInspeccion).trim() : undefined,
+        fechaProximaInspeccion: row.fechaProximaInspeccion ? String(row.fechaProximaInspeccion).trim() : undefined,
+        inspeccionadoPor: row.inspeccionadoPor ? String(row.inspeccionadoPor).trim() : undefined,
+        resultadoInspeccion: (row.resultadoInspeccion && ['Aprobado', 'Rechazado', 'N/A'].includes(row.resultadoInspeccion))
+          ? row.resultadoInspeccion
+          : undefined,
       };
 
       if (docIndex >= 0) {
+        const currentDeliveries = [...(newEppDocs[docIndex].entregas || [])];
+        const elemKey = newEppItem.nombre.toLowerCase().trim();
+        const existingItemIdx = currentDeliveries.findIndex(item => {
+          const sameName = item.nombre.toLowerCase().trim() === elemKey;
+          const sameDate = item.fechaEntrega === newEppItem.fechaEntrega;
+          const sameSerial = newEppItem.serial && item.serial ? item.serial === newEppItem.serial : false;
+          return sameSerial || (sameName && sameDate);
+        });
+
+        if (existingItemIdx >= 0) {
+          currentDeliveries[existingItemIdx] = {
+            ...currentDeliveries[existingItemIdx],
+            ...newEppItem,
+            id: currentDeliveries[existingItemIdx].id,
+          };
+          actualizados++;
+        } else {
+          currentDeliveries.push(newEppItem);
+          nuevos++;
+        }
+
         newEppDocs[docIndex] = {
           ...newEppDocs[docIndex],
-          entregas: [...(newEppDocs[docIndex].entregas || []), newEppItem]
+          entregas: currentDeliveries,
         };
       } else {
         newEppDocs.push({
@@ -353,8 +381,8 @@ export default function EPPWorkspace() {
           cargo: (row.cargo ? String(row.cargo).trim() : matchedWorker?.cargo) || 'Sin cargo',
           entregas: [newEppItem]
         });
+        nuevos++;
       }
-      importedCount++;
     }
 
     setEppDocs(newEppDocs);
@@ -374,7 +402,7 @@ export default function EPPWorkspace() {
     setIsColumnMapperOpen(false);
     setColumnMapperBuffer(null);
     showToast({
-      message: `¡${importedCount} entregas de EPP importadas exitosamente con el Paralelo de Casillas!`,
+      message: `¡Asignaciones de EPP procesadas con el Paralelo de Casillas (${actualizados} actualizadas, ${nuevos} nuevas)!`,
       status: 'success',
       severity: 'success',
     });
