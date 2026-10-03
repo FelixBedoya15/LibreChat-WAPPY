@@ -41,6 +41,9 @@ import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/Live
 import ReportHistory from '~/components/Liva/ReportHistory';
 import SGSSTToolbar from './SGSSTToolbar';
 import CollapsibleReportBox from './CollapsibleReportBox';
+import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import ImportMethodModal from './ImportMethodModal';
+import { MATRIZ_COMPATIBILIDAD_FIELDS } from './moduleFieldDefinitions';
 
 const PICTOGRAMAS_SGA_LIST = SGA_PICTOGRAMS;
 
@@ -330,7 +333,10 @@ export default function MatrizCompatibilidadTable({
   // Estado Modal Importar Excel
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [pendingRawRows, setPendingRawRows] = useState<any[]>([]);
+  const [pendingDirectRows, setPendingDirectRows] = useState<MatrixRow[]>([]);
   const [isAiImportLoading, setIsAiImportLoading] = useState(false);
+  const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
+  const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Detalle Celda Grid Cruzado
@@ -626,9 +632,149 @@ export default function MatrizCompatibilidadTable({
     fileInputRef.current?.click();
   };
 
+  const handleConfirmColumnMapping = (mappedRows: any[]) => {
+    const mapped: MatrixRow[] = mappedRows
+      .map((r: any) => {
+        let estado_fisico: 'Líquido' | 'Sólido' | 'Gas' = 'Líquido';
+        const rawEst = String(r.estado_fisico || '').toLowerCase();
+        if (rawEst.includes('solid') || rawEst.includes('sólid')) estado_fisico = 'Sólido';
+        else if (rawEst.includes('gas')) estado_fisico = 'Gas';
+
+        let clasificacion_onu = String(r.clasificacion_onu || 'No Peligroso').trim();
+        const matchedClase = CLASES_ONU.find(
+          (c) =>
+            c.toLowerCase().includes(clasificacion_onu.toLowerCase()) ||
+            clasificacion_onu.toLowerCase().includes(c.toLowerCase()),
+        );
+        if (matchedClase) clasificacion_onu = matchedClase;
+
+        let pictogramas: string[] = [];
+        const rawPics = r.pictogramas_sga || '';
+        if (Array.isArray(rawPics)) {
+          pictogramas = rawPics;
+        } else if (typeof rawPics === 'string') {
+          pictogramas = rawPics
+            .split(/[,;\s]+/)
+            .map((p: string) => p.trim().toLowerCase())
+            .filter(Boolean);
+        }
+
+        const rawFds = String(r.tiene_fds || '').toLowerCase();
+        const tiene_fds: 'Sí' | 'No' =
+          rawFds.includes('si') ||
+          rawFds.includes('sí') ||
+          rawFds.includes('yes') ||
+          rawFds === 'true'
+            ? 'Sí'
+            : 'No';
+
+        const rawRot = String(r.tiene_rotulo || '').toLowerCase();
+        const tiene_rotulo: 'Sí' | 'No' =
+          rawRot.includes('si') ||
+          rawRot.includes('sí') ||
+          rawRot.includes('yes') ||
+          rawRot === 'true'
+            ? 'Sí'
+            : 'No';
+
+        return {
+          id: r.id || 'chem-' + Date.now().toString() + Math.random().toString(36).substring(7),
+          nombre: String(r.nombre || '').trim(),
+          fabricante: String(r.fabricante || 'Desconocido').trim(),
+          estado_fisico,
+          clasificacion_onu,
+          pictogramas_sga: pictogramas,
+          cantidad_almacenada: String(r.cantidad_almacenada || '1 Unidad').trim(),
+          ubicacion: String(r.ubicacion || 'Bodega General').trim(),
+          tiene_fds,
+          tiene_rotulo,
+          incompatibilidades: String(r.incompatibilidades || 'Ninguna').trim(),
+          requisitos_almacenamiento: String(r.requisitos_almacenamiento || 'Ninguno').trim(),
+        };
+      })
+      .filter((r) => r.nombre);
+
+    if (mapped.length === 0) {
+      showToast({
+        message: 'No se encontraron registros químicos válidos para importar.',
+        status: 'warning',
+      });
+      return;
+    }
+
+    let combined = mapped;
+    if (matrixRows.length > 0) {
+      const shouldReplace = window.confirm(
+        `Ya existen ${matrixRows.length} productos en el inventario químico.\n\n¿Deseas REEMPLAZAR todo el inventario con las ${mapped.length} nuevas sustancias?\n\n(Aceptar: Reemplazar / Cancelar: Anexar al final)`,
+      );
+      combined = shouldReplace ? mapped : [...matrixRows, ...mapped];
+    }
+
+    setMatrixRows(combined);
+    saveMatrix(combined, false);
+    setIsColumnMapperOpen(false);
+    setColumnMapperBuffer(null);
+    showToast({
+      message: `¡Se importaron ${mapped.length} productos químicos exitosamente con el Homologador Visual!`,
+      status: 'success',
+    });
+  };
+
+  const handleDirectImport = () => {
+    setIsConfirmModalOpen(false);
+    let rowsToImport = pendingDirectRows;
+    if (!rowsToImport || rowsToImport.length === 0) {
+      rowsToImport = pendingRawRows
+        .map((r: any) => ({
+          id: 'chem-' + Date.now().toString() + Math.random().toString(36).substring(7),
+          nombre: String(r.nombre || r['Nombre del Producto'] || r['Producto'] || '').trim(),
+          fabricante: String(r.fabricante || r['Fabricante / Proveedor'] || 'Desconocido').trim(),
+          estado_fisico: 'Líquido' as const,
+          clasificacion_onu: String(r.clasificacion_onu || r['Clase de Peligro ONU'] || 'No Peligroso').trim(),
+          pictogramas_sga: [],
+          cantidad_almacenada: String(r.cantidad_almacenada || '1 Unidad').trim(),
+          ubicacion: String(r.ubicacion || 'Bodega General').trim(),
+          tiene_fds: 'Sí' as const,
+          tiene_rotulo: 'Sí' as const,
+          incompatibilidades: 'Ninguna',
+          requisitos_almacenamiento: 'Ninguno',
+        }))
+        .filter((r: any) => r.nombre);
+    }
+
+    if (rowsToImport.length === 0) {
+      showToast({ message: 'No hay filas válidas para importar directamente.', status: 'warning' });
+      return;
+    }
+
+    let combined = rowsToImport;
+    if (matrixRows.length > 0) {
+      const shouldReplace = window.confirm(
+        `Ya existen ${matrixRows.length} productos en el inventario químico.\n\n¿Deseas REEMPLAZAR todo el inventario con los ${rowsToImport.length} nuevos registros?\n\n(Aceptar: Reemplazar / Cancelar: Anexar al final)`,
+      );
+      combined = shouldReplace ? rowsToImport : [...matrixRows, ...rowsToImport];
+    }
+
+    setMatrixRows(combined);
+    saveMatrix(combined, false);
+    showToast({
+      message: `¡Se importaron ${rowsToImport.length} productos químicos directamente!`,
+      status: 'success',
+    });
+  };
+
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Buffer para Homologador Visual (Paralelo de Casillas)
+    const bufferReader = new FileReader();
+    bufferReader.onload = (bufEvt) => {
+      if (bufEvt.target?.result) {
+        setColumnMapperBuffer(bufEvt.target.result as ArrayBuffer);
+      }
+    };
+    bufferReader.readAsArrayBuffer(file);
 
     const reader = new FileReader();
     reader.onload = async (evt) => {
@@ -637,13 +783,134 @@ export default function MatrizCompatibilidadTable({
         const workbook = XLSX.read(data, { type: 'binary' });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
-        const rawJson = XLSX.utils.sheet_to_json<any>(sheet);
+        const rawJson = XLSX.utils.sheet_to_json<any>(sheet, { defval: '' });
 
         if (rawJson.length === 0) {
           showToast({ message: 'El archivo está vacío.', status: 'warning' });
           return;
         }
 
+        const directMapped: MatrixRow[] = rawJson
+          .map((r: any) => {
+            const nombre = String(
+              r.nombre ||
+                r['Nombre del Producto'] ||
+                r['Producto'] ||
+                r['nombre_comercial'] ||
+                r['Sustancia'] ||
+                '',
+            ).trim();
+            const fabricante = String(
+              r.fabricante ||
+                r['Fabricante / Proveedor'] ||
+                r['Proveedor'] ||
+                r['Fabricante'] ||
+                'Desconocido',
+            ).trim();
+
+            let estado_fisico: 'Líquido' | 'Sólido' | 'Gas' = 'Líquido';
+            const rawEst = String(
+              r.estado_fisico || r['Estado Físico'] || r['Estado'] || '',
+            ).toLowerCase();
+            if (rawEst.includes('solid') || rawEst.includes('sólid')) estado_fisico = 'Sólido';
+            else if (rawEst.includes('gas')) estado_fisico = 'Gas';
+
+            let clasificacion_onu = String(
+              r.clasificacion_onu ||
+                r['Clase de Peligro ONU'] ||
+                r['Clase de Peligro'] ||
+                r['Clase ONU'] ||
+                r['Clase'] ||
+                'No Peligroso',
+            ).trim();
+            const matchedClase = CLASES_ONU.find(
+              (c) =>
+                c.toLowerCase().includes(clasificacion_onu.toLowerCase()) ||
+                clasificacion_onu.toLowerCase().includes(c.toLowerCase()),
+            );
+            if (matchedClase) clasificacion_onu = matchedClase;
+
+            let pictogramas: string[] = [];
+            const rawPics =
+              r.pictogramas_sga || r['Pictogramas SGA'] || r['Pictogramas'] || '';
+            if (Array.isArray(rawPics)) {
+              pictogramas = rawPics;
+            } else if (typeof rawPics === 'string') {
+              pictogramas = rawPics
+                .split(/[,;\s]+/)
+                .map((p) => p.trim().toLowerCase())
+                .filter(Boolean);
+            }
+
+            const cantidad = String(
+              r.cantidad_almacenada ||
+                r['Cantidad Almacenada'] ||
+                r['Cantidad'] ||
+                '',
+            ).trim();
+            const ubicacion = String(
+              r.ubicacion ||
+                r['Ubicación en Almacén'] ||
+                r['Ubicación'] ||
+                r['Ubicacion'] ||
+                'Bodega General',
+            ).trim();
+
+            const rawFds = String(
+              r.tiene_fds || r['¿Tiene FDS?'] || r['FDS'] || '',
+            ).toLowerCase();
+            const tiene_fds: 'Sí' | 'No' =
+              rawFds.includes('si') ||
+              rawFds.includes('sí') ||
+              rawFds.includes('yes') ||
+              rawFds === 'true'
+                ? 'Sí'
+                : 'No';
+
+            const rawRot = String(
+              r.tiene_rotulo || r['¿Tiene Rótulo SGA?'] || r['¿Tiene Rotulo?'] || r['Rótulo'] || r['Rotulo'] || '',
+            ).toLowerCase();
+            const tiene_rotulo: 'Sí' | 'No' =
+              rawRot.includes('si') ||
+              rawRot.includes('sí') ||
+              rawRot.includes('yes') ||
+              rawRot === 'true'
+                ? 'Sí'
+                : 'No';
+
+            const incomp = String(
+              r.incompatibilidades ||
+                r['Incompatibilidades'] ||
+                r['Sustancias Incompatibles'] ||
+                'Ninguna',
+            ).trim();
+            const reqAlm = String(
+              r.requisitos_almacenamiento ||
+                r['Requisitos de Almacenamiento'] ||
+                r['Almacenamiento'] ||
+                'Ninguno',
+            ).trim();
+
+            return {
+              id:
+                r.id ||
+                'chem-' + Date.now().toString() + Math.random().toString(36).substring(7),
+              nombre: nombre || '',
+              fabricante,
+              estado_fisico,
+              clasificacion_onu,
+              pictogramas_sga: pictogramas,
+              cantidad_almacenada: cantidad || '1 Unidad',
+              ubicacion,
+              tiene_fds,
+              tiene_rotulo,
+              incompatibilidades: incomp,
+              requisitos_almacenamiento: reqAlm,
+            };
+          })
+          .filter((r) => r.nombre);
+
+        setPendingDirectRows(directMapped);
         setPendingRawRows(rawJson);
         setIsConfirmModalOpen(true);
       } catch (err) {
@@ -1000,6 +1267,64 @@ export default function MatrizCompatibilidadTable({
     </div>
   );
 
+  const renderImportModals = () => (
+    <>
+      <UniversalColumnMapperModal
+        isOpen={isColumnMapperOpen}
+        onClose={() => {
+          setIsColumnMapperOpen(false);
+          setColumnMapperBuffer(null);
+        }}
+        moduleKey="matriz-compatibilidad"
+        moduleTitle="Matriz de Compatibilidad Química"
+        targetFields={MATRIZ_COMPATIBILIDAD_FIELDS}
+        fileData={columnMapperBuffer}
+        onConfirmImport={handleConfirmColumnMapping}
+      />
+
+      {isAiImportLoading && (
+        <div className="fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md">
+          <div className="flex flex-col items-center gap-6 rounded-3xl border border-teal-500/20 bg-surface-secondary/90 p-8 shadow-2xl">
+            <div className="relative flex h-16 w-16 items-center justify-center">
+              <div className="absolute inset-0 animate-ping rounded-full bg-teal-500/20" />
+              <div className="absolute inset-2 animate-pulse rounded-full bg-teal-500/40" />
+              <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-text-primary">Adaptando Matriz Química con IA</h3>
+              <p className="mt-2 text-sm text-text-secondary max-w-xs">
+                Nuestra IA está mapeando las sustancias químicas, asignando clases ONU y analizando pictogramas SGA...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ImportMethodModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => {
+          setIsConfirmModalOpen(false);
+          setPendingRawRows([]);
+          setPendingDirectRows([]);
+          setColumnMapperBuffer(null);
+        }}
+        rowsCount={pendingDirectRows.length || pendingRawRows.length || 0}
+        hasColumnMapper={!!columnMapperBuffer}
+        onSelectColumnMapper={() => {
+          setIsConfirmModalOpen(false);
+          setIsColumnMapperOpen(true);
+        }}
+        hasAi={true}
+        onSelectAi={handleConfirmAiImport}
+        onSelectDirect={handleDirectImport}
+        moduleTitle="Compatibilidad Química"
+        columnMapperDescription="Compara las columnas de tu Excel frente al estándar oficial de Compatibilidad Química y SGA (Decreto 1496/2018) en tiempo real. Previsualiza las filas, guarda plantillas y procesa cientos de productos al instante sin límites de IA."
+        aiDescription="Identifica y clasifica automáticamente los productos según la clasificación ONU y pictogramas SGA, infiere incompatibilidades y formula los requisitos de almacenamiento con IA."
+        directDescription="Mapea las columnas existentes exactamente como vienen en el archivo Excel de forma instantánea, sin intervención ni procesamiento de IA."
+      />
+    </>
+  );
+
   // ── MODO APLICATIVO OFICIAL (HITO 1) ──
   if (isOfficialApp) {
     return (
@@ -1009,7 +1334,7 @@ export default function MatrizCompatibilidadTable({
           type="file"
           ref={fileInputRef}
           onChange={handleExcelFileChange}
-          accept=".xlsx,.xls"
+          accept=".xlsx,.xls,.json,.csv"
           className="hidden"
         />
 
@@ -1238,34 +1563,8 @@ export default function MatrizCompatibilidadTable({
           </div>
         )}
 
-        {/* Modal Confirmación Importación Excel con IA */}
-        {isConfirmModalOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="w-full max-w-md rounded-2xl border border-border-medium bg-surface-primary p-6 shadow-2xl">
-              <h3 className="text-sm font-bold text-text-primary">Confirmar Importación con IA</h3>
-              <p className="mt-2 text-xs text-text-secondary">
-                Se leyeron {pendingRawRows.length} filas del archivo Excel. ¿Deseas usar la IA para mapear y autocompletar estas filas de acuerdo a la clasificación ONU y pictogramas SGA?
-              </p>
-              <div className="mt-6 flex justify-end gap-2">
-                <button
-                  onClick={() => {
-                    setIsConfirmModalOpen(false);
-                    setPendingRawRows([]);
-                  }}
-                  className="rounded-xl border border-border-medium px-4 py-2 text-xs font-bold text-text-secondary hover:bg-surface-secondary"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleConfirmAiImport}
-                  className="rounded-xl bg-purple-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-purple-700"
-                >
-                  Importar con IA
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Modales de Importación (Paralelo de Casillas, IA, Directo) */}
+        {renderImportModals()}
       </div>
     );
   }
@@ -1379,7 +1678,7 @@ export default function MatrizCompatibilidadTable({
             type="file"
             ref={fileInputRef}
             onChange={handleExcelFileChange}
-            accept=".xlsx,.xls"
+            accept=".xlsx,.xls,.json,.csv"
             className="hidden"
           />
 
@@ -1389,6 +1688,7 @@ export default function MatrizCompatibilidadTable({
             fileName={`Informe_Compatibilidad_Quimica_${new Date().toISOString().slice(0, 10)}`}
             reportType="general"
             onExportExcel={handleExportExcel}
+            onDownloadTemplate={handleDownloadTemplate}
           />
 
           {/* Guardar */}
@@ -1536,34 +1836,8 @@ export default function MatrizCompatibilidadTable({
         </div>
       )}
 
-      {/* ── MODAL IMPORT CONFIRMATION IA ── */}
-      {isConfirmModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl border border-border-medium bg-surface-primary p-6 shadow-2xl">
-            <h3 className="text-sm font-bold text-text-primary">Confirmar Importación con IA</h3>
-            <p className="mt-2 text-xs text-text-secondary">
-              Se leyeron {pendingRawRows.length} filas del archivo Excel. ¿Deseas usar la IA (Gemini) para mapear y autocompletar estas filas de acuerdo a la clasificación ONU y pictogramas SGA?
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setIsConfirmModalOpen(false);
-                  setPendingRawRows([]);
-                }}
-                className="rounded-xl border border-border-medium px-4 py-2 text-xs font-bold text-text-secondary hover:bg-surface-secondary"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmAiImport}
-                className="rounded-xl bg-purple-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-purple-700"
-              >
-                Importar con IA
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── Modales de Importación (Paralelo de Casillas, IA, Directo) ── */}
+      {renderImportModals()}
     </div>
   );
 }

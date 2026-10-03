@@ -48,6 +48,7 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import SGSSTToolbar from './SGSSTToolbar';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import ImportMethodModal from './ImportMethodModal';
 import { MATRIZ_IPEVAR_FIELDS } from './moduleFieldDefinitions';
 
 // ── FilterSelect: dropdown con estilo del sistema (reemplaza <select> nativo) ────────────────
@@ -2894,128 +2895,29 @@ export default function MatrizIPEVARTable({
         </div>
       )}
 
-      {/* ── Import Choice Modal (Direct vs AI vs Paralelo de Casillas) ────── */}
-      {isConfirmModalOpen && (
-        <div className="fixed inset-0 z-[999998] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-border-medium bg-surface-primary shadow-2xl transition-all">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-teal-500/20 bg-teal-500/10 text-teal-600 dark:text-teal-400">
-                    <Sparkles className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-text-primary">
-                      Método de Importación
-                    </h3>
-                    <p className="text-xs text-text-secondary">
-                      Se detectaron {pendingDirectRows.length || pendingRawRows.length} filas en el archivo
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsConfirmModalOpen(false);
-                    setPendingRawRows([]);
-                    setPendingDirectRows([]);
-                    setColumnMapperBuffer(null);
-                  }}
-                  className="rounded-xl p-2 text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <p className="text-sm text-text-secondary mb-5 leading-relaxed">
-                ¿Cómo deseas cargar los datos de tu matriz a Wappy?
-              </p>
-
-              <div className="grid grid-cols-1 gap-3">
-                {/* Opción 1: Paralelo de Casillas (Homologador Visual) */}
-                {columnMapperBuffer && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsConfirmModalOpen(false);
-                      setIsColumnMapperOpen(true);
-                    }}
-                    className="group relative flex flex-col items-start gap-2 rounded-2xl border-2 border-teal-500 bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-teal-500/5 p-4 text-left transition-all hover:border-teal-600 hover:shadow-lg shadow-sm"
-                  >
-                    <div className="flex w-full items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 font-bold text-teal-700 dark:text-teal-300 text-sm">
-                        <Columns3 className="h-4 w-4 text-teal-600 animate-pulse shrink-0" />
-                        <span>Paralelo de Casillas (Homologador Visual)</span>
-                      </div>
-                      <span className="shrink-0 whitespace-nowrap rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-500/30 px-2.5 py-0.5 text-[11px] font-black text-teal-700 dark:text-teal-300 shadow-2xs">
-                        Recomendado
-                      </span>
-                    </div>
-                    <p className="text-xs text-text-secondary leading-relaxed">
-                      Compara las columnas de tu Excel frente al formato técnico GTC-45 en tiempo real. Previsualiza las filas, guarda plantillas de la empresa y procesa miles de filas al instante sin límites de IA.
-                    </p>
-                  </button>
-                )}
-
-                {/* Opción 2: Reconstrucción Inteligente con IA */}
-                <button
-                  type="button"
-                  onClick={handleAiImport}
-                  className="group relative flex flex-col items-start gap-2 rounded-2xl border border-border-medium bg-surface-secondary/40 p-4 text-left transition-all hover:border-teal-500/50 hover:bg-surface-hover shadow-sm"
-                >
-                  <div className="flex w-full items-center justify-between">
-                    <div className="flex items-center gap-2 font-bold text-teal-700 dark:text-teal-400 text-sm">
-                      <Sparkles className="h-4 w-4 text-teal-600" />
-                      Reconstrucción Inteligente con IA
-                    </div>
-                    <span className="rounded-full bg-surface-tertiary px-2 py-0.5 text-[10px] font-bold text-text-secondary uppercase tracking-wider">
-                      IA
-                    </span>
-                  </div>
-                  <p className="text-xs text-text-secondary leading-relaxed">
-                    Desglosa y separa automáticamente textos combinados (como procesos y zonas juntos), infiere campos faltantes y normaliza los peligros y controles según la metodología técnica GTC-45.
-                  </p>
-                </button>
-
-                {/* Opción 3: Carga Directa / Rápida */}
-                <button
-                  type="button"
-                  onClick={handleDirectImport}
-                  className="group relative flex flex-col items-start gap-2 rounded-2xl border border-border-medium bg-surface-secondary/50 p-4 text-left transition-all hover:border-border-heavy hover:bg-surface-hover"
-                >
-                  <div className="flex w-full items-center justify-between">
-                    <div className="flex items-center gap-2 font-bold text-text-primary text-sm">
-                      <Zap className="h-4 w-4 text-amber-500" />
-                      Carga Directa e Inmediata (1 a 1)
-                    </div>
-                    <span className="rounded-full bg-surface-tertiary px-2 py-0.5 text-[10px] font-medium text-text-secondary">
-                      Rápido
-                    </span>
-                  </div>
-                  <p className="text-xs text-text-secondary leading-relaxed">
-                    Mapea las columnas existentes exactamente como vienen en el archivo Excel de forma instantánea, sin intervención ni procesamiento de IA.
-                  </p>
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end bg-surface-secondary px-6 py-3 border-t border-border-light">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsConfirmModalOpen(false);
-                  setPendingRawRows([]);
-                  setPendingDirectRows([]);
-                  setColumnMapperBuffer(null);
-                }}
-                className="rounded-xl px-4 py-2 text-xs font-semibold text-text-secondary hover:text-text-primary transition-all"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── Import Choice Modal (Paralelo de Casillas vs IA vs Directo) ─── */}
+      <ImportMethodModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => {
+          setIsConfirmModalOpen(false);
+          setPendingRawRows([]);
+          setPendingDirectRows([]);
+          setColumnMapperBuffer(null);
+        }}
+        rowsCount={pendingDirectRows.length || pendingRawRows.length || 0}
+        hasColumnMapper={!!columnMapperBuffer}
+        onSelectColumnMapper={() => {
+          setIsConfirmModalOpen(false);
+          setIsColumnMapperOpen(true);
+        }}
+        hasAi={true}
+        onSelectAi={handleAiImport}
+        onSelectDirect={handleDirectImport}
+        moduleTitle="Matriz IPEVR"
+        columnMapperDescription="Compara las columnas de tu Excel frente al formato técnico GTC-45 en tiempo real. Previsualiza las filas, guarda plantillas de la empresa y procesa miles de filas al instante sin límites de IA."
+        aiDescription="Desglosa y separa automáticamente textos combinados (como procesos y zonas juntos), infiere campos faltantes y normaliza los peligros y controles según la metodología técnica GTC-45."
+        directDescription="Mapea las columnas existentes exactamente como vienen en el archivo Excel de forma instantánea, sin intervención ni procesamiento de IA."
+      />
     </>
   );
 

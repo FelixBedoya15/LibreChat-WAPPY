@@ -79,12 +79,20 @@ export default function InactiveAccount() {
                 <p className="text-xs text-text-tertiary">
                     {t('com_auth_contact_support', 'Please contact support or your administrator to reactivate your account.')}
                 </p>
-                <button
-                    onClick={() => logout()}
-                    className="inline-flex w-full justify-center rounded-xl border border-transparent bg-green-600 px-6 py-3 text-sm font-medium text-white shadow-sm transition-all hover:bg-green-700 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
-                >
-                    {t('com_auth_logout', 'Log Out')}
-                </button>
+                <div className="flex flex-col gap-3">
+                    <a
+                        href="/planes"
+                        className="inline-flex w-full justify-center rounded-xl border border-transparent bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-3 text-sm font-bold text-white shadow-md transition-all hover:opacity-95"
+                    >
+                        Ver Planes y Activar Cuenta
+                    </a>
+                    <button
+                        onClick={() => logout()}
+                        className="inline-flex w-full justify-center rounded-xl border border-border-medium bg-transparent px-6 py-2.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover"
+                    >
+                        {t('com_auth_logout', 'Log Out')}
+                    </button>
+                </div>
             </div>
         </div>
     );

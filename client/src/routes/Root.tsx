@@ -23,6 +23,7 @@ import { useHealthCheck } from '~/data-provider';
 import { Banner } from '~/components/Banners';
 import InactiveAccount from '~/components/Auth/InactiveAccount';
 import TenshiChat from '~/components/Tenshi/TenshiChat';
+import { hasActivePlan } from '~/utils/planAccess';
 
 const playStartupSound = () => {
   try {
@@ -166,8 +167,8 @@ export default function Root() {
     return null;
   }
 
-  if (user?.accountStatus === 'inactive') {
-    return <InactiveAccount />;
+  if (user && (user.accountStatus === 'inactive' || !hasActivePlan(user))) {
+    return <Navigate to="/planes" replace={true} />;
   }
 
   return (

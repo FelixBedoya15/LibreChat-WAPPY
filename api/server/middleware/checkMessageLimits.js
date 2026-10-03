@@ -41,28 +41,13 @@ const checkMessageLimits = async (req, res, next) => {
       return next();
     }
 
-    // Only apply to the Gratis ('USER') plan
-    if (req.user.role !== 'USER') {
-      return next();
-    }
-
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    // Count user-created messages (prompts) today
-    const count = await Message.countDocuments({
-      user: req.user.id,
-      isCreatedByUser: true,
-      createdAt: { $gte: todayStart }
-    });
-
-    const limit = 10;
-
-    if (count >= limit) {
+    // Si el usuario pertenece a un plan retirado (USER, USER_GO, USER_PLUS), bloquear y redirigir
+    if (['USER', 'USER_GO', 'USER_PLUS'].includes(req.user.role)) {
       const payload = {
         error: true,
-        type: 'daily_limit',
-        message: `Has alcanzado tu límite de ${limit} mensajes diarios del plan Gratis. Para chatear ilimitadamente hoy, adquiere el plan Wappy Vital.`
+        type: 'plan_required',
+        message: 'Tu cuenta no tiene un plan activo. Para chatear con la IA y acceder a los agentes de WAPPY, por favor adquiere el plan Wappy Pro.',
+        redirect: '/planes'
       };
       return res.status(403).json({
         ...payload,

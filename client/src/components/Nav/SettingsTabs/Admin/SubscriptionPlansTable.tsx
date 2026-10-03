@@ -26,11 +26,7 @@ interface VisibilitySettings {
 }
 
 const VISIBILITY_ITEMS: Array<{ key: keyof VisibilitySettings; label: string; description: string; color: string }> = [
-    { key: 'showPlanFree',          label: 'Plan Gratis',              description: 'Muestra el plan gratuito en la página (Oculto en esta versión)', color: 'text-gray-500' },
-    { key: 'showPlanGo',            label: 'Plan Go',                  description: 'Muestra el plan Go',                                color: 'text-blue-500' },
-    { key: 'showPlanPlus',          label: 'Plan Plus',                description: 'Muestra el plan Plus',                              color: 'text-green-500' },
     { key: 'showPlanPro',           label: 'Plan Wappy Pro ⭐',        description: 'Muestra el plan Wappy Pro — Recomendado',            color: 'text-amber-500' },
-    { key: 'showSectionAppPlans',   label: 'Sección: Wappy Vital',     description: 'Muestra la sección del plan Wappy Vital',           color: 'text-emerald-500' },
     { key: 'showSectionCustomPlan', label: 'Sección: Plan a la Medida',description: 'Muestra el constructor de plan personalizado',     color: 'text-fuchsia-500' },
     { key: 'showSectionEnterprise', label: 'Sección: Planes Corporativos', description: 'Muestra los planes empresariales y asesores', color: 'text-violet-500' },
 ];
@@ -253,7 +249,7 @@ export default function SubscriptionPlansTable() {
             </div>
 
             {/* ── PLAN PRICING CARDS ──────────────────────────────────── */}
-            {plans.map((plan) => (
+            {plans.filter((p) => !['free', 'go', 'plus', 'ipevar'].includes(p.planId)).map((plan) => (
                 <div key={plan.planId} className="border border-slate-200/80 dark:border-zinc-800 rounded-2xl overflow-hidden bg-white dark:bg-zinc-900 shadow-2xs">
                     <div className="bg-slate-50/90 dark:bg-zinc-800/80 px-6 py-4 flex justify-between items-center border-b border-slate-200/80 dark:border-zinc-800">
                         <h3 className="text-base font-bold capitalize text-slate-800 dark:text-zinc-100">Plan {plan.planId === 'ipevar' ? 'Wappy Vital' : plan.name}</h3>

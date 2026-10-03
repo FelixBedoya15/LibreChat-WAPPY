@@ -58,6 +58,9 @@ import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/Live
 import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import SGSSTToolbar from './SGSSTToolbar';
+import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import ImportMethodModal from './ImportMethodModal';
+import { MATRIZ_PESV_FIELDS } from './moduleFieldDefinitions';
 
 const toSentenceCase = (str: string): string => {
   if (!str) return '';
@@ -572,7 +575,10 @@ export default function MatrizPESVTable({
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [pendingRawRows, setPendingRawRows] = useState<any[]>([]);
+  const [pendingDirectRows, setPendingDirectRows] = useState<MatrixRow[]>([]);
   const [isAiImportLoading, setIsAiImportLoading] = useState(false);
+  const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
+  const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
 
   // Filters & Sorting States
   const [filterText, setFilterText] = useState('');
@@ -1496,9 +1502,227 @@ export default function MatrizPESVTable({
     }
   };
 
+  const handleConfirmColumnMapping = (mappedRows: any[]) => {
+    const mapped: MatrixRow[] = mappedRows.map((r) => {
+      const cargo = toSentenceCase(r.cargo || 'General');
+      const grupo_trabajo = toSentenceCase(r.grupo_trabajo || 'General');
+      const rawDesp = String(r.tipo_desplazamiento || '').toLowerCase();
+      const tipo_desplazamiento: 'Misional' | 'In itinere' = rawDesp.includes('itinere')
+        ? 'In itinere'
+        : 'Misional';
+
+      const rawRol = String(r.rol_via || '').toLowerCase();
+      let rol: any = 'Peatón';
+      if (rawRol.includes('motocicleta') || rawRol.includes('moto')) rol = 'Conductor de motocicleta';
+      else if (rawRol.includes('pesado')) rol = 'Conductor de vehículo pesado';
+      else if (rawRol.includes('liviano') || rawRol.includes('automovil') || rawRol.includes('carro'))
+        rol = 'Conductor de vehículo liviano';
+      else if (rawRol.includes('peaton') || rawRol.includes('peatón')) rol = 'Peatón';
+      else if (rawRol.includes('pasajero')) rol = 'Pasajero';
+      else if (rawRol.includes('ciclista') || rawRol.includes('bici')) rol = 'Ciclista';
+      else if (rawRol.includes('otro')) rol = 'Otro';
+      else {
+        const matched = ACTORES_VIALES.find(
+          (v) => v.toLowerCase().includes(rawRol) || rawRol.includes(v.toLowerCase()),
+        );
+        if (matched) rol = matched;
+      }
+
+      const rawFactor = String(r.factor_riesgo || '').toLowerCase();
+      let factor: any = 'Factor Humano';
+      if (rawFactor.includes('humano')) factor = 'Factor Humano';
+      else if (rawFactor.includes('vehicular') || rawFactor.includes('vehiculo'))
+        factor = 'Factor Vehicular';
+      else if (rawFactor.includes('infraestructura')) factor = 'Factor Infraestructura';
+      else if (
+        rawFactor.includes('entorno') ||
+        rawFactor.includes('otros') ||
+        rawFactor.includes('otro')
+      )
+        factor = 'Entorno/Otros';
+
+      // NP
+      const rawNpCual = String(r.np_cualitativo || '').trim();
+      const rawNpCuant = Number(r.np_cuantitativo) || 0;
+      let final_np_cuant = 3;
+      let final_np_cual = 'PROBABLE';
+      if (rawNpCuant >= 1 && rawNpCuant <= 5) {
+        final_np_cuant = rawNpCuant;
+        final_np_cual = getNPCualitativoLabel(final_np_cuant);
+      } else if (rawNpCual) {
+        final_np_cuant = mapNPCualitativoToNum(rawNpCual);
+        final_np_cual = getNPCualitativoLabel(final_np_cuant);
+      }
+
+      // NE
+      const rawNeCual = String(r.ne_cualitativo || '').trim();
+      const rawNeCuant = Number(r.ne_cuantitativo) || 0;
+      let final_ne_cuant = 3;
+      let final_ne_cual = 'OCASIONAL';
+      if (rawNeCuant >= 1 && rawNeCuant <= 5) {
+        final_ne_cuant = rawNeCuant;
+        final_ne_cual = getNECualitativoLabel(final_ne_cuant);
+      } else if (rawNeCual) {
+        final_ne_cuant = mapNECualitativoToNum(rawNeCual);
+        final_ne_cual = getNECualitativoLabel(final_ne_cuant);
+      }
+
+      // NC
+      const rawNcCual = String(r.nc_cualitativo || '').trim();
+      const rawNcCuant = Number(r.nc_cuantitativo) || 0;
+      let final_nc_cuant = 3;
+      let final_nc_cual = 'MODERADO';
+      if (rawNcCuant >= 1 && rawNcCuant <= 5) {
+        final_nc_cuant = rawNcCuant;
+        final_nc_cual = getNCCualitativoLabel(final_nc_cuant);
+      } else if (rawNcCual) {
+        final_nc_cuant = mapNCCualitativoToNum(rawNcCual);
+        final_nc_cual = getNCCualitativoLabel(final_nc_cuant);
+      }
+
+      const calif = final_np_cuant + final_ne_cuant + final_nc_cuant;
+      const interp = getInterpretacionPESV(calif);
+
+      const rawEstadoStr = String(r.estado || '').toUpperCase();
+      const est: any = rawEstadoStr.includes('CERRADA') ? 'CERRADA' : 'PLANEADA';
+
+      return {
+        id: r.id || Date.now().toString() + Math.random().toString(36).substring(7),
+        grupo_trabajo,
+        cargo,
+        tipo_desplazamiento,
+        rol_via: rol,
+        factor_riesgo: factor,
+        peligro_descripcion:
+          String(r.peligro_descripcion || '').trim() || 'Riesgo de desplazamiento vial',
+        controles_existentes_descripcion: String(
+          r.controles_existentes_descripcion || 'Ninguno',
+        ).trim(),
+        controles_existentes_tipo: normalizeControlTipo(r.controles_existentes_tipo),
+        np_cualitativo: final_np_cual as any,
+        np_cuantitativo: final_np_cuant,
+        ne_cualitativo: final_ne_cual as any,
+        ne_cuantitativo: final_ne_cuant,
+        nc_cualitativo: final_nc_cual as any,
+        nc_cuantitativo: final_nc_cuant,
+        calificacion: calif,
+        nivel_riesgo: interp.nivel,
+        aceptabilidad: interp.aceptabilidad,
+        tratamiento_accion: String(r.tratamiento_accion || 'Ninguno').trim(),
+        plan_accion_medio: String(r.plan_accion_medio || 'Ninguno').trim(),
+        plan_accion_vehiculo: String(r.plan_accion_vehiculo || 'Ninguno').trim(),
+        plan_accion_individuo: String(r.plan_accion_individuo || 'Ninguno').trim(),
+        plan_accion_infraestructura: String(r.plan_accion_infraestructura || 'Ninguno').trim(),
+        responsable: String(r.responsable || 'Responsable PESV').trim(),
+        fecha_programacion: String(r.fecha_programacion || 'Permanente').trim(),
+        estado: est,
+        observaciones: String(r.observaciones || '').trim(),
+      };
+    });
+
+    if (mapped.length === 0) {
+      showToast({
+        message: 'No se encontraron registros válidos para importar.',
+        status: 'warning',
+      });
+      return;
+    }
+
+    let combined = mapped;
+    if (matrixRows.length > 0) {
+      const shouldReplace = window.confirm(
+        `Ya existen ${matrixRows.length} registros en la matriz vial.\n\n¿Deseas REEMPLAZAR toda la matriz con las ${mapped.length} nuevas filas homologadas?\n\n(Aceptar: Reemplazar / Cancelar: Agregar al final)`,
+      );
+      combined = shouldReplace ? mapped : [...matrixRows, ...mapped];
+    }
+
+    setMatrixRows(combined);
+    saveMatrixData(combined);
+    setIsColumnMapperOpen(false);
+    setColumnMapperBuffer(null);
+    showToast({
+      message: `¡Se importaron ${mapped.length} riesgos viales exitosamente con el Homologador Visual!`,
+      status: 'success',
+    });
+  };
+
+  const handleDirectImport = () => {
+    setIsConfirmModalOpen(false);
+    let rowsToImport = pendingDirectRows;
+    if (!rowsToImport || rowsToImport.length === 0) {
+      rowsToImport = pendingRawRows
+        .map((r: any) => ({
+          id: Date.now().toString() + Math.random().toString(36).substring(7),
+          grupo_trabajo: toSentenceCase(r.grupo_trabajo || r.area || 'General'),
+          cargo: toSentenceCase(r.cargo || r.puesto || 'General'),
+          tipo_desplazamiento: String(r.tipo_desplazamiento || '')
+            .toLowerCase()
+            .includes('itinere')
+            ? ('In itinere' as const)
+            : ('Misional' as const),
+          rol_via: r.rol_via || 'Peatón',
+          factor_riesgo: r.factor_riesgo || 'Factor Humano',
+          peligro_descripcion: r.peligro_descripcion || r.peligro || 'Riesgo vial',
+          np_cualitativo: r.np_cualitativo || 'PROBABLE',
+          np_cuantitativo: Number(r.np_cuantitativo) || 3,
+          ne_cualitativo: r.ne_cualitativo || 'OCASIONAL',
+          ne_cuantitativo: Number(r.ne_cuantitativo) || 3,
+          nc_cualitativo: r.nc_cualitativo || 'MODERADO',
+          nc_cuantitativo: Number(r.nc_cuantitativo) || 3,
+          calificacion:
+            (Number(r.np_cuantitativo) || 3) +
+            (Number(r.ne_cuantitativo) || 3) +
+            (Number(r.nc_cuantitativo) || 3),
+          nivel_riesgo: r.nivel_riesgo || 'NIVEL DE RIESGO MEDIO o MODERADO',
+          aceptabilidad: r.aceptabilidad || 'ACEPTABLE CON CONTROL ESPECIFICO',
+          controles_existentes_descripcion: r.controles_existentes_descripcion || 'Ninguno',
+          controles_existentes_tipo: r.controles_existentes_tipo || 'Ninguno',
+          tratamiento_accion: r.tratamiento_accion || 'Ninguno',
+          plan_accion_medio: r.plan_accion_medio || 'Ninguno',
+          plan_accion_vehiculo: r.plan_accion_vehiculo || 'Ninguno',
+          plan_accion_individuo: r.plan_accion_individuo || 'Ninguno',
+          plan_accion_infraestructura: r.plan_accion_infraestructura || 'Ninguno',
+          responsable: r.responsable || 'Responsable PESV',
+          fecha_programacion: r.fecha_programacion || 'Permanente',
+          estado: r.estado || 'PLANEADA',
+          observaciones: r.observaciones || '',
+        }))
+        .filter((r: any) => r.cargo || r.peligro_descripcion);
+    }
+
+    if (rowsToImport.length === 0) {
+      showToast({ message: 'No hay filas válidas para importar directamente.', status: 'warning' });
+      return;
+    }
+
+    let combined = rowsToImport;
+    if (matrixRows.length > 0) {
+      const shouldReplace = window.confirm(
+        `Ya existen ${matrixRows.length} registros en la matriz vial.\n\n¿Deseas REEMPLAZAR toda la matriz con las ${rowsToImport.length} nuevas filas importadas?\n\n(Aceptar: Reemplazar / Cancelar: Agregar al final)`,
+      );
+      combined = shouldReplace ? rowsToImport : [...matrixRows, ...rowsToImport];
+    }
+
+    setMatrixRows(combined);
+    saveMatrixData(combined);
+    showToast({
+      message: `¡Se importaron ${rowsToImport.length} registros viales directamente!`,
+      status: 'success',
+    });
+  };
+
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Buffer para Homologador Visual (Paralelo de Casillas)
+    const bufferReader = new FileReader();
+    bufferReader.onload = (bufEvt) => {
+      if (bufEvt.target?.result) {
+        setColumnMapperBuffer(bufEvt.target.result as ArrayBuffer);
+      }
+    };
+    bufferReader.readAsArrayBuffer(file);
 
     const autofillMergedCells = (ws: any) => {
       if (!ws || !ws['!merges']) return;
@@ -1530,25 +1754,23 @@ export default function MatrizPESVTable({
         if (file.name.endsWith('.json')) {
           const parsed = JSON.parse(data as string);
           if (Array.isArray(parsed)) {
-            const firstRow = parsed[0] || {};
-            const keys = Object.keys(firstRow);
-            const isStandard =
-              keys.some((k) => k.toLowerCase().replace(/\s+/g, '') === 'grupotrabajo') &&
-              keys.some((k) => k.toLowerCase().replace(/\s+/g, '') === 'factorriesgo');
-
-            if (isStandard) {
-              const combined = [...matrixRows, ...parsed];
-              setMatrixRows(combined);
-              saveMatrixData(combined);
-              showToast({
-                message: `¡Se importaron ${parsed.length} riesgos viales exitosamente!`,
-                status: 'success',
-              });
-            } else {
-              setPendingRawRows(parsed);
-              setIsConfirmModalOpen(true);
-            }
+            const mappedJson = parsed.map((r: any) => ({
+              ...r,
+              id: r.id || Date.now().toString() + Math.random().toString(36).substring(7),
+              grupo_trabajo: toSentenceCase(r.grupo_trabajo || 'General'),
+              cargo: toSentenceCase(r.cargo || 'General'),
+            }));
+            setPendingDirectRows(mappedJson as MatrixRow[]);
+            setPendingRawRows(parsed);
+            setIsConfirmModalOpen(true);
+          } else {
+            showToast({
+              message: 'El archivo JSON debe contener un arreglo de objetos.',
+              status: 'warning',
+            });
           }
+          if (e.target) e.target.value = '';
+          return;
         } else {
           const workbook = XLSX.read(data, { type: 'binary' });
           let targetSheetName = '';
@@ -1932,29 +2154,13 @@ export default function MatrizPESVTable({
               });
             }
 
-            if (mapped.length === 0) {
-              const rawRowsForAI: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
-              if (rawRowsForAI.length === 0) {
-                showToast({
-                  message: 'El archivo Excel está vacío o no contiene datos.',
-                  status: 'warning',
-                });
-                return;
-              }
-              setPendingRawRows(rawRowsForAI);
-              setIsConfirmModalOpen(true);
-              e.target.value = '';
-              return;
-            }
-
-            const combined = [...matrixRows, ...mapped];
-            setMatrixRows(combined);
-            saveMatrixData(combined);
-            showToast({
-              message: `¡Se importaron exitosamente ${mapped.length} riesgos viales desde el formato oficial!`,
-              status: 'success',
-            });
-            e.target.value = '';
+            const rawRowsForAI: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+            setPendingDirectRows(mapped);
+            setPendingRawRows(
+              rawRowsForAI && rawRowsForAI.length > 0 ? rawRowsForAI : (mapped as any[]),
+            );
+            setIsConfirmModalOpen(true);
+            if (e.target) e.target.value = '';
             return;
           }
 
@@ -1966,9 +2172,10 @@ export default function MatrizPESVTable({
             });
             return;
           }
+          setPendingDirectRows([]);
           setPendingRawRows(rawRowsForAI);
           setIsConfirmModalOpen(true);
-          e.target.value = '';
+          if (e.target) e.target.value = '';
           return;
         }
       } catch (err) {
@@ -2139,10 +2346,25 @@ export default function MatrizPESVTable({
         type="file"
         ref={fileInputRef}
         className="hidden"
-        accept=".xlsx,.xls,.json"
+        accept=".xlsx,.xls,.json,.csv"
         onChange={handleImportFile}
       />
 
+      {/* ── Universal Column Mapper Modal (Paralelo de Casillas) ─────────── */}
+      <UniversalColumnMapperModal
+        isOpen={isColumnMapperOpen}
+        onClose={() => {
+          setIsColumnMapperOpen(false);
+          setColumnMapperBuffer(null);
+        }}
+        moduleKey="matriz-pesv"
+        moduleTitle="Matriz PESV (Seguridad Vial)"
+        targetFields={MATRIZ_PESV_FIELDS}
+        fileData={columnMapperBuffer}
+        onConfirmImport={handleConfirmColumnMapping}
+      />
+
+      {/* ── AI Adapt Loading Overlay ────────────────────────────────────── */}
       {isAiImportLoading && (
         <div className="fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md">
           <div className="flex flex-col items-center gap-6 rounded-3xl border border-teal-500/20 bg-surface-secondary/90 p-8 shadow-2xl">
@@ -2162,48 +2384,29 @@ export default function MatrizPESVTable({
         </div>
       )}
 
-      {isConfirmModalOpen && (
-        <div className="fixed inset-0 z-[999998] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border-medium bg-surface-primary shadow-2xl transition-all">
-            <div className="relative p-6">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-yellow-500/20 bg-yellow-500/10 text-yellow-600">
-                <Sparkles className="h-6 w-6 animate-pulse" />
-              </div>
-              <h3 className="text-lg font-bold text-text-primary">
-                ¿Reconstruir matriz vial con IA?
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-text-secondary">
-                Hemos detectado que el archivo cargado no coincide con el formato estándar de Wappy
-                PESV.
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-text-secondary font-medium">
-                ¿Deseas que la IA de Wappy analice y adapte automáticamente tu matriz para que
-                encaje con nuestro formato oficial de seguridad vial?
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 bg-surface-secondary px-6 py-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsConfirmModalOpen(false);
-                  setPendingRawRows([]);
-                }}
-                className="flex-1 rounded-xl border border-border-medium bg-surface-primary py-2.5 text-sm font-semibold text-text-primary transition-all hover:bg-surface-hover"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleAiImport}
-                className="flex-1 rounded-xl bg-teal-600 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:bg-teal-700"
-              >
-                Sí, usar IA
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── Import Choice Modal (Paralelo de Casillas vs IA vs Directo) ─── */}
+      <ImportMethodModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => {
+          setIsConfirmModalOpen(false);
+          setPendingRawRows([]);
+          setPendingDirectRows([]);
+          setColumnMapperBuffer(null);
+        }}
+        rowsCount={pendingDirectRows.length || pendingRawRows.length || 0}
+        hasColumnMapper={!!columnMapperBuffer}
+        onSelectColumnMapper={() => {
+          setIsConfirmModalOpen(false);
+          setIsColumnMapperOpen(true);
+        }}
+        hasAi={true}
+        onSelectAi={handleAiImport}
+        onSelectDirect={handleDirectImport}
+        moduleTitle="Matriz PESV"
+        columnMapperDescription="Compara las columnas de tu Excel frente al formato técnico oficial PESV (Res. 20223040040595) en tiempo real. Previsualiza las filas, guarda plantillas de la empresa y procesa miles de registros al instante sin límites de IA."
+        aiDescription="Desglosa y separa automáticamente textos combinados, clasifica los factores de riesgo (humano, vehicular, infraestructura) y normaliza los niveles según la metodología ANSV 2022."
+        directDescription="Mapea las columnas existentes exactamente como vienen en el archivo Excel de forma instantánea, sin intervención ni procesamiento de IA."
+      />
     </>
   );
 
@@ -2417,6 +2620,15 @@ export default function MatrizPESVTable({
                 </div>
               </button>
 
+              {/* Exportar Excel / Plantilla */}
+              <ExportDropdown
+                content={reportContent || ''}
+                fileName={`Informe_PESV_Res40595_${new Date().toISOString().slice(0, 10)}`}
+                reportType="general"
+                onExportExcel={handleExportExcel}
+                onDownloadTemplate={handleExportTemplate}
+              />
+
               {/* Asignar Cargos IA */}
               {matrixRows.length > 0 && (
                 <button
@@ -2541,6 +2753,7 @@ export default function MatrizPESVTable({
                 fileName={`Informe_PESV_Wappy_${new Date().toISOString().slice(0, 10)}`}
                 reportType="general"
                 onExportExcel={handleExportExcel}
+                onDownloadTemplate={handleExportTemplate}
               />
 
               {/* Auto-Asignar Cargos con IA */}

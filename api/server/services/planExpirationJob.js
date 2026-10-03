@@ -59,7 +59,7 @@ const downgradeUserIfExpired = async (userId) => {
 
         if (!user) return { downgraded: false };
 
-        const freeRoles = ['USER', 'ADMIN', 'USER_IPEVAR', 'IPEVAR'];
+        const freeRoles = ['ADMIN', 'USER_IPEVAR', 'IPEVAR'];
 
         // Safety guard: If user's inactiveAt is still valid in the future,
         // they are NOT expired. Sincronize userPlan.planExpiresAt and do not downgrade.
@@ -96,7 +96,7 @@ const downgradeUserIfExpired = async (userId) => {
                     {
                         $set: {
                             role,
-                            accountStatus: 'active',
+                            accountStatus: role === 'USER_IPEVAR' ? 'active' : 'inactive',
                             inactiveAt: null,
                         },
                     }
@@ -128,7 +128,7 @@ const runExpirationCycle = async () => {
 
         // 2. Find all users in User whose inactiveAt has passed and are still non-free roles
         const expiredUsers = await User.find({
-            role: { $nin: ['USER', 'ADMIN', 'USER_IPEVAR', 'IPEVAR'] },
+            role: { $nin: ['ADMIN', 'USER_IPEVAR', 'IPEVAR'] },
             inactiveAt: { $lte: now, $ne: null },
         }).lean();
 

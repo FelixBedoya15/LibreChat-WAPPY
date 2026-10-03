@@ -13,7 +13,7 @@ const { downgradeUserIfExpired } = require('../services/planExpirationJob');
  */
 const checkAccountStatus = async (req, res, next) => {
     try {
-        const freeRoles = ['USER', 'ADMIN', 'USER_IPEVAR', 'IPEVAR'];
+        const freeRoles = ['ADMIN', 'USER_IPEVAR', 'IPEVAR'];
         if (req.user && !freeRoles.includes(req.user.role) && req.user.inactiveAt) {
             const now = new Date();
             const inactiveAt = new Date(req.user.inactiveAt);
@@ -21,7 +21,7 @@ const checkAccountStatus = async (req, res, next) => {
             if (now >= inactiveAt) {
                 const resDowngrade = await downgradeUserIfExpired(req.user.id || req.user._id);
                 if (resDowngrade.downgraded) {
-                    logger.info(`[checkAccountStatus] Auto-downgrading expired user ${req.user.id} (expired on ${inactiveAt.toISOString()}) to ${resDowngrade.role || 'free tier'}.`);
+                    logger.info(`[checkAccountStatus] Auto-downgrading expired user ${req.user.id} (expired on ${inactiveAt.toISOString()}) to ${resDowngrade.role || 'inactive tier'}.`);
                     req.user.role = resDowngrade.role;
                     req.user.inactiveAt = null;
                 } else {

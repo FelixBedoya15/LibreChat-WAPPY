@@ -23,6 +23,7 @@ import {
 import { TAuthConfig, TUserContext, TAuthContext, TResError } from '~/common';
 import useTimeout from './useTimeout';
 import store from '~/store';
+import { hasActivePlan } from '~/utils/planAccess';
 
 const AuthContext = createContext<TAuthContext | undefined>(undefined);
 
@@ -113,6 +114,8 @@ const AuthContextProvider = ({
         if (!hasChat) {
           redirectUrl = '/sgsst';
         }
+      } else if (!hasActivePlan(user)) {
+        redirectUrl = '/planes';
       }
       setUserContext({ token, isAuthenticated: true, user, redirect: redirectUrl });
     },

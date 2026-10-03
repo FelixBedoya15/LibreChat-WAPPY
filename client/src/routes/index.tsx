@@ -22,6 +22,7 @@ import ChatRoute from './ChatRoute';
 import Search from './Search';
 import Root from './Root';
 import RoadmapNotifier from '~/components/Roadmap/RoadmapNotifier';
+import { hasActivePlan } from '~/utils/planAccess';
 
 // Lazy-loaded secondary dashboards and public pages for fast initial bundle load
 const SGSSTDashboard = lazy(() => import('~/components/SGSST/Dashboard'));
@@ -118,12 +119,18 @@ const RootIndexRedirect = () => {
 
   if (isStandalone) {
     if (isAuthenticated) {
+      if (user && !hasActivePlan(user)) {
+        return <Navigate to={{ pathname: '/planes', search: location.search }} replace={true} />;
+      }
       return <Navigate to={{ pathname: '/c/new', search: location.search }} replace={true} />;
     }
     return <Navigate to={{ pathname: '/login', search: location.search }} replace={true} />;
   }
 
   if (isAuthenticated && !hasRefParam) {
+    if (user && !hasActivePlan(user)) {
+      return <Navigate to={{ pathname: '/planes', search: location.search }} replace={true} />;
+    }
     return <Navigate to={{ pathname: '/c/new', search: location.search }} replace={true} />;
   }
 
