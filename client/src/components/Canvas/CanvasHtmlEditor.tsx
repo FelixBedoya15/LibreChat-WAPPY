@@ -200,17 +200,21 @@ function preparePreviewHtml(html: string): string {
     console.warn('[Canvas Sandbox Unhandled Rejection]:', e.reason);
   });
 
-  // 6. Disparador de eventos de resize y readiness para reactivar scripts interactivos
+  // 6. Disparador de eventos de resize, iconos y readiness para reactivar scripts interactivos
   function _kickstartApp() {
     try {
+      if (typeof window.lucide !== 'undefined' && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
       window.dispatchEvent(new Event('resize'));
     } catch (e) {}
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _kickstartApp);
   } else {
-    setTimeout(_kickstartApp, 100);
-    setTimeout(_kickstartApp, 400);
+    setTimeout(_kickstartApp, 50);
+    setTimeout(_kickstartApp, 250);
+    setTimeout(_kickstartApp, 600);
   }
 })();
 </script>
@@ -225,6 +229,40 @@ function preparePreviewHtml(html: string): string {
     min-height: 100%;
     box-sizing: border-box;
     overflow-y: auto !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    color: #1e293b;
+    background-color: #ffffff;
+    line-height: 1.5;
+  }
+
+  /* Reset base moderno para botones, inputs y controles que evita aspecto plano de 1995 si hay retraso de red */
+  button, [type='button'], [type='reset'], [type='submit'] {
+    font-family: inherit;
+    border-radius: 0.5rem;
+    padding: 0.45rem 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #cbd5e1;
+    background-color: #f1f5f9;
+    color: #0f172a;
+    transition: all 0.2s ease-in-out;
+  }
+  button:hover, [type='button']:hover {
+    background-color: #e2e8f0;
+  }
+  input[type='text'], input[type='number'], input[type='date'], input[type='email'], select, textarea {
+    font-family: inherit;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.5rem;
+    padding: 0.45rem 0.75rem;
+    outline: none;
+    background-color: #ffffff;
+    color: #0f172a;
+    transition: border-color 0.2s ease-in-out;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: #0d9488;
+    box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2);
   }
 
   /* Utilidades base en caso de retraso o bloqueo de Tailwind CDN - SIN selectores de subcadena como [class*="hidden"] */
@@ -289,9 +327,23 @@ function preparePreviewHtml(html: string): string {
 </style>
 `;
 
-  const tailwindScript = !content.includes('cdn.tailwindcss.com') 
-    ? '<script src="https://cdn.tailwindcss.com"></script>\n' 
-    : '';
+  // Scripts de primera parte (First-Party) alojados localmente en WAPPY con fallback automático al CDN público
+  const localCoreScripts = `
+<script src="/assets/tailwind-cdn.js"></script>
+<script src="/assets/lucide.min.js"></script>
+<script src="/assets/chart.min.js"></script>
+<script>
+  if (!window.tailwind) {
+    document.write('<script src="https://cdn.tailwindcss.com"><\\/script>');
+  }
+  if (!window.lucide) {
+    document.write('<script src="https://unpkg.com/lucide@latest"><\\/script>');
+  }
+  if (!window.Chart) {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js"><\\/script>');
+  }
+</script>
+`;
 
   if (!hasHtml) {
     content = `<!DOCTYPE html>
@@ -299,7 +351,7 @@ function preparePreviewHtml(html: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
+  ${localCoreScripts}
   ${safeShim}
   ${responsiveBaseStyle}
 </head>
@@ -308,9 +360,9 @@ function preparePreviewHtml(html: string): string {
 </body>
 </html>`;
   } else if (hasHead) {
-    content = content.replace(/<head[^>]*>/i, (match) => `${match}\n${tailwindScript}${safeShim}\n${responsiveBaseStyle}`);
+    content = content.replace(/<head[^>]*>/i, (match) => `${match}\n${localCoreScripts}${safeShim}\n${responsiveBaseStyle}`);
   } else {
-    content = content.replace(/<html[^>]*>/i, (match) => `${match}\n<head>\n${tailwindScript}${safeShim}\n${responsiveBaseStyle}\n</head>`);
+    content = content.replace(/<html[^>]*>/i, (match) => `${match}\n<head>\n${localCoreScripts}${safeShim}\n${responsiveBaseStyle}\n</head>`);
   }
 
   return content;
