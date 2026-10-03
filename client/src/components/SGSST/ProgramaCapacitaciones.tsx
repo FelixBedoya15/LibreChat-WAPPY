@@ -133,20 +133,34 @@ export default function ProgramaCapacitaciones() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const extension = file.name.split('.').pop()?.toLowerCase() || '';
+
     const reader = new FileReader();
     reader.onload = (eEvent) => {
       const buffer = eEvent.target?.result as ArrayBuffer;
       if (buffer) {
         setColumnMapperBuffer(buffer);
-        try {
-          const wb = read(buffer, { type: 'array' });
-          const firstSheetName = wb.SheetNames[0];
-          const sheet = wb.Sheets[firstSheetName];
-          const rows = utils.sheet_to_json(sheet) as any[];
-          setPendingDirectRows(rows);
-        } catch {
-          setPendingDirectRows([]);
+        let rows: any[] = [];
+        if (['xlsx', 'xls', 'csv'].includes(extension)) {
+          try {
+            const wb = read(buffer, { type: 'array' });
+            const firstSheetName = wb.SheetNames[0];
+            const sheet = wb.Sheets[firstSheetName];
+            rows = utils.sheet_to_json(sheet) as any[];
+          } catch (err) {
+            console.warn('[ProgramaCapacitaciones] Excel parsing error:', err);
+          }
+        } else if (extension === 'json') {
+          try {
+            const dec = new TextDecoder();
+            const text = dec.decode(buffer);
+            const parsed = JSON.parse(text);
+            rows = Array.isArray(parsed) ? parsed : [parsed];
+          } catch (err) {
+            console.warn('[ProgramaCapacitaciones] JSON parsing error:', err);
+          }
         }
+        setPendingDirectRows(rows);
         setIsImportModalOpen(true);
       }
     };
@@ -1400,7 +1414,7 @@ export default function ProgramaCapacitaciones() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".xlsx, .xls, .csv"
+        accept=".xlsx, .xls, .csv, .json"
         onChange={handleFileSelect}
         className="hidden"
       />

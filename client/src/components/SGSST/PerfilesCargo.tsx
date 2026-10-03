@@ -543,7 +543,7 @@ const PerfilesCargo = () => {
     const [isVideoUploading, setIsVideoUploading] = useState(false);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [isAiImportLoading, setIsAiImportLoading] = useState(false);
-    const [pendingFileData, setPendingFileData] = useState<{ dataUrl: string; name: string; type: string } | null>(null);
+    const [pendingFileData, setPendingFileData] = useState<{ buffer: ArrayBuffer; name: string; type: string } | null>(null);
 
     // ─── Homologador Visual de Casillas (Paralelo de Casillas) ───
     const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
@@ -727,59 +727,7 @@ const PerfilesCargo = () => {
             .catch(err => console.error('[PerfilesCargo] Error loading official matrix:', err));
     }, [token]);
 
-    // ─── Auto-sincronizar cargos de la Matriz IPEVAR que falten en Perfiles ──────
-    const hasAutoSyncedRef = useRef(false);
-    useEffect(() => {
-        if (!token || officialMatrixRows.length === 0 || perfiles.length === 0 || hasAutoSyncedRef.current) return;
-
-        const existingNames = new Set(
-            perfiles.map(p => (p.nombreCargo || '').toLowerCase().trim()).filter(Boolean)
-        );
-
-        const uniqueMissingRowsMap = new Map<string, any>();
-        officialMatrixRows.forEach(r => {
-            const c = (r.cargo || '').toLowerCase().trim();
-            if (c && c !== 'cargo / rol...' && c !== 'cargo / rol…' && !existingNames.has(c)) {
-                if (!uniqueMissingRowsMap.has(c)) {
-                    uniqueMissingRowsMap.set(c, r);
-                }
-            }
-        });
-
-        const missingRows = Array.from(uniqueMissingRowsMap.values());
-        if (missingRows.length > 0) {
-            hasAutoSyncedRef.current = true;
-            Promise.all(
-                missingRows.map(r =>
-                    fetch('/api/sgsst/perfiles-cargo/ensure', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                        body: JSON.stringify({
-                            nombreCargo: r.cargo,
-                            proceso: r.proceso,
-                            actividad: r.actividad,
-                            tareas: r.tareas,
-                            nro_expuestos: r.nro_expuestos,
-                            medida_eppu: r.medida_eppu,
-                            medida_ingenieria: r.medida_ingenieria,
-                            medida_administrativa: r.medida_administrativa,
-                        }),
-                    }).then(res => res.json())
-                )
-            )
-                .then(results => {
-                    const createdPerfiles = results.filter(res => res && res.created && res.perfil).map(res => res.perfil);
-                    if (createdPerfiles.length > 0) {
-                        setPerfiles(prev => [...prev, ...createdPerfiles]);
-                        showToast({
-                            message: `Se sincronizaron automáticamente ${createdPerfiles.length} nuevos perfiles de cargo desde la Matriz IPEVR.`,
-                            severity: NotificationSeverity.SUCCESS,
-                        });
-                    }
-                })
-                .catch(err => console.error('[PerfilesCargo] Error auto-syncing missing cargos:', err));
-        }
-    }, [officialMatrixRows, perfiles, token]);
+    // ─── Sincronizar cargos de la Matriz IPEVAR manualmente a través del botón ──
 
     const handleSyncAllFromMatrix = async () => {
         if (!token) return;
@@ -1266,117 +1214,65 @@ const PerfilesCargo = () => {
         });
     };
 
+    const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+            binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize) as any);
+        }
+        return window.btoa(binary);
+    };
+
     const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const extension = file.name.split('.').pop()?.toLowerCase();
+        const extension = file.name.split('.').pop()?.toLowerCase() || '';
         
-        // Helper to load file as base64 and open confirmation modal
-        const requestAiImport = () => {
-            const base64Reader = new FileReader();
-            base64Reader.onload = (base64Event) => {
-                let inferredType = file.type || 'application/octet-stream';
-                if (file.name.toLowerCase().endsWith('.docx')) {
-                    inferredType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-                } else if (file.name.toLowerCase().endsWith('.xlsx')) {
-                    inferredType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-                } else if (file.name.toLowerCase().endsWith('.pdf')) {
-                    inferredType = 'application/pdf';
-                }
+        let inferredType = file.type || 'application/octet-stream';
+        if (extension === 'docx') inferredType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        else if (extension === 'xlsx') inferredType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        else if (extension === 'pdf') inferredType = 'application/pdf';
 
-                setPendingFileData({
-                    dataUrl: base64Event.target?.result as string,
-                    name: file.name,
-                    type: inferredType
-                });
-                setIsConfirmModalOpen(true);
-            };
-            base64Reader.readAsDataURL(file);
+        const reader = new FileReader();
+        reader.onload = (eEvent) => {
+            const buffer = eEvent.target?.result as ArrayBuffer;
+            if (!buffer) return;
+
+            let rows: any[] = [];
+            if (['xlsx', 'xls', 'csv'].includes(extension)) {
+                try {
+                    const wb = XLSX.read(buffer, { type: 'array' });
+                    const firstSheetName = wb.SheetNames[0];
+                    const sheet = wb.Sheets[firstSheetName];
+                    rows = XLSX.utils.sheet_to_json(sheet) as any[];
+                } catch (err) {
+                    console.warn('[PerfilesCargo] Excel parsing error:', err);
+                }
+            } else if (extension === 'json') {
+                try {
+                    const dec = new TextDecoder();
+                    const text = dec.decode(buffer);
+                    const parsed = JSON.parse(text);
+                    rows = Array.isArray(parsed) ? parsed : [parsed];
+                } catch (err) {
+                    console.warn('[PerfilesCargo] JSON parsing error:', err);
+                }
+            }
+
+            setColumnMapperBuffer(buffer);
+            setPendingDirectRows(rows);
+            setPendingFileData({
+                buffer,
+                name: file.name,
+                type: inferredType
+            });
+            setIsConfirmModalOpen(true);
         };
 
-        // Si es PDF, Word (.docx, .doc) o texto, va directo a la ruta de IA
-        if (['pdf', 'docx', 'doc', 'txt'].includes(extension || '')) {
-            requestAiImport();
-            if (e.target) e.target.value = '';
-            return;
-        }
-
-        // Si es JSON, leemos e intentamos parsear
-        if (extension === 'json') {
-            const jsonReader = new FileReader();
-            jsonReader.onload = (jsonEvent) => {
-                try {
-                    const parsed = JSON.parse(jsonEvent.target?.result as string);
-                    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].nombreCargo) {
-                        // Formato estándar
-                        const newPerfiles = parsed.map((p: any) => ({
-                            ...p,
-                            id: p.id || crypto.randomUUID(),
-                            images: p.images || {},
-                            video: p.video || null,
-                            report: p.report || ''
-                        }));
-                        setPerfiles(prev => {
-                            const cleanPrev = (prev.length === 1 && !prev[0].nombreCargo) ? [] : prev;
-                            const combined = [...cleanPrev, ...newPerfiles];
-                            if (combined.length > 0 && (!activePerfilId || !prev.find(p2 => p2.id === activePerfilId)?.nombreCargo)) {
-                                setActivePerfilId(combined[0].id);
-                                setFormData(combined[0]);
-                                setGeneratedReport(combined[0].report || null);
-                                editorContentRef.current = combined[0].report || '';
-                                liveEditorRef.current?.setHTML(combined[0].report || '');
-                            }
-                            saveImportedPerfiles(combined);
-                            return combined;
-                        });
-                        showToast({ message: `${newPerfiles.length} perfiles importados desde backup`, severity: NotificationSeverity.SUCCESS });
-                    } else {
-                        // JSON no estándar, preguntar por IA
-                        requestAiImport();
-                    }
-                } catch (err) {
-                    showToast({ message: 'Error al parsear el archivo JSON', severity: NotificationSeverity.ERROR });
-                }
-            };
-            jsonReader.readAsText(file);
-            if (e.target) e.target.value = '';
-            return;
-        }
-
-        // Si es Excel (.xlsx, .xls) o CSV, cargamos buffer y preparamos opciones
-        if (['xlsx', 'xls', 'csv'].includes(extension || '')) {
-            const reader = new FileReader();
-            reader.onload = (eEvent) => {
-                const buffer = eEvent.target?.result as ArrayBuffer;
-                if (buffer) {
-                    setColumnMapperBuffer(buffer);
-                    try {
-                        const wb = XLSX.read(buffer, { type: 'array' });
-                        const firstSheetName = wb.SheetNames[0];
-                        const sheet = wb.Sheets[firstSheetName];
-                        const rows = XLSX.utils.sheet_to_json(sheet) as any[];
-                        setPendingDirectRows(rows);
-                    } catch {
-                        setPendingDirectRows([]);
-                    }
-
-                    const base64Reader = new FileReader();
-                    base64Reader.onload = (b64) => {
-                        setPendingFileData({
-                            dataUrl: b64.target?.result as string,
-                            name: file.name,
-                            type: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                        });
-                        setIsConfirmModalOpen(true);
-                    };
-                    base64Reader.readAsDataURL(file);
-                }
-            };
-            reader.readAsArrayBuffer(file);
-            if (e.target) e.target.value = '';
-            return;
-        }
+        reader.readAsArrayBuffer(file);
+        if (e.target) e.target.value = '';
     };
 
     // Nueva función para ejecutar la importación por IA
@@ -1385,6 +1281,8 @@ const PerfilesCargo = () => {
         setIsConfirmModalOpen(false);
         setIsAiImportLoading(true);
         try {
+            const base64Data = arrayBufferToBase64(pendingFileData.buffer);
+            const dataUrl = `data:${pendingFileData.type};base64,${base64Data}`;
             const res = await fetch('/api/sgsst/perfiles-cargo/import-file', {
                 method: 'POST',
                 headers: {
@@ -1392,7 +1290,7 @@ const PerfilesCargo = () => {
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    fileData: pendingFileData.dataUrl,
+                    fileData: dataUrl,
                     fileName: pendingFileData.name,
                     mimeType: pendingFileData.type,
                     modelName: selectedModel

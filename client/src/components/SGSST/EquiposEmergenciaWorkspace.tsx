@@ -71,6 +71,18 @@ const EquiposEmergenciaWorkspace: React.FC = () => {
       const buffer = eEvent.target?.result as ArrayBuffer;
       if (buffer) {
         setColumnMapperBuffer(buffer);
+        if (file.name.endsWith('.json')) {
+          try {
+            const text = new TextDecoder('utf-8').decode(buffer);
+            const parsed = JSON.parse(text);
+            const rows = Array.isArray(parsed) ? parsed : (parsed.data || parsed.rows || [parsed]);
+            setPendingDirectRows(rows);
+            setIsImportModalOpen(true);
+          } catch {
+            showToast({ message: 'El archivo JSON no tiene un formato válido', status: 'error' });
+          }
+          return;
+        }
         try {
           const wb = read(buffer, { type: 'array' });
           const firstSheetName = wb.SheetNames[0];
@@ -568,7 +580,7 @@ const EquiposEmergenciaWorkspace: React.FC = () => {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".xlsx, .xls, .csv"
+        accept=".xlsx, .xls, .csv, .json"
         onChange={handleFileSelect}
         className="hidden"
       />

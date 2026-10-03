@@ -1431,10 +1431,13 @@ export default function MatrizIPEVARTable({
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const data = evt.target?.result;
+        const buffer = evt.target?.result as ArrayBuffer;
+        if (!buffer) return;
+        setColumnMapperBuffer(buffer);
 
         if (file.name.endsWith('.json')) {
-          const parsed = JSON.parse(data as string);
+          const text = new TextDecoder('utf-8').decode(buffer);
+          const parsed = JSON.parse(text);
           if (Array.isArray(parsed)) {
             const firstRow = parsed[0] || {};
             const keys = Object.keys(firstRow);
@@ -1478,16 +1481,7 @@ export default function MatrizIPEVARTable({
             alert('El archivo JSON debe contener un arreglo de objetos.');
           }
         } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv')) {
-          // Guardar buffer para el Homologador Visual (Paralelo de Casillas)
-          const bufferReader = new FileReader();
-          bufferReader.onload = (bufEvt) => {
-            if (bufEvt.target?.result) {
-              setColumnMapperBuffer(bufEvt.target.result as ArrayBuffer);
-            }
-          };
-          bufferReader.readAsArrayBuffer(file);
-
-          const wb = XLSX.read(data, { type: 'binary' });
+          const wb = XLSX.read(buffer, { type: 'array' });
           
           let allSheetRows: any[] = [];
           let hasMatrixSheet = false;
@@ -1805,14 +1799,10 @@ export default function MatrizIPEVARTable({
         console.error(err);
         alert('Error al leer el archivo de importación. Verifique el formato.');
       }
-      e.target.value = '';
+      if (e.target) e.target.value = '';
     };
 
-    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-      reader.readAsBinaryString(file);
-    } else {
-      reader.readAsText(file);
-    }
+    reader.readAsArrayBuffer(file);
   };
 
   // ── Sync with mobile Header toggle button via Recoil ───────────────

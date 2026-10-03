@@ -1715,15 +1715,6 @@ export default function MatrizPESVTable({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Buffer para Homologador Visual (Paralelo de Casillas)
-    const bufferReader = new FileReader();
-    bufferReader.onload = (bufEvt) => {
-      if (bufEvt.target?.result) {
-        setColumnMapperBuffer(bufEvt.target.result as ArrayBuffer);
-      }
-    };
-    bufferReader.readAsArrayBuffer(file);
-
     const autofillMergedCells = (ws: any) => {
       if (!ws || !ws['!merges']) return;
       ws['!merges'].forEach((merge: any) => {
@@ -1749,10 +1740,13 @@ export default function MatrizPESVTable({
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const data = evt.target?.result;
+        const buffer = evt.target?.result as ArrayBuffer;
+        if (!buffer) return;
+        setColumnMapperBuffer(buffer);
 
         if (file.name.endsWith('.json')) {
-          const parsed = JSON.parse(data as string);
+          const text = new TextDecoder('utf-8').decode(buffer);
+          const parsed = JSON.parse(text);
           if (Array.isArray(parsed)) {
             const mappedJson = parsed.map((r: any) => ({
               ...r,
@@ -1772,7 +1766,7 @@ export default function MatrizPESVTable({
           if (e.target) e.target.value = '';
           return;
         } else {
-          const workbook = XLSX.read(data, { type: 'binary' });
+          const workbook = XLSX.read(buffer, { type: 'array' });
           let targetSheetName = '';
           const sheetNames = workbook.SheetNames;
 
@@ -2187,11 +2181,7 @@ export default function MatrizPESVTable({
       }
     };
 
-    if (file.name.endsWith('.json')) {
-      reader.readAsText(file);
-    } else {
-      reader.readAsBinaryString(file);
-    }
+    reader.readAsArrayBuffer(file);
   };
 
   const handleExportExcel = async () => {

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { Sparkles, Columns3, Zap, X } from 'lucide-react';
 
 export interface ImportMethodModalProps {
@@ -30,7 +31,17 @@ export default function ImportMethodModal({
   aiDescription,
   directDescription,
 }: ImportMethodModalProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
+  if (typeof document === 'undefined') return null;
 
   const defaultColumnMapperDesc =
     columnMapperDescription ||
@@ -44,13 +55,16 @@ export default function ImportMethodModal({
     directDescription ||
     'Mapea las columnas existentes exactamente como vienen en el archivo Excel de forma instantánea, sin intervención ni procesamiento de IA.';
 
-  return (
-    <div className="fixed inset-0 z-[999998] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-border-medium bg-surface-primary shadow-2xl transition-all">
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
+      <div 
+        className="w-full max-w-lg overflow-hidden rounded-3xl border border-border-medium bg-surface-primary shadow-2xl transition-all"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-teal-500/20 bg-teal-500/10 text-teal-600 dark:text-teal-400">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-teal-500/20 bg-teal-500/10 text-teal-600 dark:text-teal-400 shadow-sm">
                 <Sparkles className="h-6 w-6" />
               </div>
               <div>
@@ -65,7 +79,8 @@ export default function ImportMethodModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl p-2 text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all"
+              className="rounded-xl p-2 text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all cursor-pointer active:scale-95"
+              aria-label="Cerrar modal"
             >
               <X className="h-5 w-5" />
             </button>
@@ -81,7 +96,7 @@ export default function ImportMethodModal({
               <button
                 type="button"
                 onClick={onSelectColumnMapper}
-                className="group relative flex flex-col items-start gap-2 rounded-2xl border-2 border-teal-500 bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-teal-500/5 p-4 text-left transition-all hover:border-teal-600 hover:shadow-lg shadow-sm"
+                className="group relative flex flex-col items-start gap-2 rounded-2xl border-2 border-teal-500 bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-teal-500/5 p-4 text-left transition-all hover:border-teal-600 hover:shadow-lg shadow-sm cursor-pointer active:scale-[0.99]"
               >
                 <div className="flex w-full items-center justify-between gap-3">
                   <div className="flex items-center gap-2 font-bold text-teal-700 dark:text-teal-300 text-sm">
@@ -103,14 +118,14 @@ export default function ImportMethodModal({
               <button
                 type="button"
                 onClick={onSelectAi}
-                className="group relative flex flex-col items-start gap-2 rounded-2xl border border-border-medium bg-surface-secondary/40 p-4 text-left transition-all hover:border-teal-500/50 hover:bg-surface-hover shadow-sm"
+                className="group relative flex flex-col items-start gap-2 rounded-2xl border border-orange-500/30 bg-gradient-to-r from-orange-500/5 via-amber-500/5 to-orange-500/10 p-4 text-left transition-all hover:border-orange-500/60 hover:bg-orange-500/10 hover:shadow-md shadow-sm cursor-pointer active:scale-[0.99]"
               >
                 <div className="flex w-full items-center justify-between">
-                  <div className="flex items-center gap-2 font-bold text-teal-700 dark:text-teal-400 text-sm">
-                    <Sparkles className="h-4 w-4 text-teal-600" />
+                  <div className="flex items-center gap-2 font-bold text-orange-600 dark:text-amber-400 text-sm">
+                    <Sparkles className="h-4 w-4 text-orange-500" />
                     Reconstrucción Inteligente con IA
                   </div>
-                  <span className="rounded-full bg-surface-tertiary px-2 py-0.5 text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+                  <span className="rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-2.5 py-0.5 text-[10px] font-black text-white shadow-2xs">
                     IA
                   </span>
                 </div>
@@ -124,14 +139,14 @@ export default function ImportMethodModal({
             <button
               type="button"
               onClick={onSelectDirect}
-              className="group relative flex flex-col items-start gap-2 rounded-2xl border border-border-medium bg-surface-secondary/50 p-4 text-left transition-all hover:border-border-heavy hover:bg-surface-hover shadow-xs"
+              className="group relative flex flex-col items-start gap-2 rounded-2xl border border-border-medium bg-surface-secondary/50 p-4 text-left transition-all hover:border-border-heavy hover:bg-surface-hover shadow-xs cursor-pointer active:scale-[0.99]"
             >
               <div className="flex w-full items-center justify-between">
                 <div className="flex items-center gap-2 font-bold text-text-primary text-sm">
                   <Zap className="h-4 w-4 text-amber-500" />
                   Carga Directa e Inmediata (1 a 1)
                 </div>
-                <span className="rounded-full bg-surface-tertiary px-2 py-0.5 text-[10px] font-medium text-text-secondary">
+                <span className="rounded-xl bg-surface-tertiary px-2.5 py-0.5 text-[10px] font-bold text-text-secondary border border-border-medium/40">
                   Rápido
                 </span>
               </div>
@@ -146,12 +161,13 @@ export default function ImportMethodModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl px-4 py-2 text-xs font-semibold text-text-secondary hover:text-text-primary transition-all"
+            className="rounded-xl px-4 py-2 text-xs font-bold text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-all cursor-pointer active:scale-95"
           >
             Cancelar
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

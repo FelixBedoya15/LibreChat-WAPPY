@@ -767,23 +767,24 @@ export default function MatrizCompatibilidadTable({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Buffer para Homologador Visual (Paralelo de Casillas)
-    const bufferReader = new FileReader();
-    bufferReader.onload = (bufEvt) => {
-      if (bufEvt.target?.result) {
-        setColumnMapperBuffer(bufEvt.target.result as ArrayBuffer);
-      }
-    };
-    bufferReader.readAsArrayBuffer(file);
-
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const data = evt.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const rawJson = XLSX.utils.sheet_to_json<any>(sheet, { defval: '' });
+        const buffer = evt.target?.result as ArrayBuffer;
+        if (!buffer) return;
+        setColumnMapperBuffer(buffer);
+
+        let rawJson: any[] = [];
+        if (file.name.endsWith('.json')) {
+          const text = new TextDecoder('utf-8').decode(buffer);
+          const parsed = JSON.parse(text);
+          rawJson = Array.isArray(parsed) ? parsed : (parsed.data || parsed.rows || [parsed]);
+        } else {
+          const workbook = XLSX.read(buffer, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          rawJson = XLSX.utils.sheet_to_json<any>(sheet, { defval: '' });
+        }
 
         if (rawJson.length === 0) {
           showToast({ message: 'El archivo está vacío.', status: 'warning' });
@@ -918,8 +919,8 @@ export default function MatrizCompatibilidadTable({
         showToast({ message: 'Error leyendo el archivo Excel.', status: 'error' });
       }
     };
-    reader.readAsBinaryString(file);
-    e.target.value = '';
+    reader.readAsArrayBuffer(file);
+    if (e.target) e.target.value = '';
   };
 
   const handleConfirmAiImport = async () => {
