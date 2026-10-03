@@ -2043,89 +2043,8 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
                     interactive={true}
                     showHaloEffect={false}
                     showHUD={true}
-                    statusText={
-                      isTenshiSpeaking
-                        ? 'Hablando...'
-                        : isVoiceActive
-                        ? 'Escuchando tu voz...'
-                        : isTyping || isChatSubmitting
-                        ? 'Pensando...'
-                        : undefined
-                    }
                   />
                 </div>
-
-                {/* Ecualizador dinámico de 7 barras estilo WAPPY */}
-                <div className="mt-3 flex items-center justify-center gap-1.5 h-5">
-                  {[35, 75, 100, 60, 95, 50, 80].map((baseH, idx) => {
-                    const amp = isTenshiSpeaking
-                      ? outputAmplitude
-                      : isVoiceActive
-                      ? voiceAmplitude
-                      : 0;
-                    const h = amp > 0.04
-                      ? Math.max(4, Math.round((baseH / 100) * 20 * Math.min(amp * 3.5, 1.3)))
-                      : isTenshiSpeaking
-                      ? Math.max(4, (baseH % 12) + 4)
-                      : 4;
-                    return (
-                      <span
-                        key={idx}
-                        className={cn(
-                          'w-1 rounded-full transition-all duration-75',
-                          isTenshiSpeaking
-                            ? 'bg-emerald-500 shadow-sm'
-                            : isWaitingConsultation || isChatSubmitting
-                            ? 'bg-amber-400/80 animate-pulse'
-                            : voiceAmplitude > 0.05
-                            ? 'bg-emerald-400'
-                            : isTyping
-                            ? 'bg-amber-400 animate-pulse'
-                            : 'bg-emerald-300 dark:bg-emerald-700'
-                        )}
-                        style={{ height: `${h}px` }}
-                      />
-                    );
-                  })}
-                </div>
-
-                {/* Estado de voz */}
-                <p className="mt-1 text-center text-xs font-medium text-emerald-600 dark:text-emerald-400 tracking-tight">
-                  {isTenshiSpeaking ? (
-                    'Tenshi hablando...'
-                  ) : isWaitingConsultation || isChatSubmitting ? (
-                    <span className="text-amber-600 dark:text-amber-400 animate-pulse">
-                      Esperando al especialista en pantalla...
-                    </span>
-                  ) : isVoiceActive ? (
-                    voiceStatusText || 'Tenshi te escucha... Habla con naturalidad'
-                  ) : isTyping ? (
-                    'Tenshi procesando...'
-                  ) : (
-                    'Tenshi listo'
-                  )}
-                </p>
-              </div>
-
-              {/* Caja de subtítulo / transcripción con el estilo original de WAPPY */}
-              <div className="mx-1 my-2 max-h-28 overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 text-center text-xs text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                {isTyping ? (
-                  <div className="flex items-center justify-center gap-1.5 text-emerald-600 dark:text-emerald-400 animate-pulse">
-                    <Sparkles className="h-3.5 w-3.5 animate-spin" />
-                    <span className="font-medium">Tenshi está analizando...</span>
-                  </div>
-                ) : (() => {
-                    const lastMsg = [...messages].reverse().find(
-                      (m) => !m.content?.startsWith('[RESULTADO_GUI]') && !(m as any).isIntermediate
-                    );
-                    const content = lastMsg?.content || '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy?';
-                    return (
-                      <p className="line-clamp-3 leading-relaxed font-normal">
-                        "{content}"
-                      </p>
-                    );
-                  })()
-                }
               </div>
 
               {/* Pie con el Interruptor Modo Live para regresar a Modo Chat */}
