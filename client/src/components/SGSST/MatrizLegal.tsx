@@ -27,6 +27,8 @@ import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
 import { MATRIZ_LEGAL_ITEMS, MatrizLegalItem } from './matrizLegalData';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import ImportMethodModal from './ImportMethodModal';
+import { read, utils } from 'xlsx';
 import { MATRIZ_LEGAL_FIELDS } from './moduleFieldDefinitions';
 import { exportModuleDataToExcel } from './columnMapperEngine';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
@@ -140,6 +142,10 @@ const MatrizLegal = () => {
 
     const allLegalItems = useMemo(() => [...MATRIZ_LEGAL_ITEMS, ...customItems], [customItems]);
 
+    // Modal de Selección de Método de Importación (3 opciones)
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [pendingDirectRows, setPendingDirectRows] = useState<any[]>([]);
+
     // Homologador Visual de Casillas (Paralelo de Excel)
     const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
     const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
@@ -153,11 +159,37 @@ const MatrizLegal = () => {
             const buffer = eEvent.target?.result as ArrayBuffer;
             if (buffer) {
                 setColumnMapperBuffer(buffer);
-                setIsColumnMapperOpen(true);
+                try {
+                    const wb = read(buffer, { type: 'array' });
+                    const firstSheetName = wb.SheetNames[0];
+                    const sheet = wb.Sheets[firstSheetName];
+                    const rows = utils.sheet_to_json(sheet) as any[];
+                    setPendingDirectRows(rows);
+                } catch {
+                    setPendingDirectRows([]);
+                }
+                setIsImportModalOpen(true);
             }
         };
         reader.readAsArrayBuffer(file);
         if (e.target) e.target.value = '';
+    };
+
+    const handleDirectImport = () => {
+        setIsImportModalOpen(false);
+        if (!pendingDirectRows || pendingDirectRows.length === 0) {
+            showToast({ message: 'No se encontraron filas legibles para importación directa.', status: 'warning' });
+            return;
+        }
+        handleConfirmColumnMapping(pendingDirectRows);
+    };
+
+    const handleAiImport = () => {
+        setIsImportModalOpen(false);
+        if (pendingDirectRows.length > 0) {
+            handleConfirmColumnMapping(pendingDirectRows);
+        }
+        handleGenerate();
     };
 
     const handleConfirmColumnMapping = (mappedRows: any[]) => {
@@ -774,6 +806,8 @@ const MatrizLegal = () => {
                             content={editorContentRef.current || generatedMatrix || ''}
                             fileName="Informe_MatrizLegal"
                             reportType="general"
+                            onExportExcel={handleExportExcel}
+                            onDownloadTemplate={handleDownloadTemplate}
                         />
                     }
                     >
@@ -819,6 +853,27 @@ const MatrizLegal = () => {
                 accept=".xlsx, .xls, .csv"
                 onChange={handleFileSelect}
                 className="hidden"
+            />
+
+            {/* Modal de Selección de Método de Importación (Estilo IPEVR) */}
+            <ImportMethodModal
+                isOpen={isImportModalOpen}
+                onClose={() => {
+                    setIsImportModalOpen(false);
+                    setPendingDirectRows([]);
+                    setColumnMapperBuffer(null);
+                }}
+                rowsCount={pendingDirectRows.length}
+                hasColumnMapper={!!columnMapperBuffer}
+                onSelectColumnMapper={() => {
+                    setIsImportModalOpen(false);
+                    setIsColumnMapperOpen(true);
+                }}
+                hasAi={true}
+                onSelectAi={handleAiImport}
+                onSelectDirect={handleDirectImport}
+                moduleTitle="Matriz Legal"
+                aiDescription="Importa las normas y requisitos de tu archivo y ejecuta el análisis inteligente de cumplimiento legal con IA."
             />
 
             {/* Modal Homologador Universal de Casillas (Paralelo de Excel) */}

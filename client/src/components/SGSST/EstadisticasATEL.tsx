@@ -40,6 +40,8 @@ import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import ImportMethodModal from './ImportMethodModal';
+import { read, utils } from 'xlsx';
 import { AUSENTISMO_FIELDS } from './moduleFieldDefinitions';
 import { exportModuleDataToExcel } from './columnMapperEngine';
 import EventLogger, { ATELContext, calculateEventFinancials } from './EventLogger';
@@ -235,6 +237,10 @@ const EstadisticasATEL = () => {
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+    // Modal de Selección de Método de Importación (3 opciones)
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [pendingDirectRows, setPendingDirectRows] = useState<any[]>([]);
+
     // Homologador Visual de Casillas (Paralelo de Excel)
     const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
     const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
@@ -248,11 +254,37 @@ const EstadisticasATEL = () => {
             const buffer = eEvent.target?.result as ArrayBuffer;
             if (buffer) {
                 setColumnMapperBuffer(buffer);
-                setIsColumnMapperOpen(true);
+                try {
+                    const wb = read(buffer, { type: 'array' });
+                    const firstSheetName = wb.SheetNames[0];
+                    const sheet = wb.Sheets[firstSheetName];
+                    const rows = utils.sheet_to_json(sheet) as any[];
+                    setPendingDirectRows(rows);
+                } catch {
+                    setPendingDirectRows([]);
+                }
+                setIsImportModalOpen(true);
             }
         };
         reader.readAsArrayBuffer(file);
         if (e.target) e.target.value = '';
+    };
+
+    const handleDirectImport = () => {
+        setIsImportModalOpen(false);
+        if (!pendingDirectRows || pendingDirectRows.length === 0) {
+            showToast({ message: 'No se encontraron filas legibles para importación directa.', status: 'warning' });
+            return;
+        }
+        handleConfirmColumnMapping(pendingDirectRows);
+    };
+
+    const handleAiImport = () => {
+        setIsImportModalOpen(false);
+        if (pendingDirectRows.length > 0) {
+            handleConfirmColumnMapping(pendingDirectRows);
+        }
+        handleGenerate('ANNUAL');
     };
 
     const handleConfirmColumnMapping = async (mappedRows: any[]) => {
@@ -2185,6 +2217,27 @@ const EstadisticasATEL = () => {
                 accept=".xlsx, .xls, .csv"
                 onChange={handleFileSelect}
                 className="hidden"
+            />
+
+            {/* Modal de Selección de Método de Importación (3 opciones) */}
+            <ImportMethodModal
+                isOpen={isImportModalOpen}
+                onClose={() => {
+                    setIsImportModalOpen(false);
+                    setPendingDirectRows([]);
+                    setColumnMapperBuffer(null);
+                }}
+                rowsCount={pendingDirectRows.length}
+                hasColumnMapper={!!columnMapperBuffer}
+                onSelectColumnMapper={() => {
+                    setIsImportModalOpen(false);
+                    setIsColumnMapperOpen(true);
+                }}
+                hasAi={true}
+                onSelectAi={handleAiImport}
+                onSelectDirect={handleDirectImport}
+                moduleTitle="Ausentismo y ATEL"
+                aiDescription="Importa las novedades de incapacidades y genera el informe anual e indicadores de ausentismo con IA."
             />
 
             {/* Modal Homologador Universal de Casillas (Paralelo de Excel) */}

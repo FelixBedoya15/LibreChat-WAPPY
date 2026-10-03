@@ -73,36 +73,81 @@ function preparePreviewHtml(html: string): string {
   const safeShim = `
 <script>
 (function() {
-  // 1. Polyfill seguro para localStorage / sessionStorage en iframe sandboxed
+  // 1. Shims resilientes para librerías comunes (Tailwind, Lucide, Chart.js)
+  // Evita 'ReferenceError: tailwind is not defined' si un bloqueador de anuncios o lentitud de red bloquea el CDN
+  if (typeof window.tailwind === 'undefined') {
+    window.tailwind = { config: {} };
+  }
+  if (typeof window.lucide === 'undefined') {
+    window.lucide = {
+      createIcons: function() {
+        try {
+          if (document.querySelectorAll) {
+            var iconEls = document.querySelectorAll('[data-lucide], i[class*="lucide-"]');
+          }
+        } catch(e) {}
+      }
+    };
+  }
+  if (typeof window.Chart === 'undefined') {
+    window.Chart = function() {
+      return {
+        destroy: function() {},
+        update: function() {},
+        resize: function() {},
+        data: { datasets: [] }
+      };
+    };
+  }
+
+  // 2. Polyfill seguro y robusto para localStorage / sessionStorage en iframe sandboxed
+  var _createMockStorage = function() {
+    var _memStore = {};
+    return {
+      getItem: function(k) { return Object.prototype.hasOwnProperty.call(_memStore, k) ? _memStore[k] : null; },
+      setItem: function(k, v) { _memStore[k] = String(v); },
+      removeItem: function(k) { delete _memStore[k]; },
+      clear: function() { _memStore = {}; },
+      key: function(i) { return Object.keys(_memStore)[i] || null; },
+      get length() { return Object.keys(_memStore).length; }
+    };
+  };
+
   try {
     var _testK = '__wappy_test__';
     window.localStorage.setItem(_testK, _testK);
     window.localStorage.removeItem(_testK);
   } catch (e) {
-    var _memStore = {};
-    window.localStorage = {
-      getItem: function(k) { return _memStore.hasOwnProperty(k) ? _memStore[k] : null; },
-      setItem: function(k, v) { _memStore[k] = String(v); },
-      removeItem: function(k) { delete _memStore[k]; },
-      clear: function() { _memStore = {}; }
-    };
+    try {
+      var _mockLocal = _createMockStorage();
+      Object.defineProperty(window, 'localStorage', {
+        value: _mockLocal,
+        configurable: true,
+        writable: true
+      });
+    } catch (errDef) {
+      try { window.localStorage = _createMockStorage(); } catch (errAssign) {}
+    }
   }
+
   try {
     var _sKey = '__wappy_stest__';
     window.sessionStorage.setItem(_sKey, _sKey);
     window.sessionStorage.removeItem(_sKey);
   } catch (e) {
-    var _sStore = {};
-    window.sessionStorage = {
-      getItem: function(k) { return _sStore.hasOwnProperty(k) ? _sStore[k] : null; },
-      setItem: function(k, v) { _sStore[k] = String(v); },
-      removeItem: function(k) { delete _sStore[k]; },
-      clear: function() { _sStore = {}; }
-    };
+    try {
+      var _mockSession = _createMockStorage();
+      Object.defineProperty(window, 'sessionStorage', {
+        value: _mockSession,
+        configurable: true,
+        writable: true
+      });
+    } catch (errDef) {
+      try { window.sessionStorage = _createMockStorage(); } catch (errAssign) {}
+    }
   }
 
-  // 2. Polyfill seguro para history.pushState / history.replaceState
-  // Evita que frameworks de diapositivas que usan URLs/hash fallen con SecurityError
+  // 3. Polyfill seguro para history.pushState / history.replaceState
   try {
     var _origPush = window.history.pushState;
     window.history.pushState = function() {
@@ -118,17 +163,54 @@ function preparePreviewHtml(html: string): string {
     };
   } catch (e) {}
 
-  // 3. Disparador de eventos de resize y readiness para reactivar diapositivas
-  function _kickstartSlides() {
+  // 4. Wrapper defensivo de fetch para URLs relativas y credenciales en iframe con origen opaco/null
+  try {
+    var _origFetch = window.fetch;
+    if (typeof _origFetch === 'function') {
+      window.fetch = function(url, init) {
+        try {
+          var targetUrl = url;
+          if (typeof targetUrl === 'string' && targetUrl.startsWith('/')) {
+            var base = (window.location.origin && window.location.origin !== 'null')
+              ? window.location.origin
+              : (window.parent && window.parent.location && window.parent.location.origin ? window.parent.location.origin : '');
+            if (base) {
+              targetUrl = base + targetUrl;
+            }
+          }
+          if (init && init.credentials === 'include' && (!window.location.origin || window.location.origin === 'null')) {
+            var newInit = Object.assign({}, init);
+            delete newInit.credentials;
+            return _origFetch.call(this, targetUrl, newInit);
+          }
+          return _origFetch.call(this, targetUrl, init);
+        } catch (fetchErr) {
+          console.warn('[Canvas Sandbox Fetch Safe Warning]:', fetchErr.message);
+          return _origFetch.apply(this, arguments);
+        }
+      };
+    }
+  } catch (e) {}
+
+  // 5. Manejador global de excepciones para evitar que un error no capturado congele la interfaz
+  window.addEventListener('error', function(e) {
+    console.warn('[Canvas Sandbox Script Warning]:', e.message, 'en', e.filename, ':', e.lineno);
+  });
+  window.addEventListener('unhandledrejection', function(e) {
+    console.warn('[Canvas Sandbox Unhandled Rejection]:', e.reason);
+  });
+
+  // 6. Disparador de eventos de resize y readiness para reactivar scripts interactivos
+  function _kickstartApp() {
     try {
       window.dispatchEvent(new Event('resize'));
     } catch (e) {}
   }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', _kickstartSlides);
+    document.addEventListener('DOMContentLoaded', _kickstartApp);
   } else {
-    setTimeout(_kickstartSlides, 100);
-    setTimeout(_kickstartSlides, 400);
+    setTimeout(_kickstartApp, 100);
+    setTimeout(_kickstartApp, 400);
   }
 })();
 </script>
@@ -142,22 +224,35 @@ function preparePreviewHtml(html: string): string {
     width: 100%;
     min-height: 100%;
     box-sizing: border-box;
+    overflow-y: auto !important;
   }
 
-  /* Blindaje crítico ante retrasos o bloqueo de Tailwind CDN en el iframe */
-  .hidden, [class*="hidden"], input[type="file"]#logo-upload-input {
+  /* Utilidades base en caso de retraso o bloqueo de Tailwind CDN - SIN selectores de subcadena como [class*="hidden"] */
+  .hidden {
     display: none !important;
   }
-  .absolute, [class*="absolute"] {
+  .overflow-hidden {
+    overflow: hidden !important;
+  }
+  .overflow-x-auto {
+    overflow-x: auto !important;
+  }
+  .overflow-y-auto {
+    overflow-y: auto !important;
+  }
+  input[type="file"]#logo-upload-input {
+    display: none !important;
+  }
+  .absolute {
     position: absolute !important;
   }
-  .relative, [class*="relative"] {
+  .relative {
     position: relative !important;
   }
-  .inset-0, [class*="inset-0"] {
+  .inset-0 {
     top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important;
   }
-  .opacity-10, [class*="opacity-10"] {
+  .opacity-10 {
     opacity: 0.1 !important;
   }
   .pointer-events-none {
@@ -165,7 +260,7 @@ function preparePreviewHtml(html: string): string {
   }
 
   /* Blindaje contra 'bola negra': Garantiza que banners y SVGs decorativos de fondo NUNCA se muestren en negro sólido */
-  .gradient-banner, [class*="gradient-banner"] {
+  .gradient-banner {
     background: linear-gradient(135deg, #0d9488 0%, #06b6d4 100%) !important;
     color: #ffffff !important;
     position: relative !important;
@@ -173,8 +268,7 @@ function preparePreviewHtml(html: string): string {
     border-radius: 1.5rem !important;
   }
   .gradient-banner svg,
-  [class*="gradient-banner"] svg,
-  [class*="opacity-10"] svg,
+  .opacity-10 svg,
   svg[viewBox="0 0 200 200"] {
     position: absolute !important;
     inset: 0 !important;
@@ -188,8 +282,7 @@ function preparePreviewHtml(html: string): string {
     z-index: 0 !important;
   }
   .gradient-banner path,
-  [class*="gradient-banner"] path,
-  [class*="opacity-10"] path,
+  .opacity-10 path,
   svg[viewBox="0 0 200 200"] path {
     fill: rgba(255, 255, 255, 0.25) !important;
   }
@@ -345,8 +438,8 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
   };
 
   const handleDownloadHtml = () => {
-    const cleaned = cleanHtmlContent(code);
-    const blob = new Blob([cleaned], { type: 'text/html;charset=utf-8' });
+    const prepared = preparePreviewHtml(code);
+    const blob = new Blob([prepared], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -358,8 +451,8 @@ const CanvasHtmlEditor: React.FC<CanvasHtmlEditorProps> = ({
   };
 
   const handleOpenInNewTab = () => {
-    const cleaned = cleanHtmlContent(code);
-    const blob = new Blob([cleaned], { type: 'text/html;charset=utf-8' });
+    const prepared = preparePreviewHtml(code);
+    const blob = new Blob([prepared], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
   };

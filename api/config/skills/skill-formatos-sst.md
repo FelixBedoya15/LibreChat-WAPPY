@@ -725,7 +725,7 @@ async function sendWappyAiMessage() {
 
     const selectedModel = modelSelect?.value || 'gemini-3.7-flash';
     const localApiKey = localStorage.getItem(WAPPY_AI_CONFIG.storageKey);
-    const isLocalFile = window.location.protocol === 'file:' || !window.location.host;
+    const isLocalFile = window.location.protocol === 'file:' || (!window.location.host && window === window.parent);
 
     // Añadir mensaje del usuario a la interfaz
     appendMessageToChat('user', text);

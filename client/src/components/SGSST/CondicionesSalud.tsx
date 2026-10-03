@@ -49,6 +49,7 @@ import CollapsibleReportBox from './CollapsibleReportBox';
 import BioFitAuditModal from './BioFitAuditModal';
 import { smartMapExcelToWorkers } from './excelWorkerMapper';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import ImportMethodModal from './ImportMethodModal';
 import { CONDICIONES_SALUD_FIELDS } from './moduleFieldDefinitions';
 
 // ─── Types ────────────────────────────────────────────────────────────
@@ -367,6 +368,16 @@ const CondicionesSalud = () => {
     // ─── Homologador Visual de Casillas (Paralelo de Casillas) ───
     const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
     const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
+    const [pendingDirectRows, setPendingDirectRows] = useState<any[]>([]);
+
+    const handleDirectImport = () => {
+        setIsConfirmModalOpen(false);
+        if (!pendingDirectRows || pendingDirectRows.length === 0) {
+            showToast({ message: 'No se encontraron filas legibles para importación directa.', severity: NotificationSeverity.WARNING });
+            return;
+        }
+        handleConfirmColumnMapping(pendingDirectRows);
+    };
 
     const handleConfirmColumnMapping = (mappedRows: any[]) => {
         if (!mappedRows || mappedRows.length === 0) {
@@ -512,14 +523,33 @@ const CondicionesSalud = () => {
             return;
         }
 
-        // Si es Excel (.xlsx, .xls) o CSV, abrimos el homologador visual de casillas
+        // Si es Excel (.xlsx, .xls) o CSV, cargamos buffer y preparamos opciones
         if (['xlsx', 'xls', 'csv'].includes(extension || '')) {
             const reader = new FileReader();
             reader.onload = (eEvent) => {
                 const buffer = eEvent.target?.result as ArrayBuffer;
                 if (buffer) {
                     setColumnMapperBuffer(buffer);
-                    setIsColumnMapperOpen(true);
+                    try {
+                        const wb = XLSX.read(buffer, { type: 'array' });
+                        const firstSheetName = wb.SheetNames[0];
+                        const sheet = wb.Sheets[firstSheetName];
+                        const rows = XLSX.utils.sheet_to_json(sheet) as any[];
+                        setPendingDirectRows(rows);
+                    } catch {
+                        setPendingDirectRows([]);
+                    }
+
+                    const base64Reader = new FileReader();
+                    base64Reader.onload = (b64) => {
+                        setPendingFileData({
+                            dataUrl: b64.target?.result as string,
+                            name: file.name,
+                            type: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        });
+                        setIsConfirmModalOpen(true);
+                    };
+                    base64Reader.readAsDataURL(file);
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -2070,39 +2100,27 @@ const CondicionesSalud = () => {
                 emptyTemplate={EMPTY_WORKER}
             />
 
-            {/* ── MODAL IMPORT CONFIRMATION IA ── */}
-            {isConfirmModalOpen && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-md rounded-2xl border border-border-medium bg-surface-primary p-6 shadow-2xl">
-                        <div className="flex items-center gap-2 mb-3 text-text-primary">
-                            <Sparkles className="h-5 w-5 text-teal-500 animate-pulse" />
-                            <h3 className="text-sm font-bold">Confirmar Importación con IA</h3>
-                        </div>
-                        <p className="text-xs text-text-secondary leading-relaxed">
-                            Se detectó un documento no estándar, concepto médico o archivo de texto ({pendingFileData?.name}). 
-                            ¿Deseas usar la IA (Gemini) de Somos SST para analizar el contenido, extraer los datos demográficos y de aptitud médica, y crear el perfil del trabajador automáticamente?
-                        </p>
-                        <div className="mt-6 flex justify-end gap-2">
-                            <button
-                                onClick={() => {
-                                    setIsConfirmModalOpen(false);
-                                    setPendingFileData(null);
-                                }}
-                                className="rounded-xl border border-border-medium px-4 py-2 text-xs font-bold text-text-secondary hover:bg-surface-secondary cursor-pointer"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleConfirmAiImport}
-                                className="rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 text-white px-4 py-2 text-xs font-bold shadow-md hover:scale-105 active:scale-95 transform transition-all cursor-pointer flex items-center gap-1"
-                            >
-                                <Sparkles className="h-3 w-3" />
-                                Mapear con IA
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* ── MODAL SELECCIÓN MÉTODO DE IMPORTACIÓN (3 OPCIONES) ── */}
+            <ImportMethodModal
+                isOpen={isConfirmModalOpen}
+                onClose={() => {
+                    setIsConfirmModalOpen(false);
+                    setPendingFileData(null);
+                    setPendingDirectRows([]);
+                    setColumnMapperBuffer(null);
+                }}
+                rowsCount={pendingDirectRows.length || 1}
+                hasColumnMapper={!!columnMapperBuffer}
+                onSelectColumnMapper={() => {
+                    setIsConfirmModalOpen(false);
+                    setIsColumnMapperOpen(true);
+                }}
+                hasAi={true}
+                onSelectAi={handleConfirmAiImport}
+                onSelectDirect={handleDirectImport}
+                moduleTitle="Condiciones de Salud"
+                aiDescription="Analiza el documento o matriz con IA para extraer diagnósticos médicos, aptitud laboral y restricciones automáticamente."
+            />
 
             {/* ── SPINNER CARGA IA ── */}
             {isAiImportLoading && (
