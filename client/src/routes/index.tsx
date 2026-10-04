@@ -103,7 +103,7 @@ const MauricioPosadaRedirect = () => {
 };
 
 const RootIndexRedirect = () => {
-  const { isAuthenticated } = useAuthContext();
+  const { isAuthenticated, user } = useAuthContext();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const hasRefParam = Boolean(searchParams.get('ref') || searchParams.get('referral') || searchParams.get('r'));
