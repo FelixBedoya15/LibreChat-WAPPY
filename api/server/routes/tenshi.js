@@ -717,6 +717,25 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyNavegarDeclaration = {
+                name: 'wappy_navegar',
+                description: 'Navega de inmediato a cualquier módulo, hito, pantalla o aplicativo de la plataforma WAPPY y Somos SST. DEBES invocar esta función siempre que el usuario te pida ir, ver, abrir o consultar una sección o hito.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        modulo: {
+                            type: 'STRING',
+                            description: "Nombre clave del módulo, hito o aplicativo. Hitos 1 al 8: 'diagnostico' (0312), 'participacion_ipevar', 'matriz_ipevar_oficial', 'matriz_pesv_oficial', 'matriz_compatibilidad_oficial', 'vulnerabilidad', 'plan_emergencias', 'responsable', 'politica', 'objetivos', 'legal', 'rhs', 'rit', 'perfil_cargo', 'perfil_socio', 'condiciones_salud', 'copasst', 'cocolab', 'comite_pesv', 'brigada_emergencias', 'animo', 'metodo_owas', 'estudio_puesto', 'peligros', 'permiso_alturas', 'analisis_trabajo_seguro', 'epp_delivery', 'vehicles_pesv', 'heights_lifecycle', 'chemical_registry', 'equipos_emergencia', 'reporte_actos', 'capacitaciones', 'simulacros_emergencia', 'ruta_aprendizaje', 'app_builder', 'estadisticas', 'investigacion_atel', 'control_acpm', 'auditoria', 'alta_direccion', 'investigacion_profunda', 'predictivo'. Aplicativos y Dashboards: 'sgsst', 'planes', 'academia', 'training_admin', 'rutas', 'ruta_admin', 'blog', 'blog_admin', 'events_meet', 'events_meet_admin', 'marketplace' (/marketplace tienda productos SST), 'marketplace_admin', 'agents' (/agents catálogo especialistas IA), 'control' (Kanban), 'animo_dashboard', 'live' (/c/new), 'chat_sst', 'roadmap', 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy', 'terms', 'about'. Portales públicos: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'."
+                        },
+                        ruta: {
+                            type: 'STRING',
+                            description: 'Ruta URL interna exacta (opcional).'
+                        }
+                    },
+                    required: ['modulo']
+                }
+            };
+
             // Dynamic function declarations (activated via Skill Triggers based on user intent)
             const matrizIPEVARDeclaration = {
                 name: 'matriz_ipevar',
@@ -1050,6 +1069,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             // Assemble base tools and dynamically triggered tools (strictly excluding Group 7)
             const baseFunctionDeclarations = [
+                wappyNavegarDeclaration,
                 somosSSTDeclaration,
                 googleDriveDeclaration,
                 consultarAgenteDeclaration,
@@ -1232,6 +1252,15 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 } else if (call.name === 'wappy_diligenciar_formulario') {
                                     requestedGuiAction = {
                                         name: 'wappy_diligenciar_formulario',
+                                        args: call.args
+                                    };
+                                    break;
+                                } else if (call.name === 'wappy_navegar') {
+                                    requestedGuiAction = {
+                                        name: 'wappy_navegar',
+                                        accion: 'navegar',
+                                        modulo: call.args?.modulo,
+                                        ruta: call.args?.ruta,
                                         args: call.args
                                     };
                                     break;

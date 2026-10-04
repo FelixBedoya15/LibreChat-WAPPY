@@ -274,6 +274,309 @@ const findMatchingAgent = (targetName: string, agentsList: any[]) => {
   return bestOverlap > 0 ? bestMatch : null;
 };
 
+// ─── Mapa Canónico y Exhaustivo de Destinos y Rutas de WAPPY ──────────────────
+export const WAPPY_NAV_MAP: Record<string, { route: string; sgsstModule?: string }> = {
+  // ─── HITO 1: Gobernanza y Cimiento Legal (/sgsst?hito=hito1) ───
+  diagnostico: { route: '/sgsst?hito=hito1&module=diagnostico', sgsstModule: 'diagnostico' },
+  '0312': { route: '/sgsst?hito=hito1&module=diagnostico', sgsstModule: 'diagnostico' },
+  estandares_minimos: { route: '/sgsst?hito=hito1&module=diagnostico', sgsstModule: 'diagnostico' },
+  evaluacion_inicial: { route: '/sgsst?hito=hito1&module=diagnostico', sgsstModule: 'diagnostico' },
+  participacion_ipevar: { route: '/sgsst?hito=hito1&module=participacion_ipevar', sgsstModule: 'participacion_ipevar' },
+  matriz_ipevar_oficial: { route: '/sgsst?hito=hito1&module=matriz_ipevar_oficial', sgsstModule: 'matriz_ipevar_oficial' },
+  matriz_pesv_oficial: { route: '/sgsst?hito=hito1&module=matriz_pesv_oficial', sgsstModule: 'matriz_pesv_oficial' },
+  matriz_compatibilidad_oficial: { route: '/sgsst?hito=hito1&module=matriz_compatibilidad_oficial', sgsstModule: 'matriz_compatibilidad_oficial' },
+  vulnerabilidad: { route: '/sgsst?hito=hito1&module=vulnerabilidad', sgsstModule: 'vulnerabilidad' },
+  amenazas: { route: '/sgsst?hito=hito1&module=vulnerabilidad', sgsstModule: 'vulnerabilidad' },
+  plan_emergencias: { route: '/sgsst?hito=hito1&module=plan_emergencias', sgsstModule: 'plan_emergencias' },
+  ppre: { route: '/sgsst?hito=hito1&module=plan_emergencias', sgsstModule: 'plan_emergencias' },
+  emergencias: { route: '/sgsst?hito=hito1&module=plan_emergencias', sgsstModule: 'plan_emergencias' },
+  responsable: { route: '/sgsst?hito=hito1&module=responsable', sgsstModule: 'responsable' },
+  responsable_sst: { route: '/sgsst?hito=hito1&module=responsable', sgsstModule: 'responsable' },
+  politica: { route: '/sgsst?hito=hito1&module=politica', sgsstModule: 'politica' },
+  politica_sst: { route: '/sgsst?hito=hito1&module=politica', sgsstModule: 'politica' },
+  objetivos: { route: '/sgsst?hito=hito1&module=objetivos', sgsstModule: 'objetivos' },
+  objetivos_sst: { route: '/sgsst?hito=hito1&module=objetivos', sgsstModule: 'objetivos' },
+  legal: { route: '/sgsst?hito=hito1&module=legal', sgsstModule: 'legal' },
+  matriz_legal: { route: '/sgsst?hito=hito1&module=legal', sgsstModule: 'legal' },
+  normograma: { route: '/sgsst?hito=hito1&module=legal', sgsstModule: 'legal' },
+  rhs: { route: '/sgsst?hito=hito1&module=rhs', sgsstModule: 'rhs' },
+  reglamento_higiene: { route: '/sgsst?hito=hito1&module=rhs', sgsstModule: 'rhs' },
+  rit: { route: '/sgsst?hito=hito1&module=rit', sgsstModule: 'rit' },
+  reglamento_interno: { route: '/sgsst?hito=hito1&module=rit', sgsstModule: 'rit' },
+  reglamento: { route: '/sgsst?hito=hito1&module=rhs', sgsstModule: 'rhs' },
+  hito1: { route: '/sgsst?hito=hito1', sgsstModule: 'diagnostico' },
+
+  // ─── HITO 2: Huella Biocéntrica (/sgsst?hito=hito2) ───
+  perfil_cargo: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
+  cargos: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
+  cargo: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
+  profesigrama: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
+  perfil_socio: { route: '/sgsst?hito=hito2&module=perfil_socio', sgsstModule: 'perfil_socio' },
+  perfil_sociodemografico: { route: '/sgsst?hito=hito2&module=perfil_socio', sgsstModule: 'perfil_socio' },
+  sociodemografico: { route: '/sgsst?hito=hito2&module=perfil_socio', sgsstModule: 'perfil_socio' },
+  trabajadores: { route: '/sgsst?hito=hito2&module=perfil_socio', sgsstModule: 'perfil_socio' },
+  empleados: { route: '/sgsst?hito=hito2&module=perfil_socio', sgsstModule: 'perfil_socio' },
+  colaboradores: { route: '/sgsst?hito=hito2&module=perfil_socio', sgsstModule: 'perfil_socio' },
+  condiciones_salud: { route: '/sgsst?hito=hito2&module=condiciones_salud', sgsstModule: 'condiciones_salud' },
+  salud: { route: '/sgsst?hito=hito2&module=condiciones_salud', sgsstModule: 'condiciones_salud' },
+  examenes_medicos: { route: '/sgsst?hito=hito2&module=condiciones_salud', sgsstModule: 'condiciones_salud' },
+  bio_motor: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
+  oraculo_predictivo_hito2: { route: '/sgsst?hito=hito2&module=oraculo_predictivo', sgsstModule: 'oraculo_predictivo' },
+  compatibilidad_cargo: { route: '/sgsst?hito=hito2&module=oraculo_predictivo', sgsstModule: 'oraculo_predictivo' },
+  hito2: { route: '/sgsst?hito=hito2', sgsstModule: 'perfil_cargo' },
+
+  // ─── HITO 3: Comités, Brigadas y Órganos de Gobernanza (/sgsst?hito=hito3) ───
+  copasst: { route: '/sgsst?hito=hito3&module=copasst', sgsstModule: 'copasst' },
+  vigia: { route: '/sgsst?hito=hito3&module=copasst', sgsstModule: 'copasst' },
+  cocolab: { route: '/sgsst?hito=hito3&module=cocolab', sgsstModule: 'cocolab' },
+  convivencia: { route: '/sgsst?hito=hito3&module=cocolab', sgsstModule: 'cocolab' },
+  comite_convivencia: { route: '/sgsst?hito=hito3&module=cocolab', sgsstModule: 'cocolab' },
+  comite_pesv: { route: '/sgsst?hito=hito3&module=comite_pesv', sgsstModule: 'comite_pesv' },
+  seguridad_vial_comite: { route: '/sgsst?hito=hito3&module=comite_pesv', sgsstModule: 'comite_pesv' },
+  brigada_emergencias: { route: '/sgsst?hito=hito3&module=brigada_emergencias', sgsstModule: 'brigada_emergencias' },
+  brigadas: { route: '/sgsst?hito=hito3&module=brigada_emergencias', sgsstModule: 'brigada_emergencias' },
+  brigada: { route: '/sgsst?hito=hito3&module=brigada_emergencias', sgsstModule: 'brigada_emergencias' },
+  comite_crisis: { route: '/sgsst?hito=hito3&module=brigada_emergencias', sgsstModule: 'brigada_emergencias' },
+  comites: { route: '/sgsst?hito=hito3&module=copasst', sgsstModule: 'copasst' },
+  hito3: { route: '/sgsst?hito=hito3', sgsstModule: 'copasst' },
+
+  // ─── HITO 4: Evaluación Dinámica de Riesgos (/sgsst?hito=hito4) ───
+  animo: { route: '/sgsst?hito=hito4&module=animo', sgsstModule: 'animo' },
+  psicosocial: { route: '/sgsst?hito=hito4&module=animo', sgsstModule: 'animo' },
+  clima: { route: '/sgsst?hito=hito4&module=animo', sgsstModule: 'animo' },
+  termometro: { route: '/sgsst?hito=hito4&module=animo', sgsstModule: 'animo' },
+  metodo_owas: { route: '/sgsst?hito=hito4&module=metodo_owas', sgsstModule: 'metodo_owas' },
+  owas: { route: '/sgsst?hito=hito4&module=metodo_owas', sgsstModule: 'metodo_owas' },
+  ergonomia: { route: '/sgsst?hito=hito4&module=metodo_owas', sgsstModule: 'metodo_owas' },
+  estudio_puesto: { route: '/sgsst?hito=hito4&module=estudio_puesto', sgsstModule: 'estudio_puesto' },
+  ept: { route: '/sgsst?hito=hito4&module=estudio_puesto', sgsstModule: 'estudio_puesto' },
+  puesto_trabajo: { route: '/sgsst?hito=hito4&module=estudio_puesto', sgsstModule: 'estudio_puesto' },
+  peligros: { route: '/sgsst?hito=hito4&module=peligros', sgsstModule: 'peligros' },
+  ipevar: { route: '/sgsst?hito=hito4&module=peligros', sgsstModule: 'peligros' },
+  matriz_gtc45: { route: '/sgsst?hito=hito4&module=peligros', sgsstModule: 'peligros' },
+  gtc45: { route: '/sgsst?hito=hito4&module=peligros', sgsstModule: 'peligros' },
+  riesgos: { route: '/sgsst?hito=hito4&module=peligros', sgsstModule: 'peligros' },
+  hito4: { route: '/sgsst?hito=hito4', sgsstModule: 'peligros' },
+
+  // ─── HITO 5: Dinámica Operativa y Terreno (/sgsst?hito=hito5) ───
+  permiso_alturas: { route: '/sgsst?hito=hito5&module=permiso_alturas', sgsstModule: 'permiso_alturas' },
+  alturas: { route: '/sgsst?hito=hito5&module=permiso_alturas', sgsstModule: 'permiso_alturas' },
+  tsa: { route: '/sgsst?hito=hito5&module=permiso_alturas', sgsstModule: 'permiso_alturas' },
+  analisis_trabajo_seguro: { route: '/sgsst?hito=hito5&module=analisis_trabajo_seguro', sgsstModule: 'analisis_trabajo_seguro' },
+  ats: { route: '/sgsst?hito=hito5&module=analisis_trabajo_seguro', sgsstModule: 'analisis_trabajo_seguro' },
+  epp_delivery: { route: '/sgsst?hito=hito5&module=epp_delivery', sgsstModule: 'epp_delivery' },
+  epp: { route: '/sgsst?hito=hito5&module=epp_delivery', sgsstModule: 'epp_delivery' },
+  entrega_epp: { route: '/sgsst?hito=hito5&module=epp_delivery', sgsstModule: 'epp_delivery' },
+  vehicles_pesv: { route: '/sgsst?hito=hito5&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
+  pesv: { route: '/sgsst?hito=hito5&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
+  vial: { route: '/sgsst?hito=hito5&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
+  vehiculos: { route: '/sgsst?hito=hito5&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
+  automotores: { route: '/sgsst?hito=hito5&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
+  heights_lifecycle: { route: '/sgsst?hito=hito5&module=heights_lifecycle', sgsstModule: 'heights_lifecycle' },
+  equipos_alturas: { route: '/sgsst?hito=hito5&module=heights_lifecycle', sgsstModule: 'heights_lifecycle' },
+  arneses: { route: '/sgsst?hito=hito5&module=heights_lifecycle', sgsstModule: 'heights_lifecycle' },
+  chemical_registry: { route: '/sgsst?hito=hito5&module=chemical_registry', sgsstModule: 'chemical_registry' },
+  quimicos: { route: '/sgsst?hito=hito5&module=chemical_registry', sgsstModule: 'chemical_registry' },
+  sga: { route: '/sgsst?hito=hito5&module=chemical_registry', sgsstModule: 'chemical_registry' },
+  sustancias_quimicas: { route: '/sgsst?hito=hito5&module=chemical_registry', sgsstModule: 'chemical_registry' },
+  equipos_emergencia: { route: '/sgsst?hito=hito5&module=equipos_emergencia', sgsstModule: 'equipos_emergencia' },
+  extintores: { route: '/sgsst?hito=hito5&module=equipos_emergencia', sgsstModule: 'equipos_emergencia' },
+  botiquines: { route: '/sgsst?hito=hito5&module=equipos_emergencia', sgsstModule: 'equipos_emergencia' },
+  hito5: { route: '/sgsst?hito=hito5', sgsstModule: 'vehicles_pesv' },
+
+  // ─── HITO 6: Cultura, Escuela e Innovación (/sgsst?hito=hito6) ───
+  reporte_actos: { route: '/sgsst?hito=hito6&module=reporte_actos', sgsstModule: 'reporte_actos' },
+  actos: { route: '/sgsst?hito=hito6&module=reporte_actos', sgsstModule: 'reporte_actos' },
+  condiciones_inseguras: { route: '/sgsst?hito=hito6&module=reporte_actos', sgsstModule: 'reporte_actos' },
+  capacitaciones: { route: '/sgsst?hito=hito6&module=capacitaciones', sgsstModule: 'capacitaciones' },
+  pac: { route: '/sgsst?hito=hito6&module=capacitaciones', sgsstModule: 'capacitaciones' },
+  simulacros_emergencia: { route: '/sgsst?hito=hito6&module=simulacros_emergencia', sgsstModule: 'simulacros_emergencia' },
+  simulacros: { route: '/sgsst?hito=hito6&module=simulacros_emergencia', sgsstModule: 'simulacros_emergencia' },
+  simulacro: { route: '/sgsst?hito=hito6&module=simulacros_emergencia', sgsstModule: 'simulacros_emergencia' },
+  ruta_aprendizaje: { route: '/sgsst?hito=hito6&module=ruta_aprendizaje', sgsstModule: 'ruta_aprendizaje' },
+  lms: { route: '/sgsst?hito=hito6&module=ruta_aprendizaje', sgsstModule: 'ruta_aprendizaje' },
+  app_builder: { route: '/sgsst?hito=hito6&module=app_builder', sgsstModule: 'app_builder' },
+  creador_aplicativos: { route: '/sgsst?hito=hito6&module=app_builder', sgsstModule: 'app_builder' },
+  hito6: { route: '/sgsst?hito=hito6', sgsstModule: 'capacitaciones' },
+
+  // ─── HITO 7: Auditoría, Causalidad & Cierre de Ciclo (/sgsst?hito=hito7) ───
+  estadisticas: { route: '/sgsst?hito=hito7&module=estadisticas', sgsstModule: 'estadisticas' },
+  atel: { route: '/sgsst?hito=hito7&module=estadisticas', sgsstModule: 'estadisticas' },
+  ausentismo: { route: '/sgsst?hito=hito7&module=estadisticas', sgsstModule: 'estadisticas' },
+  indicadores: { route: '/sgsst?hito=hito7&module=estadisticas', sgsstModule: 'estadisticas' },
+  investigacion_atel: { route: '/sgsst?hito=hito7&module=investigacion_atel', sgsstModule: 'investigacion_atel' },
+  accidentes: { route: '/sgsst?hito=hito7&module=investigacion_atel', sgsstModule: 'investigacion_atel' },
+  arbol_causas: { route: '/sgsst?hito=hito7&module=investigacion_atel', sgsstModule: 'investigacion_atel' },
+  control_acpm: { route: '/sgsst?hito=hito7&module=control_acpm', sgsstModule: 'control_acpm' },
+  acpm: { route: '/sgsst?hito=hito7&module=control_acpm', sgsstModule: 'control_acpm' },
+  auditoria: { route: '/sgsst?hito=hito7&module=auditoria', sgsstModule: 'auditoria' },
+  auditoria_interna: { route: '/sgsst?hito=hito7&module=auditoria', sgsstModule: 'auditoria' },
+  alta_direccion: { route: '/sgsst?hito=hito7&module=alta_direccion', sgsstModule: 'alta_direccion' },
+  revision_direccion: { route: '/sgsst?hito=hito7&module=alta_direccion', sgsstModule: 'alta_direccion' },
+  investigacion_profunda: { route: '/sgsst?hito=hito7&module=investigacion_profunda', sgsstModule: 'investigacion_profunda' },
+  hito7: { route: '/sgsst?hito=hito7', sgsstModule: 'estadisticas' },
+
+  // ─── HITO 8: Inteligencia Artificial & Oráculo Predictivo (/sgsst?hito=hito8) ───
+  predictivo: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
+  oraculo: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
+  oraculo_predictivo: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
+  siniestralidad: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
+  inteligencia_artificial: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
+  hito8: { route: '/sgsst?hito=hito8', sgsstModule: 'predictivo' },
+
+  // ─── SOMOS SST DASHBOARD GENERAL ───
+  sgsst: { route: '/sgsst' },
+  somos_sst: { route: '/sgsst' },
+  hitos: { route: '/sgsst' },
+
+  // ─── MÓDULOS Y APLICATIVOS GENERALES DE WAPPY ───
+  planes: { route: '/planes' },
+  precios: { route: '/planes' },
+  tarifas: { route: '/planes' },
+  suscripciones: { route: '/planes' },
+  billing: { route: '/planes' },
+  academia: { route: '/academia?tab=cursos' },
+  cursos: { route: '/academia?tab=cursos' },
+  curso: { route: '/academia?tab=cursos' },
+  training: { route: '/academia?tab=cursos' },
+  training_directo: { route: '/training' },
+  training_admin: { route: '/training/admin' },
+  admin_cursos: { route: '/training/admin' },
+  rutas: { route: '/academia?tab=rutas' },
+  ruta: { route: '/academia?tab=rutas' },
+  ruta_aprendizaje_app: { route: '/ruta-aprendizaje' },
+  ruta_admin: { route: '/ruta-aprendizaje/admin' },
+  rutas_admin: { route: '/ruta-aprendizaje/admin' },
+  admin_rutas: { route: '/ruta-aprendizaje/admin' },
+  events: { route: '/events-meet' },
+  events_meet: { route: '/events-meet' },
+  events_meet_admin: { route: '/events-meet/admin' },
+  meet: { route: '/academia?tab=meet' },
+  clases: { route: '/academia?tab=meet' },
+  webinars: { route: '/events-meet' },
+  blog: { route: '/blog' },
+  blog_admin: { route: '/blog/admin' },
+  admin_blog: { route: '/blog/admin' },
+  control: { route: '/sgsst/control' },
+  kanban: { route: '/sgsst/control' },
+  centro_control: { route: '/sgsst/control' },
+  sgsst_control: { route: '/sgsst/control' },
+  automatizaciones: { route: '/sgsst/control?tab=automatizaciones' },
+  tareas_automaticas: { route: '/sgsst/control?tab=automatizaciones' },
+  marketplace: { route: '/marketplace' },
+  tienda: { route: '/marketplace' },
+  tienda_sst: { route: '/marketplace' },
+  productos: { route: '/marketplace' },
+  marketplace_admin: { route: '/marketplace/admin' },
+  admin_tienda: { route: '/marketplace/admin' },
+  agents: { route: '/agents' },
+  agentes: { route: '/agents' },
+  agentes_ia: { route: '/agents' },
+  catalogo_agentes: { route: '/agents' },
+  marketplace_agentes: { route: '/agents' },
+  live: { route: '/c/new' },
+  inspeccion: { route: '/c/new' },
+  biomecanica: { route: '/c/new' },
+  videollamada: { route: '/c/new' },
+  camara: { route: '/c/new' },
+  chat: { route: '/c/new' },
+  conversacion: { route: '/c/new' },
+  nuevo_chat: { route: '/c/new' },
+  chat_sst: { route: '/chat-sst' },
+  'chat-sst': { route: '/chat-sst' },
+  animo_dashboard: { route: '/sgsst/animo' },
+  clima_dashboard: { route: '/sgsst/animo' },
+  auditoria_app: { route: '/auditoria' },
+  auditoria_dashboard: { route: '/auditoria' },
+  roadmap: { route: '/hoja-de-ruta' },
+  hoja_de_ruta: { route: '/hoja-de-ruta' },
+  contactanos: { route: '/contactanos' },
+  contacto: { route: '/contactanos' },
+  soporte: { route: '/contactanos' },
+  comunidad: { route: '/comunidad' },
+  comunidadmp: { route: '/comunidad' },
+  wappyvital: { route: '/comunidad' },
+  matriz: { route: '/matriz' },
+  embajadores: { route: '/embajadores' },
+  embajadores_dashboard: { route: '/embajadores/dashboard' },
+  tenshi_admin: { route: '/tenshi/admin' },
+  search: { route: '/search' },
+  buscar: { route: '/search' },
+
+  // ─── PÁGINAS INSTITUCIONALES Y LEGALES ───
+  privacy: { route: '/privacy' },
+  privacidad: { route: '/privacy' },
+  politica_privacidad: { route: '/privacy' },
+  terms: { route: '/terms' },
+  terminos: { route: '/terms' },
+  terminos_condiciones: { route: '/terms' },
+  about: { route: '/about' },
+  nosotros: { route: '/about' },
+  acerca_de: { route: '/about' },
+  portafolio: { route: '/portafolio' },
+  mauricioposada: { route: '/mauricioposada' },
+
+  // ─── PORTALES PÚBLICOS DEL TRABAJADOR (/sgsst-public/*) ───
+  public_reportar: { route: '/sgsst-public/reportar' },
+  reportar_publico: { route: '/sgsst-public/reportar' },
+  public_animo: { route: '/sgsst-public/animo' },
+  animo_publico: { route: '/sgsst-public/animo' },
+  public_estudio_puesto: { route: '/sgsst-public/estudio-puesto' },
+  public_ipevar: { route: '/sgsst-public/ipevar' },
+  public_alta_direccion: { route: '/sgsst-public/alta-direccion' },
+  public_atel: { route: '/sgsst-public/atel-testimonio' },
+  public_perfil_update: { route: '/sgsst-public/perfil-update' },
+  public_colaborador: { route: '/sgsst-public/colaborador' },
+  public_comites: { route: '/sgsst-public/comites' },
+  public_convivencia: { route: '/sgsst-public/convivencia' },
+  public_votaciones: { route: '/sgsst-public/votaciones' },
+  public_inspecciones: { route: '/sgsst-public/copasst-inspecciones' },
+  public_brigadistas: { route: '/sgsst-public/brigadista' },
+};
+
+/**
+ * Resuelve cualquier clave o término de búsqueda a su ruta canónica en WAPPY
+ */
+export function resolveWappyDestination(
+  rawModulo?: string,
+  rawRuta?: string
+): { targetRoute: string; targetSgsstModule?: string } {
+  let targetRoute = rawRuta?.trim();
+  let targetSgsstModule: string | undefined = undefined;
+
+  if (!targetRoute) {
+    const mod = (rawModulo || '').toLowerCase().trim();
+    if (mod && WAPPY_NAV_MAP[mod]) {
+      targetRoute = WAPPY_NAV_MAP[mod].route;
+      targetSgsstModule = WAPPY_NAV_MAP[mod].sgsstModule;
+    } else if (mod) {
+      // Priorizar coincidencia más específica (claves más largas primero)
+      const sortedKeys = Object.keys(WAPPY_NAV_MAP).sort((a, b) => b.length - a.length);
+      const matchedKey = sortedKeys.find((k) => mod.includes(k) || k.includes(mod));
+      if (matchedKey && WAPPY_NAV_MAP[matchedKey]) {
+        targetRoute = WAPPY_NAV_MAP[matchedKey].route;
+        targetSgsstModule = WAPPY_NAV_MAP[matchedKey].sgsstModule;
+      } else {
+        targetRoute = '/sgsst';
+      }
+    } else {
+      targetRoute = '/sgsst';
+    }
+  }
+
+  // Extraer sgsstModule de targetRoute si está presente y aún no definido
+  if (targetRoute.includes('/sgsst') && targetRoute.includes('module=') && !targetSgsstModule) {
+    try {
+      const urlMatch = targetRoute.match(/module=([^&]+)/);
+      if (urlMatch && urlMatch[1]) {
+        targetSgsstModule = urlMatch[1];
+      }
+    } catch (_) {}
+  }
+
+  return { targetRoute, targetSgsstModule };
+}
+
 export default function TenshiChat() {
   const navigate = useNavigate();
   const { isAuthenticated, token } = useAuthContext();
@@ -652,178 +955,9 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
 
         try {
           if (action.name === 'wappy_navegar') {
-            const rawModulo = (action.args?.modulo || '').toLowerCase().trim();
+            const rawModulo = action.args?.modulo;
             const rawRuta = action.args?.ruta;
-
-            const HITO_MAP: Record<string, { route: string; sgsstModule?: string }> = {
-              // Hito 1: Gobernanza y Cimiento Legal
-              diagnostico: { route: '/sgsst?hito=hito1&module=diagnostico', sgsstModule: 'diagnostico' },
-              '0312': { route: '/sgsst?hito=hito1&module=diagnostico', sgsstModule: 'diagnostico' },
-              participacion_ipevar: { route: '/sgsst?hito=hito1&module=participacion_ipevar', sgsstModule: 'participacion_ipevar' },
-              matriz_ipevar_oficial: { route: '/sgsst?hito=hito1&module=matriz_ipevar_oficial', sgsstModule: 'matriz_ipevar_oficial' },
-              responsable: { route: '/sgsst?hito=hito1&module=responsable', sgsstModule: 'responsable' },
-              politica: { route: '/sgsst?hito=hito1&module=politica', sgsstModule: 'politica' },
-              objetivos: { route: '/sgsst?hito=hito1&module=objetivos', sgsstModule: 'objetivos' },
-              legal: { route: '/sgsst?hito=hito1&module=legal', sgsstModule: 'legal' },
-              matriz_legal: { route: '/sgsst?hito=hito1&module=legal', sgsstModule: 'legal' },
-              rhs: { route: '/sgsst?hito=hito1&module=rhs', sgsstModule: 'rhs' },
-              rit: { route: '/sgsst?hito=hito1&module=rit', sgsstModule: 'rit' },
-              reglamento: { route: '/sgsst?hito=hito1&module=rhs', sgsstModule: 'rhs' },
-              vulnerabilidad: { route: '/sgsst?hito=hito1&module=vulnerabilidad', sgsstModule: 'vulnerabilidad' },
-              emergencias: { route: '/sgsst?hito=hito1&module=vulnerabilidad', sgsstModule: 'vulnerabilidad' },
-              hito1: { route: '/sgsst?hito=hito1', sgsstModule: 'diagnostico' },
-
-              // Hito 2: Huella Biocéntrica
-              perfil_cargo: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
-              cargo: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
-              profesigrama: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
-              perfil_socio: { route: '/sgsst?hito=hito2&module=perfil_socio', sgsstModule: 'perfil_socio' },
-              sociodemografico: { route: '/sgsst?hito=hito2&module=perfil_socio', sgsstModule: 'perfil_socio' },
-              condiciones_salud: { route: '/sgsst?hito=hito2&module=condiciones_salud', sgsstModule: 'condiciones_salud' },
-              salud: { route: '/sgsst?hito=hito2&module=condiciones_salud', sgsstModule: 'condiciones_salud' },
-              bio_motor: { route: '/sgsst?hito=hito2&module=perfil_cargo', sgsstModule: 'perfil_cargo' },
-              hito2: { route: '/sgsst?hito=hito2', sgsstModule: 'perfil_cargo' },
-
-              // Hito 3: Comités Paritarios & Convivencia Laboral
-              copasst: { route: '/sgsst?hito=hito3&module=copasst', sgsstModule: 'copasst' },
-              vigia: { route: '/sgsst?hito=hito3&module=copasst', sgsstModule: 'copasst' },
-              cocolab: { route: '/sgsst?hito=hito3&module=cocolab', sgsstModule: 'cocolab' },
-              convivencia: { route: '/sgsst?hito=hito3&module=cocolab', sgsstModule: 'cocolab' },
-              comites: { route: '/sgsst?hito=hito3&module=copasst', sgsstModule: 'copasst' },
-              comite_convivencia: { route: '/sgsst?hito=hito3&module=cocolab', sgsstModule: 'cocolab' },
-              hito3: { route: '/sgsst?hito=hito3', sgsstModule: 'copasst' },
-
-              // Hito 4: Evaluación Dinámica de Riesgos
-              animo: { route: '/sgsst?hito=hito4&module=animo', sgsstModule: 'animo' },
-              psicosocial: { route: '/sgsst?hito=hito4&module=animo', sgsstModule: 'animo' },
-              clima: { route: '/sgsst?hito=hito4&module=animo', sgsstModule: 'animo' },
-              metodo_owas: { route: '/sgsst?hito=hito4&module=metodo_owas', sgsstModule: 'metodo_owas' },
-              owas: { route: '/sgsst?hito=hito4&module=metodo_owas', sgsstModule: 'metodo_owas' },
-              ergonomia: { route: '/sgsst?hito=hito4&module=metodo_owas', sgsstModule: 'metodo_owas' },
-              estudio_puesto: { route: '/sgsst?hito=hito4&module=estudio_puesto', sgsstModule: 'estudio_puesto' },
-              ept: { route: '/sgsst?hito=hito4&module=estudio_puesto', sgsstModule: 'estudio_puesto' },
-              peligros: { route: '/sgsst?hito=hito4&module=peligros', sgsstModule: 'peligros' },
-              ipevar: { route: '/sgsst?hito=hito4&module=peligros', sgsstModule: 'peligros' },
-              matriz_gtc45: { route: '/sgsst?hito=hito4&module=peligros', sgsstModule: 'peligros' },
-              gtc45: { route: '/sgsst?hito=hito4&module=peligros', sgsstModule: 'peligros' },
-              hito4: { route: '/sgsst?hito=hito4', sgsstModule: 'peligros' },
-
-              // Hito 5: Dinámica Operativa y Terreno
-              vehicles_pesv: { route: '/sgsst?hito=hito5&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
-              pesv: { route: '/sgsst?hito=hito5&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
-              vial: { route: '/sgsst?hito=hito5&module=vehicles_pesv', sgsstModule: 'vehicles_pesv' },
-              chemical_registry: { route: '/sgsst?hito=hito5&module=chemical_registry', sgsstModule: 'chemical_registry' },
-              quimicos: { route: '/sgsst?hito=hito5&module=chemical_registry', sgsstModule: 'chemical_registry' },
-              sga: { route: '/sgsst?hito=hito5&module=chemical_registry', sgsstModule: 'chemical_registry' },
-              permiso_alturas: { route: '/sgsst?hito=hito5&module=permiso_alturas', sgsstModule: 'permiso_alturas' },
-              alturas: { route: '/sgsst?hito=hito5&module=permiso_alturas', sgsstModule: 'permiso_alturas' },
-              analisis_trabajo_seguro: { route: '/sgsst?hito=hito5&module=analisis_trabajo_seguro', sgsstModule: 'analisis_trabajo_seguro' },
-              ats: { route: '/sgsst?hito=hito5&module=analisis_trabajo_seguro', sgsstModule: 'analisis_trabajo_seguro' },
-              epp_delivery: { route: '/sgsst?hito=hito5&module=epp_delivery', sgsstModule: 'epp_delivery' },
-              epp: { route: '/sgsst?hito=hito5&module=epp_delivery', sgsstModule: 'epp_delivery' },
-              heights_lifecycle: { route: '/sgsst?hito=hito5&module=heights_lifecycle', sgsstModule: 'heights_lifecycle' },
-              hito5: { route: '/sgsst?hito=hito5', sgsstModule: 'vehicles_pesv' },
-
-              // Hito 6: Cultura, Escuela e Innovación
-              capacitaciones: { route: '/sgsst?hito=hito6&module=capacitaciones', sgsstModule: 'capacitaciones' },
-              ruta_aprendizaje: { route: '/sgsst?hito=hito6&module=ruta_aprendizaje', sgsstModule: 'ruta_aprendizaje' },
-              reporte_actos: { route: '/sgsst?hito=hito6&module=reporte_actos', sgsstModule: 'reporte_actos' },
-              actos: { route: '/sgsst?hito=hito6&module=reporte_actos', sgsstModule: 'reporte_actos' },
-              app_builder: { route: '/sgsst?hito=hito6&module=app_builder', sgsstModule: 'app_builder' },
-              hito6: { route: '/sgsst?hito=hito6', sgsstModule: 'capacitaciones' },
-
-              // Hito 7: Auditoría, Causalidad & Cierre de Ciclo
-              estadisticas: { route: '/sgsst?hito=hito7&module=estadisticas', sgsstModule: 'estadisticas' },
-              atel: { route: '/sgsst?hito=hito7&module=estadisticas', sgsstModule: 'estadisticas' },
-              investigacion_atel: { route: '/sgsst?hito=hito7&module=investigacion_atel', sgsstModule: 'investigacion_atel' },
-              accidentes: { route: '/sgsst?hito=hito7&module=investigacion_atel', sgsstModule: 'investigacion_atel' },
-              control_acpm: { route: '/sgsst?hito=hito7&module=control_acpm', sgsstModule: 'control_acpm' },
-              acpm: { route: '/sgsst?hito=hito7&module=control_acpm', sgsstModule: 'control_acpm' },
-              auditoria: { route: '/sgsst?hito=hito7&module=auditoria', sgsstModule: 'auditoria' },
-              alta_direccion: { route: '/sgsst?hito=hito7&module=alta_direccion', sgsstModule: 'alta_direccion' },
-              investigacion_profunda: { route: '/sgsst?hito=hito7&module=investigacion_profunda', sgsstModule: 'investigacion_profunda' },
-              hito7: { route: '/sgsst?hito=hito7', sgsstModule: 'estadisticas' },
-
-              // Hito 8: Inteligencia Artificial & Oráculo Predictivo
-              predictivo: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
-              oraculo: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
-              oraculo_predictivo: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
-              siniestralidad: { route: '/sgsst?hito=hito8&module=predictivo', sgsstModule: 'predictivo' },
-              hito8: { route: '/sgsst?hito=hito8', sgsstModule: 'predictivo' },
-
-              // Módulos y Aplicativos Generales de WAPPY
-              planes: { route: '/planes' },
-              precios: { route: '/planes' },
-              tarifas: { route: '/planes' },
-              suscripciones: { route: '/planes' },
-              academia: { route: '/academia?tab=cursos' },
-              cursos: { route: '/academia?tab=cursos' },
-              curso: { route: '/academia?tab=cursos' },
-              training: { route: '/academia?tab=cursos' },
-              training_admin: { route: '/training/admin' },
-              admin_cursos: { route: '/training/admin' },
-              rutas: { route: '/academia?tab=rutas' },
-              ruta: { route: '/academia?tab=rutas' },
-              ruta_admin: { route: '/ruta-aprendizaje/admin' },
-              admin_rutas: { route: '/ruta-aprendizaje/admin' },
-              events: { route: '/events-meet' },
-              events_meet: { route: '/events-meet' },
-              events_meet_admin: { route: '/events-meet/admin' },
-              meet: { route: '/academia?tab=meet' },
-              clases: { route: '/academia?tab=meet' },
-              blog: { route: '/blog' },
-              blog_admin: { route: '/blog/admin' },
-              admin_blog: { route: '/blog/admin' },
-              control: { route: '/sgsst/control' },
-              kanban: { route: '/sgsst/control' },
-              automatizaciones: { route: '/sgsst/control' },
-              agents: { route: '/agents' },
-              agentes: { route: '/agents' },
-              marketplace: { route: '/agents' },
-              live: { route: '/c/new' },
-              inspeccion: { route: '/c/new' },
-              biomecanica: { route: '/c/new' },
-              videollamada: { route: '/c/new' },
-              camara: { route: '/c/new' },
-              chat: { route: '/c/new' },
-              chat_sst: { route: '/chat-sst' },
-              'chat-sst': { route: '/chat-sst' },
-              animo_dashboard: { route: '/sgsst/animo' },
-              clima_dashboard: { route: '/sgsst/animo' },
-              auditoria_app: { route: '/auditoria' },
-              roadmap: { route: '/hoja-de-ruta' },
-              hoja_de_ruta: { route: '/hoja-de-ruta' },
-              contactanos: { route: '/contactanos' },
-              contacto: { route: '/contactanos' },
-              comunidad: { route: '/comunidad' },
-              matriz: { route: '/matriz' },
-              embajadores: { route: '/embajadores' },
-              tenshi_admin: { route: '/tenshi/admin' },
-              search: { route: '/search' },
-            };
-
-            let targetRoute = rawRuta;
-            let targetSgsstModule: string | undefined = undefined;
-
-            if (!targetRoute) {
-              const matchedKey = Object.keys(HITO_MAP).find((k) => rawModulo.includes(k));
-              if (matchedKey && HITO_MAP[matchedKey]) {
-                targetRoute = HITO_MAP[matchedKey].route;
-                targetSgsstModule = HITO_MAP[matchedKey].sgsstModule;
-              } else {
-                targetRoute = '/sgsst';
-              }
-            }
-
-            // Extract sgsst module from targetRoute if present
-            if (targetRoute.includes('/sgsst') && targetRoute.includes('module=')) {
-              try {
-                const urlMatch = targetRoute.match(/module=([^&]+)/);
-                if (urlMatch && urlMatch[1]) {
-                  targetSgsstModule = urlMatch[1];
-                }
-              } catch (_) {}
-            }
+            const { targetRoute, targetSgsstModule } = resolveWappyDestination(rawModulo, rawRuta);
 
             navigate(targetRoute);
 
@@ -1781,10 +1915,47 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
         let index = 0;
 
         for (const action of actions) {
+          if (action.name === 'wappy_navegar' || action.accion === 'navegar') {
+            const rawModulo = action.modulo || action.args?.modulo;
+            const rawRuta = action.ruta || action.args?.ruta;
+            const { targetRoute, targetSgsstModule } = resolveWappyDestination(rawModulo, rawRuta);
+
+            setTenshiStatus(`Navegando a ${targetRoute}...`);
+            setGuiSteps((prev) => [
+              ...prev,
+              { action: 'NAVEGAR', details: `Ir a ${targetRoute}`, status: 'pending' },
+            ]);
+            await new Promise((resolve) => setTimeout(resolve, 200));
+
+            navigate(targetRoute);
+            if (targetSgsstModule) {
+              window.dispatchEvent(
+                new CustomEvent('navigate-sgsst', { detail: { module: targetSgsstModule } })
+              );
+            }
+
+            lastResult = { success: true, message: `Navegación completada con éxito hacia ${targetRoute}` };
+            setGuiSteps((prev) => {
+              const updated = [...prev];
+              if (updated.length > 0) {
+                updated[updated.length - 1].status = 'success';
+              }
+              return updated;
+            });
+
+            cumulativeMessages.push({
+              role: 'user',
+              content: `[RESULTADO_GUI] Navegación ejecutada con éxito a ${targetRoute}.`,
+            });
+
+            index++;
+            continue;
+          }
+
           setTenshiStatus(`Acción visual (${index + 1}/${actions.length}): ${action.accion}...`);
 
           // Registrar paso de automatización para mostrar en el acordeón de acciones
-          const actionLabel = action.accion.toUpperCase();
+          const actionLabel = (action.accion || action.name || 'ACCION').toUpperCase();
           let detailLabel = '';
           if (action.indice !== undefined) {
             detailLabel = `Índice [${action.indice}]`;
