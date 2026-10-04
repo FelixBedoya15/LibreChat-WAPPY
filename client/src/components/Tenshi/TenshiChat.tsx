@@ -648,6 +648,7 @@ export default function TenshiChat() {
 
   const queryClient = useQueryClient();
   const latestChatMessage = useRecoilValue(store.latestMessageFamily(0));
+  const latestChatMessageRef = useRef<any>(latestChatMessage);
   latestChatMessageRef.current = latestChatMessage;
   const { conversation } = store.useCreateConversationAtom(0);
   const { newConversation } = useNewConvo(0);
