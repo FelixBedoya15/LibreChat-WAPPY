@@ -1,10 +1,37 @@
 /**
  * MatrizIPEVARDashboard.tsx
- * Dashboard analítico de la Matriz IPEVAR — 4 gráficas + conclusiones IA
+ * Dashboard analítico y pedagógico de la Matriz IPEVR (GTC-45)
+ * Cimiento Legal: Decreto 1072 de 2015 (Art. 2.2.4.6.15 y 2.2.4.6.24) & Resolución 0312 de 2019
  */
 import React, { useState, useMemo } from 'react';
-import { BarChart2, ShieldCheck, Heart, MapPin, Sparkles, Loader2 } from 'lucide-react';
-import { MatrixRow, DISEASE_KEYWORDS, getNRColor, detectAnnexCType } from './MatrizIPEVARConstants';
+import {
+  BarChart3,
+  PieChart,
+  Target,
+  HelpCircle,
+  TrendingUp,
+  Shield,
+  ShieldCheck,
+  AlertTriangle,
+  Flame,
+  CheckCircle2,
+  Heart,
+  MapPin,
+  Sparkles,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  Calculator,
+  Scale,
+  FileSpreadsheet,
+  Info,
+  Filter,
+  Layers,
+  ArrowRight,
+  Activity
+} from 'lucide-react';
+import { MatrixRow, DISEASE_KEYWORDS, getNRColor } from './MatrizIPEVARConstants';
+import cn from '~/utils/cn';
 
 interface DashboardProps {
   matrixRows: MatrixRow[];
@@ -15,7 +42,7 @@ interface DashboardProps {
   isMaximized?: boolean;
 }
 
-// ── Barra animada reutilizable ────────────────────────────────────────────────
+// ── Barra horizontal animada ──────────────────────────────────────────────────
 const Bar = ({ label, value, max, color, labelWidth = 'w-36' }: {
   label: string; value: number; max: number; color: string; labelWidth?: string;
 }) => {
@@ -23,7 +50,7 @@ const Bar = ({ label, value, max, color, labelWidth = 'w-36' }: {
   return (
     <div className="flex items-center gap-3">
       <span className={`text-[11px] font-semibold text-text-secondary shrink-0 text-right ${labelWidth}`}
-        >{label.length > 24 ? label.slice(0, 24) + '…' : label}</span>
+        title={label}>{label.length > 24 ? label.slice(0, 24) + '…' : label}</span>
       <div className="flex-1 bg-surface-tertiary border border-border-light rounded-full h-4 overflow-hidden relative">
         <div className={`absolute inset-y-0 left-0 ${color} rounded-full flex items-center justify-end pr-2 transition-all duration-700 ease-out`}
           style={{ width: `${pct > 0 ? Math.max(6, pct) : 0}%` }}>
@@ -72,18 +99,18 @@ const ConclusionField = ({ chartType, chartStats, matrixRows, conversationId, to
     <div className="mt-4 pt-4 border-t border-border-light space-y-2">
       <textarea
         className="w-full text-xs text-text-primary bg-surface-primary border border-border-light rounded-xl p-3 resize-y min-h-[64px] outline-none focus:border-teal-400 transition-colors"
-        placeholder="Conclusión técnica… presiona ✨ para generarla con IA"
+        placeholder="Conclusión técnica GTC-45… presiona ✨ para generarla con IA"
         value={text}
         onChange={e => setText(e.target.value)}
         onBlur={handleBlur}
         rows={3}
       />
       <button onClick={generate} disabled={loading || !conversationId}
-        className="group flex items-center justify-center p-2 h-[36px] bg-surface-secondary border border-border-medium rounded-[16px] text-teal-600 transition-all duration-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer disabled:opacity-50">
+        className="group flex items-center justify-center p-2 h-[34px] bg-surface-secondary border border-border-medium rounded-xl text-teal-600 transition-all duration-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer disabled:opacity-50">
         {loading ? <Loader2 className="h-4 w-4 animate-spin shrink-0" />
           : <Sparkles className="h-4 w-4 shrink-0" />}
         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 text-xs font-bold">
-          {loading ? 'Generando…' : 'Generar con IA'}
+          {loading ? 'Generando…' : 'Generar Conclusión con IA'}
         </span>
       </button>
     </div>
@@ -91,9 +118,130 @@ const ConclusionField = ({ chartType, chartStats, matrixRows, conversationId, to
 };
 
 // ════════════════════════════════════════════════════════════════════════════
-const MatrizIPEVARDashboard = ({ matrixRows, conversationId, token, savedConclusions, onConclusionSaved, isMaximized }: DashboardProps) => {
+export default function MatrizIPEVARDashboard({
+  matrixRows,
+  conversationId,
+  token,
+  savedConclusions,
+  onConclusionSaved,
+  isMaximized
+}: DashboardProps) {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'riesgos' | 'metodologia'>('dashboard');
+  const [selectedHeatmapCell, setSelectedHeatmapCell] = useState<string | null>(null);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
+  const [expandedRiskId, setExpandedRiskId] = useState<string | null>(null);
 
-  // ── Chart A: NR por Clasificación ────────────────────────────────────────
+  // ── 1. Métricas Principales ──
+  const totalRiesgos = matrixRows.length;
+
+  const stats = useMemo(() => {
+    let criticosNivelI = 0;
+    let altosNivelII = 0;
+    let mediosNivelIII = 0;
+    let bajosNivelIV = 0;
+
+    const catMap: Record<string, number> = {};
+
+    matrixRows.forEach(r => {
+      const nr = Number(r.nr) || 0;
+      if (nr >= 600) criticosNivelI++;
+      else if (nr >= 150) altosNivelII++;
+      else if (nr >= 40) mediosNivelIII++;
+      else bajosNivelIV++;
+
+      const cat = r.peligro_clasificacion?.trim() || 'Condiciones de Seguridad';
+      catMap[cat] = (catMap[cat] || 0) + 1;
+    });
+
+    const rankingCategorias = Object.entries(catMap)
+      .map(([cat, count]) => ({
+        cat,
+        count,
+        pct: totalRiesgos > 0 ? Math.round((count / totalRiesgos) * 100) : 0
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    const peligroMasFrecuente = rankingCategorias[0] || { cat: 'Sin clasificar', count: 0, pct: 0 };
+    const pctCritico = totalRiesgos > 0 ? Math.round((criticosNivelI / totalRiesgos) * 100) : 0;
+
+    return {
+      criticosNivelI,
+      altosNivelII,
+      mediosNivelIII,
+      bajosNivelIV,
+      rankingCategorias,
+      peligroMasFrecuente,
+      pctCritico
+    };
+  }, [matrixRows, totalRiesgos]);
+
+  // Colores para categorías GTC-45
+  const getCatColor = (cat: string) => {
+    const c = cat.toLowerCase();
+    if (c.includes('biomec')) return { hex: '#0d9488', bg: 'bg-teal-500', text: 'text-teal-600', light: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300' };
+    if (c.includes('físic') || c.includes('fisic')) return { hex: '#3b82f6', bg: 'bg-blue-500', text: 'text-blue-600', light: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' };
+    if (c.includes('quím') || c.includes('quim')) return { hex: '#eab308', bg: 'bg-yellow-500', text: 'text-yellow-600', light: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300' };
+    if (c.includes('psico')) return { hex: '#a855f7', bg: 'bg-purple-500', text: 'text-purple-600', light: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300' };
+    if (c.includes('biol')) return { hex: '#f43f5e', bg: 'bg-rose-500', text: 'text-rose-600', light: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' };
+    if (c.includes('seguridad') || c.includes('locativ') || c.includes('mec')) return { hex: '#f59e0b', bg: 'bg-amber-500', text: 'text-amber-600', light: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' };
+    return { hex: '#64748b', bg: 'bg-slate-500', text: 'text-slate-600', light: 'bg-slate-50 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300' };
+  };
+
+  // ── 2. Matriz Térmica 4x4 Oficial GTC-45 ──
+  const heatmapData = useMemo(() => {
+    // Filas NC: Mortal(100), Muy Grave(60), Grave(25), Leve(10)
+    const ncRows = [
+      { nc: 100, label: 'Mortal (100)' },
+      { nc: 60, label: 'Muy Grave (60)' },
+      { nc: 25, label: 'Grave (25)' },
+      { nc: 10, label: 'Leve (10)' }
+    ];
+    // Columnas NP: Muy Alto(24-40), Alto(10-20), Medio(6-8), Bajo(2-4)
+    const npCols = [
+      { npLabel: 'Muy Alto (24-40)', min: 24, max: 40 },
+      { npLabel: 'Alto (10-20)', min: 10, max: 20 },
+      { npLabel: 'Medio (6-8)', min: 6, max: 8 },
+      { npLabel: 'Bajo (2-4)', min: 2, max: 4 }
+    ];
+    // Matriz de Aceptabilidad GTC-45:
+    // [0][0..2] = I, [0][3] = II
+    // [1][0..1] = I, [1][2..3] = II
+    // [2][0] = I, [2][1] = II, [2][2..3] = III
+    // [3][0] = II, [3][1] = III, [3][2..3] = IV
+    const levels = [
+      ['I', 'I', 'I', 'II'],
+      ['I', 'I', 'II', 'II'],
+      ['I', 'II', 'III', 'III'],
+      ['II', 'III', 'III', 'IV']
+    ];
+
+    return ncRows.map((r, rIdx) => {
+      return npCols.map((c, cIdx) => {
+        const cellKey = `${rIdx}-${cIdx}`;
+        const level = levels[rIdx][cIdx];
+        const matchingRows = matrixRows.filter(row => {
+          const rowNC = Number(row.nc) || 0;
+          const rowNP = Number(row.np) || 0;
+          const matchNC = rowNC === r.nc || (r.nc === 100 && rowNC >= 100) || (r.nc === 10 && rowNC <= 10 && rowNC > 0);
+          const matchNP = rowNP >= c.min && rowNP <= c.max;
+          return matchNC && matchNP;
+        });
+
+        return {
+          rIdx,
+          cIdx,
+          cellKey,
+          level,
+          ncLabel: r.label,
+          npLabel: c.npLabel,
+          count: matchingRows.length,
+          rows: matchingRows
+        };
+      });
+    });
+  }, [matrixRows]);
+
+  // ── 3. Charts Clásicos Reutilizables ──
   const chartA = useMemo(() => {
     const map: Record<string, { count: number; totalNR: number; max: number }> = {};
     matrixRows.forEach(r => {
@@ -108,14 +256,13 @@ const MatrizIPEVARDashboard = ({ matrixRows, conversationId, token, savedConclus
       .sort((a, b) => b.avg - a.avg);
   }, [matrixRows]);
 
-  // ── Chart B: Jerarquía de Controles ─────────────────────────────────────
   const chartB = useMemo(() => {
     const empty = (v?: string) => !v || ['ninguno', 'ninguna', 'none', 'no aplica', ''].includes(v.toLowerCase().trim());
     let fuente = 0, medio = 0, individuo = 0;
     matrixRows.forEach(r => {
-      if (!empty(r.controles_fuente)) fuente++;
-      if (!empty(r.controles_medio)) medio++;
-      if (!empty(r.controles_individuo)) individuo++;
+      if (!empty(r.controles_fuente) || !empty(r.medida_eliminacion) || !empty(r.medida_sustitucion)) fuente++;
+      if (!empty(r.controles_medio) || !empty(r.medida_ingenieria)) medio++;
+      if (!empty(r.controles_individuo) || !empty(r.medida_administrativa) || !empty(r.medida_eppu)) individuo++;
     });
     const total = matrixRows.length || 1;
     return [
@@ -125,7 +272,6 @@ const MatrizIPEVARDashboard = ({ matrixRows, conversationId, token, savedConclus
     ];
   }, [matrixRows]);
 
-  // ── Chart C: Enfermedades Potenciales ───────────────────────────────────
   const chartC = useMemo(() => {
     const empty = (v?: string) => !v || ['ninguno', 'ninguna', 'none', ''].includes(v.toLowerCase().trim());
     return DISEASE_KEYWORDS.map(d => {
@@ -143,7 +289,6 @@ const MatrizIPEVARDashboard = ({ matrixRows, conversationId, token, savedConclus
     }).filter(Boolean) as { name: string; count: number; noControl: number; nivel: string }[];
   }, [matrixRows]);
 
-  // ── Chart D: Mapa de Calor por Proceso ──────────────────────────────────
   const chartD = useMemo(() => {
     const map: Record<string, { totalNR: number; count: number; criticos: number }> = {};
     matrixRows.forEach(r => {
@@ -158,126 +303,720 @@ const MatrizIPEVARDashboard = ({ matrixRows, conversationId, token, savedConclus
       .sort((a, b) => b.avg - a.avg);
   }, [matrixRows]);
 
+  // Lista de riesgos filtrados para la pestaña 2
+  const filteredRows = useMemo(() => {
+    let rows = [...matrixRows];
+    if (selectedHeatmapCell) {
+      const [rIdxStr, cIdxStr] = selectedHeatmapCell.split('-');
+      const rIdx = parseInt(rIdxStr, 10);
+      const cIdx = parseInt(cIdxStr, 10);
+      const cell = heatmapData[rIdx]?.[cIdx];
+      if (cell) {
+        rows = cell.rows;
+      }
+    }
+    if (selectedCategoryFilter) {
+      rows = rows.filter(r => (r.peligro_clasificacion?.trim() || '') === selectedCategoryFilter);
+    }
+    return rows.sort((a, b) => (Number(b.nr) || 0) - (Number(a.nr) || 0));
+  }, [matrixRows, selectedHeatmapCell, selectedCategoryFilter, heatmapData]);
+
   if (matrixRows.length === 0) return null;
 
   const maxChartA = Math.max(...chartA.map(d => d.avg), 1);
   const maxChartD = Math.max(...chartD.map(d => d.avg), 1);
 
   return (
-    <div className="mt-6 mb-6 space-y-6">
-      {/* Title */}
-      <div className="flex items-center gap-2 px-1">
-        <BarChart2 className="h-5 w-5 text-teal-500" />
-        <h3 className="text-sm font-bold text-text-primary uppercase tracking-wide">
-          Analítica IPEVR — Resumen Ejecutivo GTC-45
-        </h3>
-        <span className="text-xs text-text-secondary">({matrixRows.length} riesgos)</span>
+    <div className="w-full overflow-hidden rounded-3xl border border-teal-500/30 bg-surface-secondary shadow-md transition-all duration-300 mt-6 mb-6">
+      
+      {/* ── HEADER PRINCIPAL CON BOTONERA CÁPSULA WAPPY ── */}
+      <div className="flex flex-wrap items-center justify-between px-5 py-4 border-b border-border-light gap-3 bg-surface-tertiary/60">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center shadow-md shadow-teal-500/20 shrink-0">
+            <Target size={20} className="stroke-[2.2]" />
+          </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight flex items-center gap-2">
+              Matriz IPEVR — Evaluación GTC-45
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 border border-teal-300/40">
+                Dec. 1072/15 Art. 2.2.4.6.15
+              </span>
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-zinc-400 font-normal">
+              Identificación de peligros, estimación matemática y jerarquía legal de controles
+            </p>
+          </div>
+        </div>
+
+        {/* Botonera de 3 Vistas: Gráficas | Riesgos Priorizados | Metodología */}
+        <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-surface-primary border border-border-medium text-[11px] font-bold shadow-2xs">
+          <button
+            type="button"
+            onClick={() => setActiveTab('dashboard')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer",
+              activeTab === 'dashboard'
+                ? "bg-teal-600 text-white shadow-xs font-black"
+                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+            )}
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>Gráficas & Métricas</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('riesgos')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer",
+              activeTab === 'riesgos'
+                ? "bg-teal-600 text-white shadow-xs font-black"
+                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+            )}
+          >
+            <Target className="w-3.5 h-3.5" />
+            <span>Riesgos Priorizados ({matrixRows.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('metodologia')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer",
+              activeTab === 'metodologia'
+                ? "bg-teal-600 text-white shadow-xs font-black"
+                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+            )}
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span>¿Cómo se define el riesgo?</span>
+          </button>
+        </div>
       </div>
 
-      <div className={`grid gap-5 ${isMaximized ? 'grid-cols-1 xl:grid-cols-2' : 'grid-cols-1'}`}>
-
-        {/* ── Gráfico A: NR por Clasificación ── */}
-        <div className="p-5 bg-surface-secondary rounded-2xl border border-border-medium shadow-sm">
-          <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-teal-500 inline-block" />
-            Riesgos por Tipo de Peligro (NR Promedio)
-          </h4>
-          <div className="space-y-3">
-            {chartA.slice(0, 8).map(d => {
-              const col = getNRColor(d.avg);
-              return <Bar key={d.clas} label={`${d.clas} (${d.count})`} value={d.avg} max={maxChartA} color={col.bg} />;
-            })}
+      {/* ── CUERPO DEL DASHBOARD ── */}
+      <div className="p-5 sm:p-6 bg-surface-primary/30 space-y-6 text-xs">
+        
+        {/* 1. Tarjetas Superiores de Métricas Clave */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 shadow-xs flex flex-col justify-between">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-teal-600" /> Peligros Totales
+            </span>
+            <div className="mt-2">
+              <span className="text-2xl font-black text-slate-900 dark:text-zinc-100">
+                {totalRiesgos}
+              </span>
+              <span className="text-[11px] text-slate-500 dark:text-zinc-400 ml-1.5 font-medium">
+                filas evaluadas
+              </span>
+            </div>
           </div>
-          <ConclusionField chartType="clasificacion" chartStats={chartA} matrixRows={matrixRows}
-            conversationId={conversationId} token={token}
-            saved={savedConclusions.clasificacion || ''} onSaved={t => onConclusionSaved('clasificacion', t)} />
+
+          <div className="p-3.5 rounded-2xl border border-rose-200/80 dark:border-rose-800/60 bg-rose-50/50 dark:bg-rose-950/20 shadow-xs flex flex-col justify-between">
+            <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1.5">
+              <Flame className="w-3.5 h-3.5 text-rose-600" /> Nivel I (No Aceptable)
+            </span>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl font-black text-rose-900 dark:text-rose-200">
+                {stats.criticosNivelI}
+              </span>
+              <span className="text-[11px] text-rose-700 dark:text-rose-300 font-bold">
+                {stats.pctCritico}% de alta criticidad
+              </span>
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-2xl border border-teal-200/80 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/20 shadow-xs flex flex-col justify-between">
+            <span className="text-[10px] font-black uppercase tracking-wider text-teal-700 dark:text-teal-400 flex items-center gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-teal-600" /> Peligro Dominante
+            </span>
+            <div className="mt-2">
+              <span className="text-lg font-black text-teal-900 dark:text-teal-200 block truncate" title={stats.peligroMasFrecuente.cat}>
+                {stats.peligroMasFrecuente.cat}
+              </span>
+              <span className="text-[11px] font-bold text-teal-700 dark:text-teal-300">
+                {stats.peligroMasFrecuente.pct}% de incidencia
+              </span>
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-2xl border border-blue-200/80 dark:border-blue-800/60 bg-blue-50/50 dark:bg-blue-950/20 shadow-xs flex flex-col justify-between">
+            <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-600" /> Control en Fuente
+            </span>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl font-black text-blue-900 dark:text-blue-200">
+                {chartB[0]?.value || 0}
+              </span>
+              <span className="text-[11px] text-blue-700 dark:text-blue-300 font-medium">
+                {chartB[0]?.pct || 0}% de cobertura
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* ── Gráfico B: Jerarquía de Controles ── */}
-        <div className="p-5 bg-surface-secondary rounded-2xl border border-border-medium shadow-sm">
-          <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-blue-500" />
-            Cobertura de la Jerarquía de Controles
-          </h4>
-          <div className="space-y-3">
-            {chartB.map(d => (
-              <div key={d.label}>
-                <Bar label={`${d.label}`} value={d.value} max={matrixRows.length} color="bg-blue-500" />
-                <p className="text-[10px] text-text-secondary text-right mt-0.5">{d.pct}% de los riesgos tienen este control</p>
+        {/* ════════════════════════════════════════════════════════════════════
+            TAB 1: GRÁFICAS & MÉTRICAS
+        ════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6">
+            
+            {/* Fila 1: Donut SVG Interactivo + Matriz Térmica 4x4 */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              
+              {/* Gráfico Donut SVG de Peligros GTC-45 (5 cols) */}
+              <div className="lg:col-span-5 p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-extrabold text-xs text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                      <PieChart className="w-4 h-4 text-teal-600" />
+                      Distribución de Peligros GTC-45
+                    </h3>
+                    <span className="text-[10px] font-bold text-slate-400">Total: {totalRiesgos}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">
+                    Proporción de peligros por clasificación técnica oficial.
+                  </p>
+                </div>
+
+                {/* Donut Chart SVG */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-5 my-4">
+                  <div className="relative w-36 h-36 shrink-0">
+                    <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 transform">
+                      {(() => {
+                        let accumulatedPct = 0;
+                        return stats.rankingCategorias.map((item, idx) => {
+                          const strokeDasharray = `${item.pct} ${100 - item.pct}`;
+                          const strokeDashoffset = -accumulatedPct;
+                          accumulatedPct += item.pct;
+                          const colorObj = getCatColor(item.cat);
+                          return (
+                            <circle
+                              key={idx}
+                              cx="50"
+                              cy="50"
+                              r="38"
+                              fill="transparent"
+                              stroke={colorObj.hex}
+                              strokeWidth="18"
+                              strokeDasharray={strokeDasharray}
+                              strokeDashoffset={strokeDashoffset}
+                              className="transition-all duration-500 hover:opacity-80 cursor-pointer"
+                              onClick={() => {
+                                setSelectedCategoryFilter(item.cat);
+                                setActiveTab('riesgos');
+                              }}
+                            />
+                          );
+                        });
+                      })()}
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-xl font-black text-slate-900 dark:text-zinc-100 leading-none">
+                        {totalRiesgos}
+                      </span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                        Riesgos
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Leyenda del Donut */}
+                  <div className="space-y-1.5 w-full max-w-[200px]">
+                    {stats.rankingCategorias.slice(0, 5).map((item, idx) => {
+                      const colorObj = getCatColor(item.cat);
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            setSelectedCategoryFilter(item.cat);
+                            setActiveTab('riesgos');
+                          }}
+                          className="flex items-center justify-between text-[11px] p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${colorObj.bg}`} />
+                            <span className="font-semibold text-slate-700 dark:text-zinc-300 truncate" title={item.cat}>
+                              {item.cat}
+                            </span>
+                          </div>
+                          <span className="font-bold text-slate-900 dark:text-zinc-100 ml-2">
+                            {item.pct}%
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-2xl bg-teal-50/60 dark:bg-teal-950/20 border border-teal-200/60 text-[11px] text-teal-800 dark:text-teal-300">
+                  💡 Haz clic en cualquier categoría para filtrar los riesgos evaluados.
+                </div>
               </div>
-            ))}
-          </div>
-          <div className="mt-3 p-3 rounded-xl bg-surface-primary border border-border-light text-xs text-text-secondary">
-            {chartB[0]?.pct < chartB[2]?.pct
-              ? '⚠️ La jerarquía está invertida: más controles en el individuo (EPP) que en la fuente. Se recomienda revisar los controles preventivos.'
-              : '✅ La intervención prioriza los controles en la fuente según la jerarquía GTC-45.'}
-          </div>
-          <ConclusionField chartType="controles" chartStats={chartB} matrixRows={matrixRows}
-            conversationId={conversationId} token={token}
-            saved={savedConclusions.controles || ''} onSaved={t => onConclusionSaved('controles', t)} />
-        </div>
 
-        {/* ── Gráfico C: Enfermedades Potenciales ── */}
-        <div className="p-5 bg-surface-secondary rounded-2xl border border-border-medium shadow-sm">
-          <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-            <Heart className="h-4 w-4 text-red-500" />
-            Enfermedades Laborales Potenciales
-          </h4>
-          {chartC.length === 0
-            ? <p className="text-xs text-text-secondary italic">No se identificaron enfermedades potenciales en los efectos documentados.</p>
-            : (
-              <div className="space-y-2">
-                {chartC.map(d => (
-                  <div key={d.name} className="flex items-center gap-3 p-2.5 rounded-2xl border border-border-light bg-surface-primary">
-                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${d.nivel === 'alto' ? 'bg-red-500' : d.nivel === 'medio' ? 'bg-orange-400' : 'bg-green-500'}`} />
-                    <span className="text-xs font-semibold text-text-primary flex-1">{d.name}</span>
-                    <span className="text-[10px] font-mono text-text-secondary">{d.count} riesgo{d.count > 1 ? 's' : ''}</span>
-                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                      d.nivel === 'alto' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                      : d.nivel === 'medio' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                      : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                    }`}>
-                      {d.nivel === 'alto' ? 'Sin control' : d.nivel === 'medio' ? 'Parcial' : 'Controlada'}
+              {/* Matriz Térmica Oficial GTC-45 (7 cols) */}
+              <div className="lg:col-span-7 p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-extrabold text-xs text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                      <Flame className="w-4 h-4 text-rose-600" />
+                      Matriz Térmica Oficial GTC-45 (Consecuencia vs Probabilidad)
+                    </h3>
+                    <span className="text-[10px] font-bold text-teal-600 px-2 py-0.5 rounded-md bg-teal-50 dark:bg-teal-950/50">
+                      Mapa de Calor
                     </span>
                   </div>
-                ))}
-              </div>
-            )
-          }
-          <ConclusionField chartType="enfermedades" chartStats={chartC} matrixRows={matrixRows}
-            conversationId={conversationId} token={token}
-            saved={savedConclusions.enfermedades || ''} onSaved={t => onConclusionSaved('enfermedades', t)} />
-        </div>
-
-        {/* ── Gráfico D: Mapa de Calor por Proceso ── */}
-        <div className="p-5 bg-surface-secondary rounded-2xl border border-border-medium shadow-sm">
-          <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-purple-500" />
-            Promedio Nivel de Riesgo (NR) x Proceso
-          </h4>
-          <div className="space-y-3">
-            {chartD.slice(0, 8).map(d => {
-              const col = getNRColor(d.avg);
-              return (
-                <div key={d.proc}>
-                  <Bar label={d.proc} value={d.avg} max={maxChartD} color={col.bg} />
-                  {d.criticos > 0 && (
-                    <p className="text-[10px] text-red-500 font-semibold text-right mt-0.5">
-                      ⚠ {d.criticos} crítico{d.criticos > 1 ? 's' : ''} en este proceso
-                    </p>
-                  )}
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">
+                    Haz clic en cualquier cuadrante para filtrar los riesgos ubicados en esa coordenada.
+                  </p>
                 </div>
-              );
-            })}
+
+                {/* Heatmap 4x4 Grid */}
+                <div className="overflow-x-auto my-3">
+                  <div className="min-w-[460px] text-[10px]">
+                    <div className="grid grid-cols-5 gap-1 mb-1 font-bold text-slate-400 text-center">
+                      <div className="text-left text-[9px] uppercase">NC \ NP</div>
+                      <div>Muy Alta (24-40)</div>
+                      <div>Alta (10-20)</div>
+                      <div>Media (6-8)</div>
+                      <div>Baja (2-4)</div>
+                    </div>
+
+                    {heatmapData.map((row, rIdx) => (
+                      <div key={rIdx} className="grid grid-cols-5 gap-1 mb-1 items-center">
+                        <div className="font-bold text-slate-600 dark:text-zinc-400 text-[10px] truncate" title={row[0].ncLabel}>
+                          {row[0].ncLabel}
+                        </div>
+                        {row.map((cell) => {
+                          const isSelected = selectedHeatmapCell === cell.cellKey;
+                          let cellBg = 'bg-slate-100 dark:bg-zinc-800 text-slate-600';
+                          if (cell.level === 'I') cellBg = 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-400/40 hover:bg-rose-500/30';
+                          else if (cell.level === 'II') cellBg = 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-400/40 hover:bg-amber-500/30';
+                          else if (cell.level === 'III') cellBg = 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-400/40 hover:bg-yellow-500/30';
+                          else if (cell.level === 'IV') cellBg = 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-400/40 hover:bg-emerald-500/30';
+
+                          return (
+                            <button
+                              key={cell.cellKey}
+                              type="button"
+                              onClick={() => {
+                                setSelectedHeatmapCell(isSelected ? null : cell.cellKey);
+                                setActiveTab('riesgos');
+                              }}
+                              className={cn(
+                                "h-11 rounded-xl border flex flex-col items-center justify-center transition-all p-1 cursor-pointer",
+                                cellBg,
+                                isSelected ? "ring-2 ring-teal-500 font-black scale-95 shadow-sm" : "border-slate-200/40 dark:border-zinc-700/40"
+                              )}
+                            >
+                              <span className="font-extrabold text-[9px] uppercase">
+                                Nivel {cell.level}
+                              </span>
+                              <span className="text-[11px] font-black">
+                                {cell.count > 0 ? `${cell.count} riesgos` : '—'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 pt-2 border-t border-slate-100 dark:border-zinc-800">
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Zona I: No Aceptable</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Zona II: Control Específico</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-yellow-400" /> Zona III: Mejorable</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Zona IV: Aceptable</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Fila 2: Gráficos de Controles, Enfermedades y Procesos con Conclusiones IA */}
+            <div className={`grid gap-5 ${isMaximized ? 'grid-cols-1 xl:grid-cols-2' : 'grid-cols-1'}`}>
+              
+              {/* Gráfico A: NR Promedio por Clasificación */}
+              <div className="p-5 bg-surface-secondary rounded-3xl border border-border-medium shadow-sm">
+                <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-teal-500 inline-block" />
+                  Riesgos por Tipo de Peligro (NR Promedio)
+                </h4>
+                <div className="space-y-3">
+                  {chartA.slice(0, 8).map(d => {
+                    const col = getNRColor(d.avg);
+                    return <Bar key={d.clas} label={`${d.clas} (${d.count})`} value={d.avg} max={maxChartA} color={col.bg} />;
+                  })}
+                </div>
+                <ConclusionField chartType="clasificacion" chartStats={chartA} matrixRows={matrixRows}
+                  conversationId={conversationId} token={token}
+                  saved={savedConclusions.clasificacion || ''} onSaved={t => onConclusionSaved('clasificacion', t)} />
+              </div>
+
+              {/* Gráfico B: Cobertura de la Jerarquía de Controles */}
+              <div className="p-5 bg-surface-secondary rounded-3xl border border-border-medium shadow-sm">
+                <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-blue-500" />
+                  Jerarquía Legal de Medidas de Intervención (Dec. 1072/15 Art. 2.2.4.6.24)
+                </h4>
+                <div className="space-y-3">
+                  {chartB.map(d => (
+                    <div key={d.label}>
+                      <Bar label={`${d.label}`} value={d.value} max={matrixRows.length} color="bg-blue-500" />
+                      <p className="text-[10px] text-text-secondary text-right mt-0.5">{d.pct}% de los peligros cuentan con esta medida</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 p-3 rounded-xl bg-surface-primary border border-border-light text-xs text-text-secondary">
+                  {chartB[0]?.pct < chartB[2]?.pct
+                    ? '⚠️ Alerta de Auditoría: La jerarquía está invertida (más medidas en el individuo/EPP que en la fuente). El Decreto 1072 exige priorizar controles de ingeniería y eliminación.'
+                    : '✅ Cumplimiento Legal: La intervención prioriza los controles en la fuente y medio según la jerarquía normativa.'}
+                </div>
+                <ConclusionField chartType="controles" chartStats={chartB} matrixRows={matrixRows}
+                  conversationId={conversationId} token={token}
+                  saved={savedConclusions.controles || ''} onSaved={t => onConclusionSaved('controles', t)} />
+              </div>
+
+              {/* Gráfico C: Enfermedades Laborales Potenciales */}
+              <div className="p-5 bg-surface-secondary rounded-3xl border border-border-medium shadow-sm">
+                <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Heart className="h-4 w-4 text-red-500" />
+                  Enfermedades Laborales Potenciales (Decreto 1477 de 2014)
+                </h4>
+                {chartC.length === 0 ? (
+                  <p className="text-xs text-text-secondary italic">No se identificaron patologías críticas en los efectos documentados.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {chartC.map(d => (
+                      <div key={d.name} className="flex items-center gap-3 p-2.5 rounded-2xl border border-border-light bg-surface-primary">
+                        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${d.nivel === 'alto' ? 'bg-red-500' : d.nivel === 'medio' ? 'bg-orange-400' : 'bg-green-500'}`} />
+                        <span className="text-xs font-semibold text-text-primary flex-1">{d.name}</span>
+                        <span className="text-[10px] font-mono text-text-secondary">{d.count} riesgo{d.count > 1 ? 's' : ''}</span>
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
+                          d.nivel === 'alto' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            : d.nivel === 'medio' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                            : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        }`}>
+                          {d.nivel === 'alto' ? 'Sin control' : d.nivel === 'medio' ? 'Parcial' : 'Controlada'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <ConclusionField chartType="enfermedades" chartStats={chartC} matrixRows={matrixRows}
+                  conversationId={conversationId} token={token}
+                  saved={savedConclusions.enfermedades || ''} onSaved={t => onConclusionSaved('enfermedades', t)} />
+              </div>
+
+              {/* Gráfico D: Nivel de Riesgo por Proceso */}
+              <div className="p-5 bg-surface-secondary rounded-3xl border border-border-medium shadow-sm">
+                <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-purple-500" />
+                  Promedio Nivel de Riesgo (NR) x Proceso
+                </h4>
+                <div className="space-y-3">
+                  {chartD.slice(0, 8).map(d => {
+                    const col = getNRColor(d.avg);
+                    return (
+                      <div key={d.proc}>
+                        <Bar label={d.proc} value={d.avg} max={maxChartD} color={col.bg} />
+                        {d.criticos > 0 && (
+                          <p className="text-[10px] text-red-500 font-semibold text-right mt-0.5">
+                            ⚠ {d.criticos} crítico{d.criticos > 1 ? 's' : ''} en este proceso
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <ConclusionField chartType="procesos" chartStats={chartD} matrixRows={matrixRows}
+                  conversationId={conversationId} token={token}
+                  saved={savedConclusions.procesos || ''} onSaved={t => onConclusionSaved('procesos', t)} />
+              </div>
+
+            </div>
+
           </div>
-          <ConclusionField chartType="procesos" chartStats={chartD} matrixRows={matrixRows}
-            conversationId={conversationId} token={token}
-            saved={savedConclusions.procesos || ''} onSaved={t => onConclusionSaved('procesos', t)} />
-        </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
+            TAB 2: RIESGOS PRIORIZADOS (CON FÓRMULA MATEMÁTICA Y TRANSPARENCIA)
+        ════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'riesgos' && (
+          <div className="space-y-4">
+            
+            {/* Barra de Filtros Activos */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-2xs">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-xs text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                  <Filter size={13} className="text-teal-600" />
+                  Mostrando {filteredRows.length} de {matrixRows.length} riesgos evaluados
+                </span>
+                {selectedHeatmapCell && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-300">
+                    Cuadrante térmico: {selectedHeatmapCell}
+                    <button type="button" onClick={() => setSelectedHeatmapCell(null)} className="hover:text-red-600 cursor-pointer ml-1">✕</button>
+                  </span>
+                )}
+                {selectedCategoryFilter && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
+                    {selectedCategoryFilter}
+                    <button type="button" onClick={() => setSelectedCategoryFilter(null)} className="hover:text-red-600 cursor-pointer ml-1">✕</button>
+                  </span>
+                )}
+              </div>
+
+              {(selectedHeatmapCell || selectedCategoryFilter) && (
+                <button
+                  type="button"
+                  onClick={() => { setSelectedHeatmapCell(null); setSelectedCategoryFilter(null); }}
+                  className="text-[11px] font-bold text-teal-600 hover:text-teal-700 cursor-pointer"
+                >
+                  Restablecer todos los filtros
+                </button>
+              )}
+            </div>
+
+            {/* Listado de Tarjetas de Riesgos */}
+            <div className="space-y-3">
+              {filteredRows.map((r, idx) => {
+                const nrVal = Number(r.nr) || 0;
+                const nrCol = getNRColor(nrVal);
+                const isExpanded = expandedRiskId === r.id;
+                const colorObj = getCatColor(r.peligro_clasificacion || '');
+
+                return (
+                  <div
+                    key={r.id || idx}
+                    className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-2xs space-y-3 transition-all hover:border-teal-500/40"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                          PRIORIDAD #{idx + 1}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${colorObj.light}`}>
+                          {r.peligro_clasificacion || 'Peligro'}
+                        </span>
+                        <span className="text-xs font-bold text-slate-800 dark:text-zinc-200">
+                          {r.proceso} • {r.zona_lugar || 'Sede'} • {r.actividad}
+                        </span>
+                      </div>
+
+                      {/* Badge de Nivel de Riesgo GTC-45 */}
+                      <span className={`text-[11px] font-black px-2.5 py-1 rounded-xl ${nrCol.bg} text-white shadow-2xs`}>
+                        Nivel {r.interpretacion_nr || (nrVal >= 600 ? 'I' : nrVal >= 150 ? 'II' : nrVal >= 40 ? 'III' : 'IV')} (NR: {nrVal})
+                      </span>
+                    </div>
+
+                    {/* Cinta de Fórmula Matemática GTC-45 */}
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/60 dark:border-zinc-700/60 flex flex-wrap items-center justify-between text-[11px] gap-2">
+                      <div className="flex items-center gap-2 font-mono text-slate-700 dark:text-zinc-300">
+                        <Calculator size={13} className="text-teal-600 shrink-0" />
+                        <span>Fórmula GTC-45:</span>
+                        <span className="font-bold text-teal-700 dark:text-teal-400">ND ({r.nd || '—'})</span> × <span className="font-bold text-teal-700 dark:text-teal-400">NE ({r.ne || '—'})</span> = 
+                        <span className="font-black text-slate-900 dark:text-white">NP {r.np || '—'}</span> ({r.interpretacion_np || 'Probabilidad'}) • 
+                        <span className="font-black text-slate-900 dark:text-white">NP ({r.np || '—'})</span> × <span className="font-bold text-teal-700 dark:text-teal-400">NC ({r.nc || '—'})</span> = 
+                        <span className="font-black text-rose-600 dark:text-rose-400">NR {nrVal}</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-500 italic">
+                        {r.aceptabilidad_riesgo || (nrVal >= 600 ? 'No Aceptable' : nrVal >= 150 ? 'No Aceptable o Aceptable con control' : 'Mejorable / Aceptable')}
+                      </span>
+                    </div>
+
+                    {/* Descripción y Efectos Posibles */}
+                    <div className="text-[11px] text-slate-700 dark:text-zinc-300 grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                      <div>
+                        <span className="text-[9px] font-bold uppercase text-slate-400 block">Peligro y Fuente Generadora:</span>
+                        <p className="font-semibold text-slate-900 dark:text-zinc-100">{r.peligro_descripcion || r.tarea}</p>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-bold uppercase text-slate-400 block">Efectos Posibles en la Salud:</span>
+                        <p className="font-medium text-slate-700 dark:text-zinc-300">{r.efectos_posibles || 'Molestias o incidentes laborales'}</p>
+                      </div>
+                    </div>
+
+                    {/* Acordeón de Medidas de Intervención */}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedRiskId(isExpanded ? null : r.id)}
+                        className="text-[11px] font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1 cursor-pointer"
+                      >
+                        {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        <span>{isExpanded ? 'Ocultar medidas de intervención' : '👁️ Ver controles existentes y jerarquía de intervención'}</span>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="mt-3 p-3.5 rounded-2xl bg-surface-secondary/70 border border-teal-500/20 space-y-2.5 text-[11px] animate-in fade-in duration-200">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 border-b border-border-light pb-2.5">
+                            <div>
+                              <span className="text-[9px] font-bold uppercase text-slate-400 block">Control en la Fuente:</span>
+                              <p className="text-slate-800 dark:text-zinc-200">{r.controles_fuente || 'Ninguno'}</p>
+                            </div>
+                            <div>
+                              <span className="text-[9px] font-bold uppercase text-slate-400 block">Control en el Medio:</span>
+                              <p className="text-slate-800 dark:text-zinc-200">{r.controles_medio || 'Ninguno'}</p>
+                            </div>
+                            <div>
+                              <span className="text-[9px] font-bold uppercase text-slate-400 block">Control en el Individuo:</span>
+                              <p className="text-slate-800 dark:text-zinc-200">{r.controles_individuo || 'Ninguno'}</p>
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-[9px] font-black uppercase text-teal-700 dark:text-teal-400 block">
+                              Jerarquía de Medidas Propuestas (Dec. 1072/15 Art. 2.2.4.6.24):
+                            </span>
+                            <ul className="list-disc list-inside space-y-0.5 mt-1 text-slate-700 dark:text-zinc-300">
+                              {r.medida_eliminacion && <li><strong>Eliminación:</strong> {r.medida_eliminacion}</li>}
+                              {r.medida_sustitucion && <li><strong>Sustitución:</strong> {r.medida_sustitucion}</li>}
+                              {r.medida_ingenieria && <li><strong>Ingeniería:</strong> {r.medida_ingenieria}</li>}
+                              {r.medida_administrativa && <li><strong>Administrativos / Señalización:</strong> {r.medida_administrativa}</li>}
+                              {r.medida_eppu && <li><strong>Equipos / Elementos de Protección Personal (EPP):</strong> {r.medida_eppu}</li>}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                );
+              })}
+            </div>
+
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
+            TAB 3: EXPLICADOR DE METODOLOGÍA GTC-45 Y CIMIENTO LEGAL
+        ════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'metodologia' && (
+          <div className="space-y-6">
+            
+            <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs space-y-4">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                  <Scale className="w-4.5 h-4.5 text-teal-600" />
+                  Metodología Oficial de Valoración de Riesgos (Guía Técnica Colombiana GTC-45)
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-zinc-400 mt-1 leading-relaxed">
+                  El <strong>Decreto 1072 de 2015 (Art. 2.2.4.6.15)</strong> y la <strong>Resolución 0312 de 2019 (Estándares 4.1.1 y 4.2.1)</strong> establecen que la empresa debe aplicar una metodología sistemática con alcance sobre todos los procesos y centros de trabajo. En WAPPY, la estimación se realiza mediante el modelo matemático de la <strong>GTC-45</strong>:
+                </p>
+              </div>
+
+              {/* Flujograma Visual en 4 Pasos */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2">
+                
+                <div className="p-4 rounded-2xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/70 dark:border-teal-800/60 space-y-2">
+                  <div className="w-7 h-7 rounded-xl bg-teal-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                    1
+                  </div>
+                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-zinc-100">
+                    Caracterización Integral
+                  </h4>
+                  <p className="text-[11px] text-slate-600 dark:text-zinc-300 leading-relaxed">
+                    Identificación de procesos, zonas, actividades rutinarias y no rutinarias, cargos involucrados y peligros según la Tabla 1 de la GTC-45.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/70 dark:border-blue-800/60 space-y-2">
+                  <div className="w-7 h-7 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                    2
+                  </div>
+                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-zinc-100">
+                    Estimación de Probabilidad
+                  </h4>
+                  <p className="text-[11px] text-slate-600 dark:text-zinc-300 leading-relaxed">
+                    Cálculo del <strong>Nivel de Probabilidad</strong>: <br />
+                    <span className="font-mono font-bold text-teal-700 dark:text-teal-400">NP = ND × NE</span>.<br />
+                    Multiplica la deficiencia de los controles (ND) por la frecuencia de exposición (NE).
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/60 space-y-2">
+                  <div className="w-7 h-7 rounded-xl bg-amber-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                    3
+                  </div>
+                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-zinc-100">
+                    Nivel de Riesgo Oficial
+                  </h4>
+                  <p className="text-[11px] text-slate-600 dark:text-zinc-300 leading-relaxed">
+                    Cálculo del <strong>Nivel de Riesgo</strong>: <br />
+                    <span className="font-mono font-bold text-rose-600 dark:text-rose-400">NR = NP × NC</span>.<br />
+                    Determina la aceptabilidad en 4 niveles (I: No Aceptable, II: Control específico, III: Mejorable, IV: Aceptable).
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/60 space-y-2">
+                  <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                    4
+                  </div>
+                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-zinc-100">
+                    Jerarquía de Controles
+                  </h4>
+                  <p className="text-[11px] text-slate-600 dark:text-zinc-300 leading-relaxed">
+                    Obligatoriedad legal del <strong>Dec. 1072 Art. 2.2.4.6.24</strong>: primero eliminar o sustituir el peligro; luego controles de ingeniería; solo al final administrativos y EPP.
+                  </p>
+                </div>
+
+              </div>
+
+              {/* Tabla de Parámetros GTC-45 */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/80 dark:border-zinc-700/80 space-y-3">
+                <h4 className="font-bold text-xs text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                  <Calculator size={14} className="text-teal-600" />
+                  Tabla de Variables y Criterios Matemáticos de la GTC-45
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
+                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-zinc-700/60 space-y-1.5">
+                    <span className="font-extrabold text-teal-700 dark:text-teal-400 block">Nivel de Deficiencia (ND)</span>
+                    <ul className="space-y-1 text-slate-600 dark:text-zinc-300">
+                      <li>• <strong>ND = 10 (Muy Alto):</strong> Se han detectado peligros que determinan como muy posible la generación de incidentes o no existen controles.</li>
+                      <li>• <strong>ND = 6 (Alto):</strong> Se han detectado peligros que pueden dar lugar a consecuencias significativas.</li>
+                      <li>• <strong>ND = 2 (Medio):</strong> Se han detectado peligros con consecuencias de menor importancia.</li>
+                    </ul>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-zinc-700/60 space-y-1.5">
+                    <span className="font-extrabold text-teal-700 dark:text-teal-400 block">Nivel de Exposición (NE)</span>
+                    <ul className="space-y-1 text-slate-600 dark:text-zinc-300">
+                      <li>• <strong>NE = 4 (Continua):</strong> Sin interrupción durante la jornada laboral.</li>
+                      <li>• <strong>NE = 3 (Frecuente):</strong> Varias veces durante la jornada por tiempos cortos.</li>
+                      <li>• <strong>NE = 2 (Ocasional):</strong> Alguna vez durante la jornada por un periodo corto.</li>
+                      <li>• <strong>NE = 1 (Esporádica):</strong> De manera eventual.</li>
+                    </ul>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-zinc-700/60 space-y-1.5">
+                    <span className="font-extrabold text-teal-700 dark:text-teal-400 block">Nivel de Consecuencia (NC)</span>
+                    <ul className="space-y-1 text-slate-600 dark:text-zinc-300">
+                      <li>• <strong>NC = 100 (Mortal/Catastrófico):</strong> Muerte de 1 o más trabajadores.</li>
+                      <li>• <strong>NC = 60 (Muy Grave):</strong> Lesiones o enfermedades graves irreparables (Invalidez).</li>
+                      <li>• <strong>NC = 25 (Grave):</strong> Lesiones o enfermedades con incapacidad laboral temporal (ILT).</li>
+                      <li>• <strong>NC = 10 (Leve):</strong> Lesiones o enfermedades que no requieren incapacidad.</li>
+                    </ul>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200/60 dark:border-zinc-700/60 space-y-1.5">
+                    <span className="font-extrabold text-rose-600 dark:text-rose-400 block">Nivel de Riesgo (NR = NP × NC)</span>
+                    <ul className="space-y-1 text-slate-600 dark:text-zinc-300">
+                      <li>• <strong className="text-rose-600">Nivel I (4000 - 600):</strong> No Aceptable. Situación crítica, suspensión inmediata de actividades.</li>
+                      <li>• <strong className="text-amber-600">Nivel II (500 - 150):</strong> No Aceptable o Aceptable con control específico. Intervención urgente.</li>
+                      <li>• <strong className="text-yellow-600">Nivel III (120 - 40):</strong> Mejorable. Justifica medidas para mejorar la rentabilidad preventiva.</li>
+                      <li>• <strong className="text-emerald-600">Nivel IV (20):</strong> Aceptable. Mantener las medidas de control actuales.</li>
+                    </ul>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+        )}
 
       </div>
     </div>
   );
-};
-
-export default MatrizIPEVARDashboard;
+}

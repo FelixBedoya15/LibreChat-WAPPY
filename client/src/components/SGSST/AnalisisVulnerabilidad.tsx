@@ -42,6 +42,7 @@ import { useAutoLoadReport } from './useAutoLoadReport';
 import SingleSelect from './SingleSelect';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import ExpandingButton from './ExpandingButton';
+import AnalisisVulnerabilidadDashboard from './AnalisisVulnerabilidadDashboard';
 
 // ─── Diamante de Colores Calculator ───
 const getColorValue = (score: number) => {

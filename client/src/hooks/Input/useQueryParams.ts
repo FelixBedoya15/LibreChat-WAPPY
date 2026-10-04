@@ -196,8 +196,14 @@ export default function useQueryParams({
         newPreset = { ...newPreset, ...resetParams };
       }
 
-      const isModular = isCurrentModular && isNewModular && shouldSwitch;
-      if (isExistingConversation && isModular) {
+      const isTargetingNew =
+        window.location.pathname.includes('/c/new') ||
+        searchParams.has('submit') ||
+        searchParams.has('prompt') ||
+        (newPreset.agent_id != null && conversation?.agent_id != null && newPreset.agent_id !== conversation?.agent_id);
+
+      const isModular = !isTargetingNew && isCurrentModular && isNewModular && shouldSwitch;
+      if (!isTargetingNew && isExistingConversation && isModular) {
         template.endpointType = newEndpointType as EModelEndpoint | undefined;
 
         const currentConvo = getDefaultConversation({
@@ -299,43 +305,30 @@ export default function useQueryParams({
       textAreaRef.current.focus();
     }
 
-    console.log('[useQueryParams] Auto-submitting prompt vía formulario y submitMessage:', textToSend);
-    let submitted = false;
-    const formEl =
-      document.querySelector<HTMLFormElement>('form[data-testid="chat-form"]') ||
-      document.querySelector<HTMLFormElement>('form');
-    if (formEl && typeof formEl.requestSubmit === 'function') {
-      try {
-        formEl.requestSubmit();
-        submitted = true;
-      } catch (formErr) {
-        console.warn('[useQueryParams] Error en formEl.requestSubmit:', formErr);
-      }
-    }
-
-    if (!submitted) {
-      try {
-        submitMessage({ text: textToSend });
-        submitted = true;
-      } catch (err) {
-        console.warn('[useQueryParams] Fallback de envío:', err);
-        const sendBtn = (document.getElementById('send-button') ||
-          document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
-        if (sendBtn && !sendBtn.disabled) {
-          sendBtn.click();
-          submitted = true;
-        }
+    console.log('[useQueryParams] Auto-submitting prompt vía submitMessage directo:', textToSend);
+    try {
+      submitMessage({ text: textToSend });
+    } catch (err) {
+      console.warn('[useQueryParams] Error en submitMessage directo, intentando fallback de botón:', err);
+      const sendBtn = (document.getElementById('send-button') ||
+        document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
+      if (sendBtn && !sendBtn.disabled) {
+        sendBtn.click();
       }
     }
 
     // Watchdog de verificación rápida: Si tras 250ms el prompt sigue visible en el textarea sin haber sido procesado
     setTimeout(() => {
       if (textAreaRef.current && textAreaRef.current.value === textToSend) {
-        const sendBtn = (document.getElementById('send-button') ||
-          document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
-        if (sendBtn && !sendBtn.disabled) {
-          console.log('[useQueryParams] Watchdog: Forzando click en send-button...');
-          sendBtn.click();
+        console.log('[useQueryParams] Watchdog: Reintentando submitMessage directo...');
+        try {
+          submitMessage({ text: textToSend });
+        } catch {
+          const sendBtn = (document.getElementById('send-button') ||
+            document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
+          if (sendBtn && !sendBtn.disabled) {
+            sendBtn.click();
+          }
         }
       }
     }, 250);

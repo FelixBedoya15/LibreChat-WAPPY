@@ -1180,13 +1180,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               new URLSearchParams(window.location.search).get('agent_id');
 
             const isSameAgentActive = Boolean(
-              (targetAgentId && currentAgentId === targetAgentId) ||
-              (conversation?.title && matchedAgent?.name && conversation.title.toLowerCase().includes(matchedAgent.name.toLowerCase()))
+              targetAgentId && currentAgentId && currentAgentId === targetAgentId
             );
 
             const requestedNewChat =
-              /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero)\b/i.test(rawPregunta) ||
-              /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero)\b/i.test(action.args?.pregunta || '');
+              /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(rawPregunta) ||
+              /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(action.args?.pregunta || '');
 
             if (isSameAgentActive && !requestedNewChat) {
               console.log(`[TenshiChat] Continuidad de chat detectada con ${agentName} en conversación ${conversation?.conversationId || 'actual'}`);
@@ -1217,7 +1216,25 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               console.warn('[TenshiChat] Error limpiando cache de mensajes:', cacheErr);
             }
 
-            // 2. Preparar parámetros canónicos de URL para que el chat siempre reciba el agente, prompt y submit
+            // 2. Resetear el estado de conversación en Recoil de inmediato a NEW_CONVO con el nuevo agente
+            try {
+              newConversation({
+                template: {
+                  conversationId: Constants.NEW_CONVO as string,
+                  endpoint: EModelEndpoint.agents,
+                  agent_id: targetAgentId,
+                },
+                preset: {
+                  endpoint: EModelEndpoint.agents,
+                  agent_id: targetAgentId,
+                },
+                keepLatestMessage: false,
+              });
+            } catch (newConvoErr) {
+              console.warn('[TenshiChat] Error reseteando conversación en Recoil:', newConvoErr);
+            }
+
+            // 3. Preparar parámetros canónicos de URL para que el chat siempre reciba el agente, prompt y submit
             const params = new URLSearchParams();
             if (targetAgentId) {
               params.set('agent_id', targetAgentId);
@@ -1226,8 +1243,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             params.set('prompt', pregunta);
             params.set('submit', 'true');
 
-            // 3. Navegar canónicamente a /c/new. ÚNICA Y EXCLUSIVAMENTE useQueryParams gestionará
-            // la creación de la conversación y el envío del mensaje (evitando duplicar conversaciones o race conditions).
+            // 4. Navegar canónicamente a /c/new
             navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
 
             resultMsg = matchedAgent

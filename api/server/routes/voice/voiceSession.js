@@ -232,6 +232,9 @@ class VoiceSession {
         this.agentObj = null;
         this.isBiomechanics = false;
         this.toolCalledThisTurn = false;
+        this.respondedToolCallIds = new Set(); // Previene duplicar respuestas de herramientas a Gemini Live
+        this.pendingAgentForConsultation = null; // Memoria de especialista solicitado en turnos previos
+        this.pendingAgentTimestamp = 0;
 
         logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
 
@@ -872,10 +875,11 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
    - Portales públicos del trabajador: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'.
    - INVÓCALA DE INMEDIATO siempre que el usuario mencione ir, abrir, consultar o ver cualquier hito, módulo o sección.
 4. **wappy_abrir_chat_agente** / **consultar_agente_especializado**: Abre un chat o continúa la conversación con uno de los agentes especialistas de WAPPY (Abogado Laboral, Médico Laboral, Fisioterapeuta Laboral, Ingeniero Químico SST, Coordinador PESV, Psicólogo SST, etc.) y le transmite la consulta técnica del usuario.
-   - REGLA CRÍTICA DE CONTEXTO OBLIGATORIO: Solo debes invocar esta herramienta cuando el usuario YA haya dicho qué desea consultar. Si el usuario únicamente te dice "abre un chat con el médico" o "pásame al abogado" sin dar su consulta, NO abras el chat todavía; pregúntale primero con calidez: "¿Qué quieres que le consulte al [especialista]?" y espera a que te dé su duda antes de invocar la herramienta.
+   - REGLA CRÍTICA DE CONTEXTO OBLIGATORIO: Solo debes invocar esta herramienta cuando el usuario YA haya dicho qué desea consultar. Si el usuario únicamente te dice "abre un chat con el médico", "pásame al abogado" o "abramos un nuevo chat con el abogado" sin dar su consulta, NO abras el chat todavía; pregúntale primero con calidez: "¿Qué quieres que le consulte al [especialista]?" y espera a que te dé su duda antes de invocar la herramienta.
+   - REGLA DE CAMBIO DE ESPECIALISTA / NUEVO CHAT: En cuanto el usuario te proporcione la consulta (ej: "pregúntale sobre qué trata la Resolución 0312"), INVOCA DE INMEDIATO 'wappy_abrir_chat_agente' pasando como 'agente' el especialista solicitado (ej: 'abogado laboral') y como 'pregunta' la consulta exacta. NUNCA te quedes en el chat anterior ni intentes responder tú misma.
    - REGLA DE PREGUNTA FIEL: En el parámetro 'pregunta', formula exactamente lo que pidió el usuario sin inventar ni añadir temas que no correspondan.
    - PROHIBIDO RESPONDER TÚ: No respondas tú misma a la consulta técnica o legal del usuario cuando te pida abrir un chat con un especialista.
-   - RESPUESTA TRAS INVOCAR: Confirma en una sola frase breve que ya abriste el chat y le dejaste la consulta formulada en pantalla al especialista. Ejemplo: "¡De una! Ya abrí el chat con el médico laboral y le dejé tu consulta en pantalla. Esperemos un momento a que responda." NUNCA inventes lo que va a responder ni des diagnósticos anticipados.
+   - RESPUESTA TRAS INVOCAR: Confirma en una sola frase breve que ya abriste el chat y le dejaste la consulta formulada en pantalla al especialista. Ejemplo: "¡De una! Ya abrí el chat con el abogado laboral y le dejé tu consulta en pantalla. Esperemos un momento a que responda." NUNCA inventes lo que va a responder ni des diagnósticos anticipados.
 5. **CONSULTAS Y RESPUESTAS DE ESPECIALISTAS**:
    - Cuando el especialista responda o recibas una notificación "[SISTEMA INTERNO WAPPY - RESPUESTA TÉCNICA EMITIDA]: ...", explica verbalmente de forma clara las conclusiones técnicas que dictaminó el especialista de forma fiel y veraz, sin añadir advertencias ni disclaimers. ESTÁ TERMINANTEMENTE PROHIBIDO limitarte a decir "ya respondió" o mandar al usuario a revisar la pantalla.
    - Si el usuario te pide que leas la respuesta o dice "léelo", "léemelo", "qué dice exactamente", "no lo resumas": léele el dictamen real citando sus artículos, decretos (ej. Decreto 1072 de 2015) y argumentos sin comprimirlo a una sola frase genérica.
@@ -884,12 +888,12 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
    - Tienes la herramienta 'leer_pantalla' para inspeccionar, extraer y leer lo que el usuario tiene abierto en pantalla (chat con especialistas, informes, tablas, registros, tarjetas o formularios).
    - Siempre que el usuario te diga "revisa la pantalla", "léeme lo que hay", "qué dice ahí", "mira el chat", "léelo" o pregunte por lo que está visible:
      1. Invoca 'leer_pantalla' de inmediato para extraer el contenido visible.
-     2. Léele o explícale el contenido real extraído de la pantalla con fidelidad, sin inventar y sin omitir datos clave.
+     2. Léele o explícale el contenido real extraído de la pantalla con fidelidad, sin inventar y sin omitir datos clave. Si el chat visible es de un tema anterior o diferente, indícaselo con sinceridad.
 7. **canvas_tool (Creación de Archivos Word, Excel, HTML y Presentaciones en Canvas)**:
    - Tienes la herramienta 'canvas_tool' para crear y entregar archivos descargables directamente en el chat de Tenshi (con tarjeta y botón de descarga directa) y en el lienzo Canvas.
-   - INVÓCALA SIEMPRE que el usuario te pida crear, generar, redactar o entregar un documento, archivo, protocolo, procedimiento, política, tabla, matriz de datos, hoja de cálculo, aplicativo interactivo o presentación.
+   - INVÓCALA SIEMPRE que el usuario te pida crear, generar, redactar o entregar un documento, archivo, protocolo, procedimiento, política, tabla, matriz de datos, hoja de cálculo, aplicativo interactivo, presentación, o cuando te pida un resumen en Canva o Canvas ("haz un resumen en canva", "créalo tú en canva").
    - Tipos de archivo según la solicitud:
-     * 'text': Documento Word (.doc/.docx). Redacta en el campo 'content' el texto completo y estructurado en Markdown con título, secciones y marco técnico aplicable.
+     * 'text': Documento Word / Resumen estructurado (.doc/.docx). Redacta en el campo 'content' el texto completo y estructurado en Markdown con título, secciones y marco técnico aplicable.
      * 'excel': Hoja de cálculo Excel (.xlsx). En 'content' entrega un arreglo 2D en JSON con encabezados y datos reales (ej: [["ID","Peligro","Nivel"],["1","Ruido","Alto"]]).
      * 'html': Aplicativo, reporte o página web interactiva con Tailwind CSS y gráficos Chart.js.
      * 'presentation': Diapositivas en formato JSON.
@@ -1577,16 +1581,14 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         const userRequestText = (this.userTranscriptionText || '').trim() || this.lastUserRequest || fc.args?.title;
                         const res = await this.executeCanvasTool(fc.args, userRequestText, fc.id);
 
-                        if (this.geminiClient) {
-                            const resultText = res.ok
-                                ? `ÉXITO: El archivo ${res.fileTypeLabel} "${res.finalTitle}" fue creado y quedó en el chat de Tenshi con botón de descarga y en el lienzo Canvas. Confírmalo al usuario en UNA sola frase breve en español, sin leer el contenido y sin añadir advertencias.`
-                                : `FALLO: NO se pudo crear el archivo ${res.fileTypeLabel} "${fc.args?.title}". Motivo: ${res.failReason}. Dile honestamente al usuario en español que no se pudo crear y ofrécele intentarlo de nuevo. PROHIBIDO decir que el archivo está en pantalla.`;
-                            this.geminiClient.sendToolResponse([{
-                                id: fc.id,
-                                name: fc.name,
-                                response: { result: resultText }
-                            }]);
-                        }
+                        const resultText = res.ok
+                            ? `ÉXITO: El archivo ${res.fileTypeLabel} "${res.finalTitle}" fue creado y quedó en el chat de Tenshi con botón de descarga y en el lienzo Canvas. Confírmalo al usuario en UNA sola frase breve en español, sin leer el contenido y sin añadir advertencias.`
+                            : `FALLO: NO se pudo crear el archivo ${res.fileTypeLabel} "${fc.args?.title}". Motivo: ${res.failReason}. Dile honestamente al usuario en español que no se pudo crear y ofrécele intentarlo de nuevo. PROHIBIDO decir que el archivo está en pantalla.`;
+                        this.sendGeminiToolResponse([{
+                            id: fc.id,
+                            name: fc.name,
+                            response: { result: resultText }
+                        }]);
                         continue;
                     }
 
@@ -2349,6 +2351,33 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
     }
 
     /**
+     * Envía respuestas de herramientas a Gemini Live evitando rigurosamente llamadas duplicadas
+     * con el mismo call_id, lo cual provoca cierres abruptos de conexión (Code 1000).
+     */
+    sendGeminiToolResponse(responses) {
+        if (!this.geminiClient) return;
+        if (!this.respondedToolCallIds) {
+            this.respondedToolCallIds = new Set();
+        }
+        const filtered = (responses || []).filter(r => {
+            if (!r || !r.id) return false;
+            if (this.respondedToolCallIds.has(r.id)) {
+                logger.warn(`[VoiceSession] Ignorando respuesta duplicada a Gemini Live para tool call ID ${r.id} (${r.name || 'desconocido'})`);
+                return false;
+            }
+            this.respondedToolCallIds.add(r.id);
+            return true;
+        });
+        if (filtered.length > 0) {
+            try {
+                this.geminiClient.sendToolResponse(filtered);
+            } catch (err) {
+                logger.error('[VoiceSession] Error en sendGeminiToolResponse:', err);
+            }
+        }
+    }
+
+    /**
      * Handle message from client
      */
     async handleClientMessage(message) {
@@ -2363,7 +2392,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         clearTimeout(timeoutId);
                         this.pendingToolCalls.delete(data.id);
                     }
-                    this.geminiClient.sendToolResponse([
+                    this.sendGeminiToolResponse([
                         {
                             id: data.id,
                             name: data.name,
@@ -4136,9 +4165,18 @@ ${workerSubHeaderHtml}
         const explicitAgentCommand = /(abre|abrir|abreme|inicia|iniciar|crea|crear|p[aá]same|cambia|cambiar|ll[eé]vame)\s+(un\s+)?(chat|conversaci[oó]n)?\s*(con|al|a)\s+/i;
         const consultCommand = /(preg[uú]ntale|p[ií]dele|dile|consulta)\s+(a|al|con)?\s*(el|la)?\s*/i;
 
-        if (explicitAgentCommand.test(userLower) || consultCommand.test(userLower)) {
-            let matchedAgent = null;
+        let matchedAgent = null;
 
+        // Soporte multi-turno: Si en el turno anterior el usuario pidió un especialista y ahora formula la pregunta
+        if (this.pendingAgentForConsultation && (Date.now() - (this.pendingAgentTimestamp || 0) < 90000)) {
+            const isFollowUpQuestion = /^(preg[uú]ntale|pregunta|dile|consulta|que qu[eé]|qu[eé]|c[oó]mo|cu[aá]l|cu[aá]ndo|por\s+qu[eé]|si|sobre|acerca de)\b/i.test(userLower);
+            if (isFollowUpQuestion || consultCommand.test(userLower) || userText.length >= 10) {
+                matchedAgent = this.pendingAgentForConsultation;
+                logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Multi-turn match: Usando especialista solicitado en turno anterior "${matchedAgent}".`);
+            }
+        }
+
+        if (!matchedAgent && (explicitAgentCommand.test(userLower) || consultCommand.test(userLower))) {
             if (/fisioterap|biomec|ergonom|owas|rula|rosa|postur|puesto.*trabajo|dme|músculo|musculo/i.test(userLower)) {
                 matchedAgent = 'fisioterapeuta_laboral';
             } else if (/abogado.*rit|reglamento interno.*rit/i.test(userLower)) {
@@ -4200,65 +4238,72 @@ ${workerSubHeaderHtml}
             } else if (/consultor sst|asesor sst/i.test(userLower)) {
                 matchedAgent = 'agente_sst';
             }
+        }
 
-            if (matchedAgent) {
-                // Extraer la pregunta o consulta formulada por el usuario
-                let pregunta = '';
-                const qMatch = userText.match(/(?:preg[uú]ntale\s+(?:que\s+|qu[eé]\s+)?|pregunta\s+(?:que\s+|qu[eé]\s+)?|dile\s+(?:que\s+|qu[eé]\s+)?|sobre\s+|acerca de\s+|para\s+)(.+)/i);
-                if (qMatch && qMatch[1] && qMatch[1].trim().length >= 4) {
-                    pregunta = qMatch[1].trim();
+        if (matchedAgent) {
+            // Extraer la pregunta o consulta formulada por el usuario
+            let pregunta = '';
+            const qMatch = userText.match(/(?:preg[uú]ntale\s+(?:que\s+|qu[eé]\s+)?|pregunta\s+(?:que\s+|qu[eé]\s+)?|dile\s+(?:que\s+|qu[eé]\s+)?|sobre\s+|acerca de\s+|para\s+)(.+)/i);
+            if (qMatch && qMatch[1] && qMatch[1].trim().length >= 4) {
+                pregunta = qMatch[1].trim();
+            } else if (this.pendingAgentForConsultation && userText.length >= 6) {
+                pregunta = userText.trim();
+            }
+
+            if (pregunta) {
+                pregunta = pregunta
+                    .replace(/^(?:a\s+la\s+gente|al\s+agente|al\s+doctor|al\s+m[eé]dico|al\s+abogado|al\s+especialista)\s+(?:laboral\s+|m[eé]dico\s+|sst\s+)?(?:que\s+)?/i, '')
+                    .replace(/^que\s+(qu[eé]|c[oó]mo|cu[aá]ndo|d[oó]nde|por\s+qu[eé]|si)\s+/i, '$1 ')
+                    .trim();
+                if (/^haga\b/i.test(pregunta)) {
+                    pregunta = pregunta.replace(/^haga\b/i, 'Por favor elabora');
                 }
+            }
 
-                if (pregunta) {
-                    pregunta = pregunta
-                        .replace(/^(?:a\s+la\s+gente|al\s+agente|al\s+doctor|al\s+m[eé]dico|al\s+abogado|al\s+especialista)\s+(?:laboral\s+|m[eé]dico\s+|sst\s+)?(?:que\s+)?/i, '')
-                        .replace(/^que\s+(qu[eé]|c[oó]mo|cu[aá]ndo|d[oó]nde|por\s+qu[eé]|si)\s+/i, '$1 ')
-                        .trim();
-                    if (/^haga\b/i.test(pregunta)) {
-                        pregunta = pregunta.replace(/^haga\b/i, 'Por favor elabora');
-                    }
-                }
-
-                // CRÍTICO: Si el usuario NO suministró una pregunta concreta, NO despachar el failsafe.
-                // Tenshi debe preguntarle verbalmente el contexto antes de abrir el chat.
-                if (!pregunta) {
-                    logger.info(`[VoiceSession] [Tenshi Voice Failsafe] User asked to open agent "${matchedAgent}" without a query. Waiting for user context.`);
-                    return;
-                }
-
-                logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Gemini omitted toolCall! Dispatching wappy_abrir_chat_agente: ${matchedAgent}, pregunta: "${pregunta}"`);
-                this.sendToClient({
-                    type: 'wappy_action',
-                    data: {
-                        id: `failsafe-agent-${Date.now()}`,
-                        name: 'wappy_abrir_chat_agente',
-                        args: {
-                            agente: matchedAgent,
-                            pregunta: pregunta
-                        }
-                    }
-                });
+            // Si el usuario pidió un especialista sin dar la pregunta concreta, guardar y esperar al siguiente turno
+            if (!pregunta) {
+                logger.info(`[VoiceSession] [Tenshi Voice Failsafe] User asked to open agent "${matchedAgent}" without a query. Storing pending agent for next turn.`);
+                this.pendingAgentForConsultation = matchedAgent;
+                this.pendingAgentTimestamp = Date.now();
                 return;
             }
+
+            this.pendingAgentForConsultation = null;
+            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Gemini omitted toolCall! Dispatching wappy_abrir_chat_agente: ${matchedAgent}, pregunta: "${pregunta}"`);
+            this.sendToClient({
+                type: 'wappy_action',
+                data: {
+                    id: `failsafe-agent-${Date.now()}`,
+                    name: 'wappy_abrir_chat_agente',
+                    args: {
+                        agente: matchedAgent,
+                        pregunta: pregunta
+                    }
+                }
+            });
+            return;
         }
 
         // 2. Detección de creación de Prototipos / Landing Pages / Canvas omitidos por Gemini
-        const isLandingOrCanvasRequest = /\b(landing\s*page|prototipo|aplicativo|crea.*(landing|prototipo|p[aá]gina|html|canvas))\b/i.test(userLower);
+        const isLandingOrCanvasRequest = /\b(landing\s*page|prototipo|aplicativo|canva|canvas|crea.*(landing|prototipo|p[aá]gina|html|canvas|resumen|canva))\b/i.test(userLower);
         const aiClaimedCreation = /(ya\s+cre[eé]|ya\s+desplegu[eé]|cre[eé]\s+y\s+desplegu[eé]|ya\s+gener[eé]|aqu[ií]\s+tienes\s+la\s+landing|en\s+pantalla\s+la\s+landing|creado\s+como\s+landing|desplegado\s+como\s+landing)/i.test(currentAiText);
 
         if (isLandingOrCanvasRequest || aiClaimedCreation) {
             logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Detected Canvas/Landing Page generation omitted by Gemini Live. Executing canvas_tool...`);
-            let fileType = 'html';
-            let title = 'Landing Page Interactiva SG-SST';
-            if (/word|informe.*escrito|documento|protocolo/i.test(userLower)) {
-                fileType = 'text';
-                title = 'Documento Técnico SG-SST';
+            let fileType = 'text';
+            let title = 'Resumen Ejecutivo SG-SST';
+            if (/landing|prototipo|aplicativo|p[aá]gina|html/i.test(userLower)) {
+                fileType = 'html';
+                title = 'Landing Page Interactiva SG-SST';
             } else if (/excel|matriz|c[aá]lculo|hoja de c[aá]lculo/i.test(userLower)) {
                 fileType = 'excel';
                 title = 'Matriz de Datos SG-SST';
+            } else if (/word|informe.*escrito|documento|protocolo|resumen|canva/i.test(userLower)) {
+                fileType = 'text';
+                title = 'Resumen SG-SST';
             }
 
-            const promptToUse = userText || 'Landing page interactiva sobre recomendaciones y normatividad laboral SG-SST';
+            const promptToUse = userText || 'Resumen técnico y normativo de lo conversado en WAPPY SG-SST';
             this.executeCanvasTool({
                 accion: 'crear',
                 fileType,

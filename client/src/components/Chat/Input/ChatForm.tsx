@@ -227,7 +227,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     null,
   );
 
-  /** Coloca el texto en el formulario y ejecuta el envío, solo si el guard compartido lo permite */
+  /** Coloca el texto en el formulario y ejecuta el envío DIRECTO vía submitMessage, solo si el guard compartido lo permite */
   const sendDelegatedPrompt = useCallback(
     (prompt: string) => {
       if (!claimAutoSubmit(prompt)) {
@@ -243,34 +243,33 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         textAreaRef.current.focus();
       }
 
-      let submitted = false;
-      const formEl =
-        document.querySelector<HTMLFormElement>('form[data-testid="chat-form"]') ||
-        document.querySelector<HTMLFormElement>('form');
-      if (formEl && typeof formEl.requestSubmit === 'function') {
-        try {
-          formEl.requestSubmit();
-          submitted = true;
-        } catch (formErr) {
-          console.warn('[ChatForm] Error en formEl.requestSubmit:', formErr);
+      console.log('[ChatForm] Enviando consulta delegada directamente con submitMessage:', prompt);
+      try {
+        submitMessage({ text: prompt });
+      } catch (err) {
+        console.warn('[ChatForm] Error en submitMessage directo, intentando fallback de botón:', err);
+        const sendBtn = (document.getElementById('send-button') ||
+          document.querySelector('button[data-testid="send-button"]') ||
+          submitButtonRef.current) as HTMLButtonElement | null;
+        if (sendBtn && !sendBtn.disabled) {
+          sendBtn.click();
         }
       }
 
-      if (!submitted) {
-        try {
-          console.log('[ChatForm] Enviando consulta delegada con submitMessage directo');
-          submitMessage({ text: prompt });
-          submitted = true;
-        } catch (err) {
-          console.warn('[ChatForm] Error en submitMessage directo, intentando fallback de form:', err);
-          submitButtonRef.current?.click();
-        }
-      }
-
+      // Watchdog de seguridad: Si tras 250ms el textarea aún contiene el prompt, intentar reenvío directo o click
       setTimeout(() => {
         if (textAreaRef.current && textAreaRef.current.value === prompt) {
-          console.log('[ChatForm] Watchdog: reintentando click en submitButtonRef...');
-          submitButtonRef.current?.click();
+          console.log('[ChatForm] Watchdog: El prompt continúa en textarea, reintentando submitMessage directo...');
+          try {
+            submitMessage({ text: prompt });
+          } catch {
+            const sendBtn = (document.getElementById('send-button') ||
+              document.querySelector('button[data-testid="send-button"]') ||
+              submitButtonRef.current) as HTMLButtonElement | null;
+            if (sendBtn && !sendBtn.disabled) {
+              sendBtn.click();
+            }
+          }
         }
       }, 250);
     },
@@ -286,6 +285,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
       console.log('[ChatForm] triggerTenshiSend ejecutando para:', prompt, {
         agentId,
         currentAgent: conversation?.agent_id,
+        isSubmitting,
       });
 
       // 1. Si el agente objetivo aún no es el activo, postergar el envío hasta que se asiente en la conversación
@@ -319,10 +319,18 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         return;
       }
 
-      // 2. El agente ya es el correcto: enviar de inmediato
+      // 2. Si el sistema está actualmente respondiendo / generando, detenerlo primero
+      if (isSubmitting || isSubmittingAdded) {
+        console.log('[ChatForm] Conversación ocupada por respuesta previa. Deteniendo generación y enviando consulta nueva...');
+        handleStopGenerating();
+        setTimeout(() => sendDelegatedPrompt(prompt), 150);
+        return;
+      }
+
+      // 3. El agente ya es el correcto y el canal está libre: enviar de inmediato
       sendDelegatedPrompt(prompt);
     },
-    [onSelectAgent, conversation?.agent_id, sendDelegatedPrompt],
+    [onSelectAgent, conversation?.agent_id, sendDelegatedPrompt, isSubmitting, isSubmittingAdded, handleStopGenerating],
   );
 
   // Efecto que ejecuta la consulta pendiente tan pronto como el agente objetivo se asiente en la conversación
