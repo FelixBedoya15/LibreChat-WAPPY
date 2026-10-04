@@ -1551,22 +1551,41 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     if (fc.name === 'canvas_tool' || fc.name === 'canvas') {
                         logger.info(`[VoiceSession] Gemini Live invoked tool "canvas_tool" with title: "${fc.args?.title}", fileType: "${fc.args?.fileType}"`);
                         let toolResultMsg = 'Lienzo Canvas creado exitosamente.';
+                        const canvasArgs = { ...fc.args };
+                        if (!canvasArgs.accion) canvasArgs.accion = 'crear';
+                        if (!canvasArgs.fileType) canvasArgs.fileType = 'html';
+                        if (!canvasArgs.title) canvasArgs.title = 'Aplicativo Interactivo SG-SST';
+
+                        let generatedContent = canvasArgs.content || '';
+
                         try {
                             const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
                             const canvasTool = new CanvasTool({ req: toolReq });
-                            const canvasOutput = await canvasTool._call(fc.args);
+                            const canvasOutput = await canvasTool._call(canvasArgs);
                             toolResultMsg = typeof canvasOutput === 'string' ? canvasOutput : JSON.stringify(canvasOutput);
+
+                            // Recuperar el contenido HTML real compilado y guardado en CanvasSession
+                            const CanvasSession = require('~/models/CanvasSession');
+                            const targetConvoId = toolReq?.body?.conversationId || (this.conversationId && this.conversationId !== 'new' ? this.conversationId : `tenshi-${this.userId}`);
+                            const sessionDoc = await CanvasSession.findOne({ user: this.userId, conversationId: targetConvoId }).sort({ updatedAt: -1 });
+                            if (sessionDoc?.content) {
+                                generatedContent = sessionDoc.content;
+                            }
                         } catch (cErr) {
                             logger.warn('[VoiceSession] Error in backend CanvasTool execution, continuing with client action:', cErr);
                         }
 
-                        // Enviar acción al cliente para desplegar el Canvas interactivo de inmediato en la pantalla
+                        // Enviar acción al cliente con el contenido generado para desplegar el Canvas interactivo de inmediato en pantalla
                         this.sendToClient({
                             type: 'wappy_action',
                             data: {
                                 id: fc.id,
                                 name: 'canvas_tool',
-                                args: fc.args,
+                                args: {
+                                    ...canvasArgs,
+                                    content: generatedContent || canvasArgs.content || ''
+                                },
+                                content: generatedContent,
                                 result: toolResultMsg
                             }
                         });
@@ -1575,8 +1594,10 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                             this.geminiClient.sendToolResponse([{
                                 id: fc.id,
                                 name: fc.name,
-                                response: { result: `Lienzo Canvas "${fc.args?.title || 'Aplicativo'}" creado y desplegado en la pantalla dividida del usuario con éxito.` }
+                                response: { result: `Lienzo Canvas "${canvasArgs.title}" creado y desplegado en la pantalla dividida del usuario con éxito.` }
                             }]);
+                            // Instrucción de voz estricta en español para evitar alucinaciones en inglés
+                            this.geminiClient.sendText(`INSTRUCCIÓN OBLIGATORIA: Habla ÚNICAMENTE en español (nunca en inglés). Confirma en una sola frase breve y entusiasta al usuario que el aplicativo interactivo de "${canvasArgs.title}" ya fue creado y desplegado en la pantalla.`);
                         }
                         continue;
                     }

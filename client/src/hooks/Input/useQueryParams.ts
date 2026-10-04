@@ -220,7 +220,15 @@ export default function useQueryParams({
         return;
       }
 
-      newConversation({ preset: newPreset, keepAddedConvos: true });
+      newConversation({
+        template: {
+          conversationId: Constants.NEW_CONVO as string,
+          endpoint: newPreset.endpoint,
+          agent_id: newPreset.agent_id,
+        },
+        preset: newPreset,
+        keepAddedConvos: true,
+      });
     },
     [
       queryClient,
@@ -381,12 +389,15 @@ export default function useQueryParams({
       // Handle auto-submission
       if (shouldAutoSubmit && decodedPrompt) {
         pendingSubmitRef.current = true;
-        setTimeout(() => {
+        if (settingsTimeoutRef.current) {
+          clearTimeout(settingsTimeoutRef.current);
+        }
+        settingsTimeoutRef.current = setTimeout(() => {
           if (!submissionHandledRef.current) {
-            console.log('[useQueryParams] Ejecutando auto-envío de la consulta:', decodedPrompt);
+            console.log('[useQueryParams] Fallback auto-envío tras espera de configuración:', decodedPrompt);
             processSubmission();
           }
-        }, 400);
+        }, MAX_SETTINGS_WAIT_MS);
       } else if (!decodedPrompt) {
         submissionHandledRef.current = true;
       }

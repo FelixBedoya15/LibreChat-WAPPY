@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw, Mic, Volume2, VolumeX, MessageSquare, Bot, Activity, Maximize2, Minimize2, Paperclip } from 'lucide-react';
 import { useAuthContext, useNewConvo } from '~/hooks';
+import { useAgentsMapContext } from '~/Providers';
 import { useListAgentsQuery } from '~/data-provider';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 import store from '~/store';
@@ -36,7 +37,19 @@ const AGENT_TAXONOMY: { id: string; aliases: string[]; keywords: string[]; fallb
   },
   {
     id: 'medico_laboral',
-    aliases: ['medico laboral', 'consultor medico ocupacional', 'medico', 'medic laboral'],
+    aliases: [
+      'medico laboral',
+      'consultor medico ocupacional',
+      'medico',
+      'medic laboral',
+      'medica laboral',
+      'medico ocupacional',
+      'salud ocupacional',
+      'medicina laboral',
+      'doctor ocupacional',
+      'medico del trabajo',
+      'doctor laboral',
+    ],
     keywords: ['medic', 'doctor', 'salud ocupacional', 'origen', 'restriccion', 'ausentism', 'epidemiolog', 'examenes ocupacionales'],
   },
   {
@@ -211,16 +224,30 @@ const AGENT_TAXONOMY: { id: string; aliases: string[]; keywords: string[]; fallb
 const findMatchingAgent = (targetName: string, agentsList: any[]) => {
   if (!targetName || !agentsList?.length) return null;
   const target = normalizeStr(targetName);
+  const cleanTarget = target.replace(/^(un|una|el|la|los|las|al|del|con un|con una|con el|con la)\s+/, '').trim();
 
   // 1. Coincidencia exacta por ID o nombre
-  let found = agentsList.find((a) => a.id === targetName || normalizeStr(a.name) === target);
+  let found = agentsList.find(
+    (a) =>
+      a.id === targetName ||
+      normalizeStr(a.name) === target ||
+      (cleanTarget && normalizeStr(a.name) === cleanTarget)
+  );
   if (found) return found;
 
   // 2. Coincidencia a través de la taxonomía especializada de WAPPY
   const matchedTaxon = AGENT_TAXONOMY.find((taxon) => {
-    if (taxon.id === targetName) return true;
-    if (taxon.aliases.some((alias) => target.includes(alias) || alias.includes(target))) return true;
-    if (taxon.keywords.some((kw) => target.includes(kw))) return true;
+    if (taxon.id === targetName || taxon.id === cleanTarget) return true;
+    if (
+      taxon.aliases.some(
+        (alias) =>
+          target.includes(alias) ||
+          alias.includes(target) ||
+          (cleanTarget && (cleanTarget.includes(alias) || alias.includes(cleanTarget)))
+      )
+    )
+      return true;
+    if (taxon.keywords.some((kw) => target.includes(kw) || (cleanTarget && cleanTarget.includes(kw)))) return true;
     return false;
   });
 
@@ -252,12 +279,13 @@ const findMatchingAgent = (targetName: string, agentsList: any[]) => {
   found = agentsList.find(
     (a) =>
       normalizeStr(a.name).includes(target) ||
-      target.includes(normalizeStr(a.name))
+      target.includes(normalizeStr(a.name)) ||
+      (cleanTarget && (normalizeStr(a.name).includes(cleanTarget) || cleanTarget.includes(normalizeStr(a.name))))
   );
   if (found) return found;
 
   // 4. Búsqueda por coincidencia de tokens
-  const targetWords = target.split(/\s+/).filter((w) => w.length > 2);
+  const targetWords = (cleanTarget || target).split(/\s+/).filter((w) => w.length > 2);
   let bestMatch = null;
   let bestOverlap = 0;
   for (const a of agentsList) {
@@ -579,14 +607,18 @@ export function resolveWappyDestination(
 export default function TenshiChat() {
   const navigate = useNavigate();
   const { isAuthenticated, token } = useAuthContext();
+  const agentsMap = useAgentsMapContext();
   const { data: agentsData } = useListAgentsQuery({ requiredPermission: 1, limit: 100 });
   const agentsRef = useRef<any[]>([]);
 
   useEffect(() => {
-    if (agentsData?.data) {
+    const listFromMap = Object.values(agentsMap || {});
+    if (listFromMap.length > 0) {
+      agentsRef.current = listFromMap;
+    } else if (agentsData?.data && Array.isArray(agentsData.data) && agentsData.data.length > 0) {
       agentsRef.current = agentsData.data;
     }
-  }, [agentsData]);
+  }, [agentsMap, agentsData]);
   const [isOpen, setIsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'live' | 'chat'>('live');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -1049,7 +1081,7 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
             // 4. Navegar con parámetros canónicos a /c/new
             navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
 
-            // 5. Disparar eventos con respaldo inmediato y redundante
+            // 5. Disparar evento para auto-envío controlado
             const emitSubmitEvent = () => {
               window.dispatchEvent(
                 new CustomEvent('tenshi-submit-agent-prompt', {
@@ -1060,9 +1092,7 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
                 })
               );
             };
-            emitSubmitEvent();
-            setTimeout(emitSubmitEvent, 250);
-            setTimeout(emitSubmitEvent, 750);
+            setTimeout(emitSubmitEvent, 150);
 
             resultMsg = matchedAgent
               ? `Chat nuevo abierto con ${matchedAgent.name} y consulta formulada con éxito en pantalla: "${pregunta}". [AVISO CRÍTICO PARA TENSHI]: El especialista apenas está analizando y empezando a redactar en la pantalla. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. Limítate a confirmar al usuario en una sola frase breve que ya le abriste el chat y le dejaste la pregunta en pantalla, y que espere a que el especialista termine de responder. NO inventes ni resumas la respuesta técnica.`
@@ -1070,7 +1100,7 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
           } else if (action.name === 'canvas_tool' || action.name === 'canvas') {
             const fileType = action.args?.fileType || 'html';
             const title = action.args?.title || 'Aplicativo Interactivo Canvas';
-            const content = action.args?.content || '';
+            const content = (action as any).data?.content || action.args?.content || (action as any).content || '';
 
             setStreamingCanvas({
               id: `canvas-${Date.now()}`,
@@ -1082,13 +1112,13 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
             });
             setIsCanvasActive(true);
 
-            if (fileType === 'html' && content) {
+            if (content) {
               setMessages((prev) => [
                 ...prev,
                 {
                   role: 'assistant',
                   content: `🎨 **Aplicativo interactivo creado en Canvas**: ${title}`,
-                  htmlReport: content,
+                  htmlReport: fileType === 'html' ? content : undefined,
                 },
               ]);
             }
@@ -2652,7 +2682,6 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
           zIndex: 9999,
         }}
         className="group relative cursor-grab active:cursor-grabbing select-none transition-transform duration-200 hover:scale-105 active:scale-95"
-        title="Tenshi • 1 Clic: Modo Live (Voz) | Doble Clic: Modo Chat | Arrastra para mover"
       >
         {/* Micro-dock flotante en Hover (Estable con puente interactivo y estado de gracia) */}
         <div

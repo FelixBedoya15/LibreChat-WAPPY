@@ -190,7 +190,6 @@ export default function Root() {
                 </div>
               </div>
             </PromptGroupsProvider>
-          </AgentsMapContext.Provider>
           {config?.interface?.termsOfService?.modalAcceptance === true && (
             <TermsAndConditionsModal
               open={showTerms}
@@ -229,6 +228,7 @@ export default function Root() {
             ) : null;
           })()}
           <TenshiChat />
+          </AgentsMapContext.Provider>
         </AssistantsMapContext.Provider>
       </FileMapContext.Provider>
     </SetConvoProvider>

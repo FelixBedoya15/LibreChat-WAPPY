@@ -70,15 +70,15 @@ const buildDefaultConvo = ({
   // Ensures assistant_id is always defined
   const assistantId = convo?.assistant_id ?? conversation?.assistant_id ?? '';
   const defaultAssistantId = lastConversationSetup?.assistant_id ?? '';
-  if (isAssistantsEndpoint(endpoint) && !defaultAssistantId && assistantId) {
-    defaultConvo.assistant_id = assistantId;
+  if (isAssistantsEndpoint(endpoint)) {
+    defaultConvo.assistant_id = defaultAssistantId || assistantId || conversation?.assistant_id;
   }
 
   // Ensures agent_id is always defined
   const agentId = convo?.agent_id ?? '';
   const defaultAgentId = lastConversationSetup?.agent_id ?? '';
-  if (isAgentsEndpoint(endpoint) && !defaultAgentId && agentId) {
-    defaultConvo.agent_id = agentId;
+  if (isAgentsEndpoint(endpoint)) {
+    defaultConvo.agent_id = defaultAgentId || agentId || conversation?.agent_id;
   }
 
   defaultConvo.tools = lastConversationSetup?.tools ?? lastSelectedTools ?? defaultConvo.tools;

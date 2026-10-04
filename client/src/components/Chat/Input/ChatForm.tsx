@@ -223,6 +223,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
 
   const lastSubmittedPromptRef = useRef<string>('');
   const lastSubmitTimeRef = useRef<number>(0);
+  const pendingAgentSubmissionRef = useRef<{ agentId: string; prompt: string } | null>(null);
 
   // Ejecutor robusto de auto-envío para consultas delegadas por Tenshi
   const triggerTenshiSend = useCallback(
@@ -235,21 +236,26 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         console.log('[ChatForm] Prompt ya enviado recientemente, ignorando duplicado:', prompt);
         return;
       }
-      lastSubmittedPromptRef.current = prompt;
-      lastSubmitTimeRef.current = Date.now();
 
-      console.log('[ChatForm] triggerTenshiSend ejecutando para:', prompt, { agentId });
+      console.log('[ChatForm] triggerTenshiSend ejecutando para:', prompt, {
+        agentId,
+        currentAgent: conversation?.agent_id,
+      });
 
-      // 1. Si se especificó un agente y es diferente al actual, seleccionarlo formalmente
+      // 1. Si se especificó un agente y es diferente al actual, postergar el envío hasta que el nuevo agente esté activo en la conversación
       if (agentId && conversation?.agent_id !== agentId) {
+        console.log('[ChatForm] Agente diferente al actual. Seleccionando agente y postergando sumisión:', agentId);
+        pendingAgentSubmissionRef.current = { agentId, prompt };
         try {
           await onSelectAgent(agentId);
-          // Breve espera para que el estado del agente en Recoil y React se asiente
-          await new Promise((r) => setTimeout(r, 250));
         } catch (err) {
           console.error('[ChatForm] Error al invocar onSelectAgent:', err);
         }
+        return;
       }
+
+      lastSubmittedPromptRef.current = prompt;
+      lastSubmitTimeRef.current = Date.now();
 
       // 2. Colocar el texto de inmediato en react-hook-form y en el textarea
       methods.setValue('text', prompt, { shouldValidate: true });
@@ -277,6 +283,36 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     [methods, submitMessage, textAreaRef, onSelectAgent, conversation?.agent_id, submitButtonRef],
   );
 
+  // Efecto que ejecuta la consulta pendiente tan pronto como el agente objetivo se asiente en la conversación
+  useEffect(() => {
+    if (
+      pendingAgentSubmissionRef.current &&
+      conversation?.agent_id === pendingAgentSubmissionRef.current.agentId
+    ) {
+      const { prompt } = pendingAgentSubmissionRef.current;
+      pendingAgentSubmissionRef.current = null;
+      lastSubmittedPromptRef.current = prompt;
+      lastSubmitTimeRef.current = Date.now();
+
+      console.log('[ChatForm] Agente confirmado y activo en conversación. Ejecutando envío diferido:', prompt);
+      methods.setValue('text', prompt, { shouldValidate: true });
+      if (textAreaRef.current) {
+        textAreaRef.current.value = prompt;
+        textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+        textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+        textAreaRef.current.focus();
+      }
+
+      setTimeout(() => {
+        try {
+          submitMessage({ text: prompt });
+        } catch (err) {
+          console.warn('[ChatForm] Error en submitMessage diferido:', err);
+        }
+      }, 100);
+    }
+  }, [conversation?.agent_id, methods, submitMessage, textAreaRef]);
+
   // Listener para auto-envío de consultas delegadas por Tenshi
   useEffect(() => {
     const handleTenshiSubmit = (e: any) => {
@@ -291,33 +327,6 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     return () => {
       window.removeEventListener('tenshi-submit-agent-prompt', handleTenshiSubmit);
     };
-  }, [triggerTenshiSend]);
-
-  // Auto-envío si el chat se monta con parámetros canónicos ?prompt=...&submit=true en la URL
-  useEffect(() => {
-    try {
-      if (typeof window === 'undefined') return;
-      const searchParams = new URLSearchParams(window.location.search);
-      const promptParam = searchParams.get('prompt');
-      const submitParam = searchParams.get('submit');
-      const agentIdParam = searchParams.get('agent_id');
-
-      if (promptParam && submitParam === 'true') {
-        console.log('[ChatForm] URL param prompt/submit detectado en montaje:', promptParam);
-        // Limpiar URL params inmediatamente para evitar re-envíos
-        searchParams.delete('prompt');
-        searchParams.delete('submit');
-        const newSearch = searchParams.toString();
-        const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '');
-        window.history.replaceState(null, '', newUrl);
-
-        setTimeout(() => {
-          triggerTenshiSend(promptParam, agentIdParam || undefined);
-        }, 200);
-      }
-    } catch (err) {
-      console.warn('[ChatForm] Error procesando URL searchParams para Tenshi:', err);
-    }
   }, [triggerTenshiSend]);
 
   const isMoreThanThreeRows = visualRowCount > 3;
