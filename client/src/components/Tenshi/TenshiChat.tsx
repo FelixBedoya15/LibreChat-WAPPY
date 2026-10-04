@@ -2,7 +2,32 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import axios from 'axios';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw, Mic, Volume2, VolumeX, MessageSquare, Bot, Activity, Maximize2, Minimize2, Paperclip } from 'lucide-react';
+import {
+  X,
+  Send,
+  Sparkles,
+  RotateCcw,
+  FileText,
+  Edit2,
+  Trash2,
+  RefreshCw,
+  Mic,
+  Volume2,
+  VolumeX,
+  MessageSquare,
+  Bot,
+  Activity,
+  Maximize2,
+  Minimize2,
+  Paperclip,
+  Download,
+  Eye,
+  FileSpreadsheet,
+  Presentation,
+  Code2,
+} from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import { useAuthContext, useNewConvo } from '~/hooks';
 import { useAgentsMapContext } from '~/Providers';
 import { useListAgentsQuery } from '~/data-provider';
@@ -15,6 +40,36 @@ import { cn, clearMessagesCache } from '~/utils';
 import { Constants, QueryKeys, EModelEndpoint } from 'librechat-data-provider';
 import { TenshiAvatar } from './TenshiAvatar';
 import { tenshiAudio } from './tenshiAudio';
+
+export interface TenshiFileAttachment {
+  title: string;
+  fileType: 'html' | 'text' | 'excel' | 'presentation' | string;
+  content: string;
+  canvasId?: string;
+}
+
+export interface TenshiChatMessage {
+  _id?: string;
+  role: string;
+  content: string;
+  htmlReport?: string;
+  isLiveVoice?: boolean;
+  file?: TenshiFileAttachment;
+}
+
+function markdownToSimpleHtml(md: string): string {
+  if (!md) return '';
+  const html = md
+    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+    .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+    .replace(/^\- (.*$)/gim, '<li>$1</li>')
+    .replace(/\n\n+/g, '</p><p>')
+    .replace(/\n/g, '<br/>');
+  return `<p>${html}</p>`;
+}
 
 const normalizeStr = (s: string) =>
   (s || '')
@@ -622,9 +677,7 @@ export default function TenshiChat() {
   const [isOpen, setIsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'live' | 'chat'>('live');
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [messages, setMessages] = useState<
-    { _id?: string; role: string; content: string; htmlReport?: string }[]
-  >([
+  const [messages, setMessages] = useState<TenshiChatMessage[]>([
     {
       role: 'assistant',
       content:
@@ -910,7 +963,7 @@ export default function TenshiChat() {
 ${finalText.substring(0, 3500)}
 """
 
-INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario confirmándole con tu tono natural y cercano que el ${consultation.agentName} ya respondió. Explícale los puntos técnicos, normas y conclusiones clave que dictaminó de forma clara y sin inventar. Si el usuario te pide que lo leas completo o te pide más detalles, léele el dictamen exacto citando los artículos y sustentos sin comprimirlo a una sola frase genérica. NUNCA digas que aún no ha respondido.`;
+INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario confirmándole con tu tono natural y cercano que el ${consultation.agentName} ya respondió. Explícale los puntos técnicos, normas y conclusiones clave que dictaminó de forma clara y sin inventar. Si el usuario te pide que lo leas completo o te pide más detalles, léele el dictamen exacto citando los artículos y sustentos sin comprimirlo a una sola frase genérica. NUNCA digas que aún no ha respondido. PROHIBIDO AÑADIR AVISOS PATERNALISTAS O DISCLAIMERS ("esto no es consejo médico", "not medical advice", "consulte a un médico") Y PROHIBIDO HABLAR EN INGLÉS.`;
       sendTextMessageRef.current?.(promptForTenshi);
     }
 
@@ -1005,21 +1058,18 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
             resultMsg = `Navegación exitosa a ${targetRoute}`;
           } else if (action.name === 'wappy_abrir_chat_agente') {
             const rawAgente = (action.args?.agente || '').trim();
-            let pregunta = (action.args?.pregunta || '').trim();
+            const pregunta = (action.args?.pregunta || '').trim();
             const matchedAgent = findMatchingAgent(rawAgente, agentsRef.current);
             const agentName = matchedAgent ? matchedAgent.name : rawAgente;
 
-            // Detectar y enriquecer si la pregunta es un saludo genérico, ruido o vacía
+            // Detectar si la pregunta está vacía, es genérica o no contiene una consulta real
             const isGenericGreeting = (text: string) =>
               /^(hola|buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches|c[oó]mo\s+est[aá]s|hola\s+c[oó]mo\s+est[aá]s|hola\s+c[oó]mo\s+est[aá]s\s+el\s+d[ií]a\s+de\s+hoy|ciao|por|qu[eé])\.?$/i.test(text.trim());
 
-            if (!pregunta || isGenericGreeting(pregunta) || pregunta.length < 8) {
-              const lastUserText = (lastUserTranscriptionRef.current || '').trim();
-              if (lastUserText && !isGenericGreeting(lastUserText) && lastUserText.length >= 8) {
-                pregunta = lastUserText;
-              } else {
-                pregunta = `Hola ${agentName}, necesito orientación y asesoría técnica especializada sobre la normativa y procedimientos aplicables.`;
-              }
+            if (!pregunta || isGenericGreeting(pregunta) || pregunta.length < 4) {
+              console.warn('[TenshiChat] wappy_abrir_chat_agente rechazado por falta de consulta:', pregunta);
+              resultMsg = `NO se abrió el chat con ${agentName}: falta la consulta concreta del usuario. Pregúntale verbalmente al usuario qué tema o duda desea consultar con ${agentName} antes de abrir el chat.`;
+              return;
             }
 
             // Registrar consulta pendiente para que Tenshi escuche la respuesta del agente
@@ -1098,32 +1148,52 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
               ? `Chat nuevo abierto con ${matchedAgent.name} y consulta formulada con éxito en pantalla: "${pregunta}". [AVISO CRÍTICO PARA TENSHI]: El especialista apenas está analizando y empezando a redactar en la pantalla. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. Limítate a confirmar al usuario en una sola frase breve que ya le abriste el chat y le dejaste la pregunta en pantalla, y que espere a que el especialista termine de responder. NO inventes ni resumas la respuesta técnica.`
               : `Nuevo chat abierto y consulta formulada. [AVISO]: Esperando respuesta en pantalla.`;
           } else if (action.name === 'canvas_tool' || action.name === 'canvas') {
-            const fileType = action.args?.fileType || 'html';
-            const title = action.args?.title || 'Aplicativo Interactivo Canvas';
+            const fileType = action.args?.fileType || (action as any).fileType || 'html';
+            const title = action.args?.title || (action as any).title || 'Documento SG-SST';
             const content = (action as any).data?.content || action.args?.content || (action as any).content || '';
+            const canvasId = (action as any).canvasId || (action as any).data?.canvasId || `canvas-${Date.now()}`;
 
-            setStreamingCanvas({
-              id: `canvas-${Date.now()}`,
-              title,
-              fileType,
-              content,
-              messageId: '',
-              isStreaming: false,
-            });
-            setIsCanvasActive(true);
+            // 1. Si estamos en /c/..., desplegar también en el panel Canvas de pantalla dividida
+            if (window.location.pathname.startsWith('/c/')) {
+              setStreamingCanvas({
+                id: canvasId,
+                title,
+                fileType,
+                content,
+                messageId: '',
+                isStreaming: false,
+              });
+              setIsCanvasActive(true);
+            }
 
+            // 2. Entregar siempre en el chat de Tenshi con tarjeta interactiva y botones de descarga
             if (content) {
+              const fileTypeLabels: Record<string, string> = {
+                text: 'Documento Word',
+                excel: 'Hoja de Cálculo Excel',
+                html: 'Aplicativo / Reporte HTML',
+                presentation: 'Presentación de Diapositivas',
+              };
+              const label = fileTypeLabels[fileType] || 'Archivo SG-SST';
+
               setMessages((prev) => [
                 ...prev,
                 {
                   role: 'assistant',
-                  content: `🎨 **Aplicativo interactivo creado en Canvas**: ${title}`,
+                  content: `📁 **${label} generado**: *${title}*`,
+                  file: {
+                    title,
+                    fileType,
+                    content,
+                    canvasId,
+                  },
                   htmlReport: fileType === 'html' ? content : undefined,
                 },
               ]);
+              setIsOpen(true);
             }
 
-            resultMsg = `Lienzo Canvas "${title}" (${fileType}) creado y desplegado con éxito en pantalla.`;
+            resultMsg = `Archivo "${title}" (${fileType}) entregado en el chat de Tenshi con botones de descarga y visualización.`;
           } else if (action.name === 'wappy_seleccionar_empresa') {
             const companyName = action.args?.nombre_o_id;
             resultMsg = `Empresa "${companyName}" seleccionada y activa en el sistema`;
@@ -1897,7 +1967,7 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
   const floatPosition =
     positionClasses[config.location as keyof typeof positionClasses] || 'bottom-6 right-6';
 
-  const runChatTurn = async (currentMessages: { role: string; content: string; htmlReport?: string }[]) => {
+  const runChatTurn = async (currentMessages: TenshiChatMessage[]) => {
     setIsTyping(true);
     setTenshiStatus('Capturando pantalla...');
     try {
@@ -2264,6 +2334,92 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
     return null;
   };
 
+  const handleDownloadFile = useCallback((file: TenshiFileAttachment) => {
+    try {
+      const safeTitle = (file.title || 'documento-sgsst').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_-]/g, '_');
+      if (file.fileType === 'excel') {
+        let data: any = file.content;
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data);
+          } catch (_) {}
+        }
+        let ws: XLSX.WorkSheet;
+        if (Array.isArray(data) && Array.isArray(data[0])) {
+          ws = XLSX.utils.aoa_to_sheet(data);
+        } else if (Array.isArray(data) && typeof data[0] === 'object') {
+          ws = XLSX.utils.json_to_sheet(data);
+        } else {
+          ws = XLSX.utils.aoa_to_sheet([[String(data)]]);
+        }
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Datos');
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        saveAs(blob, `${safeTitle}.xlsx`);
+      } else if (file.fileType === 'text') {
+        const simpleHtml = markdownToSimpleHtml(file.content);
+        const wordHtml = `
+          <!DOCTYPE html>
+          <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+          <head>
+            <meta charset="utf-8">
+            <title>${file.title}</title>
+            <style>
+              body { font-family: 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #1e293b; margin: 40px; }
+              h1 { font-size: 20pt; color: #0f172a; border-bottom: 2px solid #0d9488; padding-bottom: 6px; }
+              h2 { font-size: 14pt; color: #0d9488; margin-top: 18px; }
+              h3 { font-size: 12pt; color: #334155; }
+              table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+              th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
+              th { background-color: #f1f5f9; font-weight: bold; }
+              p { margin: 8px 0; }
+              li { margin: 4px 0; }
+            </style>
+          </head>
+          <body>
+            ${simpleHtml}
+          </body>
+          </html>
+        `;
+        const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword;charset=utf-8' });
+        saveAs(blob, `${safeTitle}.doc`);
+      } else if (file.fileType === 'html') {
+        const blob = new Blob([file.content], { type: 'text/html;charset=utf-8' });
+        saveAs(blob, `${safeTitle}.html`);
+      } else if (file.fileType === 'presentation') {
+        const blob = new Blob([file.content], { type: 'application/json;charset=utf-8' });
+        saveAs(blob, `${safeTitle}.json`);
+      }
+    } catch (err) {
+      console.error('[TenshiChat] Error al descargar archivo:', err);
+    }
+  }, []);
+
+  const handleOpenFileInCanvas = useCallback(
+    (file: TenshiFileAttachment) => {
+      if (file.fileType === 'html') {
+        openHtmlReport(file.content, file.title);
+        return;
+      }
+      setStreamingCanvas({
+        id: file.canvasId || `canvas-${Date.now()}`,
+        title: file.title,
+        fileType: file.fileType as any,
+        content: file.content,
+        messageId: '',
+        isStreaming: false,
+      });
+      setIsCanvasActive(true);
+      if (!window.location.pathname.startsWith('/c/')) {
+        navigate('/c/new');
+      }
+    },
+    [navigate, setStreamingCanvas, setIsCanvasActive],
+  );
+
   return (
     <>
       {/* Dynamic Keyframes for Tenshi Live Avatar */}
@@ -2415,8 +2571,63 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
                         ) : (
                           <>
                             {msg.content && <Markdown content={msg.content} />}
+                            {msg.file && (
+                              <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-md backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/90">
+                                <div className="flex items-start gap-3">
+                                  <div
+                                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-xs ${
+                                      msg.file.fileType === 'excel'
+                                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400'
+                                        : msg.file.fileType === 'text'
+                                        ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400'
+                                        : msg.file.fileType === 'html'
+                                        ? 'bg-teal-50 text-teal-600 dark:bg-teal-950/50 dark:text-teal-400'
+                                        : 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400'
+                                    }`}
+                                  >
+                                    {msg.file.fileType === 'excel' && <FileSpreadsheet className="h-5 w-5" />}
+                                    {msg.file.fileType === 'text' && <FileText className="h-5 w-5" />}
+                                    {msg.file.fileType === 'html' && <Code2 className="h-5 w-5" />}
+                                    {msg.file.fileType === 'presentation' && <Presentation className="h-5 w-5" />}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100">
+                                      {msg.file.title}
+                                    </p>
+                                    <p className="text-[10px] font-medium text-slate-500 dark:text-zinc-400">
+                                      {msg.file.fileType === 'excel'
+                                        ? 'Hoja de Cálculo Excel (.xlsx)'
+                                        : msg.file.fileType === 'text'
+                                        ? 'Documento Word (.doc)'
+                                        : msg.file.fileType === 'html'
+                                        ? 'Aplicativo / Reporte HTML'
+                                        : 'Presentación de Diapositivas'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2 dark:border-zinc-800/80">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownloadFile(msg.file!)}
+                                    className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 px-3 py-1.5 text-xs font-bold text-white shadow-md transition-all active:scale-95 hover:from-teal-500 hover:to-teal-600"
+                                  >
+                                    <Download className="h-3.5 w-3.5" />
+                                    <span>Descargar</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenFileInCanvas(msg.file!)}
+                                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition-all active:scale-95 hover:bg-slate-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                    <span>Ver en Pantalla</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                             {msg.htmlReport && (
                               <button
+                                type="button"
                                 onClick={() => openHtmlReport(msg.htmlReport!)}
                                 className="mt-2 flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
                               >

@@ -3,6 +3,7 @@ import { useRecoilValue } from 'recoil';
 import { useSearchParams } from 'react-router-dom';
 import { QueryClient, useQueryClient } from '@tanstack/react-query';
 import {
+  Constants,
   QueryKeys,
   EModelEndpoint,
   isAgentsEndpoint,
@@ -18,6 +19,7 @@ import type {
 } from 'librechat-data-provider';
 import type { ZodAny } from 'zod';
 import { getConvoSwitchLogic, getModelSpecIconURL, removeUnavailableTools, logger } from '~/utils';
+import { claimAutoSubmit } from '~/utils/tenshiSubmitGuard';
 import { useAuthContext, useAgentsMap, useDefaultConvo, useSubmitMessage } from '~/hooks';
 import { useChatContext, useChatFormContext } from '~/Providers';
 import { useGetAgentByIdQuery } from '~/data-provider';
@@ -275,8 +277,20 @@ export default function useQueryParams({
 
     submissionHandledRef.current = true;
     pendingSubmitRef.current = false;
+    if (settingsTimeoutRef.current) {
+      clearTimeout(settingsTimeoutRef.current);
+      settingsTimeoutRef.current = null;
+    }
 
     const textToSend = promptTextRef.current;
+
+    // Guard compartido: si ChatForm (evento de Tenshi) ya envió este prompt, no duplicar
+    if (!claimAutoSubmit(textToSend)) {
+      console.log('[useQueryParams] Prompt ya enviado por otro mecanismo, se omite duplicado:', textToSend);
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+
     methods.setValue('text', textToSend, { shouldValidate: true });
     if (textAreaRef.current) {
       textAreaRef.current.value = textToSend;

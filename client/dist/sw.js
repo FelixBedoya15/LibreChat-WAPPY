@@ -1,1 +1,58 @@
-if(!self.define){let s,e={};const l=(l,i)=>(l=new URL(l+".js",i).href,e[l]||new Promise((e=>{if("document"in self){const s=document.createElement("script");s.src=l,s.onload=e,document.head.appendChild(s)}else s=l,importScripts(l),e()})).then((()=>{let s=e[l];if(!s)throw new Error(`Module ${l} didn’t register its module`);return s})));self.define=(i,n)=>{const r=s||("document"in self?document.currentScript.src:"")||location.href;if(e[r])return;let u={};const a=s=>l(s,r),o={module:{uri:r},exports:u,require:a};e[r]=Promise.all(i.map((s=>o[s]||a(s)))).then((s=>(n(...s),u)))}}define(["./workbox-ca8b8650"],(function(s){"use strict";self.skipWaiting(),s.clientsClaim(),s.precacheAndRoute([{url:"assets/advanced-inputs.Bs-s5qs-.js",revision:null},{url:"assets/ambassadors-module.DjEsEgwc.js",revision:null},{url:"assets/animations.9KFyDgnv.js",revision:null},{url:"assets/auditoria-modules.ByDwNQaP.js",revision:null},{url:"assets/avatars.Cl1qbG22.js",revision:null},{url:"assets/blog-modules.DamOKRIq.js",revision:null},{url:"assets/canvas-templates.Bl7X8OBa.js",revision:null},{url:"assets/chart.min.js",revision:null},{url:"assets/ChatSSTView.CbwTFEcR.js",revision:null},{url:"assets/codemirror-core._QKAbMQ2.js",revision:null},{url:"assets/codemirror-language.n1HaZD0-.js",revision:null},{url:"assets/codemirror-state.1WAhZPVj.js",revision:null},{url:"assets/codemirror-view.Bpg6_Pkc.js",revision:null},{url:"assets/date-utils.X8D4nCrw.js",revision:null},{url:"assets/events-modules.D1g1c6eU.js",revision:null},{url:"assets/forms.DwPpLLO6.js",revision:null},{url:"assets/framer-motion.Gv3DRsV-.js",revision:null},{url:"assets/gira-ia-sst.html",revision:null},{url:"assets/headlessui.BxanVuVK.js",revision:null},{url:"assets/heic-converter.BhQCFQ0l.js",revision:null},{url:"assets/http-client.KFGYX-C2.js",revision:null},{url:"assets/i18n.BnrQ1i0D.js",revision:null},{url:"assets/index.BaTYH5Fr.css",revision:null},{url:"assets/index.D6Of_Inv.js",revision:null},{url:"assets/kanban-module.CENQqLxJ.js",revision:null},{url:"assets/lms-modules.HSUeeQqE.js",revision:null},{url:"assets/locales.D7TRTcfs.js",revision:null},{url:"assets/lucide.min.js",revision:null},{url:"assets/markdown_highlight.BXMLVVdG.js",revision:null},{url:"assets/markdown-processing.BjCAC1Q9.js",revision:null},{url:"assets/marketing-pages.CpfpY3ad.css",revision:null},{url:"assets/marketing-pages.XaLvwq2Z.js",revision:null},{url:"assets/Marketplace.eckM26Py.js",revision:null},{url:"assets/MarketplaceDashboard.B0NJagsd.js",revision:null},{url:"assets/math-katex.D41sMH58.js",revision:null},{url:"assets/math-katex.sdXCKFqw.css",revision:null},{url:"assets/plans-module.BYmKPcHS.js",revision:null},{url:"assets/PrivacyPolicyPage.DYebyLUH.js",revision:null},{url:"assets/radix-ui.DlbWk3MW.js",revision:null},{url:"assets/react-interactions.8ykYEkFR.js",revision:null},{url:"assets/RoadmapPage.C9_upx0a.js",revision:null},{url:"assets/routing.DtZjP_FU.js",revision:null},{url:"assets/sandpack.CuB4uBPq.js",revision:null},{url:"assets/security-ui.B02LYR3S.js",revision:null},{url:"assets/sgsst-assets.KdMSUpxn.js",revision:null},{url:"assets/sgsst-modules.jzj8cgdx.js",revision:null},{url:"assets/tailwind-cdn.js",revision:null},{url:"assets/tanstack-vendor.CY4Kt_c8.js",revision:null},{url:"assets/TenshiAdminPanel.AJuz1CQ0.js",revision:null},{url:"assets/TermsOfServicePage.Ck9w4pKw.js",revision:null},{url:"assets/utilities.BjsdvwEO.js",revision:null},{url:"assets/validation.CXYwsuSc.js",revision:null},{url:"assets/vendor.ln9BQdH4.js",revision:null},{url:"assets/virtualization.7HfxLdQj.js",revision:null},{url:"assets/WappyAboutPage.ghyBZS1c.js",revision:null},{url:"assets/WelcomePromoPopup.Daux-UeX.js",revision:null},{url:"audio-processor.js",revision:"83238bfbca479b35103e7c528b9f6dfb"},{url:"index.html",revision:"863f9b49450253b4a064b96490c6bd8a"},{url:"registerSW.js",revision:"402b66900e731ca748771b6fc5e7a068"},{url:"assets/favicon-16x16.png",revision:null},{url:"assets/favicon-32x32.png",revision:null},{url:"assets/icon-192x192.png",revision:null},{url:"assets/apple-touch-icon-180x180.png",revision:null},{url:"assets/maskable-icon.png",revision:null},{url:"manifest.webmanifest",revision:"270067122644156a62c4f38c7abcd1f1"},{url:"manifest.json",revision:"33e7a64be375e7be0150b20152741c73"},{url:"assets/apple-touch-icon-180x180.png",revision:"89ff9809a18087de5899e4f23e2335c6"},{url:"assets/favicon-32x32.png",revision:"f66198be4b1652b05f0c75eeccef688f"},{url:"manifest.webmanifest",revision:"270067122644156a62c4f38c7abcd1f1"}],{}),s.cleanupOutdatedCaches(),s.registerRoute((({url:s})=>s.pathname.startsWith("/assets/")),new s.StaleWhileRevalidate({cacheName:"wappy-assets-cache",plugins:[new s.ExpirationPlugin({maxEntries:120,maxAgeSeconds:2592e3})]}),"GET")}));
+// Service Worker for Wappy PWA Push Notifications
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('push', (event) => {
+  let data = { title: 'Notificación de Wappy', body: 'Tienes una actualización en el sistema.' };
+
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data = { title: 'Notificación de Wappy', body: event.data.text() };
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon || 'assets/icon-192x192.png',
+    badge: data.badge || 'assets/favicon-32x32.png',
+    data: {
+      url: data.url || '/'
+    },
+    vibrate: [100, 50, 100],
+    actions: data.actions || []
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Si hay una pestaña abierta con la app, redirigirla y enfocarla
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.postMessage({ type: 'NAVIGATE', url: targetUrl });
+          return client.focus();
+        }
+      }
+      // Si no, abrir una ventana nueva
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
+  );
+});

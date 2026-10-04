@@ -27,6 +27,7 @@ import { mainTextareaId, BadgeItem } from '~/common';
 import AttachFileChat from './Files/AttachFileChat';
 import FileFormChat from './Files/FileFormChat';
 import { cn, removeFocusRings } from '~/utils';
+import { claimAutoSubmit } from '~/utils/tenshiSubmitGuard';
 import TextareaHeader from './TextareaHeader';
 import PromptsCommand from './PromptsCommand';
 import AudioRecorder from './AudioRecorder';
@@ -221,43 +222,19 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     setBackupBadges([]);
   }, [backupBadges, setBadges, setIsEditingBadges]);
 
-  const lastSubmittedPromptRef = useRef<string>('');
-  const lastSubmitTimeRef = useRef<number>(0);
-  const pendingAgentSubmissionRef = useRef<{ agentId: string; prompt: string } | null>(null);
+  const PENDING_SUBMISSION_TTL_MS = 15000;
+  const pendingAgentSubmissionRef = useRef<{ agentId: string; prompt: string; time: number } | null>(
+    null,
+  );
 
-  // Ejecutor robusto de auto-envío para consultas delegadas por Tenshi
-  const triggerTenshiSend = useCallback(
-    async (promptToSend: string, agentId?: string) => {
-      if (!promptToSend || !promptToSend.trim()) return;
-      const prompt = promptToSend.trim();
-
-      // Evitar envíos duplicados en ráfaga
-      if (lastSubmittedPromptRef.current === prompt && Date.now() - lastSubmitTimeRef.current < 4000) {
-        console.log('[ChatForm] Prompt ya enviado recientemente, ignorando duplicado:', prompt);
+  /** Coloca el texto en el formulario y ejecuta el envío, solo si el guard compartido lo permite */
+  const sendDelegatedPrompt = useCallback(
+    (prompt: string) => {
+      if (!claimAutoSubmit(prompt)) {
+        console.log('[ChatForm] Prompt ya enviado por otro mecanismo, se omite duplicado:', prompt);
         return;
       }
 
-      console.log('[ChatForm] triggerTenshiSend ejecutando para:', prompt, {
-        agentId,
-        currentAgent: conversation?.agent_id,
-      });
-
-      // 1. Si se especificó un agente y es diferente al actual, postergar el envío hasta que el nuevo agente esté activo en la conversación
-      if (agentId && conversation?.agent_id !== agentId) {
-        console.log('[ChatForm] Agente diferente al actual. Seleccionando agente y postergando sumisión:', agentId);
-        pendingAgentSubmissionRef.current = { agentId, prompt };
-        try {
-          await onSelectAgent(agentId);
-        } catch (err) {
-          console.error('[ChatForm] Error al invocar onSelectAgent:', err);
-        }
-        return;
-      }
-
-      lastSubmittedPromptRef.current = prompt;
-      lastSubmitTimeRef.current = Date.now();
-
-      // 2. Colocar el texto de inmediato en react-hook-form y en el textarea
       methods.setValue('text', prompt, { shouldValidate: true });
       if (textAreaRef.current) {
         textAreaRef.current.value = prompt;
@@ -266,13 +243,13 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         textAreaRef.current.focus();
       }
 
-      // 3. Ejecutar la sumisión directamente a través de submitMessage
       try {
         console.log('[ChatForm] Enviando consulta delegada con submitMessage directo');
         submitMessage({ text: prompt });
       } catch (err) {
         console.warn('[ChatForm] Error en submitMessage directo, intentando fallback de form:', err);
-        const formEl = document.querySelector('form[data-testid="chat-form"]') || document.querySelector('form');
+        const formEl =
+          document.querySelector('form[data-testid="chat-form"]') || document.querySelector('form');
         if (formEl && typeof (formEl as any).requestSubmit === 'function') {
           (formEl as any).requestSubmit();
         } else {
@@ -280,38 +257,62 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         }
       }
     },
-    [methods, submitMessage, textAreaRef, onSelectAgent, conversation?.agent_id, submitButtonRef],
+    [methods, submitMessage, textAreaRef, submitButtonRef],
+  );
+
+  // Ejecutor robusto de auto-envío para consultas delegadas por Tenshi
+  const triggerTenshiSend = useCallback(
+    async (promptToSend: string, agentId?: string) => {
+      if (!promptToSend || !promptToSend.trim()) return;
+      const prompt = promptToSend.trim();
+
+      console.log('[ChatForm] triggerTenshiSend ejecutando para:', prompt, {
+        agentId,
+        currentAgent: conversation?.agent_id,
+      });
+
+      // 1. Si el agente objetivo aún no es el activo, postergar el envío hasta que se asiente en la conversación
+      if (agentId && conversation?.agent_id !== agentId) {
+        console.log('[ChatForm] Agente diferente al actual. Seleccionando agente y postergando sumisión:', agentId);
+        pendingAgentSubmissionRef.current = { agentId, prompt, time: Date.now() };
+        try {
+          await onSelectAgent(agentId);
+        } catch (err) {
+          console.error('[ChatForm] Error al invocar onSelectAgent:', err);
+        }
+        // Caducidad: si el agente nunca se activa, descartar el envío pendiente para que no se dispare más tarde
+        setTimeout(() => {
+          const pending = pendingAgentSubmissionRef.current;
+          if (pending && pending.prompt === prompt && Date.now() - pending.time >= PENDING_SUBMISSION_TTL_MS) {
+            console.warn('[ChatForm] Envío pendiente caducado (el agente no se activó):', agentId);
+            pendingAgentSubmissionRef.current = null;
+          }
+        }, PENDING_SUBMISSION_TTL_MS);
+        return;
+      }
+
+      // 2. El agente ya es el correcto: enviar de inmediato
+      sendDelegatedPrompt(prompt);
+    },
+    [onSelectAgent, conversation?.agent_id, sendDelegatedPrompt],
   );
 
   // Efecto que ejecuta la consulta pendiente tan pronto como el agente objetivo se asiente en la conversación
   useEffect(() => {
-    if (
-      pendingAgentSubmissionRef.current &&
-      conversation?.agent_id === pendingAgentSubmissionRef.current.agentId
-    ) {
-      const { prompt } = pendingAgentSubmissionRef.current;
-      pendingAgentSubmissionRef.current = null;
-      lastSubmittedPromptRef.current = prompt;
-      lastSubmitTimeRef.current = Date.now();
-
-      console.log('[ChatForm] Agente confirmado y activo en conversación. Ejecutando envío diferido:', prompt);
-      methods.setValue('text', prompt, { shouldValidate: true });
-      if (textAreaRef.current) {
-        textAreaRef.current.value = prompt;
-        textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
-        textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
-        textAreaRef.current.focus();
-      }
-
-      setTimeout(() => {
-        try {
-          submitMessage({ text: prompt });
-        } catch (err) {
-          console.warn('[ChatForm] Error en submitMessage diferido:', err);
-        }
-      }, 100);
+    const pending = pendingAgentSubmissionRef.current;
+    if (!pending || conversation?.agent_id !== pending.agentId) {
+      return;
     }
-  }, [conversation?.agent_id, methods, submitMessage, textAreaRef]);
+    pendingAgentSubmissionRef.current = null;
+
+    if (Date.now() - pending.time >= PENDING_SUBMISSION_TTL_MS) {
+      console.warn('[ChatForm] Envío pendiente descartado por antigüedad:', pending.prompt);
+      return;
+    }
+
+    console.log('[ChatForm] Agente confirmado y activo en conversación. Ejecutando envío diferido:', pending.prompt);
+    setTimeout(() => sendDelegatedPrompt(pending.prompt), 100);
+  }, [conversation?.agent_id, sendDelegatedPrompt]);
 
   // Listener para auto-envío de consultas delegadas por Tenshi
   useEffect(() => {

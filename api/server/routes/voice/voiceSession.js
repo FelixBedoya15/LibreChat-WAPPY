@@ -364,7 +364,7 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_abrir_chat_agente",
-                            description: "Abre de inmediato un nuevo chat directamente con cualquiera de los agentes especialistas de WAPPY (Abogado Laboral, Médico Laboral, Fisioterapeuta Laboral, Ingeniero Químico SST, Coordinador PESV, Psicólogo SST, Terapeuta en Salud Mental, Nutricionista Laboral, Primer Respondiente, Coordinador de Emergencias, Especialista en Bioseguridad, Ingeniero Electricista SST, Coordinador de Tareas Críticas, Ingeniero de Minas SST, Auditor SG-SST, Ingeniero Ambiental, Especialista en Riesgo Climático, Redactor Creativo, Simulador de Accidentes SST, Coordinador de Capacitaciones, Consultor Senior SG-SST, Coordinador IPEVAR, Asistente ATS, Asistente TSA, Creador de Formatos, Asistente ACI) y opcionalmente le envía una consulta o pregunta inicial para que el especialista responda de inmediato en pantalla.",
+                            description: "Abre un nuevo chat con uno de los agentes especialistas de WAPPY (Abogado Laboral, Médico Laboral, Fisioterapeuta Laboral, Ingeniero Químico SST, Coordinador PESV, Psicólogo SST, Terapeuta en Salud Mental, Nutricionista Laboral, Primer Respondiente, Coordinador de Emergencias, Especialista en Bioseguridad, Ingeniero Electricista SST, Coordinador de Tareas Críticas, Ingeniero de Minas SST, Auditor SG-SST, Ingeniero Ambiental, Especialista en Riesgo Climático, Redactor Creativo, Simulador de Accidentes SST, Coordinador de Capacitaciones, Consultor Senior SG-SST, Coordinador IPEVAR, Asistente ATS, Asistente TSA, Creador de Formatos, Asistente ACI) y le envía la consulta concreta del usuario. REQUISITO PREVIO OBLIGATORIO: solo invócala cuando el usuario ya te haya dicho QUÉ quiere consultar. Si el usuario solo dice 'abre un chat con el médico' (sin consulta), NO la invoques: primero pregúntale '¿Qué quieres que le consulte al [especialista]?' y espera su respuesta.",
                             parameters: {
                                 type: "object",
                                 properties: {
@@ -374,10 +374,10 @@ class VoiceSession {
                                     },
                                     pregunta: {
                                         type: "string",
-                                        description: "Pregunta o consulta textual exacta del usuario para el especialista. DEBES incluirla siempre que el usuario pida consultar o preguntar algo."
+                                        description: "Consulta concreta del usuario para el especialista, fiel a lo que el usuario pidió. Puedes redactarla con claridad, pero NO agregues temas que el usuario no mencionó (ej: si pidió al médico 'qué es burnout', no agregues 'asesoría legal'). Nunca envíes saludos vacíos ni consultas genéricas."
                                     }
                                 },
-                                required: ["agente"]
+                                required: ["agente", "pregunta"]
                             }
                         },
                         {
@@ -413,27 +413,27 @@ class VoiceSession {
                         },
                         {
                             name: "canvas_tool",
-                            description: "Lienzo interactivo Canvas de pantalla dividida: Crea, diseña o edita aplicaciones interactivas ('html' con código funcional, interfaces de usuario, widgets, simuladores, calculadoras, dashboards con gráficos interactivos Chart.js), documentos técnicos o normativos ('text' en Markdown o HTML), hojas de cálculo con datos/fórmulas ('excel') o presentaciones ('presentation'). INVÓCALA SIEMPRE que el usuario te pida crear una aplicación, prototipo, calculadora, juego, formato interactivo, gráfico, dashboard o te diga 'crea en Canva/Canvas un aplicativo...'.",
+                            description: "Crea archivos descargables que el usuario recibe en el chat de Tenshi (con botón de descarga) y en el lienzo Canvas: documentos Word ('text'), hojas de cálculo Excel ('excel'), aplicativos/páginas HTML interactivos ('html') o presentaciones ('presentation'). INVÓCALA siempre que el usuario pida crear, redactar, generar o entregar un documento, informe, protocolo, formato, matriz, tabla, hoja de cálculo, aplicativo, dashboard o página. Cada invocación con accion='crear' genera un archivo NUEVO e independiente.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     accion: {
                                         type: "string",
-                                        enum: ["crear", "actualizar", "leer", "editar_seccion"],
-                                        description: "Acción a realizar: 'crear' para generar un nuevo archivo o aplicativo interactivo."
+                                        enum: ["crear"],
+                                        description: "Siempre 'crear' para generar un archivo nuevo."
                                     },
                                     fileType: {
                                         type: "string",
                                         enum: ["html", "text", "excel", "presentation"],
-                                        description: "Tipo de lienzo: 'html' para aplicaciones interactivas, prototipos, dashboards y widgets con gráficos/código; 'text' para documentos y reportes; 'excel' para matrices y hojas de cálculo; 'presentation' para diapositivas."
+                                        description: "Tipo de archivo según lo que pida el usuario: 'text' = documento Word (informes, protocolos, políticas, actas, cartas, procedimientos); 'excel' = hoja de cálculo (matrices, listados, indicadores tabulares, cronogramas); 'html' = aplicativo o página web interactiva (dashboards, calculadoras, apps); 'presentation' = diapositivas. Si el usuario dice 'en HTML', usa 'html'; si dice 'en Word', usa 'text'; si dice 'en Excel', usa 'excel'."
                                     },
                                     title: {
                                         type: "string",
-                                        description: "Título del documento o aplicativo (ej: 'Aplicativo Indicadores de Accidentalidad Res. 0312')."
+                                        description: "Título fiel a lo que pidió el usuario (ej: 'Protocolo de Despido Laboral', 'Indicadores de Accidentalidad Res. 0312')."
                                     },
                                     content: {
                                         type: "string",
-                                        description: "Contenido completo del archivo o aplicación. Para 'html', código HTML5 completo autosuficiente y funcional con Tailwind CSS, Chart.js para los gráficos solicitados, interactividad en JavaScript puro, inputs interactivos y diseño profesional de WAPPY. Para 'text', texto formateado o Markdown. Para 'excel', tabla estructurada."
+                                        description: "Contenido COMPLETO del archivo, sobre el tema EXACTO que pidió el usuario. Formato según fileType: 'text' → documento completo en Markdown con título, secciones numeradas, marco legal colombiano aplicable y contenido desarrollado (no un resumen). 'excel' → JSON de un arreglo bidimensional, primera fila = encabezados, ej: [[\"Nombre\",\"Cargo\"],[\"Ana\",\"Operaria\"]]. 'html' → descripción detallada de lo que debe hacer el aplicativo (secciones, campos, cálculos y gráficos) o el código HTML5 completo. 'presentation' → JSON de diapositivas, ej: [{\"title\":\"Tema\",\"bullets\":[\"Punto 1\",\"Punto 2\"]}]."
                                     }
                                 },
                                 required: ["accion", "fileType", "title", "content"]
@@ -823,10 +823,12 @@ class VoiceSession {
                 }
             ];
 
-            this.liveConfig.systemInstruction = `[DIRECTIVA CRÍTICA DE IDIOMA Y AUDICIÓN]:
+            this.liveConfig.systemInstruction = `[DIRECTIVA CRÍTICA DE IDIOMA, CONDUCTA Y PROFESIONALISMO]:
 - IDIOMA EXCLUSIVO: ESPAÑOL DE COLOMBIA / LATINOAMÉRICA.
 - El usuario habla ÚNICA Y EXCLUSIVAMENTE en ESPAÑOL.
-- ESTÁ TERMINANTEMENTE PROHIBIDO interpretar o responder en otro idioma. Responde siempre en español con tono fresco, empático y profesional ("de una", "listo", "hágale", "vamos para allá").
+- ESTÁ TERMINANTEMENTE PROHIBIDO interpretar o responder en inglés o cualquier otro idioma. Prohibido añadir coletillas en inglés ("not medical advice", "as an AI...").
+- PROHIBICIÓN ABSOLUTA DE AVISOS O ADVERTENCIAS PATERNALISTAS: NUNCA digas "esto no es un consejo médico", "recuerda consultar a un profesional de la salud", "no reemplaza la asesoría jurídica" ni nada por el estilo. WAPPY es una plataforma profesional empresarial de SG-SST. Proporciona las respuestas técnicas y especializadas con rigor, sin sermones ni disclaimers.
+- VERIFICACIÓN ANTES DE AFIRMAR: NUNCA afirmes que un archivo, pantalla o documento está creado o visible sin haber recibido el resultado de ÉXITO de la herramienta. Si el usuario te dice que no ve nada o que la pantalla tiene otro contenido, ESTÁ PROHIBIDO insistir ("le aseguro que está en su pantalla"); en su lugar, invoca DE INMEDIATO 'leer_pantalla' para verificar la realidad antes de contestar.
 - AGILIDAD POR DEFECTO: En saludos, confirmaciones de acciones y navegación ordinaria, habla de forma concisa y directa (1 a 2 oraciones).
 - EXCEPCIÓN OBLIGATORIA (LECTURA Y EXPLICACIÓN DE RESPUESTAS TÉCNICAS E INFORMES):
   * Si el usuario te pregunta por lo que dijo un especialista, te pide leer la respuesta, o te dice "léelo", "léemelo", "por qué lo resumes", "no lo resumas", "qué dice exactamente", "revisa la pantalla", "léeme el texto completo":
@@ -860,17 +862,13 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
    - Aplicativos y Dashboards: 'academia' (/academia?tab=cursos), 'training_admin', 'rutas' (/academia?tab=rutas), 'ruta_admin', 'events_meet', 'events_meet_admin', 'blog', 'blog_admin', 'marketplace' (/marketplace tienda productos SST), 'marketplace_admin', 'agents' (/agents catálogo especialistas IA), 'control' (Centro de Control / Kanban), 'animo_dashboard' (/sgsst/animo), 'planes', 'auditoria' (/auditoria), 'live' (/c/new), 'chat_sst', 'roadmap' (/hoja-de-ruta), 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy', 'terms', 'about'.
    - Portales públicos del trabajador: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'.
    - INVÓCALA DE INMEDIATO siempre que el usuario mencione ir, abrir, consultar o ver cualquier hito, módulo o sección.
-4. **wappy_abrir_chat_agente** / **consultar_agente_especializado**: Abre de inmediato el chat con un especialista (ej: 'abogado_laboral', 'medico_laboral', 'ingeniero_quimico_sst', etc.) y formula la consulta técnica del usuario.
-   - OBLIGACIÓN ESTRICTA: Siempre que el usuario te pida consultar, preguntar, abrir o pedir asesoría a un especialista, INVOCA ESTA HERRAMIENTA DE INMEDIATO.
-   - ESTÁ TERMINANTEMENTE PROHIBIDO responder tú misma a la consulta técnica o legal del usuario. TÚ NO ERES EL ABOGADO NI EL ESPECIALISTA.
-   - REGLA CRÍTICA PARA 'pregunta': Debe ser una formulación técnica, clara y estructurada basada en lo que el usuario necesita del especialista (mínimo 5 a 10 palabras con contexto legal o SST).
-   - ESTÁ TERMINANTEMENTE PROHIBIDO enviar saludos vacíos como 'Hola cómo estás el día de hoy', ni palabras sueltas como 'por' o 'qué'.
-   - RESPUESTA ORAL TRAS INVOCAR ESTA HERRAMIENTA:
-     Cuando ejecutes esta herramienta, tu ÚNICA respuesta oral permitida es confirmar en 1 sola frase corta que ya abriste el chat y le dejaste la consulta formulada en pantalla al especialista.
-     Ejemplo exacto: "¡De una! Ya abrí el chat con el [Nombre del Especialista] y le dejé tu consulta en pantalla. Esperemos un momento a que responda."
-     PROHIBICIÓN RADICAL: NUNCA digas "el especialista te dice que..." ni inventes, simules o resumas el concepto técnico en este turno. TÚ NO TIENES LA RESPUESTA TODAVÍA.
+4. **wappy_abrir_chat_agente** / **consultar_agente_especializado**: Abre un chat con un especialista (ej: 'abogado_laboral', 'medico_laboral', 'ingeniero_quimico_sst', etc.) y le transmite la consulta técnica del usuario.
+   - REGLA CRÍTICA DE CONTEXTO OBLIGATORIO: Solo debes invocar esta herramienta cuando el usuario YA haya dicho qué desea consultar. Si el usuario únicamente te dice "abre un chat con el médico" o "pásame al abogado" sin dar su consulta, NO abras el chat todavía; pregúntale primero con calidez: "¿Qué quieres que le consulte al [especialista]?" y espera a que te dé su duda antes de invocar la herramienta.
+   - REGLA DE PREGUNTA FIEL: En el parámetro 'pregunta', formula exactamente lo que pidió el usuario sin inventar ni añadir temas que no correspondan (por ejemplo: si te pidió preguntarle al médico laboral qué es burnout, NO agregues temas jurídicos o legales; si le pregunta al abogado sobre un despido, no le agregues temas médicos).
+   - PROHIBIDO RESPONDER TÚ: No respondas tú misma a la consulta técnica o legal del usuario cuando te pida abrir un chat con un especialista.
+   - RESPUESTA TRAS INVOCAR: Confirma en una sola frase breve que ya abriste el chat y le dejaste la consulta formulada en pantalla al especialista. Ejemplo: "¡De una! Ya abrí el chat con el médico laboral y le dejé tu consulta en pantalla. Esperemos un momento a que responda." NUNCA inventes lo que va a responder ni des diagnósticos anticipados.
 5. **CONSULTAS Y RESPUESTAS DE ESPECIALISTAS**:
-   - Cuando el especialista responda o recibas una notificación "[SISTEMA INTERNO WAPPY]: ...", informa al usuario los puntos clave que dictaminó el especialista de forma fiel y veraz.
+   - Cuando el especialista responda o recibas una notificación "[SISTEMA INTERNO WAPPY]: ...", informa al usuario los puntos clave que dictaminó el especialista de forma fiel y veraz, sin añadir advertencias ni disclaimers.
    - Si el usuario te pide que leas la respuesta o dice "léelo", "léemelo", "qué dice exactamente", "no lo resumas": léele el dictamen real citando sus artículos, decretos (ej. Decreto 1072 de 2015) y argumentos sin comprimirlo a una sola frase genérica.
    - PROHIBICIÓN ESTRICTA DE INVENTAR O ALUCINAR: NUNCA inventes lo que dice un especialista ni asumas hechos que no estén en pantalla. Si aún no recibes la notificación oficial "[SISTEMA INTERNO WAPPY]: ...", dile con honestidad al usuario que el especialista está analizando y redactando en pantalla. Si el usuario te insiste o te dice que ya respondió o que revises, INVOCA DE INMEDIATO 'leer_pantalla' para extraer el texto real del chat y léelo fielmente.
 6. **LEER LA PANTALLA O INFORMES VISIBLES**:
@@ -878,9 +876,15 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
    - Siempre que el usuario te diga "revisa la pantalla", "léeme lo que hay", "qué dice ahí", "mira el chat", "léelo" o pregunte por lo que está visible:
      1. Invoca 'leer_pantalla' de inmediato para extraer el contenido visible.
      2. Léele o explícale el contenido real extraído de la pantalla con fidelidad, sin inventar y sin omitir datos clave.
-7. **canvas_tool (Lienzo interactivo Canvas / Aplicativos en Canva)**:
-   - Tienes la herramienta 'canvas_tool' para crear aplicaciones interactivas ('html' con código funcional, gráficos, Tailwind CSS y Chart.js), documentos técnicos ('text'), hojas de cálculo ('excel') o presentaciones ('presentation') en el lienzo interactivo de pantalla dividida.
-   - INVÓCALA DE INMEDIATO siempre que el usuario te pida crear una aplicación, prototipo, calculadora, dashboard con gráficos, formato interactivo o te diga "crea en Canva/Canvas un aplicativo...", "hazme una app de indicadores de accidentalidad", etc.
+7. **canvas_tool (Creación de Archivos Word, Excel, HTML y Presentaciones en Canvas)**:
+   - Tienes la herramienta 'canvas_tool' para crear y entregar archivos descargables directamente en el chat de Tenshi (con tarjeta y botón de descarga directa) y en el lienzo Canvas.
+   - INVÓCALA SIEMPRE que el usuario te pida crear, generar, redactar o entregar un documento, archivo, protocolo, procedimiento, política, tabla, matriz de datos, hoja de cálculo, aplicativo interactivo o presentación.
+   - Tipos de archivo según la solicitud:
+     * 'text': Documento Word (.doc/.docx). Redacta en el campo 'content' el texto completo y estructurado en Markdown con título, secciones y marco técnico aplicable.
+     * 'excel': Hoja de cálculo Excel (.xlsx). En 'content' entrega un arreglo 2D en JSON con encabezados y datos reales (ej: [["ID","Peligro","Nivel"],["1","Ruido","Alto"]]).
+     * 'html': Aplicativo, reporte o página web interactiva con Tailwind CSS y gráficos Chart.js.
+     * 'presentation': Diapositivas en formato JSON.
+   - Usa siempre accion: 'crear'. Cada invocación genera un archivo nuevo e independiente para el usuario.
 8. **web_search (Búsqueda Web en Tiempo Real)**:
    - Tienes la herramienta 'web_search' para consultar Internet en vivo.
    - INVÓCALA SIEMPRE que el usuario te pida buscar en la web, consultar noticias, verificar normatividad vigente o cuando requieras datos externos actualizados.
@@ -1547,57 +1551,111 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         continue;
                     }
 
-                    // Manejo directo de Canvas / Aplicativos interactivos en modo voz
+                    // Manejo directo de Canvas / Archivos (Word, Excel, HTML, Presentación) en modo voz.
+                    // Cada creación usa un conversationId ÚNICO para no sobrescribir/reutilizar un canvas viejo,
+                    // y solo se notifica éxito si CanvasTool devolvió success === true.
                     if (fc.name === 'canvas_tool' || fc.name === 'canvas') {
                         logger.info(`[VoiceSession] Gemini Live invoked tool "canvas_tool" with title: "${fc.args?.title}", fileType: "${fc.args?.fileType}"`);
-                        let toolResultMsg = 'Lienzo Canvas creado exitosamente.';
-                        const canvasArgs = { ...fc.args };
-                        if (!canvasArgs.accion) canvasArgs.accion = 'crear';
-                        if (!canvasArgs.fileType) canvasArgs.fileType = 'html';
-                        if (!canvasArgs.title) canvasArgs.title = 'Aplicativo Interactivo SG-SST';
+                        const allowedTypes = ['text', 'excel', 'html', 'presentation'];
+                        const canvasArgs = { ...(fc.args || {}) };
+                        canvasArgs.accion = 'crear';
+                        if (!allowedTypes.includes(canvasArgs.fileType)) canvasArgs.fileType = 'html';
+                        if (!canvasArgs.title || !String(canvasArgs.title).trim()) canvasArgs.title = 'Documento SG-SST';
 
-                        let generatedContent = canvasArgs.content || '';
+                        const fileTypeLabel = { text: 'Word', excel: 'Excel', html: 'HTML', presentation: 'presentación' }[canvasArgs.fileType];
+                        const uniqueCanvasId = `tenshi-canvas-${this.userId}-${Date.now()}`;
+                        const userRequestText = (this.userTranscriptionText || '').trim() || this.lastUserRequest || canvasArgs.title;
+                        const canvasReq = {
+                            ...toolReq,
+                            body: { ...toolReq.body, conversationId: uniqueCanvasId, text: userRequestText }
+                        };
 
-                        try {
-                            const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
-                            const canvasTool = new CanvasTool({ req: toolReq });
-                            const canvasOutput = await canvasTool._call(canvasArgs);
-                            toolResultMsg = typeof canvasOutput === 'string' ? canvasOutput : JSON.stringify(canvasOutput);
+                        let ok = false;
+                        let failReason = '';
+                        let generatedContent = '';
+                        let finalTitle = canvasArgs.title;
 
-                            // Recuperar el contenido HTML real compilado y guardado en CanvasSession
-                            const CanvasSession = require('~/models/CanvasSession');
-                            const targetConvoId = toolReq?.body?.conversationId || (this.conversationId && this.conversationId !== 'new' ? this.conversationId : `tenshi-${this.userId}`);
-                            const sessionDoc = await CanvasSession.findOne({ user: this.userId, conversationId: targetConvoId }).sort({ updatedAt: -1 });
-                            if (sessionDoc?.content) {
-                                generatedContent = sessionDoc.content;
+                        // Validación previa de JSON para Excel / Presentación
+                        if ((canvasArgs.fileType === 'excel' || canvasArgs.fileType === 'presentation') && typeof canvasArgs.content === 'string') {
+                            try {
+                                JSON.parse(canvasArgs.content);
+                            } catch (jsonErr) {
+                                failReason = `El contenido para ${fileTypeLabel} no es un JSON válido (${jsonErr.message}). Para Excel debe ser un arreglo 2D, ej: [["Columna1","Columna2"],["valor","valor"]].`;
                             }
-                        } catch (cErr) {
-                            logger.warn('[VoiceSession] Error in backend CanvasTool execution, continuing with client action:', cErr);
+                        }
+                        if (!failReason && !canvasArgs.content && canvasArgs.fileType !== 'html') {
+                            failReason = 'No se envió contenido para el archivo.';
                         }
 
-                        // Enviar acción al cliente con el contenido generado para desplegar el Canvas interactivo de inmediato en pantalla
-                        this.sendToClient({
-                            type: 'wappy_action',
-                            data: {
-                                id: fc.id,
-                                name: 'canvas_tool',
-                                args: {
-                                    ...canvasArgs,
-                                    content: generatedContent || canvasArgs.content || ''
-                                },
-                                content: generatedContent,
-                                result: toolResultMsg
+                        if (!failReason) {
+                            this.sendToClient({
+                                type: 'status',
+                                data: { status: 'loading', message: `Creando archivo ${fileTypeLabel}...` }
+                            });
+                            try {
+                                const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
+                                const canvasTool = new CanvasTool({ req: canvasReq });
+                                const canvasOutput = await canvasTool._call(canvasArgs);
+                                let parsedOutput = null;
+                                try {
+                                    parsedOutput = typeof canvasOutput === 'string' ? JSON.parse(canvasOutput) : canvasOutput;
+                                } catch (_) {
+                                    parsedOutput = null;
+                                }
+                                if (parsedOutput?.success === true) {
+                                    const CanvasSession = require('~/models/CanvasSession');
+                                    const sessionDoc = await CanvasSession.findOne({ user: this.userId, conversationId: uniqueCanvasId }).lean();
+                                    if (sessionDoc?.content) {
+                                        generatedContent = typeof sessionDoc.content === 'string' ? sessionDoc.content : JSON.stringify(sessionDoc.content);
+                                        finalTitle = sessionDoc.title || finalTitle;
+                                        ok = true;
+                                    } else {
+                                        failReason = 'El archivo se procesó pero quedó vacío.';
+                                    }
+                                } else {
+                                    failReason = parsedOutput?.error || 'La herramienta de archivos no confirmó la creación.';
+                                }
+                            } catch (cErr) {
+                                logger.error('[VoiceSession] Error in backend CanvasTool execution:', cErr);
+                                failReason = cErr?.message || 'Error interno al crear el archivo.';
                             }
-                        });
+                        }
+
+                        if (ok) {
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: {
+                                    id: fc.id,
+                                    name: 'canvas_tool',
+                                    args: {
+                                        ...canvasArgs,
+                                        title: finalTitle,
+                                        content: generatedContent
+                                    },
+                                    content: generatedContent,
+                                    fileType: canvasArgs.fileType,
+                                    title: finalTitle,
+                                    canvasId: uniqueCanvasId
+                                }
+                            });
+                        } else {
+                            logger.warn(`[VoiceSession] canvas_tool failed: ${failReason}`);
+                            this.sendToClient({
+                                type: 'status',
+                                data: { status: 'idle', message: '' }
+                            });
+                        }
 
                         if (this.geminiClient) {
+                            // Una sola respuesta (sin sendText adicional) para evitar confirmaciones dobles.
+                            const resultText = ok
+                                ? `ÉXITO: El archivo ${fileTypeLabel} "${finalTitle}" fue creado y quedó en el chat de Tenshi con botón de descarga. Confírmalo al usuario en UNA sola frase breve en español, sin leer el contenido y sin añadir advertencias.`
+                                : `FALLO: NO se pudo crear el archivo ${fileTypeLabel} "${canvasArgs.title}". Motivo: ${failReason}. Dile honestamente al usuario en español que no se pudo crear y ofrécele intentarlo de nuevo. PROHIBIDO decir que el archivo está en pantalla.`;
                             this.geminiClient.sendToolResponse([{
                                 id: fc.id,
                                 name: fc.name,
-                                response: { result: `Lienzo Canvas "${canvasArgs.title}" creado y desplegado en la pantalla dividida del usuario con éxito.` }
+                                response: { result: resultText }
                             }]);
-                            // Instrucción de voz estricta en español para evitar alucinaciones en inglés
-                            this.geminiClient.sendText(`INSTRUCCIÓN OBLIGATORIA: Habla ÚNICAMENTE en español (nunca en inglés). Confirma en una sola frase breve y entusiasta al usuario que el aplicativo interactivo de "${canvasArgs.title}" ya fue creado y desplegado en la pantalla.`);
                         }
                         continue;
                     }
@@ -2218,11 +2276,26 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         continue;
                     }
 
-                    // Delegación de Consulta a Especialista hacia la interfaz del cliente (wappy_abrir_chat_agente)
-                    if (fc.name === 'consultar_agente_especializado') {
-                        const agente = fc.args?.nombre_especialista || fc.args?.agente;
-                        const pregunta = fc.args?.consulta_completa || fc.args?.pregunta;
-                        logger.info(`[VoiceSession] Gemini Live invoked "consultar_agente_especializado" -> delegating as wappy_abrir_chat_agente: ${agente}`);
+                    // Delegación de Consulta a Especialista hacia la interfaz del cliente (wappy_abrir_chat_agente / consultar_agente_especializado)
+                    if (fc.name === 'wappy_abrir_chat_agente' || fc.name === 'consultar_agente_especializado') {
+                        const agente = fc.args?.agente || fc.args?.nombre_especialista;
+                        const pregunta = (fc.args?.pregunta || fc.args?.consulta_completa || '').trim();
+
+                        if (!pregunta || pregunta.length < 4) {
+                            logger.warn(`[VoiceSession] Gemini invoked "${fc.name}" for agent "${agente}" without concrete question. Asking user for context.`);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: {
+                                        result: `NO se abrió el chat: falta la consulta concreta del usuario. Pregúntale verbalmente al usuario qué tema específico desea plantearle a ${agente || 'el especialista'} antes de abrir el chat.`
+                                    }
+                                }]);
+                            }
+                            continue;
+                        }
+
+                        logger.info(`[VoiceSession] Gemini Live invoked "${fc.name}" -> delegating as wappy_abrir_chat_agente: ${agente}, pregunta: "${pregunta.substring(0, 60)}..."`);
                         this.sendToClient({
                             type: 'wappy_action',
                             data: {
@@ -4050,11 +4123,16 @@ ${workerSubHeaderHtml}
             if (matchedAgent) {
                 // Extraer la pregunta o consulta formulada por el usuario
                 let pregunta = '';
-                const qMatch = userText.match(/(preg[uú]ntale\s+(que\s+)?|pregunta\s+(que\s+)?|dile\s+(que\s+)?|sobre\s+|acerca de\s+)(.+)/i);
-                if (qMatch && qMatch[4]) {
-                    pregunta = qMatch[4].trim();
-                } else if (userText.length > 8) {
-                    pregunta = userText;
+                const qMatch = userText.match(/(?:preg[uú]ntale\s+(?:que\s+|qu[eé]\s+)?|pregunta\s+(?:que\s+|qu[eé]\s+)?|dile\s+(?:que\s+|qu[eé]\s+)?|sobre\s+|acerca de\s+|para\s+)(.+)/i);
+                if (qMatch && qMatch[1] && qMatch[1].trim().length >= 4) {
+                    pregunta = qMatch[1].trim();
+                }
+
+                // CRÍTICO: Si el usuario NO suministró una pregunta concreta, NO despachar el failsafe.
+                // Tenshi debe preguntarle verbalmente el contexto antes de abrir el chat.
+                if (!pregunta) {
+                    logger.info(`[VoiceSession] [Tenshi Voice Failsafe] User asked to open agent "${matchedAgent}" without a query. Waiting for user context.`);
+                    return;
                 }
 
                 logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Gemini omitted toolCall! Dispatching wappy_abrir_chat_agente: ${matchedAgent}, pregunta: "${pregunta}"`);
