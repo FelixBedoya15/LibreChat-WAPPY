@@ -240,6 +240,23 @@ export function getVisibleScreenContent(section?: string): string {
       lines.push('[EN PRIMER PLANO: Ventana emergente / Modal de informe abierta]');
     }
 
+    // 1.1 Si estamos en una conversación de chat (/c/), extraer la última respuesta del especialista en pantalla
+    if (currentUrl.includes('/c/')) {
+      const chatMessages = Array.from(rootScope.querySelectorAll<HTMLElement>(
+        '[data-message-id] .markdown, [class*="text-message"], article .markdown'
+      )).filter(m => isElementVisible(m) && !m.closest('.tenshi-widget-container'));
+
+      if (chatMessages.length > 0) {
+        lines.push('ÚLTIMA RESPUESTA EN EL CHAT DE LA PANTALLA:');
+        const lastMsg = chatMessages[chatMessages.length - 1];
+        const text = lastMsg.innerText?.trim();
+        if (text && text.length > 10) {
+          lines.push(text.length > 2500 ? text.substring(0, 2500) + '... [Truncado por longitud]' : text);
+          lines.push('');
+        }
+      }
+    }
+
     // 2. Extraer Título Principal del módulo o pantalla
     const headers = Array.from(rootScope.querySelectorAll<HTMLElement>('h1, h2, h3, header h4'));
     const visibleHeaders = headers.filter(h => isElementVisible(h) && !h.closest('.tenshi-widget-container'));

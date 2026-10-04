@@ -18,12 +18,14 @@ import {
     AlertTriangle,
     Inbox,
     CheckCircle,
+    CheckCircle2,
     Video,
     Film,
     Download,
     QrCode,
     Info,
     RefreshCcw,
+    RefreshCw,
     BarChart3,
     Building2,
     Shield,
@@ -31,8 +33,14 @@ import {
     Target,
     Users,
     Scale,
-    FileSpreadsheet
+    FileSpreadsheet,
+    Search,
+    Layers,
+    Activity,
+    Eye,
+    Pencil
 } from 'lucide-react';
+import cn from '~/utils/cn';
 import ParticipacionEstadisticasDashboard from './ParticipacionEstadisticasDashboard';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -189,6 +197,54 @@ const createInitialParticipacion = (): ParticipacionData => ({
     responsablesList: [{ nombre: '', cedula: '', rol: '' }],
 });
 
+export interface UnifiedReportItem {
+    id: string;
+    source: 'inbox' | 'local';
+    workerName: string;
+    workerId: string;
+    cargo: string;
+    proceso: string;
+    zona: string;
+    actividad: string;
+    tarea: string;
+    peligros: string;
+    peligroClasificacion: string;
+    severidad: 'Crítica' | 'Alta' | 'Media' | 'Baja';
+    controlesExistentes: string;
+    propuestaMejora: string;
+    status: 'pending' | 'processed' | 'applied_to_matrix';
+    matrixAction?: string;
+    matrixRowId?: string;
+    appliedAt?: string | Date;
+    createdAt: string | Date;
+    dateFormatted: string;
+    report?: string;
+    rawItem: any;
+}
+
+const SEV_BADGES: Record<string, { bg: string; text: string; border: string }> = {
+    'Crítica': {
+        bg: 'bg-red-50 dark:bg-red-950/40',
+        text: 'text-red-700 dark:text-red-300',
+        border: 'border-red-200 dark:border-red-800'
+    },
+    'Alta': {
+        bg: 'bg-amber-50 dark:bg-amber-950/40',
+        text: 'text-amber-700 dark:text-amber-300',
+        border: 'border-amber-200 dark:border-amber-800'
+    },
+    'Media': {
+        bg: 'bg-blue-50 dark:bg-blue-950/40',
+        text: 'text-blue-700 dark:text-blue-300',
+        border: 'border-blue-200 dark:border-blue-800'
+    },
+    'Baja': {
+        bg: 'bg-teal-50 dark:bg-teal-950/40',
+        text: 'text-teal-700 dark:text-teal-300',
+        border: 'border-teal-200 dark:border-teal-800'
+    }
+};
+
 const ParticipacionIPEVAR = () => {
 
     const { t } = useTranslation();
@@ -307,6 +363,151 @@ const ParticipacionIPEVAR = () => {
         cargo: ''
     });
     const [isApplyingToMatrix, setIsApplyingToMatrix] = useState(false);
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterSeverity, setFilterSeverity] = useState<'all' | 'Crítica' | 'Alta' | 'Media' | 'Baja'>('all');
+    const [filterSource, setFilterSource] = useState<'all' | 'inbox' | 'local' | 'applied'>('all');
+    const [isReloading, setIsReloading] = useState(false);
+    const reportBoxRef = useRef<HTMLDivElement>(null);
+    const formBoxRef = useRef<HTMLDivElement>(null);
+
+    const allUnifiedReports = useMemo<UnifiedReportItem[]>(() => {
+        const list: UnifiedReportItem[] = [];
+
+        // 1. From inboxPublico
+        (Array.isArray(inboxPublico) ? inboxPublico : []).forEach(item => {
+            const d = item.data || {};
+            const t = item.trabajador || {};
+            const sev = (d.severidadPercibida || 'Media').trim();
+            let normSev: 'Crítica' | 'Alta' | 'Media' | 'Baja' = 'Media';
+            if (/cr[ií]tic/i.test(sev)) normSev = 'Crítica';
+            else if (/alt/i.test(sev)) normSev = 'Alta';
+            else if (/baj/i.test(sev)) normSev = 'Baja';
+
+            const rawDate = item.createdAt || d.fecha || '';
+            const dateFormatted = rawDate
+                ? new Date(rawDate).toLocaleDateString('es-CO', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                })
+                : 'Reciente';
+
+            list.push({
+                id: item.id,
+                source: 'inbox',
+                workerName: t.nombre || 'Colaborador (Buzón)',
+                workerId: t.cedula || 'N/A',
+                cargo: t.cargo || 'Personal Operativo',
+                proceso: d.proceso || d.area || 'Operativo',
+                zona: d.zona || 'Sede Principal',
+                actividad: d.actividad || d.tarea || 'Labor reportada',
+                tarea: d.tarea || '',
+                peligros: d.peligros || d.descripcion || 'Peligro identificado',
+                peligroClasificacion: d.peligroClasificacion || 'Condiciones de Seguridad',
+                severidad: normSev,
+                controlesExistentes: d.controlesExistentes || '',
+                propuestaMejora: d.propuestaMejora || d.sugeridoIngenieria || '',
+                status: item.status || 'pending',
+                matrixAction: item.matrixAction,
+                matrixRowId: item.matrixRowId,
+                appliedAt: item.appliedAt,
+                createdAt: rawDate,
+                dateFormatted,
+                report: item.report,
+                rawItem: item
+            });
+        });
+
+        // 2. From participacionesList
+        (Array.isArray(participacionesList) ? participacionesList : []).forEach(p => {
+            const f = p.formData || {};
+            const t = p.trabajadoresList?.[0] || {};
+            const sev = (f.severidadPercibida || 'Media').trim();
+            let normSev: 'Crítica' | 'Alta' | 'Media' | 'Baja' = 'Media';
+            if (/cr[ií]tic/i.test(sev)) normSev = 'Crítica';
+            else if (/alt/i.test(sev)) normSev = 'Alta';
+            else if (/baj/i.test(sev)) normSev = 'Baja';
+
+            const rawDate = p.updatedAt || f.fecha || '';
+            const dateFormatted = rawDate
+                ? new Date(rawDate).toLocaleDateString('es-CO', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                })
+                : 'Local';
+
+            list.push({
+                id: p.id,
+                source: 'local',
+                workerName: t.nombre || p.title || 'Participación SST',
+                workerId: t.cedula || 'N/A',
+                cargo: t.cargo || 'Personal Evaluado',
+                proceso: f.proceso || 'Operativo',
+                zona: f.zona || 'Área General',
+                actividad: f.actividad || f.tarea || 'Labor evaluada',
+                tarea: f.tarea || '',
+                peligros: f.peligros || 'Peligro registrado',
+                peligroClasificacion: f.peligroClasificacion || 'Condiciones de Seguridad',
+                severidad: normSev,
+                controlesExistentes: f.controlesExistentes || '',
+                propuestaMejora: f.sugeridoIngenieria || f.sugeridoAdministrativo || '',
+                status: p.status || 'pending',
+                matrixAction: p.matrixAction,
+                matrixRowId: p.matrixRowId,
+                appliedAt: p.appliedAt,
+                createdAt: rawDate,
+                dateFormatted,
+                report: p.report,
+                rawItem: p
+            });
+        });
+
+        return list;
+    }, [inboxPublico, participacionesList]);
+
+    const kpis = useMemo(() => {
+        const total = allUnifiedReports.length;
+        const critical = allUnifiedReports.filter(r => r.severidad === 'Crítica').length;
+        const high = allUnifiedReports.filter(r => r.severidad === 'Alta').length;
+        const medium = allUnifiedReports.filter(r => r.severidad === 'Media').length;
+        const low = allUnifiedReports.filter(r => r.severidad === 'Baja').length;
+
+        return {
+            total,
+            critical,
+            criticalPct: total > 0 ? Math.round((critical / total) * 100) : 0,
+            high,
+            highPct: total > 0 ? Math.round((high / total) * 100) : 0,
+            medium,
+            mediumPct: total > 0 ? Math.round((medium / total) * 100) : 0,
+            low,
+            lowPct: total > 0 ? Math.round((low / total) * 100) : 0,
+        };
+    }, [allUnifiedReports]);
+
+    const filteredReports = useMemo(() => {
+        return allUnifiedReports.filter(r => {
+            const s = searchTerm.toLowerCase();
+            const matchesSearch = !searchTerm ||
+                r.workerName.toLowerCase().includes(s) ||
+                r.workerId.toLowerCase().includes(s) ||
+                r.cargo.toLowerCase().includes(s) ||
+                r.proceso.toLowerCase().includes(s) ||
+                r.zona.toLowerCase().includes(s) ||
+                r.peligros.toLowerCase().includes(s) ||
+                r.actividad.toLowerCase().includes(s);
+
+            const matchesSeverity = filterSeverity === 'all' || r.severidad === filterSeverity;
+            const matchesSource = filterSource === 'all' ||
+                (filterSource === 'inbox' && r.source === 'inbox') ||
+                (filterSource === 'local' && r.source === 'local') ||
+                (filterSource === 'applied' && r.status === 'applied_to_matrix');
+
+            return matchesSearch && matchesSeverity && matchesSource;
+        });
+    }, [allUnifiedReports, searchTerm, filterSeverity, filterSource]);
 
     React.useEffect(() => {
         fetch('/api/sgsst/company-info', {
@@ -808,6 +1009,69 @@ const ParticipacionIPEVAR = () => {
         setIsFormExpanded(true);
         showToast({ message: 'Reporte cargado como nueva participación. Revise y complete la información.', status: 'info' });
         handleMarkProcessed(item.id);
+    };
+
+    const handleReloadData = async () => {
+        if (!token) return;
+        setIsReloading(true);
+        try {
+            const res = await fetch('/api/sgsst/participacion-ipevar/data', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.participacionesList) setParticipacionesList(data.participacionesList);
+                if (data.inboxPublico) setInboxPublico(data.inboxPublico);
+                showToast({ message: 'Listado de participaciones sincronizado correctamente.', status: 'info' });
+            }
+        } catch (err) {
+            console.error('Error reloading data:', err);
+        } finally {
+            setIsReloading(false);
+        }
+    };
+
+    const handleViewReport = (r: UnifiedReportItem) => {
+        if (r.source === 'local') {
+            handleSelectParticipacion(r.id);
+        } else {
+            handleLoadInboxItem(r.rawItem);
+        }
+
+        if (r.report) {
+            setGeneratedReport(r.report);
+            editorContentRef.current = r.report;
+            if (liveEditorRef.current) liveEditorRef.current.setHTML(r.report);
+            showToast({ message: `Informe de ${r.workerName} cargado en LiveEditor.`, status: 'info' });
+        } else {
+            showToast({ message: `Datos de ${r.workerName} cargados en el formulario. Listo para generar informe técnico.`, status: 'info' });
+        }
+
+        setTimeout(() => {
+            reportBoxRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+    };
+
+    const handleEditReport = (r: UnifiedReportItem) => {
+        if (r.source === 'local') {
+            handleSelectParticipacion(r.id);
+        } else {
+            handleLoadInboxItem(r.rawItem);
+        }
+        setIsFormExpanded(true);
+        showToast({ message: `Datos de ${r.workerName} listos para edición en el formulario.`, status: 'info' });
+        setTimeout(() => {
+            formBoxRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+    };
+
+    const handleDeleteReport = (r: UnifiedReportItem) => {
+        if (!confirm(`¿Estás seguro de eliminar el reporte de ${r.workerName}?`)) return;
+        if (r.source === 'inbox') {
+            handleDismissInbox(r.id);
+        } else {
+            handleDeleteParticipacion(r.id);
+        }
     };
 
     const handleDummyData = () => {
@@ -1350,61 +1614,416 @@ const ParticipacionIPEVAR = () => {
                 />
             )}
 
-            {/* ── Participaciones Quick Access ── */}
-            <div className="rounded-2xl border border-border-medium bg-surface-tertiary p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-3 px-1">
-                    <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-teal-600" />
-                        <span className="text-xs font-black text-text-secondary uppercase tracking-widest">Listado de Participaciones</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {activeParticipacion.status === 'applied_to_matrix' && (
-                            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-xl text-xs font-bold border border-emerald-300 dark:border-emerald-800 shadow-sm">
-                                <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> Integrado en Matriz IPEVR
-                            </span>
-                        )}
-                        <button
-                            type="button"
-                            onClick={handleAddParticipacion}
-                            title="Nueva Participación"
-                            aria-label="Nueva Participación"
-                            className="group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/50 px-2 shadow-sm outline-none transition-all duration-300 hover:scale-105 active:scale-95 sm:h-9 sm:min-w-[36px] sm:px-2.5"
-                        >
-                            <div className="relative flex shrink-0 items-center justify-center">
-                                <Plus className="h-4 w-4 text-teal-600 dark:text-teal-400" />
-                            </div>
-                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[180px] group-hover:opacity-100 sm:flex">
-                                <span className="text-xs font-bold tracking-wide">
-                                    Nueva Participación
-                                </span>
-                            </div>
-                        </button>
+            {/* ── Directorio y Seguimiento de Participaciones IPEVR (Estilo EPT) ── */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                            <Activity className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                            <span>Directorio de Reportes y Participación IPEVR</span>
+                        </h2>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                            Gestiona y consulta los {allUnifiedReports.length} reportes de participación de los trabajadores con seguimiento, informes técnicos e integración a la Matriz IPEVR.
+                        </p>
                     </div>
                 </div>
-                <div className="flex flex-wrap gap-2.5">
-                    {participacionesList.map(p => (
-                        <div key={p.id} className="group flex items-center gap-1">
+
+                {/* ─── TARJETAS DE KPIS DE PARTICIPACIÓN Y RIESGOS ─── */}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+                    {/* Total Reportes */}
+                    <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
+                        <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400">
+                            <span className="text-xs font-bold uppercase tracking-wider">Total Reportes</span>
+                            <Activity className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                        </div>
+                        <div className="mt-2">
+                            <span className="text-2xl font-black text-slate-900 dark:text-white">{kpis.total}</span>
+                            <span className="text-[11px] text-slate-500 ml-2 font-medium">participaciones</span>
+                        </div>
+                    </div>
+
+                    {/* Riesgo Crítico */}
+                    <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-red-200 dark:border-red-950/60 shadow-sm flex flex-col justify-between">
+                        <div className="flex items-center justify-between text-red-600 dark:text-red-400">
+                            <span className="text-xs font-bold uppercase tracking-wider">Riesgo Crítico</span>
+                            <AlertTriangle className="w-4 h-4" />
+                        </div>
+                        <div className="mt-2 flex items-baseline justify-between">
+                            <span className="text-2xl font-black text-red-600 dark:text-red-400">{kpis.critical}</span>
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300">
+                                {kpis.criticalPct}%
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Riesgo Alto */}
+                    <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-950/60 shadow-sm flex flex-col justify-between">
+                        <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
+                            <span className="text-xs font-bold uppercase tracking-wider">Riesgo Alto</span>
+                            <AlertTriangle className="w-4 h-4" />
+                        </div>
+                        <div className="mt-2 flex items-baseline justify-between">
+                            <span className="text-2xl font-black text-amber-600 dark:text-amber-400">{kpis.high}</span>
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
+                                {kpis.highPct}%
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Riesgo Medio */}
+                    <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-blue-200 dark:border-blue-950/60 shadow-sm flex flex-col justify-between">
+                        <div className="flex items-center justify-between text-blue-600 dark:text-blue-400">
+                            <span className="text-xs font-bold uppercase tracking-wider">Riesgo Medio</span>
+                            <Layers className="w-4 h-4" />
+                        </div>
+                        <div className="mt-2 flex items-baseline justify-between">
+                            <span className="text-2xl font-black text-blue-600 dark:text-blue-400">{kpis.medium}</span>
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+                                {kpis.mediumPct}%
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Aceptable / Bajo */}
+                    <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-teal-200 dark:border-teal-950/60 shadow-sm flex flex-col justify-between col-span-2 md:col-span-1">
+                        <div className="flex items-center justify-between text-teal-600 dark:text-teal-400">
+                            <span className="text-xs font-bold uppercase tracking-wider">Aceptable</span>
+                            <CheckCircle2 className="w-4 h-4" />
+                        </div>
+                        <div className="mt-2 flex items-baseline justify-between">
+                            <span className="text-2xl font-black text-teal-600 dark:text-teal-400">{kpis.low}</span>
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300">
+                                {kpis.lowPct}%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ─── DIRECTORIO DE REPORTES Y SEGUIMIENTO ─── */}
+                <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
+                    {/* Cabecera de búsqueda y filtros */}
+                    <div className="p-4 md:p-5 border-b border-slate-200 dark:border-zinc-800 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+                        <div className="relative w-full lg:w-72">
+                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                                type="text"
+                                placeholder="Buscar por trabajador, cédula, cargo o peligro..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-800 dark:text-zinc-100"
+                            />
+                        </div>
+
+                        {/* Filtros de severidad y origen */}
+                        <div className="flex flex-wrap items-center gap-2 justify-between lg:justify-end">
+                            {/* Filtro Severidad */}
+                            <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl text-[11px] font-semibold">
+                                <button
+                                    onClick={() => setFilterSeverity('all')}
+                                    className={cn(
+                                        'px-2.5 py-1 rounded-lg transition-all',
+                                        filterSeverity === 'all'
+                                            ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm font-bold'
+                                            : 'text-slate-500 hover:text-slate-900 dark:text-zinc-400'
+                                    )}
+                                >
+                                    Todos ({allUnifiedReports.length})
+                                </button>
+                                <button
+                                    onClick={() => setFilterSeverity('Crítica')}
+                                    className={cn(
+                                        'px-2 py-1 rounded-lg transition-all',
+                                        filterSeverity === 'Crítica'
+                                            ? 'bg-red-500 text-white font-bold'
+                                            : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30'
+                                    )}
+                                >
+                                    Crítico
+                                </button>
+                                <button
+                                    onClick={() => setFilterSeverity('Alta')}
+                                    className={cn(
+                                        'px-2 py-1 rounded-lg transition-all',
+                                        filterSeverity === 'Alta'
+                                            ? 'bg-amber-500 text-white font-bold'
+                                            : 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                                    )}
+                                >
+                                    Alto
+                                </button>
+                                <button
+                                    onClick={() => setFilterSeverity('Media')}
+                                    className={cn(
+                                        'px-2 py-1 rounded-lg transition-all',
+                                        filterSeverity === 'Media'
+                                            ? 'bg-blue-600 text-white font-bold'
+                                            : 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30'
+                                    )}
+                                >
+                                    Medio
+                                </button>
+                                <button
+                                    onClick={() => setFilterSeverity('Baja')}
+                                    className={cn(
+                                        'px-2 py-1 rounded-lg transition-all',
+                                        filterSeverity === 'Baja'
+                                            ? 'bg-teal-500 text-white font-bold'
+                                            : 'text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/30'
+                                    )}
+                                >
+                                    Bajo
+                                </button>
+                            </div>
+
+                            {/* Filtro Origen / Estado */}
+                            <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl text-[11px] font-semibold">
+                                <button
+                                    onClick={() => setFilterSource('all')}
+                                    className={cn(
+                                        'px-2 py-1 rounded-lg transition-all',
+                                        filterSource === 'all'
+                                            ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm font-bold'
+                                            : 'text-slate-500 hover:text-slate-900 dark:text-zinc-400'
+                                    )}
+                                >
+                                    Todos
+                                </button>
+                                <button
+                                    onClick={() => setFilterSource('inbox')}
+                                    className={cn(
+                                        'px-2 py-1 rounded-lg transition-all',
+                                        filterSource === 'inbox'
+                                            ? 'bg-sky-500 text-white font-bold'
+                                            : 'text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/30'
+                                    )}
+                                >
+                                    Buzón QR
+                                </button>
+                                <button
+                                    onClick={() => setFilterSource('applied')}
+                                    className={cn(
+                                        'px-2 py-1 rounded-lg transition-all',
+                                        filterSource === 'applied'
+                                            ? 'bg-emerald-600 text-white font-bold'
+                                            : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
+                                    )}
+                                >
+                                    En Matriz
+                                </button>
+                            </div>
+
+                            {/* Botón Recargar */}
                             <button
-                                onClick={() => handleSelectParticipacion(p.id)}
-                                className={`px-4 py-2 rounded-xl text-xs font-black transition-all border shadow-sm truncate max-w-[220px] flex items-center gap-1.5 ${
-                                    activeId === p.id 
-                                        ? "bg-teal-600 text-white border-teal-600 ring-2 ring-teal-100 dark:ring-teal-900/40" 
-                                        : "bg-surface-primary text-text-primary border-border-medium hover:border-teal-400"
-                                }`}
+                                onClick={handleReloadData}
+                                disabled={isReloading}
+                                className="group flex h-8 min-w-[32px] items-center justify-center rounded-xl text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-zinc-800 px-2 border border-slate-200 dark:border-zinc-700 cursor-pointer"
+                                title="Recargar y sincronizar reportes"
                             >
-                                {p.status === 'applied_to_matrix' && (
-                                    <CheckCircle className={`h-3 w-3 ${activeId === p.id ? 'text-white' : 'text-emerald-500'}`} />
-                                )}
-                                <span className="truncate">{p.title || 'Participación'}</span>
+                                <RefreshCw className={cn("w-3.5 h-3.5 shrink-0", isReloading && "animate-spin text-teal-600")} />
+                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[90px] group-hover:opacity-100 sm:flex">
+                                    <span className="text-[11px] font-bold">Recargar</span>
+                                </div>
                             </button>
+
+                            {/* Botón Nueva Participación */}
                             <button
-                                onClick={() => handleDeleteParticipacion(p.id)}
-                                className="p-1.5 text-text-tertiary hover:text-red-500 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all opacity-0 group-hover:opacity-100"
+                                type="button"
+                                onClick={() => {
+                                    handleAddParticipacion();
+                                    setTimeout(() => {
+                                        formBoxRef.current?.scrollIntoView({ behavior: 'smooth' });
+                                    }, 100);
+                                }}
+                                className="group flex h-8 min-w-[32px] sm:h-9 sm:min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white px-3 shadow-md shadow-teal-700/20 outline-none transition-all duration-300 hover:scale-105 active:scale-95"
+                                title="Registrar nueva participación"
                             >
-                                <Trash2 className="h-3.5 w-3.5" />
+                                <Plus className="h-4 w-4 shrink-0" />
+                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[180px] group-hover:opacity-100 sm:flex">
+                                    <span className="text-xs font-bold tracking-wide">
+                                        Nueva Participación
+                                    </span>
+                                </div>
                             </button>
                         </div>
-                    ))}
+                    </div>
+
+                    {/* Tabla responsive de reportes */}
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr className="bg-slate-50 dark:bg-zinc-800/50 text-slate-500 dark:text-zinc-400 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200 dark:border-zinc-800">
+                                    <th className="py-3 px-4">Trabajador / Cédula</th>
+                                    <th className="py-3 px-4">Cargo & Proceso</th>
+                                    <th className="py-3 px-4">Peligro & Actividad</th>
+                                    <th className="py-3 px-4">Modalidad</th>
+                                    <th className="py-3 px-4 text-center">Riesgo / Seguimiento</th>
+                                    <th className="py-3 px-4">Fecha</th>
+                                    <th className="py-3 px-4 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/60 font-medium">
+                                {filteredReports.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} className="py-10 text-center text-slate-400">
+                                            <Activity className="w-8 h-8 text-slate-300 dark:text-zinc-600 mx-auto mb-2" />
+                                            <p className="font-semibold text-slate-600 dark:text-zinc-300">No se encontraron reportes con los filtros seleccionados.</p>
+                                            <p className="text-[11px] mt-1 text-slate-400">
+                                                Crea una nueva participación con el botón "+ Nueva Participación" o comparte el código QR con los trabajadores.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredReports.map((r) => {
+                                        const badge = SEV_BADGES[r.severidad] || SEV_BADGES.Media;
+                                        const isInbox = r.source === 'inbox';
+                                        const isApplied = r.status === 'applied_to_matrix';
+                                        const isSelected = r.id === activeId;
+
+                                        return (
+                                            <tr
+                                                key={r.id}
+                                                className={cn(
+                                                    "transition-colors group",
+                                                    isSelected
+                                                        ? "bg-teal-50/70 dark:bg-teal-950/30"
+                                                        : "hover:bg-teal-50/40 dark:hover:bg-zinc-800/40"
+                                                )}
+                                            >
+                                                {/* Trabajador */}
+                                                <td className="py-3 px-4">
+                                                    <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                                        <span>{r.workerName}</span>
+                                                        {isApplied && (
+                                                            <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
+                                                                En Matriz
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono mt-0.5">
+                                                        C.C. {r.workerId}
+                                                    </div>
+                                                </td>
+
+                                                {/* Cargo & Proceso */}
+                                                <td className="py-3 px-4 max-w-xs">
+                                                    <div className="font-semibold text-teal-700 dark:text-teal-400 truncate">
+                                                        {r.cargo}
+                                                    </div>
+                                                    <div className="text-[11px] text-slate-500 dark:text-zinc-400 truncate" title={`${r.proceso} • ${r.zona}`}>
+                                                        {r.proceso} {r.zona ? `• ${r.zona}` : ''}
+                                                    </div>
+                                                </td>
+
+                                                {/* Peligro & Actividad */}
+                                                <td className="py-3 px-4 max-w-xs">
+                                                    <div className="font-semibold text-slate-800 dark:text-zinc-200 truncate" title={r.peligros}>
+                                                        {r.peligros}
+                                                    </div>
+                                                    <div className="text-[11px] text-slate-500 dark:text-zinc-400 truncate" title={r.actividad || r.tarea}>
+                                                        {r.actividad || r.tarea || 'Labor reportada'}
+                                                    </div>
+                                                </td>
+
+                                                {/* Modalidad */}
+                                                <td className="py-3 px-4 whitespace-nowrap">
+                                                    <span
+                                                        className={cn(
+                                                            'px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1',
+                                                            isInbox
+                                                                ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800'
+                                                                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                                                        )}
+                                                    >
+                                                        {isInbox ? 'Auto-reporte QR' : 'Asistida (SST)'}
+                                                    </span>
+                                                </td>
+
+                                                {/* Severidad / Seguimiento */}
+                                                <td className="py-3 px-4 text-center whitespace-nowrap">
+                                                    <span
+                                                        className={cn(
+                                                            'px-2.5 py-0.5 rounded-full text-[10px] font-bold border inline-block',
+                                                            badge.bg,
+                                                            badge.text,
+                                                            badge.border
+                                                        )}
+                                                    >
+                                                        {badge.label}
+                                                    </span>
+                                                    <div className="text-[9px] text-slate-400 mt-0.5 truncate max-w-[120px] mx-auto">
+                                                        {r.peligroClasificacion}
+                                                    </div>
+                                                </td>
+
+                                                {/* Fecha */}
+                                                <td className="py-3 px-4 text-slate-500 dark:text-zinc-400 text-[11px] whitespace-nowrap">
+                                                    {r.dateFormatted}
+                                                </td>
+
+                                                {/* Acciones */}
+                                                <td className="py-3 px-4 text-right whitespace-nowrap">
+                                                    <div className="flex items-center justify-end gap-1.5">
+                                                        {/* Ver Informe */}
+                                                        <button
+                                                            onClick={() => handleViewReport(r)}
+                                                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95 cursor-pointer"
+                                                            title="Ver y editar informe técnico en Live Editor"
+                                                        >
+                                                            <Eye className="w-3.5 h-3.5 shrink-0" />
+                                                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[80px] group-hover:opacity-100 sm:flex">
+                                                                <span className="text-[10px] font-bold">Ver</span>
+                                                            </div>
+                                                        </button>
+
+                                                        {/* Integrar a Matriz */}
+                                                        <button
+                                                            onClick={() => handleOpenApplyModal(r.rawItem, r.source === 'inbox')}
+                                                            className={cn(
+                                                                "group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 cursor-pointer",
+                                                                isApplied
+                                                                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100"
+                                                                    : "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100"
+                                                            )}
+                                                            title={isApplied ? "Actualizar registro en Matriz IPEVR" : "Homologar e integrar con IA a la Matriz IPEVR"}
+                                                        >
+                                                            <Layers className="w-3.5 h-3.5 shrink-0" />
+                                                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                                                                <span className="text-[10px] font-bold">{isApplied ? 'En Matriz' : 'Integrar'}</span>
+                                                            </div>
+                                                        </button>
+
+                                                        {/* Editar */}
+                                                        <button
+                                                            onClick={() => handleEditReport(r)}
+                                                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-amber-100 transition-all duration-300 px-1.5 shadow-sm active:scale-95 cursor-pointer"
+                                                            title="Editar datos del reporte en el formulario"
+                                                        >
+                                                            <Pencil className="w-3.5 h-3.5 shrink-0" />
+                                                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[80px] group-hover:opacity-100 sm:flex">
+                                                                <span className="text-[10px] font-bold">Editar</span>
+                                                            </div>
+                                                        </button>
+
+                                                        {/* Eliminar */}
+                                                        <button
+                                                            onClick={() => handleDeleteReport(r)}
+                                                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-400 hover:text-red-600 transition-all duration-300 px-1.5 shadow-sm active:scale-95 cursor-pointer"
+                                                            title="Eliminar reporte"
+                                                        >
+                                                            <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                                                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[80px] group-hover:opacity-100 sm:flex">
+                                                                <span className="text-[10px] font-bold">Eliminar</span>
+                                                            </div>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -1590,7 +2209,7 @@ const ParticipacionIPEVAR = () => {
             )}
 
             {/* Form */}
-            <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
+            <div ref={formBoxRef} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
                 <button onClick={() => setIsFormExpanded(!isFormExpanded)} className="w-full flex items-center justify-between p-4 bg-surface-tertiary">
                     <div className="flex items-center gap-2">
                         {isFormExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
@@ -1970,6 +2589,7 @@ const ParticipacionIPEVAR = () => {
             </div>
 
             {/* Generated Report Editor */}
+            <div ref={reportBoxRef}>
                 <CollapsibleReportBox onSave={handleSave}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
@@ -1993,6 +2613,7 @@ const ParticipacionIPEVAR = () => {
                         />
                     </div>
                 </CollapsibleReportBox>
+            </div>
         
             {/* Upgrade Modal (Freemium Teaser) */}
             {showUpgradeModal && (

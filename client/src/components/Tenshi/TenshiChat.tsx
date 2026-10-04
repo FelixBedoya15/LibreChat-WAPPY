@@ -494,18 +494,27 @@ export default function TenshiChat() {
         if (isUserTranscription) {
           lastUserTranscriptionRef.current = text;
 
-          // CRÍTICO: Si el usuario vuelve a hablar mientras Tenshi esperaba a un especialista o hablaba:
-          // abortar de inmediato la espera previa para priorizar y responder a la nueva consulta sin trabas
-          if (pendingAgentConsultationRef.current?.active) {
-            console.log('[Tenshi Voice] Nueva intervención del usuario detectada. Cancelando espera de especialista previa.');
-            pendingAgentConsultationRef.current.active = false;
-            setIsWaitingConsultation(false);
-            if (consultationTimerRef.current) {
-              clearTimeout(consultationTimerRef.current);
-              consultationTimerRef.current = null;
+          // Solo considerar interrupción genuina del usuario si Tenshi NO está reproduciendo su propio audio
+          // y si el texto tiene suficiente longitud para no ser ruido acústico o eco del altavoz
+          const trimmed = (text || '').trim();
+          const wordCount = trimmed.split(/\s+/).length;
+          const isRealSpeech = wordCount >= 3;
+
+          if (isRealSpeech && !isTenshiSpeaking && activeSourcesRef.current.length === 0) {
+            if (pendingAgentConsultationRef.current?.active) {
+              console.log('[Tenshi Voice] Nueva consulta del usuario detectada. Cancelando espera previa de especialista.');
+              pendingAgentConsultationRef.current.active = false;
+              setIsWaitingConsultation(false);
+              if (consultationTimerRef.current) {
+                clearTimeout(consultationTimerRef.current);
+                consultationTimerRef.current = null;
+              }
             }
           }
-          if (activeSourcesRef.current.length > 0 || isTenshiSpeaking) {
+
+          // Solo interrumpir el audio en curso si es habla real intencionada del usuario (3 o más palabras)
+          if (isRealSpeech && (activeSourcesRef.current.length > 0 || isTenshiSpeaking)) {
+            console.log('[Tenshi Voice] Interrupción intencional del usuario detectada:', text);
             clearAudioQueue();
             sendVoiceInterruptRef.current();
           }
@@ -1029,26 +1038,31 @@ export default function TenshiChat() {
           Boolean(isWaitingConsultation);
 
         if (isWaiting) {
-          // Timeout de seguridad ágil de 12 segundos por si el agente tarda o no responde
-          if (
-            pendingAgentConsultationRef.current &&
-            Date.now() - pendingAgentConsultationRef.current.timestamp > 12 * 1000
-          ) {
-            console.warn('[Tenshi Voice] Timeout de seguridad (12s) esperando respuesta del especialista.');
+          const isStillStreaming = Boolean(isChatSubmittingRef.current);
+          const timeSinceTextChange = Date.now() - (lastContentChangeRef.current?.time || Date.now());
+          const timeSinceStart = Date.now() - (pendingAgentConsultationRef.current?.timestamp || Date.now());
+
+          // Mantener la espera activa mientras el chat esté generando, o haya recibido texto recientemente (< 25s),
+          // o lleve menos de 75 segundos desde el inicio de la consulta (los especialistas tardan entre 15 y 45s)
+          if (isStillStreaming || timeSinceTextChange < 25000 || timeSinceStart < 75000) {
+            lastActivityRef.current = Date.now();
+            setInactivitySeconds(0);
+            return;
+          }
+
+          // Timeout de seguridad real prolongado (75s sin respuesta)
+          if (pendingAgentConsultationRef.current && timeSinceStart >= 75000) {
+            console.warn('[Tenshi Voice] Timeout de seguridad (75s) esperando respuesta del especialista.');
             const timedOutAgent = pendingAgentConsultationRef.current.agentName;
             pendingAgentConsultationRef.current.active = false;
             setIsWaitingConsultation(false);
             if (isVoiceActive) {
               lastActivityRef.current = Date.now();
               setVoiceStatusText('Tenshi te escucha...');
-              sendTextMessage(`[SISTEMA INTERNO WAPPY]: La consulta a ${timedOutAgent} ya quedó abierta en la pantalla. Dile al usuario con tono fresco y amigable en una sola frase breve que el especialista está procesando la respuesta en el chat y que tú estás atenta a cualquier otra pregunta.`);
+              sendTextMessage(`[SISTEMA INTERNO WAPPY]: La consulta a ${timedOutAgent} tardó más de lo usual. Dile al usuario con tono fresco y amigable en una sola frase breve que la consulta quedó abierta en el chat para cuando el especialista termine.`);
             }
-          } else {
-            // Mantener actividad fresca y el contador en cero mientras el especialista genera su dictamen
-            lastActivityRef.current = Date.now();
-            setInactivitySeconds(0);
-            return;
           }
+          return;
         }
 
         const elapsed = Math.floor((Date.now() - lastActivityRef.current) / 1000);
@@ -1183,12 +1197,23 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
       setVoiceStatusText(`${consultation.agentName} finalizó respuesta...`);
 
       consultationTimerRef.current = setTimeout(() => {
-        if (!pendingAgentConsultationRef.current || !pendingAgentConsultationRef.current.active) {
-          return;
+        let finalMsg = (latestChatMessageRef.current?.text || rawMsgText).trim();
+        // Fallback robusto al DOM si el estado de Recoil está en sincronización o es tardío
+        if (finalMsg.length < 25 || finalMsg.includes('Pensando respuesta...')) {
+          const messageEls = document.querySelectorAll<HTMLElement>(
+            '[data-message-id]:not([data-is-user="true"]) .markdown, [class*="text-message"]:not([data-is-user="true"]), article:not([data-is-user="true"]) .markdown'
+          );
+          if (messageEls.length > 0) {
+            const domText = (messageEls[messageEls.length - 1].innerText || '').trim();
+            if (domText.length >= 25 && !domText.includes('Pensando respuesta...')) {
+              finalMsg = domText;
+            }
+          }
         }
 
-        const finalMsg = (latestChatMessageRef.current?.text || rawMsgText).trim();
         if (finalMsg.length < 25 || finalMsg.includes('Pensando respuesta...')) {
+          console.warn('[Tenshi] Mensaje de especialista aún incompleto, esperando sincronización...');
+          consultationTimerRef.current = null;
           return;
         }
 
@@ -1207,7 +1232,7 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
           clearAudioQueue();
           setIsPlayingAudioRef.current?.(true);
           setVoiceStatusText(`Tenshi respondiendo sobre ${consultation.agentName}...`);
-          const promptForTenshi = `[SISTEMA INTERNO WAPPY]: El usuario te pidió consultar a ${consultation.agentName} sobre: "${consultation.question}". El ${consultation.agentName} acaba de responder lo siguiente en el chat:\n\n"""\n${finalMsg.substring(0, 1200)}\n"""\n\nINSTRUCCIÓN PARA TENSHI: En voz alta al usuario, habla con tu estilo fresco, profesional y cercano. Confírmale en 2 o 3 oraciones concisas el punto técnico principal que dictaminó el ${consultation.agentName}, y añade tu recomendación como Tenshi para avanzar en la plataforma o en el SG-SST.`;
+          const promptForTenshi = `[SISTEMA INTERNO WAPPY]: El especialista ${consultation.agentName} YA TERMINÓ de responder en pantalla a la consulta: "${consultation.question}". Su respuesta técnica oficial es la siguiente:\n\n"""\n${finalMsg.substring(0, 1400)}\n"""\n\nINSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario confirmándole con tu tono natural y cercano que el ${consultation.agentName} ya respondió. Resúmele en 2 o 3 oraciones claras los puntos técnicos clave que dictaminó, y dale tu recomendación Tenshi para avanzar. NUNCA digas que aún no ha respondido.`;
           sendTextMessage(promptForTenshi);
         }
 
@@ -1231,7 +1256,7 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
             .then(() => refetchHistoryRef.current?.())
             .catch((err) => console.error('[Tenshi] Error saving consultation summary:', err));
         }
-      }, 1000);
+      }, 700);
     }
   }, [latestChatMessage, isChatSubmitting, isVoiceActive, sendTextMessage]);
 
