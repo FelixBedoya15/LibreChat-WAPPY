@@ -243,19 +243,36 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         textAreaRef.current.focus();
       }
 
-      try {
-        console.log('[ChatForm] Enviando consulta delegada con submitMessage directo');
-        submitMessage({ text: prompt });
-      } catch (err) {
-        console.warn('[ChatForm] Error en submitMessage directo, intentando fallback de form:', err);
-        const formEl =
-          document.querySelector('form[data-testid="chat-form"]') || document.querySelector('form');
-        if (formEl && typeof (formEl as any).requestSubmit === 'function') {
-          (formEl as any).requestSubmit();
-        } else {
+      let submitted = false;
+      const formEl =
+        document.querySelector<HTMLFormElement>('form[data-testid="chat-form"]') ||
+        document.querySelector<HTMLFormElement>('form');
+      if (formEl && typeof formEl.requestSubmit === 'function') {
+        try {
+          formEl.requestSubmit();
+          submitted = true;
+        } catch (formErr) {
+          console.warn('[ChatForm] Error en formEl.requestSubmit:', formErr);
+        }
+      }
+
+      if (!submitted) {
+        try {
+          console.log('[ChatForm] Enviando consulta delegada con submitMessage directo');
+          submitMessage({ text: prompt });
+          submitted = true;
+        } catch (err) {
+          console.warn('[ChatForm] Error en submitMessage directo, intentando fallback de form:', err);
           submitButtonRef.current?.click();
         }
       }
+
+      setTimeout(() => {
+        if (textAreaRef.current && textAreaRef.current.value === prompt) {
+          console.log('[ChatForm] Watchdog: reintentando click en submitButtonRef...');
+          submitButtonRef.current?.click();
+        }
+      }, 250);
     },
     [methods, submitMessage, textAreaRef, submitButtonRef],
   );

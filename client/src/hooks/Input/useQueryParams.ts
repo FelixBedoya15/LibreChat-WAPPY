@@ -19,7 +19,7 @@ import type {
 } from 'librechat-data-provider';
 import type { ZodAny } from 'zod';
 import { getConvoSwitchLogic, getModelSpecIconURL, removeUnavailableTools, logger } from '~/utils';
-import { claimAutoSubmit } from '~/utils/tenshiSubmitGuard';
+import { claimAutoSubmit, releaseAutoSubmit } from '~/utils/tenshiSubmitGuard';
 import { useAuthContext, useAgentsMap, useDefaultConvo, useSubmitMessage } from '~/hooks';
 import { useChatContext, useChatFormContext } from '~/Providers';
 import { useGetAgentByIdQuery } from '~/data-provider';
@@ -296,19 +296,49 @@ export default function useQueryParams({
       textAreaRef.current.value = textToSend;
       textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
       textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+      textAreaRef.current.focus();
     }
 
-    console.log('[useQueryParams] Auto-submitting prompt directamente vía submitMessage:', textToSend);
-    try {
-      submitMessage({ text: textToSend });
-    } catch (err) {
-      console.warn('[useQueryParams] Fallback de envío:', err);
-      const sendBtn = (document.getElementById('send-button') ||
-        document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
-      if (sendBtn && !sendBtn.disabled) {
-        sendBtn.click();
+    console.log('[useQueryParams] Auto-submitting prompt vía formulario y submitMessage:', textToSend);
+    let submitted = false;
+    const formEl =
+      document.querySelector<HTMLFormElement>('form[data-testid="chat-form"]') ||
+      document.querySelector<HTMLFormElement>('form');
+    if (formEl && typeof formEl.requestSubmit === 'function') {
+      try {
+        formEl.requestSubmit();
+        submitted = true;
+      } catch (formErr) {
+        console.warn('[useQueryParams] Error en formEl.requestSubmit:', formErr);
       }
     }
+
+    if (!submitted) {
+      try {
+        submitMessage({ text: textToSend });
+        submitted = true;
+      } catch (err) {
+        console.warn('[useQueryParams] Fallback de envío:', err);
+        const sendBtn = (document.getElementById('send-button') ||
+          document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
+        if (sendBtn && !sendBtn.disabled) {
+          sendBtn.click();
+          submitted = true;
+        }
+      }
+    }
+
+    // Watchdog de verificación rápida: Si tras 250ms el prompt sigue visible en el textarea sin haber sido procesado
+    setTimeout(() => {
+      if (textAreaRef.current && textAreaRef.current.value === textToSend) {
+        const sendBtn = (document.getElementById('send-button') ||
+          document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
+        if (sendBtn && !sendBtn.disabled) {
+          console.log('[useQueryParams] Watchdog: Forzando click en send-button...');
+          sendBtn.click();
+        }
+      }
+    }, 250);
 
     const newUrl = window.location.pathname;
     window.history.replaceState({}, '', newUrl);

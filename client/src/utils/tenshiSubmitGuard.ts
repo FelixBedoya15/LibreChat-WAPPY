@@ -31,3 +31,12 @@ export function claimAutoSubmit(prompt: string): boolean {
   lastClaim = { prompt: normalized, time: now };
   return true;
 }
+
+/**
+ * Libera el reclamo de un prompt para permitir reintentos inmediatos si falló el despacho.
+ */
+export function releaseAutoSubmit(prompt?: string): void {
+  if (!prompt || (lastClaim && lastClaim.prompt === normalize(prompt))) {
+    lastClaim = null;
+  }
+}
