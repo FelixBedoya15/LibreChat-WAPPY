@@ -13,8 +13,8 @@ const { downgradeUserIfExpired } = require('../services/planExpirationJob');
  */
 const checkAccountStatus = async (req, res, next) => {
     try {
-        const freeRoles = ['ADMIN', 'USER_IPEVAR', 'IPEVAR'];
-        if (req.user && !freeRoles.includes(req.user.role) && req.user.inactiveAt) {
+        const isLifetime = ['USER_IPEVAR', 'IPEVAR'].includes(req.user?.role) && !req.user?.inactiveAt;
+        if (req.user && req.user.role !== 'ADMIN' && !isLifetime && req.user.inactiveAt) {
             const now = new Date();
             const inactiveAt = new Date(req.user.inactiveAt);
 

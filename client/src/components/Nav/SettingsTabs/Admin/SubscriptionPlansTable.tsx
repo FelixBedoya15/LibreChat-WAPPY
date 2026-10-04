@@ -4,13 +4,13 @@ import { useToastContext } from '@librechat/client';
 import { Button } from '@librechat/client';
 import { Eye, EyeOff, Settings2, Save, CheckCircle2 } from 'lucide-react';
 
-// Default visibility (only Pro shown, no extra sections)
+// Default visibility (Pro and Vital Anual shown by default)
 const DEFAULT_VISIBILITY = {
     showPlanFree: false,
     showPlanGo: false,
     showPlanPlus: false,
     showPlanPro: true,
-    showSectionAppPlans: false,
+    showSectionAppPlans: true,
     showSectionCustomPlan: false,
     showSectionEnterprise: false,
 };
@@ -27,6 +27,7 @@ interface VisibilitySettings {
 
 const VISIBILITY_ITEMS: Array<{ key: keyof VisibilitySettings; label: string; description: string; color: string }> = [
     { key: 'showPlanPro',           label: 'Plan Wappy Pro ⭐',        description: 'Muestra el plan Wappy Pro — Recomendado',            color: 'text-amber-500' },
+    { key: 'showSectionAppPlans',   label: 'Plan Wappy Vital (Anual)', description: 'Muestra el plan Wappy Vital Anual',                 color: 'text-emerald-500' },
     { key: 'showSectionCustomPlan', label: 'Sección: Plan a la Medida',description: 'Muestra el constructor de plan personalizado',     color: 'text-fuchsia-500' },
     { key: 'showSectionEnterprise', label: 'Sección: Planes Corporativos', description: 'Muestra los planes empresariales y asesores', color: 'text-violet-500' },
 ];
@@ -249,10 +250,10 @@ export default function SubscriptionPlansTable() {
             </div>
 
             {/* ── PLAN PRICING CARDS ──────────────────────────────────── */}
-            {plans.filter((p) => !['free', 'go', 'plus', 'ipevar'].includes(p.planId)).map((plan) => (
+            {plans.filter((p) => !['free', 'go', 'plus'].includes(p.planId)).map((plan) => (
                 <div key={plan.planId} className="border border-slate-200/80 dark:border-zinc-800 rounded-2xl overflow-hidden bg-white dark:bg-zinc-900 shadow-2xs">
                     <div className="bg-slate-50/90 dark:bg-zinc-800/80 px-6 py-4 flex justify-between items-center border-b border-slate-200/80 dark:border-zinc-800">
-                        <h3 className="text-base font-bold capitalize text-slate-800 dark:text-zinc-100">Plan {plan.planId === 'ipevar' ? 'Wappy Vital' : plan.name}</h3>
+                        <h3 className="text-base font-bold capitalize text-slate-800 dark:text-zinc-100">Plan {plan.planId === 'ipevar' ? 'Wappy Vital (Anual)' : plan.name}</h3>
                         <button
                             onClick={() => handleSave(plan)}
                             className="flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white cursor-pointer"
@@ -263,10 +264,10 @@ export default function SubscriptionPlansTable() {
                     </div>
 
                     <div className="p-6 flex flex-row overflow-x-auto gap-6 bg-surface-primary pb-8 custom-admin-scrollbar">
-                        {(plan.planId === 'ipevar' ? ['lifetime'] : ['monthly', 'quarterly', 'semiannual', 'annual']).map(interval => (
+                        {(plan.planId === 'ipevar' ? ['annual'] : ['monthly', 'quarterly', 'semiannual', 'annual']).map(interval => (
                             <div key={interval} className="min-w-[260px] flex-1 border border-border-medium/60 bg-surface-secondary rounded-xl p-4 shadow-sm flex flex-col gap-5">
                                 <h4 className="font-bold text-lg capitalize text-primary text-center pb-3 border-b border-border-light">
-                                    {interval === 'monthly' ? 'Mensual' : interval === 'quarterly' ? 'Trimestral' : interval === 'semiannual' ? 'Semestral' : interval === 'annual' ? 'Anual' : 'De Por Vida (Lifetime)'}
+                                    {interval === 'monthly' ? 'Mensual' : interval === 'quarterly' ? 'Trimestral' : interval === 'semiannual' ? 'Semestral' : 'Anual (1 Año)'}
                                 </h4>
 
                                 <div>

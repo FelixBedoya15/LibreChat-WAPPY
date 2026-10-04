@@ -413,7 +413,7 @@ class VoiceSession {
                         },
                         {
                             name: "canvas_tool",
-                            description: "Crea archivos descargables que el usuario recibe en el chat de Tenshi (con botón de descarga) y en el lienzo Canvas: documentos Word ('text'), hojas de cálculo Excel ('excel'), aplicativos/páginas HTML interactivos ('html') o presentaciones ('presentation'). INVÓCALA siempre que el usuario pida crear, redactar, generar o entregar un documento, informe, protocolo, formato, matriz, tabla, hoja de cálculo, aplicativo, dashboard o página. Cada invocación con accion='crear' genera un archivo NUEVO e independiente.",
+                            description: "Crea archivos descargables que el usuario recibe en el chat de Tenshi (con botón de descarga) y en el lienzo Canvas: documentos Word ('text'), hojas de cálculo Excel ('excel'), aplicativos/páginas HTML interactivos ('html') o presentaciones ('presentation'). INVÓCALA siempre que el usuario pida crear, redactar, generar o entregar un documento, informe, protocolo, formato, matriz, tabla, hoja de cálculo, aplicativo, prototipo, landing page, dashboard o página. Cada invocación con accion='crear' genera un archivo NUEVO e independiente.",
                             parameters: {
                                 type: "object",
                                 properties: {
@@ -425,18 +425,18 @@ class VoiceSession {
                                     fileType: {
                                         type: "string",
                                         enum: ["html", "text", "excel", "presentation"],
-                                        description: "Tipo de archivo según lo que pida el usuario: 'text' = documento Word (informes, protocolos, políticas, actas, cartas, procedimientos); 'excel' = hoja de cálculo (matrices, listados, indicadores tabulares, cronogramas); 'html' = aplicativo o página web interactiva (dashboards, calculadoras, apps); 'presentation' = diapositivas. Si el usuario dice 'en HTML', usa 'html'; si dice 'en Word', usa 'text'; si dice 'en Excel', usa 'excel'."
+                                        description: "Tipo de archivo según lo que pida el usuario: 'text' = documento Word (informes, protocolos, políticas, actas, cartas, procedimientos); 'excel' = hoja de cálculo (matrices, listados, indicadores tabulares, cronogramas); 'html' = aplicativo, prototipo o página web interactiva (landing pages, dashboards, calculadoras, apps interactivas); 'presentation' = diapositivas. Si el usuario dice 'landing page', 'prototipo', 'aplicativo', 'página' o 'en HTML', usa 'html'; si dice 'en Word', usa 'text'; si dice 'en Excel', usa 'excel'."
                                     },
                                     title: {
                                         type: "string",
-                                        description: "Título fiel a lo que pidió el usuario (ej: 'Protocolo de Despido Laboral', 'Indicadores de Accidentalidad Res. 0312')."
+                                        description: "Título fiel a lo que pidió el usuario (ej: 'Protocolo de Despido Laboral', 'Indicadores de Accidentalidad Res. 0312', 'Landing Page de Incapacidades Prolongadas')."
                                     },
                                     content: {
                                         type: "string",
-                                        description: "Contenido COMPLETO del archivo, sobre el tema EXACTO que pidió el usuario. Formato según fileType: 'text' → documento completo en Markdown con título, secciones numeradas, marco legal colombiano aplicable y contenido desarrollado (no un resumen). 'excel' → JSON de un arreglo bidimensional, primera fila = encabezados, ej: [[\"Nombre\",\"Cargo\"],[\"Ana\",\"Operaria\"]]. 'html' → descripción detallada de lo que debe hacer el aplicativo (secciones, campos, cálculos y gráficos) o el código HTML5 completo. 'presentation' → JSON de diapositivas, ej: [{\"title\":\"Tema\",\"bullets\":[\"Punto 1\",\"Punto 2\"]}]."
+                                        description: "Contenido del archivo (opcional si es 'html' ya que el sistema lo genera automáticamente con Tailwind y gráficos si se omite, obligatorio para text/excel)."
                                     }
                                 },
-                                required: ["accion", "fileType", "title", "content"]
+                                required: ["accion", "fileType", "title"]
                             }
                         },
                         {
@@ -828,7 +828,14 @@ class VoiceSession {
 - El usuario habla ÚNICA Y EXCLUSIVAMENTE en ESPAÑOL.
 - ESTÁ TERMINANTEMENTE PROHIBIDO interpretar o responder en inglés o cualquier otro idioma. Prohibido añadir coletillas en inglés ("not medical advice", "as an AI...").
 - PROHIBICIÓN ABSOLUTA DE AVISOS O ADVERTENCIAS PATERNALISTAS: NUNCA digas "esto no es un consejo médico", "recuerda consultar a un profesional de la salud", "no reemplaza la asesoría jurídica" ni nada por el estilo. WAPPY es una plataforma profesional empresarial de SG-SST. Proporciona las respuestas técnicas y especializadas con rigor, sin sermones ni disclaimers.
-- VERIFICACIÓN ANTES DE AFIRMAR: NUNCA afirmes que un archivo, pantalla o documento está creado o visible sin haber recibido el resultado de ÉXITO de la herramienta. Si el usuario te dice que no ve nada o que la pantalla tiene otro contenido, ESTÁ PROHIBIDO insistir ("le aseguro que está en su pantalla"); en su lugar, invoca DE INMEDIATO 'leer_pantalla' para verificar la realidad antes de contestar.
+
+[REGLA DE ORO DE VERACIDAD Y GROUNDING - PROHIBICIÓN DE AFIRMAR ACCIONES NO EJECUTADAS]:
+- ESTÁ TERMINANTEMENTE PROHIBIDO afirmar verbalmente que has creado un archivo, landing page, prototipo, o que has buscado en Google Drive o que has abierto un chat SI NO ESTÁS INVOCANDO EL TOOL CALL EN ESTE MISMO TURNO O SI NO HAS RECIBIDO SU RESULTADO EXITOSO.
+- NUNCA digas "¡Listo! Ya creé...", "Ya desplegué...", "Ya busqué..." si no estás enviando el Tool Call correspondiente.
+- SI EL USUARIO PIDE UN PROTOTIPO / LANDING PAGE / APLICATIVO INTERACTIVO: TÚ MISMA como Tenshi tienes la herramienta 'canvas_tool' para crear aplicaciones HTML interactivas con Tailwind y gráficos. INVÓCALA DE INMEDIATO con fileType: 'html'. NO digas que ya lo creaste sin invocar 'canvas_tool'.
+- DISTINCIÓN ESTRICTA ENTRE GOOGLE DRIVE Y CANVAS: Si el usuario te pregunta por qué no encontraste un archivo, o insiste en que sí tiene una política, matriz o documento guardado en su empresa o Google Drive, INVOCA 'google_drive' con action: 'list_files_and_folders'. ESTÁ ESTRICTAMENTE PROHIBIDO invocar 'canvas_tool' para inventar un documento nuevo cuando el usuario está discutiendo sobre sus archivos existentes en Google Drive.
+- CONTINUIDAD CON EL ESPECIALISTA EN PANTALLA: Si ya estás con un especialista en pantalla (ej. Médico Laboral) y el usuario dice "dile que...", "pregúntale qué...", "continúa...", se trata de una continuación en la conversación actual.
+- SI EL USUARIO DICE QUE NO VE NADA O QUE LA PANTALLA TIENE OTRO CONTENIDO: ESTÁ PROHIBIDO insistir ("le aseguro que está en su pantalla"); en su lugar, invoca DE INMEDIATO 'leer_pantalla' para verificar la realidad antes de contestar.
 - AGILIDAD POR DEFECTO: En saludos, confirmaciones de acciones y navegación ordinaria, habla de forma concisa y directa (1 a 2 oraciones).
 - EXCEPCIÓN OBLIGATORIA (LECTURA Y EXPLICACIÓN DE RESPUESTAS TÉCNICAS E INFORMES):
   * Si el usuario te pregunta por lo que dijo un especialista, te pide leer la respuesta, o te dice "léelo", "léemelo", "por qué lo resumes", "no lo resumas", "qué dice exactamente", "revisa la pantalla", "léeme el texto completo":
@@ -1552,105 +1559,15 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     }
 
                     // Manejo directo de Canvas / Archivos (Word, Excel, HTML, Presentación) en modo voz.
-                    // Cada creación usa un conversationId ÚNICO para no sobrescribir/reutilizar un canvas viejo,
-                    // y solo se notifica éxito si CanvasTool devolvió success === true.
                     if (fc.name === 'canvas_tool' || fc.name === 'canvas') {
                         logger.info(`[VoiceSession] Gemini Live invoked tool "canvas_tool" with title: "${fc.args?.title}", fileType: "${fc.args?.fileType}"`);
-                        const allowedTypes = ['text', 'excel', 'html', 'presentation'];
-                        const canvasArgs = { ...(fc.args || {}) };
-                        canvasArgs.accion = 'crear';
-                        if (!allowedTypes.includes(canvasArgs.fileType)) canvasArgs.fileType = 'html';
-                        if (!canvasArgs.title || !String(canvasArgs.title).trim()) canvasArgs.title = 'Documento SG-SST';
-
-                        const fileTypeLabel = { text: 'Word', excel: 'Excel', html: 'HTML', presentation: 'presentación' }[canvasArgs.fileType];
-                        const uniqueCanvasId = `tenshi-canvas-${this.userId}-${Date.now()}`;
-                        const userRequestText = (this.userTranscriptionText || '').trim() || this.lastUserRequest || canvasArgs.title;
-                        const canvasReq = {
-                            ...toolReq,
-                            body: { ...toolReq.body, conversationId: uniqueCanvasId, text: userRequestText }
-                        };
-
-                        let ok = false;
-                        let failReason = '';
-                        let generatedContent = '';
-                        let finalTitle = canvasArgs.title;
-
-                        // Validación previa de JSON para Excel / Presentación
-                        if ((canvasArgs.fileType === 'excel' || canvasArgs.fileType === 'presentation') && typeof canvasArgs.content === 'string') {
-                            try {
-                                JSON.parse(canvasArgs.content);
-                            } catch (jsonErr) {
-                                failReason = `El contenido para ${fileTypeLabel} no es un JSON válido (${jsonErr.message}). Para Excel debe ser un arreglo 2D, ej: [["Columna1","Columna2"],["valor","valor"]].`;
-                            }
-                        }
-                        if (!failReason && !canvasArgs.content && canvasArgs.fileType !== 'html') {
-                            failReason = 'No se envió contenido para el archivo.';
-                        }
-
-                        if (!failReason) {
-                            this.sendToClient({
-                                type: 'status',
-                                data: { status: 'loading', message: `Creando archivo ${fileTypeLabel}...` }
-                            });
-                            try {
-                                const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
-                                const canvasTool = new CanvasTool({ req: canvasReq });
-                                const canvasOutput = await canvasTool._call(canvasArgs);
-                                let parsedOutput = null;
-                                try {
-                                    parsedOutput = typeof canvasOutput === 'string' ? JSON.parse(canvasOutput) : canvasOutput;
-                                } catch (_) {
-                                    parsedOutput = null;
-                                }
-                                if (parsedOutput?.success === true) {
-                                    const CanvasSession = require('~/models/CanvasSession');
-                                    const sessionDoc = await CanvasSession.findOne({ user: this.userId, conversationId: uniqueCanvasId }).lean();
-                                    if (sessionDoc?.content) {
-                                        generatedContent = typeof sessionDoc.content === 'string' ? sessionDoc.content : JSON.stringify(sessionDoc.content);
-                                        finalTitle = sessionDoc.title || finalTitle;
-                                        ok = true;
-                                    } else {
-                                        failReason = 'El archivo se procesó pero quedó vacío.';
-                                    }
-                                } else {
-                                    failReason = parsedOutput?.error || 'La herramienta de archivos no confirmó la creación.';
-                                }
-                            } catch (cErr) {
-                                logger.error('[VoiceSession] Error in backend CanvasTool execution:', cErr);
-                                failReason = cErr?.message || 'Error interno al crear el archivo.';
-                            }
-                        }
-
-                        if (ok) {
-                            this.sendToClient({
-                                type: 'wappy_action',
-                                data: {
-                                    id: fc.id,
-                                    name: 'canvas_tool',
-                                    args: {
-                                        ...canvasArgs,
-                                        title: finalTitle,
-                                        content: generatedContent
-                                    },
-                                    content: generatedContent,
-                                    fileType: canvasArgs.fileType,
-                                    title: finalTitle,
-                                    canvasId: uniqueCanvasId
-                                }
-                            });
-                        } else {
-                            logger.warn(`[VoiceSession] canvas_tool failed: ${failReason}`);
-                            this.sendToClient({
-                                type: 'status',
-                                data: { status: 'idle', message: '' }
-                            });
-                        }
+                        const userRequestText = (this.userTranscriptionText || '').trim() || this.lastUserRequest || fc.args?.title;
+                        const res = await this.executeCanvasTool(fc.args, userRequestText, fc.id);
 
                         if (this.geminiClient) {
-                            // Una sola respuesta (sin sendText adicional) para evitar confirmaciones dobles.
-                            const resultText = ok
-                                ? `ÉXITO: El archivo ${fileTypeLabel} "${finalTitle}" fue creado y quedó en el chat de Tenshi con botón de descarga. Confírmalo al usuario en UNA sola frase breve en español, sin leer el contenido y sin añadir advertencias.`
-                                : `FALLO: NO se pudo crear el archivo ${fileTypeLabel} "${canvasArgs.title}". Motivo: ${failReason}. Dile honestamente al usuario en español que no se pudo crear y ofrécele intentarlo de nuevo. PROHIBIDO decir que el archivo está en pantalla.`;
+                            const resultText = res.ok
+                                ? `ÉXITO: El archivo ${res.fileTypeLabel} "${res.finalTitle}" fue creado y quedó en el chat de Tenshi con botón de descarga y en el lienzo Canvas. Confírmalo al usuario en UNA sola frase breve en español, sin leer el contenido y sin añadir advertencias.`
+                                : `FALLO: NO se pudo crear el archivo ${res.fileTypeLabel} "${fc.args?.title}". Motivo: ${res.failReason}. Dile honestamente al usuario en español que no se pudo crear y ofrécele intentarlo de nuevo. PROHIBIDO decir que el archivo está en pantalla.`;
                             this.geminiClient.sendToolResponse([{
                                 id: fc.id,
                                 name: fc.name,
@@ -2728,6 +2645,24 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                 this.aiAudioChunkCount = 0;
                 break;
 
+            case 'screen_context':
+                if (data) {
+                    if (data.conversationId && data.conversationId !== 'new') {
+                        this.conversationId = data.conversationId;
+                    }
+                    if (data.agentId || data.agentName) {
+                        this.activeScreenAgent = {
+                            id: data.agentId,
+                            name: data.agentName
+                        };
+                    }
+                    if (data.route) {
+                        this.activeScreenRoute = data.route;
+                    }
+                    logger.info(`[VoiceSession] Updated screen context: conversationId=${this.conversationId}, activeScreenAgent=${JSON.stringify(this.activeScreenAgent)}, route=${this.activeScreenRoute}`);
+                }
+                break;
+
             default:
                 logger.warn(`[VoiceSession] Unknown message type: ${type}`);
         }
@@ -3079,6 +3014,139 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             logger.error('[VoiceSession] Error correcting transcription:', error);
             return sanitizeTranscription(userText); // Fallback to sanitized
         }
+    }
+
+    /**
+     * Ejecuta la creación de archivos Canvas (Word, Excel, HTML, Presentación)
+     * asegurando sincronización con pantalla y entrega en chat de Tenshi.
+     */
+    async executeCanvasTool(canvasArgs = {}, userRequestText = '', actionId = null) {
+        const allowedTypes = ['text', 'excel', 'html', 'presentation'];
+        const args = { ...canvasArgs };
+        args.accion = 'crear';
+        if (!allowedTypes.includes(args.fileType)) args.fileType = 'html';
+        if (!args.title || !String(args.title).trim()) args.title = 'Documento SG-SST';
+
+        const fileTypeLabel = { text: 'Word', excel: 'Excel', html: 'HTML', presentation: 'presentación' }[args.fileType];
+        const uniqueCanvasId = `tenshi-canvas-${this.userId}-${Date.now()}`;
+        const userPrompt = userRequestText || args.content || args.title;
+        const toolReq = {
+            user: { id: this.userId, _id: this.userId },
+            body: {
+                conversationId: uniqueCanvasId,
+                text: userPrompt
+            }
+        };
+
+        let ok = false;
+        let failReason = '';
+        let generatedContent = '';
+        let finalTitle = args.title;
+
+        // Validación previa de JSON para Excel / Presentación
+        if ((args.fileType === 'excel' || args.fileType === 'presentation') && typeof args.content === 'string') {
+            try {
+                JSON.parse(args.content);
+            } catch (jsonErr) {
+                failReason = `El contenido para ${fileTypeLabel} no es un JSON válido (${jsonErr.message}). Para Excel debe ser un arreglo 2D, ej: [["Columna1","Columna2"],["valor","valor"]].`;
+            }
+        }
+        if (!failReason && !args.content && args.fileType !== 'html') {
+            failReason = 'No se envió contenido para el archivo.';
+        }
+
+        if (!failReason) {
+            this.sendToClient({
+                type: 'status',
+                data: { status: 'loading', message: `Creando archivo ${fileTypeLabel}...` }
+            });
+            try {
+                const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
+                const canvasTool = new CanvasTool({ req: toolReq });
+                const canvasOutput = await canvasTool._call(args);
+                let parsedOutput = null;
+                try {
+                    parsedOutput = typeof canvasOutput === 'string' ? JSON.parse(canvasOutput) : canvasOutput;
+                } catch (_) {
+                    parsedOutput = null;
+                }
+                if (parsedOutput?.success === true) {
+                    const CanvasSession = require('~/models/CanvasSession');
+                    const sessionDoc = await CanvasSession.findOne({ user: this.userId, conversationId: uniqueCanvasId }).lean();
+                    if (sessionDoc?.content) {
+                        generatedContent = typeof sessionDoc.content === 'string' ? sessionDoc.content : JSON.stringify(sessionDoc.content);
+                        finalTitle = sessionDoc.title || finalTitle;
+                        ok = true;
+
+                        // Sincronizar en tiempo real con el conversationId activo de pantalla si existe y no es temporal
+                        if (this.conversationId && this.conversationId !== 'new' && !this.conversationId.startsWith('tenshi-')) {
+                            try {
+                                await CanvasSession.findOneAndUpdate(
+                                    { user: this.userId, conversationId: this.conversationId },
+                                    {
+                                        $set: {
+                                            content: sessionDoc.content,
+                                            title: finalTitle,
+                                            fileType: args.fileType,
+                                            updatedAt: new Date(),
+                                        }
+                                    },
+                                    { upsert: true, new: true }
+                                );
+                                logger.info(`[VoiceSession] Synced canvas document with screen conversationId: ${this.conversationId}`);
+                            } catch (syncErr) {
+                                logger.warn(`[VoiceSession] Could not sync canvas to screen conversationId:`, syncErr);
+                            }
+                        }
+                    } else {
+                        failReason = 'El archivo se procesó pero quedó vacío.';
+                    }
+                } else {
+                    failReason = parsedOutput?.error || 'La herramienta de archivos no confirmó la creación.';
+                }
+            } catch (cErr) {
+                logger.error('[VoiceSession] Error in backend CanvasTool execution:', cErr);
+                failReason = cErr?.message || 'Error interno al crear el archivo.';
+            }
+        }
+
+        if (ok) {
+            this.sendToClient({
+                type: 'wappy_action',
+                data: {
+                    id: actionId || `canvas-${Date.now()}`,
+                    name: 'canvas_tool',
+                    args: {
+                        ...args,
+                        title: finalTitle,
+                        content: generatedContent
+                    },
+                    content: generatedContent,
+                    fileType: args.fileType,
+                    title: finalTitle,
+                    canvasId: uniqueCanvasId
+                }
+            });
+            this.sendToClient({
+                type: 'status',
+                data: { status: 'idle', message: '' }
+            });
+        } else {
+            logger.warn(`[VoiceSession] canvas_tool failed: ${failReason}`);
+            this.sendToClient({
+                type: 'status',
+                data: { status: 'idle', message: '' }
+            });
+        }
+
+        return {
+            ok,
+            failReason,
+            finalTitle,
+            fileTypeLabel,
+            generatedContent,
+            canvasId: uniqueCanvasId
+        };
     }
 
     /**
@@ -4128,6 +4196,16 @@ ${workerSubHeaderHtml}
                     pregunta = qMatch[1].trim();
                 }
 
+                if (pregunta) {
+                    pregunta = pregunta
+                        .replace(/^(?:a\s+la\s+gente|al\s+agente|al\s+doctor|al\s+m[eé]dico|al\s+abogado|al\s+especialista)\s+(?:laboral\s+|m[eé]dico\s+|sst\s+)?(?:que\s+)?/i, '')
+                        .replace(/^que\s+(qu[eé]|c[oó]mo|cu[aá]ndo|d[oó]nde|por\s+qu[eé]|si)\s+/i, '$1 ')
+                        .trim();
+                    if (/^haga\b/i.test(pregunta)) {
+                        pregunta = pregunta.replace(/^haga\b/i, 'Por favor elabora');
+                    }
+                }
+
                 // CRÍTICO: Si el usuario NO suministró una pregunta concreta, NO despachar el failsafe.
                 // Tenshi debe preguntarle verbalmente el contexto antes de abrir el chat.
                 if (!pregunta) {
@@ -4151,7 +4229,35 @@ ${workerSubHeaderHtml}
             }
         }
 
-        // 2. Detección de intención EXPLÍCITA de navegación del usuario
+        // 2. Detección de creación de Prototipos / Landing Pages / Canvas omitidos por Gemini
+        const isLandingOrCanvasRequest = /\b(landing\s*page|prototipo|aplicativo|crea.*(landing|prototipo|p[aá]gina|html|canvas))\b/i.test(userLower);
+        const aiClaimedCreation = /(ya\s+cre[eé]|ya\s+desplegu[eé]|cre[eé]\s+y\s+desplegu[eé]|ya\s+gener[eé]|aqu[ií]\s+tienes\s+la\s+landing|en\s+pantalla\s+la\s+landing|creado\s+como\s+landing|desplegado\s+como\s+landing)/i.test(currentAiText);
+
+        if (isLandingOrCanvasRequest || aiClaimedCreation) {
+            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Detected Canvas/Landing Page generation omitted by Gemini Live. Executing canvas_tool...`);
+            let fileType = 'html';
+            let title = 'Landing Page Interactiva SG-SST';
+            if (/word|informe.*escrito|documento|protocolo/i.test(userLower)) {
+                fileType = 'text';
+                title = 'Documento Técnico SG-SST';
+            } else if (/excel|matriz|c[aá]lculo|hoja de c[aá]lculo/i.test(userLower)) {
+                fileType = 'excel';
+                title = 'Matriz de Datos SG-SST';
+            }
+
+            const promptToUse = userText || 'Landing page interactiva sobre recomendaciones y normatividad laboral SG-SST';
+            this.executeCanvasTool({
+                accion: 'crear',
+                fileType,
+                title,
+                content: promptToUse
+            }, promptToUse).catch(err => {
+                logger.error('[VoiceSession] [Tenshi Voice Failsafe] Error executing canvas_tool failsafe:', err);
+            });
+            return;
+        }
+
+        // 3. Detección de intención EXPLÍCITA de navegación del usuario
         const explicitNavRegex = /^(ll[eé]vame|vamos|abre|abrir|ir a|ir al|mu[eé]strame|ver|consultar|quiero ver)\s+/i;
         if (explicitNavRegex.test(userLower)) {
             let targetModulo = null;

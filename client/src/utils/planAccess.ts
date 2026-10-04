@@ -24,11 +24,18 @@ export const hasActivePlan = (user: any): boolean => {
   // Si el estado de la cuenta está explícitamente inactivo
   if (user.accountStatus === 'inactive') return false;
 
-  // Plan Vital (anteriormente IPEVAR): Acceso vitalicio sin expiración
+  // Plan Vital (anteriormente IPEVAR / Vital):
+  // - Los usuarios que ya lo tenían de por vida (inactiveAt null) lo conservan infinito.
+  // - Las nuevas suscripciones o asignaciones son anuales (1 año) y se controlan por inactiveAt.
   const isVital =
     ['USER_IPEVAR', 'IPEVAR', 'USER_VITAL', 'VITAL'].includes(user.role) ||
     ['ipevar', 'vital'].includes(user.plan);
-  if (isVital) return true;
+  if (isVital) {
+    if (user.inactiveAt && new Date(user.inactiveAt).getTime() <= Date.now()) {
+      return false; // Plan Vital anual expirado
+    }
+    return true; // Plan Vital activo (o infinito de por vida si inactiveAt es null)
+  }
 
   // Plan Wappy Pro: Activo mientras la fecha inactiveAt no haya vencido
   const isPro = user.role === 'USER_PRO' || user.plan === 'pro';

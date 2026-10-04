@@ -276,6 +276,58 @@ const AGENT_TAXONOMY: { id: string; aliases: string[]; keywords: string[]; fallb
   },
 ];
 
+/**
+ * Limpia y normaliza consultas delegadas a especialistas por voz en Tenshi,
+ * eliminando ruidos fonéticos, vocativos de intermediación ("a la gente médico que...", "dile al doctor que...")
+ * y asegurando un prompt técnico profesional en español.
+ */
+export function cleanDelegatedPrompt(raw: string): string {
+  if (!raw) return '';
+  let text = raw.trim();
+
+  // 1. Eliminar prefijos de delegación como "dile a la gente médico que", "dile al médico que", "pregúntale al abogado que"
+  text = text.replace(
+    /^(?:por\s+favor\s+)?(?:dile|preg[uú]ntale|p[ií]dele|consulta(?:le)?|av[ií]sale|comun[ií]cale)\s+(?:a\s+la\s+gente\s+|al\s+agente\s+|al\s+|a\s+la\s+|al\s+doctor\s+|al\s+m[eé]dico\s+|al\s+abogado\s+|al\s+especialista\s+|a\s+[\w\s]+\s+)?(?:que\s+)?/i,
+    ''
+  );
+
+  // 2. Si la transcripción fonética arrancó directamente con "a la gente [médico|abogado|...]" o "al agente [...]"
+  text = text.replace(
+    /^(?:a\s+la\s+gente|al\s+agente|al\s+doctor|al\s+m[eé]dico|al\s+abogado|al\s+especialista)\s+(?:laboral\s+|m[eé]dico\s+|sst\s+)?(?:que\s+)?/i,
+    ''
+  );
+
+  // 3. Eliminar "que qué", "que como", "que cuándo", "que si"
+  text = text.replace(/^que\s+(qu[eé]|c[oó]mo|cu[aá]ndo|d[oó]nde|por\s+qu[eé]|si)\s+/i, '$1 ');
+
+  // 4. Transformar peticiones imperativas truncadas tipo "haga una landing page" -> "Por favor elabora una landing page..."
+  if (/^haga\b/i.test(text)) {
+    text = text.replace(/^haga\b/i, 'Por favor elabora');
+  } else if (/^contin[uú]e\b/i.test(text)) {
+    text = text.replace(/^contin[uú]e\b/i, 'Por favor continúa con la explicación');
+  }
+
+  // 5. Si la pregunta comienza con qué/cómo/cuál/cuándo/por qué, asegurar signos de interrogación si no los tiene
+  text = text.trim();
+  if (/^(qu[eé]|c[oó]mo|cu[aá]l|cu[aá]ndo|qui[eé]n|d[oó]nde|por\s+qu[eé])\b/i.test(text)) {
+    if (!text.startsWith('¿')) {
+      text = '¿' + text;
+    }
+    if (!text.endsWith('?')) {
+      text = text + '?';
+    }
+  }
+
+  // Capitalizar primera letra (o después de ¿)
+  if (text.startsWith('¿') && text.length > 1) {
+    text = '¿' + text.charAt(1).toUpperCase() + text.slice(2);
+  } else if (text.length > 0) {
+    text = text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  return text;
+}
+
 const findMatchingAgent = (targetName: string, agentsList: any[]) => {
   if (!targetName || !agentsList?.length) return null;
   const target = normalizeStr(targetName);
@@ -1058,7 +1110,8 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
             resultMsg = `Navegación exitosa a ${targetRoute}`;
           } else if (action.name === 'wappy_abrir_chat_agente') {
             const rawAgente = (action.args?.agente || '').trim();
-            const pregunta = (action.args?.pregunta || '').trim();
+            const rawPregunta = (action.args?.pregunta || '').trim();
+            const pregunta = cleanDelegatedPrompt(rawPregunta);
             const matchedAgent = findMatchingAgent(rawAgente, agentsRef.current);
             const agentName = matchedAgent ? matchedAgent.name : rawAgente;
 
@@ -1086,10 +1139,49 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
               timestamp: Date.now(),
               initialMessageId,
             };
-            activeConsultationConvoIdRef.current = 'new';
             lastContentChangeRef.current = { text: '', time: Date.now() };
             setIsWaitingConsultation(true);
             setVoiceStatusText(`Esperando a ${agentName}...`);
+
+            const targetAgentId = matchedAgent?.id;
+
+            // CONTINUIDAD CON EL ESPECIALISTA EN PANTALLA:
+            // Si el usuario ya está en /c/:id con este MISMO especialista y no pidió explícitamente "nuevo chat",
+            // NO reiniciar la conversación ni navegar a /c/new. Enviar la consulta en la conversación existente.
+            const isCurrentlyInConversation =
+              window.location.pathname.startsWith('/c/') &&
+              window.location.pathname !== '/c/new' &&
+              conversation?.conversationId &&
+              conversation.conversationId !== 'new';
+
+            const isSameAgentActive =
+              (targetAgentId && conversation?.agent_id === targetAgentId) ||
+              (conversation?.title && matchedAgent?.name && conversation.title.toLowerCase().includes(matchedAgent.name.toLowerCase()));
+
+            const requestedNewChat =
+              /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero)\b/i.test(rawPregunta) ||
+              /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero)\b/i.test(action.args?.pregunta || '');
+
+            if (isCurrentlyInConversation && isSameAgentActive && !requestedNewChat) {
+              console.log(`[TenshiChat] Continuidad de chat detectada con ${agentName} en conversación ${conversation?.conversationId}`);
+              activeConsultationConvoIdRef.current = conversation?.conversationId || 'current';
+
+              // Disparar auto-envío en el chat actual sin resetear
+              window.dispatchEvent(
+                new CustomEvent('tenshi-submit-agent-prompt', {
+                  detail: {
+                    agentId: targetAgentId,
+                    prompt: pregunta,
+                  },
+                })
+              );
+
+              resultMsg = `Consulta enviada en el chat actual con ${agentName}: "${pregunta}". [AVISO CRÍTICO PARA TENSHI]: El especialista ya está analizando y respondiendo en pantalla. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. Limítate a confirmar en una sola frase breve que ya le transmitiste la consulta y que espere a que responda.`;
+              return;
+            }
+
+            // Si es un chat nuevo o con un especialista distinto:
+            activeConsultationConvoIdRef.current = 'new';
 
             // 1. Limpiar caché de mensajes de la conversación anterior para aislamiento absoluto
             try {
@@ -1100,7 +1192,6 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
             }
 
             // 2. Crear nueva conversación limpia con el especialista en Recoil
-            const targetAgentId = matchedAgent?.id;
             const template = {
               endpoint: EModelEndpoint.agents,
               agent_id: targetAgentId,
@@ -1282,6 +1373,7 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
     getInputVolume,
     sendTextMessage,
     sendWappyActionResult,
+    sendScreenContext,
     setIsPlayingAudio: setVoiceIsPlayingAudio,
     setMuted: setVoiceMuted,
     sendInterrupt: sendVoiceInterrupt,
@@ -1291,6 +1383,21 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
   setIsPlayingAudioRef.current = setVoiceIsPlayingAudio;
   sendVoiceInterruptRef.current = sendVoiceInterrupt;
   sendTextMessageRef.current = sendTextMessage;
+  const sendScreenContextRef = useRef<((data: any) => void) | null>(null);
+  sendScreenContextRef.current = sendScreenContext;
+
+  // Sincronizar el contexto visual de la pantalla con la sesión de voz
+  useEffect(() => {
+    if (isVoiceActive && sendScreenContextRef.current) {
+      const activeAgent = conversation?.agent_id ? agentsRef.current.find(a => a.id === conversation.agent_id) : null;
+      sendScreenContextRef.current({
+        conversationId: conversation?.conversationId,
+        agentId: conversation?.agent_id,
+        agentName: activeAgent?.name || conversation?.title,
+        route: window.location.pathname,
+      });
+    }
+  }, [isVoiceActive, conversation?.conversationId, conversation?.agent_id, conversation?.title]);
 
   // Tenshi mantiene siempre el micrófono activo para escuchar al usuario sin bloqueos ni silenciamientos
   useEffect(() => {

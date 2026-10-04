@@ -274,6 +274,17 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
       // 1. Si el agente objetivo aún no es el activo, postergar el envío hasta que se asiente en la conversación
       if (agentId && conversation?.agent_id !== agentId) {
         console.log('[ChatForm] Agente diferente al actual. Seleccionando agente y postergando sumisión:', agentId);
+
+        // Si estamos en una conversación existente que no es /c/new ni está vacía,
+        // NO secuestrar ni enviar a esta conversación vieja (la navegación hacia /c/new está en curso)
+        if (window.location.pathname !== '/c/new' && conversation?.conversationId && conversation.conversationId !== 'new') {
+          console.warn('[ChatForm] Descartando envío diferido en conversación existente ajena al agente objetivo:', {
+            targetAgent: agentId,
+            currentAgent: conversation?.agent_id,
+          });
+          return;
+        }
+
         pendingAgentSubmissionRef.current = { agentId, prompt, time: Date.now() };
         try {
           await onSelectAgent(agentId);

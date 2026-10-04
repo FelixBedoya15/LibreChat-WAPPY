@@ -726,6 +726,17 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     }, []);
 
     /**
+     * Send active screen context to server (conversationId, active agent, current route)
+     */
+    const sendScreenContext = useCallback((contextData: { conversationId?: string; agentId?: string; agentName?: string; route?: string }) => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        wsRef.current.send(JSON.stringify({
+            type: 'screen_context',
+            data: contextData
+        }));
+    }, []);
+
+    /**
      * Trigger Report Generation manually via WebSocket
      */
     const triggerReport = useCallback(() => {
@@ -751,6 +762,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         setIsPlayingAudio,
         sendInterrupt,
         sendWappyActionResult,
+        sendScreenContext,
         triggerReport,
     };
 };
