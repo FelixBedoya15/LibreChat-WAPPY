@@ -676,7 +676,6 @@ export default function ParticipacionEstadisticasDashboard({
     }, [weightedClusters]);
 
     const renderCard = (
-    const renderCard = (
         <div className={isEmbedded ? "w-full max-w-full min-w-0 overflow-hidden rounded-3xl border border-teal-500/30 bg-surface-secondary shadow-md transition-all duration-300 my-4 sm:my-6" : "bg-white dark:bg-zinc-950 w-full max-w-5xl h-[92vh] max-h-[920px] rounded-3xl shadow-2xl border border-slate-200/80 dark:border-zinc-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"}>
             
             {/* ── Header Principal con Botonera de Vistas Adaptativa ── */}
@@ -863,10 +862,10 @@ export default function ParticipacionEstadisticasDashboard({
                         <div className="space-y-6">
                             
                             {/* Fila de Gráficas: Donut SVG + Heatmap Térmico GTC-45 */}
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 w-full min-w-0">
                                 
                                 {/* ── Gráfica A: Donut Chart SVG de Categorías GTC-45 (5 cols) ── */}
-                                <div className="lg:col-span-5 p-5 rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 shadow-xs flex flex-col justify-between">
+                                <div className="xl:col-span-5 p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 shadow-xs flex flex-col justify-between w-full min-w-0">
                                     <div>
                                         <div className="flex items-center justify-between mb-2">
                                             <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
@@ -952,7 +951,7 @@ export default function ParticipacionEstadisticasDashboard({
                                 </div>
 
                                 {/* ── Gráfica B: Matriz Térmica / Heatmap Oficial GTC-45 4x4 (7 cols) ── */}
-                                <div className="lg:col-span-7 p-5 rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 shadow-xs flex flex-col justify-between">
+                                <div className="xl:col-span-7 p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 shadow-xs flex flex-col justify-between w-full min-w-0">
                                     <div>
                                         <div className="flex items-center justify-between mb-1">
                                             <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
@@ -968,8 +967,8 @@ export default function ParticipacionEstadisticasDashboard({
                                         </p>
 
                                         {/* Heatmap Grid 4x4 */}
-                                        <div className="overflow-x-auto">
-                                            <div className="min-w-[440px]">
+                                        <div className="overflow-x-auto scrollbar-thin">
+                                            <div className="min-w-[340px] sm:min-w-[440px]">
                                                 {/* Header Columnas: Probabilidad */}
                                                 <div className="grid grid-cols-5 gap-1.5 text-center text-[10px] font-bold text-slate-400 mb-1">
                                                     <div className="text-left text-[9px] uppercase pl-1 text-slate-500">NC \ NP</div>
@@ -1290,10 +1289,10 @@ export default function ParticipacionEstadisticasDashboard({
                                                 {isExpanded && (
                                                     <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-zinc-950/60 border-t border-slate-200/80 dark:border-zinc-800 space-y-4 animate-in fade-in duration-200">
                                                         
-                                                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                                                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 w-full min-w-0">
                                                             
-                                                            {/* Columna Izquierda: Los Reportes de los Trabajadores (6 cols) */}
-                                                            <div className="lg:col-span-6 space-y-2.5">
+                                                            {/* Columna Izquierda: Los Reportes de los Trabajadores */}
+                                                            <div className="space-y-2.5 min-w-0">
                                                                 <div className="flex items-center justify-between">
                                                                     <span className="text-[10px] font-black uppercase text-slate-500 dark:text-zinc-400 flex items-center gap-1.5">
                                                                         <Users size={12} className="text-teal-600" />
@@ -1306,14 +1305,14 @@ export default function ParticipacionEstadisticasDashboard({
                                                                     {cluster.reportes.map((rep: any, rI: number) => (
                                                                         <div
                                                                             key={rep.id || rI}
-                                                                            className="p-3 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-zinc-800 shadow-2xs space-y-1.5"
+                                                                            className="p-3 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-zinc-800 shadow-2xs space-y-1.5 min-w-0"
                                                                         >
                                                                             <div className="flex items-center justify-between text-[10px]">
-                                                                                <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-zinc-200">
+                                                                                <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-zinc-200 truncate">
                                                                                     <span>👤 {rep.nombre}</span>
                                                                                     {rep.cedula && <span className="font-mono text-slate-400">({rep.cedula})</span>}
                                                                                 </div>
-                                                                                <span className="px-1.5 py-0.2 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 font-semibold text-[9px]">
+                                                                                <span className="px-1.5 py-0.2 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 font-semibold text-[9px] shrink-0">
                                                                                     {rep.source === 'inbox' ? 'Portal QR' : 'Local'}
                                                                                 </span>
                                                                             </div>
@@ -1330,8 +1329,8 @@ export default function ParticipacionEstadisticasDashboard({
                                                                 </div>
                                                             </div>
 
-                                                            {/* Columna Derecha: Fila Técnica Oficial que va a la Matriz (6 cols) */}
-                                                            <div className="lg:col-span-6 space-y-2.5">
+                                                            {/* Columna Derecha: Fila Técnica Oficial que va a la Matriz */}
+                                                            <div className="space-y-2.5 min-w-0">
                                                                 <div className="flex items-center justify-between">
                                                                     <span className="text-[10px] font-black uppercase text-teal-700 dark:text-teal-400 flex items-center gap-1.5">
                                                                         <FileSpreadsheet size={12} className="text-teal-600" />
@@ -1406,9 +1405,9 @@ export default function ParticipacionEstadisticasDashboard({
                                 </div>
 
                                 {/* Flujograma Visual en 4 Pasos */}
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 pt-2 w-full min-w-0">
                                     
-                                    <div className="p-4 rounded-2xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/70 dark:border-teal-800/60 space-y-2">
+                                    <div className="p-4 rounded-2xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/70 dark:border-teal-800/60 space-y-2 min-w-0">
                                         <div className="w-7 h-7 rounded-xl bg-teal-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                                             1
                                         </div>
@@ -1420,7 +1419,7 @@ export default function ParticipacionEstadisticasDashboard({
                                         </p>
                                     </div>
 
-                                    <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/70 dark:border-blue-800/60 space-y-2">
+                                    <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/70 dark:border-blue-800/60 space-y-2 min-w-0">
                                         <div className="w-7 h-7 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                                             2
                                         </div>
@@ -1432,7 +1431,7 @@ export default function ParticipacionEstadisticasDashboard({
                                         </p>
                                     </div>
 
-                                    <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/60 space-y-2">
+                                    <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/60 space-y-2 min-w-0">
                                         <div className="w-7 h-7 rounded-xl bg-amber-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                                             3
                                         </div>
@@ -1444,7 +1443,7 @@ export default function ParticipacionEstadisticasDashboard({
                                         </p>
                                     </div>
 
-                                    <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/60 space-y-2">
+                                    <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/60 space-y-2 min-w-0">
                                         <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                                             4
                                         </div>

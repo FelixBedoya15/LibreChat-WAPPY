@@ -1503,7 +1503,7 @@ export default function MatrizCompatibilidadTable({
           </div>
 
           {!isDashboardCollapsed && (
-            <div className="p-4">
+            <div className="p-2 sm:p-4 w-full min-w-0 max-w-full overflow-hidden">
               <MatrizCompatibilidadDashboard
                 matrixRows={matrixRows}
                 conversationId={conversationId}

@@ -3619,7 +3619,7 @@ export default function MatrizPESVTable({
           </button>
 
           {isDashboardExpanded && (
-            <div className="p-4 border-t border-border-light bg-surface-primary">
+            <div className="p-2 sm:p-4 border-t border-border-light bg-surface-primary w-full min-w-0 max-w-full overflow-hidden">
               <MatrizPESVDashboard
                 matrixRows={matrixRows}
                 conversationId={actualConvoId}
@@ -3635,7 +3635,7 @@ export default function MatrizPESVTable({
         </div>
       ) : (
         <div
-          className="shrink-0 overflow-y-auto bg-surface-primary px-4 py-2"
+          className="shrink-0 overflow-y-auto overflow-x-hidden bg-surface-primary px-2 sm:px-4 py-2 w-full min-w-0 max-w-full"
           style={{ height: `${dashboardHeight}%` }}
         >
           <MatrizPESVDashboard
