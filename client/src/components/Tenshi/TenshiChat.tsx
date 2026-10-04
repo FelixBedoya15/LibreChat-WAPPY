@@ -1232,12 +1232,19 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
           clearAudioQueue();
           setIsPlayingAudioRef.current?.(true);
           setVoiceStatusText(`Tenshi respondiendo sobre ${consultation.agentName}...`);
-          const promptForTenshi = `[SISTEMA INTERNO WAPPY]: El especialista ${consultation.agentName} YA TERMINÓ de responder en pantalla a la consulta: "${consultation.question}". Su respuesta técnica oficial es la siguiente:\n\n"""\n${finalMsg.substring(0, 1400)}\n"""\n\nINSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario confirmándole con tu tono natural y cercano que el ${consultation.agentName} ya respondió. Resúmele en 2 o 3 oraciones claras los puntos técnicos clave que dictaminó, y dale tu recomendación Tenshi para avanzar. NUNCA digas que aún no ha respondido.`;
+          const promptForTenshi = `[SISTEMA INTERNO WAPPY]: El especialista ${consultation.agentName} YA TERMINÓ de responder en pantalla a la consulta: "${consultation.question}". Su respuesta técnica oficial es la siguiente:
+
+"""
+${finalMsg.substring(0, 3500)}
+"""
+
+INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario confirmándole con tu tono natural y cercano que el ${consultation.agentName} ya respondió. Explícale los puntos técnicos, normas y conclusiones clave que dictaminó de forma clara y sin inventar. Si el usuario te pide que lo leas completo o te pide más detalles, léele el dictamen exacto citando los artículos y sustentos sin comprimirlo a una sola frase genérica. NUNCA digas que aún no ha respondido.`;
           sendTextMessage(promptForTenshi);
         }
 
         // 2. Registrar en la conversación interna de Tenshi y persistir en BD para continuidad de memoria
-        const summaryText = `💡 **Tenshi:** He revisado la respuesta que te dio **${consultation.agentName}** sobre *"${consultation.question}"*. En el chat central puedes consultar todo el sustento técnico y normativo detallado. Si deseas que articulemos esto con algún hito o matriz de WAPPY, solo indícamelo.`;
+        const agentResponseExcerpt = finalMsg.length > 2500 ? finalMsg.substring(0, 2500) + '... *(consulta completa disponible en el chat central)*' : finalMsg;
+        const summaryText = `💡 **Dictamen de ${consultation.agentName}** sobre *"${consultation.question}"*:\n\n${agentResponseExcerpt}\n\n*(Consulta con especialista registrada)*`;
         setMessages((prev) => [
           ...prev,
           {

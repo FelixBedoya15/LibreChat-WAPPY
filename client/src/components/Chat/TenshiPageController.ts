@@ -240,20 +240,18 @@ export function getVisibleScreenContent(section?: string): string {
       lines.push('[EN PRIMER PLANO: Ventana emergente / Modal de informe abierta]');
     }
 
-    // 1.1 Si estamos en una conversación de chat (/c/), extraer la última respuesta del especialista en pantalla
-    if (currentUrl.includes('/c/')) {
-      const chatMessages = Array.from(rootScope.querySelectorAll<HTMLElement>(
-        '.agent-turn .markdown, .agent-turn [class*="message-content"], [data-message-id] .markdown, [class*="text-message"], article .markdown'
-      )).filter(m => isElementVisible(m) && !m.closest('.tenshi-widget-container'));
+    // 1.1 Si hay mensajes de chat o respuestas de especialistas visibles en pantalla, extraer la respuesta completa
+    const chatMessages = Array.from(rootScope.querySelectorAll<HTMLElement>(
+      '.agent-turn .markdown, .agent-turn [class*="message-content"], [data-message-id] .markdown, [class*="text-message"], article .markdown'
+    )).filter(m => isElementVisible(m) && !m.closest('.tenshi-widget-container'));
 
-      if (chatMessages.length > 0) {
-        lines.push('ÚLTIMA RESPUESTA EN EL CHAT DE LA PANTALLA:');
-        const lastMsg = chatMessages[chatMessages.length - 1];
-        const text = lastMsg.innerText?.trim();
-        if (text && text.length > 10) {
-          lines.push(text.length > 2500 ? text.substring(0, 2500) + '... [Truncado por longitud]' : text);
-          lines.push('');
-        }
+    if (chatMessages.length > 0) {
+      lines.push('=== RESPUESTA COMPLETA DEL ESPECIALISTA / AGENTE EN PANTALLA ===');
+      const lastMsg = chatMessages[chatMessages.length - 1];
+      const text = lastMsg.innerText?.trim();
+      if (text && text.length > 10) {
+        lines.push(text.length > 5000 ? text.substring(0, 5000) + '... [Ver resto en pantalla]' : text);
+        lines.push('');
       }
     }
 
@@ -344,8 +342,8 @@ export function getVisibleScreenContent(section?: string): string {
       return `[PANTALLA ACTUAL: ${currentUrl}]\nNo se detectó un informe abierto en primer plano. Puedes pedirme que abra el aplicativo para ver los registros.`;
     }
 
-    // Limitar a ~4000 caracteres para respuesta rápida
-    return fullResult.length > 4000 ? fullResult.substring(0, 4000) + '\n... [Contenido truncado por longitud]' : fullResult;
+    // Limitar a ~8000 caracteres para permitir informes y dictámenes completos
+    return fullResult.length > 8000 ? fullResult.substring(0, 8000) + '\n... [Contenido truncado por longitud]' : fullResult;
   } catch (err: any) {
     return `Error extrayendo contenido de pantalla: ${err.message}`;
   }

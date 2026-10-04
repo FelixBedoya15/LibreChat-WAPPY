@@ -355,8 +355,8 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 recentConvosBlock += `\n- Consulta: "${c.title}":\n`;
                 for (const m of c.messages) {
                     const sender = m.isCreatedByUser ? 'Usuario' : (m.sender || 'Especialista');
-                    const text = (m.text || '').replace(/\s+/g, ' ').trim();
-                    const snippet = text.length > 180 ? text.substring(0, 180) + '...' : text;
+                    const maxLen = m.isCreatedByUser ? 300 : 3500;
+                    const snippet = text.length > maxLen ? text.substring(0, maxLen) + '...' : text;
                     if (snippet) {
                         recentConvosBlock += `  * ${sender}: "${snippet}"\n`;
                     }

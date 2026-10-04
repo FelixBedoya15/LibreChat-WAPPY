@@ -417,7 +417,14 @@ class VoiceSession {
 - IDIOMA EXCLUSIVO: ESPAÑOL DE COLOMBIA / LATINOAMÉRICA.
 - El usuario habla ÚNICA Y EXCLUSIVAMENTE en ESPAÑOL.
 - ESTÁ TERMINANTEMENTE PROHIBIDO interpretar o responder en otro idioma. Responde siempre en español con tono fresco, empático y profesional ("de una", "listo", "hágale", "vamos para allá").
-- MAXIMA AGILIDAD: Sé ultra concisa, habla en 1 o máximo 2 oraciones cortas (10 a 15 palabras). Cero rodeos.
+- AGILIDAD POR DEFECTO: En saludos, confirmaciones de acciones y navegación ordinaria, habla de forma concisa y directa (1 a 2 oraciones).
+- EXCEPCIÓN OBLIGATORIA (LECTURA Y EXPLICACIÓN DE RESPUESTAS TÉCNICAS E INFORMES):
+  * Si el usuario te pregunta por lo que dijo un especialista, te pide leer la respuesta, o te dice "léelo", "léemelo", "por qué lo resumes", "no lo resumas", "qué dice exactamente", "revisa la pantalla", "léeme el texto completo":
+    1. SUSPENDE DE INMEDIATO la regla de brevedad de 15 palabras.
+    2. Si no tienes la respuesta completa visible, invoca de inmediato 'leer_pantalla'.
+    3. Lee o explica el dictamen técnico real con fidelidad: cita las normas, decretos (ej. Decreto 1072 de 2015), artículos y argumentos específicos que el especialista redactó.
+    4. NUNCA inventes lo que dice el especialista ni lo reduzcas a una frase genérica de 10 palabras si el usuario te pidió leerlo o conocer los detalles.
+    5. NUNCA digas que "es la respuesta exacta" si solo estás diciendo un micro-resumen. Sé transparente y cita la sustancia real.
 
 [ROL]:
 Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes control en tiempo real para abrir cualquier agente, navegar a cualquier sección, entrar a Google Drive y diligenciar formularios en pantalla.
@@ -444,14 +451,14 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
      Cuando ejecutes esta herramienta, tu ÚNICA respuesta oral permitida es confirmar en 1 sola frase corta que ya abriste el chat y le dejaste la consulta formulada en pantalla al especialista.
      Ejemplo exacto: "¡De una! Ya abrí el chat con el [Nombre del Especialista] y le dejé tu consulta en pantalla. Esperemos un momento a que responda."
      PROHIBICIÓN RADICAL: NUNCA digas "el especialista te dice que..." ni inventes, simules o resumas el concepto técnico en este turno. TÚ NO TIENES LA RESPUESTA TODAVÍA.
-5. **SÍNTESIS DE RESPUESTAS TÉCNICAS**:
-   - ÚNICAMENTE hablarás sobre el dictamen técnico del especialista cuando recibas una notificación interna del sistema que empiece por "[SISTEMA INTERNO WAPPY]: ...". Solo en ese instante darás el resumen oral de 2 o 3 oraciones concisas y recomendarás el siguiente paso.
+5. **CONSULTAS Y RESPUESTAS DE ESPECIALISTAS**:
+   - Cuando el especialista responda o recibas una notificación "[SISTEMA INTERNO WAPPY]: ...", informa al usuario los puntos clave que dictaminó el especialista.
+   - Si el usuario te pide que leas la respuesta o dice "léelo", "léemelo", "qué dice exactamente", "no lo resumas": léele el dictamen real citando sus artículos, decretos y argumentos sin comprimirlo a una sola frase genérica.
 6. **LEER LA PANTALLA O INFORMES VISIBLES**:
-   - Tienes la herramienta 'leer_pantalla' para inspeccionar, extraer y leer lo que el usuario tiene abierto en pantalla (informes, tablas, registros, tarjetas o formularios).
-   - Si el usuario te pide: "Ábreme x aplicativo y léeme el informe más reciente" o "Léeme lo que hay en la pantalla":
-     1. Primero navegas al módulo solicitado con 'wappy_navegar'.
-     2. Invocas 'leer_pantalla' para extraer el contenido visible de ese informe o tabla.
-     3. Resumes oralmente el informe en 2 o 3 oraciones breves y claras indicándole al usuario los datos clave (ej: fecha, afectado, evento, medidas).`;
+   - Tienes la herramienta 'leer_pantalla' para inspeccionar, extraer y leer lo que el usuario tiene abierto en pantalla (chat con especialistas, informes, tablas, registros, tarjetas o formularios).
+   - Siempre que el usuario te diga "revisa la pantalla", "léeme lo que hay", "qué dice ahí", "mira el chat" o "léelo":
+     1. Invoca 'leer_pantalla' de inmediato para extraer el contenido visible.
+     2. Léele o explícale el contenido real extraído de la pantalla con fidelidad, sin inventar y sin omitir datos clave.`;
         } else {
             // Herramientas nativas para agentes SST y Fisioterapeuta Laboral
             const reportTool = {
@@ -653,8 +660,8 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                             companyAndMemoryPrompt += `\n- Consulta: "${c.title}":`;
                             for (const m of c.messages) {
                                 const sender = m.isCreatedByUser ? 'Usuario' : (m.sender || 'Especialista');
-                                const text = (m.text || '').replace(/\s+/g, ' ').trim();
-                                const snippet = text.length > 180 ? text.substring(0, 180) + '...' : text;
+                                const maxLen = m.isCreatedByUser ? 300 : 3500;
+                                const snippet = text.length > maxLen ? text.substring(0, maxLen) + '...' : text;
                                 if (snippet) {
                                     companyAndMemoryPrompt += `\n  * ${sender}: "${snippet}"`;
                                 }
@@ -678,27 +685,27 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             let success = false;
             let lastError = null;
 
-            const rawPreferredLiveModel = this.liveConfig.model || process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview';
+            const rawPreferredLiveModel = this.liveConfig.model || process.env.GEMINI_LIVE_MODEL || 'gemini-3.8-live';
             
             const mapModelToRealGoogleModel = (modelName) => {
-                if (!modelName) return 'gemini-3.1-flash-live-preview';
+                if (!modelName) return 'gemini-3.8-live';
                 const name = modelName.toLowerCase().trim();
-                if (name === 'gemini-3.1-flash-live-preview' || name === 'gemini-3.8-live' || name === 'gemini-2.5-flash-native-audio-preview-12-2025') {
+                if (name === 'gemini-3.8-live' || name === 'gemini-3.1-flash-live-preview' || name === 'gemini-2.5-flash-native-audio-preview-12-2025') {
                     return name;
-                }
-                if (name.includes('3.1')) {
-                    return 'gemini-3.1-flash-live-preview';
                 }
                 if (name.includes('3.8')) {
                     return 'gemini-3.8-live';
+                }
+                if (name.includes('3.1')) {
+                    return 'gemini-3.1-flash-live-preview';
                 }
                 if (name.includes('2.5') || name.includes('12-2025') || name.includes('09-2025') || name.includes('native-audio')) {
                     return 'gemini-2.5-flash-native-audio-preview-12-2025';
                 }
                 if (name.includes('live')) {
-                    return 'gemini-3.1-flash-live-preview';
+                    return 'gemini-3.8-live';
                 }
-                return 'gemini-3.1-flash-live-preview';
+                return 'gemini-3.8-live';
             };
 
             const preferredLiveModel = mapModelToRealGoogleModel(rawPreferredLiveModel);
@@ -945,8 +952,14 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                             this.geminiClient.sendToolResponse([{
                                 id: fc.id,
                                 name: fc.name,
-                                response: { result: "La compilación del informe técnico ergonómico oficial ha comenzado en segundo plano y tardará unos segundos. Informa cordialmente al usuario en una sola frase breve que estamos redactando y estructurando su informe completo con las mediciones y evidencias fotográficas, y que por favor espere un momento conectado mientras se carga completamente en su pantalla y en el chat." }
+                                response: {
+                                    output: "Compilación de informe técnico iniciada con éxito en segundo plano.",
+                                    result: "Compilación de informe técnico iniciada con éxito en segundo plano."
+                                }
                             }]);
+
+                            // Activación verbal inmediata vía realtimeInput para que Gemini Live 3.8 lo anuncie por voz
+                            this.geminiClient.sendText('INSTRUCCIÓN: Has iniciado la compilación del informe técnico ergonómico. Confírmale verbalmente al usuario en 1 sola frase breve y entusiasta: "Entendido, estoy procesando las evidencias para compilar tu informe técnico oficial. Por favor espera un momento conectado."');
                         }
 
                         if (!this.isGeneratingReport) {
@@ -2767,7 +2780,7 @@ ${workerSubHeaderHtml}
                     if (this.geminiClient && this.isActive) {
                         logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
                         try {
-                            this.geminiClient.sendText('INSTRUCCIÓN DE SISTEMA: El informe técnico acaba de ser generado exitosamente por el motor de análisis y ya está visible para el usuario en su pantalla del editor principal. Notifícale esto al usuario con una respuesta verbal muy breve de máximo 1 oración, diciendo algo como: "Listo, el informe ha sido generado y cargado en tu pantalla." PROHIBIDO INVENTAR O LEER EL CONTENIDO DEL INFORME. SOLO AVISA QUE YA ESTÁ LISTO.');
+                            this.geminiClient.sendText('INSTRUCCIÓN: El informe técnico ergonómico oficial acaba de ser generado y ya está cargado en el editor de la pantalla del usuario. Avisa al usuario verbalmente en 1 sola frase breve y entusiasta: "Listo, tu informe técnico ha sido generado con éxito y ya está disponible en tu pantalla. Puedes revisarlo ahora mismo." PROHIBIDO LEER O INVENTAR EL CONTENIDO DEL INFORME.');
                         } catch (announceErr) {
                             logger.warn('[VoiceSession] Could not send report announcement to Gemini:', announceErr.message);
                         }
