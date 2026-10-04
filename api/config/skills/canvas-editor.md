@@ -3,6 +3,10 @@ name: canvas-editor
 description: Reglas y pautas para generar y editar documentos interactivos (Word, Excel, Presentaciones, HTML) en la pantalla dividida del Canvas/Editor lateral de Wappy.
 triggers:
   - canvas
+  - canva
+  - aplicativo
+  - aplicacion
+  - app
   - editor
   - documento
   - word
@@ -16,6 +20,8 @@ triggers:
   - tabla
   - diapositiva
   - código
+  - graficos
+  - indicadores
 ---
 
 # Formatos y Tablas para Chat vs. Editor Dividido (CRÍTICO)

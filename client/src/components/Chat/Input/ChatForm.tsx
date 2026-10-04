@@ -245,7 +245,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         try {
           await onSelectAgent(agentId);
           // Breve espera para que el estado del agente en Recoil y React se asiente
-          await new Promise((r) => setTimeout(r, 150));
+          await new Promise((r) => setTimeout(r, 250));
         } catch (err) {
           console.error('[ChatForm] Error al invocar onSelectAgent:', err);
         }

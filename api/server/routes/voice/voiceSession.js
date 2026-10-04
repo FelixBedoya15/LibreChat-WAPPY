@@ -408,6 +408,48 @@ class VoiceSession {
                                 },
                                 required: ["action"]
                             }
+                        },
+                        {
+                            name: "canvas_tool",
+                            description: "Lienzo interactivo Canvas de pantalla dividida: Crea, diseña o edita aplicaciones interactivas ('html' con código funcional, interfaces de usuario, widgets, simuladores, calculadoras, dashboards con gráficos interactivos Chart.js), documentos técnicos o normativos ('text' en Markdown o HTML), hojas de cálculo con datos/fórmulas ('excel') o presentaciones ('presentation'). INVÓCALA SIEMPRE que el usuario te pida crear una aplicación, prototipo, calculadora, juego, formato interactivo, gráfico, dashboard o te diga 'crea en Canva/Canvas un aplicativo...'.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    accion: {
+                                        type: "string",
+                                        enum: ["crear", "actualizar", "leer", "editar_seccion"],
+                                        description: "Acción a realizar: 'crear' para generar un nuevo archivo o aplicativo interactivo."
+                                    },
+                                    fileType: {
+                                        type: "string",
+                                        enum: ["html", "text", "excel", "presentation"],
+                                        description: "Tipo de lienzo: 'html' para aplicaciones interactivas, prototipos, dashboards y widgets con gráficos/código; 'text' para documentos y reportes; 'excel' para matrices y hojas de cálculo; 'presentation' para diapositivas."
+                                    },
+                                    title: {
+                                        type: "string",
+                                        description: "Título del documento o aplicativo (ej: 'Aplicativo Indicadores de Accidentalidad Res. 0312')."
+                                    },
+                                    content: {
+                                        type: "string",
+                                        description: "Contenido completo del archivo o aplicación. Para 'html', código HTML5 completo autosuficiente y funcional con Tailwind CSS, Chart.js para los gráficos solicitados, interactividad en JavaScript puro, inputs interactivos y diseño profesional de WAPPY. Para 'text', texto formateado o Markdown. Para 'excel', tabla estructurada."
+                                    }
+                                },
+                                required: ["accion", "fileType", "title", "content"]
+                            }
+                        },
+                        {
+                            name: "web_search",
+                            description: "Busca información actualizada en tiempo real en Internet (noticias, normatividad SST, decretos, resoluciones, estadísticas, documentación técnica, etc.). Utiliza el motor de búsqueda avanzado de WAPPY.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    query: {
+                                        type: "string",
+                                        description: "La consulta de búsqueda a ejecutar en internet. Sé específico e incluye términos clave relevantes (ej: 'Resolución 0312 de 2019 Colombia Mintrabajo', 'que es burnout sintomas prevencion')."
+                                    }
+                                },
+                                required: ["query"]
+                            }
                         }
                     ]
                 }
@@ -467,7 +509,21 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
    - Tienes la herramienta 'leer_pantalla' para inspeccionar, extraer y leer lo que el usuario tiene abierto en pantalla (chat con especialistas, informes, tablas, registros, tarjetas o formularios).
    - Siempre que el usuario te diga "revisa la pantalla", "léeme lo que hay", "qué dice ahí", "mira el chat", "léelo" o pregunte por lo que está visible:
      1. Invoca 'leer_pantalla' de inmediato para extraer el contenido visible.
-     2. Léele o explícale el contenido real extraído de la pantalla con fidelidad, sin inventar y sin omitir datos clave.`;
+     2. Léele o explícale el contenido real extraído de la pantalla con fidelidad, sin inventar y sin omitir datos clave.
+7. **canvas_tool (Lienzo interactivo Canvas / Aplicativos en Canva)**:
+   - Tienes la herramienta 'canvas_tool' para crear aplicaciones interactivas ('html' con código funcional, gráficos, Tailwind CSS y Chart.js), documentos técnicos ('text'), hojas de cálculo ('excel') o presentaciones ('presentation') en el lienzo interactivo de pantalla dividida.
+   - INVÓCALA DE INMEDIATO siempre que el usuario te pida crear una aplicación, prototipo, calculadora, dashboard con gráficos, formato interactivo o te diga "crea en Canva/Canvas un aplicativo...", "hazme una app de indicadores de accidentalidad", etc.
+   - Parámetros:
+     * accion: 'crear'
+     * fileType: 'html' (para aplicativos, prototipos y dashboards interactivos con gráficos) o 'text' (para documentos/informes) o 'excel' (para hojas de cálculo).
+     * title: Título descriptivo (ej: 'Aplicativo de Indicadores de Accidentalidad Res. 0312')
+     * content: Para 'html', entrega el código HTML5 completo, autosuficiente, estético y 100% funcional, incluyendo CDN de Tailwind CSS y Chart.js, con gráficos interactivos de barras/líneas (ej: Índices IF, IS, ILI y Severidad), tablas de datos, controles interactivos y diseño moderno WAPPY.
+   - PROHIBICIÓN ESTRICTA: NUNCA digas "no puedo crear aplicaciones en Canva ni enviar archivos por chat". ¡TÚ TIENES TU PROPIO CANVA/CANVAS INTERACTIVO INTEGRADO!
+   - Confírmale verbalmente en 1 sola frase entusiasta: "¡Listo! Ya creé y desplegué el aplicativo interactivo en tu pantalla Canvas con todos los gráficos y cálculos solicitados."
+8. **web_search (Búsqueda Web en Tiempo Real)**:
+   - Tienes la herramienta 'web_search' para consultar Internet en vivo.
+   - INVÓCALA SIEMPRE que el usuario te pida buscar en la web, consultar noticias, verificar normatividad vigente o cuando requieras datos externos actualizados.
+   - Responde oralmente de forma concisa y amigable sintetizando los hallazgos principales.`;
         } else {
             // Herramientas nativas para agentes SST y Fisioterapeuta Laboral
             const reportTool = {
@@ -1008,6 +1064,72 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                                     response: { error: `No se pudo acceder a Google Drive: ${driveErr.message}` }
                                 }]);
                             }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de herramienta de búsqueda web en modo voz
+                    if (fc.name === 'web_search') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "web_search" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Buscando en la web...' }
+                        });
+                        try {
+                            const WebSearch = require('~/app/clients/tools/structured/WebSearch');
+                            const webSearchTool = new WebSearch({ req: { user: { id: this.userId } } });
+                            const searchResult = await webSearchTool._call(fc.args);
+                            logger.info(`[VoiceSession] web_search executed successfully. Result length: ${searchResult?.length || 0}`);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: searchResult }
+                                }]);
+                            }
+                        } catch (searchErr) {
+                            logger.error('[VoiceSession] Error executing web_search in voice mode:', searchErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `No se pudo buscar en la web: ${searchErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Canvas / Aplicativos interactivos en modo voz
+                    if (fc.name === 'canvas_tool' || fc.name === 'canvas') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "canvas_tool" with title: "${fc.args?.title}", fileType: "${fc.args?.fileType}"`);
+                        let toolResultMsg = 'Lienzo Canvas creado exitosamente.';
+                        try {
+                            const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
+                            const canvasTool = new CanvasTool({ req: { user: { id: this.userId } } });
+                            const canvasOutput = await canvasTool._call(fc.args);
+                            toolResultMsg = typeof canvasOutput === 'string' ? canvasOutput : JSON.stringify(canvasOutput);
+                        } catch (cErr) {
+                            logger.warn('[VoiceSession] Error in backend CanvasTool execution, continuing with client action:', cErr);
+                        }
+
+                        // Enviar acción al cliente para desplegar el Canvas interactivo de inmediato en la pantalla
+                        this.sendToClient({
+                            type: 'wappy_action',
+                            data: {
+                                id: fc.id,
+                                name: 'canvas_tool',
+                                args: fc.args,
+                                result: toolResultMsg
+                            }
+                        });
+
+                        if (this.geminiClient) {
+                            this.geminiClient.sendToolResponse([{
+                                id: fc.id,
+                                name: fc.name,
+                                response: { result: `Lienzo Canvas "${fc.args?.title || 'Aplicativo'}" creado y desplegado en la pantalla dividida del usuario con éxito.` }
+                            }]);
                         }
                         continue;
                     }

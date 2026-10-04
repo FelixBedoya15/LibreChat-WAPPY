@@ -3,10 +3,9 @@ import axios from 'axios';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { X, Send, Sparkles, RotateCcw, FileText, Edit2, Trash2, RefreshCw, Mic, Volume2, VolumeX, MessageSquare, Bot, Activity, Maximize2, Minimize2, Paperclip } from 'lucide-react';
-import { useAuthContext } from '~/hooks';
-import { useChatContext } from '~/Providers';
+import { useAuthContext, useNewConvo } from '~/hooks';
 import { useListAgentsQuery } from '~/data-provider';
-import { useRecoilValue } from 'recoil';
+import { useRecoilValue, useSetRecoilState } from 'recoil';
 import store from '~/store';
 import Markdown from '~/components/Chat/Messages/Content/Markdown';
 import { getDehydratedDOM, executeGUIAction, getVisibleScreenContent } from '../Chat/TenshiPageController';
@@ -649,9 +648,11 @@ export default function TenshiChat() {
 
   const queryClient = useQueryClient();
   const latestChatMessage = useRecoilValue(store.latestMessageFamily(0));
-  const latestChatMessageRef = useRef(latestChatMessage);
   latestChatMessageRef.current = latestChatMessage;
-  const { conversation, newConversation } = useChatContext();
+  const { conversation } = store.useCreateConversationAtom(0);
+  const { newConversation } = useNewConvo(0);
+  const setIsCanvasActive = useSetRecoilState(store.isCanvasActive);
+  const setStreamingCanvas = useSetRecoilState(store.streamingCanvasState);
   const currentConvoId = conversation?.conversationId;
   const activeConsultationConvoIdRef = useRef<string | null>(null);
   const lastContentChangeRef = useRef<{ text: string; time: number }>({ text: '', time: Date.now() });
@@ -1008,8 +1009,12 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
             setVoiceStatusText(`Esperando a ${agentName}...`);
 
             // 1. Limpiar caché de mensajes de la conversación anterior para aislamiento absoluto
-            clearMessagesCache(queryClient, conversation?.conversationId);
-            queryClient.invalidateQueries([QueryKeys.messages]);
+            try {
+              clearMessagesCache(queryClient, conversation?.conversationId);
+              queryClient.invalidateQueries([QueryKeys.messages]);
+            } catch (cacheErr) {
+              console.warn('[TenshiChat] Error limpiando cache de mensajes:', cacheErr);
+            }
 
             // 2. Crear nueva conversación limpia con el especialista en Recoil
             const targetAgentId = matchedAgent?.id;
@@ -1019,11 +1024,17 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
               conversationId: Constants.NEW_CONVO,
               title: `Consulta con ${agentName}`,
             };
-            newConversation({
-              template,
-              preset: template,
-              keepLatestMessage: false,
-            });
+            if (typeof newConversation === 'function') {
+              try {
+                newConversation({
+                  template,
+                  preset: template,
+                  keepLatestMessage: false,
+                });
+              } catch (convoErr) {
+                console.warn('[TenshiChat] Error en newConversation:', convoErr);
+              }
+            }
 
             // 3. Preparar parámetros canónicos de URL para que el chat siempre reciba el agente, prompt y submit
             const params = new URLSearchParams();
@@ -1037,8 +1048,8 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
             // 4. Navegar con parámetros canónicos a /c/new
             navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
 
-            // 5. Disparar eventos redundantes con respaldo por si el router no re-monta
-            setTimeout(() => {
+            // 5. Disparar eventos con respaldo inmediato y redundante
+            const emitSubmitEvent = () => {
               window.dispatchEvent(
                 new CustomEvent('tenshi-submit-agent-prompt', {
                   detail: {
@@ -1047,21 +1058,41 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
                   },
                 })
               );
-            }, 300);
-            setTimeout(() => {
-              window.dispatchEvent(
-                new CustomEvent('tenshi-submit-agent-prompt', {
-                  detail: {
-                    agentId: targetAgentId,
-                    prompt: pregunta,
-                  },
-                })
-              );
-            }, 700);
+            };
+            emitSubmitEvent();
+            setTimeout(emitSubmitEvent, 250);
+            setTimeout(emitSubmitEvent, 750);
 
             resultMsg = matchedAgent
               ? `Chat nuevo abierto con ${matchedAgent.name} y consulta formulada con éxito en pantalla: "${pregunta}". [AVISO CRÍTICO PARA TENSHI]: El especialista apenas está analizando y empezando a redactar en la pantalla. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. Limítate a confirmar al usuario en una sola frase breve que ya le abriste el chat y le dejaste la pregunta en pantalla, y que espere a que el especialista termine de responder. NO inventes ni resumas la respuesta técnica.`
               : `Nuevo chat abierto y consulta formulada. [AVISO]: Esperando respuesta en pantalla.`;
+          } else if (action.name === 'canvas_tool' || action.name === 'canvas') {
+            const fileType = action.args?.fileType || 'html';
+            const title = action.args?.title || 'Aplicativo Interactivo Canvas';
+            const content = action.args?.content || '';
+
+            setStreamingCanvas({
+              id: `canvas-${Date.now()}`,
+              title,
+              fileType,
+              content,
+              messageId: '',
+              isStreaming: false,
+            });
+            setIsCanvasActive(true);
+
+            if (fileType === 'html' && content) {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: 'assistant',
+                  content: `🎨 **Aplicativo interactivo creado en Canvas**: ${title}`,
+                  htmlReport: content,
+                },
+              ]);
+            }
+
+            resultMsg = `Lienzo Canvas "${title}" (${fileType}) creado y desplegado con éxito en pantalla.`;
           } else if (action.name === 'wappy_seleccionar_empresa') {
             const companyName = action.args?.nombre_o_id;
             resultMsg = `Empresa "${companyName}" seleccionada y activa en el sistema`;
