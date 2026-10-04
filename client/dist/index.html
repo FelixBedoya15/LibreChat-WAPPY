@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en-US">
+
+<head>
+  <meta charset="utf-8" />
+  <base href="/" />
+  <meta name="theme-color" content="#171717" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="WAPPY" />
+  <meta name="description" content="WAPPY IA - Tu asistente de inteligencia artificial avanzado" />
+  <title>WAPPY IA</title>
+  <!-- Meta Pixel Code -->
+  <script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '1552188416261002');
+  fbq('track', 'PageView');
+  </script>
+  <!-- End Meta Pixel Code -->
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32x32.png?v=wappy" />
+  <link rel="icon" type="image/png" sizes="16x16" href="./assets/favicon-16x16.png?v=wappy" />
+  <link rel="apple-touch-icon" href="./assets/apple-touch-icon-180x180.png?v=wappy" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content, viewport-fit=cover" />
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+  </style>
+  <script>
+    if (!localStorage.getItem('wappy_light_default_v2')) {
+      localStorage.setItem('wappy_light_default_v2', 'true');
+      localStorage.setItem('color-theme', 'light');
+    }
+    const theme = localStorage.getItem('color-theme') || 'light';
+    const effectiveTheme = theme;
+    const loadingContainerStyle = document.createElement('style');
+    let backgroundColor = '#ffffff';
+
+    if (effectiveTheme === 'dark') {
+      backgroundColor = '#0d0d0d';
+    } else if (effectiveTheme === 'green') {
+      backgroundColor = '#064e3b';
+    } else if (effectiveTheme === 'system') {
+      const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      backgroundColor = prefersDarkScheme ? '#0d0d0d' : '#ffffff';
+    } else {
+      backgroundColor = '#ffffff';
+    }
+
+    if (effectiveTheme === 'saas') {
+      document.documentElement.classList.add('saas', 'light');
+    } else {
+      document.documentElement.classList.remove('saas');
+    }
+
+    loadingContainerStyle.innerHTML = `
+        #loading-container {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          background-color: ${backgroundColor};
+        }
+      `;
+    document.head.appendChild(loadingContainerStyle);
+  </script>
+  <script>
+    try {
+      var searchParams = new URLSearchParams(window.location.search);
+      var ref = searchParams.get('ref') || searchParams.get('referral');
+      if (ref && ref.trim()) {
+        localStorage.setItem('wappy_ref', ref.trim());
+      }
+    } catch (e) {}
+  </script>
+  <script type="module" crossorigin src="./assets/react-interactions.8ykYEkFR.js"></script>
+  <script type="module" crossorigin src="./assets/markdown_highlight.BXMLVVdG.js"></script>
+  <script type="module" crossorigin src="./assets/validation.CXYwsuSc.js"></script>
+  <script type="module" crossorigin src="./assets/math-katex.D41sMH58.js"></script>
+  <script type="module" crossorigin src="./assets/vendor.ln9BQdH4.js"></script>
+  <script type="module" crossorigin src="./assets/i18n.BnrQ1i0D.js"></script>
+  <script type="module" crossorigin src="./assets/locales.D7TRTcfs.js"></script>
+  <script type="module" crossorigin src="./assets/routing.DtZjP_FU.js"></script>
+  <script type="module" crossorigin src="./assets/radix-ui.DlbWk3MW.js"></script>
+  <script type="module" crossorigin src="./assets/utilities.BjsdvwEO.js"></script>
+  <script type="module" crossorigin src="./assets/tanstack-vendor.CY4Kt_c8.js"></script>
+  <script type="module" crossorigin src="./assets/http-client.KFGYX-C2.js"></script>
+  <script type="module" crossorigin src="./assets/heic-converter.BhQCFQ0l.js"></script>
+  <script type="module" crossorigin src="./assets/forms.DwPpLLO6.js"></script>
+  <script type="module" crossorigin src="./assets/avatars.Cl1qbG22.js"></script>
+  <script type="module" crossorigin src="./assets/advanced-inputs.Bs-s5qs-.js"></script>
+  <script type="module" crossorigin src="./assets/animations.9KFyDgnv.js"></script>
+  <script type="module" crossorigin src="./assets/virtualization.7HfxLdQj.js"></script>
+  <script type="module" crossorigin src="./assets/headlessui.BxanVuVK.js"></script>
+  <script type="module" crossorigin src="./assets/framer-motion.Gv3DRsV-.js"></script>
+  <script type="module" crossorigin src="./assets/date-utils.X8D4nCrw.js"></script>
+  <script type="module" crossorigin src="./assets/blog-modules.BIzESxxn.js"></script>
+  <script type="module" crossorigin src="./assets/sgsst-assets.KdMSUpxn.js"></script>
+  <script type="module" crossorigin src="./assets/security-ui.B02LYR3S.js"></script>
+  <script type="module" crossorigin src="./assets/kanban-module.BQkVtgpJ.js"></script>
+  <script type="module" crossorigin src="./assets/plans-module.b7JmGc5m.js"></script>
+  <script type="module" crossorigin src="./assets/markdown-processing.BjCAC1Q9.js"></script>
+  <script type="module" crossorigin src="./assets/events-modules.D4bLA3b3.js"></script>
+  <script type="module" crossorigin src="./assets/lms-modules.BQxG4W1_.js"></script>
+  <script type="module" crossorigin src="./assets/sgsst-modules.DCtnGGwr.js"></script>
+  <script type="module" crossorigin src="./assets/ambassadors-module.Cz9VntMR.js"></script>
+  <script type="module" crossorigin src="./assets/codemirror-state.1WAhZPVj.js"></script>
+  <script type="module" crossorigin src="./assets/codemirror-view.Bpg6_Pkc.js"></script>
+  <script type="module" crossorigin src="./assets/codemirror-language.n1HaZD0-.js"></script>
+  <script type="module" crossorigin src="./assets/codemirror-core._QKAbMQ2.js"></script>
+  <script type="module" crossorigin src="./assets/sandpack.CGurEy4b.js"></script>
+  <script type="module" crossorigin src="./assets/canvas-templates.Bl7X8OBa.js"></script>
+  <script type="module" crossorigin src="./assets/index.Bcx3nxYh.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/math-katex.sdXCKFqw.css">
+  <link rel="stylesheet" crossorigin href="./assets/index.BaTYH5Fr.css">
+<link rel="manifest" href="./manifest.webmanifest" crossorigin="use-credentials"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body>
+  <noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=1552188416261002&ev=PageView&noscript=1"
+  /></noscript>
+  <div id="root">
+    <div id="loading-container"></div>
+  </div>
+</body>
+
+</html>
