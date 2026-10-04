@@ -124,7 +124,7 @@ export default function AltaDireccionChecklist() {
     const [conversationId, setConversationId] = useState('new');
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.7-flash');
+    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.6-flash');
 
     // Grouped items by category
     const groupedItems = useMemo(() => {

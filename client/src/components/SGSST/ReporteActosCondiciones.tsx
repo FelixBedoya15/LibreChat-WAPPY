@@ -147,7 +147,7 @@ const ReporteActosCondiciones = () => {
     const [responsablesList, setResponsablesList] = useState([{ nombre: '', cedula: '', rol: '' }]);
     const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
 
-    const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.7-flash');
+    const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.6-flash');
 
     React.useEffect(() => {
         if (user?.personalization?.geminiModels?.sstManagement) {

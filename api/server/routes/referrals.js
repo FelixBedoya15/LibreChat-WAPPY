@@ -1379,7 +1379,7 @@ router.post('/email/generate', requireJwtAuth, async (req, res) => {
     }
 
     try {
-        const chosenModel = (model || 'gemini-3.8-flash').trim();
+        const chosenModel = (model || 'gemini-3.6-flash').trim();
         const systemInstruction = `Eres un consultor comercial y especialista de éxito del cliente en WAPPY IA (wappy.club), la plataforma SaaS líder en Colombia para la automatización de la Seguridad y Salud en el Trabajo (SG-SST) con Inteligencia Artificial.
 Tu objetivo es redactar un mensaje ${channel === 'whatsapp' ? 'de WhatsApp cercano, empático, altamente persuasivo y con emojis adecuados' : 'de correo electrónico profesional, claro, personalizado y con alto impacto'} dirigido a un usuario específico (${targetUserName || 'Usuario'}).
 
@@ -1451,11 +1451,11 @@ router.post('/profile/generate-bio', requireJwtAuth, async (req, res) => {
         yearsExperience, 
         sstExperience, 
         rawBio,
-        model = 'gemini-3.8-flash' 
+        model = 'gemini-3.6-flash' 
     } = req.body;
 
     try {
-        const chosenModel = (model || 'gemini-3.8-flash').trim();
+        const chosenModel = (model || 'gemini-3.6-flash').trim();
         const systemInstruction = `Eres un redactor ejecutivo y estratega de posicionamiento profesional para consultores y embajadores de WAPPY IA (wappy.club), la plataforma SaaS líder en Colombia para la automatización de la Seguridad y Salud en el Trabajo (SG-SST) con Inteligencia Artificial.
 
 Tu misión es transformar los datos y la experiencia laboral en SST de un embajador en una presentación personal de ALTO IMPACTO que aparecerá en su Landing Page de referidos en la sección:
@@ -1759,7 +1759,7 @@ router.post('/proposal/generate', requireJwtAuth, async (req, res) => {
         const remainderUnits = numAdditionalAutomations % 5;
         const monthlyAdditionalAutomationsPrice = (packsOf5 * 40000) + (remainderUnits * 10000);
 
-        const chosenModel = (req.body.modelName || req.body.model || 'gemini-3.8-flash').trim();
+        const chosenModel = (req.body.modelName || req.body.model || 'gemini-3.6-flash').trim();
         const systemInstruction = `Eres el Director Comercial Senior y Consultor Líder en SST de WAPPY IA (wappy.club), el ecosistema SaaS líder en Colombia para la automatización de la Seguridad y Salud en el Trabajo mediante Inteligencia Artificial y Agentes Autónomos.
 
 Tu misión es generar una PROPUESTA COMERCIAL EJECUTIVA, DE ALTO VALOR, TÉCNICAMENTE IMPECABLE, 100% PERSONALIZADA Y SIEMPRE CON EXACTAMENTE 6 MÓDULOS DE ALCANCE TECNOLÓGICO.

@@ -150,11 +150,11 @@ async function processTextDocument(content, fileType, title, userId, existingCon
 }
 
 /**
- * Camino B: Generación / Enriquecimiento de Aplicativos HTML5 en Canvas usando el modelo potente (gemini-3.8-flash).
+ * Camino B: Generación / Enriquecimiento de Aplicativos HTML5 en Canvas usando el modelo potente (gemini-3.6-flash).
  * Si el agente orquestador (ej. gemini-3.5-flash-lite) llama a Canvas con fileType='html',
  * esta función transfiere la memoria del chat, los datos de la empresa y los resultados de las herramientas previas
- * (ej. la hoja de Google Sheets creada en este mismo turno) para que gemini-3.8-flash sintetice la aplicación interactiva.
- * La rotación recorre la escalera completa: gemini-3.8-flash -> 3.7 -> 3.6 -> 3.5 -> 3.5-flash-lite.
+ * (ej. la hoja de Google Sheets creada en este mismo turno) para que gemini-3.6-flash sintetice la aplicación interactiva.
+ * La rotación recorre la escalera: gemini-3.6-flash -> 3.5 -> 3.5-flash-lite.
  */
 async function processHtmlAppDocument(content, fileType, title, userId, req, existingContent) {
   if (fileType !== 'html') {
@@ -238,8 +238,8 @@ ${stringContent ? `## ESPECIFICACIONES O BASE SUMINISTRADA:\n${stringContent}\n`
 
   try {
     const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
-    logger.info('[CanvasTool Camino B] Delegando generación técnica de aplicativo HTML a gemini-3.8-flash (Rotación completa)...');
-    const result = await generateWithKeyRotation('gemini-3.8-flash', userId, prompt);
+    logger.info('[CanvasTool Camino B] Delegando generación técnica de aplicativo HTML a gemini-3.6-flash (Rotación completa)...');
+    const result = await generateWithKeyRotation('gemini-3.6-flash', userId, prompt);
     const response = await result?.response;
     let generatedHtml = response?.text ? response.text() : '';
 
@@ -256,12 +256,12 @@ ${stringContent ? `## ESPECIFICACIONES O BASE SUMINISTRADA:\n${stringContent}\n`
       (generatedHtml.includes('<html') || generatedHtml.includes('<div') || generatedHtml.includes('<!DOCTYPE'))
     ) {
       logger.info(
-        `[CanvasTool Camino B] Aplicativo HTML generado con éxito por gemini-3.8-flash (${generatedHtml.length} caracteres).`,
+        `[CanvasTool Camino B] Aplicativo HTML generado con éxito por gemini-3.6-flash (${generatedHtml.length} caracteres).`,
       );
       return generatedHtml;
     }
   } catch (err) {
-    logger.error('[CanvasTool Camino B] Error delegando generación a gemini-3.8-flash, preservando contenido original:', err);
+    logger.error('[CanvasTool Camino B] Error delegando generación a gemini-3.6-flash, preservando contenido original:', err);
   }
 
   return stringContent;
