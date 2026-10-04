@@ -272,9 +272,13 @@ const getUserPlan = async (req, res) => {
             UserModel.countDocuments({ parentUser: userId, isSubUser: true })
         ]);
 
+        const hasApprovedTx = await WompiTransaction.exists({ userId, status: 'APPROVED' });
+        const isRenewal = Boolean(hasApprovedTx || (userPlan && !['free', 'admin'].includes(userPlan.plan)));
+
         return res.json({
             plan: plan,
             status: 'active', // Derived for UI
+            isRenewal,
             currentPeriodEnd: userPlan?.planExpiresAt || null,
             customTools: userPlan?.customTools || [],
             customInterval: userPlan?.customInterval || null,
@@ -378,6 +382,12 @@ const createTransaction = async (req, res) => {
         let finalPrice = rawPrice;
         let appliedDiscount = 0;
 
+        // Check if user is a renewing customer (has prior approved transaction or active paid plan)
+        const hasApprovedTx = await WompiTransaction.exists({ userId, status: 'APPROVED' });
+        const UserPlan = mongoose.models.UserPlan || mongoose.model('UserPlan');
+        const currentUserPlan = await UserPlan.findOne({ userId }).select('plan').lean();
+        const isRenewal = Boolean(hasApprovedTx || (currentUserPlan && !['free', 'admin'].includes(currentUserPlan.plan)));
+
         // Apply promo Code if provided
         if (promoCode) {
             const cleanCode = promoCode.toUpperCase().trim();
@@ -394,8 +404,8 @@ const createTransaction = async (req, res) => {
                 }
             }
         }
-        // Fallback to default promotions if no explicit PromoCode is given or found
-        else if (planDoc.promotions?.[interval]?.active) {
+        // Fallback to default promotions ONLY for first-time purchases (discounts do not apply on renewal)
+        else if (!isRenewal && planDoc.promotions?.[interval]?.active) {
             appliedDiscount = planDoc.promotions[interval].discountPercentage;
         }
 
@@ -1090,6 +1100,15 @@ const guestCheckout = async (req, res) => {
         let finalPrice = rawPrice;
         let appliedDiscount = 0;
 
+        // Check if user is a renewing customer
+        let isRenewal = false;
+        if (user) {
+            const hasApprovedTx = await WompiTransaction.exists({ userId: user._id, status: 'APPROVED' });
+            const UserPlan = mongoose.models.UserPlan || mongoose.model('UserPlan');
+            const currentUserPlan = await UserPlan.findOne({ userId: user._id }).select('plan').lean();
+            isRenewal = Boolean(hasApprovedTx || (currentUserPlan && !['free', 'admin'].includes(currentUserPlan.plan)));
+        }
+
         if (promoCode) {
             const cleanCode = promoCode.toUpperCase().trim();
             if (cleanCode === 'VITAL30' && planId === 'ipevar') {
@@ -1108,7 +1127,7 @@ const guestCheckout = async (req, res) => {
                     }
                 }
             }
-        } else if (planDoc.promotions?.[interval]?.active) {
+        } else if (!isRenewal && planDoc.promotions?.[interval]?.active) {
             appliedDiscount = planDoc.promotions[interval].discountPercentage;
         }
 
