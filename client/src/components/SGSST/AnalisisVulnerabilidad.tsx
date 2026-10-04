@@ -1115,6 +1115,12 @@ const AnalisisVulnerabilidad = () => {
         </div>
       )}
 
+      {/* ─── DASHBOARD ANALÍTICO Y PEDAGÓGICO DE VULNERABILIDAD ─── */}
+      <AnalisisVulnerabilidadDashboard
+        amenazasList={amenazasList}
+        calculateThreatGraphics={calculateThreatGraphics}
+      />
+
       {/* ─── CONTENEDOR PRINCIPAL DEL FORMULARIO MULTI-AMENAZA ─── */}
       <div className="rounded-3xl border border-border-medium bg-surface-secondary/60 shadow-lg overflow-hidden backdrop-blur-sm">
         <div
