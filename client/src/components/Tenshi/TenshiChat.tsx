@@ -793,6 +793,9 @@ export default function TenshiChat() {
   const setStreamingCanvas = useSetRecoilState(store.streamingCanvasState);
   const currentConvoId = conversation?.conversationId;
   const activeConsultationConvoIdRef = useRef<string | null>(null);
+  const activeConsultationAgentIdRef = useRef<string | null>(null);
+  const activeConsultationAgentNameRef = useRef<string | null>(null);
+  const pendingForceNewChatRef = useRef<boolean>(false);
   const lastContentChangeRef = useRef<{ text: string; time: number }>({ text: '', time: Date.now() });
   const prevIsSubmittingRef = useRef(isChatSubmitting);
 
@@ -1082,6 +1085,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         if (isUserTranscription) {
           lastUserTranscriptionRef.current = text;
 
+          // Registrar si el usuario expresó intención de abrir un nuevo chat o cambiar de agente/tema
+          if (/\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia\s+de\s+agente|cambiemos)\b/i.test(text)) {
+            console.log('[Tenshi Voice] Intención de nuevo chat registrada por voz:', text);
+            pendingForceNewChatRef.current = true;
+          }
+
           // Solo considerar interrupción genuina del usuario si Tenshi NO está reproduciendo su propio audio
           // y si el texto tiene suficiente longitud para no ser ruido acústico o eco del altavoz
           const trimmed = (text || '').trim();
@@ -1171,21 +1180,34 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
             const targetAgentId = matchedAgent?.id;
 
-            // CONTINUIDAD CON EL ESPECIALISTA EN PANTALLA:
+            // 1. Detección robusta de agente activo en pantalla
             const currentAgentId =
               conversation?.agent_id ||
-              new URLSearchParams(window.location.search).get('agent_id');
+              new URLSearchParams(window.location.search).get('agent_id') ||
+              activeConsultationAgentIdRef.current;
 
+            // 2. Detección robusta de si el especialista en pantalla es el mismo
             const isSameAgentActive = Boolean(
-              targetAgentId && currentAgentId && currentAgentId === targetAgentId
+              (targetAgentId && currentAgentId && currentAgentId === targetAgentId) ||
+              (activeConsultationAgentIdRef.current && targetAgentId && activeConsultationAgentIdRef.current === targetAgentId)
             );
 
-            const requestedNewChat =
+            // 3. Detección robusta de solicitud explícita de nuevo chat (por backend, turnos previos por voz o texto actual)
+            const requestedNewChat = Boolean(
+              action.args?.nuevo_chat ||
+              pendingForceNewChatRef.current ||
               /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(rawPregunta) ||
-              /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(action.args?.pregunta || '');
+              /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(action.args?.pregunta || '')
+            );
 
+            // Consumir la bandera de forzar nuevo chat
+            pendingForceNewChatRef.current = false;
+
+            // CASO A: CONTINUIDAD (Mismo especialista y NO se solicitó nuevo chat)
             if (isSameAgentActive && !requestedNewChat) {
-              console.log(`[TenshiChat] Continuidad de chat detectada con ${agentName} en conversación ${conversation?.conversationId || 'actual'}`);
+              console.log(`[TenshiChat] Continuidad de chat detectada con ${agentName} (${targetAgentId}) en conversación ${conversation?.conversationId || 'actual'}`);
+              activeConsultationAgentIdRef.current = targetAgentId || currentAgentId || null;
+              activeConsultationAgentNameRef.current = agentName;
               activeConsultationConvoIdRef.current = conversation?.conversationId || 'current';
 
               // Disparar auto-envío en el chat actual SIN recargar ni crear nuevo chat
@@ -1202,7 +1224,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               return;
             }
 
-            // Si es un chat nuevo o con un especialista distinto:
+            // CASO B: NUEVO CHAT (Especialista distinto O usuario solicitó nuevo chat)
+            console.log(`[TenshiChat] Abriendo nuevo chat para ${agentName} (targetId: ${targetAgentId}, isSameAgentActive: ${isSameAgentActive}, requestedNewChat: ${requestedNewChat})`);
+            activeConsultationAgentIdRef.current = targetAgentId || null;
+            activeConsultationAgentNameRef.current = agentName;
             activeConsultationConvoIdRef.current = 'new';
 
             // 1. Limpiar caché de mensajes de la conversación anterior para aislamiento absoluto
@@ -1379,11 +1404,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   // Sincronizar el contexto visual de la pantalla con la sesión de voz
   useEffect(() => {
     if (isVoiceActive && sendScreenContextRef.current) {
-      const activeAgent = conversation?.agent_id ? agentsRef.current.find(a => a.id === conversation.agent_id) : null;
+      const effectiveAgentId = conversation?.agent_id || activeConsultationAgentIdRef.current;
+      const activeAgent = effectiveAgentId ? agentsRef.current.find(a => a.id === effectiveAgentId) : null;
       sendScreenContextRef.current({
         conversationId: conversation?.conversationId,
-        agentId: conversation?.agent_id,
-        agentName: activeAgent?.name || conversation?.title,
+        agentId: effectiveAgentId,
+        agentName: activeAgent?.name || activeConsultationAgentNameRef.current || conversation?.title,
         route: window.location.pathname,
       });
     }
@@ -1550,11 +1576,22 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               document.querySelector<HTMLTextAreaElement>('textarea[data-testid="chat-input"]') ||
               document.querySelector<HTMLTextAreaElement>('textarea');
             if (textArea && textArea.value && textArea.value.trim().length > 0) {
-              console.log('[Tenshi Watchdog] Prompt aún en textarea tras 3s. Forzando click en send-button...');
+              console.log('[Tenshi Watchdog] Prompt aún en textarea tras 3s. Forzando click o submit en formulario...');
+              textArea.dispatchEvent(new Event('input', { bubbles: true }));
+              textArea.dispatchEvent(new Event('change', { bubbles: true }));
               const sendBtn = (document.getElementById('send-button') ||
                 document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
               if (sendBtn && !sendBtn.disabled) {
                 sendBtn.click();
+              } else if (formEl) {
+                try {
+                  formEl.requestSubmit();
+                } catch {
+                  if (sendBtn) {
+                    sendBtn.disabled = false;
+                    sendBtn.click();
+                  }
+                }
               }
             }
           }

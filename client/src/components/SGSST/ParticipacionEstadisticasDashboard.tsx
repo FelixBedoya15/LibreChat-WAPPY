@@ -676,78 +676,84 @@ export default function ParticipacionEstadisticasDashboard({
     }, [weightedClusters]);
 
     const renderCard = (
-        <div className={isEmbedded ? "w-full overflow-hidden rounded-3xl border border-teal-500/30 bg-surface-secondary shadow-md transition-all duration-300" : "bg-white dark:bg-zinc-950 w-full max-w-5xl h-[92vh] max-h-[920px] rounded-3xl shadow-2xl border border-slate-200/80 dark:border-zinc-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"}>
+    const renderCard = (
+        <div className={isEmbedded ? "w-full max-w-full min-w-0 overflow-hidden rounded-3xl border border-teal-500/30 bg-surface-secondary shadow-md transition-all duration-300 my-4 sm:my-6" : "bg-white dark:bg-zinc-950 w-full max-w-5xl h-[92vh] max-h-[920px] rounded-3xl shadow-2xl border border-slate-200/80 dark:border-zinc-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"}>
             
-            {/* ── Header Principal con Botonera de Vistas ── */}
-            <div className={`flex flex-wrap items-center justify-between px-5 py-4 border-b border-border-light gap-3 shrink-0 ${isEmbedded ? 'bg-surface-tertiary/60' : 'bg-slate-50/70 dark:bg-zinc-900/60 backdrop-blur-sm'}`}>
-                <div className="flex items-center gap-3">
+            {/* ── Header Principal con Botonera de Vistas Adaptativa ── */}
+            <div className={`flex flex-col lg:flex-row items-start lg:items-center justify-between p-4 sm:px-6 sm:py-5 border-b border-border-light gap-3.5 shrink-0 w-full min-w-0 ${isEmbedded ? 'bg-surface-tertiary/60' : 'bg-slate-50/70 dark:bg-zinc-900/60 backdrop-blur-sm'}`}>
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                     <button
                         type="button"
                         onClick={() => isEmbedded && setIsSectionExpanded(!isSectionExpanded)}
-                        className={`flex items-center gap-2.5 text-left font-semibold text-text-primary ${isEmbedded ? 'hover:text-teal-600 transition-colors cursor-pointer' : 'cursor-default'}`}
+                        className={`flex items-center gap-2.5 text-left font-semibold text-text-primary min-w-0 flex-1 ${isEmbedded ? 'hover:text-teal-600 transition-colors cursor-pointer' : 'cursor-default'}`}
                     >
                         {isEmbedded && (
-                            isSectionExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />
+                            isSectionExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary shrink-0" /> : <ChevronRight className="h-5 w-5 text-text-secondary shrink-0" />
                         )}
                         <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center shadow-md shadow-teal-500/20 shrink-0">
                             <Target size={20} className="stroke-[2.2]" />
                         </div>
-                        <div>
-                            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight flex items-center gap-2">
-                                Base Estadística y Ponderación GTC-45
-                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 border border-teal-300/40">
+                        <div className="min-w-0 flex-1">
+                            <h2 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight flex items-center gap-2 flex-wrap">
+                                <span className="truncate">Base Estadística y Ponderación GTC-45</span>
+                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 border border-teal-300/40 shrink-0">
                                     Matriz Oficial
                                 </span>
                             </h2>
-                            <p className="text-xs text-slate-500 dark:text-zinc-400 font-normal">
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 font-normal truncate mt-0.5">
                                 De la percepción individual de los colaboradores a la constitución técnica del riesgo
                             </p>
                         </div>
                     </button>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                    {/* Botonera de 3 Vistas: Gráficas | Clusters Ponderados | Metodología */}
-                    <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-surface-primary border border-border-medium text-[11px] font-bold shadow-2xs">
-                        <button
-                            type="button"
-                            onClick={() => { setActiveTab('dashboard'); setIsSectionExpanded(true); }}
-                            className={cn(
-                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer",
-                                activeTab === 'dashboard'
-                                    ? "bg-teal-600 text-white shadow-xs font-black"
-                                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
-                            )}
-                        >
-                            <BarChart3 className="w-3.5 h-3.5" />
-                            <span>Gráficas & Métricas</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { setActiveTab('clusters'); setIsSectionExpanded(true); }}
-                            className={cn(
-                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer",
-                                activeTab === 'clusters'
-                                    ? "bg-teal-600 text-white shadow-xs font-black"
-                                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
-                            )}
-                        >
-                            <Target className="w-3.5 h-3.5" />
-                            <span>Riesgos Ponderados ({weightedClusters.length})</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { setActiveTab('metodologia'); setIsSectionExpanded(true); }}
-                            className={cn(
-                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer",
-                                activeTab === 'metodologia'
-                                    ? "bg-teal-600 text-white shadow-xs font-black"
-                                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
-                            )}
-                        >
-                            <HelpCircle className="w-3.5 h-3.5" />
-                            <span>¿Cómo se define el riesgo?</span>
-                        </button>
+                <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto">
+                    {/* Botonera de 3 Vistas con soporte para scroll horizontal en móviles */}
+                    <div className="w-full sm:w-auto overflow-x-auto scrollbar-none py-0.5">
+                        <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-surface-primary border border-border-medium text-[11px] font-bold shadow-2xs whitespace-nowrap">
+                            <button
+                                type="button"
+                                onClick={() => { setActiveTab('dashboard'); setIsSectionExpanded(true); }}
+                                className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer",
+                                    activeTab === 'dashboard'
+                                        ? "bg-teal-600 text-white shadow-xs font-black"
+                                        : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+                                )}
+                            >
+                                <BarChart3 className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Gráficas & Métricas</span>
+                                <span className="sm:hidden">Gráficas</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setActiveTab('clusters'); setIsSectionExpanded(true); }}
+                                className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer",
+                                    activeTab === 'clusters'
+                                        ? "bg-teal-600 text-white shadow-xs font-black"
+                                        : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+                                )}
+                            >
+                                <Target className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Riesgos Ponderados ({weightedClusters.length})</span>
+                                <span className="sm:hidden">Riesgos ({weightedClusters.length})</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setActiveTab('metodologia'); setIsSectionExpanded(true); }}
+                                className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer",
+                                    activeTab === 'metodologia'
+                                        ? "bg-teal-600 text-white shadow-xs font-black"
+                                        : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+                                )}
+                            >
+                                <HelpCircle className="w-3.5 h-3.5" />
+                                <span className="hidden md:inline">¿Cómo se define el riesgo?</span>
+                                <span className="md:hidden">Metodología Legal</span>
+                            </button>
+                        </div>
                     </div>
 
                     {/* Selector de Fuente */}
@@ -756,7 +762,7 @@ export default function ParticipacionEstadisticasDashboard({
                             type="button"
                             onClick={() => setFilterSource('all')}
                             className={cn(
-                                "px-2 py-1 rounded-lg transition-all",
+                                "px-2 py-1 rounded-lg transition-all cursor-pointer",
                                 filterSource === 'all' ? "bg-slate-200 dark:bg-zinc-700 text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-800"
                             )}
                         >
@@ -766,7 +772,7 @@ export default function ParticipacionEstadisticasDashboard({
                             type="button"
                             onClick={() => setFilterSource('inbox')}
                             className={cn(
-                                "px-2 py-1 rounded-lg transition-all",
+                                "px-2 py-1 rounded-lg transition-all cursor-pointer",
                                 filterSource === 'inbox' ? "bg-slate-200 dark:bg-zinc-700 text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-800"
                             )}
                         >
@@ -789,61 +795,61 @@ export default function ParticipacionEstadisticasDashboard({
 
             {/* ── Contenido Expandible ── */}
             {(!isEmbedded || isSectionExpanded) && (
-                <div className={isEmbedded ? "p-5 sm:p-6 bg-surface-primary/30 space-y-6 text-xs" : "flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 text-xs"}>
+                <div className={isEmbedded ? "p-4 sm:p-6 bg-surface-primary/30 space-y-6 text-xs w-full min-w-0" : "flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 text-xs w-full min-w-0"}>
                     
                     {/* 1. Tarjetas Superiores de Métricas Clave */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 shadow-xs flex flex-col justify-between">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 flex items-center gap-1.5">
-                                <Users className="w-3.5 h-3.5 text-teal-600" /> Muestra Colectiva
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5 w-full min-w-0">
+                        <div className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 shadow-xs flex flex-col justify-between min-w-0">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 flex items-center gap-1.5 truncate">
+                                <Users className="w-3.5 h-3.5 text-teal-600 shrink-0" /> <span className="truncate">Muestra Colectiva</span>
                             </span>
-                            <div className="mt-2">
-                                <span className="text-2xl font-black text-slate-900 dark:text-zinc-100">
+                            <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
+                                <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-100">
                                     {stats.totalTrabajadores}
                                 </span>
-                                <span className="text-[11px] text-slate-500 dark:text-zinc-400 ml-1.5 font-medium">
-                                    colaboradores ({stats.totalReportes} reportes)
+                                <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400 font-medium truncate">
+                                    ({stats.totalReportes} reportes)
                                 </span>
                             </div>
                         </div>
 
-                        <div className="p-3.5 rounded-2xl border border-rose-200/80 dark:border-rose-800/60 bg-rose-50/50 dark:bg-rose-950/20 shadow-xs flex flex-col justify-between">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1.5">
-                                <Flame className="w-3.5 h-3.5 text-rose-600" /> Nivel de Riesgo I (Crítico)
+                        <div className="p-3 sm:p-3.5 rounded-2xl border border-rose-200/80 dark:border-rose-800/60 bg-rose-50/50 dark:bg-rose-950/20 shadow-xs flex flex-col justify-between min-w-0">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1.5 truncate">
+                                <Flame className="w-3.5 h-3.5 text-rose-600 shrink-0" /> <span className="truncate">Nivel I (Crítico)</span>
                             </span>
-                            <div className="mt-2 flex items-baseline justify-between">
-                                <span className="text-2xl font-black text-rose-900 dark:text-rose-200">
+                            <div className="mt-2 flex items-baseline justify-between gap-1 flex-wrap">
+                                <span className="text-xl sm:text-2xl font-black text-rose-900 dark:text-rose-200">
                                     {stats.nrDistribucion.nivelI}
                                 </span>
-                                <span className="text-[11px] text-rose-700 dark:text-rose-300 font-bold">
-                                    {stats.porcentajeCriticoAlto}% de alta severidad
+                                <span className="text-[10px] sm:text-[11px] text-rose-700 dark:text-rose-300 font-bold truncate">
+                                    {stats.porcentajeCriticoAlto}% crítico
                                 </span>
                             </div>
                         </div>
 
-                        <div className="p-3.5 rounded-2xl border border-teal-200/80 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/20 shadow-xs flex flex-col justify-between">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-teal-700 dark:text-teal-400 flex items-center gap-1.5">
-                                <TrendingUp className="w-3.5 h-3.5 text-teal-600" /> Peligro Más Frecuente
+                        <div className="p-3 sm:p-3.5 rounded-2xl border border-teal-200/80 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/20 shadow-xs flex flex-col justify-between min-w-0">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-teal-700 dark:text-teal-400 flex items-center gap-1.5 truncate">
+                                <TrendingUp className="w-3.5 h-3.5 text-teal-600 shrink-0" /> <span className="truncate">Más Frecuente</span>
                             </span>
                             <div className="mt-2">
-                                <span className="text-lg font-black text-teal-900 dark:text-teal-200 block truncate" title={stats.riesgoMasReportado.cat}>
+                                <span className="text-base sm:text-lg font-black text-teal-900 dark:text-teal-200 block truncate" title={stats.riesgoMasReportado.cat}>
                                     {stats.riesgoMasReportado.cat}
                                 </span>
-                                <span className="text-[11px] font-bold text-teal-700 dark:text-teal-300">
-                                    {stats.totalReportes > 0 ? `${stats.riesgoMasReportado.porcentaje}% de incidencia` : 'Sin datos'}
+                                <span className="text-[10px] sm:text-[11px] font-bold text-teal-700 dark:text-teal-300 truncate block">
+                                    {stats.totalReportes > 0 ? `${stats.riesgoMasReportado.porcentaje}% incidencia` : 'Sin datos'}
                                 </span>
                             </div>
                         </div>
 
-                        <div className="p-3.5 rounded-2xl border border-blue-200/80 dark:border-blue-800/60 bg-blue-50/50 dark:bg-blue-950/20 shadow-xs flex flex-col justify-between">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
-                                <Layers className="w-3.5 h-3.5 text-blue-600" /> Riesgos a Matriz
+                        <div className="p-3 sm:p-3.5 rounded-2xl border border-blue-200/80 dark:border-blue-800/60 bg-blue-50/50 dark:bg-blue-950/20 shadow-xs flex flex-col justify-between min-w-0">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-1.5 truncate">
+                                <Layers className="w-3.5 h-3.5 text-blue-600 shrink-0" /> <span className="truncate">Riesgos a Matriz</span>
                             </span>
-                            <div className="mt-2 flex items-baseline justify-between">
-                                <span className="text-2xl font-black text-blue-900 dark:text-blue-200">
+                            <div className="mt-2 flex items-baseline justify-between gap-1 flex-wrap">
+                                <span className="text-xl sm:text-2xl font-black text-blue-900 dark:text-blue-200">
                                     {weightedClusters.length}
                                 </span>
-                                <span className="text-[11px] text-blue-700 dark:text-blue-300 font-medium">
+                                <span className="text-[10px] sm:text-[11px] text-blue-700 dark:text-blue-300 font-medium truncate">
                                     filas consolidadas
                                 </span>
                             </div>

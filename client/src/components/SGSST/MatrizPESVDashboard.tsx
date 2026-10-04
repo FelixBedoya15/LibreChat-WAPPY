@@ -2,6 +2,7 @@
  * MatrizPESVDashboard.tsx
  * Dashboard analítico y pedagógico del Plan Estratégico de Seguridad Vial (PESV)
  * Cimiento Legal: Ley 1503 de 2011, Ley 2050 de 2020 y Resolución 20223040040595 de 2022 del MinTransporte
+ * Totalmente Adaptativo y Responsive (Mobile, Tablet, Desktop)
  */
 import React, { useState, useMemo } from 'react';
 import {
@@ -45,15 +46,15 @@ const getPESVColor = (calificacion: number) => {
   return { bg: 'bg-emerald-500', text: 'text-emerald-500', hex: '#10b981', border: 'border-emerald-400/40', light: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' };
 };
 
-const Bar = ({ label, value, max, color, labelWidth = 'w-28 sm:w-44' }: {
+const Bar = ({ label, value, max, color, labelWidth = 'w-24 sm:w-36 md:w-44' }: {
   label: string; value: number; max: number; color: string; labelWidth?: string;
 }) => {
   const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
   return (
-    <div className="flex items-center gap-2 sm:gap-3">
+    <div className="flex items-center gap-2 sm:gap-3 w-full min-w-0">
       <span className={`text-[11px] font-semibold text-text-secondary shrink-0 text-right truncate ${labelWidth}`}
-        title={label}>{label.length > 28 ? label.slice(0, 28) + '…' : label}</span>
-      <div className="flex-1 bg-surface-tertiary border border-border-light rounded-full h-4 overflow-hidden relative">
+        title={label}>{label}</span>
+      <div className="flex-1 min-w-0 bg-surface-tertiary border border-border-light rounded-full h-4 overflow-hidden relative">
         <div className={`absolute inset-y-0 left-0 ${color} rounded-full flex items-center justify-end pr-2 transition-all duration-700 ease-out`}
           style={{ width: `${pct > 0 ? Math.max(6, pct) : 0}%` }}>
           <span className="text-[9px] font-black text-white leading-none">{value}</span>
@@ -97,7 +98,7 @@ const ConclusionField = ({ chartType, chartStats, matrixRows, conversationId, to
   };
 
   return (
-    <div className="mt-4 pt-4 border-t border-border-light space-y-2">
+    <div className="mt-4 pt-4 border-t border-border-light space-y-2 w-full min-w-0">
       <textarea
         className="w-full text-xs text-text-primary bg-surface-primary border border-border-light rounded-xl p-3 resize-y min-h-[64px] outline-none focus:border-sky-500 transition-colors"
         placeholder="Conclusión técnica vial PESV… presiona ✨ para generarla con IA"
@@ -197,24 +198,21 @@ export default function MatrizPESVDashboard({
 
   // ── 2. Matriz Térmica PESV (Severidad vs Frecuencia/Probabilidad) ──
   const heatmapData = useMemo(() => {
-    // Filas Severidad: Fatal/Catastrófica (5), Grave/Incapacitante (3), Leve (1)
     const sevRows = [
       { sev: 5, label: 'Catastrófica (5)' },
       { sev: 3, label: 'Grave (3)' },
       { sev: 1, label: 'Leve (1)' }
     ];
-    // Columnas Probabilidad/Frecuencia: Alta (3), Media (2), Baja (1)
     const probCols = [
-      { prob: 3, label: 'Alta / Diaria (3)' },
-      { prob: 2, label: 'Media / Semanal (2)' },
-      { prob: 1, label: 'Baja / Ocasional (1)' }
+      { prob: 3, label: 'Alta (3)' },
+      { prob: 2, label: 'Media (2)' },
+      { prob: 1, label: 'Baja (1)' }
     ];
 
     return sevRows.map((r, rIdx) => {
       return probCols.map((c, cIdx) => {
         const cellKey = `${rIdx}-${cIdx}`;
-        // Calificación teórica en PESV = Severidad * Frecuencia
-        const theoreticalScore = r.sev * c.prob; // 15, 10, 5, 9, 6, 3, 3, 2, 1
+        const theoreticalScore = r.sev * c.prob;
         let level = 'Aceptable';
         if (theoreticalScore >= 10) level = 'Crítico';
         else if (theoreticalScore >= 6) level = 'Moderado';
@@ -281,10 +279,10 @@ export default function MatrizPESVDashboard({
     });
     const total = matrixRows.length || 1;
     return [
-      { label: 'Control en el Individuo (Comportamiento)', value: persona, pct: Math.round((persona / total) * 100) },
-      { label: 'Control en el Vehículo (Inspección/Mantenimiento)', value: vehiculo, pct: Math.round((vehiculo / total) * 100) },
-      { label: 'Control en la Vía / Infraestructura', value: infra, pct: Math.round((infra / total) * 100) },
-      { label: 'Control Operacional (Velocidad/Rutas)', value: medio, pct: Math.round((medio / total) * 100) },
+      { label: 'Control en el Individuo', value: persona, pct: Math.round((persona / total) * 100) },
+      { label: 'Control en el Vehículo', value: vehiculo, pct: Math.round((vehiculo / total) * 100) },
+      { label: 'Control en la Vía / Entorno', value: infra, pct: Math.round((infra / total) * 100) },
+      { label: 'Control Operacional (Velocidad)', value: medio, pct: Math.round((medio / total) * 100) },
     ];
   }, [matrixRows]);
 
@@ -327,127 +325,132 @@ export default function MatrizPESVDashboard({
   const maxChartD = 15;
 
   return (
-    <div className="w-full overflow-hidden rounded-3xl border border-sky-500/30 bg-surface-secondary shadow-md transition-all duration-300 mt-6 mb-6">
+    <div className="w-full max-w-full min-w-0 overflow-hidden rounded-3xl border border-sky-500/30 bg-surface-secondary shadow-md transition-all duration-300 my-4 sm:my-6">
       
-      {/* ── HEADER PRINCIPAL CON BOTONERA CÁPSULA WAPPY ── */}
-      <div className="flex flex-wrap items-center justify-between px-5 py-4 border-b border-border-light gap-3 bg-surface-tertiary/60">
-        <div className="flex items-center gap-3">
+      {/* ── HEADER PRINCIPAL CON BOTONERA CÁPSULA WAPPY ADAPTATIVA ── */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between p-4 sm:px-6 sm:py-5 border-b border-border-light gap-3.5 bg-surface-tertiary/60 w-full min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-600 to-teal-500 text-white flex items-center justify-center shadow-md shadow-sky-500/20 shrink-0">
             <Truck size={20} className="stroke-[2.2]" />
           </div>
-          <div>
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight flex items-center gap-2">
-              Matriz PESV — Evaluación de Riesgos Viales
-              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/60 text-sky-800 dark:text-sky-300 border border-sky-300/40">
-                Res. 20223040040595 de 2022
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight flex items-center gap-2 flex-wrap">
+              <span className="truncate">Matriz PESV — Evaluación de Riesgos Viales</span>
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/60 text-sky-800 dark:text-sky-300 border border-sky-300/40 shrink-0">
+                Res. 40595/2022
               </span>
             </h2>
-            <p className="text-xs text-slate-500 dark:text-zinc-400 font-normal">
+            <p className="text-xs text-slate-500 dark:text-zinc-400 font-normal truncate mt-0.5">
               Paso 8: Caracterización y valoración de factores viales (Humano, Vehículo, Vía y Entorno)
             </p>
           </div>
         </div>
 
-        {/* Botonera de 3 Vistas */}
-        <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-surface-primary border border-border-medium text-[11px] font-bold shadow-2xs">
-          <button
-            type="button"
-            onClick={() => setActiveTab('dashboard')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer",
-              activeTab === 'dashboard'
-                ? "bg-sky-600 text-white shadow-xs font-black"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
-            )}
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Gráficas & Métricas</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('peligros')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer",
-              activeTab === 'peligros'
-                ? "bg-sky-600 text-white shadow-xs font-black"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
-            )}
-          >
-            <Target className="w-3.5 h-3.5" />
-            <span>Peligros Priorizados ({matrixRows.length})</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('metodologia')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer",
-              activeTab === 'metodologia'
-                ? "bg-sky-600 text-white shadow-xs font-black"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
-            )}
-          >
-            <HelpCircle className="w-3.5 h-3.5" />
-            <span>¿Cómo se evalúa el riesgo vial?</span>
-          </button>
+        {/* Botonera de 3 Vistas con soporte para scroll horizontal en móviles */}
+        <div className="w-full lg:w-auto overflow-x-auto scrollbar-none py-0.5">
+          <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-surface-primary border border-border-medium text-[11px] font-bold shadow-2xs whitespace-nowrap">
+            <button
+              type="button"
+              onClick={() => setActiveTab('dashboard')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer",
+                activeTab === 'dashboard'
+                  ? "bg-sky-600 text-white shadow-xs font-black"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+              )}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Gráficas & Métricas</span>
+              <span className="sm:hidden">Gráficas</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('peligros')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer",
+                activeTab === 'peligros'
+                  ? "bg-sky-600 text-white shadow-xs font-black"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+              )}
+            >
+              <Target className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Peligros Priorizados ({matrixRows.length})</span>
+              <span className="sm:hidden">Peligros ({matrixRows.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('metodologia')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer",
+                activeTab === 'metodologia'
+                  ? "bg-sky-600 text-white shadow-xs font-black"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+              )}
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">¿Cómo se evalúa el riesgo vial?</span>
+              <span className="md:hidden">Metodología Legal</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ── CUERPO DEL DASHBOARD ── */}
-      <div className="p-5 sm:p-6 bg-surface-primary/30 space-y-6 text-xs">
+      {/* ── CUERPO DEL DASHBOARD RESPONSIVE ── */}
+      <div className="p-4 sm:p-6 bg-surface-primary/30 space-y-6 text-xs w-full min-w-0">
         
-        {/* 1. Tarjetas Superiores de Métricas Clave */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 flex items-center gap-1.5">
-              <Car className="w-3.5 h-3.5 text-sky-600" /> Peligros Viales
+        {/* 1. Tarjetas Superiores de Métricas Clave (2 columnas en móvil/tablet, 4 en desktop) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5 w-full min-w-0">
+          <div className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 shadow-xs flex flex-col justify-between min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 flex items-center gap-1.5 truncate">
+              <Car className="w-3.5 h-3.5 text-sky-600 shrink-0" /> <span className="truncate">Peligros Viales</span>
             </span>
-            <div className="mt-2">
-              <span className="text-2xl font-black text-slate-900 dark:text-zinc-100">
+            <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-100">
                 {totalPeligros}
               </span>
-              <span className="text-[11px] text-slate-500 dark:text-zinc-400 ml-1.5 font-medium">
+              <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium truncate">
                 escenarios viales
               </span>
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl border border-rose-200/80 dark:border-rose-800/60 bg-rose-50/50 dark:bg-rose-950/20 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1.5">
-              <Flame className="w-3.5 h-3.5 text-rose-600" /> Riesgo Vial Crítico (≥12)
+          <div className="p-3 sm:p-3.5 rounded-2xl border border-rose-200/80 dark:border-rose-800/60 bg-rose-50/50 dark:bg-rose-950/20 shadow-xs flex flex-col justify-between min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1.5 truncate">
+              <Flame className="w-3.5 h-3.5 text-rose-600 shrink-0" /> <span className="truncate">Riesgo Crítico (≥12)</span>
             </span>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl font-black text-rose-900 dark:text-rose-200">
+            <div className="mt-2 flex items-baseline justify-between gap-1 flex-wrap">
+              <span className="text-xl sm:text-2xl font-black text-rose-900 dark:text-rose-200">
                 {stats.criticos}
               </span>
-              <span className="text-[11px] text-rose-700 dark:text-rose-300 font-bold">
-                {stats.pctCritico}% de alta severidad
+              <span className="text-[10px] sm:text-[11px] text-rose-700 dark:text-rose-300 font-bold truncate">
+                {stats.pctCritico}% alta severidad
               </span>
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl border border-sky-200/80 dark:border-sky-800/60 bg-sky-50/50 dark:bg-sky-950/20 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-sky-700 dark:text-sky-400 flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5 text-sky-600" /> Factor Dominante
+          <div className="p-3 sm:p-3.5 rounded-2xl border border-sky-200/80 dark:border-sky-800/60 bg-sky-50/50 dark:bg-sky-950/20 shadow-xs flex flex-col justify-between min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-sky-700 dark:text-sky-400 flex items-center gap-1.5 truncate">
+              <TrendingUp className="w-3.5 h-3.5 text-sky-600 shrink-0" /> <span className="truncate">Factor Dominante</span>
             </span>
-            <div className="mt-2">
-              <span className="text-lg font-black text-sky-900 dark:text-sky-200 block truncate" title={stats.factorPredominante.factor}>
+            <div className="mt-2 min-w-0">
+              <span className="text-base sm:text-lg font-black text-sky-900 dark:text-sky-200 block truncate" title={stats.factorPredominante.factor}>
                 {stats.factorPredominante.factor}
               </span>
-              <span className="text-[11px] font-bold text-sky-700 dark:text-sky-300">
+              <span className="text-[10px] sm:text-[11px] font-bold text-sky-700 dark:text-sky-300 block truncate">
                 {stats.factorPredominante.pct}% de incidencia
               </span>
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Enfoque Seguro
+          <div className="p-3 sm:p-3.5 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs flex flex-col justify-between min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 truncate">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> <span className="truncate">Enfoque Seguro</span>
             </span>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl font-black text-emerald-900 dark:text-emerald-200">
+            <div className="mt-2 flex items-baseline justify-between gap-1 flex-wrap">
+              <span className="text-xl sm:text-2xl font-black text-emerald-900 dark:text-emerald-200">
                 {chartC[1]?.value || 0}
               </span>
-              <span className="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium">
+              <span className="text-[10px] sm:text-[11px] text-emerald-700 dark:text-emerald-300 font-medium truncate">
                 {chartC[1]?.pct || 0}% en vehículos
               </span>
             </div>
@@ -458,28 +461,28 @@ export default function MatrizPESVDashboard({
             TAB 1: GRÁFICAS & MÉTRICAS
         ════════════════════════════════════════════════════════════════════ */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-6">
+          <div className="space-y-6 w-full min-w-0">
             
-            {/* Fila 1: Donut SVG Interactivo de Factores + Matriz Térmica Vial */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* Fila 1: Donut SVG Interactivo de Factores + Matriz Térmica Vial (Stack en pantallas medianas / laptop, split en xl:) */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 w-full min-w-0">
               
-              {/* Donut SVG de Factores de Riesgo (5 cols) */}
-              <div className="lg:col-span-5 p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col justify-between">
+              {/* Donut SVG de Factores de Riesgo (5 cols en xl:, 100% en pantallas menores) */}
+              <div className="xl:col-span-5 p-4 sm:p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col justify-between min-w-0 w-full">
                 <div>
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-extrabold text-xs text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-                      <PieChart className="w-4 h-4 text-sky-600" />
-                      Distribución por Factores PESV
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <h3 className="font-extrabold text-xs text-slate-900 dark:text-zinc-100 flex items-center gap-2 truncate">
+                      <PieChart className="w-4 h-4 text-sky-600 shrink-0" />
+                      <span className="truncate">Distribución por Factores PESV</span>
                     </h3>
-                    <span className="text-[10px] font-bold text-slate-400">Total: {totalPeligros}</span>
+                    <span className="text-[10px] font-bold text-slate-400 shrink-0">Total: {totalPeligros}</span>
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">
                     Factores viales según la Resolución 20223040040595 de 2022.
                   </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-5 my-4">
-                  <div className="relative w-36 h-36 shrink-0">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 my-4 w-full min-w-0">
+                  <div className="relative w-32 h-32 sm:w-36 sm:h-36 shrink-0">
                     <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 transform">
                       {(() => {
                         let accumulatedPct = 0;
@@ -515,21 +518,21 @@ export default function MatrizPESVDashboard({
                     </div>
                   </div>
 
-                  <div className="space-y-1.5 w-full max-w-[200px]">
+                  <div className="space-y-1.5 w-full sm:max-w-[220px] min-w-0">
                     {stats.rankingFactores.slice(0, 5).map((item, idx) => {
                       const colorObj = getFactorColor(item.factor);
                       return (
                         <div
                           key={idx}
-                          className="flex items-center justify-between text-[11px] p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                          className="flex items-center justify-between text-[11px] p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors min-w-0"
                         >
-                          <div className="flex items-center gap-2 truncate">
+                          <div className="flex items-center gap-2 truncate min-w-0 flex-1">
                             <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${colorObj.bg}`} />
                             <span className="font-semibold text-slate-700 dark:text-zinc-300 truncate" title={item.factor}>
                               {item.factor}
                             </span>
                           </div>
-                          <span className="font-bold text-slate-900 dark:text-zinc-100 ml-2">
+                          <span className="font-bold text-slate-900 dark:text-zinc-100 ml-2 shrink-0">
                             {item.pct}%
                           </span>
                         </div>
@@ -543,15 +546,15 @@ export default function MatrizPESVDashboard({
                 </div>
               </div>
 
-              {/* Matriz Térmica Vial PESV (7 cols) */}
-              <div className="lg:col-span-7 p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col justify-between">
+              {/* Matriz Térmica Vial PESV (7 cols en xl:, 100% en pantallas menores) */}
+              <div className="xl:col-span-7 p-4 sm:p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col justify-between min-w-0 w-full overflow-hidden">
                 <div>
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-extrabold text-xs text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-                      <Flame className="w-4 h-4 text-rose-600" />
-                      Matriz de Riesgo Vial (Severidad vs Frecuencia de Desplazamiento)
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <h3 className="font-extrabold text-xs text-slate-900 dark:text-zinc-100 flex items-center gap-2 truncate">
+                      <Flame className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span className="truncate">Matriz de Riesgo Vial (Severidad vs Frecuencia)</span>
                     </h3>
-                    <span className="text-[10px] font-bold text-sky-600 px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/50">
+                    <span className="text-[10px] font-bold text-sky-600 px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/50 shrink-0">
                       Mapa Vial
                     </span>
                   </div>
@@ -560,18 +563,18 @@ export default function MatrizPESVDashboard({
                   </p>
                 </div>
 
-                <div className="overflow-x-auto my-3">
-                  <div className="min-w-[420px] text-[10px]">
-                    <div className="grid grid-cols-4 gap-1 mb-1 font-bold text-slate-400 text-center">
-                      <div className="text-left text-[9px] uppercase">Severidad \ Probabilidad</div>
-                      <div>Alta / Diaria (3)</div>
-                      <div>Media / Semanal (2)</div>
-                      <div>Baja / Ocasional (1)</div>
+                <div className="w-full overflow-x-auto scrollbar-thin my-3">
+                  <div className="min-w-[340px] sm:min-w-[420px] w-full text-[10px]">
+                    <div className="grid grid-cols-4 gap-1 sm:gap-1.5 mb-1.5 font-bold text-slate-400 text-center">
+                      <div className="text-left text-[9px] uppercase truncate">Severidad \ Prob.</div>
+                      <div className="truncate">Alta (3)</div>
+                      <div className="truncate">Media (2)</div>
+                      <div className="truncate">Baja (1)</div>
                     </div>
 
                     {heatmapData.map((row, rIdx) => (
-                      <div key={rIdx} className="grid grid-cols-4 gap-1 mb-1 items-center">
-                        <div className="font-bold text-slate-600 dark:text-zinc-400 text-[10px] truncate" title={row[0].sevLabel}>
+                      <div key={rIdx} className="grid grid-cols-4 gap-1 sm:gap-1.5 mb-1.5 items-center">
+                        <div className="font-bold text-slate-600 dark:text-zinc-400 text-[10px] truncate pr-1" title={row[0].sevLabel}>
                           {row[0].sevLabel}
                         </div>
                         {row.map((cell) => {
@@ -590,16 +593,16 @@ export default function MatrizPESVDashboard({
                                 setActiveTab('peligros');
                               }}
                               className={cn(
-                                "h-11 rounded-xl border flex flex-col items-center justify-center transition-all p-1 cursor-pointer",
+                                "h-11 sm:h-12 rounded-xl border flex flex-col items-center justify-center transition-all p-1 cursor-pointer w-full min-w-0",
                                 cellBg,
                                 isSelected ? "ring-2 ring-sky-500 font-black scale-95 shadow-sm" : "border-slate-200/40 dark:border-zinc-700/40"
                               )}
                             >
-                              <span className="font-extrabold text-[9px] uppercase">
+                              <span className="font-extrabold text-[9px] uppercase truncate w-full text-center">
                                 {cell.level}
                               </span>
-                              <span className="text-[11px] font-black">
-                                {cell.count > 0 ? `${cell.count} escenarios` : '—'}
+                              <span className="text-[11px] font-black truncate w-full text-center">
+                                {cell.count > 0 ? `${cell.count} esc.` : '—'}
                               </span>
                             </button>
                           );
@@ -609,25 +612,25 @@ export default function MatrizPESVDashboard({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 pt-2 border-t border-slate-100 dark:border-zinc-800">
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Riesgo Crítico (≥12 pts)</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Riesgo Moderado (8-11 pts)</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Riesgo Aceptable (3-7 pts)</span>
+                <div className="flex flex-wrap items-center justify-between text-[10px] font-bold text-slate-500 pt-2 border-t border-slate-100 dark:border-zinc-800 gap-1.5">
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0" /> Crítico (≥12)</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" /> Moderado (8-11)</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" /> Aceptable (3-7)</span>
                 </div>
               </div>
 
             </div>
 
             {/* Fila 2: Gráficos de Actores, Controles y Desplazamientos */}
-            <div className={`grid gap-5 ${isMaximized ? 'grid-cols-1 xl:grid-cols-2' : 'grid-cols-1'}`}>
+            <div className={`grid gap-5 ${isMaximized ? 'grid-cols-1 xl:grid-cols-2' : 'grid-cols-1'} w-full min-w-0`}>
               
               {/* Chart A: Actor Vial */}
-              <div className="p-5 bg-surface-secondary rounded-3xl border border-border-medium shadow-sm">
-                <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-sky-500 inline-block" />
-                  Calificación Promedio por Actor Vial (Escala 3-15)
+              <div className="p-4 sm:p-5 bg-surface-secondary rounded-3xl border border-border-medium shadow-sm w-full min-w-0">
+                <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2 truncate">
+                  <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0 inline-block" />
+                  <span className="truncate">Calificación Promedio por Actor Vial (Escala 3-15)</span>
                 </h4>
-                <div className="space-y-3">
+                <div className="space-y-3 w-full min-w-0">
                   {chartA.map(d => {
                     const col = getPESVColor(d.avg);
                     return <Bar key={d.actor} label={`${d.actor} (${d.count})`} value={d.avg} max={maxChartA} color={col.bg} />;
@@ -639,12 +642,12 @@ export default function MatrizPESVDashboard({
               </div>
 
               {/* Chart B: Factores de Riesgo Vial */}
-              <div className="p-5 bg-surface-secondary rounded-3xl border border-border-medium shadow-sm">
-                <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <Truck className="h-4 w-4 text-sky-600" />
-                  Calificación por Factor de Riesgo Vial
+              <div className="p-4 sm:p-5 bg-surface-secondary rounded-3xl border border-border-medium shadow-sm w-full min-w-0">
+                <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2 truncate">
+                  <Truck className="h-4 w-4 text-sky-600 shrink-0" />
+                  <span className="truncate">Calificación por Factor de Riesgo Vial</span>
                 </h4>
-                <div className="space-y-3">
+                <div className="space-y-3 w-full min-w-0">
                   {chartB.map(d => {
                     const col = getPESVColor(d.avg);
                     return <Bar key={d.factor} label={`${d.factor} (${d.count})`} value={d.avg} max={maxChartB} color={col.bg} />;
@@ -656,16 +659,16 @@ export default function MatrizPESVDashboard({
               </div>
 
               {/* Chart C: Cobertura de Controles */}
-              <div className="p-5 bg-surface-secondary rounded-3xl border border-border-medium shadow-sm">
-                <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                  Cobertura del Enfoque Sistema Seguro
+              <div className="p-4 sm:p-5 bg-surface-secondary rounded-3xl border border-border-medium shadow-sm w-full min-w-0">
+                <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2 truncate">
+                  <ShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
+                  <span className="truncate">Cobertura del Enfoque Sistema Seguro</span>
                 </h4>
-                <div className="space-y-3">
+                <div className="space-y-3 w-full min-w-0">
                   {chartC.map(d => (
-                    <div key={d.label}>
+                    <div key={d.label} className="w-full min-w-0">
                       <Bar label={`${d.label}`} value={d.value} max={matrixRows.length} color="bg-emerald-500" />
-                      <p className="text-[10px] text-text-secondary text-right mt-0.5">{d.pct}% de los peligros viales cuentan con controles</p>
+                      <p className="text-[10px] text-text-secondary text-right mt-0.5">{d.pct}% con controles</p>
                     </div>
                   ))}
                 </div>
@@ -675,12 +678,12 @@ export default function MatrizPESVDashboard({
               </div>
 
               {/* Chart D: Desplazamientos Misionales vs In-Itinere */}
-              <div className="p-5 bg-surface-secondary rounded-3xl border border-border-medium shadow-sm">
-                <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-orange-500" />
-                  Nivel de Calificación: Desplazamiento Misional vs In-Itinere
+              <div className="p-4 sm:p-5 bg-surface-secondary rounded-3xl border border-border-medium shadow-sm w-full min-w-0">
+                <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2 truncate">
+                  <MapPin className="h-4 w-4 text-orange-500 shrink-0" />
+                  <span className="truncate">Misional vs In-Itinere</span>
                 </h4>
-                <div className="space-y-3">
+                <div className="space-y-3 w-full min-w-0">
                   {chartD.map(d => {
                     const col = getPESVColor(d.avg);
                     return <Bar key={d.type} label={`${d.type} (${d.count})`} value={d.avg} max={maxChartD} color={col.bg} />;
@@ -700,16 +703,16 @@ export default function MatrizPESVDashboard({
             TAB 2: PELIGROS VIALES PRIORIZADOS
         ════════════════════════════════════════════════════════════════════ */}
         {activeTab === 'peligros' && (
-          <div className="space-y-4">
+          <div className="space-y-4 w-full min-w-0">
             
-            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-2xs">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-xs text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
-                  <Filter size={13} className="text-sky-600" />
-                  Mostrando {filteredRows.length} de {matrixRows.length} peligros viales
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-2xs w-full min-w-0">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <span className="font-bold text-xs text-slate-700 dark:text-zinc-300 flex items-center gap-1.5 truncate">
+                  <Filter size={13} className="text-sky-600 shrink-0" />
+                  <span>Mostrando {filteredRows.length} de {matrixRows.length} peligros viales</span>
                 </span>
                 {selectedHeatmapCell && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-300">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-300 shrink-0">
                     Celda térmica: {selectedHeatmapCell}
                     <button type="button" onClick={() => setSelectedHeatmapCell(null)} className="hover:text-red-600 cursor-pointer ml-1">✕</button>
                   </span>
@@ -720,14 +723,14 @@ export default function MatrizPESVDashboard({
                 <button
                   type="button"
                   onClick={() => setSelectedHeatmapCell(null)}
-                  className="text-[11px] font-bold text-sky-600 hover:text-sky-700 cursor-pointer"
+                  className="text-[11px] font-bold text-sky-600 hover:text-sky-700 cursor-pointer shrink-0"
                 >
                   Restablecer filtros
                 </button>
               )}
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 w-full min-w-0">
               {filteredRows.map((r, idx) => {
                 const score = Number(r.calificacion) || 0;
                 const col = getPESVColor(score);
@@ -736,48 +739,48 @@ export default function MatrizPESVDashboard({
                 return (
                   <div
                     key={r.id || idx}
-                    className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-2xs space-y-3 transition-all hover:border-sky-500/40"
+                    className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-2xs space-y-3 transition-all hover:border-sky-500/40 w-full min-w-0"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                      <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 shrink-0">
                           PRIORIDAD #{idx + 1}
                         </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200/60">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200/60 shrink-0">
                           Actor: {r.rol_via || 'Conductor'}
                         </span>
-                        <span className="text-xs font-bold text-slate-800 dark:text-zinc-200">
+                        <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate">
                           {r.tipo_desplazamiento || 'Misional'} • {r.factor_riesgo || 'Vial'}
                         </span>
                       </div>
 
-                      <span className={`text-[11px] font-black px-2.5 py-1 rounded-xl ${col.bg} text-white shadow-2xs`}>
+                      <span className={`text-[11px] font-black px-2.5 py-1 rounded-xl ${col.bg} text-white shadow-2xs shrink-0`}>
                         {score >= 12 ? 'CRÍTICO' : score >= 8 ? 'MODERADO' : 'ACEPTABLE'} (Puntaje: {score})
                       </span>
                     </div>
 
-                    {/* Cinta de Fórmula PESV */}
-                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/60 dark:border-zinc-700/60 flex flex-wrap items-center justify-between text-[11px] gap-2">
-                      <div className="flex items-center gap-2 font-mono text-slate-700 dark:text-zinc-300">
+                    {/* Cinta de Fórmula PESV Adaptativa */}
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/60 dark:border-zinc-700/60 flex flex-wrap items-center justify-between text-[11px] gap-2 w-full min-w-0">
+                      <div className="flex items-center gap-1.5 font-mono text-slate-700 dark:text-zinc-300 flex-wrap">
                         <Calculator size={13} className="text-sky-600 shrink-0" />
-                        <span>Fórmula PESV:</span>
+                        <span className="font-semibold">Fórmula PESV:</span>
                         <span className="font-bold text-sky-700 dark:text-sky-400">Frecuencia ({r.probabilidad_frecuencia || '—'})</span> × 
                         <span className="font-bold text-sky-700 dark:text-sky-400"> Severidad ({r.impacto_severidad || '—'})</span> = 
                         <span className="font-black text-rose-600 dark:text-rose-400"> Calificación {score}</span>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-500 italic">
+                      <span className="text-[10px] font-bold text-slate-500 italic shrink-0">
                         {r.nivel_riesgo_residual || (score >= 12 ? 'Acción Correctiva Inmediata' : 'Vigilancia y Capacitación')}
                       </span>
                     </div>
 
-                    <div className="text-[11px] text-slate-700 dark:text-zinc-300 grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                      <div>
-                        <span className="text-[9px] font-bold uppercase text-slate-400 block">Peligro Vial Identificado:</span>
-                        <p className="font-semibold text-slate-900 dark:text-zinc-100">{r.peligro_vial_descripcion || r.descripcion_riesgo}</p>
+                    <div className="text-[11px] text-slate-700 dark:text-zinc-300 grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 w-full min-w-0">
+                      <div className="min-w-0">
+                        <span className="text-[9px] font-bold uppercase text-slate-400 block truncate">Peligro Vial Identificado:</span>
+                        <p className="font-semibold text-slate-900 dark:text-zinc-100 break-words">{r.peligro_vial_descripcion || r.descripcion_riesgo}</p>
                       </div>
-                      <div>
-                        <span className="text-[9px] font-bold uppercase text-slate-400 block">Posibles Consecuencias:</span>
-                        <p className="font-medium text-slate-700 dark:text-zinc-300">{r.peores_consecuencias || 'Colisión, volcamiento o lesiones a terceros'}</p>
+                      <div className="min-w-0">
+                        <span className="text-[9px] font-bold uppercase text-slate-400 block truncate">Posibles Consecuencias:</span>
+                        <p className="font-medium text-slate-700 dark:text-zinc-300 break-words">{r.peores_consecuencias || 'Colisión, volcamiento o lesiones a terceros'}</p>
                       </div>
                     </div>
 
@@ -792,7 +795,7 @@ export default function MatrizPESVDashboard({
                       </button>
 
                       {isExpanded && (
-                        <div className="mt-3 p-3.5 rounded-2xl bg-surface-secondary/70 border border-sky-500/20 space-y-2 text-[11px] animate-in fade-in duration-200">
+                        <div className="mt-3 p-3.5 rounded-2xl bg-surface-secondary/70 border border-sky-500/20 space-y-2 text-[11px] animate-in fade-in duration-200 w-full min-w-0">
                           <div>
                             <span className="text-[9px] font-bold uppercase text-slate-400 block">Controles Existentes:</span>
                             <p className="text-slate-800 dark:text-zinc-200">{r.controles_existentes_detalle || 'Inspección preoperacional diaria'}</p>
@@ -817,23 +820,23 @@ export default function MatrizPESVDashboard({
             TAB 3: EXPLICADOR DE METODOLOGÍA PESV Y CIMIENTO LEGAL
         ════════════════════════════════════════════════════════════════════ */}
         {activeTab === 'metodologia' && (
-          <div className="space-y-6">
+          <div className="space-y-6 w-full min-w-0">
             
-            <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs space-y-4">
+            <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs space-y-4 w-full min-w-0">
               <div>
                 <h3 className="text-sm font-black text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-                  <Scale className="w-4.5 h-4.5 text-sky-600" />
-                  Metodología del Plan Estratégico de Seguridad Vial (Resolución 20223040040595 de 2022)
+                  <Scale className="w-4.5 h-4.5 text-sky-600 shrink-0" />
+                  <span>Metodología del Plan Estratégico de Seguridad Vial (Resolución 20223040040595 de 2022)</span>
                 </h3>
                 <p className="text-xs text-slate-600 dark:text-zinc-400 mt-1 leading-relaxed">
                   Bajo la <strong>Ley 1503 de 2011</strong>, <strong>Ley 2050 de 2020</strong> y la <strong>Resolución 20223040040595 de 2022</strong> del Ministerio de Transporte, el PESV se estructura en 4 fases articuladas al SG-SST (Planificar, Hacer, Verificar, Actuar). En el <strong>Paso 8</strong> se efectúa la evaluación y valoración de riesgos viales:
                 </p>
               </div>
 
-              {/* Flujograma Visual en 4 Pasos */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2">
+              {/* Flujograma Visual en 4 Pasos Responsive (1 col móvil, 2 tablet, 4 desktop) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 pt-2 w-full min-w-0">
                 
-                <div className="p-4 rounded-2xl bg-sky-50/50 dark:bg-sky-950/20 border border-sky-200/70 dark:border-sky-800/60 space-y-2">
+                <div className="p-4 rounded-2xl bg-sky-50/50 dark:bg-sky-950/20 border border-sky-200/70 dark:border-sky-800/60 space-y-2 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-sky-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                     1
                   </div>
@@ -845,7 +848,7 @@ export default function MatrizPESVDashboard({
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/70 dark:border-blue-800/60 space-y-2">
+                <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/70 dark:border-blue-800/60 space-y-2 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                     2
                   </div>
@@ -857,7 +860,7 @@ export default function MatrizPESVDashboard({
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/60 space-y-2">
+                <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/60 space-y-2 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-amber-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                     3
                   </div>
@@ -869,7 +872,7 @@ export default function MatrizPESVDashboard({
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/60 space-y-2">
+                <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/60 space-y-2 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                     4
                   </div>
@@ -883,29 +886,29 @@ export default function MatrizPESVDashboard({
 
               </div>
 
-              {/* Tabla de Criterios PESV */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/80 dark:border-zinc-700/80 space-y-3">
+              {/* Tabla de Criterios PESV Responsive */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/80 dark:border-zinc-700/80 space-y-3 w-full min-w-0">
                 <h4 className="font-bold text-xs text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-                  <Calculator size={14} className="text-sky-600" />
-                  Niveles de Calificación Vial y Acciones Exigibles
+                  <Calculator size={14} className="text-sky-600 shrink-0" />
+                  <span>Niveles de Calificación Vial y Acciones Exigibles</span>
                 </h4>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
-                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-rose-200/60 dark:border-rose-900/60 space-y-1.5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] w-full min-w-0">
+                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-rose-200/60 dark:border-rose-900/60 space-y-1.5 min-w-0">
                     <span className="font-extrabold text-rose-700 dark:text-rose-400 block">Riesgo Crítico (12 - 15 Puntos)</span>
                     <p className="text-slate-600 dark:text-zinc-300">
                       Rutas de alta siniestralidad, exceso de velocidad o vehículos pesados con interacción peatonal. <strong>Exige intervención inmediata en el Plan Anual PESV, monitoreo telemático y reinducción al conductor.</strong>
                     </p>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-amber-200/60 dark:border-amber-900/60 space-y-1.5">
+                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-amber-200/60 dark:border-amber-900/60 space-y-1.5 min-w-0">
                     <span className="font-extrabold text-amber-700 dark:text-amber-400 block">Riesgo Moderado (8 - 11 Puntos)</span>
                     <p className="text-slate-600 dark:text-zinc-300">
                       Rutas interurbanas con condiciones climáticas variables o fatiga en trayectos medios. <strong>Requiere regulación de tiempos de descanso, control de jornada y mantenimiento preventivo.</strong>
                     </p>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-emerald-200/60 dark:border-emerald-900/60 space-y-1.5">
+                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-emerald-200/60 dark:border-emerald-900/60 space-y-1.5 min-w-0">
                     <span className="font-extrabold text-emerald-700 dark:text-emerald-400 block">Riesgo Aceptable (3 - 7 Puntos)</span>
                     <p className="text-slate-600 dark:text-zinc-300">
                       Desplazamientos cortos de baja velocidad en entornos controlados. <strong>Se mantienen inspecciones preoperacionales y hábitos seguros de conducción defensiva.</strong>

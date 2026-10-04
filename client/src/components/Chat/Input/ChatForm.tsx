@@ -226,6 +226,10 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
   const pendingAgentSubmissionRef = useRef<{ agentId: string; prompt: string; time: number } | null>(
     null,
   );
+  const isSubmittingRef = useRef(isSubmitting);
+  useEffect(() => {
+    isSubmittingRef.current = isSubmitting;
+  }, [isSubmitting]);
 
   /** Coloca el texto en el formulario y ejecuta el envío DIRECTO vía click / submitMessage */
   const sendDelegatedPrompt = useCallback(
@@ -307,7 +311,8 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
       });
 
       // 1. Si el agente objetivo aún no es el activo, postergar el envío hasta que se asiente en la conversación
-      if (agentId && conversation?.agent_id !== agentId) {
+      // Solo verificamos divergencia si tanto agentId como conversation?.agent_id están definidos y son diferentes
+      if (agentId && conversation?.agent_id && conversation.agent_id !== agentId) {
         console.log('[ChatForm] Agente diferente al actual. Seleccionando agente y postergando sumisión:', agentId);
 
         // Si estamos en una conversación existente que no es /c/new ni está vacía,
@@ -337,11 +342,18 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         return;
       }
 
-      // 2. Si el sistema está actualmente respondiendo / generando, detenerlo primero
+      // 2. Si el sistema está actualmente respondiendo / generando, detenerlo primero y esperar liberación
       if (isSubmitting || isSubmittingAdded) {
-        console.log('[ChatForm] Conversación ocupada por respuesta previa. Deteniendo generación y enviando consulta nueva...');
+        console.log('[ChatForm] Conversación ocupada por respuesta previa. Deteniendo generación y esperando liberación...');
         handleStopGenerating();
-        setTimeout(() => sendDelegatedPrompt(prompt), 150);
+        let waitCount = 0;
+        const waitInterval = setInterval(() => {
+          waitCount++;
+          if (!isSubmittingRef.current || waitCount >= 15) {
+            clearInterval(waitInterval);
+            sendDelegatedPrompt(prompt);
+          }
+        }, 100);
         return;
       }
 

@@ -378,6 +378,10 @@ class VoiceSession {
                                     pregunta: {
                                         type: "string",
                                         description: "Consulta concreta del usuario para el especialista, fiel a lo que el usuario pidió. Puedes redactarla con claridad, pero NO agregues temas que el usuario no mencionó (ej: si pidió al médico 'qué es burnout', no agregues 'asesoría legal'). Nunca envíes saludos vacíos ni consultas genéricas."
+                                    },
+                                    nuevo_chat: {
+                                        type: "boolean",
+                                        description: "true si el usuario pide expresamente abrir un nuevo chat, otro chat o cambiar de especialista/tema; false si continúa en la misma conversación o hace preguntas de seguimiento."
                                     }
                                 },
                                 required: ["agente", "pregunta"]
@@ -817,7 +821,8 @@ class VoiceSession {
                                 type: "object",
                                 properties: {
                                     nombre_especialista: { type: "string", description: "Nombre o rol del agente especialista a consultar." },
-                                    consulta_completa: { type: "string", description: "Consulta técnica detallada para el especialista." }
+                                    consulta_completa: { type: "string", description: "Consulta técnica detallada para el especialista." },
+                                    nuevo_chat: { type: "boolean", description: "true si el usuario pide expresamente abrir un nuevo chat, otro chat o cambiar de tema; false si continúa en la misma conversación." }
                                 },
                                 required: ["nombre_especialista", "consulta_completa"]
                             }
@@ -876,10 +881,12 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
    - INVÓCALA DE INMEDIATO siempre que el usuario mencione ir, abrir, consultar o ver cualquier hito, módulo o sección.
 4. **wappy_abrir_chat_agente** / **consultar_agente_especializado**: Abre un chat o continúa la conversación con uno de los agentes especialistas de WAPPY (Abogado Laboral, Médico Laboral, Fisioterapeuta Laboral, Ingeniero Químico SST, Coordinador PESV, Psicólogo SST, etc.) y le transmite la consulta técnica del usuario.
    - REGLA CRÍTICA DE CONTEXTO OBLIGATORIO: Solo debes invocar esta herramienta cuando el usuario YA haya dicho qué desea consultar. Si el usuario únicamente te dice "abre un chat con el médico", "pásame al abogado" o "abramos un nuevo chat con el abogado" sin dar su consulta, NO abras el chat todavía; pregúntale primero con calidez: "¿Qué quieres que le consulte al [especialista]?" y espera a que te dé su duda antes de invocar la herramienta.
-   - REGLA DE CAMBIO DE ESPECIALISTA / NUEVO CHAT: En cuanto el usuario te proporcione la consulta (ej: "pregúntale sobre qué trata la Resolución 0312"), INVOCA DE INMEDIATO 'wappy_abrir_chat_agente' pasando como 'agente' el especialista solicitado (ej: 'abogado laboral') y como 'pregunta' la consulta exacta. NUNCA te quedes en el chat anterior ni intentes responder tú misma.
+   - REGLA DE CAMBIO DE ESPECIALISTA / NUEVO CHAT VS CONTINUIDAD:
+     * Si el usuario pide un NUEVO CHAT ("abre otro chat", "un nuevo chat", "nueva conversación", "desde cero", "cambia de tema", "otro especialista") o nombra a un especialista diferente al actual: pasa 'nuevo_chat': true en los argumentos.
+     * Si el usuario hace una PREGUNTA DE SEGUIMIENTO sobre el mismo tema o con el mismo especialista (ej: "¿y a los 150 días?", "¿qué otras enfermedades?", "continúa...", "explica más"): pasa 'nuevo_chat': false para que continúe en la misma conversación activa sin recargar la pantalla.
    - REGLA DE PREGUNTA FIEL: En el parámetro 'pregunta', formula exactamente lo que pidió el usuario sin inventar ni añadir temas que no correspondan.
-   - PROHIBIDO RESPONDER TÚ: No respondas tú misma a la consulta técnica o legal del usuario cuando te pida abrir un chat con un especialista.
-   - RESPUESTA TRAS INVOCAR: Confirma en una sola frase breve que ya abriste el chat y le dejaste la consulta formulada en pantalla al especialista. Ejemplo: "¡De una! Ya abrí el chat con el abogado laboral y le dejé tu consulta en pantalla. Esperemos un momento a que responda." NUNCA inventes lo que va a responder ni des diagnósticos anticipados.
+   - EXCEPCIÓN DE OBEDIENCIA DIRECTA ("RESPÓNDEME TÚ"): Si el usuario te indica expresamente "respóndeme tú", "hazlo tú", "no abras chat", "no le preguntes al especialista", "contéstame directamente" o muestra rechazo a la delegación: TIENES OBLIGACIÓN TOTAL Y ABSOLUTA DE RESPONDERLE TÚ MISMA de inmediato con tu base de conocimientos de SG-SST en Colombia (citando normatividad como Decreto 1072 de 2015 o las resoluciones aplicables). Está TERMINANTEMENTE PROHIBIDO negarte, decir que debes esperar al especialista o insistir en delegar cuando el usuario te ordenó responder tú.
+   - RESPUESTA TRAS INVOCAR: Confirma en una sola frase breve que ya abriste el chat o transmitiste la consulta al especialista en pantalla. Ejemplo: "¡De una! Ya le pasé tu consulta al especialista en pantalla. Esperemos un momento a que responda." NUNCA inventes lo que va a responder ni des diagnósticos anticipados.
 5. **CONSULTAS Y RESPUESTAS DE ESPECIALISTAS**:
    - Cuando el especialista responda o recibas una notificación "[SISTEMA INTERNO WAPPY - RESPUESTA TÉCNICA EMITIDA]: ...", explica verbalmente de forma clara las conclusiones técnicas que dictaminó el especialista de forma fiel y veraz, sin añadir advertencias ni disclaimers. ESTÁ TERMINANTEMENTE PROHIBIDO limitarte a decir "ya respondió" o mandar al usuario a revisar la pantalla.
    - Si el usuario te pide que leas la respuesta o dice "léelo", "léemelo", "qué dice exactamente", "no lo resumas": léele el dictamen real citando sus artículos, decretos (ej. Decreto 1072 de 2015) y argumentos sin comprimirlo a una sola frase genérica.
@@ -2227,13 +2234,19 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                             continue;
                         }
 
-                        logger.info(`[VoiceSession] Gemini Live invoked "${fc.name}" -> delegating as wappy_abrir_chat_agente: ${agente}, pregunta: "${pregunta.substring(0, 60)}..."`);
+                        const requestedNewChat = Boolean(
+                            fc.args?.nuevo_chat ||
+                            /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(this.lastUserTranscription || '') ||
+                            /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(pregunta)
+                        );
+
+                        logger.info(`[VoiceSession] Gemini Live invoked "${fc.name}" -> delegating as wappy_abrir_chat_agente: ${agente}, nuevo_chat: ${requestedNewChat}, pregunta: "${pregunta.substring(0, 60)}..."`);
                         this.sendToClient({
                             type: 'wappy_action',
                             data: {
                                 id: fc.id,
                                 name: 'wappy_abrir_chat_agente',
-                                args: { agente, pregunta }
+                                args: { agente, pregunta, nuevo_chat: requestedNewChat }
                             }
                         });
 

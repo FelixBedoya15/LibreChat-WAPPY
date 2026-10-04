@@ -147,127 +147,132 @@ export default function AnalisisVulnerabilidadDashboard({
   if (amenazasList.length === 0) return null;
 
   return (
-    <div className="w-full overflow-hidden rounded-3xl border border-teal-500/30 bg-surface-secondary shadow-md transition-all duration-300 mb-6">
+    <div className="w-full max-w-full min-w-0 overflow-hidden rounded-3xl border border-teal-500/30 bg-surface-secondary shadow-md transition-all duration-300 my-4 sm:my-6">
       
-      {/* ── HEADER PRINCIPAL CON BOTONERA CÁPSULA WAPPY ── */}
-      <div className="flex flex-wrap items-center justify-between px-5 py-4 border-b border-border-light gap-3 bg-surface-tertiary/60">
-        <div className="flex items-center gap-3">
+      {/* ── HEADER PRINCIPAL CON BOTONERA CÁPSULA WAPPY ADAPTATIVA ── */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between p-4 sm:px-6 sm:py-5 border-b border-border-light gap-3.5 bg-surface-tertiary/60 w-full min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center shadow-md shadow-teal-500/20 shrink-0">
             <Shield size={20} className="stroke-[2.2]" />
           </div>
-          <div>
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight flex items-center gap-2">
-              Análisis de Vulnerabilidad y Diamante de Riesgo
-              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 border border-teal-300/40">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight flex items-center gap-2 flex-wrap">
+              <span className="truncate">Análisis de Vulnerabilidad y Diamante de Riesgo</span>
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 border border-teal-300/40 shrink-0">
                 Dec. 1072/15 Art. 2.2.4.6.25
               </span>
             </h2>
-            <p className="text-xs text-slate-500 dark:text-zinc-400 font-normal">
+            <p className="text-xs text-slate-500 dark:text-zinc-400 font-normal truncate mt-0.5">
               Metodología de Colores (IDIGER / UNGRD) ante amenazas naturales, tecnológicas y sociales
             </p>
           </div>
         </div>
 
-        {/* Botonera de 3 Vistas */}
-        <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-surface-primary border border-border-medium text-[11px] font-bold shadow-2xs">
-          <button
-            type="button"
-            onClick={() => setActiveTab('dashboard')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer",
-              activeTab === 'dashboard'
-                ? "bg-teal-600 text-white shadow-xs font-black"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
-            )}
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Gráficas & Métricas</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('diamantes')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer",
-              activeTab === 'diamantes'
-                ? "bg-teal-600 text-white shadow-xs font-black"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
-            )}
-          >
-            <Target className="w-3.5 h-3.5" />
-            <span>Diamantes de Riesgo ({amenazasList.length})</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('metodologia')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer",
-              activeTab === 'metodologia'
-                ? "bg-teal-600 text-white shadow-xs font-black"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
-            )}
-          >
-            <HelpCircle className="w-3.5 h-3.5" />
-            <span>¿Cómo se evalúa la vulnerabilidad?</span>
-          </button>
+        {/* Botonera de 3 Vistas con soporte para scroll horizontal en móviles */}
+        <div className="w-full lg:w-auto overflow-x-auto scrollbar-none py-0.5">
+          <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-surface-primary border border-border-medium text-[11px] font-bold shadow-2xs whitespace-nowrap">
+            <button
+              type="button"
+              onClick={() => setActiveTab('dashboard')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer",
+                activeTab === 'dashboard'
+                  ? "bg-teal-600 text-white shadow-xs font-black"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+              )}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Gráficas & Métricas</span>
+              <span className="sm:hidden">Gráficas</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('diamantes')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer",
+                activeTab === 'diamantes'
+                  ? "bg-teal-600 text-white shadow-xs font-black"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+              )}
+            >
+              <Target className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Diamantes de Riesgo ({amenazasList.length})</span>
+              <span className="sm:hidden">Diamantes ({amenazasList.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('metodologia')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer",
+                activeTab === 'metodologia'
+                  ? "bg-teal-600 text-white shadow-xs font-black"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+              )}
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">¿Cómo se evalúa la vulnerabilidad?</span>
+              <span className="md:hidden">Metodología Legal</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ── CUERPO DEL DASHBOARD ── */}
-      <div className="p-5 sm:p-6 bg-surface-primary/30 space-y-6 text-xs">
+      {/* ── CUERPO DEL DASHBOARD RESPONSIVE ── */}
+      <div className="p-4 sm:p-6 bg-surface-primary/30 space-y-6 text-xs w-full min-w-0">
         
-        {/* 1. Tarjetas Superiores de Métricas Clave */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-teal-600" /> Amenazas Evaluadas
+        {/* 1. Tarjetas Superiores de Métricas Clave (2 columnas en móvil/tablet, 4 en desktop) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5 w-full min-w-0">
+          <div className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 shadow-xs flex flex-col justify-between min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 flex items-center gap-1.5 truncate">
+              <Layers className="w-3.5 h-3.5 text-teal-600 shrink-0" /> <span className="truncate">Amenazas Evaluadas</span>
             </span>
-            <div className="mt-2">
-              <span className="text-2xl font-black text-slate-900 dark:text-zinc-100">
+            <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-100">
                 {totalAmenazas}
               </span>
-              <span className="text-[11px] text-slate-500 dark:text-zinc-400 ml-1.5 font-medium">
+              <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400 font-medium truncate">
                 escenarios de riesgo
               </span>
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl border border-rose-200/80 dark:border-rose-800/60 bg-rose-50/50 dark:bg-rose-950/20 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1.5">
-              <Flame className="w-3.5 h-3.5 text-rose-600" /> Nivel Alto (Rojo)
+          <div className="p-3 sm:p-3.5 rounded-2xl border border-rose-200/80 dark:border-rose-800/60 bg-rose-50/50 dark:bg-rose-950/20 shadow-xs flex flex-col justify-between min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1.5 truncate">
+              <Flame className="w-3.5 h-3.5 text-rose-600 shrink-0" /> <span className="truncate">Nivel Alto (Rojo)</span>
             </span>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl font-black text-rose-900 dark:text-rose-200">
+            <div className="mt-2 flex items-baseline justify-between gap-1 flex-wrap">
+              <span className="text-xl sm:text-2xl font-black text-rose-900 dark:text-rose-200">
                 {stats.altos}
               </span>
-              <span className="text-[11px] text-rose-700 dark:text-rose-300 font-bold">
-                {stats.pctAlto}% de alta prioridad
+              <span className="text-[10px] sm:text-[11px] text-rose-700 dark:text-rose-300 font-bold truncate">
+                {stats.pctAlto}% alta prioridad
               </span>
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl border border-teal-200/80 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/20 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-teal-700 dark:text-teal-400 flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5 text-teal-600" /> Origen Predominante
+          <div className="p-3 sm:p-3.5 rounded-2xl border border-teal-200/80 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/20 shadow-xs flex flex-col justify-between min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-teal-700 dark:text-teal-400 flex items-center gap-1.5 truncate">
+              <TrendingUp className="w-3.5 h-3.5 text-teal-600 shrink-0" /> <span className="truncate">Origen Predominante</span>
             </span>
             <div className="mt-2">
-              <span className="text-lg font-black text-teal-900 dark:text-teal-200 block truncate">
+              <span className="text-base sm:text-lg font-black text-teal-900 dark:text-teal-200 block truncate">
                 {stats.origenPredominante.origen}
               </span>
-              <span className="text-[11px] font-bold text-teal-700 dark:text-teal-300">
+              <span className="text-[10px] sm:text-[11px] font-bold text-teal-700 dark:text-teal-300 truncate block">
                 {stats.origenPredominante.pct}% de incidencia
               </span>
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl border border-blue-200/80 dark:border-blue-800/60 bg-blue-50/50 dark:bg-blue-950/20 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-600" /> Vulnerabilidad Global
+          <div className="p-3 sm:p-3.5 rounded-2xl border border-blue-200/80 dark:border-blue-800/60 bg-blue-50/50 dark:bg-blue-950/20 shadow-xs flex flex-col justify-between min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-1.5 truncate">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" /> <span className="truncate">Vulnerabilidad Global</span>
             </span>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl font-black text-blue-900 dark:text-blue-200">
+            <div className="mt-2 flex items-baseline justify-between gap-1 flex-wrap">
+              <span className="text-xl sm:text-2xl font-black text-blue-900 dark:text-blue-200">
                 {Math.round(((stats.avgPers + stats.avgRec + stats.avgSist) / 3) * 10) / 10}
               </span>
-              <span className="text-[11px] text-blue-700 dark:text-blue-300 font-medium">
+              <span className="text-[10px] sm:text-[11px] text-blue-700 dark:text-blue-300 font-medium truncate">
                 escala 0.0 - 3.0
               </span>
             </div>
@@ -281,10 +286,10 @@ export default function AnalisisVulnerabilidadDashboard({
           <div className="space-y-6">
             
             {/* Fila 1: Donut SVG de Orígenes + Barras de Vulnerabilidad por Elemento */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 w-full min-w-0">
               
               {/* Donut SVG de Origen de Amenazas (5 cols) */}
-              <div className="lg:col-span-5 p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col justify-between">
+              <div className="xl:col-span-5 p-4 sm:p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col justify-between w-full min-w-0">
                 <div>
                   <div className="flex items-center justify-between">
                     <h3 className="font-extrabold text-xs text-slate-900 dark:text-zinc-100 flex items-center gap-2">
@@ -364,7 +369,7 @@ export default function AnalisisVulnerabilidadDashboard({
               </div>
 
               {/* Matriz de Vulnerabilidad por Elemento (7 cols) */}
-              <div className="lg:col-span-7 p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col justify-between">
+              <div className="xl:col-span-7 p-4 sm:p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col justify-between w-full min-w-0">
                 <div>
                   <div className="flex items-center justify-between">
                     <h3 className="font-extrabold text-xs text-slate-900 dark:text-zinc-100 flex items-center gap-2">
@@ -628,9 +633,9 @@ export default function AnalisisVulnerabilidadDashboard({
               </div>
 
               {/* Flujograma Visual en 4 Pasos */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 pt-2 w-full min-w-0">
                 
-                <div className="p-4 rounded-2xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/70 dark:border-teal-800/60 space-y-2">
+                <div className="p-4 rounded-2xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/70 dark:border-teal-800/60 space-y-2 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-teal-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                     1
                   </div>
@@ -642,7 +647,7 @@ export default function AnalisisVulnerabilidadDashboard({
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/70 dark:border-blue-800/60 space-y-2">
+                <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/70 dark:border-blue-800/60 space-y-2 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                     2
                   </div>
@@ -657,7 +662,7 @@ export default function AnalisisVulnerabilidadDashboard({
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/60 space-y-2">
+                <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/60 space-y-2 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-amber-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                     3
                   </div>
@@ -672,7 +677,7 @@ export default function AnalisisVulnerabilidadDashboard({
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/60 space-y-2">
+                <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/60 space-y-2 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                     4
                   </div>
@@ -687,13 +692,13 @@ export default function AnalisisVulnerabilidadDashboard({
               </div>
 
               {/* Tabla de Interpretación del Diamante */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/80 dark:border-zinc-700/80 space-y-3">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/80 dark:border-zinc-700/80 space-y-3 w-full min-w-0">
                 <h4 className="font-bold text-xs text-slate-900 dark:text-zinc-100 flex items-center gap-2">
                   <Calculator size={14} className="text-teal-600" />
                   Regla de Decisión del Diamante de Riesgo (Guía IDIGER)
                 </h4>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] w-full min-w-0">
                   <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-rose-200/60 dark:border-rose-900/60 space-y-1.5">
                     <span className="font-extrabold text-rose-700 dark:text-rose-400 block">🔴 Riesgo ALTO</span>
                     <p className="text-slate-600 dark:text-zinc-300">

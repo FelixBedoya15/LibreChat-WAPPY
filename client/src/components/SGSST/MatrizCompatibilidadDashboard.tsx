@@ -194,128 +194,133 @@ export default function MatrizCompatibilidadDashboard({
   if (matrixRows.length === 0) return null;
 
   return (
-    <div className="w-full overflow-hidden rounded-3xl border border-teal-500/30 bg-surface-secondary shadow-md transition-all duration-300 mt-6 mb-6">
+    <div className="w-full max-w-full min-w-0 overflow-hidden rounded-3xl border border-teal-500/30 bg-surface-secondary shadow-md transition-all duration-300 my-4 sm:my-6">
       
-      {/* ── HEADER PRINCIPAL CON BOTONERA CÁPSULA WAPPY ── */}
-      <div className="flex flex-wrap items-center justify-between px-5 py-4 border-b border-border-light gap-3 bg-surface-tertiary/60">
-        <div className="flex items-center gap-3">
+      {/* ── HEADER PRINCIPAL CON BOTONERA CÁPSULA WAPPY ADAPTATIVA ── */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between p-4 sm:px-6 sm:py-5 border-b border-border-light gap-3.5 bg-surface-tertiary/60 w-full min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-teal-600 to-amber-500 text-white flex items-center justify-center shadow-md shadow-teal-500/20 shrink-0">
             <FlaskConical size={20} className="stroke-[2.2]" />
           </div>
-          <div>
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight flex items-center gap-2">
-              Matriz de Compatibilidad Química
-              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 border border-teal-300/40">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight flex items-center gap-2 flex-wrap">
+              <span className="truncate">Matriz de Compatibilidad Química</span>
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 border border-teal-300/40 shrink-0">
                 SGA • Dec. 1496/18
               </span>
             </h2>
-            <p className="text-xs text-slate-500 dark:text-zinc-400 font-normal">
+            <p className="text-xs text-slate-500 dark:text-zinc-400 font-normal truncate mt-0.5">
               Reglas de almacenamiento seguro, segregación física y prevención de reacciones exotérmicas
             </p>
           </div>
         </div>
 
-        {/* Botonera de 3 Vistas */}
-        <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-surface-primary border border-border-medium text-[11px] font-bold shadow-2xs">
-          <button
-            type="button"
-            onClick={() => setActiveTab('dashboard')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer",
-              activeTab === 'dashboard'
-                ? "bg-teal-600 text-white shadow-xs font-black"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
-            )}
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Gráficas & Métricas</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('cruces')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer",
-              activeTab === 'cruces'
-                ? "bg-teal-600 text-white shadow-xs font-black"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
-            )}
-          >
-            <Target className="w-3.5 h-3.5" />
-            <span>Cruces Incompatibles ({compatibilityStats.incompatible})</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('metodologia')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer",
-              activeTab === 'metodologia'
-                ? "bg-teal-600 text-white shadow-xs font-black"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
-            )}
-          >
-            <HelpCircle className="w-3.5 h-3.5" />
-            <span>¿Cómo se evalúa la compatibilidad?</span>
-          </button>
+        {/* Botonera de 3 Vistas con soporte para scroll horizontal en móviles */}
+        <div className="w-full lg:w-auto overflow-x-auto scrollbar-none py-0.5">
+          <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-surface-primary border border-border-medium text-[11px] font-bold shadow-2xs whitespace-nowrap">
+            <button
+              type="button"
+              onClick={() => setActiveTab('dashboard')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer",
+                activeTab === 'dashboard'
+                  ? "bg-teal-600 text-white shadow-xs font-black"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+              )}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Gráficas & Métricas</span>
+              <span className="sm:hidden">Gráficas</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('cruces')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer",
+                activeTab === 'cruces'
+                  ? "bg-teal-600 text-white shadow-xs font-black"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+              )}
+            >
+              <Target className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Cruces Incompatibles ({compatibilityStats.incompatible})</span>
+              <span className="sm:hidden">Incompatibles ({compatibilityStats.incompatible})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('metodologia')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer",
+                activeTab === 'metodologia'
+                  ? "bg-teal-600 text-white shadow-xs font-black"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+              )}
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">¿Cómo se evalúa la compatibilidad?</span>
+              <span className="md:hidden">Metodología Legal</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ── CUERPO DEL DASHBOARD ── */}
-      <div className="p-5 sm:p-6 bg-surface-primary/30 space-y-6 text-xs">
+      {/* ── CUERPO DEL DASHBOARD RESPONSIVE ── */}
+      <div className="p-4 sm:p-6 bg-surface-primary/30 space-y-6 text-xs w-full min-w-0">
         
-        {/* 1. Tarjetas Superiores de Métricas Clave */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 flex items-center gap-1.5">
-              <FlaskConical className="w-3.5 h-3.5 text-teal-600" /> Químicos en Bodega
+        {/* 1. Tarjetas Superiores de Métricas Clave (2 columnas en móvil/tablet, 4 en desktop) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5 w-full min-w-0">
+          <div className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 shadow-xs flex flex-col justify-between min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 flex items-center gap-1.5 truncate">
+              <FlaskConical className="w-3.5 h-3.5 text-teal-600 shrink-0" /> <span className="truncate">Químicos en Bodega</span>
             </span>
-            <div className="mt-2">
-              <span className="text-2xl font-black text-slate-900 dark:text-zinc-100">
+            <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-100">
                 {totalProducts}
               </span>
-              <span className="text-[11px] text-slate-500 dark:text-zinc-400 ml-1.5 font-medium">
+              <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400 font-medium truncate">
                 sustancias registradas
               </span>
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl border border-rose-200/80 dark:border-rose-800/60 bg-rose-50/50 dark:bg-rose-950/20 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1.5">
-              <ShieldAlert className="w-3.5 h-3.5 text-rose-600" /> Incompatibles (Rojo)
+          <div className="p-3 sm:p-3.5 rounded-2xl border border-rose-200/80 dark:border-rose-800/60 bg-rose-50/50 dark:bg-rose-950/20 shadow-xs flex flex-col justify-between min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1.5 truncate">
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" /> <span className="truncate">Incompatibles (Rojo)</span>
             </span>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl font-black text-rose-900 dark:text-rose-200">
+            <div className="mt-2 flex items-baseline justify-between gap-1 flex-wrap">
+              <span className="text-xl sm:text-2xl font-black text-rose-900 dark:text-rose-200">
                 {compatibilityStats.incompatible}
               </span>
-              <span className="text-[11px] text-rose-700 dark:text-rose-300 font-bold">
+              <span className="text-[10px] sm:text-[11px] text-rose-700 dark:text-rose-300 font-bold truncate">
                 segregación obligatoria
               </span>
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Fichas FDS 16 Secciones
+          <div className="p-3 sm:p-3.5 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs flex flex-col justify-between min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 truncate">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> <span className="truncate">FDS 16 Secciones</span>
             </span>
-            <div className="mt-2">
-              <span className="text-2xl font-black text-emerald-900 dark:text-emerald-200">
+            <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-xl sm:text-2xl font-black text-emerald-900 dark:text-emerald-200">
                 {fdsCompliancePct}%
               </span>
-              <span className="text-[11px] text-emerald-700 dark:text-emerald-300 ml-1.5 font-bold">
-                {fdsCount} de {totalProducts} productos
+              <span className="text-[10px] sm:text-[11px] text-emerald-700 dark:text-emerald-300 font-bold truncate">
+                {fdsCount} de {totalProducts}
               </span>
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl border border-purple-200/80 dark:border-purple-800/60 bg-purple-50/50 dark:bg-purple-950/20 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 dark:text-purple-400 flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" /> Rotulado SGA Conforme
+          <div className="p-3 sm:p-3.5 rounded-2xl border border-purple-200/80 dark:border-purple-800/60 bg-purple-50/50 dark:bg-purple-950/20 shadow-xs flex flex-col justify-between min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 dark:text-purple-400 flex items-center gap-1.5 truncate">
+              <CheckCircle2 className="w-3.5 h-3.5 text-purple-600 shrink-0" /> <span className="truncate">Rotulado Conforme</span>
             </span>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl font-black text-purple-900 dark:text-purple-200">
+            <div className="mt-2 flex items-baseline justify-between gap-1 flex-wrap">
+              <span className="text-xl sm:text-2xl font-black text-purple-900 dark:text-purple-200">
                 {labelCompliancePct}%
               </span>
-              <span className="text-[11px] text-purple-700 dark:text-purple-300 font-medium">
-                etiquetas y pictogramas
+              <span className="text-[10px] sm:text-[11px] text-purple-700 dark:text-purple-300 font-medium truncate">
+                etiquetas y SGA
               </span>
             </div>
           </div>
@@ -328,10 +333,10 @@ export default function MatrizCompatibilidadDashboard({
           <div className="space-y-6">
             
             {/* Fila 1: Donut SVG de Clases ONU + Semáforo de Cruces Químicos */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 w-full min-w-0">
               
               {/* Donut SVG de Clases ONU (5 cols) */}
-              <div className="lg:col-span-5 p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col justify-between">
+              <div className="xl:col-span-5 p-4 sm:p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col justify-between w-full min-w-0">
                 <div>
                   <div className="flex items-center justify-between">
                     <h3 className="font-extrabold text-xs text-slate-900 dark:text-zinc-100 flex items-center gap-2">
@@ -411,7 +416,7 @@ export default function MatrizCompatibilidadDashboard({
               </div>
 
               {/* Semáforo de Cruces de Compatibilidad (7 cols) */}
-              <div className="lg:col-span-7 p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col justify-between">
+              <div className="xl:col-span-7 p-4 sm:p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col justify-between w-full min-w-0">
                 <div>
                   <div className="flex items-center justify-between">
                     <h3 className="font-extrabold text-xs text-slate-900 dark:text-zinc-100 flex items-center gap-2">
@@ -502,7 +507,7 @@ export default function MatrizCompatibilidadDashboard({
             </div>
 
             {/* Fila 2: Cajas de Conclusiones IA */}
-            <div className={`grid gap-5 ${isMaximized ? 'grid-cols-1 xl:grid-cols-2' : 'grid-cols-1'}`}>
+            <div className={`grid gap-5 w-full min-w-0 ${isMaximized ? 'grid-cols-1 xl:grid-cols-2' : 'grid-cols-1'}`}>
               
               {/* Conclusión IA 1: Clases ONU */}
               <div className="p-5 bg-surface-secondary rounded-3xl border border-border-medium shadow-sm">
@@ -733,9 +738,9 @@ export default function MatrizCompatibilidadDashboard({
               </div>
 
               {/* Flujograma Visual en 4 Pasos */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 pt-2 w-full min-w-0">
                 
-                <div className="p-4 rounded-2xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/70 dark:border-teal-800/60 space-y-2">
+                <div className="p-4 rounded-2xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/70 dark:border-teal-800/60 space-y-2 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-teal-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                     1
                   </div>
@@ -747,7 +752,7 @@ export default function MatrizCompatibilidadDashboard({
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/70 dark:border-blue-800/60 space-y-2">
+                <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/70 dark:border-blue-800/60 space-y-2 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                     2
                   </div>
@@ -759,7 +764,7 @@ export default function MatrizCompatibilidadDashboard({
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/60 space-y-2">
+                <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/60 space-y-2 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-amber-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                     3
                   </div>
@@ -771,7 +776,7 @@ export default function MatrizCompatibilidadDashboard({
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/60 space-y-2">
+                <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/60 space-y-2 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                     4
                   </div>
@@ -786,13 +791,13 @@ export default function MatrizCompatibilidadDashboard({
               </div>
 
               {/* Tabla de Reglas de Almacenamiento Conjunto */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/80 dark:border-zinc-700/80 space-y-3">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/80 dark:border-zinc-700/80 space-y-3 w-full min-w-0">
                 <h4 className="font-bold text-xs text-slate-900 dark:text-zinc-100 flex items-center gap-2">
                   <Calculator size={14} className="text-teal-600" />
                   Reglas de Almacenamiento Conjunto (NTC 3966)
                 </h4>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] w-full min-w-0">
                   <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-emerald-200/60 dark:border-emerald-900/60 space-y-1.5">
                     <span className="font-extrabold text-emerald-700 dark:text-emerald-400 block">🟢 Verde: Compatible</span>
                     <p className="text-slate-600 dark:text-zinc-300">
