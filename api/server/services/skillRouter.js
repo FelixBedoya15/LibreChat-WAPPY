@@ -4,29 +4,46 @@ const yaml = require('js-yaml');
 
 const SKILLS_DIR = path.join(__dirname, '../../config/skills');
 
+const DEFAULT_SKILL_TOOLS_MAP = {
+  'skill-gtc45-ipevar': ['matriz_ipevar'],
+  'skill-gestion-ipevar': ['matriz_ipevar'],
+  'skill-matriz-pesv': ['matriz_pesv'],
+  'skill-matriz-compatibilidad': ['matriz_compatibilidad'],
+  'skill-automatizaciones-agentes': ['gestor_automatizaciones'],
+  'skill-google-drive': ['google_drive'],
+  'skill-google-sheets-sync': ['google_sheets'],
+  'skill-google-docs-slides': ['google_docs', 'google_slides'],
+  'skill-google-gmail': ['google_gmail'],
+  'skill-google-calendar': ['google_calendar'],
+  'skill-onedrive': ['onedrive'],
+  'canvas-editor': ['canvas_tool'],
+  'skill-blog-editor': ['blog_editor'],
+  'skill-editor-live': ['editor_live'],
+  'skill-reglamento-interno-trabajo': ['editor_rit'],
+  'abogado-rit': ['editor_rit'],
+  'skill-riesgo-psicosocial': ['consultar_analitica_psicosocial'],
+  'skill-analitica-actos-condiciones': ['consultar_analitica_actos_condiciones'],
+  'skill-informes-estadisticas': ['consultar_analitica_actos_condiciones'],
+};
+
 /**
- * Escanea el directorio de skills e inyecta las instrucciones de TODAS las skills
- * que coincidan con el texto de la conversación actual y el agente tenga habilitadas.
- *
- * Lógica especial:
- * - La skill maestra 'skill-guia-plataforma-wappy' se inyecta SIEMPRE si está habilitada,
- *   sin necesidad de que el mensaje del usuario contenga un trigger específico.
- * - El resto de skills se activan solo si el mensaje contiene al menos un trigger válido.
- * - Se usan límites de palabra (\b) para triggers cortos (<= 4 letras) para evitar falsos
- *   positivos masivos (ej: 'rit' coincidiendo dentro de 'escrita' o 'criterio').
+ * Escanea el directorio de skills e inyecta las instrucciones y herramientas
+ * de las skills que coincidan con el texto de la conversación y el agente tenga habilitadas.
  *
  * @param {string} lastUserMessageText
  * @param {string[]} agentSkills - Lista de nombres de skills habilitados para el agente.
- * @returns {string}
+ * @returns {{ instructions: string, activeSkillNames: string[], activeTools: string[] }}
  */
-function getActiveSkillInstructions(lastUserMessageText, agentSkills) {
+function getActiveSkillsData(lastUserMessageText, agentSkills) {
   if (!Array.isArray(agentSkills) || agentSkills.length === 0 || !fs.existsSync(SKILLS_DIR)) {
-    return '';
+    return { instructions: '', activeSkillNames: [], activeTools: [] };
   }
 
   const MASTER_SKILL = 'skill-guia-plataforma-wappy';
   const activatedBlocks = [];
-  const MAX_TRIGGER_SKILLS = 2; // Máximo 2 skills activadas por trigger para evitar desbordamiento de contexto
+  const activeSkillNames = [];
+  const activeToolsSet = new Set();
+  const MAX_TRIGGER_SKILLS = 4; // Permitir hasta 4 skills activadas por turno para orquestaciones ricas
   let triggerCount = 0;
 
   try {
@@ -50,20 +67,21 @@ function getActiveSkillInstructions(lastUserMessageText, agentSkills) {
 
       const skillName = frontmatter.name || file.replace('.md', '');
 
-      // 1. Verificar si el agente tiene esta skill habilitada
-      if (!agentSkills.includes(skillName)) continue;
+      // 1. Verificar si el agente tiene esta skill habilitada (o si se pasa '*' para todas)
+      const isEnabled = agentSkills.includes('*') || agentSkills.includes(skillName);
+      if (!isEnabled) continue;
 
       const skillBody = match[2].trim();
       const triggers = frontmatter.triggers || [];
 
       // 2. La skill maestra siempre se inyecta (sin necesidad de trigger)
       if (skillName === MASTER_SKILL) {
-        console.log(`[SkillRouter] Skill maestra '${skillName}' inyectada siempre.`);
         activatedBlocks.unshift(`\n\n# 🗺️ GUÍA COMPLETA DE PLATAFORMA WAPPY IA (SKILL MAESTRA)\n${skillBody}`);
+        activeSkillNames.push(skillName);
         continue;
       }
 
-      // Limitar la cantidad máxima de skills por trigger para prevenir sataturación de prompt
+      // Limitar la cantidad máxima de skills por trigger para prevenir saturación de prompt
       if (triggerCount >= MAX_TRIGGER_SKILLS) continue;
 
       // 3. Verificar si el mensaje del usuario coincide con algún trigger
@@ -90,15 +108,39 @@ function getActiveSkillInstructions(lastUserMessageText, agentSkills) {
 
       if (matchesTrigger) {
         triggerCount++;
+        activeSkillNames.push(skillName);
         console.log(`[SkillRouter] Skill '${skillName}' activada por trigger en el mensaje.`);
         activatedBlocks.push(`\n\n# ⚡ SKILL ACTIVADA: ${skillName.toUpperCase()}\n${skillBody}`);
+
+        // Asociar herramientas declaradas en frontmatter o en el mapa por defecto
+        if (Array.isArray(frontmatter.tools)) {
+          frontmatter.tools.forEach((t) => activeToolsSet.add(t));
+        }
+        if (DEFAULT_SKILL_TOOLS_MAP[skillName]) {
+          DEFAULT_SKILL_TOOLS_MAP[skillName].forEach((t) => activeToolsSet.add(t));
+        }
       }
     }
   } catch (error) {
     console.error('[SkillRouter] Error al leer directorio de skills:', error);
   }
 
-  return activatedBlocks.join('\n');
+  return {
+    instructions: activatedBlocks.join('\n'),
+    activeSkillNames,
+    activeTools: Array.from(activeToolsSet),
+  };
 }
 
-module.exports = { getActiveSkillInstructions };
+/**
+ * Función legacy para mantener compatibilidad existente con agentes
+ */
+function getActiveSkillInstructions(lastUserMessageText, agentSkills) {
+  return getActiveSkillsData(lastUserMessageText, agentSkills).instructions;
+}
+
+module.exports = {
+  getActiveSkillsData,
+  getActiveSkillInstructions,
+  DEFAULT_SKILL_TOOLS_MAP,
+};

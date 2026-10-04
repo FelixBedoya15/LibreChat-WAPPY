@@ -69,22 +69,22 @@ export default function Personalization({
   useEffect(() => {
     if (user?.personalization?.geminiModels) {
       setGeminiModels({
-        generalChat: user.personalization.geminiModels.generalChat || 'gemini-3.5-flash',
-        agents: user.personalization.geminiModels.agents || 'gemini-3.5-flash',
-        sstManagement: user.personalization.geminiModels.sstManagement || 'gemini-3.5-flash',
-        liveAnalysis: user.personalization.geminiModels.liveAnalysis || 'gemini-3.1-flash-live-preview',
-        textCorrection: user.personalization.geminiModels.textCorrection || 'gemini-3.5-flash',
-        reportGeneration: user.personalization.geminiModels.reportGeneration || 'gemini-3.5-flash',
+        generalChat: user.personalization.geminiModels.generalChat || 'gemini-3.6-flash',
+        agents: user.personalization.geminiModels.agents || 'gemini-3.6-flash',
+        sstManagement: user.personalization.geminiModels.sstManagement || 'gemini-3.6-flash',
+        liveAnalysis: user.personalization.geminiModels.liveAnalysis || 'gemini-3.8-live',
+        textCorrection: user.personalization.geminiModels.textCorrection || 'gemini-3.6-flash',
+        reportGeneration: user.personalization.geminiModels.reportGeneration || 'gemini-3.6-flash',
       });
     } else {
       // Set defaults if no data exists
       setGeminiModels({
-        generalChat: 'gemini-3.5-flash',
-        agents: 'gemini-3.5-flash',
-        sstManagement: 'gemini-3.5-flash',
-        liveAnalysis: 'gemini-3.1-flash-live-preview',
-        textCorrection: 'gemini-3.5-flash',
-        reportGeneration: 'gemini-3.5-flash',
+        generalChat: 'gemini-3.6-flash',
+        agents: 'gemini-3.6-flash',
+        sstManagement: 'gemini-3.6-flash',
+        liveAnalysis: 'gemini-3.8-live',
+        textCorrection: 'gemini-3.6-flash',
+        reportGeneration: 'gemini-3.6-flash',
       });
     }
   }, [user?.personalization?.geminiModels]);
@@ -130,6 +130,13 @@ export default function Personalization({
 
     return options;
   }, [endpointsConfig]);
+
+  const liveModelOptions = useMemo(() => [
+    { value: '', label: 'Predeterminado del sistema (Gemini 3.8 Live)' },
+    { value: 'gemini-3.8-live', label: 'Gemini 3.8 Live (Recomendado)' },
+    { value: 'gemini-3.1-flash-live-preview', label: 'Gemini 3.1 Flash Live (Respaldo 1)' },
+    { value: 'gemini-2.5-flash-native-audio-preview-12-2025', label: 'Gemini 2.5 Audio (Respaldo 2)' },
+  ], []);
 
   if (!hasAnyPersonalizationFeature) {
     return (
@@ -231,7 +238,7 @@ export default function Personalization({
             <Dropdown
               value={geminiModels.liveAnalysis || ''}
               onChange={handleModelChange('liveAnalysis')}
-              options={modelOptions}
+              options={liveModelOptions}
               sizeClasses="w-[280px] z-[100]"
               aria-labelledby="gemini-live-label"
             />

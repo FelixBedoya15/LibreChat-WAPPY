@@ -1,6 +1,8 @@
 ---
 name: skill-google-sheets-sync
-description: Skill para sincronización, lectura, formateo y registro estructurado de datos en Google Sheets y Hojas de Cálculo desde el chat de Wappy.
+scope: all
+tools:
+  - google_sheets
 triggers:
   - google sheets
   - excel en linea

@@ -1,7 +1,9 @@
 ---
 name: skill-automatizaciones-agentes
 description: Guía experta para que los agentes utilicen la herramienta gestor_automatizaciones cuando el usuario solicite crear, programar, listar, pausar o ejecutar tareas autónomas periódicas en WAPPY (/sgsst/automatizaciones).
-scope: agents
+scope: all
+tools:
+  - gestor_automatizaciones
 triggers:
   - automatizar
   - automatizacion
@@ -18,6 +20,7 @@ triggers:
   - automatizar inspeccion
   - automatizar inspección
   - automatizaciones
+  - tareas programadas
 ---
 
 # Skill: Gestor de Automatizaciones de Agentes (`gestor_automatizaciones`)

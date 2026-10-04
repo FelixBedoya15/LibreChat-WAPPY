@@ -1056,7 +1056,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean)
-        .filter((m) => !m.includes('native-audio') && !m.includes('-live-') && !m.includes('-transcribe') && !m.includes('live-preview'));
+        .filter((m) => !m.includes('native-audio') && !m.includes('live') && !m.includes('transcribe'));
       const memModelFallbacks = [
         primaryMemModel,
         ...envMemModels.filter((m) => m !== primaryMemModel),
@@ -1602,7 +1602,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean)
-        .filter((m) => !m.includes('native-audio') && !m.includes('-live-') && !m.includes('-transcribe') && !m.includes('live-preview') && !m.includes('gemini-2.5') && !m.includes('gemini-3.7') && !m.includes('gemini-3.8'));
+        .filter((m) => !m.includes('native-audio') && !m.includes('live') && !m.includes('transcribe') && !m.includes('gemini-2.5') && !m.includes('gemini-3.7') && !m.includes('gemini-3.8'));
       
       // WAPPY Brain Router: Caracterización y selección táctica de modelo según complejidad de herramientas y tarea
       let userQuery = (this.options.req?.body?.text || '').toLowerCase();

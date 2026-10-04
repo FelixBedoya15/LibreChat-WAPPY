@@ -142,7 +142,9 @@ class ConsultarAgenteEspecializado extends Tool {
         }
       };
 
-      const response = await fetch('http://localhost:3080/api/agents/chat', {
+      const currentPort = process.env.PORT || 3080;
+      const baseUrl = process.env.DOMAIN_SERVER ? process.env.DOMAIN_SERVER.replace(/\/$/, '') : `http://127.0.0.1:${currentPort}`;
+      const response = await fetch(`${baseUrl}/api/agents/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

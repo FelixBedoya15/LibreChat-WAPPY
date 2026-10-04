@@ -245,7 +245,7 @@ class GoogleClient extends BaseClient {
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean)
-        .filter((m) => !m.includes('native-audio') && !m.includes('-live-') && !m.includes('-transcribe') && !m.includes('live-preview'));
+        .filter((m) => !m.includes('native-audio') && !m.includes('live') && !m.includes('transcribe'));
       // Put current model first, then the rest as fallbacks (excluding current)
       this._modelFallbacks = [currentModel, ...envModels.filter((m) => m !== currentModel)];
       this._modelFallbackIndex = 0;

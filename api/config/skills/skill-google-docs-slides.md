@@ -1,6 +1,9 @@
 ---
 name: skill-google-docs-slides
-description: Generación, estructuración y maquetación automática de informes corporativos editables en Google Docs y presentaciones ejecutivas en Google Slides.
+scope: all
+tools:
+  - google_docs
+  - google_slides
 triggers:
   - google docs
   - google slides

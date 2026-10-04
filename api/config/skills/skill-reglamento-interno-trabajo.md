@@ -1,7 +1,9 @@
 ---
 name: skill-reglamento-interno-trabajo
 description: Skill extraída del agente abogado_rit para soporte técnico.
-scope: agents
+scope: all
+tools:
+  - editor_rit
 triggers:
   - reglamento interno
   - rit

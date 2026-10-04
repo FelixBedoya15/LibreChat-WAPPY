@@ -13,26 +13,26 @@ class GeminiLiveClient extends EventEmitter {
         super();
         this.apiKey = apiKey;
 
-        const rawModel = config.model || process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview';
+        const rawModel = config.model || process.env.GEMINI_LIVE_MODEL || 'gemini-3.8-live';
         const mapModelToRealGoogleModel = (modelName) => {
-            if (!modelName) return 'gemini-3.1-flash-live-preview';
+            if (!modelName) return 'gemini-3.8-live';
             const name = modelName.toLowerCase().trim();
-            if (name === 'gemini-3.1-flash-live-preview' || name === 'gemini-2.5-flash-native-audio-preview-12-2025' || name === 'gemini-2.5-flash-native-audio-preview-09-2025') {
+            if (name === 'gemini-3.8-live' || name === 'gemini-3.1-flash-live-preview' || name === 'gemini-2.5-flash-native-audio-preview-12-2025') {
                 return name;
             }
-            if (name.includes('3.5') || name.includes('3.1') || name.includes('live')) {
+            if (name.includes('3.8')) {
+                return 'gemini-3.8-live';
+            }
+            if (name.includes('3.1')) {
                 return 'gemini-3.1-flash-live-preview';
             }
-            if (name.includes('09-2025')) {
-                return 'gemini-2.5-flash-native-audio-preview-09-2025';
-            }
-            if (name.includes('12-2025')) {
+            if (name.includes('2.5') || name.includes('12-2025') || name.includes('09-2025') || name.includes('native-audio')) {
                 return 'gemini-2.5-flash-native-audio-preview-12-2025';
             }
-            if (name.includes('2.5') || name.includes('native-audio')) {
-                return 'gemini-2.5-flash-native-audio-preview-12-2025';
+            if (name.includes('live')) {
+                return 'gemini-3.8-live';
             }
-            return 'gemini-3.1-flash-live-preview';
+            return 'gemini-3.8-live';
         };
 
         const resolvedModel = mapModelToRealGoogleModel(rawModel);
@@ -250,7 +250,7 @@ class GeminiLiveClient extends EventEmitter {
      * Send initial setup configuration to Gemini
      */
     sendSetup() {
-        const rawModel = this.config.model || 'gemini-3.1-flash-live-preview';
+        const rawModel = this.config.model || 'gemini-3.8-live';
         const modelPath = rawModel.startsWith('models/') ? rawModel : `models/${rawModel}`;
         const setupMessage = {
             setup: {

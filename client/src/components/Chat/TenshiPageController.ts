@@ -243,7 +243,7 @@ export function getVisibleScreenContent(section?: string): string {
     // 1.1 Si estamos en una conversación de chat (/c/), extraer la última respuesta del especialista en pantalla
     if (currentUrl.includes('/c/')) {
       const chatMessages = Array.from(rootScope.querySelectorAll<HTMLElement>(
-        '[data-message-id] .markdown, [class*="text-message"], article .markdown'
+        '.agent-turn .markdown, .agent-turn [class*="message-content"], [data-message-id] .markdown, [class*="text-message"], article .markdown'
       )).filter(m => isElementVisible(m) && !m.closest('.tenshi-widget-container'));
 
       if (chatMessages.length > 0) {

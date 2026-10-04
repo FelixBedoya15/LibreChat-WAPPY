@@ -1201,7 +1201,7 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
         // Fallback robusto al DOM si el estado de Recoil está en sincronización o es tardío
         if (finalMsg.length < 25 || finalMsg.includes('Pensando respuesta...')) {
           const messageEls = document.querySelectorAll<HTMLElement>(
-            '[data-message-id]:not([data-is-user="true"]) .markdown, [class*="text-message"]:not([data-is-user="true"]), article:not([data-is-user="true"]) .markdown'
+            '.agent-turn .markdown, .agent-turn [class*="message-content"], [data-message-id]:not([data-is-user="true"]) .markdown, [class*="text-message"]:not([data-is-user="true"]), article:not([data-is-user="true"]) .markdown'
           );
           if (messageEls.length > 0) {
             const domText = (messageEls[messageEls.length - 1].innerText || '').trim();
