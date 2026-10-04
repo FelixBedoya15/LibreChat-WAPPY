@@ -227,11 +227,11 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     null,
   );
 
-  /** Coloca el texto en el formulario y ejecuta el envío DIRECTO vía submitMessage, solo si el guard compartido lo permite */
+  /** Coloca el texto en el formulario y ejecuta el envío DIRECTO vía click / submitMessage */
   const sendDelegatedPrompt = useCallback(
     (prompt: string) => {
       if (!claimAutoSubmit(prompt)) {
-        console.log('[ChatForm] Prompt ya enviado por otro mecanismo, se omite duplicado:', prompt);
+        console.log('[ChatForm] Prompt ya en proceso, se omite duplicado:', prompt);
         return;
       }
 
@@ -243,35 +243,53 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         textAreaRef.current.focus();
       }
 
-      console.log('[ChatForm] Enviando consulta delegada directamente con submitMessage:', prompt);
-      try {
-        submitMessage({ text: prompt });
-      } catch (err) {
-        console.warn('[ChatForm] Error en submitMessage directo, intentando fallback de botón:', err);
+      console.log('[ChatForm] Enviando consulta delegada:', prompt);
+
+      const dispatchClickOrSubmit = () => {
+        // Prioridad 1: Clic físico directo en el botón de submit
         const sendBtn = (document.getElementById('send-button') ||
           document.querySelector('button[data-testid="send-button"]') ||
           submitButtonRef.current) as HTMLButtonElement | null;
         if (sendBtn && !sendBtn.disabled) {
+          console.log('[ChatForm] Click físico en send-button para:', prompt);
           sendBtn.click();
+          return true;
         }
-      }
 
-      // Watchdog de seguridad: Si tras 250ms el textarea aún contiene el prompt, intentar reenvío directo o click
-      setTimeout(() => {
-        if (textAreaRef.current && textAreaRef.current.value === prompt) {
-          console.log('[ChatForm] Watchdog: El prompt continúa en textarea, reintentando submitMessage directo...');
-          try {
-            submitMessage({ text: prompt });
-          } catch {
-            const sendBtn = (document.getElementById('send-button') ||
-              document.querySelector('button[data-testid="send-button"]') ||
-              submitButtonRef.current) as HTMLButtonElement | null;
-            if (sendBtn && !sendBtn.disabled) {
-              sendBtn.click();
-            }
-          }
+        // Prioridad 2: submitMessage
+        try {
+          console.log('[ChatForm] Fallback submitMessage para:', prompt);
+          submitMessage({ text: prompt });
+          return true;
+        } catch (err) {
+          console.warn('[ChatForm] Error en submitMessage:', err);
+          return false;
         }
-      }, 250);
+      };
+
+      dispatchClickOrSubmit();
+
+      // Watchdog activo (hasta 20 ticks de 100ms = 2.0s)
+      let attempts = 0;
+      const watchdog = setInterval(() => {
+        attempts++;
+        const currentVal = textAreaRef.current?.value || '';
+
+        // Si el textarea ya se vació o cambió respecto al prompt, se despachó exitosamente
+        if (!currentVal || currentVal.trim() === '' || currentVal !== prompt || attempts >= 20) {
+          clearInterval(watchdog);
+          return;
+        }
+
+        // Si sigue presente, refrescar inputs y reintentar clic
+        if (textAreaRef.current) {
+          textAreaRef.current.value = prompt;
+          textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+          textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        methods.setValue('text', prompt, { shouldValidate: true });
+        dispatchClickOrSubmit();
+      }, 100);
     },
     [methods, submitMessage, textAreaRef, submitButtonRef],
   );

@@ -108,7 +108,7 @@ export default function useQueryParams({
 }) {
   const maxAttempts = 50;
   const attemptsRef = useRef(0);
-  const MAX_SETTINGS_WAIT_MS = 3000;
+  const MAX_SETTINGS_WAIT_MS = 1000;
   const processedRef = useRef(false);
   const pendingSubmitRef = useRef(false);
   const settingsAppliedRef = useRef(false);
@@ -290,13 +290,14 @@ export default function useQueryParams({
 
     const textToSend = promptTextRef.current;
 
-    // Guard compartido: si ChatForm (evento de Tenshi) ya envió este prompt, no duplicar
+    // Guard compartido
     if (!claimAutoSubmit(textToSend)) {
-      console.log('[useQueryParams] Prompt ya enviado por otro mecanismo, se omite duplicado:', textToSend);
+      console.log('[useQueryParams] Prompt ya en proceso por otro canal:', textToSend);
       window.history.replaceState({}, '', window.location.pathname);
       return;
     }
 
+    // 1. Establecer valor de inmediato en React Hook Form y textarea físico
     methods.setValue('text', textToSend, { shouldValidate: true });
     if (textAreaRef.current) {
       textAreaRef.current.value = textToSend;
@@ -305,38 +306,56 @@ export default function useQueryParams({
       textAreaRef.current.focus();
     }
 
-    console.log('[useQueryParams] Auto-submitting prompt vía submitMessage directo:', textToSend);
-    try {
-      submitMessage({ text: textToSend });
-    } catch (err) {
-      console.warn('[useQueryParams] Error en submitMessage directo, intentando fallback de botón:', err);
+    const dispatchSend = () => {
+      // Prioridad 1: Click en el botón de submit real del DOM
       const sendBtn = (document.getElementById('send-button') ||
         document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
       if (sendBtn && !sendBtn.disabled) {
+        console.log('[useQueryParams] Click físico directo en send-button:', textToSend);
         sendBtn.click();
+        return true;
       }
-    }
-
-    // Watchdog de verificación rápida: Si tras 250ms el prompt sigue visible en el textarea sin haber sido procesado
-    setTimeout(() => {
-      if (textAreaRef.current && textAreaRef.current.value === textToSend) {
-        console.log('[useQueryParams] Watchdog: Reintentando submitMessage directo...');
-        try {
-          submitMessage({ text: textToSend });
-        } catch {
-          const sendBtn = (document.getElementById('send-button') ||
-            document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
-          if (sendBtn && !sendBtn.disabled) {
-            sendBtn.click();
-          }
-        }
+      // Prioridad 2: submitMessage del hook
+      try {
+        console.log('[useQueryParams] Intentando submitMessage directo:', textToSend);
+        submitMessage({ text: textToSend });
+        return true;
+      } catch (err) {
+        console.warn('[useQueryParams] submitMessage error:', err);
+        return false;
       }
-    }, 250);
+    };
 
-    const newUrl = window.location.pathname;
-    window.history.replaceState({}, '', newUrl);
+    // Disparo inmediato
+    dispatchSend();
 
-    console.log('Message submitted with conversation state:', conversation);
+    // Watchdog activo (hasta 25 ticks de 100ms = 2.5s) que garantiza que el mensaje no se quede en el textarea
+    let watchdogCount = 0;
+    const maxWatchdog = 25;
+    const watchdogInterval = setInterval(() => {
+      watchdogCount++;
+      const currentArea = textAreaRef.current || document.querySelector<HTMLTextAreaElement>('textarea');
+      const val = currentArea?.value || '';
+
+      // Si el textarea ya se vació o cambió respecto al prompt inicial, significa que se envió con éxito
+      if (!val || val.trim() === '' || val !== textToSend || watchdogCount >= maxWatchdog) {
+        clearInterval(watchdogInterval);
+        console.log('[useQueryParams] Auto-envío verificado o concluido tras', watchdogCount, 'intentos.');
+        window.history.replaceState({}, '', window.location.pathname);
+        return;
+      }
+
+      // Si sigue con el texto, asegurar valor y volver a pulsar el botón de envío
+      if (currentArea) {
+        currentArea.value = textToSend;
+        currentArea.dispatchEvent(new Event('input', { bubbles: true }));
+        currentArea.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      methods.setValue('text', textToSend, { shouldValidate: true });
+      dispatchSend();
+    }, 100);
+
+    console.log('[useQueryParams] Dispatch de mensaje iniciado con estado de conversación:', conversation);
   }, [methods, submitMessage, conversation, textAreaRef]);
 
   useEffect(() => {
@@ -387,23 +406,14 @@ export default function useQueryParams({
 
       const { decodedPrompt, validSettings, shouldAutoSubmit } = processQueryParams();
 
-      /** Mark processing as complete and clean up as needed */
+      /** Mark processing as complete and clean up without remounting React Router */
       const success = () => {
-        const paramString = searchParams.toString();
-        const currentParams = new URLSearchParams(paramString);
-        currentParams.delete('prompt');
-        currentParams.delete('q');
-        currentParams.delete('submit');
-
-        setSearchParams(currentParams, { replace: true });
         processedRef.current = true;
-        console.log('Parameters processed successfully', paramString);
         clearInterval(intervalId);
 
-        // Only clean URL if there's no pending submission
+        // Limpiar URL silenciosamente en historial solo si no hay sumisión pendiente
         if (!pendingSubmitRef.current) {
-          const newUrl = window.location.pathname;
-          window.history.replaceState({}, '', newUrl);
+          window.history.replaceState({}, '', window.location.pathname);
         }
       };
 
@@ -456,7 +466,6 @@ export default function useQueryParams({
     newQueryConvo,
     newConversation,
     submitMessage,
-    setSearchParams,
     queryClient,
     processSubmission,
   ]);

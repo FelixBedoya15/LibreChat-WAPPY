@@ -941,6 +941,18 @@ export default function TenshiChat() {
     const consultation = pendingAgentConsultationRef.current;
     const initialId = consultation?.initialMessageId;
 
+    const isInvalid = (txt: string) => {
+      if (!txt || txt.length < 35) return true;
+      if (txt.includes('Pensando respuesta...')) return true;
+      if (txt.includes('[PANTALLA ACTUAL:')) return true;
+      if (txt.includes('CAMPOS DILIGENCIADOS')) return true;
+      if (txt.includes('Mensaje input:')) return true;
+      if (txt.includes('Consulta con especialista registrada')) return true;
+      if (txt.includes('Dictamen de')) return true;
+      if (consultation?.question && txt.trim().toLowerCase() === consultation.question.trim().toLowerCase()) return true;
+      return false;
+    };
+
     // 1. Buscar en mensajes de React Query
     try {
       const convoId = currentConvoId || conversation?.conversationId || 'new';
@@ -954,12 +966,7 @@ export default function TenshiChat() {
               continue;
             }
             const text = m.text.trim();
-            if (
-              text.length >= 35 &&
-              !text.includes('Pensando respuesta...') &&
-              !text.includes('[PANTALLA ACTUAL:') &&
-              !text.includes('CAMPOS DILIGENCIADOS EN PANTALLA')
-            ) {
+            if (!isInvalid(text)) {
               return text;
             }
           }
@@ -980,12 +987,7 @@ export default function TenshiChat() {
             continue;
           }
           const domText = (el.innerText || '').trim();
-          if (
-            domText.length >= 35 &&
-            !domText.includes('Pensando respuesta...') &&
-            !domText.includes('[PANTALLA ACTUAL:') &&
-            !domText.includes('CAMPOS DILIGENCIADOS EN PANTALLA')
-          ) {
+          if (!isInvalid(domText)) {
             return domText;
           }
         }
@@ -996,12 +998,7 @@ export default function TenshiChat() {
     const latestMsg = latestChatMessageRef.current;
     if (latestMsg && !latestMsg.isCreatedByUser && latestMsg.messageId !== initialId) {
       const recoilText = (latestMsg.text || '').trim();
-      if (
-        recoilText.length >= 35 &&
-        !recoilText.includes('Pensando respuesta...') &&
-        !recoilText.includes('[PANTALLA ACTUAL:') &&
-        !recoilText.includes('CAMPOS DILIGENCIADOS EN PANTALLA')
-      ) {
+      if (!isInvalid(recoilText)) {
         return recoilText;
       }
     }
@@ -1216,25 +1213,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               console.warn('[TenshiChat] Error limpiando cache de mensajes:', cacheErr);
             }
 
-            // 2. Resetear el estado de conversación en Recoil de inmediato a NEW_CONVO con el nuevo agente
-            try {
-              newConversation({
-                template: {
-                  conversationId: Constants.NEW_CONVO as string,
-                  endpoint: EModelEndpoint.agents,
-                  agent_id: targetAgentId,
-                },
-                preset: {
-                  endpoint: EModelEndpoint.agents,
-                  agent_id: targetAgentId,
-                },
-                keepLatestMessage: false,
-              });
-            } catch (newConvoErr) {
-              console.warn('[TenshiChat] Error reseteando conversación en Recoil:', newConvoErr);
-            }
-
-            // 3. Preparar parámetros canónicos de URL para que el chat siempre reciba el agente, prompt y submit
+            // 2. Preparar parámetros canónicos de URL para que el chat siempre reciba el agente, prompt y submit
             const params = new URLSearchParams();
             if (targetAgentId) {
               params.set('agent_id', targetAgentId);
@@ -1243,7 +1222,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             params.set('prompt', pregunta);
             params.set('submit', 'true');
 
-            // 4. Navegar canónicamente a /c/new
+            // 3. Navegar canónicamente a /c/new para que useQueryParams tome el control
             navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
 
             resultMsg = matchedAgent
@@ -1571,32 +1550,26 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               document.querySelector<HTMLTextAreaElement>('textarea[data-testid="chat-input"]') ||
               document.querySelector<HTMLTextAreaElement>('textarea');
             if (textArea && textArea.value && textArea.value.trim().length > 0) {
-              console.log('[Tenshi Watchdog] Prompt aún en textarea tras 3s. Forzando envío de formulario...');
-              if (formEl && typeof formEl.requestSubmit === 'function') {
-                try {
-                  formEl.requestSubmit();
-                } catch (_) {}
-              } else {
-                const sendBtn = document.getElementById('send-button') as HTMLButtonElement | null;
-                if (sendBtn && !sendBtn.disabled) sendBtn.click();
+              console.log('[Tenshi Watchdog] Prompt aún en textarea tras 3s. Forzando click en send-button...');
+              const sendBtn = (document.getElementById('send-button') ||
+                document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
+              if (sendBtn && !sendBtn.disabled) {
+                sendBtn.click();
               }
             }
           }
 
           // 2. CHEQUEO DE COMPLETITUD:
           // CRÍTICO: Solo evaluar respuesta si el especialista YA HABÍA EMPEZADO A RESPONDER (hadStarted === true)
-          // y dejó de generar (!isStillStreaming), O si ya pasaron al menos 8 segundos de espera y hay una respuesta sustancial válida.
-          if (consultation?.active && !isStillStreaming) {
-            const canCheckAnswer = consultation.hadStarted || timeSinceStart >= 8000;
-            if (canCheckAnswer) {
-              const possibleAnswer = extractSpecialistAnswer();
-              if (possibleAnswer && possibleAnswer.length >= 35) {
-                console.log('[Tenshi Voice] Respuesta confirmada del especialista detectada por chequeo periódico.');
-                handleCompleteConsultation(possibleAnswer);
-                lastActivityRef.current = Date.now();
-                setInactivitySeconds(0);
-                return;
-              }
+          // y dejó de generar (!isStillStreaming). PROHIBIDO evaluar sin hadStarted para evitar falsos positivos.
+          if (consultation?.active && consultation.hadStarted && !isStillStreaming) {
+            const possibleAnswer = extractSpecialistAnswer();
+            if (possibleAnswer && possibleAnswer.length >= 35) {
+              console.log('[Tenshi Voice] Respuesta confirmada del especialista detectada por chequeo periódico.');
+              handleCompleteConsultation(possibleAnswer);
+              lastActivityRef.current = Date.now();
+              setInactivitySeconds(0);
+              return;
             }
           }
 
@@ -1610,11 +1583,13 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
           // 2. Timeout de seguridad prolongado (75s): ANTES de emitir timeout, chequeo de rescate obligatorio
           if (pendingAgentConsultationRef.current?.active && timeSinceStart >= 75000) {
-            const rescueAnswer = extractSpecialistAnswer();
-            if (rescueAnswer && rescueAnswer.length >= 35) {
-              console.log('[Tenshi Voice] Respuesta rescatada exitosamente justo antes de timeout.');
-              handleCompleteConsultation(rescueAnswer);
-              return;
+            if (consultation.hadStarted) {
+              const rescueAnswer = extractSpecialistAnswer();
+              if (rescueAnswer && rescueAnswer.length >= 35) {
+                console.log('[Tenshi Voice] Respuesta rescatada exitosamente justo antes de timeout.');
+                handleCompleteConsultation(rescueAnswer);
+                return;
+              }
             }
 
             console.warn('[Tenshi Voice] Timeout de seguridad (75s) esperando respuesta del especialista.');

@@ -9,7 +9,7 @@
  * Solo el primero en reclamar un prompt dentro de la ventana de tiempo lo envía.
  */
 
-const DEDUPE_WINDOW_MS = 15000;
+const DEDUPE_WINDOW_MS = 4000;
 
 let lastClaim: { prompt: string; time: number } | null = null;
 
