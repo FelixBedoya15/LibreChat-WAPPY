@@ -678,27 +678,27 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             let success = false;
             let lastError = null;
 
-            const rawPreferredLiveModel = this.liveConfig.model || process.env.GEMINI_LIVE_MODEL || 'gemini-3.8-live';
+            const rawPreferredLiveModel = this.liveConfig.model || process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview';
             
             const mapModelToRealGoogleModel = (modelName) => {
-                if (!modelName) return 'gemini-3.8-live';
+                if (!modelName) return 'gemini-3.1-flash-live-preview';
                 const name = modelName.toLowerCase().trim();
-                if (name === 'gemini-3.8-live' || name === 'gemini-3.1-flash-live-preview' || name === 'gemini-2.5-flash-native-audio-preview-12-2025') {
+                if (name === 'gemini-3.1-flash-live-preview' || name === 'gemini-3.8-live' || name === 'gemini-2.5-flash-native-audio-preview-12-2025') {
                     return name;
-                }
-                if (name.includes('3.8')) {
-                    return 'gemini-3.8-live';
                 }
                 if (name.includes('3.1')) {
                     return 'gemini-3.1-flash-live-preview';
+                }
+                if (name.includes('3.8')) {
+                    return 'gemini-3.8-live';
                 }
                 if (name.includes('2.5') || name.includes('12-2025') || name.includes('09-2025') || name.includes('native-audio')) {
                     return 'gemini-2.5-flash-native-audio-preview-12-2025';
                 }
                 if (name.includes('live')) {
-                    return 'gemini-3.8-live';
+                    return 'gemini-3.1-flash-live-preview';
                 }
-                return 'gemini-3.8-live';
+                return 'gemini-3.1-flash-live-preview';
             };
 
             const preferredLiveModel = mapModelToRealGoogleModel(rawPreferredLiveModel);
@@ -1405,7 +1405,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         }
 
                         // If it's a phase evidence captured by the user, notify Gemini Live so the AI verbally acknowledges it!
-                        if (data.metadata?.phaseName && this.geminiClient && this.isActive) {
+                        if (data.metadata?.phaseName && this.geminiClient && this.isActive && !this.reportGenerated && !this.isGeneratingReport) {
                             const summary = data.metadata?.telemetry?.summary || '';
                             const phaseNum = (data.metadata.phaseIndex ?? 0) + 1;
                             const isLastPhase = phaseNum >= 3;
@@ -2754,6 +2754,8 @@ ${workerSubHeaderHtml}
                     } catch (syncErr) {
                         logger.warn('[VoiceSession] Error syncing report to LiveEditor/Canvas:', syncErr.message);
                     }
+
+                    this.reportGenerated = true;
 
                     // CRITICAL: Notify client to invalidate queries so the report appears immediately in the chat!
                     this.sendToClient({

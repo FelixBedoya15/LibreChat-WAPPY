@@ -352,6 +352,63 @@ export function getVisibleScreenContent(section?: string): string {
 }
 
 /**
+ * Encuentra el contenedor con scroll activo en la pantalla actual
+ * (ej. el área principal de contenido de la SPA, modales abiertos o tablas con scroll interno)
+ */
+function findActiveScrollContainer(): HTMLElement | null {
+  // 1. Si hay un modal o diálogo en primer plano
+  const modalEl = document.querySelector<HTMLElement>(
+    '[role="dialog"], [aria-modal="true"], .modal, .dialog, [data-headlessui-state="open"]'
+  );
+  if (modalEl && isElementVisible(modalEl)) {
+    const scrollableInModal = modalEl.querySelector<HTMLElement>(
+      '.overflow-y-auto, .overflow-y-scroll, [class*="overflow-y-auto"], [class*="overflow-auto"]'
+    );
+    if (scrollableInModal && scrollableInModal.scrollHeight > scrollableInModal.clientHeight + 10) {
+      return scrollableInModal;
+    }
+    if (modalEl.scrollHeight > modalEl.clientHeight + 10) {
+      return modalEl;
+    }
+  }
+
+  // 2. Selectores de contenedores scrolleables habituales en LibreChat / WAPPY
+  const candidateSelectors = [
+    'main',
+    '[role="main"]',
+    '.overflow-y-auto',
+    '.overflow-auto',
+    '#root main',
+    '.chat-container',
+    '[data-testid="chat-container"]',
+    '.presentation-editor-container',
+    '.sgsst-container',
+  ];
+
+  for (const sel of candidateSelectors) {
+    const matched = Array.from(document.querySelectorAll<HTMLElement>(sel)).filter(isElementVisible);
+    for (const el of matched) {
+      if (el.closest('.tenshi-widget-container')) continue;
+      if (el.scrollHeight > el.clientHeight + 15) {
+        return el;
+      }
+    }
+  }
+
+  // 3. Búsqueda profunda en contenedores visibles con overflow-y auto/scroll
+  const allElements = Array.from(document.querySelectorAll<HTMLElement>('div, section, article')).filter(isElementVisible);
+  for (const el of allElements) {
+    if (el.closest('.tenshi-widget-container')) continue;
+    const style = window.getComputedStyle(el);
+    if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 25) {
+      return el;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Ejecuta una acción de UI simulada en un elemento indexado
  */
 export async function executeGUIAction(
@@ -372,13 +429,37 @@ export async function executeGUIAction(
   }
 
   if (action === 'scroll') {
+    // Si se especificó un elemento específico por índice, desplazarlo al centro
+    if (index !== undefined && selectorMap.has(index)) {
+      const targetEl = selectorMap.get(index)!;
+      targetEl.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+      await new Promise(resolve => setTimeout(resolve, 600));
+      return { success: true, message: `Desplazamiento enfocado en elemento [${index}] (${targetEl.tagName.toLowerCase()}) completado.` };
+    }
+
     const scrollAmount = window.innerHeight * 0.6;
+    const delta = direccion === 'arriba' ? -scrollAmount : scrollAmount;
+
+    let targetDesc = 'pantalla principal';
+    const container = findActiveScrollContainer();
+    if (container) {
+      container.scrollBy({
+        top: delta,
+        behavior: 'smooth'
+      });
+      const tag = container.tagName.toLowerCase();
+      const cls = container.className && typeof container.className === 'string' ? `.${container.className.split(' ')[0]}` : '';
+      targetDesc = `contenedor ${tag}${cls}`;
+    }
+
+    // Desplazar también window de forma complementaria
     window.scrollBy({
-      top: direccion === 'abajo' ? scrollAmount : -scrollAmount,
+      top: delta,
       behavior: 'smooth'
     });
+
     await new Promise(resolve => setTimeout(resolve, 800));
-    return { success: true, message: `Desplazamiento hacia ${direccion} completado.` };
+    return { success: true, message: `Desplazamiento hacia ${direccion || 'abajo'} completado en ${targetDesc}.` };
   }
 
   if (index === undefined || !selectorMap.has(index)) {

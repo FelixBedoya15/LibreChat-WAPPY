@@ -989,39 +989,18 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
-            const blogEditorDeclaration = {
-                name: 'blog_editor',
-                description: 'Crea, edita, lee, lista o elimina borradores de artículos del blog corporativo en la base de datos.',
+            const webSearchDeclaration = {
+                name: 'web_search',
+                description: 'Busca información actualizada en tiempo real en Internet (noticias, normatividad SST, decretos, resoluciones de Mintrabajo, estadísticas oficiales, documentación técnica, etc.). Utiliza el motor de búsqueda avanzado de WAPPY.',
                 parameters: {
                     type: 'OBJECT',
                     properties: {
-                        accion: { type: 'STRING', description: 'crear, leer, listar, editar, eliminar' },
-                        title: { type: 'STRING', description: 'Título del artículo.' },
-                        description: { type: 'STRING', description: 'Resumen o subtítulo del artículo.' },
-                        content: { type: 'STRING', description: 'Contenido completo del artículo en HTML limpio.' },
-                        tags: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Etiquetas del artículo.' },
-                        postId: { type: 'STRING', description: 'ID del artículo a leer, editar o eliminar.' }
+                        query: {
+                            type: 'STRING',
+                            description: 'La consulta de búsqueda a ejecutar en internet. Sé específico e incluye términos clave relevantes (ej: "Resolución 0312 de 2019 Colombia Mintrabajo").'
+                        }
                     },
-                    required: ['accion']
-                }
-            };
-
-            const editorLiveDeclaration = {
-                name: 'editor_live',
-                description: 'Lee y edita el documento activo del Editor Live en la conversación actual.',
-                parameters: {
-                    type: 'OBJECT',
-                    properties: {
-                        accion: { type: 'STRING', description: 'leer, escribir, editar_seccion, buscar_reemplazar, insertar' },
-                        content: { type: 'STRING', description: 'Contenido HTML completo para escribir.' },
-                        fileName: { type: 'STRING', description: 'Nombre del documento.' },
-                        titulo_seccion: { type: 'STRING', description: 'Título de la sección a editar.' },
-                        nuevo_contenido_seccion: { type: 'STRING', description: 'Nuevo contenido para la sección.' },
-                        buscar: { type: 'STRING', description: 'Texto a buscar.' },
-                        reemplazar: { type: 'STRING', description: 'Texto de reemplazo.' },
-                        posicion: { type: 'STRING', description: 'inicio, fin, despues_de' }
-                    },
-                    required: ['accion']
+                    required: ['query']
                 }
             };
 
@@ -1094,8 +1073,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 google_calendar: googleCalendarDeclaration,
                 onedrive: oneDriveDeclaration,
                 one_drive: oneDriveDeclaration,
-                blog_editor: blogEditorDeclaration,
-                editor_live: editorLiveDeclaration,
+                web_search: webSearchDeclaration,
                 editor_rit: editorRITDeclaration,
                 consultar_analitica_psicosocial: analiticaPsicosocialDeclaration,
                 consultar_analitica_actos_condiciones: analiticaActosCondicionesDeclaration,
@@ -1193,12 +1171,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 } else if (call.name === 'onedrive' || call.name === 'one_drive') {
                                     const OneDriveTool = require('../../app/clients/tools/structured/OneDrive');
                                     toolOutput = await new OneDriveTool({ req })._call(call.args);
-                                } else if (call.name === 'blog_editor') {
-                                    const BlogEditor = require('../../app/clients/tools/structured/BlogEditor');
-                                    toolOutput = await new BlogEditor({ req })._call(call.args);
-                                } else if (call.name === 'editor_live') {
-                                    const EditorLive = require('../../app/clients/tools/structured/EditorLive');
-                                    toolOutput = await new EditorLive({ req })._call(call.args);
+                                } else if (call.name === 'web_search') {
+                                    const WebSearchTool = require('../../app/clients/tools/structured/WebSearch');
+                                    toolOutput = await new WebSearchTool({ req })._call(call.args);
                                 } else if (call.name === 'editor_rit') {
                                     const EditorRIT = require('../../app/clients/tools/structured/EditorRIT');
                                     toolOutput = await new EditorRIT({ req })._call(call.args);

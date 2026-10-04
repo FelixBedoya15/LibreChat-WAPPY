@@ -1675,7 +1675,16 @@ INSTRUCCIÓN PARA TENSHI: En voz alta al usuario, infórmale con calma, cercaní
       
       // Heurística de captura de DOM: capturar si estamos en un bucle interactivo de GUI, si el usuario pide interactuar o si estamos en SGSST
       const textQuery = lastMessage?.role === 'user' ? lastMessage.content.toLowerCase() : '';
-      const uiActionKeywords = ['clic', 'click', 'pantalla', 'formulario', 'abre', 'abrir', 'llena', 'llenar', 'guarda', 'guardar', 'navega', 'navegar', 'boton', 'botón', 'scroll', 'interactua', 'digita', 'aplicativo', 'aplicacion', 'aplicación', 'escribe', 'escribir', 'reporte', 'reportar', 'investigacion', 'investigación', 'accidente', 'diligencia', 'diligenciar', 'colocar', 'datos', 'crear', 'lee', 'leeme', 'léeme', 'muestra', 'muéstrame', 'informe', 'registros', 'que hay', 'qué hay'];
+      const uiActionKeywords = [
+        'clic', 'click', 'pantalla', 'formulario', 'abre', 'abrir', 'llena', 'llenar',
+        'guarda', 'guardar', 'navega', 'navegar', 'boton', 'botón', 'scroll', 'interactua',
+        'digita', 'aplicativo', 'aplicacion', 'aplicación', 'escribe', 'escribir', 'reporte',
+        'reportar', 'investigacion', 'investigación', 'accidente', 'diligencia', 'diligenciar',
+        'colocar', 'datos', 'crear', 'lee', 'leeme', 'léeme', 'muestra', 'muéstrame',
+        'informe', 'registros', 'que hay', 'qué hay', 'ves', 'ver', 'mira', 'mirar',
+        'viendo', 'desplaza', 'desplazar', 'desplazate', 'desplázate', 'desplazarse',
+        'baja', 'bajar', 'sube', 'subir', 'scrollear', 'deslizar', 'desliza'
+      ];
       const isUiActionQuery = uiActionKeywords.some(kw => textQuery.includes(kw));
       const isSgsstPage = window.location.pathname.startsWith('/sgsst');
       

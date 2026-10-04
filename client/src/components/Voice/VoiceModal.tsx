@@ -224,6 +224,7 @@ const VoiceModal: FC<VoiceModalProps> = ({
     const [manualCapturedPhotos, setManualCapturedPhotos] = useState<string[]>([]);
     const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     const [reportSuccess, setReportSuccess] = useState(false);
+    const reportGeneratedRef = useRef(false);
 
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const poseRef = useRef<any>(null);
@@ -305,13 +306,24 @@ const VoiceModal: FC<VoiceModalProps> = ({
                 if (transcriptTimeoutRef.current) clearTimeout(transcriptTimeoutRef.current);
 
                 // Check for user verbal confirmation to capture current posture and advance:
-                // "listo", "ya", "adelante", "ya tomé la postura", "ya estoy listo", "ya me ubiqué", "ya está", "toma la foto", "captura", "dale", "de una"
-                const userVoiceCaptureRegex = /\b(listo|ya\s+estoy(\s+listo)?|ya|adelante|ya\s+me\s+ubiqu[eé]|ya\s+tom[eé]\s+(la\s+)?postura|toma\s+(la\s+)?foto|captura(r)?|dale|de\s+una)\b/i;
+                // Only active if the report hasn't been generated yet and isn't currently generating.
                 const now = Date.now();
-                if (userVoiceCaptureRegex.test(text) && isCameraOn && (now - lastVoiceCaptureTimeRef.current > 3500)) {
-                    lastVoiceCaptureTimeRef.current = now;
-                    console.log('[VoiceModal] User verbal confirmation matched ("' + text + '"): capturing current phase posture and advancing');
-                    capturePhaseEvidenceRef.current?.(currentPhaseIndexRef.current, false);
+                const hasReportOrGenerating = isGeneratingReport || reportGeneratedRef.current;
+                const isReportOrGeneralQuery = /\b(informe|reporte|gener(a|ó|aste)|canvas|editor|sab(es|er)|s[eé]\s+que|hola|qu[eé]\s+haces|c[oó]mo|qui[eé]n)\b/i.test(text);
+
+                if (!hasReportOrGenerating && !isReportOrGeneralQuery) {
+                    const cleanText = text.trim();
+                    const wordCount = cleanText.split(/\s+/).length;
+                    // Stricter regex for posture capture confirmation:
+                    // Matches standalone confirmations, not arbitrary sentences with the word "ya"
+                    const userVoiceCaptureRegex = /\b(listo|ya\s+estoy(\s+listo)?|adelante|ya\s+me\s+ubiqu[eé]|ya\s+tom[eé]\s+(la\s+)?postura|toma\s+(la\s+)?foto|captura(r)?|dale|de\s+una)\b/i;
+                    const exactYaRegex = /^(sí\s*,?\s*)?ya\s*[.!]?$/i;
+
+                    if ((userVoiceCaptureRegex.test(text) || exactYaRegex.test(cleanText)) && wordCount <= 5 && isCameraOn && (now - lastVoiceCaptureTimeRef.current > 3500)) {
+                        lastVoiceCaptureTimeRef.current = now;
+                        console.log('[VoiceModal] User verbal confirmation matched ("' + text + '"): capturing current phase posture and advancing');
+                        capturePhaseEvidenceRef.current?.(currentPhaseIndexRef.current, false);
+                    }
                 }
             }
         },
@@ -326,6 +338,7 @@ const VoiceModal: FC<VoiceModalProps> = ({
                         manualCapturedPhasesRef.current.clear();
                         manualPhotosCountRef.current = 0;
                         setManualCapturedPhotos([]);
+                        reportGeneratedRef.current = false;
                     }
                     const targetIdx = requestedPhase - 1;
                     if (targetIdx !== currentPhaseIndexRef.current) {
@@ -340,6 +353,7 @@ const VoiceModal: FC<VoiceModalProps> = ({
             console.log('[VoiceModal] Report received successfully');
             setIsGeneratingReport(false);
             setReportSuccess(true);
+            reportGeneratedRef.current = true;
             // Reset capture buffers so subsequent inspections in the same session capture fresh photos
             autoCapturedPhasesRef.current.clear();
             manualCapturedPhasesRef.current.clear();
