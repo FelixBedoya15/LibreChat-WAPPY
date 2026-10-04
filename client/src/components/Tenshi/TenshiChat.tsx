@@ -2057,13 +2057,6 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
     }
   }, [messages, isOpen]);
 
-  const showVoiceModal = useRecoilValue(store.showVoiceModal);
-  const showLiveAnalysisModal = useRecoilValue(store.showLiveAnalysisModal);
-
-  if (!isAuthenticated || !config || !config.isActive || showVoiceModal || showLiveAnalysisModal) {
-    return null;
-  }
-
   const positionClasses = {
     'bottom-right': 'bottom-24 md:bottom-6 right-6',
     'bottom-left': 'bottom-24 md:bottom-6 left-6',
@@ -2072,7 +2065,7 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
   };
 
   const floatPosition =
-    positionClasses[config.location as keyof typeof positionClasses] || 'bottom-6 right-6';
+    positionClasses[(config?.location as keyof typeof positionClasses) || 'bottom-right'] || 'bottom-6 right-6';
 
   const runChatTurn = async (currentMessages: TenshiChatMessage[]) => {
     setIsTyping(true);
@@ -2526,6 +2519,13 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
     },
     [navigate, setStreamingCanvas, setIsCanvasActive],
   );
+
+  const showVoiceModal = useRecoilValue(store.showVoiceModal);
+  const showLiveAnalysisModal = useRecoilValue(store.showLiveAnalysisModal);
+
+  if (!isAuthenticated || !config || !config.isActive || showVoiceModal || showLiveAnalysisModal) {
+    return null;
+  }
 
   return (
     <>
