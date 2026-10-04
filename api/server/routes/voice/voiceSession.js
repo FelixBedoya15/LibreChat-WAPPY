@@ -1,3 +1,5 @@
+const buf = require('buffer');
+if (!buf.SlowBuffer) buf.SlowBuffer = buf.Buffer;
 const WebSocket = require('ws');
 const logger = require('~/config/winston');
 const GeminiLiveClient = require('./geminiLive');
@@ -450,6 +452,372 @@ class VoiceSession {
                                 },
                                 required: ["query"]
                             }
+                        },
+                        {
+                            name: "somos_sst",
+                            description: "Herramienta oficial de SOMOS SST (anteriormente SGSST). Permite consultar y editar cualquier información en sus 2 MÓDULOS PRINCIPALES: el Motor Bio-Individual (Bio Motor - expediente del trabajador, exámenes médicos, accidentes ATEL, Hitos) y el Ecosistema SG-SST General (matrices GTC45, EPP, alturas, ATS, capacitaciones, políticas, Centro de Control ACPM y estadísticas en tiempo real).",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    accion: {
+                                        type: "string",
+                                        description: "Acción a ejecutar: 'actualizar_informacion_empresa', 'consultar_expediente_integral', 'listar_trabajadores', 'resumen_empresa', 'actualizar_examen_medico', 'registrar_accidente_atel', 'actualizar_hito_tarea', 'editar_cualquier_aplicativo', 'generar_informe_html', 'consultar_historial_informes', 'consultar_planes_y_sistema', 'consultar_centro_control_acpm', 'crear_actividad_acpm', 'actualizar_actividad_acpm', 'crear_trabajador'."
+                                    },
+                                    razon_social: { type: "string", description: "Razón Social o Nombre legal de la empresa" },
+                                    tipo_empresa: { type: "string", description: "'Persona Jurídica' o 'Persona Natural'" },
+                                    nit: { type: "string", description: "Número de Identificación Tributaria (NIT)" },
+                                    representante_legal: { type: "string", description: "Nombre del Representante Legal" },
+                                    cedula_representante: { type: "string", description: "Cédula o ID del Representante Legal" },
+                                    numero_trabajadores: { type: "number", description: "Número total de trabajadores" },
+                                    arl: { type: "string", description: "Nombre de la ARL afiliada" },
+                                    actividad_economica: { type: "string", description: "Actividad económica principal" },
+                                    nivel_riesgo: { type: "string", description: "Nivel de riesgo ARL (I, II, III, IV, V)" },
+                                    ciiu: { type: "string", description: "Código CIIU" },
+                                    direccion: { type: "string", description: "Dirección física de la sede principal" },
+                                    ciudad: { type: "string", description: "Ciudad o municipio" },
+                                    departamento: { type: "string", description: "Departamento" },
+                                    telefono: { type: "string", description: "Teléfono de contacto" },
+                                    correo: { type: "string", description: "Correo electrónico corporativo" },
+                                    datos_json: { type: "string", description: "Datos estructurados en formato JSON o texto para guardado masivo" },
+                                    tipo_informe: { type: "string", description: "Tipo de informe formal HTML a generar" },
+                                    titulo_informe: { type: "string", description: "Título del informe formal HTML" },
+                                    contenido_html: { type: "string", description: "Contenido HTML del informe" },
+                                    nombre_o_cargo: { type: "string", description: "Nombre completo del trabajador o cargo" },
+                                    identificacion: { type: "string", description: "Cédula o ID del trabajador" },
+                                    fecha_examen: { type: "string", description: "Fecha del examen médico (YYYY-MM-DD)" },
+                                    concepto_diagnostico: { type: "string", description: "Concepto o aptitud médica laboral" },
+                                    restricciones: { type: "string", description: "Restricciones médicas" },
+                                    tipo_siniestro: { type: "string", description: "Tipo de evento ATEL: 'AT', 'EL', 'Ausentismo'" },
+                                    dias_incapacidad: { type: "string", description: "Días de incapacidad" },
+                                    descripcion_hechos: { type: "string", description: "Descripción de los hechos o accidente" },
+                                    nombre_aplicativo: {
+                                        type: "string",
+                                        description: "Nombre del aplicativo a editar: 'empresa', 'cargos', 'estudio_puesto', 'auditoria', 'diagnostico', 'epp', 'alturas', 'ats', 'vehiculos', 'capacitaciones', 'gtc45', 'owas', 'actos', 'vulnerabilidad', 'quimicos', 'kanban', 'politica', 'matriz_legal', 'rhs', 'rit', 'estadisticas'."
+                                    },
+                                    propiedad_o_ruta: { type: "string", description: "Campo o propiedad a modificar" },
+                                    nuevo_valor: { type: "string", description: "Nuevo valor a asignar" },
+                                    titulo_actividad: { type: "string", description: "Título de la actividad para el Centro de Control ACPM" },
+                                    descripcion_actividad: { type: "string", description: "Detalles o descripción de la actividad ACPM" },
+                                    fecha_vencimiento: { type: "string", description: "Fecha de vencimiento (YYYY-MM-DD o 'mañana')" },
+                                    estado_actividad: { type: "string", description: "'todo', 'due_soon', 'overdue', 'done'" },
+                                    tipo_actividad: { type: "string", description: "'manual', 'medical_exam', 'training', 'other'" }
+                                },
+                                required: ["accion"]
+                            }
+                        },
+                        {
+                            name: "matriz_ipevar",
+                            description: "Lee, añade, evalúa o actualiza riesgos laborales directamente en la Matriz GTC-45 / IPEVAR. Usa esta herramienta para leer, documentar o evaluar peligros en la matriz IPEVR / GTC-45.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    accion: { type: "string", description: "Acción: 'consultar_contexto_sgsst', 'leer', 'escribir', 'borrar'" },
+                                    filtro_proceso: { type: "string", description: "Filtro por proceso o cargo" },
+                                    filtro_cargo: { type: "string", description: "Filtro por cargo" },
+                                    filtro_actividad: { type: "string", description: "Filtro por actividad" },
+                                    filtro_peligro: { type: "string", description: "Filtro por peligro" },
+                                    ids_a_borrar: { type: "array", items: { type: "string" }, description: "IDs de riesgos a eliminar cuando accion='borrar'" },
+                                    riesgos: {
+                                        type: "array",
+                                        items: {
+                                            type: "object",
+                                            properties: {
+                                                cargo: { type: "string" },
+                                                proceso: { type: "string" },
+                                                zona: { type: "string" },
+                                                actividad: { type: "string" },
+                                                tareas: { type: "string" },
+                                                rutinaria: { type: "string", description: "'Sí' o 'No'" },
+                                                peligro_descripcion: { type: "string" },
+                                                peligro_clasificacion: { type: "string" },
+                                                efectos_posibles: { type: "string" },
+                                                controles_fuente: { type: "string" },
+                                                controles_medio: { type: "string" },
+                                                controles_individuo: { type: "string" },
+                                                nd: { type: "number" },
+                                                ne: { type: "number" },
+                                                nc: { type: "number" },
+                                                medida_eliminacion: { type: "string" },
+                                                medida_sustitucion: { type: "string" },
+                                                medida_ingenieria: { type: "string" },
+                                                medida_administrativa: { type: "string" },
+                                                medida_eppu: { type: "string" },
+                                                factores_reduccion: { type: "string" },
+                                                nd_cualitativo: { type: "number" },
+                                                nro_expuestos: { type: "number" },
+                                                peor_consecuencia: { type: "string" },
+                                                requisito_legal: { type: "string" }
+                                            },
+                                            required: ["proceso", "zona", "actividad", "tareas", "rutinaria", "peligro_descripcion", "peligro_clasificacion", "efectos_posibles", "nd", "ne", "nc"]
+                                        },
+                                        description: "Lista de riesgos a registrar cuando accion='escribir'"
+                                    }
+                                },
+                                required: ["accion"]
+                            }
+                        },
+                        {
+                            name: "matriz_pesv",
+                            description: "Lee, añade, evalúa o actualiza riesgos viales en la Matriz PESV (Plan Estratégico de Seguridad Vial - Res. 20223040040595).",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    accion: { type: "string", description: "Acción: 'consultar_contexto_sgsst', 'leer', 'escribir', 'borrar'" },
+                                    filtro_proceso: { type: "string" },
+                                    filtro_cargo: { type: "string" },
+                                    filtro_actor_vial: { type: "string" },
+                                    filtro_peligro: { type: "string" },
+                                    ids_a_borrar: { type: "array", items: { type: "string" } },
+                                    riesgos: {
+                                        type: "array",
+                                        items: {
+                                            type: "object",
+                                            properties: {
+                                                grupo_trabajo: { type: "string" },
+                                                cargo: { type: "string" },
+                                                tipo_desplazamiento: { type: "string" },
+                                                rol_via: { type: "string" },
+                                                factor_riesgo: { type: "string" },
+                                                peligro_descripcion: { type: "string" },
+                                                np_cualitativo: { type: "string" },
+                                                ne_cualitativo: { type: "string" },
+                                                nc_cualitativo: { type: "string" },
+                                                controles_existentes_descripcion: { type: "string" },
+                                                controles_existentes_tipo: { type: "string" },
+                                                tratamiento_accion: { type: "string" },
+                                                plan_accion_medio: { type: "string" },
+                                                plan_accion_vehiculo: { type: "string" },
+                                                plan_accion_individuo: { type: "string" },
+                                                plan_accion_infraestructura: { type: "string" },
+                                                responsable: { type: "string" },
+                                                fecha_programacion: { type: "string" },
+                                                estado: { type: "string" },
+                                                observaciones: { type: "string" }
+                                            },
+                                            required: ["grupo_trabajo", "cargo", "tipo_desplazamiento", "rol_via", "factor_riesgo", "peligro_descripcion", "np_cualitativo", "ne_cualitativo", "nc_cualitativo"]
+                                        },
+                                        description: "Lista de riesgos viales a registrar cuando accion='escribir'"
+                                    }
+                                },
+                                required: ["accion"]
+                            }
+                        },
+                        {
+                            name: "matriz_compatibilidad",
+                            description: "Lee, añade, evalúa o actualiza inventarios de productos químicos en la Matriz de Compatibilidad y Almacenamiento Seguro SGA.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    accion: { type: "string", description: "Acción: 'consultar_contexto_sgsst', 'leer', 'escribir', 'borrar'" },
+                                    filtro_nombre: { type: "string" },
+                                    filtro_ubicacion: { type: "string" },
+                                    filtro_clase: { type: "string" },
+                                    ids_a_borrar: { type: "array", items: { type: "string" } },
+                                    productos: {
+                                        type: "array",
+                                        items: {
+                                            type: "object",
+                                            properties: {
+                                                nombre: { type: "string" },
+                                                fabricante: { type: "string" },
+                                                estado_fisico: { type: "string" },
+                                                clasificacion_onu: { type: "string" },
+                                                pictogramas_sga: { type: "array", items: { type: "string" } },
+                                                cantidad_almacenada: { type: "string" },
+                                                ubicacion: { type: "string" },
+                                                tiene_fds: { type: "string" },
+                                                tiene_rotulo: { type: "string" },
+                                                incompatibilidades: { type: "string" },
+                                                requisitos_almacenamiento: { type: "string" }
+                                            },
+                                            required: ["nombre", "clasificacion_onu"]
+                                        },
+                                        description: "Lista de sustancias químicas a registrar cuando accion='escribir'"
+                                    }
+                                },
+                                required: ["accion"]
+                            }
+                        },
+                        {
+                            name: "gestor_automatizaciones",
+                            description: "Crea, lista, actualiza, ejecuta o elimina automatizaciones de tareas periódicas en segundo plano (/sgsst/automatizaciones).",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    accion: { type: "string", description: "'crear', 'listar', 'actualizar', 'eliminar', 'ejecutar_ahora', 'ver_logs'" },
+                                    nombre: { type: "string", description: "Nombre claro de la automatización" },
+                                    agente_objetivo: { type: "string", description: "Agente que ejecutará la tarea periódica" },
+                                    prompt_a_ejecutar: { type: "string", description: "Instrucción detallada a ejecutar periódicamente" },
+                                    tipo_frecuencia: { type: "string", description: "'daily', 'weekly', 'monthly', 'hourly'" },
+                                    configuracion_horario: {
+                                        type: "object",
+                                        properties: {
+                                            hora: { type: "number" },
+                                            minuto: { type: "number" },
+                                            dias_semana: { type: "array", items: { type: "number" } },
+                                            dia_mes: { type: "number" },
+                                            intervalo_horas: { type: "number" }
+                                        }
+                                    },
+                                    correos_notificacion: { type: "array", items: { type: "string" } },
+                                    automatizacion_id: { type: "string", description: "ID de la automatización para actualizar/eliminar/ejecutar" },
+                                    nuevo_estado: { type: "string", description: "'active' o 'inactive'" }
+                                },
+                                required: ["accion"]
+                            }
+                        },
+                        {
+                            name: "google_sheets",
+                            description: "Interactúa con Google Sheets: crea hojas de cálculo, lee rangos de celdas, actualiza valores, añade filas y aplica formatos.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    action: { type: "string", description: "'create_spreadsheet', 'read_spreadsheet', 'update_spreadsheet_values', 'append_spreadsheet_values', 'format_spreadsheet'" },
+                                    spreadsheetId: { type: "string", description: "ID de la hoja de cálculo de Google" },
+                                    title: { type: "string", description: "Título de la hoja a crear" },
+                                    range: { type: "string", description: "Rango A1 (ej: 'Sheet1!A1:D10')" },
+                                    values: {
+                                        type: "array",
+                                        items: { type: "array", items: { type: "string" } },
+                                        description: "Matriz bidimensional de datos a escribir o añadir"
+                                    },
+                                    sheetId: { type: "number", description: "ID numérico de la pestaña" },
+                                    headerColorHex: { type: "string", description: "Color hex de cabecera" }
+                                },
+                                required: ["action"]
+                            }
+                        },
+                        {
+                            name: "google_docs",
+                            description: "Interactúa con Google Docs: crea nuevos documentos, lee su texto completo, sobrescribe o añade contenido al final.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    action: { type: "string", description: "'create_document', 'read_document', 'write_to_document', 'append_to_document'" },
+                                    documentId: { type: "string", description: "ID del documento de Google" },
+                                    title: { type: "string", description: "Título del documento a crear" },
+                                    text: { type: "string", description: "Contenido de texto o Markdown a redactar" }
+                                },
+                                required: ["action"]
+                            }
+                        },
+                        {
+                            name: "google_slides",
+                            description: "Interactúa con Google Slides: crea presentaciones ejecutivas, añade diapositivas y lee la estructura.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    action: { type: "string", description: "'create_presentation', 'add_slide', 'read_presentation'" },
+                                    presentationId: { type: "string", description: "ID de la presentación de Google Slides" },
+                                    title: { type: "string", description: "Título de la presentación o diapositiva" },
+                                    bodyText: { type: "string", description: "Texto del cuerpo de la diapositiva" },
+                                    slideLayout: { type: "string", description: "'TITLE_AND_BODY', 'TITLE', 'SECTION_HEADER', 'BLANK'" },
+                                    slideType: { type: "string", description: "'TITLE_SLIDE' o 'CONTENT_SLIDE'" }
+                                },
+                                required: ["action"]
+                            }
+                        },
+                        {
+                            name: "google_gmail",
+                            description: "Envía correos electrónicos o crea borradores en Gmail desde la cuenta del usuario.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    action: { type: "string", description: "'send_email' o 'create_draft'" },
+                                    to: { type: "string", description: "Dirección de correo electrónico del destinatario" },
+                                    subject: { type: "string", description: "Asunto del correo electrónico" },
+                                    body: { type: "string", description: "Contenido del mensaje (HTML o texto)" },
+                                    cc: { type: "string", description: "Correos en copia" },
+                                    bcc: { type: "string", description: "Correos en copia oculta" }
+                                },
+                                required: ["action", "to", "subject", "body"]
+                            }
+                        },
+                        {
+                            name: "google_calendar",
+                            description: "Interactúa con Google Calendar: crea eventos/recordatorios, lista eventos por fecha y elimina eventos.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    action: { type: "string", description: "'create_event', 'list_events', 'delete_event'" },
+                                    title: { type: "string", description: "Título o resumen del evento" },
+                                    description: { type: "string", description: "Detalles del evento" },
+                                    startTime: { type: "string", description: "Fecha y hora de inicio (ISO)" },
+                                    endTime: { type: "string", description: "Fecha y hora de finalización (ISO)" },
+                                    timeMin: { type: "string", description: "Fecha de inicio para listar eventos" },
+                                    timeMax: { type: "string", description: "Fecha de fin para listar eventos" },
+                                    eventId: { type: "string", description: "ID del evento a eliminar" }
+                                },
+                                required: ["action"]
+                            }
+                        },
+                        {
+                            name: "onedrive",
+                            description: "Interactúa con Microsoft OneDrive: busca archivos/carpetas, lee documentos (Word, Excel, PDF) y escribe archivos.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    action: { type: "string", description: "'list_files_and_folders', 'read_document_content', 'create_folder', 'write_file'" },
+                                    query: { type: "string", description: "Término de búsqueda o contenido a escribir" },
+                                    fileId: { type: "string", description: "ID del archivo o carpeta en OneDrive" },
+                                    fileName: { type: "string", description: "Nombre del archivo o carpeta" },
+                                    parentId: { type: "string", description: "ID de la carpeta contenedora" }
+                                },
+                                required: ["action"]
+                            }
+                        },
+                        {
+                            name: "editor_rit",
+                            description: "Editor especializado para el Reglamento Interno de Trabajo (RIT): cargar plantilla tradicional/humanista, leer y editar secciones.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    accion: { type: "string", description: "'cargar_plantilla', 'leer', 'escribir', 'editar_seccion', 'buscar_reemplazar', 'insertar'" },
+                                    tono: { type: "string", description: "'tradicional' o 'humanista'" },
+                                    content: { type: "string", description: "Contenido HTML completo" },
+                                    fileName: { type: "string", description: "Nombre descriptivo del documento" },
+                                    titulo_seccion: { type: "string", description: "Título de la sección a editar" },
+                                    nuevo_contenido_seccion: { type: "string", description: "Nuevo contenido de la sección" },
+                                    buscar: { type: "string", description: "Texto a buscar" },
+                                    reemplazar: { type: "string", description: "Texto de reemplazo" }
+                                },
+                                required: ["accion"]
+                            }
+                        },
+                        {
+                            name: "consultar_analitica_psicosocial",
+                            description: "Consulta de forma anónima y consolidada los datos de estado de ánimo, clima laboral y factores de estrés de los trabajadores.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    dias: { type: "number", description: "Días de historial hacia atrás (por defecto 30)" },
+                                    departamento: { type: "string", description: "Área o departamento a filtrar" }
+                                }
+                            }
+                        },
+                        {
+                            name: "consultar_analitica_actos_condiciones",
+                            description: "Consulta estadísticas de actos y condiciones inseguras, áreas críticas y tendencias de seguridad en el buzón.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    accion: { type: "string", description: "'obtener_analisis' o 'marcar_procesado'" },
+                                    reportId: { type: "string", description: "ID del reporte a marcar procesado" },
+                                    dias: { type: "number", description: "Días de historial a analizar (por defecto 30)" }
+                                }
+                            }
+                        },
+                        {
+                            name: "consultar_agente_especializado",
+                            description: "Delegación y Orquestación Multi-Agente: Abre el chat y consulta a un Agente Especialista del sistema (Médico Laboral, Abogado Laboral, etc.) para resolver dudas técnicas complejas.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    nombre_especialista: { type: "string", description: "Nombre o rol del agente especialista a consultar." },
+                                    consulta_completa: { type: "string", description: "Consulta técnica detallada para el especialista." }
+                                },
+                                required: ["nombre_especialista", "consulta_completa"]
+                            }
                         }
                     ]
                 }
@@ -492,11 +860,11 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
    - Aplicativos y Dashboards: 'academia' (/academia?tab=cursos), 'training_admin', 'rutas' (/academia?tab=rutas), 'ruta_admin', 'events_meet', 'events_meet_admin', 'blog', 'blog_admin', 'marketplace' (/marketplace tienda productos SST), 'marketplace_admin', 'agents' (/agents catálogo especialistas IA), 'control' (Centro de Control / Kanban), 'animo_dashboard' (/sgsst/animo), 'planes', 'auditoria' (/auditoria), 'live' (/c/new), 'chat_sst', 'roadmap' (/hoja-de-ruta), 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy', 'terms', 'about'.
    - Portales públicos del trabajador: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'.
    - INVÓCALA DE INMEDIATO siempre que el usuario mencione ir, abrir, consultar o ver cualquier hito, módulo o sección.
-4. **wappy_abrir_chat_agente**: Abre de inmediato el chat con un especialista (ej: 'abogado_laboral', 'medico_laboral', 'ingeniero_quimico_sst', etc.) y formula la consulta técnica del usuario.
+4. **wappy_abrir_chat_agente** / **consultar_agente_especializado**: Abre de inmediato el chat con un especialista (ej: 'abogado_laboral', 'medico_laboral', 'ingeniero_quimico_sst', etc.) y formula la consulta técnica del usuario.
    - OBLIGACIÓN ESTRICTA: Siempre que el usuario te pida consultar, preguntar, abrir o pedir asesoría a un especialista, INVOCA ESTA HERRAMIENTA DE INMEDIATO.
    - ESTÁ TERMINANTEMENTE PROHIBIDO responder tú misma a la consulta técnica o legal del usuario. TÚ NO ERES EL ABOGADO NI EL ESPECIALISTA.
    - REGLA CRÍTICA PARA 'pregunta': Debe ser una formulación técnica, clara y estructurada basada en lo que el usuario necesita del especialista (mínimo 5 a 10 palabras con contexto legal o SST).
-   - ESTÁ TERMINANTEMENTE PROHIBIDO enviar saludos vacíos como 'Hola cómo estás el día de hoy', ni palabras sueltas como 'por' o 'qué'. Ejemplo: Si el usuario dice 'pregúntale al abogado sobre el despido', formula: 'Hola, requiero asesoría sobre las causales legales y el procedimiento para un despido con justa causa según el CST.'
+   - ESTÁ TERMINANTEMENTE PROHIBIDO enviar saludos vacíos como 'Hola cómo estás el día de hoy', ni palabras sueltas como 'por' o 'qué'.
    - RESPUESTA ORAL TRAS INVOCAR ESTA HERRAMIENTA:
      Cuando ejecutes esta herramienta, tu ÚNICA respuesta oral permitida es confirmar en 1 sola frase corta que ya abriste el chat y le dejaste la consulta formulada en pantalla al especialista.
      Ejemplo exacto: "¡De una! Ya abrí el chat con el [Nombre del Especialista] y le dejé tu consulta en pantalla. Esperemos un momento a que responda."
@@ -513,17 +881,67 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
 7. **canvas_tool (Lienzo interactivo Canvas / Aplicativos en Canva)**:
    - Tienes la herramienta 'canvas_tool' para crear aplicaciones interactivas ('html' con código funcional, gráficos, Tailwind CSS y Chart.js), documentos técnicos ('text'), hojas de cálculo ('excel') o presentaciones ('presentation') en el lienzo interactivo de pantalla dividida.
    - INVÓCALA DE INMEDIATO siempre que el usuario te pida crear una aplicación, prototipo, calculadora, dashboard con gráficos, formato interactivo o te diga "crea en Canva/Canvas un aplicativo...", "hazme una app de indicadores de accidentalidad", etc.
-   - Parámetros:
-     * accion: 'crear'
-     * fileType: 'html' (para aplicativos, prototipos y dashboards interactivos con gráficos) o 'text' (para documentos/informes) o 'excel' (para hojas de cálculo).
-     * title: Título descriptivo (ej: 'Aplicativo de Indicadores de Accidentalidad Res. 0312')
-     * content: Para 'html', entrega el código HTML5 completo, autosuficiente, estético y 100% funcional, incluyendo CDN de Tailwind CSS y Chart.js, con gráficos interactivos de barras/líneas (ej: Índices IF, IS, ILI y Severidad), tablas de datos, controles interactivos y diseño moderno WAPPY.
-   - PROHIBICIÓN ESTRICTA: NUNCA digas "no puedo crear aplicaciones en Canva ni enviar archivos por chat". ¡TÚ TIENES TU PROPIO CANVA/CANVAS INTERACTIVO INTEGRADO!
-   - Confírmale verbalmente en 1 sola frase entusiasta: "¡Listo! Ya creé y desplegué el aplicativo interactivo en tu pantalla Canvas con todos los gráficos y cálculos solicitados."
 8. **web_search (Búsqueda Web en Tiempo Real)**:
    - Tienes la herramienta 'web_search' para consultar Internet en vivo.
    - INVÓCALA SIEMPRE que el usuario te pida buscar en la web, consultar noticias, verificar normatividad vigente o cuando requieras datos externos actualizados.
-   - Responde oralmente de forma concisa y amigable sintetizando los hallazgos principales.`;
+9. **somos_sst (Ecosistema SOMOS SST y Motor Bio-Individual)**:
+   - Tienes la herramienta 'somos_sst' para consultar expedientes integrales de trabajadores, exámenes médicos, reportes ATEL, tareas/hitos, perfiles de cargo, EPP, Centro de Control ACPM y generar informes formales HTML.
+   - INVÓCALA cuando el usuario te pida consultar o modificar datos del SG-SST o crear tareas ACPM.
+10. **matriz_ipevar, matriz_pesv y matriz_compatibilidad**:
+   - 'matriz_ipevar': Lee, documenta y evalúa peligros laborales en la Matriz GTC-45.
+   - 'matriz_pesv': Evalúa y gestiona riesgos viales del Plan Estratégico de Seguridad Vial (Res. 20223040040595).
+   - 'matriz_compatibilidad': Gestiona el inventario químico, fichas FDS y reglas de almacenamiento seguro SGA.
+11. **gestor_automatizaciones**:
+   - Programa, lista, pausa o ejecuta tareas periódicas autónomas en segundo plano (/sgsst/automatizaciones).
+12. **OFIMÁTICA EN LA NUBE (Google Workspace & Microsoft 365)**:
+   - 'google_sheets': Crea, lee y formatea hojas de cálculo.
+   - 'google_docs': Redacta y lee documentos Google Docs.
+   - 'google_slides': Crea presentaciones ejecutivas.
+   - 'google_gmail': Redacta y envía correos electrónicos.
+   - 'google_calendar': Programa citas, auditorías y eventos.
+   - 'onedrive': Lee y guarda archivos en OneDrive.
+13. **editor_rit**: Carga plantillas oficial/humanista y edita secciones del Reglamento Interno de Trabajo.
+14. **ANALÍTICAS**:
+   - 'consultar_analitica_psicosocial': Métricas agregadas de ánimo, estrés y clima laboral.
+   - 'consultar_analitica_actos_condiciones': Estadísticas y buzón de reportes de seguridad.
+
+[DOMINIO INTEGRAL DE METODOLOGÍAS Y SKILLS DE WAPPY IA]:
+1. **Investigación de Accidentes e Incidentes (Resolución 1401 de 2007)**:
+   - Término legal: 15 días calendario para conformar equipo investigador (jefe inmediato, COPASST y responsable SST) y enviar a la ARL. 10 días para accidentes graves o mortales.
+   - Metodologías: Árbol de causas (partir del hecho final y buscar antecedentes necesarios y suficientes), Diagrama de Ishikawa / Causa-Efecto (6M: Mano de obra, Maquinaria, Métodos, Materiales, Medio ambiente, Medición), Técnica de los 5 Porqués, Modelo ILCI (Causas Inmediatas: actos y condiciones subestándar; Causas Básicas: factores personales y del trabajo; Falta de Control).
+   - Aplicativo: Diligencia reportes usando 'wappy_diligenciar_formulario' con modulo: 'investigacion_atel' o navega con 'wappy_navegar' a modulo: 'investigacion_atel'.
+2. **Ergonomía, Biomecánica y Evaluación Postural (OWAS, ROSA, RULA, REBA)**:
+   - Método OWAS: Códigos de postura para Espalda (1-recta, 2-inclinada, 3-girada, 4-inclinada y girada), Brazos (1-ambos abajo, 2-uno sobre el hombro, 3-ambos sobre los hombros), Piernas (1-sentado, 2-de pie bípedo, 3-de pie unípedo, 4-arrodillado, 5-en cuclillas, 6-caminando) y Carga (<10kg, 10-20kg, >20kg). Categorías de acción: 1 (normal), 2 (posible daño, corregir en futuro), 3 (daño a corto plazo, corregir pronto), 4 (daño inminente, corregir de inmediato).
+   - Método ROSA: Para puestos de oficina con pantallas (PVD), evalúa silla, pantalla, periféricos (teclado/mouse) y teléfono.
+   - Aplicativos: Navega con 'wappy_navegar' a 'metodo_owas' o 'estudio_puesto'.
+3. **Trabajo Seguro en Alturas (Resolución 4272 de 2021)**:
+   - Aplica a toda actividad con riesgo de caída a 2.0 metros o más.
+   - Requisitos críticos: Permiso de Trabajo en Alturas (TSA), lista de chequeo de equipos SPDC (arneses certificados ANSI Z359, eslingas con absorbedor, conectores, líneas de vida), aptitud médica con concepto vigente, coordinador de alturas calificado y plan de rescate documentado.
+   - Aplicativo: Navega con 'wappy_navegar' a 'permiso_alturas'.
+4. **Análisis de Trabajo Seguro (ATS)**:
+   - Metodología en 4 columnas: 1) Pasos secuenciales de la tarea, 2) Peligros identificados por paso, 3) Consecuencias y 4) Medidas de control jerárquico (Eliminación, Sustitución, Controles de Ingeniería, Controles Administrativos, EPP).
+   - Aplicativo: Navega con 'wappy_navegar' a 'analisis_trabajo_seguro'.
+5. **Matriz de Compatibilidad y Almacenamiento Químico SGA (Libro Púrpura ONU)**:
+   - 9 Clases ONU: Clase 1 (Explosivos), Clase 2 (Gases), Clase 3 (Líquidos inflamables), Clase 4 (Sólidos inflamables), Clase 5 (Comburentes y peróxidos orgánicos), Clase 6 (Tóxicos e infecciosos), Clase 7 (Radiactivos), Clase 8 (Corrosivos), Clase 9 (Misceláneos).
+   - Reglas: Separar ácidos y bases; incompatibilidad estricta entre inflamables y oxidantes/comburentes; Fichas de Datos de Seguridad (FDS) con 16 secciones obligatorias. Usa tu herramienta 'matriz_compatibilidad'.
+6. **Plan Estratégico de Seguridad Vial (PESV - Resolución 20223040040595)**:
+   - Fases y 24 pasos: Planificación, Implementación, Seguimiento y Mejora. Roles: Conductor, Pasajero, Peatón, Ciclista, Motociclista.
+   - Ejes: Comportamiento humano, Vehículos seguros (hojas de vida, inspecciones), Infraestructura segura y Atención a víctimas. Usa tu herramienta 'matriz_pesv'.
+7. **Matriz IPEVAR / GTC-45**:
+   - Variables cuantitativas: ND (Deficiencia: 2, 6, 10), NE (Exposición: 1, 2, 3, 4), NP = ND x NE, NC (Consecuencia: 10, 25, 60, 100), NR = NP x NC.
+   - Clasificación del riesgo: Nivel I (600 a 4000: No aceptable), Nivel II (150 a 500: No aceptable o aceptable con control específico), Nivel III (40 a 120: Mejorable), Nivel IV (20: Aceptable). Usa tu herramienta 'matriz_ipevar'.
+8. **Planes de Emergencia y Vulnerabilidad**:
+   - Análisis de amenazas (naturales, tecnológicas, sociales) y vulnerabilidad en 3 diamantes (Personas, Recursos, Sistemas y Procesos) evaluados en escala de colores (Verde, Amarillo, Rojo).
+   - Brigada de emergencias, comité de crisis y simulacros anuales. Navega con 'wappy_navegar' a 'vulnerabilidad' o 'plan_emergencias'.
+9. **Estándares Mínimos (Resolución 0312 de 2019)**:
+   - 7 estándares: Empresas de 1 a 10 trabajadores clasificadas en Riesgo I, II o III.
+   - 21 estándares: Empresas de 11 a 50 trabajadores clasificadas en Riesgo I, II o III.
+   - 60 estándares: Empresas con más de 50 trabajadores O de cualquier tamaño en Riesgo IV o V.
+   - Navega con 'wappy_navegar' a 'diagnostico'.
+10. **Comités y Órganos de Participación**:
+    - COPASST (Resolución 2013 de 1986 y Decreto 1072 de 2015): Paritario, 10 o más trabajadores, reuniones mensuales obligatorias. (Vigía SST para menos de 10).
+    - Comité de Convivencia Laboral (Resolución 652 y 1356 de 2012): Prevención del acoso laboral (Ley 1010 de 2006).
+    - Navega con 'wappy_navegar' a 'copasst' o 'cocolab'.`;
         } else {
             // Herramientas nativas para agentes SST y Fisioterapeuta Laboral
             const reportTool = {
@@ -612,7 +1030,10 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     let isMemoryEnabled = true;
                     try {
                         const User = mongoose.models.User || require('~/models/User');
-                        const userDoc = await User.findById(this.userId).select('isSubUser parentUser assignedCompany personalization').lean();
+                        const userDoc = await User.findById(this.userId).select('isSubUser parentUser assignedCompany personalization role').lean();
+                        if (userDoc?.role) {
+                            this.userRole = userDoc.role;
+                        }
                         if (userDoc?.personalization?.memories === false) {
                             isMemoryEnabled = false;
                         }
@@ -726,6 +1147,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                             for (const m of c.messages) {
                                 const sender = m.isCreatedByUser ? 'Usuario' : (m.sender || 'Especialista');
                                 const maxLen = m.isCreatedByUser ? 300 : 3500;
+                                const text = (m.text || '').replace(/\s+/g, ' ').trim();
                                 const snippet = text.length > maxLen ? text.substring(0, maxLen) + '...' : text;
                                 if (snippet) {
                                     companyAndMemoryPrompt += `\n  * ${sender}: "${snippet}"`;
@@ -741,6 +1163,24 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
 
                     this.liveConfig.systemInstruction = (this.liveConfig.systemInstruction || '') + companyAndMemoryPrompt;
                     logger.info(`[VoiceSession] Injected active company, ${rawMemories?.length || 0} memories, ${recentTenshiMessages?.length || 0} Tenshi turns & ${recentConvos?.length || 0} specialist convos into Tenshi Voice instructions`);
+
+                    // Inyectar Guía Maestra de la Plataforma WAPPY y Skills SST
+                    try {
+                        const { getActiveSkillsData } = require('~/server/services/skillRouter');
+                        const skillContext = [
+                            this.config?.conversationContext,
+                            companyInfo?.companyName,
+                            companyInfo?.economicActivity
+                        ].filter(Boolean).join(' ');
+
+                        const activeSkills = getActiveSkillsData(skillContext || 'guia completa plataforma', ['*']);
+                        if (activeSkills?.instructions) {
+                            this.liveConfig.systemInstruction += `\n\n${activeSkills.instructions}`;
+                            logger.info(`[VoiceSession] Injected platform skills (${activeSkills.activeSkillNames?.join(', ') || 'master'}) into Tenshi Voice instructions`);
+                        }
+                    } catch (skillErr) {
+                        logger.warn('[VoiceSession] Error injecting active skills into Tenshi Voice:', skillErr.message);
+                    }
                 } catch (memErr) {
                     logger.warn(`[VoiceSession] Could not inject company/memories into Tenshi Voice:`, memErr.message);
                 }
@@ -967,6 +1407,13 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             this.toolCalledThisTurn = true;
 
             if (toolCall.functionCalls) {
+                const toolReq = {
+                    user: { id: this.userId, _id: this.userId, role: this.userRole || 'ADMIN' },
+                    body: {
+                        conversationId: this.conversationId && this.conversationId !== 'new' ? this.conversationId : `tenshi-${this.userId}`
+                    }
+                };
+
                 for (const fc of toolCall.functionCalls) {
                     // Manejo de cambio de fase interactiva
                     if (fc.name === 'cambiar_fase_evaluacion') {
@@ -1045,7 +1492,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         });
                         try {
                             const GoogleDrive = require('~/app/clients/tools/structured/GoogleDrive');
-                            const googleDriveTool = new GoogleDrive({ req: { user: { id: this.userId } } });
+                            const googleDriveTool = new GoogleDrive({ req: toolReq });
                             const driveResult = await googleDriveTool._call(fc.args || { action: 'list_files_and_folders' });
                             logger.info(`[VoiceSession] google_drive executed successfully. Result length: ${driveResult?.length || 0}`);
                             if (this.geminiClient) {
@@ -1077,7 +1524,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         });
                         try {
                             const WebSearch = require('~/app/clients/tools/structured/WebSearch');
-                            const webSearchTool = new WebSearch({ req: { user: { id: this.userId } } });
+                            const webSearchTool = new WebSearch({ req: toolReq });
                             const searchResult = await webSearchTool._call(fc.args);
                             logger.info(`[VoiceSession] web_search executed successfully. Result length: ${searchResult?.length || 0}`);
                             if (this.geminiClient) {
@@ -1106,7 +1553,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         let toolResultMsg = 'Lienzo Canvas creado exitosamente.';
                         try {
                             const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
-                            const canvasTool = new CanvasTool({ req: { user: { id: this.userId } } });
+                            const canvasTool = new CanvasTool({ req: toolReq });
                             const canvasOutput = await canvasTool._call(fc.args);
                             toolResultMsg = typeof canvasOutput === 'string' ? canvasOutput : JSON.stringify(canvasOutput);
                         } catch (cErr) {
@@ -1263,6 +1710,522 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                                 }]);
                             }
                         }
+                        continue;
+                    }
+
+                    // Manejo directo de SOMOS SST (Bio Motor y Ecosistema)
+                    if (fc.name === 'somos_sst') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "somos_sst" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Consultando Somos SST...' }
+                        });
+                        try {
+                            const SomosSST = require('~/app/clients/tools/structured/SomosSST');
+                            const toolInstance = new SomosSST({ req: toolReq });
+                            const toolOutput = await toolInstance._call(fc.args);
+                            const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: { id: fc.id, name: fc.name, args: fc.args, result: toolOutput }
+                            });
+
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: outputStr }
+                                }]);
+                            }
+                        } catch (sstErr) {
+                            logger.error('[VoiceSession] Error executing somos_sst:', sstErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en somos_sst: ${sstErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Matriz IPEVAR / GTC-45
+                    if (fc.name === 'matriz_ipevar') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "matriz_ipevar" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Procesando Matriz IPEVAR...' }
+                        });
+                        try {
+                            const MatrizIPEVAR = require('~/app/clients/tools/structured/MatrizIPEVAR');
+                            const toolInstance = new MatrizIPEVAR({ req: toolReq });
+                            const toolOutput = await toolInstance._call(fc.args);
+                            const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: { id: fc.id, name: fc.name, args: fc.args, result: toolOutput }
+                            });
+
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: outputStr }
+                                }]);
+                            }
+                        } catch (ipevarErr) {
+                            logger.error('[VoiceSession] Error executing matriz_ipevar:', ipevarErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en matriz_ipevar: ${ipevarErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Matriz PESV (Seguridad Vial)
+                    if (fc.name === 'matriz_pesv') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "matriz_pesv" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Procesando Matriz PESV...' }
+                        });
+                        try {
+                            const MatrizPESV = require('~/app/clients/tools/structured/MatrizPESV');
+                            const toolInstance = new MatrizPESV({ req: toolReq });
+                            const toolOutput = await toolInstance._call(fc.args);
+                            const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: { id: fc.id, name: fc.name, args: fc.args, result: toolOutput }
+                            });
+
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: outputStr }
+                                }]);
+                            }
+                        } catch (pesvErr) {
+                            logger.error('[VoiceSession] Error executing matriz_pesv:', pesvErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en matriz_pesv: ${pesvErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Matriz de Compatibilidad SGA
+                    if (fc.name === 'matriz_compatibilidad') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "matriz_compatibilidad" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Procesando Matriz SGA...' }
+                        });
+                        try {
+                            const MatrizCompatibilidad = require('~/app/clients/tools/structured/MatrizCompatibilidad');
+                            const toolInstance = new MatrizCompatibilidad({ req: toolReq });
+                            const toolOutput = await toolInstance._call(fc.args);
+                            const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: { id: fc.id, name: fc.name, args: fc.args, result: toolOutput }
+                            });
+
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: outputStr }
+                                }]);
+                            }
+                        } catch (compErr) {
+                            logger.error('[VoiceSession] Error executing matriz_compatibilidad:', compErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en matriz_compatibilidad: ${compErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Gestor de Automatizaciones
+                    if (fc.name === 'gestor_automatizaciones') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "gestor_automatizaciones" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Gestionando automatizaciones...' }
+                        });
+                        try {
+                            const GestorAutomatizaciones = require('~/app/clients/tools/structured/GestorAutomatizaciones');
+                            const toolInstance = new GestorAutomatizaciones({ req: toolReq });
+                            const toolOutput = await toolInstance._call(fc.args);
+                            const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: { id: fc.id, name: fc.name, args: fc.args, result: toolOutput }
+                            });
+
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: outputStr }
+                                }]);
+                            }
+                        } catch (autoErr) {
+                            logger.error('[VoiceSession] Error executing gestor_automatizaciones:', autoErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en gestor_automatizaciones: ${autoErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Google Sheets
+                    if (fc.name === 'google_sheets') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "google_sheets" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Conectando con Google Sheets...' }
+                        });
+                        try {
+                            const GoogleSheets = require('~/app/clients/tools/structured/GoogleSheets');
+                            const toolInstance = new GoogleSheets({ req: toolReq });
+                            const toolOutput = await toolInstance._call(fc.args);
+                            const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: outputStr }
+                                }]);
+                            }
+                        } catch (sheetsErr) {
+                            logger.error('[VoiceSession] Error executing google_sheets:', sheetsErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en google_sheets: ${sheetsErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Google Docs
+                    if (fc.name === 'google_docs') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "google_docs" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Conectando con Google Docs...' }
+                        });
+                        try {
+                            const GoogleDocs = require('~/app/clients/tools/structured/GoogleDocs');
+                            const toolInstance = new GoogleDocs({ req: toolReq });
+                            const toolOutput = await toolInstance._call(fc.args);
+                            const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: outputStr }
+                                }]);
+                            }
+                        } catch (docsErr) {
+                            logger.error('[VoiceSession] Error executing google_docs:', docsErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en google_docs: ${docsErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Google Slides
+                    if (fc.name === 'google_slides') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "google_slides" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Conectando con Google Slides...' }
+                        });
+                        try {
+                            const GoogleSlides = require('~/app/clients/tools/structured/GoogleSlides');
+                            const toolInstance = new GoogleSlides({ req: toolReq });
+                            const toolOutput = await toolInstance._call(fc.args);
+                            const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: outputStr }
+                                }]);
+                            }
+                        } catch (slidesErr) {
+                            logger.error('[VoiceSession] Error executing google_slides:', slidesErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en google_slides: ${slidesErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Google Gmail
+                    if (fc.name === 'google_gmail') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "google_gmail" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Conectando con Gmail...' }
+                        });
+                        try {
+                            const GoogleGmail = require('~/app/clients/tools/structured/GoogleGmail');
+                            const toolInstance = new GoogleGmail({ req: toolReq });
+                            const toolOutput = await toolInstance._call(fc.args);
+                            const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: outputStr }
+                                }]);
+                            }
+                        } catch (gmailErr) {
+                            logger.error('[VoiceSession] Error executing google_gmail:', gmailErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en google_gmail: ${gmailErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Google Calendar
+                    if (fc.name === 'google_calendar') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "google_calendar" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Conectando con Google Calendar...' }
+                        });
+                        try {
+                            const GoogleCalendar = require('~/app/clients/tools/structured/GoogleCalendar');
+                            const toolInstance = new GoogleCalendar({ req: toolReq });
+                            const toolOutput = await toolInstance._call(fc.args);
+                            const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: outputStr }
+                                }]);
+                            }
+                        } catch (calErr) {
+                            logger.error('[VoiceSession] Error executing google_calendar:', calErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en google_calendar: ${calErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Microsoft OneDrive
+                    if (fc.name === 'onedrive' || fc.name === 'one_drive') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "${fc.name}" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Conectando con OneDrive...' }
+                        });
+                        try {
+                            const OneDrive = require('~/app/clients/tools/structured/OneDrive');
+                            const toolInstance = new OneDrive({ req: toolReq });
+                            const toolOutput = await toolInstance._call(fc.args);
+                            const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: outputStr }
+                                }]);
+                            }
+                        } catch (oneErr) {
+                            logger.error('[VoiceSession] Error executing onedrive:', oneErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en onedrive: ${oneErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Editor RIT (Reglamento Interno de Trabajo)
+                    if (fc.name === 'editor_rit') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "editor_rit" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Editando Reglamento Interno de Trabajo...' }
+                        });
+                        try {
+                            const EditorRIT = require('~/app/clients/tools/structured/EditorRIT');
+                            const toolInstance = new EditorRIT({ req: toolReq });
+                            const toolOutput = await toolInstance._call(fc.args);
+                            const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: { id: fc.id, name: fc.name, args: fc.args, result: toolOutput }
+                            });
+
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: outputStr }
+                                }]);
+                            }
+                        } catch (ritErr) {
+                            logger.error('[VoiceSession] Error executing editor_rit:', ritErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en editor_rit: ${ritErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Consultar Analítica Psicosocial
+                    if (fc.name === 'consultar_analitica_psicosocial') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "consultar_analitica_psicosocial" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Consultando analítica psicosocial...' }
+                        });
+                        try {
+                            const ConsultarAnaliticaPsicosocial = require('~/app/clients/tools/structured/ConsultarAnaliticaPsicosocial');
+                            const toolInstance = new ConsultarAnaliticaPsicosocial({ req: toolReq });
+                            const toolOutput = await toolInstance._call(fc.args);
+                            const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: outputStr }
+                                }]);
+                            }
+                        } catch (psiErr) {
+                            logger.error('[VoiceSession] Error executing consultar_analitica_psicosocial:', psiErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en consultar_analitica_psicosocial: ${psiErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Consultar Analítica de Actos y Condiciones Inseguras
+                    if (fc.name === 'consultar_analitica_actos_condiciones') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "consultar_analitica_actos_condiciones" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Consultando actos y condiciones...' }
+                        });
+                        try {
+                            const ConsultarAnaliticaActosCondiciones = require('~/app/clients/tools/structured/ConsultarAnaliticaActosCondiciones');
+                            const toolInstance = new ConsultarAnaliticaActosCondiciones({ req: toolReq });
+                            const toolOutput = await toolInstance._call(fc.args);
+                            const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: outputStr }
+                                }]);
+                            }
+                        } catch (actosErr) {
+                            logger.error('[VoiceSession] Error executing consultar_analitica_actos_condiciones:', actosErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en consultar_analitica_actos_condiciones: ${actosErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Delegación de Consulta a Especialista hacia la interfaz del cliente (wappy_abrir_chat_agente)
+                    if (fc.name === 'consultar_agente_especializado') {
+                        const agente = fc.args?.nombre_especialista || fc.args?.agente;
+                        const pregunta = fc.args?.consulta_completa || fc.args?.pregunta;
+                        logger.info(`[VoiceSession] Gemini Live invoked "consultar_agente_especializado" -> delegating as wappy_abrir_chat_agente: ${agente}`);
+                        this.sendToClient({
+                            type: 'wappy_action',
+                            data: {
+                                id: fc.id,
+                                name: 'wappy_abrir_chat_agente',
+                                args: { agente, pregunta }
+                            }
+                        });
+
+                        if (!this.pendingToolCalls) this.pendingToolCalls = new Map();
+                        const timeoutId = setTimeout(() => {
+                            if (this.pendingToolCalls && this.pendingToolCalls.has(fc.id)) {
+                                logger.warn(`[VoiceSession] Tool call ${fc.id} (${fc.name}) timed out waiting for client`);
+                                this.pendingToolCalls.delete(fc.id);
+                                if (this.geminiClient) {
+                                    this.geminiClient.sendToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: { result: `Chat con ${agente} abierto en pantalla.` }
+                                    }]);
+                                }
+                            }
+                        }, 6000);
+                        this.pendingToolCalls.set(fc.id, { timeoutId, name: fc.name });
                         continue;
                     }
 

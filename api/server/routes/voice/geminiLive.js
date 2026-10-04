@@ -347,17 +347,24 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
     }
 
     /**
-     * Send text message to Gemini (via realtimeInput for live verbal response)
+     * Send text message to Gemini as a user turn (triggers live verbal response)
      * @param {string} text - Text to send
+     * @param {boolean} turnComplete - Whether this turn is complete (default: true)
      */
-    sendText(text) {
+    sendText(text, turnComplete = true) {
         if (!text || !text.trim()) return;
         const message = {
-            realtimeInput: {
-                text: text.trim()
+            clientContent: {
+                turns: [
+                    {
+                        role: 'user',
+                        parts: [{ text: text.trim() }]
+                    }
+                ],
+                turnComplete: turnComplete
             }
         };
-        logger.info(`[GeminiLive] Sending realtimeInput text: "${text.substring(0, 60)}..."`);
+        logger.info(`[GeminiLive] Sending clientContent text (turnComplete=${turnComplete}): "${text.substring(0, 60)}..."`);
         this.send(message);
     }
 

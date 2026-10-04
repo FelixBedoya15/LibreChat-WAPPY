@@ -293,6 +293,33 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     };
   }, [triggerTenshiSend]);
 
+  // Auto-envío si el chat se monta con parámetros canónicos ?prompt=...&submit=true en la URL
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      const searchParams = new URLSearchParams(window.location.search);
+      const promptParam = searchParams.get('prompt');
+      const submitParam = searchParams.get('submit');
+      const agentIdParam = searchParams.get('agent_id');
+
+      if (promptParam && submitParam === 'true') {
+        console.log('[ChatForm] URL param prompt/submit detectado en montaje:', promptParam);
+        // Limpiar URL params inmediatamente para evitar re-envíos
+        searchParams.delete('prompt');
+        searchParams.delete('submit');
+        const newSearch = searchParams.toString();
+        const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '');
+        window.history.replaceState(null, '', newUrl);
+
+        setTimeout(() => {
+          triggerTenshiSend(promptParam, agentIdParam || undefined);
+        }, 200);
+      }
+    } catch (err) {
+      console.warn('[ChatForm] Error procesando URL searchParams para Tenshi:', err);
+    }
+  }, [triggerTenshiSend]);
+
   const isMoreThanThreeRows = visualRowCount > 3;
 
   const baseClasses = useMemo(
