@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Link } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { OGDialog, OGDialogContent, Button, useToastContext } from '@librechat/client';
@@ -34,6 +35,7 @@ interface AgentDetailProps {
  */
 const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose }) => {
   const localize = useLocalize();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToastContext();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -76,6 +78,9 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent, isOpen, onClose }) => 
         template: currentConvo,
         preset: template,
       });
+
+      onClose();
+      navigate('/c/new');
     }
   };
 

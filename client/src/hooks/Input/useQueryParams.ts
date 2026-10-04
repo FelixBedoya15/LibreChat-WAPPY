@@ -276,21 +276,16 @@ export default function useQueryParams({
       textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    const sendBtn = (document.getElementById('send-button') ||
-      document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
-    if (sendBtn && !sendBtn.disabled) {
-      console.log('[useQueryParams] Auto-submitting vía click en #send-button');
-      sendBtn.click();
-      setTimeout(() => {
-        methods.setValue('text', '', { shouldValidate: false });
-        if (textAreaRef.current) textAreaRef.current.value = '';
-      }, 50);
-    } else {
+    console.log('[useQueryParams] Auto-submitting prompt directamente vía submitMessage:', textToSend);
+    try {
       submitMessage({ text: textToSend });
-      setTimeout(() => {
-        methods.setValue('text', '', { shouldValidate: false });
-        if (textAreaRef.current) textAreaRef.current.value = '';
-      }, 50);
+    } catch (err) {
+      console.warn('[useQueryParams] Fallback de envío:', err);
+      const sendBtn = (document.getElementById('send-button') ||
+        document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
+      if (sendBtn && !sendBtn.disabled) {
+        sendBtn.click();
+      }
     }
 
     const newUrl = window.location.pathname;

@@ -13,6 +13,7 @@ interface AgentGridProps {
   category: string; // Currently selected category
   searchQuery: string; // Current search query
   onSelectAgent: (agent: t.Agent) => void; // Callback when agent is selected
+  onStartChat?: (agent: t.Agent) => void; // Callback to directly start chat with agent
   scrollElementRef?: React.RefObject<HTMLElement>; // Parent scroll container ref for infinite scroll
 }
 
@@ -23,6 +24,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
   category,
   searchQuery,
   onSelectAgent,
+  onStartChat,
   scrollElementRef,
 }) => {
   const localize = useLocalize();
@@ -257,6 +259,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
                     <AgentCard
                       agent={agent}
                       onClick={() => onSelectAgent(agent)}
+                      onStartChat={onStartChat ? () => onStartChat(agent) : undefined}
                       isFavorite={favoriteAgentIds.has(agentId)}
                       onToggleFavorite={() => toggleFavorite(agent)}
                     />

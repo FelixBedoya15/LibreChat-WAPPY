@@ -8,6 +8,7 @@ import { cn, renderAgentAvatar, getContactDisplayName } from '~/utils';
 interface AgentCardProps {
   agent: t.Agent; // The agent data to display
   onClick: () => void; // Callback when card is clicked
+  onStartChat?: () => void; // Callback when start chat button is clicked
   isFavorite?: boolean; // Whether agent is favorited
   onToggleFavorite?: (e: React.MouseEvent) => void; // Callback to toggle favorite
   className?: string; // Additional CSS classes
@@ -19,6 +20,7 @@ interface AgentCardProps {
 const AgentCard: React.FC<AgentCardProps> = ({
   agent,
   onClick,
+  onStartChat,
   isFavorite = false,
   onToggleFavorite,
   className = '',
@@ -106,12 +108,23 @@ const AgentCard: React.FC<AgentCardProps> = ({
 
       {/* Bottom micro-button with hover expansion */}
       <div className="w-full flex items-center justify-center pt-2 border-t border-slate-100 dark:border-zinc-800/60">
-        <div className="group/btn flex h-7 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 group-hover:bg-gradient-to-r group-hover:from-teal-600 group-hover:to-emerald-600 group-hover:text-white transition-all duration-300 px-3 shadow-2xs active:scale-95">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onStartChat) {
+              onStartChat();
+            } else {
+              onClick();
+            }
+          }}
+          className="group/btn flex h-7 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-gradient-to-r hover:from-teal-600 hover:to-emerald-600 hover:text-white transition-all duration-300 px-3 shadow-2xs active:scale-95 cursor-pointer"
+        >
           <Sparkles className="h-3.5 w-3.5 shrink-0" />
           <div className="flex max-w-[120px] items-center overflow-hidden whitespace-nowrap transition-all duration-300 ml-1.5">
             <span className="text-[11px] font-bold">Iniciar Chat</span>
           </div>
-        </div>
+        </button>
       </div>
     </div>
   );

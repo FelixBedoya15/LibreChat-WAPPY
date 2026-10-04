@@ -260,53 +260,18 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         textAreaRef.current.focus();
       }
 
-      const clearInput = () => {
-        methods.setValue('text', '', { shouldValidate: false });
-        if (textAreaRef.current) {
-          textAreaRef.current.value = '';
+      // 3. Ejecutar la sumisión directamente a través de submitMessage
+      try {
+        console.log('[ChatForm] Enviando consulta delegada con submitMessage directo');
+        submitMessage({ text: prompt });
+      } catch (err) {
+        console.warn('[ChatForm] Error en submitMessage directo, intentando fallback de form:', err);
+        const formEl = document.querySelector('form[data-testid="chat-form"]') || document.querySelector('form');
+        if (formEl && typeof (formEl as any).requestSubmit === 'function') {
+          (formEl as any).requestSubmit();
+        } else {
+          submitButtonRef.current?.click();
         }
-      };
-
-      // 3. Intentar hacer click en el botón nativo de envío (#send-button)
-      let submitted = false;
-      const tryClickSend = () => {
-        if (submitted) return true;
-        const sendBtn =
-          submitButtonRef.current ||
-          (document.getElementById('send-button') as HTMLButtonElement | null) ||
-          (document.querySelector('button[data-testid="send-button"]') as HTMLButtonElement | null) ||
-          (document.querySelector('form button[type="submit"]') as HTMLButtonElement | null);
-
-        if (sendBtn && !sendBtn.disabled) {
-          console.log('[ChatForm] Click programático exitoso en send-button');
-          submitted = true;
-          sendBtn.click();
-          setTimeout(clearInput, 50);
-          return true;
-        }
-        return false;
-      };
-
-      // Si ya está listo el botón, click inmediato
-      if (!tryClickSend()) {
-        // Reintentar en ráfaga progresiva hasta que el botón esté habilitado
-        const delays = [200, 400, 800, 1200];
-        delays.forEach((delay, idx) => {
-          setTimeout(() => {
-            if (submitted) return;
-            if (!tryClickSend() && idx === delays.length - 1) {
-              // Respaldo final: invocar submitMessage directamente
-              console.log('[ChatForm] Respaldo final: submitMessage directo');
-              submitted = true;
-              try {
-                methods.handleSubmit(submitMessage)();
-              } catch (_) {
-                submitMessage({ text: prompt });
-              }
-              setTimeout(clearInput, 50);
-            }
-          }, delay);
-        });
       }
     },
     [methods, submitMessage, textAreaRef, onSelectAgent, conversation?.agent_id, submitButtonRef],
@@ -326,31 +291,6 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     return () => {
       window.removeEventListener('tenshi-submit-agent-prompt', handleTenshiSubmit);
     };
-  }, [triggerTenshiSend]);
-
-  // Respaldo al montar ChatForm o si la URL contiene submit=true
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const urlPrompt = params.get('prompt') || params.get('q');
-      const urlSubmit = params.get('submit') === 'true';
-      const urlAgent = params.get('agent_id') || undefined;
-
-      if (urlSubmit && urlPrompt) {
-        console.log('[ChatForm] Auto-submit detectado en URL:', urlPrompt);
-        // Limpiar parámetros de la URL para evitar ejecuciones repetidas
-        try {
-          const newUrl = new URL(window.location.href);
-          newUrl.searchParams.delete('submit');
-          newUrl.searchParams.delete('prompt');
-          newUrl.searchParams.delete('q');
-          window.history.replaceState({}, '', newUrl.pathname + (newUrl.search ? newUrl.search : ''));
-        } catch (_) {}
-        triggerTenshiSend(urlPrompt, urlAgent);
-      }
-    } catch (e) {
-      console.warn('[ChatForm] Error verificando query params:', e);
-    }
   }, [triggerTenshiSend]);
 
   const isMoreThanThreeRows = visualRowCount > 3;

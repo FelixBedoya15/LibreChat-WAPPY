@@ -891,10 +891,19 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
               keepLatestMessage: false,
             });
 
-            // 3. Navegar limpiamente a /c/new
-            navigate('/c/new', { replace: true, state: { focusChat: true } });
+            // 3. Preparar parámetros canónicos de URL para que el chat siempre reciba el agente, prompt y submit
+            const params = new URLSearchParams();
+            if (targetAgentId) {
+              params.set('agent_id', targetAgentId);
+            }
+            params.set('endpoint', EModelEndpoint.agents);
+            params.set('prompt', pregunta);
+            params.set('submit', 'true');
 
-            // 4. Disparar el evento con 400ms de retraso para asegurar que ChatForm montó la nueva conversación limpia
+            // 4. Navegar con parámetros canónicos a /c/new
+            navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
+
+            // 5. Disparar eventos redundantes con respaldo por si el router no re-monta
             setTimeout(() => {
               window.dispatchEvent(
                 new CustomEvent('tenshi-submit-agent-prompt', {
@@ -904,7 +913,17 @@ INSTRUCCIÓN CRÍTICA PARA TENSHI: Habla de inmediato en voz alta al usuario con
                   },
                 })
               );
-            }, 400);
+            }, 300);
+            setTimeout(() => {
+              window.dispatchEvent(
+                new CustomEvent('tenshi-submit-agent-prompt', {
+                  detail: {
+                    agentId: targetAgentId,
+                    prompt: pregunta,
+                  },
+                })
+              );
+            }, 700);
 
             resultMsg = matchedAgent
               ? `Chat nuevo abierto con ${matchedAgent.name} y consulta formulada con éxito en pantalla: "${pregunta}". [AVISO CRÍTICO PARA TENSHI]: El especialista apenas está analizando y empezando a redactar en la pantalla. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. Limítate a confirmar al usuario en una sola frase breve que ya le abriste el chat y le dejaste la pregunta en pantalla, y que espere a que el especialista termine de responder. NO inventes ni resumas la respuesta técnica.`

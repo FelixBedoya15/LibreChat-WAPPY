@@ -4,10 +4,19 @@ import { useOutletContext } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { TooltipAnchor, Button, NewChatIcon, useMediaQuery } from '@librechat/client';
-import { PermissionTypes, Permissions, QueryKeys } from 'librechat-data-provider';
+import {
+  PermissionTypes,
+  Permissions,
+  QueryKeys,
+  Constants,
+  EModelEndpoint,
+  PermissionBits,
+  LocalStorageKeys,
+  AgentListResponse,
+} from 'librechat-data-provider';
 import type t from 'librechat-data-provider';
 import type { ContextType } from '~/common';
-import { useDocumentTitle, useHasAccess, useLocalize, TranslationKeys } from '~/hooks';
+import { useDocumentTitle, useHasAccess, useLocalize, useDefaultConvo, TranslationKeys } from '~/hooks';
 import { useGetEndpointsQuery, useGetAgentCategoriesQuery } from '~/data-provider';
 import MarketplaceAdminSettings from './MarketplaceAdminSettings';
 import { SidePanelProvider, useChatContext } from '~/Providers';
@@ -37,6 +46,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
   const { category } = useParams();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const getDefaultConversation = useDefaultConvo();
   const { conversation, newConversation } = useChatContext();
 
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
@@ -227,6 +237,45 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
     clearMessagesCache(queryClient, conversation?.conversationId);
     queryClient.invalidateQueries([QueryKeys.messages]);
     newConversation();
+    navigate('/c/new');
+  };
+
+  /**
+   * Directly start a chat session with an agent and navigate to /c/new
+   */
+  const handleStartChatForAgent = (agent: t.Agent) => {
+    if (agent) {
+      const keys = [QueryKeys.agents, { requiredPermission: PermissionBits.EDIT }];
+      const listResp = queryClient.getQueryData<AgentListResponse>(keys);
+      if (listResp != null) {
+        if (!listResp.data.some((a) => a.id === agent.id)) {
+          const currentAgents = [agent, ...JSON.parse(JSON.stringify(listResp.data))];
+          queryClient.setQueryData<AgentListResponse>(keys, { ...listResp, data: currentAgents });
+        }
+      }
+
+      localStorage.setItem(`${LocalStorageKeys.AGENT_ID_PREFIX}0`, agent.id);
+      clearMessagesCache(queryClient, conversation?.conversationId);
+      queryClient.invalidateQueries([QueryKeys.messages]);
+
+      const template = {
+        conversationId: Constants.NEW_CONVO as string,
+        endpoint: EModelEndpoint.agents,
+        agent_id: agent.id,
+        title: localize('com_agents_chat_with', { name: agent.name || localize('com_ui_agent') }),
+      };
+
+      const currentConvo = getDefaultConversation({
+        conversation: { ...(conversation ?? {}), ...template },
+        preset: template,
+      });
+
+      newConversation({
+        template: currentConvo,
+        preset: template,
+      });
+      navigate('/c/new');
+    }
   };
 
   // Check if a detail view should be open based on URL
@@ -374,6 +423,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                         category={displayCategory}
                         searchQuery={searchQuery}
                         onSelectAgent={handleAgentSelect}
+                        onStartChat={handleStartChatForAgent}
                         scrollElementRef={scrollContainerRef}
                       />
                     </div>
@@ -397,6 +447,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
                           category={nextCategory}
                           searchQuery={searchQuery}
                           onSelectAgent={handleAgentSelect}
+                          onStartChat={handleStartChatForAgent}
                           scrollElementRef={scrollContainerRef}
                         />
                       </div>
