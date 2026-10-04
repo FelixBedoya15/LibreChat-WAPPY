@@ -249,6 +249,37 @@ ${cleanContent}
   await mongoose.connect(MONGO_URI);
   console.log('🔌 Conectado a MongoDB:', MONGO_URI);
 
+  // MIGRACIÓN DEFENSIVA: Limpiar modelos 3.8 y 3.7 obsoletos en MongoDB
+  try {
+    const db = mongoose.connection.db;
+    const agentsCol = db.collection('agents');
+    const presetsCol = db.collection('presets');
+    const convsCol = db.collection('conversations');
+
+    const agentRes = await agentsCol.updateMany(
+      { model: { $in: ['gemini-3.8-flash', 'gemini-3.7-flash'] } },
+      { $set: { model: 'gemini-3.6-flash', 'model_parameters.model': 'gemini-3.6-flash' } }
+    );
+    await agentsCol.updateMany(
+      { 'versions.model': { $in: ['gemini-3.8-flash', 'gemini-3.7-flash'] } },
+      { $set: { 'versions.$[v].model': 'gemini-3.6-flash' } },
+      { arrayFilters: [{ 'v.model': { $in: ['gemini-3.8-flash', 'gemini-3.7-flash'] } }] }
+    );
+    const presetRes = await presetsCol.updateMany(
+      { model: { $in: ['gemini-3.8-flash', 'gemini-3.7-flash'] } },
+      { $set: { model: 'gemini-3.6-flash' } }
+    );
+    const convRes = await convsCol.updateMany(
+      { model: { $in: ['gemini-3.8-flash', 'gemini-3.7-flash'] } },
+      { $set: { model: 'gemini-3.6-flash' } }
+    );
+    if (agentRes.modifiedCount > 0 || presetRes.modifiedCount > 0 || convRes.modifiedCount > 0) {
+      console.log(`  🚀 Migrados modelos 3.8/3.7 a gemini-3.6-flash en MongoDB: Agentes (${agentRes.modifiedCount}), Presets (${presetRes.modifiedCount}), Conversaciones (${convRes.modifiedCount})`);
+    }
+  } catch (err) {
+    console.warn('  ⚠️ Aviso en migración defensiva MongoDB:', err.message);
+  }
+
   const adminUser = await User.findOne({ role: 'ADMIN' }) || await User.findOne({});
   const authorId = adminUser ? adminUser._id : new mongoose.Types.ObjectId();
   const globalProject = await Project.findOne({ name: 'Global' }) || await Project.findOne({});
@@ -345,7 +376,10 @@ ${cleanContent}
 
     tools = [...new Set(tools)];
 
-    const defaultModel = (process.env.GOOGLE_MODELS || 'gemini-3.6-flash').split(',')[0].trim();
+    let defaultModel = (process.env.GOOGLE_MODELS || 'gemini-3.6-flash').split(',')[0].trim();
+    if (defaultModel === 'gemini-3.8-flash' || defaultModel === 'gemini-3.7-flash') {
+      defaultModel = 'gemini-3.6-flash';
+    }
     const agentModel = val.model || defaultModel;
 
     let agent = await Agent.findOne({ name: val.name });

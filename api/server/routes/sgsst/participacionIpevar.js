@@ -460,6 +460,16 @@ Incluye los siguientes campos: Clasificación del Peligro, Efectos Posibles, Peo
 Genera una tabla con 3 columnas (Tipo de Control Sugerido, Propuesta del Trabajador, Viabilidad y Acción Práctica).
 Fila 1: Ingeniería, Fila 2: Administrativo, Fila 3: EPP. Agrega una fila 4 si consideras un control faltante necesario.
 
+4️⃣ **Ponderación GTC-45 y Resumen Gráfico de Riesgo para la Matriz Oficial**
+Presenta un bloque visual de resumen metodológico GTC-45 con tarjetas de métricas en HTML (estilo dashboard ejecutivo) que explique exactamente cómo este reporte se constituye e integra a la Matriz IPEVR:
+- Cajas de métricas estilizadas con fondo suave y bordes redondeados para:
+  • Nivel de Deficiencia (ND: 10, 6 ó 2)
+  • Nivel de Exposición (NE: 4, 3 ó 2)
+  • Nivel de Probabilidad (NP = ND × NE)
+  • Nivel de Consecuencia (NC: 100, 60, 25 ó 10)
+  • Nivel de Riesgo Oficial (NR = NP × NC) con badge destacado: Nivel I (Rojo #e11d48 - No Aceptable), Nivel II (Naranja #f59e0b), Nivel III (Amarillo #eab308) o Nivel IV (Verde #10b981).
+- Un indicador gráfico en barra HTML con porcentaje y dictamen de si califica para aprobación e integración inmediata a la Matriz IPEVR oficial de la empresa (Decreto 1072 de 2015, Art. 2.2.4.6.15).
+
 **INSTRUCCIONES DE DISEÑO HTML Y TABLAS:**
 - Tu respuesta DEBE ser EXCLUSIVAMENTE en código HTML puro, sin bloques markdown como \`\`\`html.
 - Estructura base de TODAS las tablas: \`<table style="width: 100%; table-layout: auto; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 25px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">\`
