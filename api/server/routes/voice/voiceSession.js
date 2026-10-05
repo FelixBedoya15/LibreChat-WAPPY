@@ -2779,7 +2779,8 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                 if (data && data.text) {
                     logger.info(`[VoiceSession] Received text message from client: "${data.text.substring(0, 100)}..."`);
                     // Solo registrar como transcripción del usuario si no es un prompt interno del sistema
-                    if (!data.text.startsWith('[SISTEMA INTERNO WAPPY]')) {
+                    const isInternalSystemMessage = /^\[SISTEMA INTERNO WAPPY/i.test(data.text);
+                    if (!isInternalSystemMessage) {
                         this.userTranscriptionText += (this.userTranscriptionText ? '\n' : '') + data.text;
                     } else {
                         // Es una orden del sistema para que Tenshi hable (resumen/handoff del especialista)
@@ -4287,12 +4288,13 @@ ${workerSubHeaderHtml}
         }
 
         const userText = (currentUserText || '').trim();
-        if (!userText) return;
+        if (!userText || /^\[SISTEMA INTERNO WAPPY/i.test(userText)) return;
         const userLower = userText.toLowerCase();
 
         // 1. Detección de intención EXPLÍCITA del usuario para abrir chat o consultar un agente especialista
         const explicitAgentCommand = /(abre|abrir|abreme|inicia|iniciar|crea|crear|p[aá]same|cambia|cambiar|ll[eé]vame)\s+(un\s+)?(chat|conversaci[oó]n)?\s*(con|al|a)\s+/i;
-        const consultCommand = /(preg[uú]ntale|p[ií]dele|dile|consulta)\s+(a|al|con)?\s*(el|la)?\s*/i;
+        const consultCommand = /(?:intenta\s+ahora\s+)?(preg[uú]ntale|p[ií]dele|dile|consulta|cons[uú]ltale)\s+(?:tambi[eé]n\s+)?(a|al|con)?\s*(el|la)?\s*/i;
+        const aiClaimedConsultation = /(ya\s+le\s+envi[eé]|envi[eé]\s+tu\s+consulta|le\s+pas[eé]\s+tu\s+consulta|le\s+pregunt[eé]|le\s+consult[eé]|esperemos\s+a\s+que\s+responda)/i.test(currentAiText);
 
         let matchedAgent = null;
 
@@ -4305,77 +4307,115 @@ ${workerSubHeaderHtml}
             }
         }
 
-        if (!matchedAgent && (explicitAgentCommand.test(userLower) || consultCommand.test(userLower))) {
-            if (/fisioterap|biomec|ergonom|owas|rula|rosa|postur|puesto.*trabajo|dme|músculo|musculo/i.test(userLower)) {
+        if (!matchedAgent && (explicitAgentCommand.test(userLower) || consultCommand.test(userLower) || aiClaimedConsultation)) {
+            const textToInspect = `${userLower} ${currentAiText.toLowerCase()}`;
+            if (/fisioterap|biomec|ergonom|owas|rula|rosa|postur|puesto.*trabajo|dme|músculo|musculo|epicondilitis|tenista|carpo|manguito/i.test(textToInspect)) {
                 matchedAgent = 'fisioterapeuta_laboral';
-            } else if (/abogado.*rit|reglamento interno.*rit/i.test(userLower)) {
+            } else if (/abogado.*rit|reglamento interno.*rit/i.test(textToInspect)) {
                 matchedAgent = 'abogado_rit';
-            } else if (/debido proceso|proceso disciplinario|descargo/i.test(userLower)) {
+            } else if (/debido proceso|proceso disciplinario|descargo/i.test(textToInspect)) {
                 matchedAgent = 'abogado_procesos_disciplinarios';
-            } else if (/acoso sexual|ley 2365/i.test(userLower)) {
+            } else if (/acoso sexual|ley 2365/i.test(textToInspect)) {
                 matchedAgent = 'abogado_acoso_sexual';
-            } else if (/abogad|jur[ií]dic|disciplinar|ley 1010|contrato|despido|rit|legal/i.test(userLower)) {
+            } else if (/abogad|jur[ií]dic|disciplinar|ley 1010|contrato|despido|rit|legal|decreto 1072/i.test(textToInspect)) {
                 matchedAgent = 'abogado_laboral';
-            } else if (/m[eé]dic|doctor|salud ocupacional|restricci[oó]n|ausentism|epidemiol/i.test(userLower)) {
+            } else if (/m[eé]dic|doctor|salud ocupacional|restricci[oó]n|ausentism|epidemiol/i.test(textToInspect)) {
                 matchedAgent = 'medico_laboral';
-            } else if (/qu[ií]mic|sga|fds|hds|sustancia|derrame|hoja.*seguridad/i.test(userLower)) {
+            } else if (/qu[ií]mic|sga|fds|hds|sustancia|derrame|hoja.*seguridad/i.test(textToInspect)) {
                 matchedAgent = 'ingeniero_quimico_sst';
-            } else if (/seguridad vial|vial|pesv|tr[aá]nsito|conductor|veh[ií]cul/i.test(userLower)) {
+            } else if (/seguridad vial|vial|pesv|tr[aá]nsito|conductor|veh[ií]cul/i.test(textToInspect)) {
                 matchedAgent = 'coordinador_seguridad_vial';
-            } else if (/psic[oó]log|psicosocial|bater[ií]a|acoso|clima/i.test(userLower)) {
+            } else if (/psic[oó]log|psicosocial|bater[ií]a|acoso|clima/i.test(textToInspect)) {
                 matchedAgent = 'psicologo_sst';
-            } else if (/salud mental|burnout|emocional|terapeuta/i.test(userLower)) {
+            } else if (/salud mental|burnout|emocional|terapeuta/i.test(textToInspect)) {
                 matchedAgent = 'terapeuta_salud_mental';
-            } else if (/nutrici[oó]n|dieta|aliment|cardiovascular/i.test(userLower)) {
+            } else if (/nutrici[oó]n|dieta|aliment|cardiovascular/i.test(textToInspect)) {
                 matchedAgent = 'nutricionista_laboral';
-            } else if (/primer respondiente|primeros auxilios|rcp|botiqu[ií]n|hemorragia/i.test(userLower)) {
+            } else if (/primer respondiente|primeros auxilios|rcp|botiqu[ií]n|hemorragia/i.test(textToInspect)) {
                 matchedAgent = 'primer_respondiente';
-            } else if (/emergencia|brigada|simulacro|pae|evacuaci[oó]n/i.test(userLower)) {
+            } else if (/emergencia|brigada|simulacro|pae|evacuaci[oó]n/i.test(textToInspect)) {
                 matchedAgent = 'coordinador_emergencias';
-            } else if (/bioseguridad|biol[oó]gic|vacun|pgirh/i.test(userLower)) {
+            } else if (/bioseguridad|biol[oó]gic|vacun|pgirh/i.test(textToInspect)) {
                 matchedAgent = 'especialista_bioseguridad';
-            } else if (/el[eé]ctric|retie|loto|arco el[eé]ctrico/i.test(userLower)) {
+            } else if (/el[eé]ctric|retie|loto|arco el[eé]ctrico/i.test(textToInspect)) {
                 matchedAgent = 'ingeniero_electricista_sst';
-            } else if (/\bats\b|an[aá]lisis de trabajo seguro/i.test(userLower)) {
+            } else if (/\bats\b|an[aá]lisis de trabajo seguro/i.test(textToInspect)) {
                 matchedAgent = 'asistente_ats';
-            } else if (/permiso.*tsa|permiso.*alturas|permiso de trabajo/i.test(userLower)) {
+            } else if (/permiso.*tsa|permiso.*alturas|permiso de trabajo/i.test(textToInspect)) {
                 matchedAgent = 'asistente_permiso_tsa';
-            } else if (/tareas cr[ií]ticas|alturas|espacios confinados|caliente|excavaci[oó]n/i.test(userLower)) {
+            } else if (/tareas cr[ií]ticas|alturas|espacios confinados|caliente|excavaci[oó]n/i.test(textToInspect)) {
                 matchedAgent = 'coordinador_tareas_criticas';
-            } else if (/minas|miner[ií]a|subterr[aá]nea|t[uú]nel/i.test(userLower)) {
+            } else if (/minas|miner[ií]a|subterr[aá]nea|t[uú]nel/i.test(textToInspect)) {
                 matchedAgent = 'ingeniero_minas_sst';
-            } else if (/ipevar|gtc.*45|matriz de peligro/i.test(userLower)) {
+            } else if (/ipevar|gtc.*45|matriz de peligro/i.test(textToInspect)) {
                 matchedAgent = 'coordinador_ipevar';
-            } else if (/creador.*formato|formatos sst|plantilla sst/i.test(userLower)) {
+            } else if (/creador.*formato|formatos sst|plantilla sst/i.test(textToInspect)) {
                 matchedAgent = 'creador_formatos';
-            } else if (/\baci\b|or[aá]culo.*aci|predictivo aci/i.test(userLower)) {
+            } else if (/\baci\b|or[aá]culo.*aci|predictivo aci/i.test(textToInspect)) {
                 matchedAgent = 'asistente_de_aci';
-            } else if (/auditor|0312|est[aá]ndares|phva/i.test(userLower)) {
+            } else if (/auditor|0312|est[aá]ndares|phva/i.test(textToInspect)) {
                 matchedAgent = 'auditor_sg_sst';
-            } else if (/ambiental|residuos|vertimiento|ecol[oó]g/i.test(userLower)) {
+            } else if (/ambiental|residuos|vertimiento|ecol[oó]g/i.test(textToInspect)) {
                 matchedAgent = 'ingeniero_ambiental';
-            } else if (/clim[aá]tic|estr[eé]s t[eé]rmico|radiaci[oó]n|uv/i.test(userLower)) {
+            } else if (/clim[aá]tic|estr[eé]s t[eé]rmico|radiaci[oó]n|uv/i.test(textToInspect)) {
                 matchedAgent = 'especialista_riesgo_climatico';
-            } else if (/redactor|blog|art[ií]culo/i.test(userLower)) {
+            } else if (/redactor|blog|art[ií]culo/i.test(textToInspect)) {
                 matchedAgent = 'redactor_creativo';
-            } else if (/simulador|siniestro|accidente|causa ra[ií]z/i.test(userLower)) {
+            } else if (/simulador|siniestro|accidente|causa ra[ií]z/i.test(textToInspect)) {
                 matchedAgent = 'simulador_accidentes';
-            } else if (/capacitaci[oó]n|pac|inducci[oó]n/i.test(userLower)) {
+            } else if (/capacitaci[oó]n|pac|inducci[oó]n/i.test(textToInspect)) {
                 matchedAgent = 'coordinador_capacitaciones';
-            } else if (/profesional sst/i.test(userLower)) {
+            } else if (/profesional sst/i.test(textToInspect)) {
                 matchedAgent = 'profesional_sst';
-            } else if (/consultor sst|asesor sst/i.test(userLower)) {
+            } else if (/consultor sst|asesor sst/i.test(textToInspect)) {
                 matchedAgent = 'agente_sst';
+            }
+
+            // Fallback a especialista activo en pantalla si la consulta fue contextual
+            if (!matchedAgent && this.activeScreenAgent) {
+                const screenAgentName = (this.activeScreenAgent.name || '').toLowerCase();
+                logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Usando especialista activo en pantalla: "${this.activeScreenAgent.name}"`);
+                if (/fisioterap|ergonom|biomec/i.test(screenAgentName)) matchedAgent = 'fisioterapeuta_laboral';
+                else if (/abogad.*rit|reglamento.*rit/i.test(screenAgentName)) matchedAgent = 'abogado_rit';
+                else if (/disciplinario|descargo/i.test(screenAgentName)) matchedAgent = 'abogado_procesos_disciplinarios';
+                else if (/acoso.*sexual/i.test(screenAgentName)) matchedAgent = 'abogado_acoso_sexual';
+                else if (/abogad|jur[ií]dic|laboral/i.test(screenAgentName)) matchedAgent = 'abogado_laboral';
+                else if (/m[eé]dic|salud.*ocupacional/i.test(screenAgentName)) matchedAgent = 'medico_laboral';
+                else if (/qu[ií]mic/i.test(screenAgentName)) matchedAgent = 'ingeniero_quimico_sst';
+                else if (/vial|pesv/i.test(screenAgentName)) matchedAgent = 'coordinador_seguridad_vial';
+                else if (/psic[oó]log/i.test(screenAgentName)) matchedAgent = 'psicologo_sst';
+                else if (/salud.*mental|burnout/i.test(screenAgentName)) matchedAgent = 'terapeuta_salud_mental';
+                else if (/nutrici[oó]n/i.test(screenAgentName)) matchedAgent = 'nutricionista_laboral';
+                else if (/primer.*respondiente/i.test(screenAgentName)) matchedAgent = 'primer_respondiente';
+                else if (/emergencia|brigada/i.test(screenAgentName)) matchedAgent = 'coordinador_emergencias';
+                else if (/bioseguridad/i.test(screenAgentName)) matchedAgent = 'especialista_bioseguridad';
+                else if (/el[eé]ctric/i.test(screenAgentName)) matchedAgent = 'ingeniero_electricista_sst';
+                else if (/\bats\b/i.test(screenAgentName)) matchedAgent = 'asistente_ats';
+                else if (/alturas|tsa/i.test(screenAgentName)) matchedAgent = 'asistente_permiso_tsa';
+                else if (/cr[ií]ticas/i.test(screenAgentName)) matchedAgent = 'coordinador_tareas_criticas';
+                else if (/minas/i.test(screenAgentName)) matchedAgent = 'ingeniero_minas_sst';
+                else if (/ipevar|gtc.*45/i.test(screenAgentName)) matchedAgent = 'coordinador_ipevar';
+                else if (/formato/i.test(screenAgentName)) matchedAgent = 'creador_formatos';
+                else if (/auditor|0312/i.test(screenAgentName)) matchedAgent = 'auditor_sg_sst';
+                else if (/ambiental/i.test(screenAgentName)) matchedAgent = 'ingeniero_ambiental';
+                else if (/clim[aá]tic/i.test(screenAgentName)) matchedAgent = 'especialista_riesgo_climatico';
+                else if (/redactor/i.test(screenAgentName)) matchedAgent = 'redactor_creativo';
+                else if (/simulador/i.test(screenAgentName)) matchedAgent = 'simulador_accidentes';
+                else if (/capacitaci/i.test(screenAgentName)) matchedAgent = 'coordinador_capacitaciones';
+                else if (/profesional.*sst/i.test(screenAgentName)) matchedAgent = 'profesional_sst';
+                else matchedAgent = this.activeScreenAgent.name;
             }
         }
 
         if (matchedAgent) {
             // Extraer la pregunta o consulta formulada por el usuario
             let pregunta = '';
-            const qMatch = userText.match(/(?:preg[uú]ntale\s+(?:que\s+|qu[eé]\s+)?|pregunta\s+(?:que\s+|qu[eé]\s+)?|dile\s+(?:que\s+|qu[eé]\s+)?|sobre\s+|acerca de\s+|para\s+)(.+)/i);
-            if (qMatch && qMatch[1] && qMatch[1].trim().length >= 4) {
+            const qMatch = userText.match(/(?:(?:intenta\s+ahora\s+)?(?:preg[uú]ntale|pregunta|dile|p[ií]dele|cons[uú]ltale)\s+(?:tambi[eé]n\s+)?(?:a\s+[^\s]+\s+)?(?:que\s+|qu[eé]\s+)?|sobre\s+|acerca de\s+|para\s+)(.+)/i);
+            if (qMatch && qMatch[1] && qMatch[1].trim().length >= 3) {
                 pregunta = qMatch[1].trim();
-            } else if (this.pendingAgentForConsultation && userText.length >= 6) {
+            } else if (this.pendingAgentForConsultation && userText.length >= 5) {
+                pregunta = userText.trim();
+            } else if (userText.length >= 6) {
                 pregunta = userText.trim();
             }
 
@@ -4397,8 +4437,21 @@ ${workerSubHeaderHtml}
                 return;
             }
 
+            // Estructuración profesional obligatoria de la consulta técnica según Regla 6
+            let cleanDelegatedPrompt = pregunta;
+            if (/co-?tenista|codo.*tenista|epicondilitis/i.test(cleanDelegatedPrompt)) {
+                cleanDelegatedPrompt = `¿Qué es el codo de tenista (epicondilitis lateral) y cuál es su mecanismo biomecánico en el entorno laboral? Solicito concepto técnico osteomuscular, identificación de movimientos repetitivos y posturas de riesgo, protocolo preventivo con pausas activas específicas y marco normativo colombiano aplicable en el SG-SST (Decreto 1477 de 2014 / Decreto 1072 de 2015).`;
+            } else if (cleanDelegatedPrompt.length < 50) {
+                const temaLimpio = cleanDelegatedPrompt.replace(/^(?:qu[eé]\s+es|sobre|acerca\s+de)\s+/i, '').trim();
+                cleanDelegatedPrompt = `Solicito concepto técnico especializado sobre "${temaLimpio}". Por favor proporciona un análisis detallado, medidas preventivas y de control aplicables al SG-SST de la empresa, así como la fundamentación normativa colombiana correspondiente (Decretos, Resoluciones o Guías Técnicas aplicables).`;
+            }
+
+            const requestedNewChat = Boolean(
+                /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia\s+de\s+agente|cambiemos)\b/i.test(userLower)
+            );
+
             this.pendingAgentForConsultation = null;
-            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Gemini omitted toolCall! Dispatching wappy_abrir_chat_agente: ${matchedAgent}, pregunta: "${pregunta}"`);
+            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Gemini omitted toolCall! Dispatching wappy_abrir_chat_agente: ${matchedAgent}, nuevo_chat: ${requestedNewChat}, pregunta: "${cleanDelegatedPrompt.substring(0, 60)}..."`);
             this.sendToClient({
                 type: 'wappy_action',
                 data: {
@@ -4406,18 +4459,20 @@ ${workerSubHeaderHtml}
                     name: 'wappy_abrir_chat_agente',
                     args: {
                         agente: matchedAgent,
-                        pregunta: pregunta
+                        pregunta: cleanDelegatedPrompt,
+                        nuevo_chat: requestedNewChat
                     }
                 }
             });
             return;
         }
 
-        // 2. Detección de creación de Prototipos / Landing Pages / Canvas omitidos por Gemini
-        const isLandingOrCanvasRequest = /\b(landing\s*page|prototipo|aplicativo|canva|canvas|crea.*(landing|prototipo|p[aá]gina|html|canvas|resumen|canva))\b/i.test(userLower);
-        const aiClaimedCreation = /(ya\s+cre[eé]|ya\s+desplegu[eé]|cre[eé]\s+y\s+desplegu[eé]|ya\s+gener[eé]|aqu[ií]\s+tienes\s+la\s+landing|en\s+pantalla\s+la\s+landing|creado\s+como\s+landing|desplegado\s+como\s+landing)/i.test(currentAiText);
+        // 2. Detección de creación EXPLÍCITA de Prototipos / Landing Pages / Canvas omitidos por Gemini
+        // NUNCA disparar por menciones accidentales de "resumen" o contexto interno
+        const isExplicitCanvasCreate = /\b(crea|crear|genera|generar|haz|hazme|diseña|diseñame|despliega|desplegar|abrir|abre)\s+(un\s+|una\s+)?(canvas|landing\s*page|prototipo|aplicativo|documento\s+en\s+canvas)\b/i.test(userLower);
+        const aiClaimedCreation = /(cre[eé]\s+y\s+desplegu[eé]|ya\s+gener[eé]\s+la\s+landing|aqu[ií]\s+tienes\s+la\s+landing|en\s+pantalla\s+la\s+landing|desplegado\s+como\s+landing)/i.test(currentAiText);
 
-        if (isLandingOrCanvasRequest || aiClaimedCreation) {
+        if (isExplicitCanvasCreate || (aiClaimedCreation && isExplicitCanvasCreate)) {
             logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Detected Canvas/Landing Page generation omitted by Gemini Live. Executing canvas_tool...`);
             let fileType = 'text';
             let title = 'Resumen Ejecutivo SG-SST';
@@ -4427,12 +4482,12 @@ ${workerSubHeaderHtml}
             } else if (/excel|matriz|c[aá]lculo|hoja de c[aá]lculo/i.test(userLower)) {
                 fileType = 'excel';
                 title = 'Matriz de Datos SG-SST';
-            } else if (/word|informe.*escrito|documento|protocolo|resumen|canva/i.test(userLower)) {
+            } else if (/word|informe.*escrito|documento|protocolo|canva/i.test(userLower)) {
                 fileType = 'text';
-                title = 'Resumen SG-SST';
+                title = 'Documento SG-SST';
             }
 
-            const promptToUse = userText || 'Resumen técnico y normativo de lo conversado en WAPPY SG-SST';
+            const promptToUse = userText || 'Documento técnico y normativo de SG-SST';
             this.executeCanvasTool({
                 accion: 'crear',
                 fileType,
@@ -4638,7 +4693,7 @@ ${workerSubHeaderHtml}
             try {
                 const TenshiMessage = require('~/models/TenshiMessage');
                 if (this.userId) {
-                    if (currentUserText && currentUserText.trim()) {
+                    if (currentUserText && currentUserText.trim() && !/^\[SISTEMA INTERNO WAPPY/i.test(currentUserText)) {
                         TenshiMessage.create({
                             user: this.userId,
                             role: 'user',

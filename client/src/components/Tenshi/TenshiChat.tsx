@@ -1096,7 +1096,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           lastUserTranscriptionRef.current = text;
 
           // Registrar si el usuario expresó intención de abrir un nuevo chat o cambiar de agente/tema
-          if (/\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia\s+de\s+agente|cambiemos)\b/i.test(text)) {
+          if (/\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia\s+de\s+agente|cambiemos|abrir\w*\s+(un\s+)?(nuevo\s+)?chat|abrirme\s+(un\s+)?(nuevo\s+)?chat|ábreme\s+(un\s+)?(nuevo\s+)?chat|iniciar\s+(un\s+)?chat)\b/i.test(text)) {
             console.log('[Tenshi Voice] Intención de nuevo chat registrada por voz:', text);
             pendingForceNewChatRef.current = true;
           }
@@ -1204,8 +1204,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               const requestedNewChat = Boolean(
                 action.args?.nuevo_chat ||
                 pendingForceNewChatRef.current ||
-                /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(rawPregunta) ||
-                /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(action.args?.pregunta || '')
+                /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos|abrir\w*\s+(un\s+)?(nuevo\s+)?chat|abrirme|ábreme)\b/i.test(rawPregunta) ||
+                /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos|abrir\w*\s+(un\s+)?(nuevo\s+)?chat|abrirme|ábreme)\b/i.test(action.args?.pregunta || '')
               );
 
               // Consumir la bandera de forzar nuevo chat
@@ -1253,7 +1253,20 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 params.set('prompt', pregunta);
                 params.set('submit', 'true');
 
-                // 3. Navegar canónicamente a /c/new para que useQueryParams tome el control
+                // 3. Resetear el átomo de conversación de LibreChat antes de navegar para desvincular la conversación anterior
+                try {
+                  newConversation({
+                    template: {
+                      endpoint: EModelEndpoint.agents,
+                      agent_id: targetAgentId,
+                    },
+                    preset: targetAgentId ? { endpoint: EModelEndpoint.agents, agent_id: targetAgentId } : undefined,
+                  });
+                } catch (newConvoErr) {
+                  console.warn('[TenshiChat] Error invocando newConversation:', newConvoErr);
+                }
+
+                // 4. Navegar canónicamente a /c/new para que useQueryParams tome el control
                 navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
 
                 resultMsg = matchedAgent
@@ -1450,6 +1463,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
   const startVoiceMode = useCallback(() => {
     setIsVoiceActive(true);
+    setIsWaitingConsultation(false);
+    if (pendingAgentConsultationRef.current) {
+      pendingAgentConsultationRef.current.active = false;
+    }
+    if (consultationTimerRef.current) {
+      clearTimeout(consultationTimerRef.current);
+      consultationTimerRef.current = null;
+    }
 
     // Desbloquear AudioContext en Safari de forma silenciosa e instantánea (sin pitidos)
     try {

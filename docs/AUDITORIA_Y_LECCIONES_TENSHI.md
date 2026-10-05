@@ -161,6 +161,23 @@
   3. **Manejo defensivo de `isSubmitting`:** Si hay una respuesta generándose previamente, llamar a `handleStopGenerating()` y postergar el envío 200ms para asegurar que el canal esté libre.
   4. **Desactivación total en `stopVoiceMode`:** Apagar inmediatamente `pendingAgentConsultationRef.current.active = false` y limpiar `consultationTimerRef.current` para detener todo procesamiento en segundo plano.
 
+### Error 12: Failsafe hiperactivo de Canvas, fuga de prompt interno, omisión de toolCall por voz y bloqueo en cambio de especialista (`/c/new`)
+- **Síntoma:** 
+  1. Canvas se abría solo en pantalla dividida sin haberlo solicitado, apareciendo y desapareciendo un documento Word con texto filtrado del prompt del sistema ("Á PROHIBIDO... CER... O DISCLAIMERS...").
+  2. Al pedir por voz una segunda o tercera consulta contextual (ej: "intenta ahora preguntarle qué es co-tenista"), Tenshi hablaba por voz diciendo "¡Claro que sí! Ya le envié tu consulta...", pero en pantalla no se enviaba nada al especialista.
+  3. Al solicitar abrir un nuevo chat con otro especialista (ej: "ábreme un nuevo chat con el abogado laboral"), no se abría el nuevo chat, se creaba una bifurcación de rutas dobles `< 2 / 2 >` en la conversación vieja y Tenshi respondía mezclando temas previos (Decreto 1072 vs Túnel del Carpo).
+- **Causa Raíz:**
+  1. **Discrepancia en el prefijo de mensajes del sistema:** En `voiceSession.js:2782`, la comprobación de mensajes internos era `data.text.startsWith('[SISTEMA INTERNO WAPPY]')` con corchete cerrado. Al enviar `[SISTEMA INTERNO WAPPY - RESPUESTA TÉCNICA EMITIDA]`, la condición fallaba y el backend trataba todo el dictamen y directivas del sistema como transcripción del usuario (`userTranscriptionText`).
+  2. **Failsafe de Canvas demasiado permisivo:** `handleTenshiVoiceFailsafe` evaluaba `userLower` buscando palabras genéricas como `resumen`. Al estar contaminado con el mensaje del sistema, disparaba `canvas_tool` automáticamente, volcando las directivas internas en el editor de Canvas.
+  3. **Omisión de Tool Call por Gemini Live en consultas contextuales:** Cuando el usuario decía "intenta ahora preguntarle qué es co-tenista", Gemini Live respondía por voz sin emitir la llamada de función `wappy_abrir_chat_agente`. El failsafe ignoraba la orden porque la frase no contenía explícitamente "fisioterapeuta" ni consultaba `this.activeScreenAgent` para saber quién estaba en pantalla.
+  4. **Navegación a nuevo chat sin invocar `newConversation()`:** En `TenshiChat.tsx` (Caso B: nuevo chat), se ejecutaba `navigate('/c/new?...')` pero nunca se llamaba a `newConversation()` del hook `useNewConvo`. Por tanto, el átomo de Recoil mantenía viva la conversación anterior (`conversationId: ab61fede...`), sobre la cual se ejecutaba el envío diferido, creando la bifurcación `< 2 / 2 >` y dejando al usuario en el agente anterior.
+- **Regla y Solución Obligatoria:**
+  1. **Filtro estricto de mensajes internos:** Usar expresión regular `/^\[SISTEMA INTERNO WAPPY/i.test(text)` en `voiceSession.js` (`message`, `handleTenshiVoiceFailsafe` y `saveCurrentTurn`) para garantizar que ningún prompt interno contamine jamás la transcripción del usuario ni los mensajes guardados.
+  2. **Canvas estrictamente por solicitud explícita de creación:** El failsafe de Canvas solo se activa ante comandos explícitos de creación (`crea/diseña/genera una landing/canvas`), nunca por menciones de "resumen".
+  3. **Resolución contextual de especialista activo:** Si Gemini Live afirma por voz haber enviado la consulta (`aiClaimedConsultation`) o el usuario usa un comando consultivo sin nombrar al agente, el backend resuelve automáticamente el especialista contra `this.activeScreenAgent` y formula una consulta técnica profesional bajo la Regla 6.
+  4. **Reseteo del átomo de conversación en Caso B:** Toda apertura de nuevo chat por voz en `TenshiChat.tsx` DEBE invocar obligatoriamente `newConversation({ template: { endpoint: EModelEndpoint.agents, agent_id: targetAgentId } })` antes de navegar a `/c/new`, asegurando la desvinculación total de la conversación previa.
+  5. **Limpieza en toggle de voz:** `startVoiceMode` y `stopVoiceMode` limpian exhaustivamente cualquier consulta o timer pendiente para evitar estados zombi al apagar y encender la voz.
+
 ---
 
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue

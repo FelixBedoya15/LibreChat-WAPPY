@@ -243,25 +243,10 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
 
       console.log('[ChatForm] Enviando consulta delegada (única ejecución):', prompt);
 
-      let sent = false;
       try {
-        methods.handleSubmit((data) => {
-          if (!sent) {
-            sent = true;
-            submitMessage({ text: data.text || prompt });
-          }
-        })();
+        submitMessage({ text: prompt });
       } catch (err) {
-        console.warn('[ChatForm] Error en methods.handleSubmit:', err);
-      }
-
-      if (!sent) {
-        sent = true;
-        try {
-          submitMessage({ text: prompt });
-        } catch (err) {
-          console.warn('[ChatForm] Error en submitMessage directo:', err);
-        }
+        console.warn('[ChatForm] Error en submitMessage directo:', err);
       }
 
       // Limpieza segura del formulario y del textarea tras despacho

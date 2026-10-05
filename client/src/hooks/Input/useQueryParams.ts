@@ -323,28 +323,10 @@ export default function useQueryParams({
 
     const executeSend = () => {
       console.log('[useQueryParams] Ejecutando envío único para:', textToSend);
-      let sent = false;
-
-      // Canal 1: methods.handleSubmit directo de React Hook Form
       try {
-        methods.handleSubmit((data) => {
-          if (!sent) {
-            sent = true;
-            submitMessage({ text: data.text || textToSend });
-          }
-        })();
+        submitMessage({ text: textToSend });
       } catch (err) {
-        console.warn('[useQueryParams] Error en methods.handleSubmit:', err);
-      }
-
-      // Canal 2: Fallback directo de submitMessage si handleSubmit no despachó
-      if (!sent) {
-        sent = true;
-        try {
-          submitMessage({ text: textToSend });
-        } catch (err) {
-          console.warn('[useQueryParams] Error en submitMessage directo:', err);
-        }
+        console.warn('[useQueryParams] Error en submitMessage directo:', err);
       }
 
       // Limpieza segura del textarea y remoción silenciosa de query params
@@ -356,7 +338,8 @@ export default function useQueryParams({
           textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
           textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
         }
-        window.history.replaceState({}, '', window.location.pathname);
+        const cleanUrl = window.location.pathname + (window.location.hash || '');
+        window.history.replaceState({}, '', cleanUrl);
       }, 350);
     };
 
