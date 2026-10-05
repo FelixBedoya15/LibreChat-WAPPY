@@ -1,7 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
 const mongoose = require('mongoose');
-const { requireApiKeyOrJwt } = require('~/server/middleware/requireApiKeyAuth');
+const { SSEServerTransport } = require('@modelcontextprotocol/sdk/server/sse.js');
+const { createWappyMcpServer } = require(path.resolve(__dirname, '../../../bin/wappy-mcp.js'));
+const { requireApiKeyOrJwt, authenticateApiKey } = require('~/server/middleware/requireApiKeyAuth');
+const sseTransports = new Map();
 const CompanyInfo = require('~/models/CompanyInfo');
 const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
 const PESVWorkspaceSession = require('~/models/PESVWorkspaceSession');
@@ -150,6 +154,75 @@ Descripción General de Actividades: ${companyData.generalActivities || 'N/A'}`;
     logger.error('[MCP Bridge] Error sincronizando memoria de empresa:', err);
   }
 }
+
+// ─── 0. TRANSPORTE REMOTO SSE (SERVER-SENT EVENTS) PARA ANTIGRAVITY ─────────
+// Permite que Antigravity (y cualquier cliente MCP compatible) se conecte directamente
+// por la nube sin requerir Node.js, Git ni archivos locales en la máquina del usuario.
+
+router.get('/sse', async (req, res) => {
+  try {
+    const rawApiKey =
+      req.query.apiKey ||
+      req.headers['x-api-key'] ||
+      (req.headers.authorization?.startsWith('Bearer wpy_live_')
+        ? req.headers.authorization.slice(7).trim()
+        : null);
+
+    if (!rawApiKey) {
+      return res.status(401).send('Se requiere parámetro ?apiKey=wpy_live_... o encabezado x-api-key válido.');
+    }
+
+    const auth = await authenticateApiKey(rawApiKey);
+    if (!auth) {
+      return res.status(401).send('Clave API de WAPPY inválida o revocada.');
+    }
+
+    const host = req.get('host') || 'localhost:3080';
+    const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+    const baseUrl = `${protocol}://${host}`;
+
+    const mcpServer = createWappyMcpServer({
+      apiKey: rawApiKey,
+      wappyUrl: baseUrl,
+    });
+
+    const transport = new SSEServerTransport('/api/mcp-bridge/messages', res);
+    sseTransports.set(transport.sessionId, transport);
+
+    res.on('close', () => {
+      sseTransports.delete(transport.sessionId);
+    });
+
+    await mcpServer.connect(transport);
+    logger.info(`[MCP Bridge] Sesión SSE establecida para usuario ${auth.user?.email || auth.user?._id} (sessionId: ${transport.sessionId})`);
+  } catch (error) {
+    logger.error('[MCP Bridge] Error en GET /sse:', error);
+    if (!res.headersSent) {
+      return res.status(500).send('Error interno en conexión SSE de WAPPY.');
+    }
+  }
+});
+
+router.post('/messages', async (req, res) => {
+  try {
+    const sessionId = req.query.sessionId;
+    if (!sessionId) {
+      return res.status(400).send('Falta sessionId');
+    }
+
+    const transport = sseTransports.get(sessionId);
+    if (!transport) {
+      return res.status(404).send('Sesión SSE no encontrada o expirada.');
+    }
+
+    await transport.handlePostMessage(req, res);
+  } catch (error) {
+    logger.error('[MCP Bridge] Error en POST /messages:', error);
+    if (!res.headersSent) {
+      return res.status(500).send('Error procesando mensaje MCP.');
+    }
+  }
+});
 
 // ─── 1. PERFIL DE EMPRESA ───────────────────────────────────────────────────
 

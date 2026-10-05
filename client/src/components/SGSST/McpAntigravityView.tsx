@@ -28,6 +28,12 @@ import {
   FileCheck,
   ClipboardList,
   HardHat,
+  Cloud,
+  MessageSquare,
+  Zap,
+  ChevronDown,
+  ChevronUp,
+  Info,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -60,6 +66,9 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
   const [newKeyGenerated, setNewKeyGenerated] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedConfig, setCopiedConfig] = useState(false);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [copiedLocal, setCopiedLocal] = useState(false);
+  const [showAdvancedLocal, setShowAdvancedLocal] = useState(false);
   const [activeTab, setActiveTab] = useState<'config' | 'tools' | 'keys'>('config');
 
   // Cargar claves existentes
@@ -147,22 +156,49 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
     }
   };
 
-  const copyToClipboard = (text: string, type: 'key' | 'config') => {
+  const copyToClipboard = (text: string, type: 'key' | 'config' | 'prompt' | 'local') => {
     navigator.clipboard.writeText(text);
     if (type === 'key') {
       setCopiedKey(true);
       setTimeout(() => setCopiedKey(false), 2000);
-    } else {
+    } else if (type === 'config') {
       setCopiedConfig(true);
       setTimeout(() => setCopiedConfig(false), 2000);
+    } else if (type === 'prompt') {
+      setCopiedPrompt(true);
+      setTimeout(() => setCopiedPrompt(false), 2000);
+    } else if (type === 'local') {
+      setCopiedLocal(true);
+      setTimeout(() => setCopiedLocal(false), 2000);
     }
     showToast({ message: 'Copiado al portapapeles', status: 'success' });
   };
 
-  const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tu-dominio-wappy.com';
+  const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://wappy.club';
   const effectiveKey = newKeyGenerated || (keys.length > 0 ? `${keys[0].keyPrefix}` : 'PEGA_TU_CLAVE_AQUI');
+  const sseServerUrl = `${originUrl}/api/mcp-bridge/sse?apiKey=${effectiveKey}`;
 
+  // Instrucción para pegar en el chat de Antigravity
+  const antigravityPrompt = `Configura mi conexión con WAPPY en tu archivo de servidores MCP (mcp_config.json) usando esta URL remota:
+URL: ${sseServerUrl}
+
+Es una conexión MCP directa en la nube mediante SSE (Server-Sent Events). No necesitas instalar Node.js, ni clonar repositorios de Git, ni descargar paquetes npm. Una vez agregues el servidor MCP 'wappy', hazme un diagnóstico 360° de mi empresa en WAPPY.`;
+
+  // Configuración JSON para mcp_config.json
   const antigravityJsonConfig = JSON.stringify(
+    {
+      mcpServers: {
+        wappy: {
+          serverUrl: sseServerUrl,
+        },
+      },
+    },
+    null,
+    2
+  );
+
+  // Configuración opcional Stdio para desarrolladores
+  const localStdioConfig = JSON.stringify(
     {
       mcpServers: {
         wappy: {
@@ -548,19 +584,72 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
 
       {/* Tab: Configuración JSON */}
       {activeTab === 'config' && (
-        <div className="flex flex-col gap-4">
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-200/80 dark:border-zinc-800 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-5">
+          {/* Banner Cero Instalación */}
+          <div className="flex items-start gap-3 p-4 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-900 dark:text-teal-200">
+            <Cloud className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+            <div className="text-xs leading-relaxed">
+              <span className="font-bold">¡Conexión Remota Directa en la Nube! </span>
+              Ya <strong>NO necesitas instalar Node.js</strong>, ni descargar archivos locales, ni ejecutar comandos en la terminal. Tu asistente Antigravity se conecta por internet a WAPPY de inmediato usando el protocolo estándar SSE.
+            </div>
+          </div>
+
+          {/* Método 1: Instrucción para el Chat de Antigravity (Recomendado) */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-orange-500/30 dark:border-orange-500/30 flex flex-col gap-3 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-orange-500" />
-                <span className="text-xs font-bold">Bloque de Configuración MCP</span>
+                <div className="w-7 h-7 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600 dark:text-orange-400 font-bold text-xs">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                      Método 1: Pega esta instrucción en el chat de Antigravity
+                    </span>
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-orange-500 text-white shadow-2xs">
+                      Recomendado
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                    Solo copia este texto y pégalo en el chat de Antigravity. El agente configurará la conexión remota por ti:
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => copyToClipboard(antigravityPrompt, 'prompt')}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 shrink-0"
+              >
+                {copiedPrompt ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedPrompt ? '¡Instrucción Copiada!' : 'Copiar Instrucción para Antigravity'}
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-orange-50/50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-200 font-mono text-xs border border-orange-200/60 dark:border-zinc-800 leading-relaxed whitespace-pre-wrap select-all">
+              {antigravityPrompt}
+            </div>
+          </div>
+
+          {/* Método 2: Configuración JSON en mcp_config.json */}
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-200/80 dark:border-zinc-800 flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                <div>
+                  <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                    Método 2: Configuración manual en tu archivo JSON
+                  </span>
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                    Pega este bloque en tu archivo <code className="text-teal-600 dark:text-teal-400 font-mono">~/.gemini/antigravity/mcp_config.json</code> o en Ajustes MCP:
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => copyToClipboard(antigravityJsonConfig, 'config')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-sm transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-sm transition-all active:scale-95 shrink-0"
               >
                 {copiedConfig ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copiedConfig ? '¡Copiado!' : 'Copiar Configuración'}
+                {copiedConfig ? '¡Copiado!' : 'Copiar Configuración JSON'}
               </button>
             </div>
 
@@ -569,37 +658,68 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
             </pre>
           </div>
 
-          {/* Guía Rápida de 3 Pasos */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col gap-1.5 shadow-2xs">
+          {/* Guía Rápida de 3 Pasos Detallada */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col gap-2 shadow-2xs">
               <div className="flex items-center gap-2 text-xs font-bold text-orange-600 dark:text-orange-400">
-                <span className="w-5 h-5 rounded-full bg-orange-500/10 flex items-center justify-center text-[11px]">1</span>
-                <span>Genera tu Clave</span>
+                <span className="w-6 h-6 rounded-full bg-orange-500/10 flex items-center justify-center text-xs font-black">1</span>
+                <span>Genera tu Clave API</span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-normal">
-                Haz clic arriba en <strong>"Generar Clave API"</strong> y copia el token personal asignado a tu cuenta.
+              <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
+                Haz clic arriba en <strong>"Generar Clave API"</strong>. Esta clave única garantiza que Antigravity solo acceda de manera segura a los datos de tu empresa.
               </p>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col gap-1.5 shadow-2xs">
+            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col gap-2 shadow-2xs">
               <div className="flex items-center gap-2 text-xs font-bold text-teal-600 dark:text-teal-400">
-                <span className="w-5 h-5 rounded-full bg-teal-500/10 flex items-center justify-center text-[11px]">2</span>
-                <span>Configura Antigravity</span>
+                <span className="w-6 h-6 rounded-full bg-teal-500/10 flex items-center justify-center text-xs font-black">2</span>
+                <span>Conecta a la Nube (Sin Node)</span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-normal">
-                Pega el bloque JSON en tu configuración de MCP de Antigravity (mcpServers).
+              <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
+                Pega la <strong>Instrucción en el chat</strong> o agrega la URL remota SSE en tu <code className="font-mono text-[10px] bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded">mcp_config.json</code>. Cero terminales y cero descargas locales.
               </p>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col gap-1.5 shadow-2xs">
+            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col gap-2 shadow-2xs">
               <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                <span className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-[11px]">3</span>
-                <span>Control Total</span>
+                <span className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-xs font-black">3</span>
+                <span>Control Total Autónomo</span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-normal">
-                Dile a Antigravity: <em>"Hazme un diagnóstico 360° de mi empresa y programa las tareas del cronograma"</em>.
+              <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
+                Dile a Antigravity: <em>"Hazme un diagnóstico 360° de mi empresa, revisa los trabajadores y programa las capacitaciones del cronograma"</em>.
               </p>
             </div>
+          </div>
+
+          {/* Desplegable Opcional: Conexión Local Stdio (Desarrolladores) */}
+          <div className="pt-2 border-t border-slate-200/60 dark:border-zinc-800/80">
+            <button
+              onClick={() => setShowAdvancedLocal(!showAdvancedLocal)}
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 transition-colors"
+            >
+              {showAdvancedLocal ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              <span>Conexión Local Clásica por Stdio (Opcional para Desarrolladores)</span>
+            </button>
+
+            {showAdvancedLocal && (
+              <div className="mt-3 p-4 rounded-2xl bg-slate-100/60 dark:bg-zinc-900/40 border border-slate-200 dark:border-zinc-800 flex flex-col gap-2.5 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] text-slate-500 dark:text-zinc-400">
+                    Requiere Node.js instalado localmente y el repositorio clonado en tu máquina:
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(localStdioConfig, 'local')}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 hover:bg-slate-50 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 text-xs font-medium shadow-2xs"
+                  >
+                    {copiedLocal ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                    {copiedLocal ? 'Copiado' : 'Copiar Stdio'}
+                  </button>
+                </div>
+                <pre className="p-3 rounded-xl bg-slate-950 text-slate-200 font-mono text-[11px] overflow-x-auto border border-slate-800 leading-relaxed select-all">
+                  {localStdioConfig}
+                </pre>
+              </div>
+            )}
           </div>
         </div>
       )}

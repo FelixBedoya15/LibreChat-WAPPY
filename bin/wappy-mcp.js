@@ -31,67 +31,66 @@ const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
 const { z } = require('zod');
 
-const WAPPY_URL = (process.env.WAPPY_URL || 'http://localhost:3080').replace(/\/$/, '');
-const WAPPY_API_KEY = process.env.WAPPY_API_KEY;
+function createWappyMcpServer({ apiKey, wappyUrl } = {}) {
+  const WAPPY_URL = (wappyUrl || process.env.WAPPY_URL || 'http://localhost:3080').replace(/\/$/, '');
+  const WAPPY_API_KEY = apiKey || process.env.WAPPY_API_KEY;
 
-if (!WAPPY_API_KEY) {
-  console.error('[WAPPY MCP Bridge] ERROR: La variable de entorno WAPPY_API_KEY no está configurada.');
-  console.error('Debes proporcionar tu clave de WAPPY (ej. WAPPY_API_KEY=wpy_live_...).');
-  process.exit(1);
-}
-
-// Cliente HTTP defensivo para hablar con la API de WAPPY
-async function wappyRequest(endpoint, options = {}) {
-  const url = `${WAPPY_URL}/api/mcp-bridge${endpoint}`;
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${WAPPY_API_KEY}`,
-    ...(options.headers || {}),
-  };
-
-  try {
-    const res = await fetch(url, {
-      ...options,
-      headers,
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      const errorMsg = data?.error || `Error HTTP ${res.status}: ${res.statusText}`;
-      throw new Error(errorMsg);
-    }
-
-    return data;
-  } catch (error) {
-    throw new Error(`[WAPPY API Error] ${error.message}`);
+  if (!WAPPY_API_KEY) {
+    throw new Error('[WAPPY MCP Bridge] ERROR: Se requiere WAPPY_API_KEY o apiKey para inicializar el servidor MCP.');
   }
-}
 
-// Inicializar Servidor MCP
-const server = new McpServer({
-  name: 'wappy-bridge',
-  version: '2.0.0',
-});
+  // Cliente HTTP defensivo para hablar con la API de WAPPY
+  async function wappyRequest(endpoint, options = {}) {
+    const url = `${WAPPY_URL}/api/mcp-bridge${endpoint}`;
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${WAPPY_API_KEY}`,
+      ...(options.headers || {}),
+    };
 
-// Helper para encapsular respuestas MCP de forma estandarizada
-function formatMcpResponse(data) {
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(data, null, 2),
-      },
-    ],
-  };
-}
+    try {
+      const res = await fetch(url, {
+        ...options,
+        headers,
+      });
 
-function formatMcpError(err) {
-  return {
-    isError: true,
-    content: [{ type: 'text', text: err.message }],
-  };
-}
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const errorMsg = data?.error || `Error HTTP ${res.status}: ${res.statusText}`;
+        throw new Error(errorMsg);
+      }
+
+      return data;
+    } catch (error) {
+      throw new Error(`[WAPPY API Error] ${error.message}`);
+    }
+  }
+
+  // Inicializar Servidor MCP
+  const server = new McpServer({
+    name: 'wappy-bridge',
+    version: '2.0.0',
+  });
+
+  // Helper para encapsular respuestas MCP de forma estandarizada
+  function formatMcpResponse(data) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(data, null, 2),
+        },
+      ],
+    };
+  }
+
+  function formatMcpError(err) {
+    return {
+      isError: true,
+      content: [{ type: 'text', text: err.message }],
+    };
+  }
 
 // ─── 1. PERFIL DE EMPRESA Y MEMORIA IA ──────────────────────────────────────
 
@@ -2365,14 +2364,32 @@ server.tool(
   }
 );
 
-// Conectar mediante transporte stdio estándar de MCP
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error('[WAPPY MCP Bridge] Conectado exitosamente por stdio con 110+ herramientas especializadas.');
+  return server;
 }
 
-main().catch((err) => {
-  console.error('[WAPPY MCP Bridge] Error fatal al iniciar:', err);
-  process.exit(1);
-});
+// Conectar mediante transporte stdio si se ejecuta directamente por terminal
+if (require.main === module) {
+  const WAPPY_URL = (process.env.WAPPY_URL || 'http://localhost:3080').replace(/\/$/, '');
+  const WAPPY_API_KEY = process.env.WAPPY_API_KEY;
+
+  if (!WAPPY_API_KEY) {
+    console.error('[WAPPY MCP Bridge] ERROR: La variable de entorno WAPPY_API_KEY no está configurada.');
+    console.error('Debes proporcionar tu clave de WAPPY (ej. WAPPY_API_KEY=wpy_live_...).');
+    process.exit(1);
+  }
+
+  async function main() {
+    const server = createWappyMcpServer({ apiKey: WAPPY_API_KEY, wappyUrl: WAPPY_URL });
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.error('[WAPPY MCP Bridge] Conectado exitosamente por stdio con 113 herramientas especializadas.');
+  }
+
+  main().catch((err) => {
+    console.error('[WAPPY MCP Bridge] Error fatal al iniciar:', err);
+    process.exit(1);
+  });
+}
+
+module.exports = { createWappyMcpServer };
+
