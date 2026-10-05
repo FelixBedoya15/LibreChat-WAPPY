@@ -144,9 +144,20 @@ class GeminiPoolManager {
 
       // Avanzar el puntero para la próxima petición del usuario
       this.userRoundRobinIndex.set(cleanUserId, (safeIndex + 1) % readyKeys.length);
+    } else if (readyKeys.length === 0 && coolingKeys.length === 0 && exhaustedKeys.length > 0) {
+      // Rescate cíclico: Si todas las llaves estaban aisladas, permitir rotación de rescate
+      const currentIndex = this.userRoundRobinIndex.get(cleanUserId) || 0;
+      const safeIndex = currentIndex % exhaustedKeys.length;
+      rotatedReadyKeys = [
+        ...exhaustedKeys.slice(safeIndex),
+        ...exhaustedKeys.slice(0, safeIndex),
+      ];
+      this.userRoundRobinIndex.set(cleanUserId, (safeIndex + 1) % exhaustedKeys.length);
     }
 
-    const prioritized = [...rotatedReadyKeys, ...coolingKeys, ...exhaustedKeys];
+    const prioritized = readyKeys.length > 0
+      ? [...rotatedReadyKeys, ...coolingKeys, ...exhaustedKeys]
+      : rotatedReadyKeys;
 
     // Log informativo si hubo saltos de llaves
     if (coolingKeys.length > 0 || exhaustedKeys.length > 0) {
@@ -183,7 +194,8 @@ class GeminiPoolManager {
     const isDaily = isDailyLimit ||
       msg.includes('generaterequestsperday') ||
       msg.includes('daily request') ||
-      msg.includes('limit: 20');
+      (/\b(?:requests?\s+per\s+day|per\s+day\b|daily\s+quota|daily\s+limit)/i.test(msg)) ||
+      (/\blimit:\s*20\b/i.test(msg) && (msg.includes('day') || !msg.includes('minute')));
 
     if (isDaily && cleanModel) {
       const resetTime = this.getMidnightPacificTimestamp();
@@ -199,14 +211,14 @@ class GeminiPoolManager {
     // 2. Detección de Límite Temporal de Frecuencia (429 RPM / TPM)
     const isRateLimit = status === 429 || msg.includes('429') || msg.includes('quota') || msg.includes('too many requests');
     if (isRateLimit) {
-      // Usar retryDelay de Google si viene en el error, o 45 segundos por defecto
-      let delay = 45000;
+      // Usar retryDelay de Google si viene en el error, o 25 segundos por defecto
+      let delay = 25000;
       if (typeof retryDelayMs === 'number' && retryDelayMs > 0) {
-        delay = Math.min(Math.max(retryDelayMs, 5000), 120000); // Entre 5s y 120s
+        delay = Math.min(Math.max(retryDelayMs, 3000), 60000); // Entre 3s y 60s
       } else {
         const retryMatch = msg.match(/retry in ([0-9\.]+)s/);
         if (retryMatch && retryMatch[1]) {
-          delay = Math.round(parseFloat(retryMatch[1]) * 1000) + 1000;
+          delay = Math.round(parseFloat(retryMatch[1]) * 1000) + 500;
         }
       }
 

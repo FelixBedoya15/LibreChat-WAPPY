@@ -1039,14 +1039,14 @@ export default function TenshiChat() {
     if (isVoiceActive) {
       lastActivityRef.current = Date.now();
       clearAudioQueue();
-      setIsPlayingAudioRef.current?.(true);
       setVoiceStatusText(`Tenshi respondiendo sobre ${consultation.agentName}...`);
+      const condensedDictamen = finalText.length > 1200 ? finalText.substring(0, 1200) + '...' : finalText;
       const promptForTenshi = `[SISTEMA INTERNO WAPPY - RESPUESTA TÉCNICA EMITIDA]:
 El especialista ${consultation.agentName} ha terminado de responder en pantalla a la consulta: "${consultation.question}".
 
 DICTAMEN TÉCNICO OFICIAL:
 """
-${finalText.substring(0, 3500)}
+${condensedDictamen}
 """
 
 DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:

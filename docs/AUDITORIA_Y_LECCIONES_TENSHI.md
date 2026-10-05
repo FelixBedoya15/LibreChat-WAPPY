@@ -212,6 +212,38 @@
   1. **Reset Total en `stopVoiceMode`:** `stopVoiceMode()` en `TenshiChat.tsx` ejecuta inmediatamente `setIsTyping(false)` y `sendVoiceInterruptRef.current()`, garantizando el apagado instantáneo de cualquier estado de espera o pensamiento.
   2. **Candado Estricto de Idioma en `geminiLive.js`:** Anteponer SIEMPRE la prohibición explícita de frases o cierres en inglés ("all set", "done", etc.) en el `systemInstruction` de audio nativo de Gemini Live.
 
+### Error 17: Latencia Severa en Respuesta Verbal de Tenshi tras Especialista, Saturación de Cuotas 429 por `OraculoH1` y Falso Positivo de Cuota Diaria en `GeminiPoolManager`
+- **Síntoma:** Tras responder el especialista en el chat, Tenshi demoraba muchos segundos (o se quedaba completamente pegado y en silencio) antes de emitir la síntesis verbal. En los logs se evidenciaba una cascada continua de errores 429 (límite de cuota) rotando por las 6 llaves del sistema:
+  ```log
+  [SGSST Gemini] Reintentando... Modelo="gemini-3.6-flash", Clave #5/6
+  [OraculoH1] IA tags generados para ...: [Alergia_Quimica]
+  [GeminiPoolManager] Pool para modelo "gemini-3.6-flash": 0 listas, 0 en enfriamiento, 6 agotadas hoy.
+  [GeminiPoolManager] [CircuitBreaker] Llave AQ.A... AGOTADA HOY para "gemini-3.5-flash". Aislada hasta medianoche PT (~9h).
+  ```
+- **Causa Raíz:**
+  1. **Saturación en Cascada por `OraculoH1` (`perfilSociodemografico.js`):** Al guardar o listar trabajadores, si cambiaba el hash de la nómina, el backend ejecutaba un bucle secuencial llamando a `runIASemanticTagging` para cada empleado. Cada llamada hacía reintentos lentos sobre las 6 llaves y luego sobre `gemini-3.6-flash`. Una nómina de 20-50 trabajadores generaba cientos de requests en segundos, quemando todas las cuotas de la API.
+  2. **Falso Positivo de Cuota Diaria en `GeminiPoolManager`:** El analizador de errores marcaba cualquier mensaje con `limit: 20` como cuota diaria agotada (RPD) hasta medianoche PT (~9 horas de aislamiento), confundiendo límites por minuto (RPM) con límites por día, bloqueando el pool completo de llaves.
+  3. **Bloqueo Prematuro del Micrófono en el Cliente (`TenshiChat.tsx`):** Al terminar el especialista, el cliente ejecutaba inmediatamente `setIsPlayingAudioRef.current?.(true)`, silenciando y bloqueando el micrófono del usuario durante 6 a 8 segundos antes de que Gemini Live emitiera el primer chunk de audio.
+  4. **Carga Textual Excesiva enviada a Gemini Live:** Se inyectaban hasta 3,500 caracteres de texto técnico denso del especialista en la sesión de Gemini Live, forzando a Google a sintetizar audios masivos con latencias de 4 a 6 segundos.
+  5. **Bloqueos Síncronos y Timeouts en `voiceSession.js`:**
+     - En `case 'message'`, se activaba `this.isAiSpeaking = true` durante 5 segundos preventivos, descartando el audio del usuario.
+     - El timeout de silencio tras hablar Tenshi era de 3,500ms (3.5s), ignorando interrupciones rápidas del usuario.
+     - En `turnComplete`, se esperaba sincrónicamente a `saveCurrentTurn` y `correctTranscription`, congelando el ciclo de voz si las llaves estaban saturadas.
+- **Regla y Solución Obligatoria:**
+  1. **Fast-Fallback y Fallback Determinista en `OraculoH1`:**
+     - En `sgsstGemini.js`: Se añadió `options.fastFallback: true`. Si la llamada da 429 o falla, aborta inmediatamente sin quemar las 6 llaves del pool.
+     - En `perfilSociodemografico.js`: Si un trabajador falla o da 429, el lote conmuta de inmediato a `batchUseDeterministic = true`, clasificando los siguientes trabajadores con `runDeterministicSemanticTagging(w)` (0ms de latencia, 0 tokens consumidos, 100% cobertura médica ocupacional normativa).
+  2. **Diferenciación RPD vs RPM y Rescate Cíclico en `GeminiPoolManager`:**
+     - El Circuit Breaker solo aísla hasta medianoche si el mensaje contiene explícitamente `requests per day` o `daily quota`. Errores por minuto (RPM) solo enfrían la llave temporalmente (60s).
+     - Si todas las llaves terminasen en `exhaustedKeys`, se activa un rescate cíclico con round-robin en lugar de bloquear el sistema por 9 horas.
+  3. **Desbloqueo de Audio Inmediato y Resumen Conciso:**
+     - En `TenshiChat.tsx`: Se eliminó el `setIsPlayingAudioRef(true)` prematuro (solo se activa cuando realmente llega audio) y se condensó el texto enviado a Gemini Live a un máximo de 1,200 caracteres de síntesis ejecutiva.
+  4. **Fluidez en `voiceSession.js`:**
+     - Se eliminó el bloqueo artificial de 5 segundos en `case 'message'`.
+     - Se redujo el timeout de silencio de 3,500ms a 700ms para permitir diálogo ágil.
+     - `turnComplete` ejecuta el guardado en segundo plano de forma no bloqueante (`saveCurrentTurn().catch(...)`), liberando la escucha inmediatamente.
+     - `correctTranscription` cuenta con timeout estricto de 1,200ms y `fastFallback: true`.
+
 ---
 
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
@@ -222,3 +254,4 @@ Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el 
 3. [ ] **Inclusión de Bundles en Git:** Asegurar que `git add client/src client/dist` incluya tanto el código fuente como los compilados.
 4. [ ] **Verificación de Modelos de IA:** Nunca degradar ni inventar nombres de modelos; verificar siempre con `search_web` en la documentación oficial.
 5. [ ] **Despliegue en VPS:** Indicar al usuario la ejecución de `git pull` y `docker exec -it LibreChat node scripts/restore-and-sync-all.js`.
+

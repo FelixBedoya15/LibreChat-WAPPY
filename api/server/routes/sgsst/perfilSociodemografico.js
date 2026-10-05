@@ -1244,7 +1244,7 @@ function runDeterministicSemanticTagging(worker) {
  * and returns structured semantic tags. ALL math (scoring, multipliers) is done
  * by the deterministic system in the frontend (calcFit).
  */
-async function runIASemanticTagging(worker, userId) {
+async function runIASemanticTagging(worker, userId, options = {}) {
   const textFields = [
     worker.limitacionesBiomecanicas,
     worker.recomendacionesMedicas,
@@ -1316,7 +1316,7 @@ Responde ÚNICAMENTE con JSON válido (sin markdown, sin texto extra):
   try {
     const { generateWithKeyRotation } = require('./sgsstGemini');
     const preferredModel = (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
-    const result = await generateWithKeyRotation(preferredModel, userId, prompt);
+    const result = await generateWithKeyRotation(preferredModel, userId, prompt, { fastFallback: true, ...options });
     let text = result.response.text().trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     return JSON.parse(text);
   } catch (err) {
@@ -2149,6 +2149,7 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
         const savedWorkers = savedDoc?.trabajadores || [];
 
         const evaluatedWorkers = [];
+        let batchUseDeterministic = false;
         for (const w of updatedWithBio) {
           if (!w.id) {
             evaluatedWorkers.push(w);
@@ -2159,7 +2160,17 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
           const savedHash = savedWorker?.bioScoreIAVersion || '';
           // Only call IA if text fields changed
           if (currentHash !== savedHash) {
-            const result = await runIASemanticTagging(w, targetUserId).catch(() => null);
+            let result = null;
+            if (!batchUseDeterministic) {
+              try {
+                result = await runIASemanticTagging(w, targetUserId, { fastFallback: true });
+              } catch (tagErr) {
+                batchUseDeterministic = true;
+                result = runDeterministicSemanticTagging(w);
+              }
+            } else {
+              result = runDeterministicSemanticTagging(w);
+            }
             if (result) {
               const updated = {
                 ...w,

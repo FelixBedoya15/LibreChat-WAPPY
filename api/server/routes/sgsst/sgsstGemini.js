@@ -271,7 +271,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
 
   const candidateFallbacks = envModels.length > 0 ? envModels : SGSST_FALLBACK_MODELS;
   const fallbacks = candidateFallbacks.filter(m => m !== preferredModel);
-  const modelsToTry = [...new Set([preferredModel, ...fallbacks])];
+  const modelsToTry = options.fastFallback ? [preferredModel] : [...new Set([preferredModel, ...fallbacks])];
 
   const apiKeys = await resolveApiKeys(userId);
 
@@ -283,16 +283,17 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
     let allKeysExhaustedDueTo429 = false;
 
     const prioritizedKeys = geminiPoolManager.getPrioritizedKeys(apiKeys, currentModel, userId);
+    const keysToTry = options.fastFallback ? prioritizedKeys.slice(0, 1) : prioritizedKeys;
 
     // Inner loop: iterate over keys (mirrors chat's this.rotateKey() pattern)
-    for (let keyIdx = 0; keyIdx < prioritizedKeys.length; keyIdx++) {
-      const apiKey = prioritizedKeys[keyIdx];
+    for (let keyIdx = 0; keyIdx < keysToTry.length; keyIdx++) {
+      const apiKey = keysToTry[keyIdx];
 
       try {
         if (keyIdx > 0 || modelIdx > 0) {
           logger.warn(
             `[SGSST Gemini] Reintentando... Modelo="${currentModel}", ` +
-            `Clave #${keyIdx + 1}/${prioritizedKeys.length}`
+            `Clave #${keyIdx + 1}/${keysToTry.length}`
           );
         }
 
@@ -368,6 +369,11 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
           message: err.message,
           isDailyLimit: isDaily,
         });
+
+        if (options.fastFallback) {
+          logger.warn(`[SGSST Gemini] FastFallback activo. Falló intento único con "${currentModel}" (${status || 'error'}). Abortando rotación para dar paso a fallback determinista.`);
+          throw err;
+        }
 
         if (isRateLimit || isQuotaExceeded || isInvalidKey) {
           logger.warn(

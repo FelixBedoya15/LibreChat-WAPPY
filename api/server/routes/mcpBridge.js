@@ -3,7 +3,24 @@ const router = express.Router();
 const path = require('path');
 const mongoose = require('mongoose');
 const { SSEServerTransport } = require('@modelcontextprotocol/sdk/server/sse.js');
-const { createWappyMcpServer } = require(path.resolve(__dirname, '../../../bin/wappy-mcp.js'));
+let createWappyMcpServer = null;
+try {
+  const possiblePaths = [
+    path.resolve(__dirname, '../../../bin/wappy-mcp.js'),
+    path.resolve(process.cwd(), 'bin/wappy-mcp.js'),
+    path.resolve(process.cwd(), '../bin/wappy-mcp.js'),
+    '/app/bin/wappy-mcp.js',
+  ];
+  for (const p of possiblePaths) {
+    try {
+      const mod = require(p);
+      if (mod && mod.createWappyMcpServer) {
+        createWappyMcpServer = mod.createWappyMcpServer;
+        break;
+      }
+    } catch (_) {}
+  }
+} catch (_) {}
 const { requireApiKeyOrJwt, authenticateApiKey } = require('~/server/middleware/requireApiKeyAuth');
 const sseTransports = new Map();
 const CompanyInfo = require('~/models/CompanyInfo');
@@ -179,7 +196,9 @@ router.get('/sse', async (req, res) => {
 
     const host = req.get('host') || 'localhost:3080';
     const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
-    const baseUrl = `${protocol}://${host}`;
+    if (!createWappyMcpServer) {
+      return res.status(503).send('Servidor WAPPY MCP temporalmente no disponible en este entorno.');
+    }
 
     const mcpServer = createWappyMcpServer({
       apiKey: rawApiKey,

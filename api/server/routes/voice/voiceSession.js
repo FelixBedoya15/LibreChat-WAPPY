@@ -1396,14 +1396,14 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             // Count audio chunks to know AI responded with voice
             this.aiAudioChunkCount++;
 
-            // Safety timeout: Reset isAiSpeaking to false if silence for 3.5 seconds
+            // Safety timeout: Reset isAiSpeaking to false if silence for 700ms (fast responsive turn transition)
             if (this.aiSpeakingTimeout) clearTimeout(this.aiSpeakingTimeout);
             this.aiSpeakingTimeout = setTimeout(() => {
                 if (this.isAiSpeaking) {
                     logger.info('[VoiceSession] Safety reset isAiSpeaking to false after silence');
                     this.isAiSpeaking = false;
                 }
-            }, 3500);
+            }, 700);
         });
 
         // Listen for USER transcription (what the user says)
@@ -2365,7 +2365,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
         });
 
         // Listen for turn complete
-        this.geminiClient.on('turnComplete', async () => {
+        this.geminiClient.on('turnComplete', () => {
             logger.info('[VoiceSession] ========== TURN COMPLETE ==========');
             this.isAiSpeaking = false;
             if (this.aiSpeakingTimeout) {
@@ -2374,7 +2374,10 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             }
             this.sendToClient({ type: 'status', data: { status: 'turn_complete' } });
             this.sendToClient({ type: 'status', data: { status: 'listening' } });
-            await this.saveCurrentTurn('TurnComplete');
+            // Guardar el turno en segundo plano para máxima respuesta y cero latencia
+            this.saveCurrentTurn('TurnComplete').catch(err => {
+                logger.error('[VoiceSession] Error in background saveCurrentTurn:', err);
+            });
             logger.info('[VoiceSession] ========== END TURN ==========');
         });
 
@@ -2827,17 +2830,6 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     const isInternalSystemMessage = /^\[SISTEMA INTERNO WAPPY/i.test(data.text);
                     if (!isInternalSystemMessage) {
                         this.userTranscriptionText += (this.userTranscriptionText ? '\n' : '') + data.text;
-                    } else {
-                        // Es una orden del sistema para que Tenshi hable (resumen/handoff del especialista)
-                        // Marcar preventivamente isAiSpeaking para descartar audio de micrófono en tránsito y evitar colisiones/eco
-                        this.isAiSpeaking = true;
-                        if (this.aiSpeakingTimeout) clearTimeout(this.aiSpeakingTimeout);
-                        this.aiSpeakingTimeout = setTimeout(() => {
-                            if (this.isAiSpeaking) {
-                                logger.info('[VoiceSession] Safety reset isAiSpeaking after system message dispatch');
-                                this.isAiSpeaking = false;
-                            }
-                        }, 5000);
                     }
                     
                     if (this.geminiClient) {
@@ -3222,11 +3214,20 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             6. DEVUELVE ÚNICA Y EXCLUSIVAMENTE EL TEXTO CORREGIDO EN ESPAÑOL. Sin explicaciones, comillas ni notas.
             `;
 
-            const result = await generateWithKeyRotation(correctionModelName, this.userId, prompt);
-            const correctedText = result.response.text().replace(/^["']|["']$/g, '').trim();
+            try {
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Transcription correction timeout')), 1200)
+                );
+                const correctionPromise = generateWithKeyRotation(correctionModelName, this.userId, prompt, { fastFallback: true });
+                const result = await Promise.race([correctionPromise, timeoutPromise]);
+                const correctedText = result.response.text().replace(/^["']|["']$/g, '').trim();
 
-            logger.info(`[VoiceSession] Transcription correction result: "${userText}" -> "${correctedText}"`);
-            return correctedText;
+                logger.info(`[VoiceSession] Transcription correction result: "${userText}" -> "${correctedText}"`);
+                return correctedText;
+            } catch (err) {
+                logger.debug(`[VoiceSession] Transcription fast fallback to sanitized (${err.message})`);
+                return sanitized;
+            }
         } catch (error) {
             logger.error('[VoiceSession] Error correcting transcription:', error);
             return sanitizeTranscription(userText); // Fallback to sanitized
@@ -4333,7 +4334,7 @@ ${workerSubHeaderHtml}
         }
 
         const userText = (currentUserText || '').trim();
-        if (!userText || /^\[SISTEMA INTERNO WAPPY/i.test(userText)) return;
+        if (!userText || userText.includes('[SISTEMA INTERNO WAPPY')) return;
         const userLower = userText.toLowerCase();
 
         // 1. Detección de intención EXPLÍCITA del usuario para abrir chat o consultar un agente especialista
