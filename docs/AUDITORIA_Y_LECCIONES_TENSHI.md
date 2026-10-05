@@ -94,6 +94,31 @@
 
 ---
 
+### Error 7: Texto retenido en el textarea sin enviar (Falsa finalización del Watchdog / Radix Tooltip)
+- **Síntoma:** Tenshi formula la consulta en pantalla (ej: `/c/new`), escribe el texto en el textarea, pero el mensaje nunca se envía y permanece pegado en la caja de texto.
+- **Causa Raíz:**
+  1. `dispatchSend` dependía de `sendBtn && !sendBtn.disabled` y hacía un `sendBtn.click()` sintético. Al estar envuelto en un `TooltipAnchor` de Radix UI, el evento `.click()` del DOM era interceptado/detenido por la capa de Radix sin disparar el submit del formulario de React.
+  2. Si `sendBtn && !sendBtn.disabled` era verdadero, `dispatchSend` retornaba `true` inmediatamente, **impidiendo que se ejecutara `submitMessage`**.
+  3. El watchdog, tras 25 intentos (2.5s), limpiaba la URL silenciosamente creyendo erróneamente que el mensaje había sido procesado, dejando el texto huérfano en el textarea.
+- **Regla y Solución Obligatoria:**
+  1. **Despacho Multicanal Simultáneo:** No confiar únicamente en `.click()`. Se debe invocar:
+     - `methods.handleSubmit((data) => submitMessage({ text: data.text || textToSend }))()` (React Hook Form directo).
+     - `submitMessage({ text: textToSend })` (hook directo de envío).
+     - `form.requestSubmit()` (API nativa HTML5 de envío de formularios).
+  2. **Watchdog con Reintento de Emergencia:** Si tras 30 intentos (3 segundos) el textarea aún retiene el texto (`val === textToSend`), ejecutar un `submitMessage` de emergencia y liberar el guard `releaseAutoSubmit`.
+
+---
+
+### Error 8: Degradación de la consulta a una frase telegráfica ("Qué es medicina laboral")
+- **Síntoma:** Tenshi enviaba frases crudas y telegráficas sin estructuración técnica, degradando la calidad de la respuesta del especialista.
+- **Causa Raíz:** Una directiva previa ("formula exactamente lo que pidió el usuario") fue sobre-interpretada por el modelo de IA como la prohibición de estructurar el prompt.
+- **Regla y Solución Obligatoria:**
+  1. **Estructuración técnica en 2 capas:**
+     - **Capa 1 (Gemini Live):** La directiva de sistema y el esquema de `wappy_abrir_chat_agente` ordenan estructurar la consulta técnica incluyendo planteamiento, solicitud de fundamentación normativa colombiana (Decretos, Resoluciones) y recomendaciones prácticas para el SG-SST.
+     - **Capa 2 (Frontend `cleanDelegatedPrompt`):** Si llega una consulta corta (< 130 caracteres) sin contexto normativo, el frontend la enriquece automáticamente antes de inyectarla en el chat.
+
+---
+
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
 
 Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el chat:

@@ -307,45 +307,82 @@ export default function useQueryParams({
     }
 
     const dispatchSend = () => {
-      // Prioridad 1: Click en el botón de submit real del DOM
-      const sendBtn = (document.getElementById('send-button') ||
-        document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
-      if (sendBtn && !sendBtn.disabled) {
-        console.log('[useQueryParams] Click físico directo en send-button:', textToSend);
-        sendBtn.click();
-        return true;
-      }
-      // Prioridad 2: submitMessage del hook
+      let sent = false;
+
+      // 1. Invocar React Hook Form handleSubmit directamente (no depende de eventos DOM)
       try {
-        console.log('[useQueryParams] Intentando submitMessage directo:', textToSend);
-        submitMessage({ text: textToSend });
-        return true;
+        const textVal = methods.getValues('text') || textToSend;
+        console.log('[useQueryParams] Ejecutando methods.handleSubmit directo:', textVal);
+        methods.handleSubmit((data) => {
+          submitMessage({ text: data.text || textVal });
+          sent = true;
+        })();
       } catch (err) {
-        console.warn('[useQueryParams] submitMessage error:', err);
-        return false;
+        console.warn('[useQueryParams] Error en methods.handleSubmit:', err);
       }
+
+      // 2. Disparar submitMessage directo del hook como garantía paralela
+      try {
+        console.log('[useQueryParams] Invocando submitMessage directo:', textToSend);
+        submitMessage({ text: textToSend });
+        sent = true;
+      } catch (err) {
+        console.warn('[useQueryParams] Error en submitMessage directo:', err);
+      }
+
+      // 3. Soporte DOM nativo: requestSubmit() o click físico en botón
+      try {
+        const form = (textAreaRef.current?.closest('form') || document.querySelector('form')) as HTMLFormElement | null;
+        const sendBtn = (document.getElementById('send-button') ||
+          document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
+        if (form && typeof form.requestSubmit === 'function') {
+          form.requestSubmit(sendBtn && !sendBtn.disabled ? sendBtn : undefined);
+          sent = true;
+        } else if (sendBtn && !sendBtn.disabled) {
+          sendBtn.click();
+          sent = true;
+        }
+      } catch (domErr) {
+        console.warn('[useQueryParams] Error en DOM requestSubmit/click:', domErr);
+      }
+
+      return sent;
     };
 
     // Disparo inmediato
     dispatchSend();
 
-    // Watchdog activo (hasta 25 ticks de 100ms = 2.5s) que garantiza que el mensaje no se quede en el textarea
+    // Watchdog activo (hasta 30 ticks de 100ms = 3.0s) que garantiza que el mensaje no se quede en el textarea
     let watchdogCount = 0;
-    const maxWatchdog = 25;
+    const maxWatchdog = 30;
     const watchdogInterval = setInterval(() => {
       watchdogCount++;
       const currentArea = textAreaRef.current || document.querySelector<HTMLTextAreaElement>('textarea');
       const val = currentArea?.value || '';
 
       // Si el textarea ya se vació o cambió respecto al prompt inicial, significa que se envió con éxito
-      if (!val || val.trim() === '' || val !== textToSend || watchdogCount >= maxWatchdog) {
+      if (!val || val.trim() === '' || val !== textToSend) {
         clearInterval(watchdogInterval);
-        console.log('[useQueryParams] Auto-envío verificado o concluido tras', watchdogCount, 'intentos.');
+        console.log('[useQueryParams] Auto-envío verificado y confirmado con éxito tras', watchdogCount, 'intentos.');
         window.history.replaceState({}, '', window.location.pathname);
         return;
       }
 
-      // Si sigue con el texto, asegurar valor y volver a pulsar el botón de envío
+      // Si se alcanzó el límite de intentos y aún sigue con texto, intentar un envío final de emergencia y liberar guard
+      if (watchdogCount >= maxWatchdog) {
+        clearInterval(watchdogInterval);
+        console.warn('[useQueryParams] Watchdog timeout: intentando submitMessage final de emergencia para:', textToSend);
+        try {
+          submitMessage({ text: textToSend });
+        } catch (finalErr) {
+          console.error('[useQueryParams] Error en submitMessage final:', finalErr);
+        }
+        window.history.replaceState({}, '', window.location.pathname);
+        releaseAutoSubmit(textToSend);
+        return;
+      }
+
+      // Si sigue con el texto, asegurar valor y volver a despachar por todos los canales
       if (currentArea) {
         currentArea.value = textToSend;
         currentArea.dispatchEvent(new Event('input', { bubbles: true }));

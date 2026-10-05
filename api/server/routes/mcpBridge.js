@@ -640,20 +640,33 @@ router.post('/pesv', requireApiKeyOrJwt, async (req, res) => {
 router.get('/workers', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
-    const workers = await SgsstWorker.find({ user: userId }).lean();
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    const PerfilSociodemograficoData =
+      mongoose.models.PerfilSociodemograficoData ||
+      require('~/models/PerfilSociodemograficoData');
+    const socioDoc = await PerfilSociodemograficoData.findOne({
+      $or: [{ user: userId }, { companyId }],
+    }).lean();
+
+    const trabajadores = Array.isArray(socioDoc?.trabajadores)
+      ? socioDoc.trabajadores
+      : Array.isArray(socioDoc?.perfiles)
+      ? socioDoc.perfiles
+      : [];
+
     return res.json({
-      total: workers.length,
-      trabajadores: workers.map((w) => ({
-        id: w._id.toString(),
-        nombre_completo: w.nombre_completo,
-        cedula: w.cedula,
-        cargo: w.cargo,
-        area: w.area,
-        sede: w.sede,
-        nivel_riesgo_arl: w.nivel_riesgo_arl,
-        tipo_contrato: w.tipo_contrato,
-        antiguedad_anos: w.antiguedad_anos,
-        estado: w.estado,
+      total: trabajadores.length,
+      trabajadores: trabajadores.map((t) => ({
+        id: t.id || t._id?.toString(),
+        nombre_completo: t.nombre || 'Colaborador',
+        cedula: t.identificacion || t.documento || 'N/A',
+        cargo: t.cargo || 'Operativo',
+        area: t.areaTrabajo || '',
+        biocentricScore: t.biocentricScore || 90,
+        tipoContrato: t.tipoContrato || 'Indefinido',
+        estado: 'Activo',
       })),
     });
   } catch (error) {
@@ -666,32 +679,106 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
     const workerData = req.body;
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
 
-    if (!workerData.nombre_completo || !workerData.cedula) {
+    const nombre = (workerData.nombre_completo || workerData.nombre || '').trim();
+    const documento = String(workerData.cedula || workerData.documento || workerData.identificacion || '').trim();
+    const cargo = (workerData.cargo || 'Operativo').trim();
+    const area = (workerData.area || 'Operaciones').trim();
+    const tipoContrato = workerData.tipo_contrato || 'Indefinido';
+
+    if (!nombre || !documento) {
       return res.status(400).json({ error: 'nombre_completo y cedula son campos requeridos.' });
     }
 
-    let worker = await SgsstWorker.findOne({ user: userId, cedula: workerData.cedula });
-    if (worker) {
-      Object.assign(worker, workerData);
-      await worker.save();
-      return res.json({
-        exito: true,
-        mensaje: `Trabajador ${worker.nombre_completo} actualizado correctamente.`,
-        id: worker._id.toString(),
+    // 1. Guardar o actualizar en PerfilSociodemograficoData (lo que alimenta Hito 2 - Huella Biocéntrica)
+    const PerfilSociodemograficoData =
+      mongoose.models.PerfilSociodemograficoData ||
+      require('~/models/PerfilSociodemograficoData');
+
+    let socioDoc = await PerfilSociodemograficoData.findOne({
+      $or: [{ user: userId }, { companyId }],
+    });
+
+    if (!socioDoc) {
+      socioDoc = new PerfilSociodemograficoData({
+        user: userId,
+        companyId,
+        trabajadores: [],
       });
     }
 
-    worker = new SgsstWorker({
-      user: userId,
-      ...workerData,
+    if (!Array.isArray(socioDoc.trabajadores)) {
+      socioDoc.trabajadores = [];
+    }
+
+    const workerIndex = socioDoc.trabajadores.findIndex(
+      (w) => String(w.identificacion || w.documento || '').trim() === documento
+    );
+
+    const workerId = workerIndex >= 0 && socioDoc.trabajadores[workerIndex].id
+      ? socioDoc.trabajadores[workerIndex].id
+      : `worker_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+
+    const workerItem = {
+      id: workerId,
+      nombre,
+      identificacion: documento,
+      cargo,
+      areaTrabajo: area,
+      tipoContrato,
+      jornadaLaboral: 'Diurna',
+      biocentricScore: 95,
+      completedByAI: true,
+      consentimientoFirmaDigital: 'No',
+    };
+
+    if (workerIndex >= 0) {
+      socioDoc.trabajadores[workerIndex] = {
+        ...socioDoc.trabajadores[workerIndex],
+        ...workerItem,
+      };
+    } else {
+      socioDoc.trabajadores.push(workerItem);
+    }
+
+    socioDoc.markModified('trabajadores');
+    await socioDoc.save();
+
+    // 2. Sincronizar en SgsstWorker para consistencia integral
+    let worker = await SgsstWorker.findOne({
+      $or: [{ user: userId }, { companyId }],
+      documento,
     });
-    await worker.save();
+
+    if (worker) {
+      worker.nombre = nombre;
+      worker.documento = documento;
+      worker.cargo = cargo;
+      worker.area = area;
+      worker.tipo_contrato = tipoContrato;
+      await worker.save();
+    } else {
+      worker = new SgsstWorker({
+        user: userId,
+        companyId,
+        perfilId: workerId,
+        nombre,
+        documento,
+        cargo,
+        area,
+        tipo_contrato: tipoContrato,
+        estadoLaboral: 'Activo',
+      });
+      await worker.save();
+    }
 
     return res.status(201).json({
       exito: true,
-      mensaje: `Trabajador ${worker.nombre_completo} registrado correctamente en WAPPY.`,
-      id: worker._id.toString(),
+      mensaje: `Trabajador ${nombre} registrado exitosamente en el Perfil Sociodemográfico (Hito 2).`,
+      id: workerId,
+      totalTrabajadores: socioDoc.trabajadores.length,
     });
   } catch (error) {
     logger.error('[MCP Bridge] POST /workers error:', error);

@@ -250,42 +250,79 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
       console.log('[ChatForm] Enviando consulta delegada:', prompt);
 
       const dispatchClickOrSubmit = () => {
-        // Prioridad 1: Clic físico directo en el botón de submit
-        const sendBtn = (document.getElementById('send-button') ||
-          document.querySelector('button[data-testid="send-button"]') ||
-          submitButtonRef.current) as HTMLButtonElement | null;
-        if (sendBtn && !sendBtn.disabled) {
-          console.log('[ChatForm] Click físico en send-button para:', prompt);
-          sendBtn.click();
-          return true;
+        let submitted = false;
+
+        // 1. Invocar React Hook Form handleSubmit directamente
+        try {
+          const textVal = methods.getValues('text') || prompt;
+          methods.handleSubmit((data) => {
+            console.log('[ChatForm] methods.handleSubmit ejecutado exitosamente:', data.text || textVal);
+            submitMessage({ text: data.text || textVal });
+            submitted = true;
+          })();
+        } catch (err) {
+          console.warn('[ChatForm] Error en methods.handleSubmit:', err);
         }
 
-        // Prioridad 2: submitMessage
+        // 2. Disparar submitMessage directo del hook como garantía paralela
         try {
-          console.log('[ChatForm] Fallback submitMessage para:', prompt);
+          console.log('[ChatForm] Invocando submitMessage directo para:', prompt);
           submitMessage({ text: prompt });
-          return true;
+          submitted = true;
         } catch (err) {
-          console.warn('[ChatForm] Error en submitMessage:', err);
-          return false;
+          console.warn('[ChatForm] Error en submitMessage directo:', err);
         }
+
+        // 3. Soporte DOM nativo: requestSubmit() o click físico en botón
+        try {
+          const form = (textAreaRef.current?.closest('form') || document.querySelector('form')) as HTMLFormElement | null;
+          const sendBtn = (document.getElementById('send-button') ||
+            document.querySelector('button[data-testid="send-button"]') ||
+            submitButtonRef.current) as HTMLButtonElement | null;
+          if (form && typeof form.requestSubmit === 'function') {
+            form.requestSubmit(sendBtn && !sendBtn.disabled ? sendBtn : undefined);
+            submitted = true;
+          } else if (sendBtn && !sendBtn.disabled) {
+            sendBtn.click();
+            submitted = true;
+          }
+        } catch (domErr) {
+          console.warn('[ChatForm] Error en DOM requestSubmit/click:', domErr);
+        }
+
+        return submitted;
       };
 
       dispatchClickOrSubmit();
 
-      // Watchdog activo (hasta 20 ticks de 100ms = 2.0s)
+      // Watchdog activo (hasta 25 ticks de 100ms = 2.5s)
       let attempts = 0;
+      const maxAttempts = 25;
       const watchdog = setInterval(() => {
         attempts++;
         const currentVal = textAreaRef.current?.value || '';
 
         // Si el textarea ya se vació o cambió respecto al prompt, se despachó exitosamente
-        if (!currentVal || currentVal.trim() === '' || currentVal !== prompt || attempts >= 20) {
+        if (!currentVal || currentVal.trim() === '' || currentVal !== prompt) {
           clearInterval(watchdog);
+          console.log('[ChatForm] Auto-envío delegado verificado con éxito tras', attempts, 'intentos.');
           return;
         }
 
-        // Si sigue presente, refrescar inputs y reintentar clic
+        // Si alcanzó el máximo de intentos y aún tiene texto, reintento final de emergencia
+        if (attempts >= maxAttempts) {
+          clearInterval(watchdog);
+          console.warn('[ChatForm] Watchdog timeout: intentando submitMessage final de emergencia para:', prompt);
+          try {
+            submitMessage({ text: prompt });
+          } catch (finalErr) {
+            console.error('[ChatForm] Error en submitMessage final:', finalErr);
+          }
+          releaseAutoSubmit(prompt);
+          return;
+        }
+
+        // Si sigue presente, refrescar inputs y reintentar despacho
         if (textAreaRef.current) {
           textAreaRef.current.value = prompt;
           textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));

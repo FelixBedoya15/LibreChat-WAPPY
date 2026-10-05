@@ -84,9 +84,9 @@ docker exec -it LibreChat node scripts/restore-and-sync-all.js
 > 1. **CONTINUIDAD DE CHAT POR DEFECTO (NO ABRIR CHATS COMPULSIVAMENTE):**
 >    - Si el usuario continúa conversando con el mismo especialista o sobre el mismo tema, **NUNCA abrir una nueva conversación (`/c/new`)**. Se debe reutilizar la conversación activa mediante el evento `tenshi-submit-agent-prompt`.
 >    - Solo abrir un nuevo chat (`/c/new`) si el usuario solicita explícitamente cambiar de especialista (ej: "pásame al abogado") o pide explícitamente "abrir un nuevo chat" o "desde cero".
-> 2. **DESPACHO FÍSICO ASISTIDO POR DOM Y WATCHDOG DE ENVÍO:**
->    - Nunca depender exclusivamente de hooks asíncronos de React/Recoil para enviar mensajes desde URL o eventos de voz. Se debe escribir en el textarea físico del DOM, disparar eventos `input`/`change` y hacer clic físico en el botón `#send-button`.
->    - Mantener un watchdog activo de verificación que reintente el clic hasta que el mensaje sea despachado y el textarea quede limpio antes de borrar los parámetros de la URL.
+> 2. **DESPACHO MULTICANAL SIMULTÁNEO Y WATCHDOG DE ENVÍO:**
+>    - Nunca depender únicamente de un click sintético en `#send-button` (Radix UI TooltipAnchor intercepta el evento). Se debe ejecutar un despacho multicanal simultáneo: React Hook Form `methods.handleSubmit(...)()`, hook directo `submitMessage({ text })` y DOM nativo `form.requestSubmit()`.
+>    - Mantener un watchdog activo de verificación (hasta 3 segundos) que reintente el despacho hasta que el textarea quede limpio antes de borrar los parámetros de la URL. Si alcanza el límite, ejecutar reintento de emergencia y liberar el guard.
 > 3. **ESPECIFICACIÓN DE GOOGLE MULTIMODAL LIVE API:**
 >    - En `api/server/routes/voice/geminiLive.js`, `inputAudioTranscription: {}` y `outputAudioTranscription: {}` **DEBEN ser objetos vacíos**. Está terminantemente prohibido incluir `languageCodes` u otros campos internos dentro de `inputAudioTranscription`, ya que causa el error **Code 1011 (Internal error encountered)** y cierra el WebSocket inmediatamente.
 >    - Todas las herramientas en `voiceSession.js` deben definir siempre el objeto `properties` tipado para evitar rechazos en el validador OpenAPI/Protobuf de Google.
@@ -94,4 +94,7 @@ docker exec -it LibreChat node scripts/restore-and-sync-all.js
 >    - Ante cualquier desconexión abrupta de Google (1011, 1006, 1001), `voiceSession.js` no debe matar la llamada; debe ejecutar `reconnectGemini()` rotando de modelo y clave en caliente y reenviando la última consulta huérfana del usuario.
 > 5. **OBEDIENCIA DIRECTA A PETICIÓN DEL USUARIO:**
 >    - Si el usuario dice "hazlo tú", "respóndeme tú", "no abras el chat" o se frustra con la delegación, Tenshi debe responder de inmediato con su base de conocimientos en SG-SST (normativa colombiana) sin insistir tozudamente en delegar al especialista.
+> 6. **ESTRUCTURACIÓN PROFESIONAL OBLIGATORIA DEL PROMPT PARA ESPECIALISTAS:**
+>    - Está terminantemente prohibido enviar frases telegráficas cortas o en crudo (ej: "Qué es medicina laboral" o "Resolución 0312").
+>    - Tenshi debe formular en el parámetro 'pregunta' y el frontend en 'cleanDelegatedPrompt' una consulta técnica estructurada con planteamiento ocupacional, solicitud de fundamentación normativa colombiana (Decretos, Resoluciones aplicables) y recomendaciones prácticas para el SG-SST de la empresa.
 

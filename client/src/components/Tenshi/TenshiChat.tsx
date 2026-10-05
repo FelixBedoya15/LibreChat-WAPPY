@@ -325,6 +325,15 @@ export function cleanDelegatedPrompt(raw: string): string {
     text = text.charAt(0).toUpperCase() + text.slice(1);
   }
 
+  // 6. ESTRUCTURACIÓN TÉCNICA PROFESIONAL:
+  // Si la consulta es corta o telegráfica (menos de 130 caracteres) y no incluye contexto normativo,
+  // se enriquece para solicitar fundamentación normativa colombiana, alcance y recomendaciones para el SG-SST.
+  const hasNormativeContext = /\b(concepto|normativ|decreto|resoluci[oó]n|sg-sst|marco\s+legal|alcance|obligaci|est[aá]ndar|recomendaci|colombia)\b/i.test(text);
+  if (text.length < 130 && !hasNormativeContext) {
+    const cleanQuestion = text.endsWith('?') ? text : `${text}.`;
+    text = `${cleanQuestion} Por favor proporciona concepto técnico especializado, fundamentación normativa colombiana aplicable y recomendaciones clave para el Sistema de Gestión SG-SST de la empresa.`;
+  }
+
   return text;
 }
 
