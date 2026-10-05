@@ -149,6 +149,18 @@
   4. **Garantía de `sendWappyActionResult`:** Eliminar returns prematuros en `onWappyAction` para que el servidor reciba siempre la confirmación del tool call.
   5. **Directiva estricta de idioma:** Prohibir terminantemente cualquier locución en inglés en `systemInstruction` de Gemini Live.
 
+### Error 11: Auto-envío bloqueado en el textarea (Cierre de guard prematuro, ciclo de dependencias en `useQueryParams` y Tenshi pensando tras apagar voz)
+- **Síntoma:** Al delegar la consulta al especialista en `/c/new`, la pregunta aparece estructurada profesionalmente en el textarea, el botón de envío está verde/activo, pero el mensaje nunca se envía. La URL se limpia a `/c/new` y el texto queda estancado. Adicionalmente, si el usuario apagaba Tenshi por voz, Tenshi continuaba en segundo plano "pensando" y esperando la respuesta del especialista.
+- **Causa Raíz:**
+  1. **Bloqueo mutuo por `claimAutoSubmit`:** `claimAutoSubmit` mantenía un candado de 2500ms a nivel de módulo sobre el texto normalizado. Si un re-render previo o un intento inicial registraba el prompt, cualquier invocación de `useQueryParams` retornaba `false`. Al retornar `false`, el hook limpiaba la URL con `window.history.replaceState` y hacía `return;` silenciosamente sin despachar `submitMessage` y dejando el texto huérfano en el textarea.
+  2. **Ciclo de dependencias en `useQueryParams.ts`:** `processSubmission` incluía `conversation` en su array de dependencias (solo para un log de consola). Al llamar a `newQueryConvo`, `conversation` se actualizaba, cambiando la referencia de `processSubmission` y provocando que el `useEffect` principal se re-ejecutara en bucle, reseteando `submissionHandledRef.current` y `pendingSubmitRef.current` a `false`.
+  3. **Falta de limpieza en `stopVoiceMode`:** Al apagar el interruptor de voz, `stopVoiceMode` desconectaba el audio pero no desactivaba `pendingAgentConsultationRef.current.active = false` ni limpiaba `consultationTimerRef.current`, dejando vivo el listener que seguía vigilando el chat y procesando respuestas del especialista.
+- **Regla y Solución Obligatoria:**
+  1. **Desacoplamiento de `processSubmission`:** Eliminar `conversation` de las dependencias de `processSubmission` y rastrear la cadena de parámetros URL mediante `lastProcessedQueryRef.current`. El hook solo procesa una nueva consulta cuando `searchParams.toString()` cambia físicamente.
+  2. **Despacho canónico garantizado sin lockout:** `processSubmission` y `sendDelegatedPrompt` utilizan un guard local `let sent = false` que ejecuta `methods.handleSubmit(...)()` y, si este no dispara el callback, ejecuta `submitMessage({ text })`. Se garantiza exactamente un envío sin depender de candados globales de texto.
+  3. **Manejo defensivo de `isSubmitting`:** Si hay una respuesta generándose previamente, llamar a `handleStopGenerating()` y postergar el envío 200ms para asegurar que el canal esté libre.
+  4. **Desactivación total en `stopVoiceMode`:** Apagar inmediatamente `pendingAgentConsultationRef.current.active = false` y limpiar `consultationTimerRef.current` para detener todo procesamiento en segundo plano.
+
 ---
 
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue

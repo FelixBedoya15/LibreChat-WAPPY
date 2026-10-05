@@ -19,7 +19,6 @@ import type {
 } from 'librechat-data-provider';
 import type { ZodAny } from 'zod';
 import { getConvoSwitchLogic, getModelSpecIconURL, removeUnavailableTools, logger } from '~/utils';
-import { claimAutoSubmit, releaseAutoSubmit } from '~/utils/tenshiSubmitGuard';
 import { useAuthContext, useAgentsMap, useDefaultConvo, useSubmitMessage } from '~/hooks';
 import { useChatContext, useChatFormContext } from '~/Providers';
 import { useGetAgentByIdQuery } from '~/data-provider';
@@ -125,7 +124,13 @@ export default function useQueryParams({
   const { submitMessage } = useSubmitMessage();
 
   const queryClient = useQueryClient();
-  const { conversation, newConversation } = useChatContext();
+  const { conversation, newConversation, isSubmitting, handleStopGenerating } = useChatContext();
+
+  const lastProcessedQueryRef = useRef<string>('');
+  const isSubmittingRef = useRef(isSubmitting);
+  useEffect(() => {
+    isSubmittingRef.current = isSubmitting;
+  }, [isSubmitting]);
 
   const urlAgentId = searchParams.get('agent_id') || '';
   const { data: urlAgent } = useGetAgentByIdQuery(urlAgentId);
@@ -297,13 +302,6 @@ export default function useQueryParams({
 
     const textToSend = promptTextRef.current;
 
-    // Guard compartido
-    if (!claimAutoSubmit(textToSend)) {
-      console.log('[useQueryParams] Prompt ya en proceso por otro canal:', textToSend);
-      window.history.replaceState({}, '', window.location.pathname);
-      return;
-    }
-
     // 1. Establecer valor de inmediato en React Hook Form y textarea físico
     methods.setValue('text', textToSend, { shouldValidate: true });
     if (textAreaRef.current) {
@@ -313,60 +311,73 @@ export default function useQueryParams({
       textAreaRef.current.focus();
     }
 
-    // Despacho canónico único
-    console.log('[useQueryParams] Ejecutando submitMessage único para:', textToSend);
-    try {
-      submitMessage({ text: textToSend });
-    } catch (err) {
-      console.warn('[useQueryParams] Error en submitMessage:', err);
+    // 2. Si la conversación está ocupada / generando, detenerla
+    if (isSubmittingRef.current) {
+      console.log('[useQueryParams] Deteniendo respuesta previa antes de enviar consulta URL...');
+      try {
+        handleStopGenerating();
+      } catch (stopErr) {
+        console.warn('[useQueryParams] Error al detener generación previa:', stopErr);
+      }
     }
 
-    // Limpieza inmediata del formulario y del textarea
-    methods.reset();
-    methods.setValue('text', '');
-    if (textAreaRef.current) {
-      textAreaRef.current.value = '';
-      textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
-      textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+    const executeSend = () => {
+      console.log('[useQueryParams] Ejecutando envío único para:', textToSend);
+      let sent = false;
+
+      // Canal 1: methods.handleSubmit directo de React Hook Form
+      try {
+        methods.handleSubmit((data) => {
+          if (!sent) {
+            sent = true;
+            submitMessage({ text: data.text || textToSend });
+          }
+        })();
+      } catch (err) {
+        console.warn('[useQueryParams] Error en methods.handleSubmit:', err);
+      }
+
+      // Canal 2: Fallback directo de submitMessage si handleSubmit no despachó
+      if (!sent) {
+        sent = true;
+        try {
+          submitMessage({ text: textToSend });
+        } catch (err) {
+          console.warn('[useQueryParams] Error en submitMessage directo:', err);
+        }
+      }
+
+      // Limpieza segura del textarea y remoción silenciosa de query params
+      setTimeout(() => {
+        methods.reset();
+        methods.setValue('text', '');
+        if (textAreaRef.current) {
+          textAreaRef.current.value = '';
+          textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+          textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        window.history.replaceState({}, '', window.location.pathname);
+      }, 350);
+    };
+
+    if (isSubmittingRef.current) {
+      setTimeout(executeSend, 200);
+    } else {
+      executeSend();
     }
-
-    // Watchdog de limpieza: verifica que el textarea quede vacío y limpie la URL del historial
-    let watchdogCount = 0;
-    const maxWatchdog = 15;
-    const watchdogInterval = setInterval(() => {
-      watchdogCount++;
-      const currentArea = textAreaRef.current || document.querySelector<HTMLTextAreaElement>('textarea');
-      const val = currentArea?.value || '';
-
-      // Si el textarea ya se vació o cambió respecto al prompt inicial, confirmar y limpiar URL
-      if (!val || val.trim() === '' || val !== textToSend) {
-        clearInterval(watchdogInterval);
-        window.history.replaceState({}, '', window.location.pathname);
-        return;
-      }
-
-      // Si todavía retiene el texto pegado en la caja, forzar su vaciado
-      if (currentArea) {
-        currentArea.value = '';
-        currentArea.dispatchEvent(new Event('input', { bubbles: true }));
-        currentArea.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-      methods.reset();
-      methods.setValue('text', '');
-
-      if (watchdogCount >= maxWatchdog) {
-        clearInterval(watchdogInterval);
-        window.history.replaceState({}, '', window.location.pathname);
-        releaseAutoSubmit(textToSend);
-      }
-    }, 100);
-
-    console.log('[useQueryParams] Dispatch de mensaje iniciado con estado de conversación:', conversation);
-  }, [methods, submitMessage, conversation, textAreaRef]);
+  }, [methods, submitMessage, textAreaRef, handleStopGenerating]);
 
   useEffect(() => {
-    const hasIncomingQuery = searchParams.has('prompt') || searchParams.has('q') || searchParams.has('submit') || (searchParams.has('agent_id') && !processedRef.current);
-    if (hasIncomingQuery) {
+    const searchString = searchParams.toString();
+    const hasIncomingQuery =
+      searchParams.has('prompt') ||
+      searchParams.has('q') ||
+      searchParams.has('submit') ||
+      (searchParams.has('agent_id') && !processedRef.current);
+
+    // Solo reiniciar el ciclo si la cadena de búsqueda cambió realmente
+    if (hasIncomingQuery && lastProcessedQueryRef.current !== searchString) {
+      lastProcessedQueryRef.current = searchString;
       processedRef.current = false;
       attemptsRef.current = 0;
       submissionHandledRef.current = false;
@@ -470,8 +481,6 @@ export default function useQueryParams({
     methods,
     textAreaRef,
     newQueryConvo,
-    newConversation,
-    submitMessage,
     queryClient,
     processSubmission,
   ]);

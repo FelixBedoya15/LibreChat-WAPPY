@@ -27,7 +27,6 @@ import { mainTextareaId, BadgeItem } from '~/common';
 import AttachFileChat from './Files/AttachFileChat';
 import FileFormChat from './Files/FileFormChat';
 import { cn, removeFocusRings } from '~/utils';
-import { claimAutoSubmit } from '~/utils/tenshiSubmitGuard';
 import TextareaHeader from './TextareaHeader';
 import PromptsCommand from './PromptsCommand';
 import AudioRecorder from './AudioRecorder';
@@ -234,11 +233,6 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
   /** Coloca el texto en el formulario y ejecuta el envío DIRECTO vía click / submitMessage */
   const sendDelegatedPrompt = useCallback(
     (prompt: string) => {
-      if (!claimAutoSubmit(prompt)) {
-        console.log('[ChatForm] Prompt ya en proceso, se omite duplicado:', prompt);
-        return;
-      }
-
       methods.setValue('text', prompt, { shouldValidate: true });
       if (textAreaRef.current) {
         textAreaRef.current.value = prompt;
@@ -247,54 +241,41 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         textAreaRef.current.focus();
       }
 
-      console.log('[ChatForm] Enviando consulta delegada:', prompt);
-
       console.log('[ChatForm] Enviando consulta delegada (única ejecución):', prompt);
 
-      // Despacho canónico único
+      let sent = false;
       try {
-        submitMessage({ text: prompt });
+        methods.handleSubmit((data) => {
+          if (!sent) {
+            sent = true;
+            submitMessage({ text: data.text || prompt });
+          }
+        })();
       } catch (err) {
-        console.warn('[ChatForm] Error en submitMessage:', err);
+        console.warn('[ChatForm] Error en methods.handleSubmit:', err);
       }
 
-      // Limpieza inmediata del formulario y del textarea para evitar texto remanente
-      methods.reset();
-      methods.setValue('text', '');
-      if (textAreaRef.current) {
-        textAreaRef.current.value = '';
-        textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
-        textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-
-      // Watchdog de limpieza: verifica que el textarea quede limpio y no retenga el texto enviado
-      let attempts = 0;
-      const maxAttempts = 15;
-      const watchdog = setInterval(() => {
-        attempts++;
-        const currentVal = textAreaRef.current?.value || '';
-
-        if (!currentVal || currentVal.trim() === '' || currentVal !== prompt) {
-          clearInterval(watchdog);
-          return;
+      if (!sent) {
+        sent = true;
+        try {
+          submitMessage({ text: prompt });
+        } catch (err) {
+          console.warn('[ChatForm] Error en submitMessage directo:', err);
         }
+      }
 
-        // Si todavía tiene el texto viejo pegado, vaciarlo
+      // Limpieza segura del formulario y del textarea tras despacho
+      setTimeout(() => {
+        methods.reset();
+        methods.setValue('text', '');
         if (textAreaRef.current) {
           textAreaRef.current.value = '';
           textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
           textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
         }
-        methods.reset();
-        methods.setValue('text', '');
-
-        if (attempts >= maxAttempts) {
-          clearInterval(watchdog);
-          releaseAutoSubmit(prompt);
-        }
-      }, 100);
+      }, 350);
     },
-    [methods, submitMessage, textAreaRef, submitButtonRef],
+    [methods, submitMessage, textAreaRef],
   );
 
   // Ejecutor robusto de auto-envío para consultas delegadas por Tenshi

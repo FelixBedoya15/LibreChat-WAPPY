@@ -1433,6 +1433,13 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const stopVoiceMode = useCallback(() => {
     setIsVoiceActive(false);
     setIsWaitingConsultation(false);
+    if (pendingAgentConsultationRef.current) {
+      pendingAgentConsultationRef.current.active = false;
+    }
+    if (consultationTimerRef.current) {
+      clearTimeout(consultationTimerRef.current);
+      consultationTimerRef.current = null;
+    }
     playPowerDownChime();
     clearAudioQueue();
     disconnectVoice();
