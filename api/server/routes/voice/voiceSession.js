@@ -146,6 +146,46 @@ function cleanAgentInstructions(instructions) {
 }
 
 /**
+ * Enriches short or flat questions with professional occupational health & safety structure
+ * complying strictly with Rule 6 of AGENTS.md / GEMINI.md
+ */
+function enrichTechnicalPrompt(rawPrompt, agent) {
+    let q = (rawPrompt || '').trim();
+    if (!q) return q;
+
+    // Patrones específicos de alta frecuencia médica y ergonómica
+    if (/manguito.*rotador|hombro/i.test(q)) {
+        return `¿Qué es el síndrome del manguito rotador y cuál es su mecanismo de lesión en el entorno laboral? Solicito concepto médico ocupacional detallado que incluya: factores de riesgo ergonómicos y biomecánicos asociados, puestos de trabajo con mayor incidencia, protocolos preventivos y de pausas activas, y fundamentación normativa colombiana aplicable al SG-SST (Decreto 1477 de 2014 - Tabla de Enfermedades Laborales y Decreto 1072 de 2015).`;
+    }
+    if (/co-?tenista|codo.*tenista|epicondilitis/i.test(q)) {
+        return `¿Qué es el codo de tenista (epicondilitis lateral) y cuál es su mecanismo biomecánico en el entorno laboral? Solicito concepto técnico osteomuscular, identificación de movimientos repetitivos y posturas de riesgo, protocolo preventivo con pausas activas específicas y marco normativo colombiano aplicable en el SG-SST (Decreto 1477 de 2014 / Decreto 1072 de 2015).`;
+    }
+    if (/tunel.*carp|carpiano/i.test(q)) {
+        return `¿Qué es el síndrome del túnel carpiano y cuáles son sus factores de riesgo ocupacionales? Solicito concepto técnico osteomuscular, pruebas clínicas diagnósticas, medidas de control ergonómico en puestos de oficina y operativos, y marco legal colombiano en el SG-SST (Decreto 1477 de 2014 y Decreto 1072 de 2015).`;
+    }
+    if (/0312|resoluci[oó]n\s*0312|est[aá]ndares\s*m[ií]nimos/i.test(q)) {
+        return `Solicito análisis jurídico y técnico de la Resolución 0312 de 2019 sobre los Estándares Mínimos del SG-SST en Colombia. Por favor detalla la clasificación por número de trabajadores y nivel de riesgo, obligaciones no negociables para el empleador y consecuencias jurídicas o sanciones por incumplimiento.`;
+    }
+    if (/gtc\s*45|matriz.*riesgo|identificaci[oó]n.*peligro/i.test(q)) {
+        return `Solicito orientación técnica y metodológica sobre la Guía Técnica Colombiana GTC 45 para la identificación de peligros, evaluación y valoración de riesgos en el SG-SST. Por favor especifica los niveles de deficiencia, exposición y probabilidad, y la jerarquía de controles requerida según el Decreto 1072 de 2015.`;
+    }
+    if (/pesv|seguridad\s*vial|20223040040595/i.test(q)) {
+        return `Solicito concepto técnico sobre el Plan Estratégico de Seguridad Vial (PESV) bajo la Resolución 20223040040595 de 2022. Por favor explica el nivel de diseño e implementación aplicable, los pasos obligatorios y la articulación con el SG-SST de la empresa.`;
+    }
+
+    // Si la consulta es corta (menos de 80 caracteres), enriquecerla con estructura técnica profesional
+    if (q.length < 80) {
+        const temaLimpio = q
+            .replace(/^(?:qu[eé]\s+es|sobre|acerca\s+de|dime|cu[aá]l\s+es|por\s+favor\s+explica|expl[ií]came|preg[uú]ntale\s+qu[eé]\s+es)\s+/i, '')
+            .replace(/[?¿]/g, '')
+            .trim();
+        return `Solicito concepto técnico especializado sobre "${temaLimpio || q}". Por favor proporciona un análisis detallado, identificación de factores de riesgo ocupacionales, medidas preventivas y de control jerárquico aplicables al SG-SST de la empresa, y la fundamentación normativa colombiana correspondiente (Decreto 1072 de 2015, Resoluciones ministeriales o guías técnicas aplicables).`;
+    }
+
+    return q;
+}
+
+/**
  * Active voice sessions
  * Map of userId -> VoiceSession
  */
@@ -2239,9 +2279,9 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     // Delegación de Consulta a Especialista hacia la interfaz del cliente (wappy_abrir_chat_agente / consultar_agente_especializado)
                     if (fc.name === 'wappy_abrir_chat_agente' || fc.name === 'consultar_agente_especializado') {
                         const agente = fc.args?.agente || fc.args?.nombre_especialista;
-                        const pregunta = (fc.args?.pregunta || fc.args?.consulta_completa || '').trim();
+                        const rawPregunta = (fc.args?.pregunta || fc.args?.consulta_completa || '').trim();
 
-                        if (!pregunta || pregunta.length < 4) {
+                        if (!rawPregunta || rawPregunta.length < 4) {
                             logger.warn(`[VoiceSession] Gemini invoked "${fc.name}" for agent "${agente}" without concrete question. Asking user for context.`);
                             if (this.geminiClient) {
                                 this.geminiClient.sendToolResponse([{
@@ -2255,13 +2295,16 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                             continue;
                         }
 
+                        // Enriquecer obligatoriamente la consulta con rigor técnico ocupacional (Regla 6)
+                        const pregunta = enrichTechnicalPrompt(rawPregunta, agente);
+
                         const requestedNewChat = Boolean(
                             fc.args?.nuevo_chat ||
                             /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(this.lastUserTranscription || '') ||
-                            /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(pregunta)
+                            /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(rawPregunta)
                         );
 
-                        logger.info(`[VoiceSession] Gemini Live invoked "${fc.name}" -> delegating as wappy_abrir_chat_agente: ${agente}, nuevo_chat: ${requestedNewChat}, pregunta: "${pregunta.substring(0, 60)}..."`);
+                        logger.info(`[VoiceSession] Gemini Live invoked "${fc.name}" -> delegating as wappy_abrir_chat_agente: ${agente}, nuevo_chat: ${requestedNewChat}, pregunta estructurada: "${pregunta.substring(0, 70)}..."`);
                         this.sendToClient({
                             type: 'wappy_action',
                             data: {
@@ -2280,7 +2323,9 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                                     this.geminiClient.sendToolResponse([{
                                         id: fc.id,
                                         name: fc.name,
-                                        response: { result: `Chat con ${agente} abierto en pantalla.` }
+                                        response: {
+                                            result: `Chat con ${agente} abierto en pantalla y consulta enviada con éxito. [INSTRUCCIÓN CRÍTICA OBLIGATORIA]: Limítate a confirmar verbalmente al usuario en UNA SOLA frase breve y cordial que ya le transmitiste la consulta al especialista en pantalla y que espere un momento a que responda. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. ESTÁ TERMINANTEMENTE PROHIBIDO responder por tu cuenta o dar recomendaciones técnicas ahora. Mantente en silencio esperando la respuesta del especialista o la orden del usuario.`
+                                        }
                                     }]);
                                 }
                             }
@@ -4438,13 +4483,7 @@ ${workerSubHeaderHtml}
             }
 
             // Estructuración profesional obligatoria de la consulta técnica según Regla 6
-            let cleanDelegatedPrompt = pregunta;
-            if (/co-?tenista|codo.*tenista|epicondilitis/i.test(cleanDelegatedPrompt)) {
-                cleanDelegatedPrompt = `¿Qué es el codo de tenista (epicondilitis lateral) y cuál es su mecanismo biomecánico en el entorno laboral? Solicito concepto técnico osteomuscular, identificación de movimientos repetitivos y posturas de riesgo, protocolo preventivo con pausas activas específicas y marco normativo colombiano aplicable en el SG-SST (Decreto 1477 de 2014 / Decreto 1072 de 2015).`;
-            } else if (cleanDelegatedPrompt.length < 50) {
-                const temaLimpio = cleanDelegatedPrompt.replace(/^(?:qu[eé]\s+es|sobre|acerca\s+de)\s+/i, '').trim();
-                cleanDelegatedPrompt = `Solicito concepto técnico especializado sobre "${temaLimpio}". Por favor proporciona un análisis detallado, medidas preventivas y de control aplicables al SG-SST de la empresa, así como la fundamentación normativa colombiana correspondiente (Decretos, Resoluciones o Guías Técnicas aplicables).`;
-            }
+            const cleanDelegatedPrompt = enrichTechnicalPrompt(pregunta, matchedAgent);
 
             const requestedNewChat = Boolean(
                 /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia\s+de\s+agente|cambiemos)\b/i.test(userLower)

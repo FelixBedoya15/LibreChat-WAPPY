@@ -274,7 +274,8 @@ class GeminiLiveClient extends EventEmitter {
                                 const spanishAudioLock = `[DIRECTIVA CRÍTICA DE IDIOMA Y AUDICIÓN]:
 - IDIOMA EXCLUSIVO Y OBLIGATORIO: ESPAÑOL (Colombia / Latinoamérica).
 - El usuario habla ÚNICA Y EXCLUSIVAMENTE en ESPAÑOL.
-- ESTÁ ESTRICTAMENTE PROHIBIDO transcribir, interpretar o responder en hindi, devanagari, urdu, árabe, inglés o cualquier otro idioma.
+- ESTÁ ESTRICTAMENTE PROHIBIDO transcribir, interpretar o responder en inglés, hindi, devanagari, urdu, árabe o cualquier otro idioma.
+- PROHIBICIÓN ABSOLUTA DE FRASES O CIERRES EN INGLÉS: Nunca digas "all set", "that's all set", "done", "okay", "sure thing", "I've conveyed", "as an AI" ni ninguna coletilla en inglés. CADA PALABRA que emitas por audio debe ser 100% en español.
 - Decodifica todo sonido o habla como español natural. Si hay silencio o ruido de fondo bajo, NO generes transcripciones ni respuestas por tu cuenta.`;
 
                                 let base = this.config.systemInstruction
@@ -290,9 +291,7 @@ INSTRUCCIONES DE COMPORTAMIENTO EN VIVO:
 
 ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.config.conversationContext}` : ''}`;
 
-                                if (!base.includes('DIRECTIVA CRÍTICA DE IDIOMA') && !base.includes('DIRECTIVA OBLIGATORIA DE IDIOMA')) {
-                                    base = `${spanishAudioLock}\n\n${base}`;
-                                }
+                                base = `${spanishAudioLock}\n\n${base}`;
                                 return base;
                             })(),
                         },

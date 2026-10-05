@@ -322,24 +322,61 @@ export default function useQueryParams({
     }
 
     const executeSend = () => {
-      console.log('[useQueryParams] Ejecutando envío único para:', textToSend);
+      console.log('[useQueryParams] Ejecutando auto-envío multicanal para:', textToSend);
+
+      // 1. Despacho directo vía submitMessage
       try {
         submitMessage({ text: textToSend });
       } catch (err) {
         console.warn('[useQueryParams] Error en submitMessage directo:', err);
       }
 
-      // Limpieza segura del textarea y remoción silenciosa de query params
-      setTimeout(() => {
-        methods.reset();
-        methods.setValue('text', '');
-        if (textAreaRef.current) {
-          textAreaRef.current.value = '';
-          textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
-          textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+      // 2. Despacho alternativo vía click en SendButton
+      try {
+        const sendBtn = (document.getElementById('send-button') ||
+          document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
+        if (sendBtn && !sendBtn.disabled) {
+          sendBtn.click();
         }
-        const cleanUrl = window.location.pathname + (window.location.hash || '');
-        window.history.replaceState({}, '', cleanUrl);
+      } catch (_) {}
+
+      // 3. Watchdog de verificación activa: NUNCA borrar el textarea a ciegas.
+      // Si el texto sigue en el textarea después de 350ms y no ha empezado a enviar, reintentar.
+      // Una vez que isSubmitting pase a true O que el texto haya sido limpiado naturalmente por LibreChat,
+      // remover los query params de la URL silenciosamente.
+      let retries = 0;
+      const watchdog = setInterval(() => {
+        retries++;
+        const currentVal = textAreaRef.current?.value || methods.getValues('text');
+
+        // Caso de éxito: el mensaje ya está enviándose o LibreChat ya limpió el formulario
+        if (isSubmittingRef.current || !currentVal) {
+          clearInterval(watchdog);
+          const cleanUrl = window.location.pathname + (window.location.hash || '');
+          window.history.replaceState({}, '', cleanUrl);
+          return;
+        }
+
+        // Si alcanzamos el límite de reintentos, detener watchdog sin borrar el texto del usuario
+        if (retries >= 6) {
+          clearInterval(watchdog);
+          console.warn('[useQueryParams] Watchdog completó reintentos; el texto permanece en el textarea para el usuario.');
+          const cleanUrl = window.location.pathname + (window.location.hash || '');
+          window.history.replaceState({}, '', cleanUrl);
+          return;
+        }
+
+        console.log(`[useQueryParams] Watchdog reintento #${retries} para auto-envío...`);
+        try {
+          submitMessage({ text: textToSend });
+        } catch (_) {}
+        try {
+          const sendBtn = (document.getElementById('send-button') ||
+            document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
+          if (sendBtn && !sendBtn.disabled) {
+            sendBtn.click();
+          }
+        } catch (_) {}
       }, 350);
     };
 

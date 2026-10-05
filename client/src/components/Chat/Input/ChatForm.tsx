@@ -241,7 +241,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         textAreaRef.current.focus();
       }
 
-      console.log('[ChatForm] Enviando consulta delegada (única ejecución):', prompt);
+      console.log('[ChatForm] Enviando consulta delegada (despacho multicanal):', prompt);
 
       try {
         submitMessage({ text: prompt });
@@ -249,16 +249,40 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         console.warn('[ChatForm] Error en submitMessage directo:', err);
       }
 
-      // Limpieza segura del formulario y del textarea tras despacho
-      setTimeout(() => {
-        methods.reset();
-        methods.setValue('text', '');
-        if (textAreaRef.current) {
-          textAreaRef.current.value = '';
-          textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
-          textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+      try {
+        const sendBtn = (document.getElementById('send-button') ||
+          document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
+        if (sendBtn && !sendBtn.disabled) {
+          sendBtn.click();
         }
-      }, 350);
+      } catch (_) {}
+
+      // Watchdog de verificación: NUNCA borrar el textarea a ciegas.
+      // Si el texto sigue visible después de 300ms y no ha empezado a enviar, reintentar.
+      let retries = 0;
+      const watchdog = setInterval(() => {
+        retries++;
+        const currentVal = textAreaRef.current?.value || methods.getValues('text');
+        if (isSubmittingRef.current || !currentVal) {
+          clearInterval(watchdog);
+          return;
+        }
+        if (retries >= 5) {
+          clearInterval(watchdog);
+          return;
+        }
+        console.log(`[ChatForm] Watchdog reintento #${retries} para consulta delegada...`);
+        try {
+          submitMessage({ text: prompt });
+        } catch (_) {}
+        try {
+          const sendBtn = (document.getElementById('send-button') ||
+            document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
+          if (sendBtn && !sendBtn.disabled) {
+            sendBtn.click();
+          }
+        } catch (_) {}
+      }, 300);
     },
     [methods, submitMessage, textAreaRef],
   );
@@ -281,12 +305,13 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         console.log('[ChatForm] Agente diferente al actual. Seleccionando agente y postergando sumisión:', agentId);
 
         // Si estamos en una conversación existente que no es /c/new ni está vacía,
-        // NO secuestrar ni enviar a esta conversación vieja (la navegación hacia /c/new está en curso)
+        // navegar canónicamente a /c/new para que useQueryParams tome el control con el nuevo agente
         if (window.location.pathname !== '/c/new' && conversation?.conversationId && conversation.conversationId !== 'new') {
-          console.warn('[ChatForm] Descartando envío diferido en conversación existente ajena al agente objetivo:', {
+          console.log('[ChatForm] Agente diferente en chat existente; navegando a /c/new para aislamiento total:', {
             targetAgent: agentId,
             currentAgent: conversation?.agent_id,
           });
+          navigate(`/c/new?agent_id=${agentId}&endpoint=${EModelEndpoint.agents}&prompt=${encodeURIComponent(prompt)}&submit=true`, { replace: true, state: { focusChat: true } });
           return;
         }
 

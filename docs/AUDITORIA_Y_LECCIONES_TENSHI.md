@@ -178,6 +178,40 @@
   4. **Reseteo del átomo de conversación en Caso B:** Toda apertura de nuevo chat por voz en `TenshiChat.tsx` DEBE invocar obligatoriamente `newConversation({ template: { endpoint: EModelEndpoint.agents, agent_id: targetAgentId } })` antes de navegar a `/c/new`, asegurando la desvinculación total de la conversación previa.
   5. **Limpieza en toggle de voz:** `startVoiceMode` y `stopVoiceMode` limpian exhaustivamente cualquier consulta o timer pendiente para evitar estados zombi al apagar y encender la voz.
 
+### Error 13: Fallo de Auto-Envío en `/c/new` y Vaciado Destructivo del Textarea por Timeout Ciego (350ms)
+- **Síntoma:** Al pedir por voz a Tenshi abrir un chat con un especialista (ej: "abres un chat con el médico laboral y le preguntas qué es manguito rotador"), Tenshi confirma verbalmente que envió la consulta, la pantalla navega a `http://localhost:3080/c/new` y selecciona al Médico Laboral, pero el mensaje NUNCA se envía al servidor y el textarea queda completamente vacío con el botón de envío deshabilitado.
+- **Causa Raíz:**
+  1. **Vaciado Destructivo del Textarea por `setTimeout(350ms)`:** En `useQueryParams.ts` y `ChatForm.tsx`, se ejecutaba un `setTimeout(..., 350)` que forzaba ciegamente:
+     `methods.reset(); methods.setValue('text', ''); textAreaRef.current.value = ''; window.history.replaceState({}, '', cleanUrl);`
+     sin verificar jamás si el mensaje había sido efectivamente aceptado o despachado por LibreChat.
+  2. **Colisión de Inicialización y `ask()` retornando temprano:** Cuando `newQueryConvo` se procesa al entrar a `/c/new`, los átomos de Recoil (`conversation`, `isSubmitting`, `setSubmission`) están en plena transición. Si `submitMessage` se ejecutaba antes de que el endpoint estuviera listo o mientras `isSubmitting` estaba en transición, `ask()` en `useChatFunctions.ts` hacía un `return;` silencioso.
+  3. **Wipeout irreversible:** 350 milisegundos después de fallar en silencio `submitMessage`, el temporizador borraba el textarea y limpiaba la URL, destruyendo el texto para siempre sin dejar rastro ni reintento.
+- **Regla y Solución Obligatoria:**
+  1. **PROHIBICIÓN ESTRICTA DE BORRADO MANUAL CIEGO:** NUNCA ejecutar `methods.reset()`, `methods.setValue('text', '')` ni `textAreaRef.current.value = ''` mediante `setTimeout` arbitrario. LibreChat limpia el textarea de forma nativa e infalible a través de su propio ciclo `ask()` / `useSubmitMessage` cuando la sumisión es aceptada.
+  2. **Watchdog no destructivo:** En `useQueryParams.ts` y `ChatForm.tsx`, utilizar un watchdog activo (intervalos de 300-350ms) que verifique si `isSubmitting` pasó a `true` o si el texto ya fue limpiado por LibreChat. Si el texto sigue presente en el textarea y el canal está libre, reintentar el despacho. Solo cuando el envío esté en curso o el formulario esté limpio, remover los parámetros de la URL mediante `window.history.replaceState`.
+
+### Error 14: Colisión de Navegaciones Dobles (`newConversation` + `navigate('/c/new?params')`)
+- **Síntoma:** Al abrir un chat nuevo por voz, en pantalla se apreciaban dos rutas cargando simultáneamente, transiciones conflictivas y comportamiento inestable en el historial de navegación.
+- **Causa Raíz:** En `TenshiChat.tsx:1258`, antes de llamar a `navigate('/c/new?' + params.toString())`, se invocaba `newConversation(...)`. En `useNewConvo.ts:213`, `newConversation` ejecuta su propia navegación asíncrona a `/c/new` (sin parámetros) y reinicia el átomo `setSubmission({} as TSubmission)`. Seguidamente, `TenshiChat` ejecutaba `navigate('/c/new?params')`, provocando dos navegaciones casi simultáneas que competían entre sí y reiniciaban el estado de envío.
+- **Regla y Solución Obligatoria:**
+  1. **Navegación Canónica Única:** Al abrir un nuevo chat (`Caso B`), `TenshiChat.tsx` DEBE navegar directamente a `/c/new?${params.toString()}` sin llamar a `newConversation()` antes. `useQueryParams.ts` se encarga de aplicar los presets y montar la nueva conversación de forma aislada y limpia.
+  2. **Canal de Respaldo por Evento Diferido:** Emitir `tenshi-submit-agent-prompt` con retardo (400ms) para que `ChatForm` actúe como red de seguridad si la resolución de URL sufriera algún retraso.
+
+### Error 15: Preguntas Planas / Telegráficas por Omisión del Enriquecedor en `wappy_abrir_chat_agente`
+- **Síntoma:** Tenshi transmitía consultas cortas o en crudo (ej: "¿Qué es el manguito rotador y cuál es su relación con el trabajo?") en vez de consultas estructuradas de alto nivel técnico ocupacional, incumpliendo la Regla 6 de AGENTS.md.
+- **Causa Raíz:** En `voiceSession.js:2240`, cuando Gemini Live ejecutaba directamente la herramienta `wappy_abrir_chat_agente`, el código tomaba `fc.args.pregunta` en crudo sin pasarlo por ningún formateador. La estructuración técnica solo estaba implementada en el bloque fallback de la línea 4440.
+- **Regla y Solución Obligatoria:**
+  1. **Enriquecedor Técnico Universal Centralizado (`enrichTechnicalPrompt`):** Tanto en la ejecución directa de herramientas en `voiceSession.js` como en el failsafe y en el frontend, toda consulta menor a 80 caracteres o sobre patologías/normas clave (manguito rotador, codo de tenista, túnel carpiano, Res. 0312, GTC 45, PESV) DEBE ser transformada obligatoriamente en una consulta técnica estructurada con planteamiento ocupacional, factores de riesgo biomecánicos/ergonómicos, protocolos preventivos y fundamentación normativa colombiana (Decretos 1072/2015, 1477/2014, etc.).
+
+### Error 16: Tenshi Persistente en "Pensando" tras Apagar Voz y Cierres en Idioma Inglés
+- **Síntoma:** Al pausar o apagar el interruptor de Tenshi por voz, Tenshi permanecía con el estado "Pensando" en pantalla. Además, en ocasiones Gemini Live terminaba turnos con frases o coletillas en inglés ("all set", "that's all set").
+- **Causa Raíz:**
+  1. En `TenshiChat.tsx`, `stopVoiceMode()` no reseteaba `setIsTyping(false)` ni enviaba un comando de `interrupt` al backend antes de desconectar el socket, dejando viva la indicación visual de pensamiento.
+  2. En `geminiLive.js`, la directiva de idioma se omitía si el sistema ya traía otra instrucción, y el modelo base de audio de Google ocasionalmente emitía tokens en inglés al completar herramientas.
+- **Regla y Solución Obligatoria:**
+  1. **Reset Total en `stopVoiceMode`:** `stopVoiceMode()` en `TenshiChat.tsx` ejecuta inmediatamente `setIsTyping(false)` y `sendVoiceInterruptRef.current()`, garantizando el apagado instantáneo de cualquier estado de espera o pensamiento.
+  2. **Candado Estricto de Idioma en `geminiLive.js`:** Anteponer SIEMPRE la prohibición explícita de frases o cierres en inglés ("all set", "done", etc.) en el `systemInstruction` de audio nativo de Gemini Live.
+
 ---
 
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue

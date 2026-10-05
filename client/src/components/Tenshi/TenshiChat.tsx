@@ -1253,21 +1253,21 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 params.set('prompt', pregunta);
                 params.set('submit', 'true');
 
-                // 3. Resetear el átomo de conversación de LibreChat antes de navegar para desvincular la conversación anterior
-                try {
-                  newConversation({
-                    template: {
-                      endpoint: EModelEndpoint.agents,
-                      agent_id: targetAgentId,
-                    },
-                    preset: targetAgentId ? { endpoint: EModelEndpoint.agents, agent_id: targetAgentId } : undefined,
-                  });
-                } catch (newConvoErr) {
-                  console.warn('[TenshiChat] Error invocando newConversation:', newConvoErr);
-                }
-
-                // 4. Navegar canónicamente a /c/new para que useQueryParams tome el control
+                // 3. Navegar canónicamente a /c/new para que useQueryParams tome el control
                 navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
+
+                // 4. Doble canal de garantía: emitir evento diferido tenshi-submit-agent-prompt
+                setTimeout(() => {
+                  window.dispatchEvent(
+                    new CustomEvent('tenshi-submit-agent-prompt', {
+                      detail: {
+                        agentId: targetAgentId,
+                        prompt: pregunta,
+                        nuevoChat: true,
+                      },
+                    })
+                  );
+                }, 400);
 
                 resultMsg = matchedAgent
                   ? `Chat nuevo abierto con ${matchedAgent.name} y consulta formulada con éxito en pantalla: "${pregunta}". [AVISO CRÍTICO PARA TENSHI]: El especialista apenas está analizando y empezando a redactar en la pantalla. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. Limítate a confirmar al usuario en una sola frase breve que ya le abriste el chat y le dejaste la pregunta en pantalla, y que espere a que el especialista termine de responder. NO inventes ni resumas la respuesta técnica.`
@@ -1446,6 +1446,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const stopVoiceMode = useCallback(() => {
     setIsVoiceActive(false);
     setIsWaitingConsultation(false);
+    setIsTyping(false);
     if (pendingAgentConsultationRef.current) {
       pendingAgentConsultationRef.current.active = false;
     }
@@ -1453,6 +1454,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       clearTimeout(consultationTimerRef.current);
       consultationTimerRef.current = null;
     }
+    try {
+      sendVoiceInterruptRef.current();
+    } catch (_) {}
     playPowerDownChime();
     clearAudioQueue();
     disconnectVoice();
