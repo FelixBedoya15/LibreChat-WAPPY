@@ -8,7 +8,6 @@ import {
   Terminal,
   Shield,
   Sparkles,
-  ExternalLink,
   Cpu,
   Layers,
   FileSpreadsheet,
@@ -16,6 +15,18 @@ import {
   CalendarCheck,
   CheckCircle2,
   AlertTriangle,
+  BookOpen,
+  ShieldAlert,
+  Car,
+  FlaskConical,
+  FileText,
+  CheckSquare,
+  Bot,
+  FolderArchive,
+  Activity,
+  FileCheck,
+  ClipboardList,
+  HardHat,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -167,6 +178,270 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
     2
   );
 
+  const toolsCatalog = [
+    {
+      categoria: 'Diagnóstico & Estrategia',
+      tools: [
+        {
+          name: 'wappy_resumen_general_360',
+          desc: 'Diagnóstico 360° total de la cuenta: empresa, trabajadores, riesgos GTC45/PESV, comités, EPP, químicos, flota, incidentes ATEL y tareas pendientes.',
+          icon: Activity,
+          color: 'text-rose-500',
+        },
+        {
+          name: 'wappy_consultar_perfil_empresa',
+          desc: 'Consulta Razón Social, NIT, ARL, Nivel de Riesgo, Representante Legal, Responsable SST, Licencia y Sedes activas de tu perfil.',
+          icon: Users,
+          color: 'text-teal-500',
+        },
+        {
+          name: 'wappy_actualizar_perfil_empresa',
+          desc: 'Actualiza cualquier dato de la empresa y sincroniza de inmediato la memoria de contexto de todos los agentes inteligentes en WAPPY.',
+          icon: Sparkles,
+          color: 'text-orange-500',
+        },
+      ],
+    },
+    {
+      categoria: 'Matrices de Riesgo & Cumplimiento',
+      tools: [
+        {
+          name: 'wappy_consultar_matriz_gtc45',
+          desc: 'Consulta los peligros y riesgos evaluados en la Matriz GTC-45 oficial con filtros por cargo, proceso o clasificación de peligro.',
+          icon: FileSpreadsheet,
+          color: 'text-emerald-500',
+        },
+        {
+          name: 'wappy_alimentar_matriz_gtc45',
+          desc: 'Inserta nuevos peligros evaluados. Calcula automáticamente deficiencia (ND), exposición (NE), consecuencia (NC) y riesgo (NR).',
+          icon: Plus,
+          color: 'text-blue-500',
+        },
+        {
+          name: 'wappy_consultar_matriz_pesv',
+          desc: 'Consulta los riesgos viales registrados según el Plan Estratégico de Seguridad Vial (Res. 20223040040595).',
+          icon: Layers,
+          color: 'text-amber-500',
+        },
+        {
+          name: 'wappy_alimentar_matriz_pesv',
+          desc: 'Registra riesgos y planes de acción viales (vehículo, vía e individuo) en la Matriz PESV oficial de la empresa.',
+          icon: CheckCircle2,
+          color: 'text-indigo-500',
+        },
+        {
+          name: 'wappy_consultar_matriz_legal',
+          desc: 'Consulta la matriz de requisitos legales aplicables, artículos, evidencia de cumplimiento y porcentaje global.',
+          icon: FileCheck,
+          color: 'text-purple-500',
+        },
+        {
+          name: 'wappy_registrar_requisito_legal',
+          desc: 'Registra una nueva norma legal con artículo, evidencia requerida, responsable y estado de cumplimiento.',
+          icon: Plus,
+          color: 'text-purple-400',
+        },
+        {
+          name: 'wappy_consultar_diagnostico_0312',
+          desc: 'Consulta la autoevaluación de estándares mínimos Res. 0312 (puntaje obtenido, porcentaje y nivel: Crítico / Moderado / Aceptable).',
+          icon: ClipboardList,
+          color: 'text-blue-600',
+        },
+        {
+          name: 'wappy_evaluar_estandar_0312',
+          desc: 'Califica o actualiza un estándar mínimo con su observación, evidencia y puntaje.',
+          icon: CheckSquare,
+          color: 'text-blue-500',
+        },
+      ],
+    },
+    {
+      categoria: 'Gestión Operativa & Colaboradores',
+      tools: [
+        {
+          name: 'wappy_consultar_trabajadores',
+          desc: 'Lista empleados y colaboradores registrados en el perfil sociodemográfico (cédula, cargo, área, sede, nivel ARL).',
+          icon: Users,
+          color: 'text-cyan-500',
+        },
+        {
+          name: 'wappy_registrar_trabajador',
+          desc: 'Registra o actualiza un trabajador en el perfil sociodemográfico de la empresa.',
+          icon: Plus,
+          color: 'text-emerald-500',
+        },
+        {
+          name: 'wappy_consultar_comites',
+          desc: 'Consulta la conformación de COPASST / Vigía, Comité de Convivencia Laboral y Brigada de Emergencia.',
+          icon: Shield,
+          color: 'text-orange-500',
+        },
+        {
+          name: 'wappy_registrar_miembro_comite',
+          desc: 'Registra un integrante en COPASST, Convivencia o en las brigadas de emergencia (Primeros Auxilios, Evacuación, Incendios).',
+          icon: Plus,
+          color: 'text-amber-500',
+        },
+        {
+          name: 'wappy_consultar_epp',
+          desc: 'Consulta entregas e historial de Elementos de Protección Personal (EPP) y equipos de protección contra caídas por colaborador.',
+          icon: HardHat,
+          color: 'text-yellow-600',
+        },
+        {
+          name: 'wappy_registrar_entrega_epp',
+          desc: 'Registra la entrega de un EPP o equipo con serial y fecha de reposición a un colaborador.',
+          icon: Plus,
+          color: 'text-yellow-500',
+        },
+        {
+          name: 'wappy_consultar_perfiles_cargo',
+          desc: 'Consulta perfiles de cargo SST con responsabilidades específicas, funciones, riesgos asignados y EPP requeridos.',
+          icon: FileText,
+          color: 'text-teal-600',
+        },
+        {
+          name: 'wappy_guardar_perfil_cargo',
+          desc: 'Crea o actualiza el perfil y responsabilidades SST de un puesto de trabajo.',
+          icon: Plus,
+          color: 'text-teal-500',
+        },
+      ],
+    },
+    {
+      categoria: 'Seguridad Industrial & Prevención',
+      tools: [
+        {
+          name: 'wappy_consultar_inventario_quimico',
+          desc: 'Lista de sustancias químicas, estado físico, pictogramas SGA, clase ONU, FDS, ubicación e incompatibilidades de almacenamiento.',
+          icon: FlaskConical,
+          color: 'text-lime-600',
+        },
+        {
+          name: 'wappy_registrar_producto_quimico',
+          desc: 'Registra un producto químico en el inventario con etiquetado SGA y matriz de compatibilidad.',
+          icon: Plus,
+          color: 'text-lime-500',
+        },
+        {
+          name: 'wappy_consultar_vehiculos',
+          desc: 'Consulta vehículos de la flota, conductor asignado, vencimiento de SOAT, Tecnomecánica e historial de inspecciones.',
+          icon: Car,
+          color: 'text-red-500',
+        },
+        {
+          name: 'wappy_registrar_vehiculo',
+          desc: 'Registra un vehículo de la empresa y programa alertas de vencimiento de documentos obligatorios.',
+          icon: Plus,
+          color: 'text-red-400',
+        },
+        {
+          name: 'wappy_consultar_reportes_actos_condiciones',
+          desc: 'Consulta tarjetas de reporte preventivo de actos y condiciones inseguras reportados por los colaboradores.',
+          icon: ShieldAlert,
+          color: 'text-amber-600',
+        },
+        {
+          name: 'wappy_registrar_reporte_acto_condicion',
+          desc: 'Registra una condición o acto inseguro detectado con nivel de riesgo y medida correctiva inmediata.',
+          icon: Plus,
+          color: 'text-amber-500',
+        },
+        {
+          name: 'wappy_consultar_casos_atel',
+          desc: 'Consulta investigaciones y registros de accidentes e incidentes de trabajo ocurridos en la empresa.',
+          icon: Activity,
+          color: 'text-rose-600',
+        },
+        {
+          name: 'wappy_registrar_caso_atel',
+          desc: 'Registra un accidente o incidente de trabajo con gravedad, descripción y medidas inmediatas para su investigación.',
+          icon: Plus,
+          color: 'text-rose-500',
+        },
+      ],
+    },
+    {
+      categoria: 'Cronograma, LMS & Agentes Autónomos',
+      tools: [
+        {
+          name: 'wappy_consultar_cronograma_sst',
+          desc: 'Consulta las tareas pendientes, estado y vencimientos del cronograma y plan de trabajo anual de SST.',
+          icon: CalendarCheck,
+          color: 'text-purple-500',
+        },
+        {
+          name: 'wappy_crear_actividad_cronograma',
+          desc: 'Programa actividades de capacitación, auditorías, inspecciones o hitos en el plan de trabajo anual.',
+          icon: Plus,
+          color: 'text-purple-400',
+        },
+        {
+          name: 'wappy_actualizar_estado_tarea',
+          desc: 'Actualiza el estado de una tarea (todo, in_progress, done) y agrega observaciones de avance.',
+          icon: CheckCircle2,
+          color: 'text-emerald-500',
+        },
+        {
+          name: 'wappy_consultar_capacitaciones',
+          desc: 'Consulta sesiones del programa anual de capacitación y catálogo de cursos interactivos del LMS WAPPY.',
+          icon: BookOpen,
+          color: 'text-sky-500',
+        },
+        {
+          name: 'wappy_programar_capacitacion',
+          desc: 'Programa una sesión de formación para el personal con fecha, hora, duración y temario.',
+          icon: Plus,
+          color: 'text-sky-400',
+        },
+        {
+          name: 'wappy_consultar_auditorias',
+          desc: 'Consulta hallazgos, no conformidades y nivel de cumplimiento de auditorías internas del SG-SST.',
+          icon: ClipboardList,
+          color: 'text-indigo-600',
+        },
+        {
+          name: 'wappy_registrar_hallazgo_auditoria',
+          desc: 'Registra un hallazgo o no conformidad con plan de acción correctivo y fecha compromiso.',
+          icon: Plus,
+          color: 'text-indigo-500',
+        },
+        {
+          name: 'wappy_consultar_agentes_y_automatizaciones',
+          desc: 'Consulta los agentes de IA configurados en tu cuenta y las tareas autónomas programadas (cron).',
+          icon: Bot,
+          color: 'text-emerald-600',
+        },
+        {
+          name: 'wappy_programar_automatizacion',
+          desc: 'Programa un agente de IA para que ejecute tareas periódicas autónomamente (diaria, semanal, mensual).',
+          icon: Plus,
+          color: 'text-emerald-500',
+        },
+        {
+          name: 'wappy_consultar_conversaciones',
+          desc: 'Consulta tus conversaciones con los agentes de WAPPY con títulos y fechas de actualización.',
+          icon: FileText,
+          color: 'text-slate-600',
+        },
+        {
+          name: 'wappy_consultar_mensajes_conversacion',
+          desc: 'Lee el historial de mensajes de cualquier conversación en tu cuenta de LibreChat-WAPPY.',
+          icon: FileText,
+          color: 'text-slate-500',
+        },
+        {
+          name: 'wappy_consultar_archivos',
+          desc: 'Lista todos los documentos y archivos subidos o procesados en tu cuenta.',
+          icon: FolderArchive,
+          color: 'text-slate-600',
+        },
+      ],
+    },
+  ];
+
+  const totalHerramientas = toolsCatalog.reduce((acc, cat) => acc + cat.tools.length, 0);
+
   return (
     <div className="flex flex-col gap-6 w-full text-slate-800 dark:text-zinc-100">
       {/* Header Info */}
@@ -177,13 +452,13 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold">Conexión con Antigravity (MCP)</h2>
+              <h2 className="text-lg font-bold">Conexión Total Antigravity (MCP)</h2>
               <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
-                Multi-Tenant
+                Acceso Total
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-              Conecta tu propio Antigravity para que alimente automáticamente tu perfil de empresa, matriz GTC-45, PESV y cronograma de SST.
+              Conecta Antigravity a tu cuenta de WAPPY para que consulte y gestione absolutamente todos los módulos: matrices, normas, vehículos, comités, EPP, cronograma, cursos y agentes.
             </p>
           </div>
         </div>
@@ -242,7 +517,7 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
           )}
         >
           <Layers className="w-3.5 h-3.5" />
-          Herramientas Disponibles (10)
+          Herramientas Disponibles ({totalHerramientas})
         </button>
         <button
           onClick={() => setActiveTab('keys')}
@@ -289,7 +564,7 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
                 <span>Genera tu Clave</span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-normal">
-                Haz clic arriba en <strong>"Generar Clave API"</strong> y copia el código único generado para tu cuenta.
+                Haz clic arriba en <strong>"Generar Clave API"</strong> y copia el token personal asignado a tu cuenta.
               </p>
             </div>
 
@@ -299,17 +574,17 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
                 <span>Configura Antigravity</span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-normal">
-                Pega el bloque JSON en tu configuración de MCP de Antigravity (o en tu archivo de herramientas).
+                Pega el bloque JSON en tu configuración de MCP de Antigravity (mcpServers).
               </p>
             </div>
 
             <div className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col gap-1.5 shadow-2xs">
               <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                 <span className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-[11px]">3</span>
-                <span>Pídele a la IA</span>
+                <span>Control Total</span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-normal">
-                Dile a Antigravity: <em>"Alimenta mi matriz GTC-45 con los riesgos del área de logística"</em> y se guardará en tu perfil.
+                Dile a Antigravity: <em>"Hazme un diagnóstico 360° de mi empresa y programa las tareas del cronograma"</em>.
               </p>
             </div>
           </div>
@@ -318,83 +593,34 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
 
       {/* Tab: Catálogo de Herramientas */}
       {activeTab === 'tools' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[420px] overflow-y-auto pr-1">
-          {[
-            {
-              name: 'wappy_consultar_perfil_empresa',
-              desc: 'Consulta Razón Social, NIT, ARL, Nivel de Riesgo, Representante Legal, Trabajadores y Sedes activas de tu perfil.',
-              icon: Users,
-              color: 'text-teal-500',
-            },
-            {
-              name: 'wappy_actualizar_perfil_empresa',
-              desc: 'Actualiza campos de la empresa y sincroniza de inmediato la memoria de los agentes inteligentes en WAPPY.',
-              icon: Sparkles,
-              color: 'text-orange-500',
-            },
-            {
-              name: 'wappy_consultar_matriz_gtc45',
-              desc: 'Consulta los peligros y riesgos evaluados en la Matriz GTC-45 oficial con filtros por cargo, proceso o peligro.',
-              icon: FileSpreadsheet,
-              color: 'text-emerald-500',
-            },
-            {
-              name: 'wappy_alimentar_matriz_gtc45',
-              desc: 'Inserta nuevos peligros evaluados. Calcula automáticamente deficiencia (ND), exposición (NE), consecuencia (NC) y riesgo (NR).',
-              icon: Plus,
-              color: 'text-blue-500',
-            },
-            {
-              name: 'wappy_consultar_matriz_pesv',
-              desc: 'Consulta los riesgos viales registrados según el Plan Estratégico de Seguridad Vial (Res. 20223040040595).',
-              icon: Layers,
-              color: 'text-amber-500',
-            },
-            {
-              name: 'wappy_alimentar_matriz_pesv',
-              desc: 'Registra riesgos y planes de acción viales en la Matriz PESV oficial de la empresa.',
-              icon: CheckCircle2,
-              color: 'text-indigo-500',
-            },
-            {
-              name: 'wappy_consultar_trabajadores',
-              desc: 'Lista los empleados y perfiles registrados en el módulo sociodemográfico de SST.',
-              icon: Users,
-              color: 'text-cyan-500',
-            },
-            {
-              name: 'wappy_registrar_trabajador',
-              desc: 'Registra o actualiza un trabajador en el perfil sociodemográfico (cédula, cargo, área, sede, nivel ARL).',
-              icon: Plus,
-              color: 'text-emerald-500',
-            },
-            {
-              name: 'wappy_consultar_cronograma_sst',
-              desc: 'Consulta las tareas pendientes y vencimientos del cronograma y plan de trabajo anual de SST.',
-              icon: CalendarCheck,
-              color: 'text-purple-500',
-            },
-            {
-              name: 'wappy_crear_actividad_cronograma',
-              desc: 'Programa actividades de capacitación, auditorías, inspecciones o hitos en el plan de trabajo anual.',
-              icon: CalendarCheck,
-              color: 'text-rose-500',
-            },
-          ].map((t) => {
-            const Icon = t.icon;
-            return (
-              <div
-                key={t.name}
-                className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 flex flex-col gap-1.5 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all"
-              >
-                <div className="flex items-center gap-2">
-                  <Icon className={cn('w-4 h-4 shrink-0', t.color)} />
-                  <span className="font-mono text-xs font-bold text-slate-900 dark:text-zinc-100">{t.name}</span>
-                </div>
-                <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-normal">{t.desc}</p>
+        <div className="flex flex-col gap-5 max-h-[500px] overflow-y-auto pr-1">
+          {toolsCatalog.map((seccion) => (
+            <div key={seccion.categoria} className="flex flex-col gap-2.5">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 border-b border-slate-100 dark:border-zinc-800 pb-1">
+                <span>{seccion.categoria}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                  {seccion.tools.length}
+                </span>
               </div>
-            );
-          })}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {seccion.tools.map((t) => {
+                  const Icon = t.icon;
+                  return (
+                    <div
+                      key={t.name}
+                      className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 flex flex-col gap-1.5 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className={cn('w-4 h-4 shrink-0', t.color)} />
+                        <span className="font-mono text-xs font-bold text-slate-900 dark:text-zinc-100">{t.name}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-normal">{t.desc}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
