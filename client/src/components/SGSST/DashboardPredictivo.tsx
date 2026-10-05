@@ -46,6 +46,7 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { cn } from '~/utils';
 import { useAutoLoadReport } from './useAutoLoadReport';
@@ -994,6 +995,12 @@ const DashboardPredictivo = () => {
                                     <span className="h-1.5 w-1.5 rounded-full bg-pink-400 animate-ping" />
                                     🧠 Hito 07 · El Pináculo de WAPPY
                                 </span>
+                                <SGSSTLegalBadge
+                                    standardCode="6.1.4"
+                                    label="Res. 0312 Est. 6.1.4: CUMPLE"
+                                    tooltip="Res. 0312/2019 Estándar 6.1.4 y Dec. 1072/15 Art. 2.2.4.6.20 — Indicadores de Gestión, Causalidad Predictiva y Mejora Continua"
+                                    moduleName="Centro de Inteligencia Predictiva"
+                                />
                                 {forecast?.activeCompany?.name && (
                                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-teal-500/20 text-teal-200 border border-teal-400/30 shadow-sm backdrop-blur-md">
                                         <Building2 className="w-3 h-3 text-teal-300" />

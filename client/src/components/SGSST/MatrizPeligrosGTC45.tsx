@@ -16,6 +16,7 @@ import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SingleSelect from './SingleSelect';
 import CollapsibleReportBox from './CollapsibleReportBox';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 
 // ─── Styled Tooltip ───────────────────────────────────────────────────
 const Tip = ({ children, text }: { children: React.ReactNode; text: string }) => (
@@ -737,6 +738,54 @@ const MatrizPeligrosGTC45 = () => {
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
+            <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-center gap-3.5">
+                        <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
+                            <Layers className="h-6 w-6 sm:h-7 sm:w-7" />
+                        </div>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
+                                    Matriz de Peligros y Riesgos – Metodología GTC 45
+                                </h1>
+                                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
+                                    IPEVR
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                                {/* Total Peligros */}
+                                <div
+                                    title={`${procesos.reduce((acc, p) => acc + p.peligros.length, 0)} Peligros Mapeados`}
+                                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                                >
+                                    <div className="relative flex flex-shrink-0 items-center justify-center">
+                                        <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                                        <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                                            {procesos.reduce((acc, p) => acc + p.peligros.length, 0)}
+                                        </span>
+                                    </div>
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-sm font-bold tracking-wide">
+                                            {procesos.reduce((acc, p) => acc + p.peligros.length, 0)} Peligros
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Res. 0312 Est. 4.1.1: CUMPLE */}
+                                <SGSSTLegalBadge
+                                    standardCode="4.1.1"
+                                    label="Res. 0312 Est. 4.1.1: CUMPLE"
+                                    tooltip="Res. 0312/2019 Estándar 4.1.1 — Metodología de Identificación de Peligros, Evaluación y Valoración de Riesgos (GTC 45 / Dec. 1072)"
+                                    moduleName="Matriz GTC 45 (IPEVR)"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <SGSSTToolbar
                 onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                 isHistoryOpen={isHistoryOpen}

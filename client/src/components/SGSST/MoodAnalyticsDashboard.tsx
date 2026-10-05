@@ -15,6 +15,7 @@ import ExportDropdown from './ExportDropdown';
 import { UpgradeWall } from './UpgradeWall';
 import ModelSelector from './ModelSelector';
 import { useAutoLoadReport } from './useAutoLoadReport';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 
 const stressorsList = [
   { id: 'sobrecarga', label: 'Sobrecarga de trabajo' },
@@ -678,7 +679,15 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
                   <Sparkles className="w-4 h-4" />
                   Módulo de Gestión de Riesgo Psicosocial
                 </div>
-                <h2 className="text-2xl font-black tracking-tight text-white">Analítica de Estado de Ánimo</h2>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h2 className="text-2xl font-black tracking-tight text-white">Analítica de Estado de Ánimo</h2>
+                  <SGSSTLegalBadge
+                    standardCode="3.1.6"
+                    label="Res. 0312 Est. 3.1.6: CUMPLE"
+                    tooltip="Res. 0312/2019 Estándar 3.1.6 y Res. 2764/2022 — Vigilancia Epidemiológica de Factores de Riesgo Psicosocial y Batería de Riesgo Psicosocial"
+                    moduleName="Termómetro Psicosocial y Analítica de Clima"
+                  />
+                </div>
                 <p className="text-xs text-emerald-100/80">Consolidado estadístico y tendencias de bienestar de los colaboradores.</p>
               </div>
 

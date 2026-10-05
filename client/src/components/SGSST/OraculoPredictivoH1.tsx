@@ -8,6 +8,7 @@ import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/Live
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 
 const SCORE_COLOR = (s: number) => {
     if (s >= 80) return { ring: 'border-green-400', text: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20', badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' };
@@ -487,11 +488,17 @@ export default function OraculoPredictivoH1() {
                 </div>
                 <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
-                        <div className="flex items-center gap-3 mb-2">
+                        <div className="flex items-center gap-3 mb-2 flex-wrap">
                             <div className="w-10 h-10 rounded-xl bg-teal-400/20 backdrop-blur-sm border border-teal-400/30 flex items-center justify-center">
                                 <Sparkles className="w-5 h-5 text-teal-300" />
                             </div>
                             <h1 className="text-2xl font-black tracking-tight">Oráculo Predictivo H1</h1>
+                            <SGSSTLegalBadge
+                                standardCode="3.1.4"
+                                label="Res. 0312 Est. 3.1.4: CUMPLE"
+                                tooltip="Res. 0312/2019 Estándar 3.1.4 — Evaluaciones Médicas Ocupacionales y Dictámenes de Compatibilidad Cargo-Persona"
+                                moduleName="Dictamen de Compatibilidad Cargo-Persona"
+                            />
                         </div>
                         <p className="text-teal-100/80 text-sm max-w-2xl leading-relaxed">
                             Motor Bio-Fit WAPPY · Cruza datos clínicos con exigencias del rol para emitir dictámenes de aptitud laboral basados en evidencia.

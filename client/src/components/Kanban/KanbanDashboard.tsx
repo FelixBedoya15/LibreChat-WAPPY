@@ -37,6 +37,7 @@ import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 import UniversalColumnMapperModal from '~/components/SGSST/UniversalColumnMapperModal';
 import { KANBAN_ACPM_FIELDS } from '~/components/SGSST/moduleFieldDefinitions';
 import { exportModuleDataToExcel } from '~/components/SGSST/columnMapperEngine';
+import SGSSTLegalBadge from '~/components/SGSST/SGSSTLegalBadge';
 
 interface KanbanTask {
   _id: string;
@@ -818,20 +819,36 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
         {!hideMainHeader ? (
           !inline ? (
             <div>
-              <h1 className="text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-emerald-600 dark:from-teal-400 dark:to-emerald-400">
-                <Trello className="w-7 h-7 text-teal-500" />
-                Centro de Control ACPM
-              </h1>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-emerald-600 dark:from-teal-400 dark:to-emerald-400">
+                  <Trello className="w-7 h-7 text-teal-500" />
+                  Centro de Control ACPM
+                </h1>
+                <SGSSTLegalBadge
+                  standardCode="7.1.1"
+                  label="Res. 0312 Est. 7.1.1: CUMPLE"
+                  tooltip="Res. 0312/2019 Estándar 7.1.1 y Dec. 1072/15 Art. 2.2.4.6.33 — Acciones Preventivas, Correctivas y de Mejora (ACPM)"
+                  moduleName="Tablero Kanban de Acciones ACPM"
+                />
+              </div>
               <p className="text-xs text-text-secondary mt-1">
                 Programación de actividades de seguridad y salud en el trabajo con control predictivo de vencimientos.
               </p>
             </div>
           ) : (
             <div>
-              <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
-                <Trello className="w-4.5 h-4.5 text-teal-500" />
-                Acciones de Control ACPM
-              </h2>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
+                  <Trello className="w-4.5 h-4.5 text-teal-500" />
+                  Acciones de Control ACPM
+                </h2>
+                <SGSSTLegalBadge
+                  standardCode="7.1.1"
+                  label="Res. 0312 Est. 7.1.1: CUMPLE"
+                  tooltip="Res. 0312/2019 Estándar 7.1.1 y Dec. 1072/15 Art. 2.2.4.6.33 — Acciones Preventivas, Correctivas y de Mejora (ACPM)"
+                  moduleName="Tablero Kanban de Acciones ACPM"
+                />
+              </div>
               <p className="text-[10px] text-text-tertiary mt-0.5">
                 Programación de actividades y control predictivo de vencimientos.
               </p>
@@ -839,10 +856,18 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
           )
         ) : (
           <div>
-            <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
-              <Trello className="w-5 h-5 text-teal-500" />
-              Tablero de Acciones Correctivas, Preventivas y de Mejora
-            </h2>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
+                <Trello className="w-5 h-5 text-teal-500" />
+                Tablero de Acciones Correctivas, Preventivas y de Mejora
+              </h2>
+              <SGSSTLegalBadge
+                standardCode="7.1.1"
+                label="Res. 0312 Est. 7.1.1: CUMPLE"
+                tooltip="Res. 0312/2019 Estándar 7.1.1 y Dec. 1072/15 Art. 2.2.4.6.33 — Acciones Preventivas, Correctivas y de Mejora (ACPM)"
+                moduleName="Tablero Kanban de Acciones ACPM"
+              />
+            </div>
             <p className="text-xs text-text-secondary mt-0.5">
               Control predictivo de vencimientos y asignación de compromisos.
             </p>
