@@ -155,5 +155,6 @@ module.exports = {
   ChatSSTGroupInvitation: require('./ChatSSTGroupInvitation'),
   Automation: require('./Automation'),
   AutomationLog: require('./AutomationLog'),
+  UserApiKey: require('./UserApiKey'),
 };
 

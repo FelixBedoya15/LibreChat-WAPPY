@@ -51,6 +51,8 @@ const comunidad = require('./comunidad');
 const rutaAprendizaje = require('./rutaAprendizaje');
 const events = require('./events');
 const marketplace = require('./marketplace');
+const userApiKeys = require('./userApiKeys');
+const mcpBridge = require('./mcpBridge');
 
 module.exports = {
   auth,
@@ -107,5 +109,7 @@ module.exports = {
   events,
   chatSST: require('./chatSST'),
   marketplace,
+  userApiKeys,
+  mcpBridge,
 };
 

@@ -5,7 +5,7 @@ import {
     X, Building2, Save, User, MapPin, Phone, Mail,
     Briefcase, Shield, Hash, FileText, Users, Activity,
     Award, Calendar, UserCheck, Image as ImageIcon,
-    Plus, Trash2, CheckCircle, Lock, Sparkles
+    Plus, Trash2, CheckCircle, Lock, Sparkles, Cpu
 } from 'lucide-react';
 
 import { useAuthContext } from '~/hooks';
@@ -13,6 +13,7 @@ import { useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import SignaturePad from './SignaturePad';
+import McpAntigravityModal from './McpAntigravityModal';
 import { PenTool } from 'lucide-react';
 import SingleSelect from './SingleSelect';
 
@@ -120,6 +121,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     const [data, setData] = useState<CompanyInfoData>(INITIAL_DATA);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [showMcpModal, setShowMcpModal] = useState(false);
     const [activeSignatureField, setActiveSignatureField] = useState<'legalRepSignature' | 'sstRespSignature' | null>(null);
 
     const [companyLimit, setCompanyLimit] = useState<number>(1);
@@ -537,9 +539,20 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                 <p className="text-xs text-text-secondary">Gestiona hasta {effectiveLimit} empresa(s) de forma aislada. La empresa Activa será utilizada por la IA.</p>
                             </div>
                         </div>
-                        <button onClick={onClose} className="rounded-xl p-1.5 text-text-secondary hover:bg-surface-hover">
-                            <X className="h-5 w-5" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowMcpModal(true)}
+                                className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95"
+                                title="Conectar este perfil de empresa con Antigravity vía MCP"
+                            >
+                                <Cpu className="h-4 w-4" />
+                                <span className="hidden sm:inline">Conectar Antigravity (MCP)</span>
+                            </button>
+                            <button onClick={onClose} className="rounded-xl p-1.5 text-text-secondary hover:bg-surface-hover">
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
@@ -1077,6 +1090,13 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                         </div>
                     </div>
                 </div>
+            )}
+
+            {showMcpModal && (
+                <McpAntigravityModal
+                    isOpen={showMcpModal}
+                    onClose={() => setShowMcpModal(false)}
+                />
             )}
         </div>,
         document.body

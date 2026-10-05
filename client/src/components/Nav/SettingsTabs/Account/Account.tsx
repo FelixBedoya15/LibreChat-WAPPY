@@ -30,6 +30,7 @@ import WhatsAppConnect from './WhatsAppConnect';
 import GoogleDriveConnect from './GoogleDriveConnect';
 import OneDriveConnect from './OneDriveConnect';
 import GoogleAIConnect from './GoogleAIConnect';
+import AntigravityMcpConnect from './AntigravityMcpConnect';
 import TicketForm from '~/components/Tickets/TicketForm';
 import ReferralPanel from './ReferralPanel';
 
@@ -670,6 +671,8 @@ function Account() {
         <div className="py-2"><OneDriveConnect /></div>
         <div className="h-px bg-border-light w-full my-1"></div>
         <div className="py-2"><WhatsAppConnect /></div>
+        <div className="h-px bg-border-light w-full my-1"></div>
+        <div className="py-2"><AntigravityMcpConnect /></div>
 
         {user?.provider === 'local' && (
           <>

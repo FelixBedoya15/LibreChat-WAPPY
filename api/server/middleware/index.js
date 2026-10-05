@@ -29,7 +29,11 @@ const noIndex = require('./noIndex');
 const roles = require('./roles');
 const checkAccountStatus = require('./checkAccountStatus');
 
+const { requireApiKeyAuth, requireApiKeyOrJwt } = require('./requireApiKeyAuth');
+
 module.exports = {
+  requireApiKeyAuth,
+  requireApiKeyOrJwt,
   checkAccountStatus,
   ...abortMiddleware,
   ...validate,
