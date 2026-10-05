@@ -134,6 +134,23 @@
 
 ---
 
+### Error 10: Doble sumisión concurrente (bifurcación de rutas `< 1 / 2 >`), retención de texto en el textarea y timeout en Tool Call de continuidad
+- **Síntoma:** Al delegar una consulta, en pantalla se creaban dos ramas de mensaje del usuario (`< 1 / 2 >` y `< 2 / 2 >`), el texto permanecía visible en el textarea tras enviarse, Tenshi hablaba por voz antes de que el especialista respondiera y soltaba una frase en inglés al final.
+- **Causa Raíz:**
+  1. **Doble despacho en el mismo tick:** `dispatchSend` en `useQueryParams.ts` y `dispatchClickOrSubmit` en `ChatForm.tsx` invocaban simultáneamente `methods.handleSubmit(...)()` Y `submitMessage(...)` sin exclusión mutua, generando dos mensajes paralelos bajo el mismo ID padre (bifurcación `< 1 / 2 >`).
+  2. **Re-inyección en watchdog:** El watchdog de verificación comprobaba `if (currentArea) currentArea.value = textToSend`, reinyectando el texto en el textarea en cada ciclo en lugar de asegurar su vaciado.
+  3. **Falso positivo en detección normativa:** `cleanDelegatedPrompt` incluía la palabra `colombia` dentro de `hasNormativeContext`. Cualquier pregunta básica que mencionara "en Colombia" era tratada como completamente fundamentada y se enviaba plana sin estructurar.
+  4. **Retorno prematuro en `onWappyAction`:** En `TenshiChat.tsx`, el bloque CASO A terminaba con `return;`, impidiendo que `sendWappyActionResult` se enviara al backend. El backend emitía timeout (`warn: Tool call timed out waiting for client`), provocando que Gemini Live respondiera por su cuenta antes del especialista.
+  5. **Alucinación de cierre en inglés:** Tras completar un turno, Gemini Live emitía comentarios de relleno en inglés ("I've already conveyed...").
+- **Regla y Solución Obligatoria:**
+  1. **Despacho canónico único:** Invocar `submitMessage({ text: prompt })` exactamente una vez por consulta delegada.
+  2. **Vaciado inmediato del DOM:** Limpiar inmediatamente `textArea.value = ''` y `methods.setValue('text', '')`. El watchdog solo vigila que el input permanezca limpio sin reinyectar texto.
+  3. **Exclusión de `colombia` en el test normativo:** Toda pregunta sin cita formal de decretos o resoluciones se enriquece profesionalmente.
+  4. **Garantía de `sendWappyActionResult`:** Eliminar returns prematuros en `onWappyAction` para que el servidor reciba siempre la confirmación del tool call.
+  5. **Directiva estricta de idioma:** Prohibir terminantemente cualquier locución en inglés en `systemInstruction` de Gemini Live.
+
+---
+
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
 
 Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el chat:

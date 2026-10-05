@@ -17,8 +17,19 @@ const SgsstChemicalData = require('~/models/SgsstChemicalData');
 const SgsstVehicleData = require('~/models/SgsstVehicleData');
 const SgsstEppData = require('~/models/SgsstEppData');
 const Automation = require('~/models/Automation');
-const Course = require('~/models/Course');
+const { Course } = require('~/models/Course');
 const UserProgress = require('~/models/UserProgress');
+const EstudioPuestoTrabajo = mongoose.models.EstudioPuestoTrabajo || require('~/models/EstudioPuestoTrabajo');
+const MarketplaceProduct = mongoose.models.MarketplaceProduct || require('~/models/MarketplaceProduct');
+const MarketplaceOrder = mongoose.models.MarketplaceOrder || require('~/models/MarketplaceOrder');
+const BlogPost = mongoose.models.BlogPost || require('~/models/BlogPost').BlogPost;
+const Event = mongoose.models.Event || require('~/models/Event').Event;
+const Partner = mongoose.models.Partner || require('~/models/Partner');
+const PartnerCommission = mongoose.models.PartnerCommission || require('~/models/PartnerCommission');
+const PayoutRequest = mongoose.models.PayoutRequest || require('~/models/PayoutRequest');
+const TenshiConfig = mongoose.models.TenshiConfig || require('~/models/TenshiConfig');
+const Ticket = mongoose.models.Ticket || require('~/models/Ticket');
+const SgsstHeightsData = mongoose.models.SgsstHeightsData || require('~/models/SgsstHeightsData');
 const { setMemory } = require('~/models');
 const { Tokenizer } = require('@librechat/api');
 const { logger } = require('~/config');
@@ -3092,4 +3103,1144 @@ router.get('/archivos', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+// ─── 21. GESTIÓN MULTI-EMPRESAS ─────────────────────────────────────────────
+
+router.get('/companies', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const companies = await CompanyInfo.find({ user: userId }).sort({ createdAt: 1 }).lean();
+
+    return res.json({
+      total: companies.length,
+      empresas: companies.map((c) => ({
+        id: c._id.toString(),
+        companyName: c.companyName || '',
+        nit: c.nit || '',
+        companyType: c.companyType || 'Persona Jurídica',
+        workerCount: c.workerCount || 0,
+        arl: c.arl || '',
+        riskLevel: c.riskLevel || '',
+        city: c.city || '',
+        departamento: c.departamento || '',
+        phone: c.phone || '',
+        email: c.email || '',
+        responsibleSST: c.responsibleSST || '',
+        isActive: !!c.isActive,
+        createdAt: c.createdAt,
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /companies error:', error);
+    return res.status(500).json({ error: 'Error al consultar empresas.' });
+  }
+});
+
+router.post('/companies', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const {
+      companyName,
+      nit,
+      companyType,
+      workerCount,
+      arl,
+      riskLevel,
+      economicActivity,
+      ciiu,
+      address,
+      city,
+      departamento,
+      phone,
+      email,
+      responsibleSST,
+      formationLevel,
+      licenseNumber,
+      licenseExpiry,
+      courseStatus,
+      generalActivities,
+      sedes,
+      makeActive,
+    } = req.body;
+
+    if (!companyName) {
+      return res.status(400).json({ error: 'companyName es obligatorio.' });
+    }
+
+    const shouldBeActive = makeActive !== false;
+    if (shouldBeActive) {
+      await CompanyInfo.updateMany({ user: userId }, { $set: { isActive: false } });
+    }
+
+    const newCompany = new CompanyInfo({
+      user: userId,
+      companyName: companyName.trim(),
+      nit: (nit || '').trim(),
+      companyType: companyType || 'Persona Jurídica',
+      workerCount: Number(workerCount) || 0,
+      arl: arl || '',
+      riskLevel: riskLevel || '',
+      economicActivity: economicActivity || '',
+      ciiu: ciiu || '',
+      address: address || '',
+      city: city || '',
+      departamento: departamento || '',
+      phone: phone || '',
+      email: email || '',
+      responsibleSST: responsibleSST || '',
+      formationLevel: formationLevel || '',
+      licenseNumber: licenseNumber || '',
+      licenseExpiry: licenseExpiry || '',
+      courseStatus: courseStatus || '',
+      generalActivities: generalActivities || '',
+      sedes: Array.isArray(sedes) ? sedes : [],
+      isActive: shouldBeActive,
+    });
+
+    await newCompany.save();
+
+    if (shouldBeActive) {
+      syncCompanyAiMemory(userId, newCompany).catch(() => {});
+    }
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: `Empresa "${companyName}" creada exitosamente.`,
+      id: newCompany._id.toString(),
+      empresa: newCompany,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /companies error:', error);
+    return res.status(500).json({ error: 'Error al crear empresa.' });
+  }
+});
+
+router.put('/companies/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+    const updates = req.body || {};
+
+    const company = await CompanyInfo.findOne({
+      user: userId,
+      _id: targetId,
+    });
+
+    if (!company) {
+      return res.status(404).json({ error: `Empresa con ID "${targetId}" no encontrada.` });
+    }
+
+    Object.assign(company, updates);
+    await company.save();
+
+    if (company.isActive) {
+      syncCompanyAiMemory(userId, company).catch(() => {});
+    }
+
+    return res.json({
+      exito: true,
+      mensaje: `Empresa "${company.companyName}" actualizada exitosamente.`,
+      empresa: company,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT /companies/:id error:', error);
+    return res.status(500).json({ error: 'Error al actualizar empresa.' });
+  }
+});
+
+router.post('/companies/:id/activate', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+
+    const company = await CompanyInfo.findOne({ user: userId, _id: targetId });
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada.' });
+    }
+
+    await CompanyInfo.updateMany({ user: userId }, { $set: { isActive: false } });
+    company.isActive = true;
+    await company.save();
+
+    syncCompanyAiMemory(userId, company).catch(() => {});
+
+    return res.json({
+      exito: true,
+      mensaje: `Empresa "${company.companyName}" activada como contexto principal.`,
+      empresa: company,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /companies/:id/activate error:', error);
+    return res.status(500).json({ error: 'Error al activar empresa.' });
+  }
+});
+
+router.delete('/companies/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+
+    const count = await CompanyInfo.countDocuments({ user: userId });
+    if (count <= 1) {
+      return res.status(400).json({ error: 'No puedes eliminar la única empresa registrada en tu cuenta.' });
+    }
+
+    const company = await CompanyInfo.findOneAndDelete({ user: userId, _id: targetId });
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada.' });
+    }
+
+    if (company.isActive) {
+      const remaining = await CompanyInfo.findOne({ user: userId });
+      if (remaining) {
+        remaining.isActive = true;
+        await remaining.save();
+        syncCompanyAiMemory(userId, remaining).catch(() => {});
+      }
+    }
+
+    return res.json({
+      exito: true,
+      mensaje: `Empresa "${company.companyName}" eliminada exitosamente.`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /companies/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar empresa.' });
+  }
+});
+
+// ─── 22. ESTUDIOS DE PUESTO DE TRABAJO (EPT - ERGONOMÍA) ───────────────────
+
+router.get('/estudio-puesto', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    const query = companyId ? { $or: [{ companyId }, { user: userId }] } : { user: userId };
+    const estudios = await EstudioPuestoTrabajo.find(query).sort({ createdAt: -1 }).lean();
+
+    return res.json({
+      total: estudios.length,
+      estudios: estudios.map((e) => ({
+        id: e._id.toString(),
+        workerId: e.workerId,
+        workerName: e.workerName,
+        cargo: e.cargo,
+        actividad: e.actividad,
+        rulaScore: e.rulaScore,
+        rebaScore: e.rebaScore,
+        riskLevel: e.riskLevel,
+        actionLevel: e.actionLevel,
+        status: e.status,
+        notes: e.notes,
+        createdAt: e.createdAt,
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /estudio-puesto error:', error);
+    return res.status(500).json({ error: 'Error al consultar estudios de puesto.' });
+  }
+});
+
+router.post('/estudio-puesto', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { workerId, workerName, cargo, actividad, rulaScore, rebaScore, riskLevel, notes, evaluatorName } = req.body;
+
+    if (!workerName || !cargo) {
+      return res.status(400).json({ error: 'workerName y cargo son requeridos.' });
+    }
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id || new mongoose.Types.ObjectId();
+
+    const ept = new EstudioPuestoTrabajo({
+      companyId,
+      user: userId,
+      workerId: workerId || `w_${Date.now()}`,
+      workerName: workerName.trim(),
+      cargo: cargo.trim(),
+      actividad: actividad || '',
+      rulaScore: rulaScore !== undefined ? Number(rulaScore) : null,
+      rebaScore: rebaScore !== undefined ? Number(rebaScore) : null,
+      riskLevel: riskLevel || 'Medio',
+      notes: notes || '',
+      evaluatorName: evaluatorName || 'Evaluador Ergonómico SST',
+      status: 'completado',
+    });
+
+    await ept.save();
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: `Estudio de puesto de trabajo registrado para "${workerName}".`,
+      estudioId: ept._id.toString(),
+      estudio: ept,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /estudio-puesto error:', error);
+    return res.status(500).json({ error: 'Error al crear estudio de puesto de trabajo.' });
+  }
+});
+
+router.put('/estudio-puesto/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+    const updates = req.body || {};
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    const query = companyId
+      ? { _id: targetId, $or: [{ companyId }, { user: userId }] }
+      : { _id: targetId, user: userId };
+
+    const ept = await EstudioPuestoTrabajo.findOne(query);
+
+    if (!ept) {
+      return res.status(404).json({ error: 'Estudio de puesto de trabajo no encontrado.' });
+    }
+
+    Object.assign(ept, updates);
+    await ept.save();
+
+    return res.json({
+      exito: true,
+      mensaje: 'Estudio de puesto de trabajo actualizado exitosamente.',
+      estudio: ept,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT /estudio-puesto/:id error:', error);
+    return res.status(500).json({ error: 'Error al actualizar estudio de puesto.' });
+  }
+});
+
+router.delete('/estudio-puesto/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    const query = companyId
+      ? { _id: targetId, $or: [{ companyId }, { user: userId }] }
+      : { _id: targetId, user: userId };
+
+    const result = await EstudioPuestoTrabajo.findOneAndDelete(query);
+
+    if (!result) {
+      return res.status(404).json({ error: 'Estudio de puesto de trabajo no encontrado.' });
+    }
+
+    return res.json({
+      exito: true,
+      mensaje: 'Estudio de puesto de trabajo eliminado.',
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /estudio-puesto/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar estudio de puesto.' });
+  }
+});
+
+// ─── 23. CURSOS Y ACADEMIA LMS ──────────────────────────────────────────────
+
+router.get('/courses', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const courses = await Course.find({}).sort({ createdAt: -1 }).lean();
+
+    return res.json({
+      total: courses.length,
+      cursos: courses.map((c) => ({
+        id: c._id.toString(),
+        title: c.title,
+        description: c.description || '',
+        thumbnail: c.thumbnail || '',
+        tags: c.tags || [],
+        isPublished: !!c.isPublished,
+        isFeatured: !!c.isFeatured,
+        totalLecciones: c.lessons?.length || 0,
+        lecciones: (c.lessons || []).map((l) => ({
+          title: l.title,
+          order: l.order,
+          hasExam: !!l.exam?.isEnabled,
+        })),
+        createdAt: c.createdAt,
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /courses error:', error);
+    return res.status(500).json({ error: 'Error al consultar cursos LMS.' });
+  }
+});
+
+router.post('/courses', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const { title, description, thumbnail, tags, lessons, isPublished } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ error: 'title es requerido.' });
+    }
+
+    const course = new Course({
+      title: title.trim(),
+      description: description || '',
+      thumbnail: thumbnail || '',
+      tags: Array.isArray(tags) ? tags : [],
+      lessons: Array.isArray(lessons) ? lessons : [],
+      isPublished: !!isPublished,
+    });
+
+    await course.save();
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: `Curso "${title}" creado exitosamente en WAPPY LMS.`,
+      id: course._id.toString(),
+      curso: course,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /courses error:', error);
+    return res.status(500).json({ error: 'Error al crear curso LMS.' });
+  }
+});
+
+router.put('/courses/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const updates = req.body || {};
+
+    const course = await Course.findById(targetId);
+    if (!course) {
+      return res.status(404).json({ error: 'Curso no encontrado.' });
+    }
+
+    Object.assign(course, updates);
+    await course.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Curso "${course.title}" actualizado exitosamente.`,
+      curso: course,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT /courses/:id error:', error);
+    return res.status(500).json({ error: 'Error al actualizar curso LMS.' });
+  }
+});
+
+router.delete('/courses/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const result = await Course.findByIdAndDelete(targetId);
+
+    if (!result) {
+      return res.status(404).json({ error: 'Curso no encontrado.' });
+    }
+
+    return res.json({
+      exito: true,
+      mensaje: `Curso "${result.title}" eliminado exitosamente.`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /courses/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar curso.' });
+  }
+});
+
+router.get('/courses/progress', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const progressList = await UserProgress.find({}).limit(100).lean();
+
+    return res.json({
+      total: progressList.length,
+      registros: progressList.map((p) => ({
+        id: p._id.toString(),
+        userId: p.userId,
+        courseId: p.courseId,
+        completedLessonsCount: p.completedLessons?.length || 0,
+        isCompleted: !!p.isCompleted,
+        lastAccessedAt: p.lastAccessedAt,
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /courses/progress error:', error);
+    return res.status(500).json({ error: 'Error al consultar progreso de cursos.' });
+  }
+});
+
+// ─── 24. MARKETPLACE DE PRODUCTOS Y SERVICIOS SST ──────────────────────────
+
+router.get('/marketplace/products', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const products = await MarketplaceProduct.find({}).sort({ createdAt: -1 }).lean();
+
+    return res.json({
+      total: products.length,
+      productos: products.map((p) => ({
+        id: p._id.toString(),
+        title: p.title,
+        slug: p.slug,
+        category: p.category,
+        serviceType: p.serviceType,
+        regularPrice: p.regularPrice,
+        salePrice: p.salePrice,
+        status: p.status,
+        isFeatured: !!p.isFeatured,
+        rating: p.rating,
+        deliverables: p.deliverables || [],
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /marketplace/products error:', error);
+    return res.status(500).json({ error: 'Error al consultar productos del marketplace.' });
+  }
+});
+
+router.post('/marketplace/products', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { title, category, regularPrice, salePrice, serviceType, shortDescription, description, deliverables } = req.body;
+
+    if (!title || !category || regularPrice === undefined) {
+      return res.status(400).json({ error: 'title, category y regularPrice son requeridos.' });
+    }
+
+    const slug = (req.body.slug || title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    const product = new MarketplaceProduct({
+      title: title.trim(),
+      slug,
+      category,
+      regularPrice: Number(regularPrice),
+      salePrice: salePrice !== undefined ? Number(salePrice) : 0,
+      serviceType: serviceType || 'service_virtual',
+      shortDescription: shortDescription || '',
+      description: description || '',
+      deliverables: Array.isArray(deliverables) ? deliverables : [],
+      status: 'published',
+      createdBy: userId,
+    });
+
+    await product.save();
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: `Producto/Servicio "${title}" publicado en el Marketplace.`,
+      id: product._id.toString(),
+      producto: product,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /marketplace/products error:', error);
+    return res.status(500).json({ error: 'Error al crear producto en marketplace.' });
+  }
+});
+
+router.put('/marketplace/products/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const updates = req.body || {};
+
+    const product = await MarketplaceProduct.findById(targetId);
+    if (!product) {
+      return res.status(404).json({ error: 'Producto no encontrado.' });
+    }
+
+    Object.assign(product, updates);
+    await product.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Producto "${product.title}" actualizado exitosamente.`,
+      producto: product,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT /marketplace/products/:id error:', error);
+    return res.status(500).json({ error: 'Error al actualizar producto.' });
+  }
+});
+
+router.delete('/marketplace/products/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const result = await MarketplaceProduct.findByIdAndDelete(targetId);
+
+    if (!result) {
+      return res.status(404).json({ error: 'Producto no encontrado.' });
+    }
+
+    return res.json({
+      exito: true,
+      mensaje: `Producto "${result.title}" eliminado del Marketplace.`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /marketplace/products/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar producto.' });
+  }
+});
+
+router.get('/marketplace/orders', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const orders = await MarketplaceOrder.find({}).sort({ createdAt: -1 }).limit(50).lean();
+
+    return res.json({
+      total: orders.length,
+      pedidos: orders.map((o) => ({
+        id: o._id.toString(),
+        orderNumber: o.orderNumber,
+        customerName: o.customerInfo?.name || '',
+        customerEmail: o.customerInfo?.email || '',
+        total: o.total,
+        status: o.status,
+        createdAt: o.createdAt,
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /marketplace/orders error:', error);
+    return res.status(500).json({ error: 'Error al consultar órdenes del marketplace.' });
+  }
+});
+
+// ─── 25. BLOG DE SST ───────────────────────────────────────────────────────
+
+router.get('/blog', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const posts = await BlogPost.find({}).sort({ createdAt: -1 }).lean();
+
+    return res.json({
+      total: posts.length,
+      articulos: posts.map((p) => ({
+        id: p._id.toString(),
+        title: p.title,
+        description: p.description || '',
+        tags: p.tags || [],
+        isPublished: !!p.isPublished,
+        isFeatured: !!p.isFeatured,
+        createdAt: p.createdAt,
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /blog error:', error);
+    return res.status(500).json({ error: 'Error al consultar artículos de blog.' });
+  }
+});
+
+router.post('/blog', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { title, description, content, tags, isPublished, isFeatured } = req.body;
+
+    if (!title || !content) {
+      return res.status(400).json({ error: 'title y content son obligatorios.' });
+    }
+
+    const post = new BlogPost({
+      title: title.trim(),
+      description: description || '',
+      content: content.trim(),
+      tags: Array.isArray(tags) ? tags : [],
+      isPublished: isPublished !== undefined ? !!isPublished : true,
+      isFeatured: !!isFeatured,
+      author: userId,
+    });
+
+    await post.save();
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: `Artículo de blog "${title}" publicado con éxito.`,
+      id: post._id.toString(),
+      articulo: post,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /blog error:', error);
+    return res.status(500).json({ error: 'Error al publicar artículo en blog.' });
+  }
+});
+
+router.put('/blog/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const updates = req.body || {};
+
+    const post = await BlogPost.findById(targetId);
+    if (!post) {
+      return res.status(404).json({ error: 'Artículo de blog no encontrado.' });
+    }
+
+    Object.assign(post, updates);
+    await post.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Artículo "${post.title}" actualizado exitosamente.`,
+      articulo: post,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT /blog/:id error:', error);
+    return res.status(500).json({ error: 'Error al actualizar artículo de blog.' });
+  }
+});
+
+router.delete('/blog/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const result = await BlogPost.findByIdAndDelete(targetId);
+
+    if (!result) {
+      return res.status(404).json({ error: 'Artículo de blog no encontrado.' });
+    }
+
+    return res.json({
+      exito: true,
+      mensaje: `Artículo "${result.title}" eliminado del blog.`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /blog/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar artículo de blog.' });
+  }
+});
+
+// ─── 26. EVENTOS Y WEBINARS ────────────────────────────────────────────────
+
+router.get('/events', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const events = await Event.find({}).sort({ dateTime: 1 }).lean();
+
+    return res.json({
+      total: events.length,
+      eventos: events.map((e) => ({
+        id: e._id.toString(),
+        title: e.title,
+        description: e.description || '',
+        dateTime: e.dateTime,
+        meetLink: e.meetLink,
+        meetPassword: e.meetPassword || '',
+        isPublished: !!e.isPublished,
+        isFeatured: !!e.isFeatured,
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /events error:', error);
+    return res.status(500).json({ error: 'Error al consultar eventos.' });
+  }
+});
+
+router.post('/events', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const { title, description, dateTime, meetLink, meetPassword, tags, isPublished, isFeatured } = req.body;
+
+    if (!title || !dateTime || !meetLink) {
+      return res.status(400).json({ error: 'title, dateTime y meetLink son requeridos.' });
+    }
+
+    const event = new Event({
+      title: title.trim(),
+      description: description || '',
+      dateTime: new Date(dateTime),
+      meetLink: meetLink.trim(),
+      meetPassword: meetPassword || '',
+      tags: Array.isArray(tags) ? tags : [],
+      isPublished: isPublished !== undefined ? !!isPublished : true,
+      isFeatured: !!isFeatured,
+    });
+
+    await event.save();
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: `Evento "${title}" programado con éxito.`,
+      id: event._id.toString(),
+      evento: event,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /events error:', error);
+    return res.status(500).json({ error: 'Error al crear evento.' });
+  }
+});
+
+router.put('/events/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const updates = req.body || {};
+
+    const event = await Event.findById(targetId);
+    if (!event) {
+      return res.status(404).json({ error: 'Evento no encontrado.' });
+    }
+
+    if (updates.dateTime) updates.dateTime = new Date(updates.dateTime);
+    Object.assign(event, updates);
+    await event.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Evento "${event.title}" actualizado exitosamente.`,
+      evento: event,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT /events/:id error:', error);
+    return res.status(500).json({ error: 'Error al actualizar evento.' });
+  }
+});
+
+router.delete('/events/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const result = await Event.findByIdAndDelete(targetId);
+
+    if (!result) {
+      return res.status(404).json({ error: 'Evento no encontrado.' });
+    }
+
+    return res.json({
+      exito: true,
+      mensaje: `Evento "${result.title}" eliminado exitosamente.`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /events/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar evento.' });
+  }
+});
+
+// ─── 27. EMBAJADORES Y AFILIADOS ───────────────────────────────────────────
+
+router.get('/partners', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const partner = await Partner.findOne({ userId }).lean();
+
+    if (!partner) {
+      return res.json({
+        esEmbajador: false,
+        mensaje: 'El usuario no tiene una cuenta de embajador activa.',
+      });
+    }
+
+    const commissions = await PartnerCommission.find({ partnerId: partner._id }).lean();
+    const totalComisiones = commissions.reduce((acc, c) => acc + (c.amount || 0), 0);
+    const pagadas = commissions.filter((c) => c.status === 'paid').reduce((acc, c) => acc + (c.amount || 0), 0);
+
+    return res.json({
+      esEmbajador: true,
+      slug: partner.slug,
+      tipo: partner.type,
+      tasaComision: `${Math.round(partner.commissionRate * 100)}%`,
+      estado: partner.status,
+      totalComisionesGanadas: totalComisiones,
+      totalPagado: pagadas,
+      saldoDisponible: totalComisiones - pagadas,
+      detallesPago: partner.paymentDetails || '',
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /partners error:', error);
+    return res.status(500).json({ error: 'Error al consultar perfil de embajador.' });
+  }
+});
+
+router.get('/partners/commissions', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const partner = await Partner.findOne({ userId }).lean();
+
+    if (!partner) {
+      return res.json({ total: 0, comisiones: [] });
+    }
+
+    const commissions = await PartnerCommission.find({ partnerId: partner._id })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    return res.json({
+      total: commissions.length,
+      comisiones: commissions.map((c) => ({
+        id: c._id.toString(),
+        amount: c.amount,
+        status: c.status,
+        description: c.description || '',
+        createdAt: c.createdAt,
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /partners/commissions error:', error);
+    return res.status(500).json({ error: 'Error al consultar comisiones.' });
+  }
+});
+
+router.post('/partners/payout', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { amount, bankDetails } = req.body;
+
+    const partner = await Partner.findOne({ userId });
+    if (!partner) {
+      return res.status(403).json({ error: 'No tienes perfil de embajador activo.' });
+    }
+
+    const payout = new PayoutRequest({
+      partnerId: partner._id,
+      amount: Number(amount),
+      status: 'pending',
+      paymentDetails: bankDetails || partner.paymentDetails || 'N/A',
+      requestedAt: new Date(),
+    });
+
+    await payout.save();
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: `Solicitud de cobro por $${amount} registrada con éxito.`,
+      payoutId: payout._id.toString(),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /partners/payout error:', error);
+    return res.status(500).json({ error: 'Error al solicitar cobro de comisiones.' });
+  }
+});
+
+// ─── 28. TRABAJO SEGURO EN ALTURAS ─────────────────────────────────────────
+
+router.get('/alturas', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    const query = companyId ? { $or: [{ companyId }, { user: userId }] } : { user: userId };
+    const heightsList = await SgsstHeightsData.find(query).lean();
+
+    return res.json({
+      totalTrabajadoresConEquipos: heightsList.length,
+      registros: heightsList.map((h) => ({
+        id: h._id.toString(),
+        workerId: h.workerId,
+        nombreTrabajador: h.nombreTrabajador,
+        cargo: h.cargo,
+        totalEquipos: h.equipos?.length || 0,
+        equipos: h.equipos || [],
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /alturas error:', error);
+    return res.status(500).json({ error: 'Error al consultar equipos de alturas.' });
+  }
+});
+
+router.post('/alturas', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { workerId, nombreTrabajador, cargo, nombre, serial, marca, referencia, fechaCompra, fechaProximaInspeccion } = req.body;
+
+    if (!workerId || !nombre || !serial) {
+      return res.status(400).json({ error: 'workerId, nombre de equipo y serial son obligatorios.' });
+    }
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    const query = companyId
+      ? { workerId, $or: [{ companyId }, { user: userId }] }
+      : { workerId, user: userId };
+
+    let doc = await SgsstHeightsData.findOne(query);
+    if (!doc) {
+      doc = new SgsstHeightsData({
+        user: userId,
+        companyId,
+        workerId,
+        nombreTrabajador: nombreTrabajador || 'Trabajador en Alturas',
+        cargo: cargo || 'Operativo',
+        equipos: [],
+      });
+    }
+
+    const nuevoEquipo = {
+      id: `alt_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      nombre: nombre.trim(),
+      serial: serial.trim(),
+      marca: marca || '',
+      referencia: referencia || '',
+      fechaCompra: fechaCompra || '',
+      fechaProximaInspeccion: fechaProximaInspeccion || '',
+      estado: 'Vigente',
+      resultadoInspeccion: 'Aprobado',
+    };
+
+    doc.equipos.push(nuevoEquipo);
+    await doc.save();
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: `Equipo de alturas "${nombre}" con serial "${serial}" registrado para ${doc.nombreTrabajador}.`,
+      equipo: nuevoEquipo,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /alturas error:', error);
+    return res.status(500).json({ error: 'Error al registrar equipo de alturas.' });
+  }
+});
+
+router.delete('/alturas/:workerId/:equipoId', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { workerId, equipoId } = req.params;
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    const query = companyId
+      ? { workerId, $or: [{ companyId }, { user: userId }] }
+      : { workerId, user: userId };
+
+    const doc = await SgsstHeightsData.findOne(query);
+    if (!doc) {
+      return res.status(404).json({ error: 'Registro de alturas no encontrado para el trabajador.' });
+    }
+
+    doc.equipos = (doc.equipos || []).filter((e) => e.id !== equipoId && e.serial !== equipoId);
+    await doc.save();
+
+    return res.json({
+      exito: true,
+      mensaje: 'Equipo de alturas retirado exitosamente.',
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /alturas/:workerId/:equipoId error:', error);
+    return res.status(500).json({ error: 'Error al retirar equipo de alturas.' });
+  }
+});
+
+// ─── 29. TICKETS DE SOPORTE ────────────────────────────────────────────────
+
+router.get('/tickets', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const tickets = await Ticket.find({ user: userId }).sort({ createdAt: -1 }).lean();
+
+    return res.json({
+      total: tickets.length,
+      tickets: tickets.map((t) => ({
+        id: t._id.toString(),
+        name: t.name,
+        email: t.email,
+        phone: t.phone,
+        type: t.type,
+        description: t.description,
+        status: t.status,
+        response: t.response || '',
+        createdAt: t.createdAt,
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /tickets error:', error);
+    return res.status(500).json({ error: 'Error al consultar tickets.' });
+  }
+});
+
+router.post('/tickets', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { name, email, phone, type, description } = req.body;
+
+    if (!name || !email || !description) {
+      return res.status(400).json({ error: 'name, email y description son obligatorios.' });
+    }
+
+    const ticket = new Ticket({
+      user: userId,
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone || '',
+      type: type || 'Petición',
+      description: description.trim(),
+      status: 'pending',
+    });
+
+    await ticket.save();
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: `Ticket de soporte #${ticket._id.toString().slice(-6)} creado con éxito.`,
+      ticketId: ticket._id.toString(),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /tickets error:', error);
+    return res.status(500).json({ error: 'Error al crear ticket.' });
+  }
+});
+
+router.patch('/tickets/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const updates = req.body || {};
+
+    const ticket = await Ticket.findById(targetId);
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket no encontrado.' });
+    }
+
+    if (updates.status) ticket.status = updates.status;
+    if (updates.response) ticket.response = updates.response;
+    await ticket.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Ticket actualizado a estado "${ticket.status}".`,
+      ticket,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PATCH /tickets/:id error:', error);
+    return res.status(500).json({ error: 'Error al actualizar ticket.' });
+  }
+});
+
+// ─── 30. TENSHI VOICE CONFIGURACIÓN ────────────────────────────────────────
+
+router.get('/tenshi/config', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const config = await TenshiConfig.findOne().lean();
+
+    return res.json({
+      nombre: config?.name || 'Tenshi',
+      descripcion: config?.description || 'Asistente virtual de WAPPY',
+      model: config?.model || 'gemini-3.6-flash',
+      systemPrompt: config?.systemPrompt || '',
+      extraKnowledge: config?.extraKnowledge || '',
+      location: config?.location || 'bottom-right',
+      isActive: config?.isActive !== false,
+      provider: config?.provider || 'google',
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /tenshi/config error:', error);
+    return res.status(500).json({ error: 'Error al consultar configuración de Tenshi.' });
+  }
+});
+
+router.put('/tenshi/config', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const updates = req.body || {};
+
+    let config = await TenshiConfig.findOne();
+    if (!config) {
+      config = new TenshiConfig(updates);
+    } else {
+      Object.assign(config, updates);
+    }
+
+    await config.save();
+
+    return res.json({
+      exito: true,
+      mensaje: 'Configuración de Tenshi Voice actualizada con éxito.',
+      config,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT /tenshi/config error:', error);
+    return res.status(500).json({ error: 'Error al actualizar configuración de Tenshi.' });
+  }
+});
+
 module.exports = router;
+
