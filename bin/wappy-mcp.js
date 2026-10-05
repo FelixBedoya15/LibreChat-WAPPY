@@ -313,6 +313,23 @@ server.tool(
   }
 );
 
+server.tool(
+  'wappy_eliminar_trabajador',
+  {
+    idOrCedula: z.string().describe('ID de MongoDB o cédula del trabajador a eliminar'),
+  },
+  async (args) => {
+    try {
+      const data = await wappyRequest(`/workers/${encodeURIComponent(args.idOrCedula)}`, {
+        method: 'DELETE',
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
 // ─── 6. CRONOGRAMA SST Y TAREAS KANBAN ──────────────────────────────────────
 
 server.tool(
