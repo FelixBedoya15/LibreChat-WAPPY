@@ -530,6 +530,82 @@ router.post('/gtc45', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+router.put('/gtc45/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+    const updates = req.body || {};
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id?.toString();
+    const officialConvoId = `official-${companyId || userId}`;
+
+    let session = await GTC45WorkspaceSession.findOne({
+      $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }, { companyId, isOfficial: true }],
+    });
+
+    if (!session || !Array.isArray(session.matrixRows)) {
+      return res.status(404).json({ error: 'Matriz GTC-45 no encontrada.' });
+    }
+
+    const idx = session.matrixRows.findIndex((r) => r.id === targetId || r._id?.toString() === targetId);
+    if (idx === -1) {
+      return res.status(404).json({ error: `Riesgo con ID "${targetId}" no encontrado en la matriz GTC-45.` });
+    }
+
+    session.matrixRows[idx] = { ...session.matrixRows[idx], ...updates };
+    session.markModified('matrixRows');
+    await session.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Riesgo GTC-45 "${targetId}" actualizado exitosamente.`,
+      riesgo: session.matrixRows[idx],
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT /gtc45/:id error:', error);
+    return res.status(500).json({ error: 'Error al actualizar riesgo GTC-45.' });
+  }
+});
+
+router.delete('/gtc45/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id?.toString();
+    const officialConvoId = `official-${companyId || userId}`;
+
+    let session = await GTC45WorkspaceSession.findOne({
+      $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }, { companyId, isOfficial: true }],
+    });
+
+    if (!session || !Array.isArray(session.matrixRows)) {
+      return res.status(404).json({ error: 'Matriz GTC-45 no encontrada.' });
+    }
+
+    const initialLen = session.matrixRows.length;
+    session.matrixRows = session.matrixRows.filter((r) => r.id !== targetId && r._id?.toString() !== targetId);
+
+    if (session.matrixRows.length === initialLen) {
+      return res.status(404).json({ error: `Riesgo con ID "${targetId}" no encontrado en la matriz GTC-45.` });
+    }
+
+    session.markModified('matrixRows');
+    await session.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Riesgo GTC-45 "${targetId}" eliminado exitosamente.`,
+      totalRiesgosRestantes: session.matrixRows.length,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /gtc45/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar riesgo GTC-45.' });
+  }
+});
+
 // ─── 4. MATRIZ PESV ─────────────────────────────────────────────────────────
 
 router.get('/pesv', requireApiKeyOrJwt, async (req, res) => {
@@ -632,6 +708,82 @@ router.post('/pesv', requireApiKeyOrJwt, async (req, res) => {
   } catch (error) {
     logger.error('[MCP Bridge] POST /pesv error:', error);
     return res.status(500).json({ error: 'Error al agregar registros a la matriz PESV.' });
+  }
+});
+
+router.put('/pesv/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+    const updates = req.body || {};
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id?.toString();
+    const officialConvoId = `official-${companyId || userId}`;
+
+    let session = await PESVWorkspaceSession.findOne({
+      $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }, { companyId, isOfficial: true }],
+    });
+
+    if (!session || !Array.isArray(session.matrixRows)) {
+      return res.status(404).json({ error: 'Matriz PESV no encontrada.' });
+    }
+
+    const idx = session.matrixRows.findIndex((r) => r.id === targetId || r._id?.toString() === targetId);
+    if (idx === -1) {
+      return res.status(404).json({ error: `Riesgo PESV con ID "${targetId}" no encontrado.` });
+    }
+
+    session.matrixRows[idx] = { ...session.matrixRows[idx], ...updates };
+    session.markModified('matrixRows');
+    await session.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Riesgo vial PESV "${targetId}" actualizado exitosamente.`,
+      riesgo: session.matrixRows[idx],
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT /pesv/:id error:', error);
+    return res.status(500).json({ error: 'Error al actualizar riesgo PESV.' });
+  }
+});
+
+router.delete('/pesv/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id?.toString();
+    const officialConvoId = `official-${companyId || userId}`;
+
+    let session = await PESVWorkspaceSession.findOne({
+      $or: [{ conversationId: officialConvoId }, { user: userId, isOfficial: true }, { companyId, isOfficial: true }],
+    });
+
+    if (!session || !Array.isArray(session.matrixRows)) {
+      return res.status(404).json({ error: 'Matriz PESV no encontrada.' });
+    }
+
+    const initialLen = session.matrixRows.length;
+    session.matrixRows = session.matrixRows.filter((r) => r.id !== targetId && r._id?.toString() !== targetId);
+
+    if (session.matrixRows.length === initialLen) {
+      return res.status(404).json({ error: `Riesgo PESV con ID "${targetId}" no encontrado.` });
+    }
+
+    session.markModified('matrixRows');
+    await session.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Riesgo vial PESV "${targetId}" eliminado exitosamente.`,
+      totalRegistrosRestantes: session.matrixRows.length,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /pesv/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar riesgo PESV.' });
   }
 });
 
@@ -1254,6 +1406,26 @@ router.patch('/tasks/:id', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+router.delete('/tasks/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const taskId = req.params.id;
+
+    const result = await KanbanTask.findOneAndDelete({ _id: taskId, user: userId });
+    if (!result) {
+      return res.status(404).json({ error: 'Tarea no encontrada.' });
+    }
+
+    return res.json({
+      exito: true,
+      mensaje: `Actividad "${result.title}" eliminada exitosamente del cronograma.`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /tasks/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar la tarea.' });
+  }
+});
+
 // ─── 7. MATRIZ LEGAL SST ───────────────────────────────────────────────────
 
 router.get('/matriz-legal', requireApiKeyOrJwt, async (req, res) => {
@@ -1328,10 +1500,79 @@ router.post('/matriz-legal', requireApiKeyOrJwt, async (req, res) => {
       exito: true,
       mensaje: `Requisito legal "${norma}" agregado a la matriz.`,
       totalNormas: doc.statuses.length,
+      norma: newItem,
     });
   } catch (error) {
     logger.error('[MCP Bridge] POST /matriz-legal error:', error);
     return res.status(500).json({ error: 'Error al agregar requisito legal.' });
+  }
+});
+
+router.put('/matriz-legal/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+    const updates = req.body || {};
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    let doc = await MatrizLegalData.findOne({ $or: [{ companyId }, { user: userId }] });
+    if (!doc || !Array.isArray(doc.statuses)) {
+      return res.status(404).json({ error: 'Matriz legal no encontrada.' });
+    }
+
+    const idx = doc.statuses.findIndex((s) => s.id === targetId || (s.norma && s.norma.toLowerCase() === targetId.toLowerCase()));
+    if (idx === -1) {
+      return res.status(404).json({ error: `Norma con identificador "${targetId}" no encontrada.` });
+    }
+
+    doc.statuses[idx] = { ...doc.statuses[idx], ...updates, fechaActualizacion: new Date().toISOString() };
+    doc.markModified('statuses');
+    await doc.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Requisito legal "${doc.statuses[idx].norma}" actualizado exitosamente.`,
+      norma: doc.statuses[idx],
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT /matriz-legal/:id error:', error);
+    return res.status(500).json({ error: 'Error al actualizar requisito legal.' });
+  }
+});
+
+router.delete('/matriz-legal/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    let doc = await MatrizLegalData.findOne({ $or: [{ companyId }, { user: userId }] });
+    if (!doc || !Array.isArray(doc.statuses)) {
+      return res.status(404).json({ error: 'Matriz legal no encontrada.' });
+    }
+
+    const initialLen = doc.statuses.length;
+    doc.statuses = doc.statuses.filter((s) => s.id !== targetId && (!s.norma || s.norma.toLowerCase() !== targetId.toLowerCase()));
+
+    if (doc.statuses.length === initialLen) {
+      return res.status(404).json({ error: `Norma con identificador "${targetId}" no encontrada.` });
+    }
+
+    doc.markModified('statuses');
+    await doc.save();
+
+    return res.json({
+      exito: true,
+      mensaje: 'Requisito legal eliminado exitosamente.',
+      totalNormasRestantes: doc.statuses.length,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /matriz-legal/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar requisito legal.' });
   }
 });
 
@@ -1568,6 +1809,50 @@ router.post('/comites', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+router.delete('/comites/:tipoComite/:cedula', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { tipoComite, cedula } = req.params;
+    const cleanCedula = String(cedula).trim();
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    if (tipoComite === 'brigada') {
+      const resDel = await SgsstBrigadista.deleteMany({
+        $or: [{ companyId }, { user: userId }],
+        cedula: cleanCedula,
+      });
+      return res.json({ exito: true, mensaje: `Brigadista con cédula ${cleanCedula} retirado de la brigada.` });
+    }
+
+    if (tipoComite === 'copasst') {
+      let doc = await SgsstCopasstComite.findOne({ $or: [{ companyId }, { user: userId }] });
+      if (doc) {
+        doc.integrantesEmpleador = (doc.integrantesEmpleador || []).filter((i) => String(i.cedula).trim() !== cleanCedula);
+        doc.integrantesTrabajador = (doc.integrantesTrabajador || []).filter((i) => String(i.cedula).trim() !== cleanCedula);
+        await doc.save();
+      }
+      return res.json({ exito: true, mensaje: `Integrante con cédula ${cleanCedula} retirado del COPASST.` });
+    }
+
+    if (tipoComite === 'convivencia') {
+      let doc = await SgsstConvivenciaComite.findOne({ $or: [{ companyId }, { user: userId }] });
+      if (doc) {
+        doc.representantesEmpleador = (doc.representantesEmpleador || []).filter((i) => String(i.cedula).trim() !== cleanCedula);
+        doc.representantesTrabajador = (doc.representantesTrabajador || []).filter((i) => String(i.cedula).trim() !== cleanCedula);
+        await doc.save();
+      }
+      return res.json({ exito: true, mensaje: `Representante con cédula ${cleanCedula} retirado del Comité de Convivencia.` });
+    }
+
+    return res.status(400).json({ error: 'tipoComite no válido ("copasst", "convivencia", "brigada").' });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /comites error:', error);
+    return res.status(500).json({ error: 'Error al eliminar miembro de comité.' });
+  }
+});
+
 // ─── 10. PRODUCTOS QUÍMICOS Y SGA ──────────────────────────────────────────
 
 router.get('/quimicos', requireApiKeyOrJwt, async (req, res) => {
@@ -1609,7 +1894,7 @@ router.post('/quimicos', requireApiKeyOrJwt, async (req, res) => {
     }
 
     const prodId = `chem_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-    doc.productos.push({
+    const nuevoProd = {
       id: prodId,
       nombre: nombre.trim(),
       fabricante: fabricante || '',
@@ -1622,18 +1907,88 @@ router.post('/quimicos', requireApiKeyOrJwt, async (req, res) => {
       tieneRotuloSga: tieneRotuloSga || 'Sí',
       incompatibilidades: Array.isArray(incompatibilidades) ? incompatibilidades : [],
       observaciones: observaciones || '',
-    });
+    };
 
+    doc.productos.push(nuevoProd);
     await doc.save();
 
     return res.status(201).json({
       exito: true,
       mensaje: `Producto químico "${nombre}" incorporado al inventario con SGA.`,
       totalProductos: doc.productos.length,
+      producto: nuevoProd,
     });
   } catch (error) {
     logger.error('[MCP Bridge] POST /quimicos error:', error);
     return res.status(500).json({ error: 'Error al registrar químico.' });
+  }
+});
+
+router.put('/quimicos/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+    const updates = req.body || {};
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    let doc = await SgsstChemicalData.findOne({ $or: [{ companyId }, { user: userId }] });
+    if (!doc || !Array.isArray(doc.productos)) {
+      return res.status(404).json({ error: 'Inventario químico no encontrado.' });
+    }
+
+    const idx = doc.productos.findIndex((p) => p.id === targetId || (p.nombre && p.nombre.toLowerCase() === targetId.toLowerCase()));
+    if (idx === -1) {
+      return res.status(404).json({ error: `Producto químico "${targetId}" no encontrado.` });
+    }
+
+    doc.productos[idx] = { ...doc.productos[idx], ...updates };
+    doc.markModified('productos');
+    await doc.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Producto químico "${doc.productos[idx].nombre}" actualizado exitosamente.`,
+      producto: doc.productos[idx],
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT /quimicos/:id error:', error);
+    return res.status(500).json({ error: 'Error al actualizar producto químico.' });
+  }
+});
+
+router.delete('/quimicos/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    let doc = await SgsstChemicalData.findOne({ $or: [{ companyId }, { user: userId }] });
+    if (!doc || !Array.isArray(doc.productos)) {
+      return res.status(404).json({ error: 'Inventario químico no encontrado.' });
+    }
+
+    const initialLen = doc.productos.length;
+    doc.productos = doc.productos.filter((p) => p.id !== targetId && (!p.nombre || p.nombre.toLowerCase() !== targetId.toLowerCase()));
+
+    if (doc.productos.length === initialLen) {
+      return res.status(404).json({ error: `Producto químico "${targetId}" no encontrado.` });
+    }
+
+    doc.markModified('productos');
+    await doc.save();
+
+    return res.json({
+      exito: true,
+      mensaje: 'Producto químico eliminado del inventario.',
+      totalProductosRestantes: doc.productos.length,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /quimicos/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar producto químico.' });
   }
 });
 
@@ -1717,6 +2072,67 @@ router.post('/vehiculos', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+router.put('/vehiculos/:idOrPlaca', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const target = req.params.idOrPlaca.trim().toUpperCase();
+    const updates = req.body || {};
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    let v = await SgsstVehicleData.findOne({
+      $or: [{ companyId }, { user: userId }],
+      $or: [{ placa: target }, { _id: mongoose.isValidObjectId(target) ? target : null }],
+    });
+
+    if (!v) {
+      return res.status(404).json({ error: `Vehículo con placa/ID "${target}" no encontrado.` });
+    }
+
+    Object.assign(v, updates);
+    if (updates.placa) v.placa = updates.placa.trim().toUpperCase();
+    if (updates.kilometrajeActual) v.kilometrajeActual = Number(updates.kilometrajeActual);
+    await v.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Vehículo con placa "${v.placa}" actualizado exitosamente.`,
+      vehiculo: v,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT /vehiculos/:idOrPlaca error:', error);
+    return res.status(500).json({ error: 'Error al actualizar vehículo.' });
+  }
+});
+
+router.delete('/vehiculos/:idOrPlaca', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const target = req.params.idOrPlaca.trim().toUpperCase();
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    const result = await SgsstVehicleData.findOneAndDelete({
+      $or: [{ companyId }, { user: userId }],
+      $or: [{ placa: target }, { _id: mongoose.isValidObjectId(target) ? target : null }],
+    });
+
+    if (!result) {
+      return res.status(404).json({ error: `Vehículo con placa/ID "${target}" no encontrado.` });
+    }
+
+    return res.json({
+      exito: true,
+      mensaje: `Vehículo con placa "${result.placa}" eliminado de la flota.`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /vehiculos/:idOrPlaca error:', error);
+    return res.status(500).json({ error: 'Error al eliminar vehículo.' });
+  }
+});
+
 // ─── 12. ELEMENTOS DE PROTECCIÓN PERSONAL (EPP) ────────────────────────────
 
 router.get('/epp', requireApiKeyOrJwt, async (req, res) => {
@@ -1791,6 +2207,33 @@ router.post('/epp', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+router.delete('/epp/:documento/:entregaId?', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { documento, entregaId } = req.params;
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    let doc = await SgsstEppData.findOne({ documento, $or: [{ companyId }, { user: userId }] });
+    if (!doc) {
+      return res.status(404).json({ error: `Registro de EPP para cédula ${documento} no encontrado.` });
+    }
+
+    if (entregaId) {
+      doc.entregas = (doc.entregas || []).filter((e) => e.id !== entregaId);
+      await doc.save();
+      return res.json({ exito: true, mensaje: `Entrega de EPP "${entregaId}" eliminada.` });
+    } else {
+      await SgsstEppData.deleteOne({ _id: doc._id });
+      return res.json({ exito: true, mensaje: `Historial de EPP para ${doc.nombreTrabajador} eliminado.` });
+    }
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /epp error:', error);
+    return res.status(500).json({ error: 'Error al eliminar entrega de EPP.' });
+  }
+});
+
 // ─── 13. REPORTES DE ACTOS Y CONDICIONES INSEGURAS ──────────────────────────
 
 router.get('/actos-condiciones', requireApiKeyOrJwt, async (req, res) => {
@@ -1858,10 +2301,81 @@ router.post('/actos-condiciones', requireApiKeyOrJwt, async (req, res) => {
       exito: true,
       mensaje: 'Reporte preventivo de acto/condición registrado con éxito.',
       reporteId: nuevoReporte.id,
+      reporte: nuevoReporte,
     });
   } catch (error) {
     logger.error('[MCP Bridge] POST /actos-condiciones error:', error);
     return res.status(500).json({ error: 'Error al crear reporte de acto o condición.' });
+  }
+});
+
+router.patch('/actos-condiciones/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+    const updates = req.body || {};
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    let doc = await ReporteActosData.findOne({ $or: [{ companyId }, { user: userId }] });
+    if (!doc || !Array.isArray(doc.inboxPublico)) {
+      return res.status(404).json({ error: 'Reportes no encontrados.' });
+    }
+
+    const idx = doc.inboxPublico.findIndex((r) => r.id === targetId || r._id?.toString() === targetId);
+    if (idx === -1) {
+      return res.status(404).json({ error: `Reporte con ID "${targetId}" no encontrado.` });
+    }
+
+    if (updates.estado) doc.inboxPublico[idx].data.estado = updates.estado;
+    if (updates.accionInmediata) doc.inboxPublico[idx].data.accionInmediata = updates.accionInmediata;
+    if (updates.nivelRiesgo) doc.inboxPublico[idx].data.nivelRiesgo = updates.nivelRiesgo;
+    doc.markModified('inboxPublico');
+    await doc.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Reporte "${targetId}" actualizado exitosamente.`,
+      reporte: doc.inboxPublico[idx],
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PATCH /actos-condiciones/:id error:', error);
+    return res.status(500).json({ error: 'Error al actualizar reporte.' });
+  }
+});
+
+router.delete('/actos-condiciones/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    let doc = await ReporteActosData.findOne({ $or: [{ companyId }, { user: userId }] });
+    if (!doc || !Array.isArray(doc.inboxPublico)) {
+      return res.status(404).json({ error: 'Reportes no encontrados.' });
+    }
+
+    const initialLen = doc.inboxPublico.length;
+    doc.inboxPublico = doc.inboxPublico.filter((r) => r.id !== targetId && r._id?.toString() !== targetId);
+
+    if (doc.inboxPublico.length === initialLen) {
+      return res.status(404).json({ error: `Reporte con ID "${targetId}" no encontrado.` });
+    }
+
+    doc.markModified('inboxPublico');
+    await doc.save();
+
+    return res.json({
+      exito: true,
+      mensaje: 'Reporte de acto/condición eliminado.',
+      totalReportesRestantes: doc.inboxPublico.length,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /actos-condiciones/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar reporte.' });
   }
 });
 
@@ -1938,6 +2452,40 @@ router.post('/perfiles-cargo', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+router.delete('/perfiles-cargo/:idOrCargo', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const target = req.params.idOrCargo.trim();
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    let doc = await PerfilCargoData.findOne({ $or: [{ companyId }, { user: userId }] });
+    if (!doc || !Array.isArray(doc.perfilesList)) {
+      return res.status(404).json({ error: 'Perfiles de cargo no encontrados.' });
+    }
+
+    const initialLen = doc.perfilesList.length;
+    doc.perfilesList = doc.perfilesList.filter((p) => p.id !== target && (!p.cargo || p.cargo.toLowerCase() !== target.toLowerCase()));
+
+    if (doc.perfilesList.length === initialLen) {
+      return res.status(404).json({ error: `Perfil de cargo "${target}" no encontrado.` });
+    }
+
+    doc.markModified('perfilesList');
+    await doc.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Perfil de cargo "${target}" eliminado exitosamente.`,
+      totalPerfilesRestantes: doc.perfilesList.length,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /perfiles-cargo/:idOrCargo error:', error);
+    return res.status(500).json({ error: 'Error al eliminar perfil de cargo.' });
+  }
+});
+
 // ─── 15. CASOS ATEL (ACCIDENTES E INVESTIGACIONES) ──────────────────────────
 
 router.get('/atel', requireApiKeyOrJwt, async (req, res) => {
@@ -1950,7 +2498,7 @@ router.get('/atel', requireApiKeyOrJwt, async (req, res) => {
     return res.json({
       totalCasos: casos.length,
       casos: casos.map((c) => ({
-        id: c.id,
+        id: c._id.toString(),
         datos: c.formData || {},
         equipoInvestigador: c.equipoList || [],
         testigos: c.testigosList || [],
@@ -1994,11 +2542,71 @@ router.post('/atel', requireApiKeyOrJwt, async (req, res) => {
     return res.status(201).json({
       exito: true,
       mensaje: `Caso ATEL registrado con éxito para ${nombreTrabajador}.`,
-      casoId: nuevoCaso.id,
+      casoId: nuevoCaso._id.toString(),
     });
   } catch (error) {
     logger.error('[MCP Bridge] POST /atel error:', error);
     return res.status(500).json({ error: 'Error al registrar caso ATEL.' });
+  }
+});
+
+router.put('/atel/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+    const updates = req.body || {};
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    let caso = await InvestigacionAtelData.findOne({
+      _id: targetId,
+      $or: [{ companyId }, { user: userId }],
+    });
+
+    if (!caso) {
+      return res.status(404).json({ error: `Caso ATEL "${targetId}" no encontrado.` });
+    }
+
+    caso.formData = { ...caso.formData, ...updates };
+    caso.markModified('formData');
+    await caso.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Caso ATEL "${targetId}" actualizado exitosamente.`,
+      caso,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT /atel/:id error:', error);
+    return res.status(500).json({ error: 'Error al actualizar caso ATEL.' });
+  }
+});
+
+router.delete('/atel/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    const result = await InvestigacionAtelData.findOneAndDelete({
+      _id: targetId,
+      $or: [{ companyId }, { user: userId }],
+    });
+
+    if (!result) {
+      return res.status(404).json({ error: `Caso ATEL "${targetId}" no encontrado.` });
+    }
+
+    return res.json({
+      exito: true,
+      mensaje: `Caso ATEL "${targetId}" eliminado exitosamente.`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /atel/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar caso ATEL.' });
   }
 });
 
@@ -2070,10 +2678,79 @@ router.post('/capacitaciones', requireApiKeyOrJwt, async (req, res) => {
       exito: true,
       mensaje: `Capacitación sobre "${tema}" programada para el ${fecha}.`,
       sesionId: nuevaSesion.id,
+      sesion: nuevaSesion,
     });
   } catch (error) {
     logger.error('[MCP Bridge] POST /capacitaciones error:', error);
     return res.status(500).json({ error: 'Error al programar capacitación.' });
+  }
+});
+
+router.put('/capacitaciones/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+    const updates = req.body || {};
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    let doc = await ProgramaCapacitacionesData.findOne({ $or: [{ companyId }, { user: userId }] });
+    if (!doc || !Array.isArray(doc.sesiones)) {
+      return res.status(404).json({ error: 'Programa de capacitaciones no encontrado.' });
+    }
+
+    const idx = doc.sesiones.findIndex((s) => s.id === targetId);
+    if (idx === -1) {
+      return res.status(404).json({ error: `Sesión de capacitación "${targetId}" no encontrada.` });
+    }
+
+    doc.sesiones[idx] = { ...doc.sesiones[idx], ...updates };
+    doc.markModified('sesiones');
+    await doc.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Capacitación "${doc.sesiones[idx].tema}" actualizada exitosamente.`,
+      sesion: doc.sesiones[idx],
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT /capacitaciones/:id error:', error);
+    return res.status(500).json({ error: 'Error al actualizar capacitación.' });
+  }
+});
+
+router.delete('/capacitaciones/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    let doc = await ProgramaCapacitacionesData.findOne({ $or: [{ companyId }, { user: userId }] });
+    if (!doc || !Array.isArray(doc.sesiones)) {
+      return res.status(404).json({ error: 'Programa de capacitaciones no encontrado.' });
+    }
+
+    const initialLen = doc.sesiones.length;
+    doc.sesiones = doc.sesiones.filter((s) => s.id !== targetId);
+
+    if (doc.sesiones.length === initialLen) {
+      return res.status(404).json({ error: `Sesión de capacitación "${targetId}" no encontrada.` });
+    }
+
+    doc.markModified('sesiones');
+    await doc.save();
+
+    return res.json({
+      exito: true,
+      mensaje: 'Sesión de capacitación eliminada exitosamente.',
+      totalSesionesRestantes: doc.sesiones.length,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /capacitaciones/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar capacitación.' });
   }
 });
 
@@ -2145,10 +2822,79 @@ router.post('/auditorias', requireApiKeyOrJwt, async (req, res) => {
     return res.status(201).json({
       exito: true,
       mensaje: 'Hallazgo de auditoría y plan de acción registrados con éxito.',
+      hallazgo: nuevoHallazgo,
     });
   } catch (error) {
     logger.error('[MCP Bridge] POST /auditorias error:', error);
     return res.status(500).json({ error: 'Error al registrar hallazgo de auditoría.' });
+  }
+});
+
+router.patch('/auditorias/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+    const updates = req.body || {};
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    let doc = await AuditoriaData.findOne({ $or: [{ companyId }, { user: userId }] });
+    if (!doc || !Array.isArray(doc.statusData)) {
+      return res.status(404).json({ error: 'Auditorías no encontradas.' });
+    }
+
+    const idx = doc.statusData.findIndex((h) => h.itemId === targetId || h.code === targetId);
+    if (idx === -1) {
+      return res.status(404).json({ error: `Hallazgo "${targetId}" no encontrado.` });
+    }
+
+    doc.statusData[idx] = { ...doc.statusData[idx], ...updates };
+    doc.markModified('statusData');
+    await doc.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Hallazgo "${targetId}" actualizado exitosamente.`,
+      hallazgo: doc.statusData[idx],
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PATCH /auditorias/:id error:', error);
+    return res.status(500).json({ error: 'Error al actualizar hallazgo.' });
+  }
+});
+
+router.delete('/auditorias/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    let doc = await AuditoriaData.findOne({ $or: [{ companyId }, { user: userId }] });
+    if (!doc || !Array.isArray(doc.statusData)) {
+      return res.status(404).json({ error: 'Auditorías no encontradas.' });
+    }
+
+    const initialLen = doc.statusData.length;
+    doc.statusData = doc.statusData.filter((h) => h.itemId !== targetId && h.code !== targetId);
+
+    if (doc.statusData.length === initialLen) {
+      return res.status(404).json({ error: `Hallazgo "${targetId}" no encontrado.` });
+    }
+
+    doc.markModified('statusData');
+    await doc.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Hallazgo "${targetId}" eliminado exitosamente.`,
+      totalHallazgosRestantes: doc.statusData.length,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /auditorias/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar hallazgo.' });
   }
 });
 
@@ -2220,6 +2966,26 @@ router.post('/agentes-automatizaciones', requireApiKeyOrJwt, async (req, res) =>
   } catch (error) {
     logger.error('[MCP Bridge] POST /agentes-automatizaciones error:', error);
     return res.status(500).json({ error: 'Error al programar automatización.' });
+  }
+});
+
+router.delete('/agentes-automatizaciones/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+
+    const result = await Automation.findOneAndDelete({ _id: targetId, user: userId });
+    if (!result) {
+      return res.status(404).json({ error: 'Automatización no encontrada.' });
+    }
+
+    return res.json({
+      exito: true,
+      mensaje: `Automatización "${result.name}" eliminada exitosamente.`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /agentes-automatizaciones/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar automatización.' });
   }
 });
 

@@ -226,6 +226,58 @@ server.tool(
   }
 );
 
+server.tool(
+  'wappy_actualizar_riesgo_gtc45',
+  {
+    id: z.string().describe('ID del riesgo en la matriz GTC-45 a actualizar'),
+    proceso: z.string().optional().describe('Nuevo proceso'),
+    zona_lugar: z.string().optional().describe('Nueva zona o lugar'),
+    actividades: z.string().optional().describe('Nuevas actividades'),
+    tareas: z.string().optional().describe('Nuevas tareas'),
+    cargo: z.string().optional().describe('Nuevo cargo u ocupación'),
+    rutinaria: z.enum(['Sí', 'No']).optional().describe('¿Es rutinaria?'),
+    peligro_descripcion: z.string().optional().describe('Descripción del peligro'),
+    peligro_clasificacion: z.string().optional().describe('Clasificación del peligro'),
+    efectos_posibles: z.string().optional().describe('Efectos posibles'),
+    nd: z.number().optional().describe('Nivel de deficiencia (0, 2, 6, 10)'),
+    ne: z.number().optional().describe('Nivel de exposición (1, 2, 3, 4)'),
+    nc: z.number().optional().describe('Nivel de consecuencia (10, 25, 60, 100)'),
+    peor_consecuencia: z.string().optional().describe('Peor consecuencia'),
+    medida_eliminacion: z.string().optional(),
+    medida_sustitucion: z.string().optional(),
+    medida_ingenieria: z.string().optional(),
+    medida_administrativa: z.string().optional(),
+    medida_eppu: z.string().optional(),
+  },
+  async (args) => {
+    try {
+      const { id, ...updates } = args;
+      const data = await wappyRequest(`/gtc45/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_eliminar_riesgo_gtc45',
+  {
+    id: z.string().describe('ID del riesgo a eliminar de la matriz GTC-45'),
+  },
+  async ({ id }) => {
+    try {
+      const data = await wappyRequest(`/gtc45/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
 // ─── 4. MATRIZ PESV ─────────────────────────────────────────────────────────
 
 server.tool(
@@ -267,6 +319,46 @@ server.tool(
         method: 'POST',
         body: JSON.stringify({ riesgos }),
       });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_actualizar_riesgo_pesv',
+  {
+    id: z.string().describe('ID del registro de riesgo vial PESV a actualizar'),
+    cargo: z.string().optional().describe('Cargo'),
+    rol_via: z.string().optional().describe('Rol en la vía'),
+    peligro_descripcion: z.string().optional().describe('Descripción del peligro'),
+    plan_accion_vehiculo: z.string().optional().describe('Plan vehicular'),
+    plan_accion_individuo: z.string().optional().describe('Plan individual'),
+    estado: z.string().optional().describe('Estado de la acción'),
+  },
+  async (args) => {
+    try {
+      const { id, ...updates } = args;
+      const data = await wappyRequest(`/pesv/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_eliminar_riesgo_pesv',
+  {
+    id: z.string().describe('ID del registro de riesgo vial PESV a eliminar'),
+  },
+  async ({ id }) => {
+    try {
+      const data = await wappyRequest(`/pesv/${encodeURIComponent(id)}`, { method: 'DELETE' });
       return formatMcpResponse(data);
     } catch (err) {
       return formatMcpError(err);
@@ -465,6 +557,21 @@ server.tool(
   }
 );
 
+server.tool(
+  'wappy_eliminar_tarea_cronograma',
+  {
+    tareaId: z.string().describe('ID de la tarea a eliminar del cronograma SST'),
+  },
+  async ({ tareaId }) => {
+    try {
+      const data = await wappyRequest(`/tasks/${encodeURIComponent(tareaId)}`, { method: 'DELETE' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
 // ─── 7. MATRIZ LEGAL SST ───────────────────────────────────────────────────
 
 server.tool(
@@ -497,6 +604,47 @@ server.tool(
         method: 'POST',
         body: JSON.stringify(args),
       });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_actualizar_requisito_legal',
+  {
+    id: z.string().describe('ID de la norma en la matriz legal a actualizar'),
+    norma: z.string().optional().describe('Nombre de la norma'),
+    articulo: z.string().optional().describe('Artículo'),
+    descripcion: z.string().optional().describe('Descripción'),
+    clasificacion: z.string().optional().describe('Clasificación'),
+    evidencia: z.string().optional().describe('Evidencia de cumplimiento'),
+    status: z.enum(['cumple', 'no_cumple', 'en_tramite', 'no_aplica']).optional().describe('Nuevo estado de cumplimiento'),
+    responsable: z.string().optional().describe('Responsable'),
+  },
+  async (args) => {
+    try {
+      const { id, ...updates } = args;
+      const data = await wappyRequest(`/matriz-legal/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_eliminar_requisito_legal',
+  {
+    id: z.string().describe('ID o nombre exacto de la norma a eliminar de la matriz legal'),
+  },
+  async ({ id }) => {
+    try {
+      const data = await wappyRequest(`/matriz-legal/${encodeURIComponent(id)}`, { method: 'DELETE' });
       return formatMcpResponse(data);
     } catch (err) {
       return formatMcpError(err);
@@ -580,6 +728,22 @@ server.tool(
   }
 );
 
+server.tool(
+  'wappy_eliminar_miembro_comite',
+  {
+    tipoComite: z.enum(['copasst', 'convivencia', 'brigada']).describe('Tipo de comité ("copasst", "convivencia", "brigada")'),
+    cedula: z.string().describe('Cédula del integrante a retirar'),
+  },
+  async ({ tipoComite, cedula }) => {
+    try {
+      const data = await wappyRequest(`/comites/${encodeURIComponent(tipoComite)}/${encodeURIComponent(cedula)}`, { method: 'DELETE' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
 // ─── 10. PRODUCTOS QUÍMICOS Y SGA ──────────────────────────────────────────
 
 server.tool(
@@ -623,6 +787,49 @@ server.tool(
   }
 );
 
+server.tool(
+  'wappy_actualizar_producto_quimico',
+  {
+    id: z.string().describe('ID o nombre del producto químico a actualizar'),
+    nombre: z.string().optional().describe('Nuevo nombre comercial'),
+    fabricante: z.string().optional().describe('Fabricante'),
+    estadoFisico: z.enum(['Líquido', 'Sólido', 'Gaseoso']).optional(),
+    pictogramasSga: z.array(z.string()).optional(),
+    claseOnu: z.string().optional(),
+    ubicacion: z.string().optional(),
+    cantidadAlmacenada: z.string().optional(),
+    incompatibilidades: z.array(z.string()).optional(),
+    observaciones: z.string().optional(),
+  },
+  async (args) => {
+    try {
+      const { id, ...updates } = args;
+      const data = await wappyRequest(`/quimicos/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_eliminar_producto_quimico',
+  {
+    id: z.string().describe('ID o nombre exacto del producto químico a eliminar'),
+  },
+  async ({ id }) => {
+    try {
+      const data = await wappyRequest(`/quimicos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
 // ─── 11. VEHÍCULOS Y SEGURIDAD VIAL ─────────────────────────────────────────
 
 server.tool(
@@ -657,6 +864,45 @@ server.tool(
         method: 'POST',
         body: JSON.stringify(args),
       });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_actualizar_vehiculo',
+  {
+    placaOrId: z.string().describe('Placa o ID del vehículo a actualizar'),
+    conductorNombre: z.string().optional().describe('Nuevo conductor asignado'),
+    conductorCedula: z.string().optional().describe('Cédula del conductor asignado'),
+    soatVencimiento: z.string().optional().describe('Nuevo vencimiento de SOAT (YYYY-MM-DD)'),
+    tecnomecanicaVencimiento: z.string().optional().describe('Nuevo vencimiento Técnico-Mecánica (YYYY-MM-DD)'),
+    kilometrajeActual: z.number().optional().describe('Kilometraje actual'),
+  },
+  async (args) => {
+    try {
+      const { placaOrId, ...updates } = args;
+      const data = await wappyRequest(`/vehiculos/${encodeURIComponent(placaOrId)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_eliminar_vehiculo',
+  {
+    placaOrId: z.string().describe('Placa o ID del vehículo a eliminar de la flota'),
+  },
+  async ({ placaOrId }) => {
+    try {
+      const data = await wappyRequest(`/vehiculos/${encodeURIComponent(placaOrId)}`, { method: 'DELETE' });
       return formatMcpResponse(data);
     } catch (err) {
       return formatMcpError(err);
@@ -706,6 +952,23 @@ server.tool(
   }
 );
 
+server.tool(
+  'wappy_eliminar_entrega_epp',
+  {
+    documento: z.string().describe('Cédula del trabajador'),
+    entregaId: z.string().optional().describe('ID específico de la entrega a eliminar (si se omite, elimina todo el historial del trabajador)'),
+  },
+  async ({ documento, entregaId }) => {
+    try {
+      const suffix = entregaId ? `/${encodeURIComponent(entregaId)}` : '';
+      const data = await wappyRequest(`/epp/${encodeURIComponent(documento)}${suffix}`, { method: 'DELETE' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
 // ─── 13. REPORTES DE ACTOS Y CONDICIONES INSEGURAS ──────────────────────────
 
 server.tool(
@@ -745,6 +1008,43 @@ server.tool(
   }
 );
 
+server.tool(
+  'wappy_actualizar_reporte_acto_condicion',
+  {
+    id: z.string().describe('ID del reporte de acto o condición'),
+    estado: z.string().optional().describe('Nuevo estado (Abierto, En gestión, Cerrado)'),
+    accionInmediata: z.string().optional().describe('Medida o acción de mitigación aplicada'),
+    nivelRiesgo: z.enum(['Bajo', 'Medio', 'Alto', 'Crítico']).optional().describe('Nivel de riesgo'),
+  },
+  async (args) => {
+    try {
+      const { id, ...updates } = args;
+      const data = await wappyRequest(`/actos-condiciones/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_eliminar_reporte_acto_condicion',
+  {
+    id: z.string().describe('ID del reporte de acto o condición a eliminar'),
+  },
+  async ({ id }) => {
+    try {
+      const data = await wappyRequest(`/actos-condiciones/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
 // ─── 14. PERFILES DE CARGO SST ─────────────────────────────────────────────
 
 server.tool(
@@ -776,6 +1076,21 @@ server.tool(
         method: 'POST',
         body: JSON.stringify(args),
       });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_eliminar_perfil_cargo',
+  {
+    cargoOrId: z.string().describe('Nombre del cargo o ID del perfil a eliminar'),
+  },
+  async ({ cargoOrId }) => {
+    try {
+      const data = await wappyRequest(`/perfiles-cargo/${encodeURIComponent(cargoOrId)}`, { method: 'DELETE' });
       return formatMcpResponse(data);
     } catch (err) {
       return formatMcpError(err);
@@ -823,6 +1138,44 @@ server.tool(
   }
 );
 
+server.tool(
+  'wappy_actualizar_caso_atel',
+  {
+    id: z.string().describe('ID del caso ATEL a actualizar'),
+    severidad: z.enum(['Leve', 'Grave', 'Mortal']).optional().describe('Severidad'),
+    accionesInmediatas: z.string().optional().describe('Acciones inmediatas'),
+    descripcionAccidente: z.string().optional().describe('Descripción'),
+    parteCuerpoAfectada: z.string().optional().describe('Parte del cuerpo'),
+  },
+  async (args) => {
+    try {
+      const { id, ...updates } = args;
+      const data = await wappyRequest(`/atel/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_eliminar_caso_atel',
+  {
+    id: z.string().describe('ID del caso ATEL a eliminar'),
+  },
+  async ({ id }) => {
+    try {
+      const data = await wappyRequest(`/atel/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
 // ─── 16. PROGRAMA DE CAPACITACIONES Y CURSOS LMS ────────────────────────────
 
 server.tool(
@@ -854,6 +1207,46 @@ server.tool(
         method: 'POST',
         body: JSON.stringify(args),
       });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_actualizar_capacitacion',
+  {
+    id: z.string().describe('ID de la sesión de capacitación a actualizar'),
+    tema: z.string().optional().describe('Tema de la capacitación'),
+    fecha: z.string().optional().describe('Fecha (YYYY-MM-DD)'),
+    hora: z.string().optional().describe('Hora'),
+    duracion: z.string().optional().describe('Duración'),
+    responsable: z.string().optional().describe('Responsable'),
+    estado: z.string().optional().describe('Estado (Programada, Ejecutada, Cancelada)'),
+  },
+  async (args) => {
+    try {
+      const { id, ...updates } = args;
+      const data = await wappyRequest(`/capacitaciones/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_eliminar_capacitacion',
+  {
+    id: z.string().describe('ID de la sesión de capacitación a eliminar'),
+  },
+  async ({ id }) => {
+    try {
+      const data = await wappyRequest(`/capacitaciones/${encodeURIComponent(id)}`, { method: 'DELETE' });
       return formatMcpResponse(data);
     } catch (err) {
       return formatMcpError(err);
@@ -899,6 +1292,44 @@ server.tool(
   }
 );
 
+server.tool(
+  'wappy_actualizar_hallazgo_auditoria',
+  {
+    id: z.string().describe('ID o código del hallazgo de auditoría a actualizar'),
+    observation: z.string().optional().describe('Plan de acción o avance'),
+    status: z.enum(['cumple', 'no_cumple', 'en_tramite']).optional().describe('Estado del hallazgo'),
+    responsable: z.string().optional().describe('Responsable'),
+    fechaCompromiso: z.string().optional().describe('Fecha compromiso (YYYY-MM-DD)'),
+  },
+  async (args) => {
+    try {
+      const { id, ...updates } = args;
+      const data = await wappyRequest(`/auditorias/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_eliminar_hallazgo_auditoria',
+  {
+    id: z.string().describe('ID o código del hallazgo de auditoría a eliminar'),
+  },
+  async ({ id }) => {
+    try {
+      const data = await wappyRequest(`/auditorias/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
 // ─── 18. AGENTES Y AUTOMATIZACIONES ────────────────────────────────────────
 
 server.tool(
@@ -933,6 +1364,21 @@ server.tool(
         method: 'POST',
         body: JSON.stringify(args),
       });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_eliminar_automatizacion',
+  {
+    id: z.string().describe('ID de la tarea automatizada a eliminar'),
+  },
+  async ({ id }) => {
+    try {
+      const data = await wappyRequest(`/agentes-automatizaciones/${encodeURIComponent(id)}`, { method: 'DELETE' });
       return formatMcpResponse(data);
     } catch (err) {
       return formatMcpError(err);
