@@ -594,83 +594,100 @@ function Account() {
         <div className="py-2"><GoogleAIConnect /></div>
         <div className="h-px bg-border-light w-full my-1"></div>
         
-        {/* Token de Seguridad (JWT) para Agente Local */}
-        <div className="py-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2">
-            <div className="flex flex-col gap-1 flex-1">
-              <Label className="text-sm font-bold text-text-primary">
-                Token de Seguridad (JWT) para Agente Local
-              </Label>
-              <p className="text-xs text-text-secondary">
-                Usa este token para conectar las carpetas de tu computadora con WAPPY de forma segura.
-              </p>
-              <div className="relative mt-2 flex gap-2 max-w-xl">
-                <div className="relative flex-1">
-                  <Input
-                    id="mcpToken"
-                    type={showToken ? 'text' : 'password'}
-                    value={desktopToken || token}
-                    readOnly
-                    className="pr-10 font-mono text-xs select-all bg-surface-secondary text-text-secondary"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowToken(!showToken)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-text-tertiary hover:text-text-primary"
-                  >
-                    {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-border-light hover:bg-surface-secondary flex items-center gap-1.5"
-                  onClick={() => {
-                    navigator.clipboard.writeText(desktopToken || token);
-                    showToast({ message: 'Token copiado al portapapeles', status: 'success' });
-                  }}
-                >
-                  <Copy className="h-4 w-4" />
-                  Copiar
-                </Button>
-              </div>
-              <div className="mt-3 flex flex-col gap-2">
-                <p className="text-xs font-semibold text-text-secondary">Descargar Aplicativo "Somos SST - WappyClub":</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="border-green-600/30 bg-green-500/5 hover:bg-green-500/10 text-green-600 dark:text-green-400 font-bold text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 cursor-pointer"
-                    onClick={() => {
-                      window.open('/download/somos-sst-wappyclub/windows', '_blank');
-                    }}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Descargar para Windows (.exe)
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="border-blue-600/30 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 cursor-pointer"
-                    onClick={() => {
-                      window.open('/download/somos-sst-wappyclub/mac', '_blank');
-                    }}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Descargar para macOS (.dmg)
-                  </Button>
+        {/* Token de Seguridad (JWT) para Agente Local - Solo para ADMIN */}
+        {user?.role === 'ADMIN' && (
+          <>
+            <div className="py-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2">
+                <div className="flex flex-col gap-1 flex-1">
+                  <Label className="text-sm font-bold text-text-primary">
+                    Token de Seguridad (JWT) para Agente Local
+                  </Label>
+                  <p className="text-xs text-text-secondary">
+                    Usa este token para conectar las carpetas de tu computadora con WAPPY de forma segura.
+                  </p>
+                  <div className="relative mt-2 flex gap-2 max-w-xl">
+                    <div className="relative flex-1">
+                      <Input
+                        id="mcpToken"
+                        type={showToken ? 'text' : 'password'}
+                        value={desktopToken || token}
+                        readOnly
+                        className="pr-10 font-mono text-xs select-all bg-surface-secondary text-text-secondary"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowToken(!showToken)}
+                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-text-tertiary hover:text-text-primary"
+                      >
+                        {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-border-light hover:bg-surface-secondary flex items-center gap-1.5"
+                      onClick={() => {
+                        navigator.clipboard.writeText(desktopToken || token);
+                        showToast({ message: 'Token copiado al portapapeles', status: 'success' });
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                      Copiar
+                    </Button>
+                  </div>
+                  <div className="mt-3 flex flex-col gap-2">
+                    <p className="text-xs font-semibold text-text-secondary">Descargar Aplicativo "Somos SST - WappyClub":</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-green-600/30 bg-green-500/5 hover:bg-green-500/10 text-green-600 dark:text-green-400 font-bold text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 cursor-pointer"
+                        onClick={() => {
+                          window.open('/download/somos-sst-wappyclub/windows', '_blank');
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Descargar para Windows (.exe)
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-blue-600/30 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 cursor-pointer"
+                        onClick={() => {
+                          window.open('/download/somos-sst-wappyclub/mac', '_blank');
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Descargar para macOS (.dmg)
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+            <div className="h-px bg-border-light w-full my-1"></div>
+          </>
+        )}
 
-        <div className="h-px bg-border-light w-full my-1"></div>
         <div className="py-2"><GoogleDriveConnect /></div>
-        <div className="h-px bg-border-light w-full my-1"></div>
-        <div className="py-2"><OneDriveConnect /></div>
-        <div className="h-px bg-border-light w-full my-1"></div>
-        <div className="py-2"><WhatsAppConnect /></div>
+
+        {/* Microsoft OneDrive - Solo para ADMIN */}
+        {user?.role === 'ADMIN' && (
+          <>
+            <div className="h-px bg-border-light w-full my-1"></div>
+            <div className="py-2"><OneDriveConnect /></div>
+          </>
+        )}
+
+        {/* WhatsApp - Solo para ADMIN */}
+        {user?.role === 'ADMIN' && (
+          <>
+            <div className="h-px bg-border-light w-full my-1"></div>
+            <div className="py-2"><WhatsAppConnect /></div>
+          </>
+        )}
+
         <div className="h-px bg-border-light w-full my-1"></div>
         <div className="py-2"><AntigravityMcpConnect /></div>
 

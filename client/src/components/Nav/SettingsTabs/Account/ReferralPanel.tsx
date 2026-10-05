@@ -245,7 +245,7 @@ export default function ReferralPanel() {
                     <div>
                         <span className="text-xs font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-3 py-1 rounded-full">Wappy Asociado</span>
                         <h3 className="text-lg font-bold text-text-primary mt-2">Programa de Puntos Asociados Wappy 🎁</h3>
-                        <p className="text-xs text-text-secondary mt-1">Recomienda Wappy enviando tu link personal. Tus amigos obtienen 3 días de PRO gratis instantáneos de bienvenida, y tú acumulas puntos para canjear por PRO gratis.</p>
+                        <p className="text-xs text-text-secondary mt-1">Recomienda Wappy enviando tu link personal. Tus amigos obtienen 15 días de PRO gratis instantáneos de bienvenida, y tú acumulas puntos para canjear por PRO gratis.</p>
                     </div>
                 </div>
 
@@ -830,7 +830,7 @@ export default function ReferralPanel() {
                             <h5 className="text-sm font-bold text-text-primary mt-2">🎁 Wappy Asociado</h5>
                             <p className="text-[11px] text-text-secondary mt-1">Comparte libremente tu enlace con amigos. Ideal para usuarios casuales que no quieren dedicarse a la venta activa.</p>
                             <ul className="mt-3 space-y-1.5 text-[11px] text-text-tertiary">
-                                <li className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> Nuevo usuario: 3 días gratis</li>
+                                <li className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> Nuevo usuario: 15 días gratis</li>
                                 <li className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> Recompensa: Hasta 800 pts/venta</li>
                                 <li className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> Canjes: Plan PRO Gratis</li>
                                 <li className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> Sin soporte ni cobros bancarios</li>
@@ -846,7 +846,7 @@ export default function ReferralPanel() {
                             <h5 className="text-sm font-bold text-text-primary mt-2">🚀 Wappy Partner</h5>
                             <p className="text-[11px] text-text-secondary mt-1">Socios enfocados en la prospección comercial. Venden a través de su código comercial y cobran comisiones.</p>
                             <ul className="mt-3 space-y-1.5 text-[11px] text-text-tertiary">
-                                <li className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-amber-500" /> Nuevo usuario: 3 días gratis</li>
+                                <li className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-amber-500" /> Nuevo usuario: 15 días gratis</li>
                                 <li className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-amber-500" /> Recompensa: <strong>20% en efectivo</strong></li>
                                 <li className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-amber-500" /> Retiros: Cuenta Bancaria / Nequi</li>
                                 <li className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-amber-500" /> Responsabilidad: Solo Venta</li>
@@ -862,7 +862,7 @@ export default function ReferralPanel() {
                             <h5 className="text-sm font-bold text-text-primary mt-2">💎 Wappy Embajador</h5>
                             <p className="text-[11px] text-text-secondary mt-1">Socio premium y mentor. Venden a través de su código, cobran la máxima comisión y asumen dar soporte a sus referidos.</p>
                             <ul className="mt-3 space-y-1.5 text-[11px] text-text-tertiary">
-                                <li className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-purple-500" /> Nuevo usuario: 3 días gratis</li>
+                                <li className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-purple-500" /> Nuevo usuario: 15 días gratis</li>
                                 <li className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-purple-500" /> Recompensa: <strong>30% en efectivo</strong></li>
                                 <li className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-purple-500" /> Retiros: Cuenta Bancaria / Nequi</li>
                                 <li className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-purple-500" /> Responsabilidad: Venta + Soporte</li>

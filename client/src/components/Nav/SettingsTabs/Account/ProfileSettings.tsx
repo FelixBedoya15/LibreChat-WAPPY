@@ -178,47 +178,49 @@ const ProfileSettings: React.FC = () => {
                         </p>
                     </div>
 
-                    <div className="border-t border-gray-200 dark:border-gray-700 py-3">
-                        <Label htmlFor="mcpToken" className="font-semibold text-sm">
-                            Token de Seguridad (JWT) para Agente Local
-                        </Label>
-                        <div className="relative mt-1 flex gap-2">
-                            <div className="relative flex-1">
-                                <Input
-                                    id="mcpToken"
-                                    type={showToken ? 'text' : 'password'}
-                                    value={token}
-                                    readOnly
-                                    className="pr-10 font-mono text-xs select-all bg-gray-50 dark:bg-gray-900"
-                                />
-                                <button
+                    {user?.role === 'ADMIN' && (
+                        <div className="border-t border-gray-200 dark:border-gray-700 py-3">
+                            <Label htmlFor="mcpToken" className="font-semibold text-sm">
+                                Token de Seguridad (JWT) para Agente Local
+                            </Label>
+                            <div className="relative mt-1 flex gap-2">
+                                <div className="relative flex-1">
+                                    <Input
+                                        id="mcpToken"
+                                        type={showToken ? 'text' : 'password'}
+                                        value={token}
+                                        readOnly
+                                        className="pr-10 font-mono text-xs select-all bg-gray-50 dark:bg-gray-900"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowToken(!showToken)}
+                                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                    >
+                                        {showToken ? (
+                                            <EyeOff className="h-5 w-5" />
+                                        ) : (
+                                            <Eye className="h-5 w-5" />
+                                        )}
+                                    </button>
+                                </div>
+                                <Button
                                     type="button"
-                                    onClick={() => setShowToken(!showToken)}
-                                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                    variant="outline"
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(token);
+                                        showToast({ message: 'Token copiado al portapapeles', status: 'success' });
+                                    }}
                                 >
-                                    {showToken ? (
-                                        <EyeOff className="h-5 w-5" />
-                                    ) : (
-                                        <Eye className="h-5 w-5" />
-                                    )}
-                                </button>
+                                    <Copy className="h-4 w-4 mr-1" />
+                                    Copiar
+                                </Button>
                             </div>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => {
-                                    navigator.clipboard.writeText(token);
-                                    showToast({ message: 'Token copiado al portapapeles', status: 'success' });
-                                }}
-                            >
-                                <Copy className="h-4 w-4 mr-1" />
-                                Copiar
-                            </Button>
+                            <p className="text-xs text-gray-500 mt-1">
+                                Copia este token para conectarlo en el aplicativo de sincronización en tu computadora.
+                            </p>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                            Copia este token para conectarlo en el aplicativo de sincronización en tu computadora.
-                        </p>
-                    </div>
+                    )}
 
                     <div className="border-t border-gray-200 dark:border-gray-700 py-2">
                         <h4 className="text-sm font-medium mb-3">{localize('com_ui_change_password')}</h4>

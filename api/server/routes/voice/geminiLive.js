@@ -298,10 +298,8 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
                         },
                     ],
                 },
-                // Bloqueo explícito de idioma en la transcripción de entrada (elimina auto-detección a otros idiomas)
-                inputAudioTranscription: {
-                    languageCodes: ['es-CO', 'es-ES', 'es-419'],
-                },
+                // Transcripciones de audio según especificación oficial de Google Multimodal Live API
+                inputAudioTranscription: {},
                 outputAudioTranscription: {},
                 // Standard Tools support
                 tools: this.config.tools || [{ googleSearch: {} }],

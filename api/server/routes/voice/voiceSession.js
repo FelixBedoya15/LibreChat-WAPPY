@@ -354,7 +354,18 @@ class VoiceSession {
                                     },
                                     campos: {
                                         type: "object",
-                                        description: "Objeto clave-valor con los campos a rellenar en el formulario. Para 'investigacion_atel': tipoEvento (Incidente|Accidente Leve|Accidente Grave), afectadoNombre, afectadoCedula, afectadoCargo, lugarEvento, descripcionHechos, consecuencias, diasIncapacidad, naturalezaLesion, agenteCausal, parteCuerpo."
+                                        description: "Objeto clave-valor con los campos a rellenar en el formulario.",
+                                        properties: {
+                                            tipoEvento: { type: "string", description: "Incidente, Accidente Leve o Accidente Grave" },
+                                            afectadoNombre: { type: "string", description: "Nombre del afectado" },
+                                            afectadoCedula: { type: "string", description: "Cédula o identificación" },
+                                            afectadoCargo: { type: "string", description: "Cargo del afectado" },
+                                            lugarEvento: { type: "string", description: "Lugar del evento" },
+                                            descripcionHechos: { type: "string", description: "Descripción de los hechos" },
+                                            consecuencias: { type: "string", description: "Consecuencias o lesiones" },
+                                            diasIncapacidad: { type: "number", description: "Días de incapacidad" },
+                                            datosExtra: { type: "string", description: "Otros datos del formulario" }
+                                        }
                                     },
                                     accion: {
                                         type: "string",
@@ -1242,6 +1253,8 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             const liveModelsToTry = [...new Set([preferredLiveModel, ...liveFallbacks])];
 
             logger.info(`[VoiceSession] Modelos Live a intentar en la sesión: ${liveModelsToTry.join(', ')}`);
+            this.liveModelsToTry = liveModelsToTry;
+            this.reconnectAttempts = 0;
 
             // Bucle Externo: Recorre los modelos consecutivos
             for (let m = 0; m < liveModelsToTry.length; m++) {
@@ -2330,10 +2343,18 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
         });
 
         // Handle Gemini connection close/error to avoid zombie state
-        this.geminiClient.on('close', (code, reason) => {
+        this.geminiClient.on('close', async (code, reason) => {
             const reasonStr = reason ? reason.toString() : '';
             logger.warn(`[VoiceSession] Gemini connection closed: Code ${code}, Reason: ${reasonStr}`);
             if (this.isActive) {
+                // Si la desconexión fue inesperada (1011, 1006, etc.) y el cliente sigue conectado, reintentar con el siguiente modelo/clave
+                if ((code === 1011 || code === 1006 || code === 1001 || !code) && this.clientWs && this.clientWs.readyState === WebSocket.OPEN) {
+                    const reconnected = await this.reconnectGemini(`Code ${code}: ${reasonStr}`);
+                    if (reconnected) {
+                        return;
+                    }
+                }
+
                 this.sendToClient({ type: 'status', data: { status: 'idle' } });
                 const userMsg = reasonStr
                     ? `Conexión con Gemini finalizada (${code}): ${reasonStr}`
@@ -2361,6 +2382,93 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
         this.clientWs.on('error', (error) => {
             logger.error(`[VoiceSession] Client error:`, error);
         });
+    }
+
+    /**
+     * Reconecta de forma transparente el cliente Gemini Live rotando al siguiente modelo y clave disponible.
+     * Evita que la sesión de voz del usuario muera ante cierres temporales del servidor de Google (ej: Error 1011).
+     */
+    async reconnectGemini(triggerReason = '') {
+        if (!this.isActive || !this.clientWs || this.clientWs.readyState !== WebSocket.OPEN) {
+            return false;
+        }
+
+        if (!this.reconnectAttempts) this.reconnectAttempts = 0;
+        if (this.reconnectAttempts >= 3) {
+            logger.warn(`[VoiceSession] Límite de reconexiones (${this.reconnectAttempts}) alcanzado.`);
+            return false;
+        }
+
+        this.reconnectAttempts++;
+        logger.info(`[VoiceSession] Reconexión automática de emergencia ${this.reconnectAttempts}/3 tras cierre de Gemini (${triggerReason})...`);
+
+        this.sendToClient({
+            type: 'status',
+            data: { status: 'reconnecting', message: 'Restableciendo conexión con el motor de voz...' }
+        });
+
+        // Limpiar cliente previo
+        if (this.geminiClient) {
+            try {
+                this.geminiClient.removeAllListeners();
+                this.geminiClient.disconnect();
+            } catch (err) {
+                logger.warn('[VoiceSession] Error al desconectar cliente previo de Gemini:', err.message);
+            }
+            this.geminiClient = null;
+        }
+
+        // Rotar al siguiente modelo disponible en la lista
+        const currentModel = this.liveConfig.model;
+        if (this.liveModelsToTry && this.liveModelsToTry.length > 1) {
+            const currentIndex = this.liveModelsToTry.indexOf(currentModel);
+            const nextIndex = (currentIndex + 1) % this.liveModelsToTry.length;
+            this.liveConfig.model = this.liveModelsToTry[nextIndex];
+            logger.info(`[VoiceSession] Rotando modelo Live para reconexión: de "${currentModel}" a "${this.liveConfig.model}"`);
+        }
+
+        // Probar claves API disponibles
+        const voiceKeys = this.apiKeys && this.apiKeys.length > 1 ? [...this.apiKeys].reverse() : (this.apiKeys || []);
+        let connected = false;
+
+        for (let i = 0; i < voiceKeys.length; i++) {
+            const key = voiceKeys[i];
+            try {
+                logger.info(`[VoiceSession] Intento de reconexión con Modelo "${this.liveConfig.model}" y Clave ${i + 1}/${voiceKeys.length}`);
+                this.geminiClient = new GeminiLiveClient(key, this.liveConfig);
+                await this.geminiClient.connect();
+                connected = true;
+                break;
+            } catch (err) {
+                logger.warn(`[VoiceSession] Falló reconexión con Clave ${i + 1}: ${err.message}`);
+                if (this.geminiClient) {
+                    try { this.geminiClient.disconnect(); } catch {}
+                    this.geminiClient = null;
+                }
+            }
+        }
+
+        if (connected && this.geminiClient) {
+            logger.info(`[VoiceSession] ✅ Reconexión exitosa a Gemini Live con Modelo "${this.liveConfig.model}"`);
+            this.setupGeminiHandlers();
+            this.sendToClient({ type: 'status', data: { status: 'listening' } });
+
+            // Si había transcripción del usuario pendiente de respuesta, reenviarla
+            const lastUserText = (this.lastUserTranscription || '').trim();
+            if (lastUserText && lastUserText.length > 1 && !this.aiResponseText) {
+                logger.info(`[VoiceSession] Reenviando última consulta del usuario a Gemini Live: "${lastUserText}"`);
+                try {
+                    this.geminiClient.sendText(lastUserText);
+                } catch (e) {
+                    logger.warn('[VoiceSession] Error reenviando texto tras reconexión:', e.message);
+                }
+            }
+
+            return true;
+        }
+
+        logger.error(`[VoiceSession] Reconexión fallida tras intento ${this.reconnectAttempts}/3`);
+        return false;
     }
 
     /**
