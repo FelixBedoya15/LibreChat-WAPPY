@@ -38,6 +38,7 @@ import {
   Upload
 } from 'lucide-react';
 import SGSSTToolbar from './SGSSTToolbar';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
 import { read, utils } from 'xlsx';
@@ -609,7 +610,67 @@ export default function ProgramaCapacitaciones() {
   const strokeDashoffset = circumference - (avgCompliance / 100) * circumference;
 
   const renderDashboardStats = () => (
-    <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="mb-8 space-y-6">
+      {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
+      <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          {/* Lado Izquierdo: Título y Badges */}
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
+              <GraduationCap className="h-6 w-6 sm:h-7 sm:w-7" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
+                  Programa Anual de Capacitación en SST
+                </h1>
+                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
+                  Oficial
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {/* Cobertura de Trabajadores */}
+                <div
+                  title={`${totalWorkers} Trabajadores Programados`}
+                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                >
+                  <div className="relative flex flex-shrink-0 items-center justify-center">
+                    <Users className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                    <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                      {totalWorkers}
+                    </span>
+                  </div>
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                    <span className="text-sm font-bold tracking-wide">
+                      {totalWorkers} {totalWorkers === 1 ? 'Trabajador en Plan' : 'Trabajadores en Plan'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Res. 0312 Est. 1.2.1: CUMPLE */}
+                <SGSSTLegalBadge
+                  standardCode="1.2.1"
+                  label="Res. 0312 Est. 1.2.1: CUMPLE"
+                  tooltip="Res. 0312/2019 Estándar 1.2.1 — Programa de Capacitación Anual en SST (Dec. 1072/15 Art. 2.2.4.6.11)"
+                  moduleName="Programa de Capacitación Anual"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Lado Derecho */}
+          <div className="flex md:flex-col items-end justify-center gap-1 shrink-0">
+            <span className="text-xs font-bold text-text-primary">
+              Res. 0312 / Dec. 1072
+            </span>
+            <span className="text-[10px] text-text-tertiary">
+              Estándar 1.2.1 & 1.2.2 SG-SST
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
       {/* CARD 1: Cumplimiento General */}
       <div className="group relative overflow-hidden rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-teal-500/30 dark:border-white/5">
         <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-teal-500/5 blur-2xl transition-all duration-500 group-hover:scale-150" />
@@ -692,6 +753,7 @@ export default function ProgramaCapacitaciones() {
         </p>
       </div>
     </div>
+  </div>
   );
 
   const renderTabs = () => (

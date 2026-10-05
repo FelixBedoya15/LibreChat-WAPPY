@@ -35,6 +35,7 @@ import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/Live
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 import SingleSelect from './SingleSelect';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
@@ -959,17 +960,65 @@ const InvestigacionATEL = () => {
 
     return (
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Header & Main Toolbar */}
-            <div className="flex flex-col items-center gap-6 mb-6">
-                <div className="flex items-center gap-4 text-center">
-                    <div className="p-3 rounded-2xl bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 shadow-sm">
-                        <ShieldAlert className="h-8 w-8" />
+            {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
+            <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    {/* Lado Izquierdo: Título y Badges */}
+                    <div className="flex items-center gap-3.5">
+                        <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
+                            <ShieldAlert className="h-6 w-6 sm:h-7 sm:w-7" />
+                        </div>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
+                                    Investigación de Accidentes e Incidentes (ATEL)
+                                </h1>
+                                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
+                                    Oficial
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                                {/* Estado Documento */}
+                                <div
+                                    title={editorContentRef.current || generatedObjectives ? 'Informe de Investigación Generado' : 'Formulario de Investigación en Progreso'}
+                                    className={`group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 ${
+                                        editorContentRef.current || generatedObjectives
+                                            ? 'border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300'
+                                            : 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                    }`}
+                                >
+                                    <div className="relative flex flex-shrink-0 items-center justify-center">
+                                        <FileText className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                                    </div>
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-sm font-bold tracking-wide">
+                                            {editorContentRef.current || generatedObjectives ? 'Informe Generado' : 'Borrador en Proceso'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Res. 0312 Est. 3.2.2: CUMPLE */}
+                                <SGSSTLegalBadge
+                                    standardCode="3.2.2"
+                                    label="Res. 0312 Est. 3.2.2: CUMPLE"
+                                    tooltip="Res. 0312/2019 Estándar 3.2.2 — Investigación de incidentes, accidentes y enfermedades laborales con COPASST (Res. 1401/07)"
+                                    moduleName="Investigación de Incidentes y ATEL"
+                                />
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-2xl font-black text-text-primary tracking-tight">Investigación de Accidentes e Incidentes (ATEL)</h2>
-                        <p className="text-sm text-text-secondary font-medium">Resolución 1401 de 2007</p>
+
+                    {/* Lado Derecho */}
+                    <div className="flex md:flex-col items-end justify-center gap-1 shrink-0">
+                        <span className="text-xs font-bold text-text-primary">
+                            Res. 0312 / Res. 1401
+                        </span>
+                        <span className="text-[10px] text-text-tertiary">
+                            Estándar 3.2.1 & 3.2.2 SG-SST
+                        </span>
                     </div>
                 </div>
+            </div>
 
                 <SGSSTToolbar
                     onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
@@ -987,7 +1036,6 @@ const InvestigacionATEL = () => {
                     importExcelLabel="Importar Archivo"
                     importExcelTitle="Importar desde FURAT (Excel, Word, PDF, Imagen o Texto)"
                 />
-            </div>
 
             {/* History Panel */}
             {isHistoryOpen && (
@@ -1480,7 +1528,20 @@ const InvestigacionATEL = () => {
                             )}
                             {testigosList.map((testigo, idx) => (
                                 <div key={idx} className="border border-border-medium rounded-xl p-4 bg-surface-primary space-y-3 relative">
-                                    <p className="text-xs text-text-secondary font-medium">Testigo {idx + 1}</p>
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-xs text-text-secondary font-medium">Testigo {idx + 1}</p>
+                                        <div className="flex items-center gap-2">
+                                            {testigo.testimonio ? (
+                                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200 dark:border-emerald-800">
+                                                    <Check className="w-3 h-3" /> Declaración Recibida
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-200 dark:border-amber-800">
+                                                    Pendiente en Portal de Trabajador
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
                                     <div className="flex flex-col md:flex-row gap-3">
                                         <WorkerAutocomplete
                                             value={testigo.nombre}

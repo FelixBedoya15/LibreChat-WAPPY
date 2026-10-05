@@ -32,6 +32,7 @@ import {
   Car,
   Flame,
   HeartPulse,
+  Package,
 } from 'lucide-react';
 import PublicWorkerHeader from './PublicWorkerHeader';
 
@@ -266,6 +267,17 @@ export default function PublicColaboradorHub() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any>(null);
+  const [llamadosAtel, setLlamadosAtel] = useState<any[]>([]);
+
+  const fetchLlamadosAtel = async (ced: string) => {
+    if (!ced.trim() || !companyId) return;
+    try {
+      const res = await axios.get(`/api/public-sgsst/atel/llamados-testigo/${companyId}/${ced.trim()}`);
+      setLlamadosAtel(res.data?.llamados || []);
+    } catch (e) {
+      console.warn('Could not fetch ATEL witness calls:', e);
+    }
+  };
 
   const healthProfile = useMemo(() => parseHealthProfile(data?.worker), [data?.worker]);
   const workerAge = useMemo(() => calculateAge(data?.worker?.fechaNacimiento) || data?.worker?.edad, [data?.worker]);
@@ -297,6 +309,8 @@ export default function PublicColaboradorHub() {
         };
         localStorage.setItem('wappy_worker_session', JSON.stringify(fullSession));
       }
+      // Consultar citaciones pendientes como testigo en ATEL
+      fetchLlamadosAtel(ced.trim());
     } catch (err: any) {
       console.error('Error fetching worker info:', err);
       setError(err.response?.data?.error || 'No se encontró registro con esa cédula en esta empresa.');
@@ -373,7 +387,7 @@ export default function PublicColaboradorHub() {
       apps: [
         {
           title: 'Reportar Peligro (IPEVR)',
-          desc: 'Alimenta la Matriz Oficial GTC-45',
+          desc: 'Alimenta la Matriz Oficial GTC-45 en tiempo real',
           points: '+150 pts',
           icon: Users,
           path: `/sgsst-public/ipevar/${companyId}`,
@@ -381,7 +395,7 @@ export default function PublicColaboradorHub() {
         },
         {
           title: 'Reportar Acto o Condición',
-          desc: 'Alerta sobre riesgos con evidencia fotográfica',
+          desc: 'Alerta sobre condiciones de riesgo con evidencia fotográfica',
           points: '+50 pts',
           icon: AlertTriangle,
           path: `/sgsst-public/reportar/${companyId}`,
@@ -390,10 +404,155 @@ export default function PublicColaboradorHub() {
         {
           title: 'Buzón de Testimonios ATEL',
           desc: 'Declaración confidencial en investigación de incidentes y accidentes',
-          points: '+30 pts',
+          points: llamadosAtel.length > 0 ? '🚨 Llamado Activo' : '+30 pts',
           icon: MessageSquare,
-          path: `/sgsst-public/atel-testimonio/${companyId}`,
-          color: 'from-slate-600 to-teal-700',
+          path: `/sgsst-public/atel-testimonio/${companyId}${
+            llamadosAtel.length > 0
+              ? `?investigacionId=${llamadosAtel[0].investigacionId}&cedula=${activeCedula || ''}`
+              : ''
+          }`,
+          color: llamadosAtel.length > 0 ? 'from-red-600 to-rose-700' : 'from-slate-600 to-teal-700',
+        },
+      ],
+    },
+    {
+      id: 'copasst',
+      title: 'COPASST / Vigía de SST',
+      subtitle: 'Comité Paritario de Seguridad y Salud en el Trabajo (Res. 2013/1986 y Dec. 1072)',
+      badgeColor: 'bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/20',
+      icon: UserCheck,
+      apps: [
+        {
+          title: 'Actas Mensuales COPASST',
+          desc: 'Firma digital de actas oficiales, quórum y compromisos mensuales',
+          points: '+50 a +100 pts',
+          icon: UserCheck,
+          path: `/sgsst-public/comites/${companyId}?tipo=copasst`,
+          color: 'from-teal-600 to-emerald-700',
+        },
+        {
+          title: 'Elecciones Paritarias COPASST',
+          desc: 'Votación secreta para elegir representantes de los colaboradores al COPASST',
+          points: '+20 pts',
+          icon: Vote,
+          path: `/sgsst-public/votaciones/${companyId}?tipo=copasst`,
+          color: 'from-emerald-600 to-teal-700',
+        },
+        {
+          title: 'Inspecciones COPASST',
+          desc: 'Rondas ágiles de inspección preventiva en puestos, áreas y locaciones',
+          points: '+50 pts',
+          icon: ClipboardCheck,
+          path: `/sgsst-public/copasst-inspecciones/${companyId}`,
+          color: 'from-teal-700 to-cyan-700',
+        },
+      ],
+    },
+    {
+      id: 'cocolab',
+      title: 'Comité de Convivencia Laboral (CCL)',
+      subtitle: 'Prevención del acoso laboral (Ley 1010) y acoso sexual laboral (Ley 2365 de 2024)',
+      badgeColor: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20',
+      icon: Lock,
+      apps: [
+        {
+          title: 'Actas Trimestrales de Convivencia',
+          desc: 'Firma digital reservada de actas ordinarias y extraordinarias del CCL',
+          points: '+50 a +100 pts',
+          icon: UserCheck,
+          path: `/sgsst-public/comites/${companyId}?tipo=cocolab`,
+          color: 'from-purple-600 to-indigo-700',
+        },
+        {
+          title: 'Elecciones Convivencia Laboral',
+          desc: 'Votación paritaria secreta para elegir representantes al Comité de Convivencia',
+          points: '+20 pts',
+          icon: Vote,
+          path: `/sgsst-public/votaciones/${companyId}?tipo=cocolab`,
+          color: 'from-indigo-600 to-violet-700',
+        },
+        {
+          title: 'Canal Confidencial de Convivencia',
+          desc: 'Radicación protegida de quejas por acoso laboral y sexual laboral',
+          points: '100% Confidencial',
+          icon: Lock,
+          path: `/sgsst-public/convivencia/${companyId}`,
+          color: 'from-violet-600 to-purple-800',
+        },
+      ],
+    },
+    {
+      id: 'epp',
+      title: 'Dotación y Elementos de Protección Personal (EPP)',
+      subtitle: 'Solicitud, reposición por desgaste, trazabilidad en bodega y entregas',
+      badgeColor: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20',
+      icon: Package,
+      apps: [
+        {
+          title: 'Solicitud de EPP y Dotación',
+          desc: 'Solicita EPP por desgaste, daño, pérdida, cambio de talla o dotación legal periódica',
+          points: '+25 pts',
+          icon: Package,
+          path: `/sgsst-public/solicitud-epp/${companyId}`,
+          color: 'from-emerald-600 to-teal-700',
+        },
+        {
+          title: 'Mis Solicitudes & Entregas',
+          desc: 'Trazabilidad en tiempo real del estado de aprobación y entrega de tus EPPs en bodega',
+          points: 'Trazabilidad',
+          icon: History,
+          path: `/sgsst-public/solicitud-epp/${companyId}`,
+          color: 'from-teal-600 to-emerald-800',
+        },
+      ],
+    },
+    {
+      id: 'pesv',
+      title: 'Seguridad Vial y PESV',
+      subtitle: 'Inspección preoperacional diaria de automotores y gestión vial (Res. 20223040040595)',
+      badgeColor: 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20',
+      icon: Car,
+      apps: [
+        {
+          title: 'Inspección Preoperacional Diaria PESV',
+          desc: 'Verificación técnica diaria obligatoria antes de iniciar marcha (motos, autos, camperos, camionetas, camiones)',
+          points: '+40 pts',
+          icon: Car,
+          path: `/sgsst-public/inspeccion-vehicular/${companyId}`,
+          color: 'from-blue-600 to-indigo-700',
+        },
+        {
+          title: 'Comité de Seguridad Vial (PESV)',
+          desc: 'Gestión vial, actas CSV y metas trimestrales Res. 20223040040595',
+          points: '+40 pts',
+          icon: Car,
+          path: `/sgsst-public/comites/${companyId}?tipo=pesv`,
+          color: 'from-cyan-600 to-blue-600',
+        },
+      ],
+    },
+    {
+      id: 'brigada',
+      title: 'Emergencias y Brigada',
+      subtitle: 'Preparación, simulacros y Sistema Comando de Incidentes (SCI)',
+      badgeColor: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20',
+      icon: Flame,
+      apps: [
+        {
+          title: 'Brigada de Emergencias & SCI',
+          desc: 'Actas de comité de crisis, simulacros y preparación Dec. 1072',
+          points: '+35 pts',
+          icon: Flame,
+          path: `/sgsst-public/comites/${companyId}?tipo=brigada`,
+          color: 'from-amber-600 to-rose-600',
+        },
+        {
+          title: 'Hoja de Vida de Brigadista',
+          desc: 'Credencial digital SCI, especialidad técnica, dotación y rol de emergencias',
+          points: '+40 pts',
+          icon: HeartPulse,
+          path: `/sgsst-public/brigadista/${companyId}`,
+          color: 'from-red-600 to-rose-700',
         },
       ],
     },
@@ -427,71 +586,6 @@ export default function PublicColaboradorHub() {
           icon: Shield,
           path: `/sgsst-public/perfil-update/${companyId}`,
           color: 'from-cyan-500 to-teal-600',
-        },
-      ],
-    },
-    {
-      id: 'comites',
-      title: 'Participación, Comités y Convivencia',
-      subtitle: 'Democracia paritaria, firmas digitales de actas y canal confidencial',
-      badgeColor: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20',
-      icon: UserCheck,
-      apps: [
-        {
-          title: 'Comités & Actas Oficiales',
-          desc: 'Firma digital de actas oficiales y asistencia a comités (COPASST/CCL)',
-          points: '+50 a +100 pts',
-          icon: UserCheck,
-          path: `/sgsst-public/comites/${companyId}`,
-          color: 'from-indigo-500 to-purple-600',
-        },
-        {
-          title: 'Comité de Seguridad Vial (PESV)',
-          desc: 'Gestión vial, actas CSV y metas trimestrales Res. 20223040040595',
-          points: '+40 pts',
-          icon: Car,
-          path: `/sgsst-public/comites/${companyId}?tipo=pesv`,
-          color: 'from-cyan-600 to-blue-600',
-        },
-        {
-          title: 'Brigada de Emergencias & SCI',
-          desc: 'Actas de comité de crisis, simulacros y preparación Dec. 1072',
-          points: '+35 pts',
-          icon: Flame,
-          path: `/sgsst-public/comites/${companyId}?tipo=brigada`,
-          color: 'from-amber-600 to-rose-600',
-        },
-        {
-          title: 'Hoja de Vida de Brigadista',
-          desc: 'Credencial digital SCI, especialidad técnica, dotación y rol de emergencias',
-          points: '+40 pts',
-          icon: HeartPulse,
-          path: `/sgsst-public/brigadista/${companyId}`,
-          color: 'from-red-600 to-rose-700',
-        },
-        {
-          title: 'Elecciones Paritarias (Voto Secreto)',
-          desc: 'Elige tus representantes COPASST y Convivencia',
-          points: '+20 pts',
-          icon: Vote,
-          path: `/sgsst-public/votaciones/${companyId}`,
-          color: 'from-teal-600 to-emerald-700',
-        },
-        {
-          title: 'Canal Confidencial de Convivencia',
-          desc: 'Quejas protegidas Ley 1010 y Ley 2365 de 2024',
-          points: 'Seguro',
-          icon: Lock,
-          path: `/sgsst-public/convivencia/${companyId}`,
-          color: 'from-violet-500 to-purple-700',
-        },
-        {
-          title: 'Inspecciones COPASST',
-          desc: 'Rondas ágiles de inspección preventiva en puestos y áreas',
-          points: '+50 pts',
-          icon: ClipboardCheck,
-          path: `/sgsst-public/copasst-inspecciones/${companyId}`,
-          color: 'from-blue-600 to-teal-600',
         },
       ],
     },
@@ -579,6 +673,37 @@ export default function PublicColaboradorHub() {
         {/* Dashboard Bio-Individual si el trabajador está cargado */}
         {data && (
           <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Banner Alerta de Citación a Testigo en Investigación ATEL */}
+            {llamadosAtel.length > 0 && (
+              <div className="bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 rounded-3xl p-5 text-white shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-white/20 animate-in slide-in-from-top-3">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 shadow-inner">
+                    <AlertTriangle className="w-6 h-6 text-white animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="bg-white text-rose-700 text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider shadow-2xs">
+                        🚨 Citación Oficial Requerida
+                      </span>
+                      <span className="text-xs font-bold text-white/90">
+                        Investigación ATEL • {llamadosAtel[0].tipoEvento}
+                      </span>
+                    </div>
+                    <p className="text-xs font-medium text-white/95 mt-1">
+                      Has sido convocado formalmente como testigo en la investigación de un evento laboral ocurrido el <strong>{llamadosAtel[0].fechaEvento}</strong> ({llamadosAtel[0].afectado}). Se requiere tu testimonio para esclarecer los hechos.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/sgsst-public/atel-testimonio/${companyId}?investigacionId=${llamadosAtel[0].investigacionId}&cedula=${activeCedula || ''}`)}
+                  className="px-5 py-2.5 rounded-xl bg-white text-rose-700 hover:bg-rose-50 font-black text-xs shadow-lg transition-all shrink-0 active:scale-95 flex items-center gap-2"
+                >
+                  <MessageSquare className="w-4 h-4" /> Rendir Testimonio Ahora (+30 pts)
+                </button>
+              </div>
+            )}
+
             {/* Carnet Digital 360 Header */}
             <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-3xl p-6 sm:p-7 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-bl from-teal-500/10 via-emerald-500/5 to-transparent rounded-bl-full pointer-events-none" />

@@ -15,6 +15,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import MatrizCompatibilidadTable from './MatrizCompatibilidadTable';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 
 interface MatrixSummaryItem {
   conversationId: string;
@@ -264,19 +265,12 @@ export default function MatrizCompatibilidadWorkspace() {
                 </div>
 
                 {/* Res. 0312 Est. 4.1.3: CUMPLE */}
-                <div
-                  title="Res. 0312/2019 Estándar 4.1.3 — Identificación y Control de Sustancias Químicas Peligrosas / SGA (Res. 773/21 y Dec. 1496/18): CUMPLE"
-                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                >
-                  <div className="relative flex flex-shrink-0 items-center justify-center">
-                    <Scale className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 shrink-0" />
-                  </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                    <span className="text-sm font-bold tracking-wide">
-                      Res. 0312 Est. 4.1.3: CUMPLE
-                    </span>
-                  </div>
-                </div>
+                <SGSSTLegalBadge
+                  standardCode="4.1.3"
+                  label="Res. 0312 Est. 4.1.3: CUMPLE"
+                  tooltip="Res. 0312/2019 Estándar 4.1.3 — Identificación y Control de Sustancias Químicas Peligrosas / SGA (Res. 773/21 y Dec. 1496/18)"
+                  moduleName="Matriz de Compatibilidad Química"
+                />
               </div>
             </div>
           </div>

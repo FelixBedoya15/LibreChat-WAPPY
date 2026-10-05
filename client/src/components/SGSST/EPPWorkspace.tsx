@@ -52,6 +52,7 @@ import { SignaturePad } from './SignaturePad';
 import { exportEppToExcel, type EppInventoryItem } from './exportEpp';
 import { saveAs } from 'file-saver';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
 import { read, utils } from 'xlsx';
@@ -178,8 +179,14 @@ export default function EPPWorkspace() {
   const [selectedWorker, setSelectedWorker] = useState<SocioWorker | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // ── Vista Activa (Entregas o Almacén) ──
-  const [activeView, setActiveView] = useState<'workers' | 'inventory'>('workers');
+  // ── Vista Activa (Entregas, Almacén o Solicitudes) ──
+  const [activeView, setActiveView] = useState<'workers' | 'inventory' | 'solicitudes'>('workers');
+
+  // ── Estado de Solicitudes de EPP ──
+  const [solicitudes, setSolicitudes] = useState<any[]>([]);
+  const [loadingSolicitudes, setLoadingSolicitudes] = useState(false);
+  const [solicitudFilter, setSolicitudFilter] = useState<'todas' | 'pendiente' | 'aprobada' | 'entregada' | 'rechazada'>('todas');
+  const [deliveringSolId, setDeliveringSolId] = useState<string | null>(null);
 
   // ── Estado de Inventario y Stock de EPP ──
   const [inventoryItems, setInventoryItems] = useState<EppInventoryItem[]>([]);
@@ -871,11 +878,102 @@ export default function EPPWorkspace() {
       } catch (invErr) {
         console.warn('[EPP Workspace] Error loading inventory:', invErr);
       }
+
+      // 6. Fetch Solicitudes de EPP
+      try {
+        const solRes = await fetch('/api/sgsst/epp/solicitudes', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (solRes.ok) {
+          const solData = await solRes.json();
+          setSolicitudes(Array.isArray(solData) ? solData : []);
+        }
+      } catch (sErr) {
+        console.warn('[EPP Workspace] Error loading solicitudes:', sErr);
+      }
     } catch (err) {
       console.error('[EPP Workspace] Fetch error:', err);
       showToast({ message: 'Error al cargar los datos del módulo EPP', status: 'error' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSolicitudes = async () => {
+    if (!token) return;
+    try {
+      setLoadingSolicitudes(true);
+      const res = await fetch('/api/sgsst/epp/solicitudes', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSolicitudes(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error('Error fetching solicitudes:', e);
+    } finally {
+      setLoadingSolicitudes(false);
+    }
+  };
+
+  const handleDeliverSolicitud = async (solId: string) => {
+    if (!token) return;
+    try {
+      setDeliveringSolId(solId);
+      const res = await fetch(`/api/sgsst/epp/solicitudes/${solId}/entregar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ observacionesEntrega: 'Entrega confirmada y descontada de bodega.' })
+      });
+      if (res.ok) {
+        showToast({ message: '¡Entrega asentada! Stock descontado de bodega y registrado en el historial del colaborador.', status: 'success' });
+        loadSolicitudes();
+        loadData();
+      } else {
+        const err = await res.json();
+        showToast({ message: err.error || 'Error al procesar la entrega', status: 'error' });
+      }
+    } catch (e: any) {
+      showToast({ message: e.message || 'Error al procesar la entrega', status: 'error' });
+    } finally {
+      setDeliveringSolId(null);
+    }
+  };
+
+  const handleApproveSolicitud = async (solId: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/sgsst/epp/solicitudes/${solId}/aprobar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ notas: 'Aprobado por el área de SST.' })
+      });
+      if (res.ok) {
+        showToast({ message: 'Solicitud aprobada', status: 'success' });
+        loadSolicitudes();
+      }
+    } catch (e: any) {
+      showToast({ message: 'Error al aprobar solicitud', status: 'error' });
+    }
+  };
+
+  const handleRejectSolicitud = async (solId: string) => {
+    const motivo = prompt('Ingrese el motivo del rechazo de la solicitud:');
+    if (!motivo) return;
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/sgsst/epp/solicitudes/${solId}/rechazar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ motivoRechazo: motivo })
+      });
+      if (res.ok) {
+        showToast({ message: 'Solicitud rechazada', status: 'warning' });
+        loadSolicitudes();
+      }
+    } catch (e: any) {
+      showToast({ message: 'Error al rechazar solicitud', status: 'error' });
     }
   };
 
@@ -1411,6 +1509,82 @@ export default function EPPWorkspace() {
 
   return (
     <div className="w-full space-y-6">
+      {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
+      <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          {/* Lado Izquierdo: Título y Badges */}
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
+              <Shield className="h-6 w-6 sm:h-7 sm:w-7" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
+                  Control y Suministro de EPP
+                </h1>
+                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
+                  Oficial
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {/* Trabajadores */}
+                <div
+                  title={`${workers.length} Trabajadores Registrados con Dotación`}
+                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                >
+                  <div className="relative flex flex-shrink-0 items-center justify-center">
+                    <UserCheck className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                    <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                      {workers.length}
+                    </span>
+                  </div>
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                    <span className="text-sm font-bold tracking-wide">
+                      {workers.length} {workers.length === 1 ? 'Trabajador' : 'Trabajadores'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Stock Almacén */}
+                <div
+                  title={`${inventoryItems.length} Referencias de EPP en Almacén`}
+                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                >
+                  <div className="relative flex flex-shrink-0 items-center justify-center">
+                    <Boxes className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                    <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                      {inventoryItems.length}
+                    </span>
+                  </div>
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                    <span className="text-sm font-bold tracking-wide">
+                      {inventoryItems.length} Referencias en Almacén
+                    </span>
+                  </div>
+                </div>
+
+                {/* Res. 0312 Est. 4.2.4: CUMPLE */}
+                <SGSSTLegalBadge
+                  standardCode="4.2.4"
+                  label="Res. 0312 Est. 4.2.4: CUMPLE"
+                  tooltip="Res. 0312/2019 Estándar 4.2.4 — Suministro de EPP, reposición y verificación de entrega formal (Dec. 1072/15 Art. 2.2.4.6.24)"
+                  moduleName="Suministro y Control de EPP"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Lado Derecho */}
+          <div className="flex md:flex-col items-end justify-center gap-1 shrink-0">
+            <span className="text-xs font-bold text-text-primary">
+              Res. 0312 / Dec. 1072
+            </span>
+            <span className="text-[10px] text-text-tertiary">
+              Estándar 4.2.4 SG-SST
+            </span>
+          </div>
+        </div>
+      </div>
       
       {/* ─── TOOLBAR SUPERIOR ESTÁNDAR SGSST CON BOTONES EXPANDIBLES ──────── */}
       <SGSSTToolbar
@@ -1436,6 +1610,16 @@ export default function EPPWorkspace() {
             variant: 'history',
             active: activeView === 'inventory',
             badge: (lowStockItems.length + outOfStockItems.length) > 0 ? `${lowStockItems.length + outOfStockItems.length}` : (inventoryItems.length > 0 ? inventoryItems.length : undefined),
+          },
+          {
+            id: 'tb-tab-solicitudes',
+            onClick: () => setActiveView('solicitudes'),
+            label: `Solicitudes (${solicitudes.length})`,
+            icon: ClipboardList,
+            title: 'Ver Solicitudes de EPP y Dotación de Colaboradores',
+            variant: 'history',
+            active: activeView === 'solicitudes',
+            badge: solicitudes.filter(s => s.estado === 'pendiente').length > 0 ? `${solicitudes.filter(s => s.estado === 'pendiente').length}` : undefined,
           },
         ]}
         customSections={[
@@ -1538,17 +1722,24 @@ export default function EPPWorkspace() {
                 <UserCheck className="w-5 h-5 text-teal-600 dark:text-teal-400" />
                 <span>Control y Seguimiento de Entregas a Trabajadores</span>
               </>
-            ) : (
+            ) : activeView === 'inventory' ? (
               <>
                 <Boxes className="w-5 h-5 text-teal-600 dark:text-teal-400" />
                 <span>Almacén Central y Control de Stock de EPP</span>
+              </>
+            ) : (
+              <>
+                <ClipboardList className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                <span>Solicitudes de Dotación y Reposición de EPP</span>
               </>
             )}
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
             {activeView === 'workers'
               ? 'Gestión de dotaciones individuales, firmas de conformidad y control de caducidad.'
-              : 'Control de existencias físicas, umbrales mínimos de abastecimiento y trazabilidad de almacén.'}
+              : activeView === 'inventory'
+              ? 'Control de existencias físicas, umbrales mínimos de abastecimiento y trazabilidad de almacén.'
+              : 'Revisión y aprobación de solicitudes de colaboradores, descuento directo de bodega y entrega formal.'}
           </p>
         </div>
       </div>
@@ -2399,7 +2590,7 @@ export default function EPPWorkspace() {
         )}
       </div>
     </div>
-    ) : (
+    ) : activeView === 'inventory' ? (
       /* ── SECTOR DE ALMACÉN Y STOCK DE EPP (VISTA COMPLETA) ── */
       <div className="w-full flex-1 min-h-[580px] md:min-h-[750px] flex flex-col bg-surface-primary rounded-3xl border border-border-light dark:border-white/10 shadow-lg overflow-hidden animate-in fade-in duration-200">
         
@@ -2744,6 +2935,235 @@ export default function EPPWorkspace() {
           )}
         </div>
 
+      </div>
+    ) : (
+      /* ── SECTOR DE SOLICITUDES DE EPP DE COLABORADORES ── */
+      <div className="w-full flex-1 min-h-[580px] md:min-h-[750px] flex flex-col bg-surface-primary rounded-3xl border border-border-light dark:border-white/10 shadow-lg overflow-hidden animate-in fade-in duration-200">
+        
+        {/* Sub-Header de Solicitudes */}
+        <div className="p-5 border-b border-border-light dark:border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-secondary/30">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center shadow-sm">
+                <ClipboardList className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-text-primary">Solicitudes de Dotación de Colaboradores</h2>
+                <p className="text-xs text-text-secondary">
+                  Requerimientos radicados desde el Portal del Colaborador con trazabilidad y descuento directo de bodega.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={loadSolicitudes}
+              disabled={loadingSolicitudes}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-surface-secondary dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 shadow-2xs transition-all active:scale-95"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5", loadingSolicitudes && "animate-spin")} />
+              <span>Actualizar</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Filtros de Solicitudes */}
+        <div className="px-5 py-3 border-b border-border-light dark:border-white/10 flex items-center gap-1.5 overflow-x-auto scrollbar-none bg-surface-primary">
+          {[
+            { id: 'todas', label: `Todas (${solicitudes.length})` },
+            { id: 'pendiente', label: `Pendientes (${solicitudes.filter(s => s.estado === 'pendiente').length})` },
+            { id: 'aprobada', label: `Aprobadas (${solicitudes.filter(s => s.estado === 'aprobada').length})` },
+            { id: 'entregada', label: `Entregadas (${solicitudes.filter(s => s.estado === 'entregada').length})` },
+            { id: 'rechazada', label: `Rechazadas (${solicitudes.filter(s => s.estado === 'rechazada').length})` },
+          ].map(f => (
+            <button
+              key={f.id}
+              onClick={() => setSolicitudFilter(f.id as any)}
+              className={cn(
+                "px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
+                solicitudFilter === f.id
+                  ? "bg-teal-600 text-white shadow-xs"
+                  : "bg-surface-secondary text-text-secondary hover:text-text-primary"
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Listado de Solicitudes */}
+        <div className="p-5 flex-1 overflow-y-auto">
+          {loadingSolicitudes ? (
+            <div className="p-16 text-center">
+              <Loader2 className="w-8 h-8 animate-spin mx-auto text-teal-600 mb-2" />
+              <p className="text-xs text-text-secondary">Cargando solicitudes de dotación...</p>
+            </div>
+          ) : solicitudes.filter(s => solicitudFilter === 'todas' || s.estado === solicitudFilter).length === 0 ? (
+            <div className="text-center py-20 border border-dashed border-border-medium rounded-3xl text-text-tertiary space-y-3">
+              <ClipboardList className="w-12 h-12 mx-auto opacity-30 text-teal-500" />
+              <h3 className="text-sm font-bold text-text-primary">No hay solicitudes en esta vista</h3>
+              <p className="text-xs text-text-secondary max-w-sm mx-auto">
+                Los colaboradores pueden solicitar EPP desde su Portal del Colaborador.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {solicitudes
+                .filter(s => solicitudFilter === 'todas' || s.estado === solicitudFilter)
+                .map((sol) => {
+                  const isPendiente = sol.estado === 'pendiente';
+                  const isAprobada = sol.estado === 'aprobada';
+                  const isEntregada = sol.estado === 'entregada';
+                  const isRechazada = sol.estado === 'rechazada';
+
+                  return (
+                    <div
+                      key={sol._id}
+                      className="p-5 rounded-2xl border border-border-light dark:border-white/10 bg-surface-primary hover:border-teal-400/50 transition-all shadow-xs space-y-4"
+                    >
+                      {/* Cabecera de Solicitud */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-teal-500/10 text-teal-600 flex items-center justify-center font-black text-sm">
+                            {(sol.nombreTrabajador || 'T')[0]}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-extrabold text-sm text-text-primary">
+                                {sol.nombreTrabajador}
+                              </h4>
+                              <span className="font-mono text-[11px] text-text-secondary">
+                                CC: {sol.documento}
+                              </span>
+                              {sol.cargo && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-surface-secondary text-text-secondary">
+                                  {sol.cargo}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-text-tertiary">
+                              Radicado el {new Date(sol.createdAt || sol.fechaSolicitud).toLocaleDateString('es-CO', {
+                                day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {sol.urgencia && (
+                            <span className={cn(
+                              "text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider",
+                              sol.urgencia === 'Alta' ? "bg-red-500/10 text-red-600 border border-red-500/20" :
+                              sol.urgencia === 'Media' ? "bg-amber-500/10 text-amber-600 border border-amber-500/20" :
+                              "bg-slate-500/10 text-text-secondary border border-border-light"
+                            )}>
+                              Urgencia: {sol.urgencia}
+                            </span>
+                          )}
+
+                          <span className={cn(
+                            "text-xs font-extrabold px-3 py-1 rounded-full border",
+                            isEntregada ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" :
+                            isAprobada ? "bg-blue-500/10 text-blue-600 border-blue-500/30" :
+                            isRechazada ? "bg-rose-500/10 text-rose-600 border-rose-500/30" :
+                            "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                          )}>
+                            {isEntregada ? 'Entregada en Bodega' :
+                             isAprobada ? 'Aprobada' :
+                             isRechazada ? 'Rechazada' :
+                             'Pendiente de Revisión'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Ítems Solicitados */}
+                      <div className="bg-surface-secondary/40 p-4 rounded-xl border border-border-light dark:border-white/5 space-y-2">
+                        <span className="text-[11px] font-extrabold uppercase text-text-tertiary tracking-wider block">
+                          Ítems Requeridos ({sol.items?.length || 0}):
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                          {(sol.items || []).map((it: any, iIdx: number) => (
+                            <div key={iIdx} className="p-2.5 rounded-lg bg-surface-primary border border-border-light text-xs space-y-1">
+                              <div className="flex items-center justify-between font-bold text-text-primary">
+                                <span className="truncate">{it.nombre}</span>
+                                <span className="text-teal-600 shrink-0 ml-1 font-black">{it.cantidad}x</span>
+                              </div>
+                              <div className="flex items-center justify-between text-[11px] text-text-secondary">
+                                <span>Talla: <strong>{it.talla || 'Única'}</strong></span>
+                                <span className="italic truncate max-w-[120px]">{it.motivo}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Justificación y Evidencia */}
+                      {(sol.justificacion || sol.fotoEvidencia) && (
+                        <div className="flex flex-col sm:flex-row items-start gap-3 text-xs bg-slate-50 dark:bg-zinc-800/40 p-3 rounded-xl border border-border-light">
+                          {sol.fotoEvidencia && (
+                            <img
+                              src={sol.fotoEvidencia}
+                              alt="Evidencia"
+                              className="w-16 h-16 object-cover rounded-lg border border-border-medium shrink-0 cursor-pointer hover:scale-105 transition-transform"
+                              onClick={() => window.open(sol.fotoEvidencia, '_blank')}
+                            />
+                          )}
+                          <div className="flex-1 space-y-0.5">
+                            <span className="font-bold text-text-secondary uppercase text-[10px]">Justificación del Trabajador:</span>
+                            <p className="text-text-primary italic">"{sol.justificacion || 'Sin observaciones adicionales'}"</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Botonera de Acciones SST */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border-light dark:border-white/5">
+                        <div className="text-2xs text-text-tertiary">
+                          {sol.fechaEntrega && <span>Entregado el: {new Date(sol.fechaEntrega).toLocaleDateString('es-CO')}</span>}
+                          {sol.notasRespuesta && <span className="ml-2 font-medium text-teal-600">Nota: {sol.notasRespuesta}</span>}
+                          {sol.motivoRechazo && <span className="ml-2 font-medium text-rose-600">Rechazo: {sol.motivoRechazo}</span>}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {isPendiente && (
+                            <>
+                              <button
+                                onClick={() => handleRejectSolicitud(sol._id)}
+                                className="px-3 py-1.5 rounded-xl border border-rose-300 text-rose-600 hover:bg-rose-50 text-xs font-bold transition-all active:scale-95"
+                              >
+                                Rechazar
+                              </button>
+                              <button
+                                onClick={() => handleApproveSolicitud(sol._id)}
+                                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs active:scale-95"
+                              >
+                                Aprobar
+                              </button>
+                            </>
+                          )}
+
+                          {(isPendiente || isAprobada) && (
+                            <button
+                              onClick={() => handleDeliverSolicitud(sol._id)}
+                              disabled={deliveringSolId === sol._id}
+                              className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white text-xs font-extrabold transition-all shadow-md active:scale-95 disabled:opacity-50"
+                            >
+                              {deliveringSolId === sol._id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <PackageCheck className="w-3.5 h-3.5" />
+                              )}
+                              <span>Entregar (Descontar Bodega)</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
       </div>
     )}
 

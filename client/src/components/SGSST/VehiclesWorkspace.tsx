@@ -35,6 +35,7 @@ import { SignaturePad } from './SignaturePad';
 import { exportVehiclesToExcel } from './exportVehicles';
 import { saveAs } from 'file-saver';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
@@ -330,6 +331,31 @@ export default function VehiclesWorkspace() {
       showToast({ message: 'Error al cargar los datos de vehículos', status: 'error' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  const handleSeedDefaults = async () => {
+    if (!token) return;
+    try {
+      setIsSeeding(true);
+      const res = await fetch('/api/sgsst/vehicles/seed-defaults', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        showToast({ message: `¡Flota modelo PESV cargada exitosamente! (${data.count} vehículos)`, status: 'success' });
+        loadData();
+      } else {
+        const err = await res.json();
+        showToast({ message: err.error || 'Error al cargar flota modelo', status: 'error' });
+      }
+    } catch (e: any) {
+      showToast({ message: e.message || 'Error al sembrar flota modelo', status: 'error' });
+    } finally {
+      setIsSeeding(false);
     }
   };
 
@@ -652,6 +678,64 @@ export default function VehiclesWorkspace() {
 
   return (
     <div className="w-full space-y-6">
+      {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
+      <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          {/* Lado Izquierdo: Título y Badges */}
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
+              <Truck className="h-6 w-6 sm:h-7 sm:w-7" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
+                  Flota y Mantenimiento Vehicular (PESV)
+                </h1>
+                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
+                  Oficial
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {/* Total Vehículos Registrados */}
+                <div
+                  title={`${vehicles.length} Vehículos en Flota PESV`}
+                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                >
+                  <div className="relative flex flex-shrink-0 items-center justify-center">
+                    <Car className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                    <span className="absolute -right-2.5 -top-2 z-10 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-surface-primary">
+                      {vehicles.length}
+                    </span>
+                  </div>
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                    <span className="text-sm font-bold tracking-wide">
+                      {vehicles.length} {vehicles.length === 1 ? 'Vehículo en Flota' : 'Vehículos en Flota'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Res. 0312 Art. 32 / Paso 10: CUMPLE */}
+                <SGSSTLegalBadge
+                  standardCode="32"
+                  label="Res. 0312 Art. 32 / Paso 10: CUMPLE"
+                  tooltip="Res. 0312/2019 Art. 32 y Res. 20223040040595 (Paso 10 — Mantenimiento y Control de Vehículos y Flota PESV)"
+                  moduleName="Flota Vehicular y Mantenimiento PESV"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Lado Derecho */}
+          <div className="flex md:flex-col items-end justify-center gap-1 shrink-0">
+            <span className="text-xs font-bold text-text-primary">
+              Res. 0312 / Res. 40595
+            </span>
+            <span className="text-[10px] text-text-tertiary">
+              Art. 32 SG-SST / Paso 10
+            </span>
+          </div>
+        </div>
+      </div>
       
       {/* ─── TOOLBAR SUPERIOR ESTÁNDAR SGSST CON BOTONES EXPANDIBLES ──────── */}
       <SGSSTToolbar
@@ -689,6 +773,16 @@ export default function VehiclesWorkspace() {
                 variant="dummy"
               />
             )}
+            <ToolbarButton
+              id="tb-seed-defaults"
+              onClick={handleSeedDefaults}
+              disabled={isSeeding}
+              isLoading={isSeeding}
+              label="Flota Modelo PESV"
+              icon={Sparkles}
+              title="Cargar catálogo modelo de 5 vehículos PESV (Moto, Auto, Campero, Camioneta, Camión)"
+              variant="dummy"
+            />
             <ToolbarButton
               id="tb-export-excel-veh"
               onClick={handleExportExcel}

@@ -40,6 +40,8 @@ const PublicConvivencia = lazy(() => import('~/components/SGSST/PublicConvivenci
 const PublicVotaciones = lazy(() => import('~/components/SGSST/PublicVotaciones'));
 const PublicInspeccionesCopasst = lazy(() => import('~/components/SGSST/PublicInspeccionesCopasst'));
 const PublicBrigadistas = lazy(() => import('~/components/SGSST/PublicBrigadistas'));
+const PublicSolicitudEpp = lazy(() => import('~/components/SGSST/PublicSolicitudEpp'));
+const PublicInspeccionVehicular = lazy(() => import('~/components/SGSST/PublicInspeccionVehicular'));
 const MoodAnalyticsDashboard = lazy(() => import('~/components/SGSST/MoodAnalyticsDashboard'));
 const PrivacyPolicyPage = lazy(() => import('~/components/Auth/PrivacyPolicyPage'));
 const TermsOfServicePage = lazy(() => import('~/components/Auth/TermsOfServicePage'));
@@ -243,6 +245,16 @@ export const router = createBrowserRouter(
     {
       path: 'sgsst-public/brigadista/:companyId/:cedula?',
       element: withSuspense(<PublicBrigadistas />),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'sgsst-public/solicitud-epp/:companyId',
+      element: withSuspense(<PublicSolicitudEpp />),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'sgsst-public/inspeccion-vehicular/:companyId',
+      element: withSuspense(<PublicInspeccionVehicular />),
       errorElement: <RouteErrorBoundary />,
     },
     {

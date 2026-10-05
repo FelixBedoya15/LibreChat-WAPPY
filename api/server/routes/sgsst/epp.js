@@ -5,6 +5,7 @@ const CompanyInfo = require('../../../models/CompanyInfo');
 const SgsstWorker = require('../../../models/SgsstWorker');
 const SgsstEppData = require('../../../models/SgsstEppData');
 const SgsstEppInventory = require('../../../models/SgsstEppInventory');
+const SgsstEppSolicitud = require('../../../models/SgsstEppSolicitud');
 const { logger } = require('~/config');
 const { generateWithKeyRotation } = require('./sgsstGemini');
 const { buildStandardHeader } = require('./reportHeader');
@@ -729,6 +730,174 @@ function parseDateString(dateStr) {
   d.setHours(0, 0, 0, 0);
   return d;
 }
+
+// ─── SOLICITUDES DE EPP (ADMIN) ─────────────────────────────────────────────
+
+// GET /solicitudes — Listar solicitudes de EPP de los colaboradores
+router.get('/solicitudes', requireJwtAuth, async (req, res) => {
+  try {
+    const companyId = await getActiveCompanyId(req.user.id);
+    if (!companyId) {
+      return res.status(400).json({ error: 'No se encontró empresa activa' });
+    }
+    const solicitudes = await SgsstEppSolicitud.find({ companyId })
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(solicitudes);
+  } catch (error) {
+    logger.error('[SGSST EPP] Error listing solicitudes:', error);
+    res.status(500).json({ error: 'Error al obtener solicitudes de EPP' });
+  }
+});
+
+// POST /solicitudes/:id/aprobar — Aprobar solicitud
+router.post('/solicitudes/:id/aprobar', requireJwtAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notas } = req.body;
+    const companyId = await getActiveCompanyId(req.user.id);
+
+    const solicitud = await SgsstEppSolicitud.findOne({ _id: id, companyId });
+    if (!solicitud) {
+      return res.status(404).json({ error: 'Solicitud no encontrada' });
+    }
+
+    solicitud.estado = 'aprobada';
+    solicitud.notasRespuesta = notas || 'Solicitud aprobada por el área de SST.';
+    solicitud.fechaRespuesta = new Date();
+    solicitud.respondidoPor = req.user?.name || 'Responsable SST';
+    await solicitud.save();
+
+    res.json({ success: true, solicitud });
+  } catch (error) {
+    logger.error('[SGSST EPP] Error approving solicitud:', error);
+    res.status(500).json({ error: 'Error al aprobar solicitud' });
+  }
+});
+
+// POST /solicitudes/:id/rechazar — Rechazar solicitud
+router.post('/solicitudes/:id/rechazar', requireJwtAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { motivoRechazo } = req.body;
+    const companyId = await getActiveCompanyId(req.user.id);
+
+    const solicitud = await SgsstEppSolicitud.findOne({ _id: id, companyId });
+    if (!solicitud) {
+      return res.status(404).json({ error: 'Solicitud no encontrada' });
+    }
+
+    solicitud.estado = 'rechazada';
+    solicitud.motivoRechazo = motivoRechazo || 'No procede en este momento.';
+    solicitud.fechaRespuesta = new Date();
+    solicitud.respondidoPor = req.user?.name || 'Responsable SST';
+    await solicitud.save();
+
+    res.json({ success: true, solicitud });
+  } catch (error) {
+    logger.error('[SGSST EPP] Error rejecting solicitud:', error);
+    res.status(500).json({ error: 'Error al rechazar solicitud' });
+  }
+});
+
+// POST /solicitudes/:id/entregar — Entregar formalmente y descontar stock de bodega
+router.post('/solicitudes/:id/entregar', requireJwtAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { observacionesEntrega } = req.body;
+    const companyId = await getActiveCompanyId(req.user.id);
+
+    const solicitud = await SgsstEppSolicitud.findOne({ _id: id, companyId });
+    if (!solicitud) {
+      return res.status(404).json({ error: 'Solicitud no encontrada' });
+    }
+
+    if (solicitud.estado === 'entregada') {
+      return res.status(400).json({ error: 'Esta solicitud ya fue marcada como entregada.' });
+    }
+
+    // 1. Descontar stock del inventario para cada ítem
+    const todayStr = new Date().toISOString().split('T')[0];
+    const crypto = require('crypto');
+
+    for (const item of (solicitud.items || [])) {
+      const cantidadADescontar = Number(item.cantidad) || 1;
+      let invItem = null;
+      if (item.eppId && mongoose.Types.ObjectId.isValid(item.eppId)) {
+        invItem = await SgsstEppInventory.findOne({ _id: item.eppId, companyId });
+      }
+      if (!invItem && item.nombre) {
+        invItem = await SgsstEppInventory.findOne({ 
+          companyId, 
+          nombre: { $regex: new RegExp(`^${item.nombre.trim()}$`, 'i') } 
+        });
+      }
+      if (invItem) {
+        const nuevoStock = Math.max(0, (invItem.stockActual || 0) - cantidadADescontar);
+        invItem.stockActual = nuevoStock;
+        invItem.movimientos = invItem.movimientos || [];
+        invItem.movimientos.push({
+          tipo: 'Salida',
+          cantidad: cantidadADescontar,
+          fecha: todayStr,
+          motivo: `Entrega a ${solicitud.nombreTrabajador} (Sol. #${solicitud._id.toString().slice(-6)})`,
+          registradoPor: req.user?.name || 'SST'
+        });
+        await invItem.save();
+      }
+    }
+
+    // 2. Asentar las entregas en el registro del trabajador (SgsstEppData)
+    const nuevasEntregas = (solicitud.items || []).map(it => ({
+      id: crypto.randomUUID(),
+      nombre: it.nombre,
+      tipo: it.tipo || 'Regular',
+      categoria: it.categoria || 'General',
+      talla: it.talla || '',
+      cantidad: Number(it.cantidad) || 1,
+      fechaEntrega: todayStr,
+      estado: 'Entregado',
+      observaciones: `Entregado vía Portal Colaborador. Motivo: ${it.motivo || solicitud.justificacion || 'Reposición'}. ${observacionesEntrega || ''}`.trim()
+    }));
+
+    let workerDoc = await SgsstEppData.findOne({
+      user: req.user.id,
+      companyId,
+      documento: solicitud.documento
+    });
+
+    if (workerDoc) {
+      workerDoc.entregas = [...(workerDoc.entregas || []), ...nuevasEntregas];
+      workerDoc.updatedAt = Date.now();
+      await workerDoc.save();
+    } else {
+      workerDoc = await SgsstEppData.create({
+        user: req.user.id,
+        companyId,
+        workerId: solicitud.workerId || solicitud.documento,
+        documento: solicitud.documento,
+        nombreTrabajador: solicitud.nombreTrabajador,
+        cargo: solicitud.cargo,
+        entregas: nuevasEntregas
+      });
+    }
+
+    // 3. Actualizar la solicitud como entregada
+    solicitud.estado = 'entregada';
+    solicitud.fechaEntrega = new Date();
+    solicitud.notasRespuesta = observacionesEntrega || solicitud.notasRespuesta || 'Entrega realizada con éxito.';
+    solicitud.respondidoPor = req.user?.name || 'Responsable SST';
+    await solicitud.save();
+
+    // 4. Sincronizar con IPEVAR
+    await syncEppWithIpevar(req.user.id, companyId, solicitud.documento, workerDoc);
+
+    res.json({ success: true, solicitud, workerDoc });
+  } catch (error) {
+    logger.error('[SGSST EPP] Error delivering solicitud:', error);
+    res.status(500).json({ error: 'Error al asentar la entrega de la solicitud' });
+  }
+});
 
 // ─── POST /generate ───────────────────────────────────────────────────────
 router.post('/generate', requireJwtAuth, async (req, res) => {

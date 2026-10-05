@@ -1,5 +1,6 @@
 import React, {  useState, useCallback, useRef } from 'react';
 import { UpgradeWall } from './UpgradeWall';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles,
@@ -338,6 +339,85 @@ const ResponsableSGSST = () => {
 
     return (
         <div className="flex flex-col gap-4">
+            {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
+            <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    {/* Lado Izquierdo: Título y Badges */}
+                    <div className="flex items-center gap-3.5">
+                        <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
+                            <UserCheck className="h-6 w-6 sm:h-7 sm:w-7" />
+                        </div>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
+                                    Asignación del Responsable del SG-SST
+                                </h1>
+                                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
+                                    Oficial
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                                {/* Estado Designación */}
+                                <div
+                                    title={responsableName ? `Responsable Asignado: ${responsableName}` : 'Responsable Pendiente de Asignación'}
+                                    className={`group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 ${
+                                        responsableName
+                                            ? 'border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300'
+                                            : 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                    }`}
+                                >
+                                    <div className="relative flex flex-shrink-0 items-center justify-center">
+                                        <UserCheck className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                                    </div>
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-sm font-bold tracking-wide">
+                                            {responsableName ? `Designado: ${responsableName}` : 'Sin Responsable Asignado'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Licencia SST */}
+                                <div
+                                    title={licenseNumber ? `Licencia SST: ${licenseNumber}` : 'Licencia SST no registrada'}
+                                    className={`group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 ${
+                                        licenseNumber
+                                            ? 'border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300'
+                                            : 'border-border-medium bg-surface-secondary text-text-tertiary'
+                                    }`}
+                                >
+                                    <div className="relative flex flex-shrink-0 items-center justify-center">
+                                        <Award className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                                    </div>
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-sm font-bold tracking-wide">
+                                            {licenseNumber ? `Licencia: ${licenseNumber}` : 'Licencia Pendiente'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Res. 0312 Est. 1.1.1: CUMPLE */}
+                                <SGSSTLegalBadge
+                                    standardCode="1.1.1"
+                                    label="Res. 0312 Est. 1.1.1: CUMPLE"
+                                    tooltip="Res. 0312/2019 Estándar 1.1.1 — Asignación y perfil del responsable del Sistema de Gestión de Seguridad y Salud en el Trabajo (Dec. 1072/15 Art. 2.2.4.6.8)"
+                                    moduleName="Asignación Responsable SG-SST"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Lado Derecho */}
+                    <div className="flex md:flex-col items-end justify-center gap-1 shrink-0">
+                        <span className="text-xs font-bold text-text-primary">
+                            Res. 0312 / Dec. 1072
+                        </span>
+                        <span className="text-[10px] text-text-tertiary">
+                            Estándar 1.1.1 & 1.1.2 SG-SST
+                        </span>
+                    </div>
+                </div>
+            </div>
+
             <SGSSTToolbar
                 onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                 isHistoryOpen={isHistoryOpen}

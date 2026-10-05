@@ -2,16 +2,23 @@ const mongoose = require('mongoose');
 
 const InspeccionVehicularSchema = new mongoose.Schema({
   fecha: { type: String, required: true }, // YYYY-MM-DD
+  hora: { type: String, default: '' },
   kilometraje: { type: Number, required: true },
-  luces: { type: String, enum: ['Bueno', 'Malo'], default: 'Bueno' },
-  frenos: { type: String, enum: ['Bueno', 'Malo'], default: 'Bueno' },
-  llantas: { type: String, enum: ['Bueno', 'Malo'], default: 'Bueno' },
-  direccion: { type: String, enum: ['Bueno', 'Malo'], default: 'Bueno' },
-  cinturones: { type: String, enum: ['Bueno', 'Malo'], default: 'Bueno' },
+  conductorCedula: { type: String, default: '' },
+  conductorNombre: { type: String, default: '' },
+  tipoVehiculo: { type: String, default: '' },
+  luces: { type: String, default: 'Bueno' },
+  frenos: { type: String, default: 'Bueno' },
+  llantas: { type: String, default: 'Bueno' },
+  direccion: { type: String, default: 'Bueno' },
+  cinturones: { type: String, default: 'Bueno' },
+  checklist: { type: Array, default: [] }, // [{ item, categoria, estado, critico, observacion }]
   resultado: { type: String, enum: ['Aprobado', 'Rechazado'], default: 'Aprobado' },
   firmaConductor: { type: String, default: null }, // Base64 signature
-  observaciones: { type: String, default: '' }
-}, { _id: false });
+  fotos: { type: Array, default: [] },
+  observaciones: { type: String, default: '' },
+  origen: { type: String, default: 'portal_colaborador' }
+}, { _id: false, strict: false });
 
 const SgsstVehicleDataSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

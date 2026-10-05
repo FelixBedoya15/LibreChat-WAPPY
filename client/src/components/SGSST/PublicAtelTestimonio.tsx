@@ -61,6 +61,28 @@ export default function PublicAtelTestimonio() {
     fetchCompany();
   }, [companyId]);
 
+  const [citacionInfo, setCitacionInfo] = useState<any | null>(null);
+
+  useEffect(() => {
+    const fetchCitacion = async () => {
+      const targetCed = cedula || sessionWorker?.cedula || session?.cedula;
+      if (!targetCed || !companyId) return;
+      try {
+        const res = await axios.get(`/api/public-sgsst/atel/llamados-testigo/${companyId}/${targetCed}`);
+        const llamados = res.data?.llamados || [];
+        if (llamados.length > 0) {
+          const matched = investigacionId 
+            ? llamados.find((l: any) => l.investigacionId === investigacionId) || llamados[0]
+            : llamados[0];
+          setCitacionInfo(matched);
+        }
+      } catch (e) {
+        console.warn('Error fetching witness summons:', e);
+      }
+    };
+    fetchCitacion();
+  }, [companyId, cedula, sessionWorker, session, investigacionId]);
+
   // Auto-populate & auto-advance when worker session is detected
   useEffect(() => {
     if ((sessionWorker || session) && step === 1) {
@@ -243,6 +265,28 @@ export default function PublicAtelTestimonio() {
 
       {/* Main Content */}
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto p-5">
+        {citacionInfo && (
+          <div className="mb-5 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 p-4 text-white shadow-md border border-white/20 animate-in fade-in">
+            <div className="flex items-center gap-2 mb-1.5">
+              <AlertTriangle className="h-4 w-4 text-amber-300 animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">
+                Citación Oficial Activa
+              </span>
+            </div>
+            <h4 className="font-extrabold text-xs text-white">
+              Investigación ATEL • {citacionInfo.tipoEvento} ({citacionInfo.fechaEvento})
+            </h4>
+            <p className="text-[11px] text-white/95 mt-0.5">
+              Afectado: <strong>{citacionInfo.afectado}</strong>.
+            </p>
+            {citacionInfo.descripcion && (
+              <p className="text-[10px] text-white/80 mt-1 italic line-clamp-2">
+                "{citacionInfo.descripcion}"
+              </p>
+            )}
+          </div>
+        )}
+
         {step < 4 && (
           <div className="mb-6 flex items-center justify-between px-2">
             {[1, 2, 3].map((s) => (

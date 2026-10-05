@@ -27,6 +27,7 @@ import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 import ExpandingButton from './ExpandingButton';
 import { SignaturePad } from './SignaturePad';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
@@ -572,8 +573,17 @@ export default function ComitePesvWorkspace() {
       <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-gradient-to-br from-teal-900 via-teal-800 to-slate-900 text-white p-6 shadow-lg">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 border border-teal-400/30 text-teal-200 text-xs font-bold uppercase tracking-wider">
-              <Car className="w-3.5 h-3.5" /> Res. 20223040040595 Paso 1, 2 y 20 • Ley 1503/2011 • ISO 39001
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 border border-teal-400/30 text-teal-200 text-xs font-bold uppercase tracking-wider">
+                <Car className="w-3.5 h-3.5" /> Res. 20223040040595 Paso 1, 2 y 20 • Ley 1503/2011 • ISO 39001
+              </div>
+              {/* Res. 0312 Art. 32 / Paso 2: CUMPLE */}
+              <SGSSTLegalBadge
+                standardCode="32"
+                label="Res. 0312 Art. 32 / Paso 2: CUMPLE"
+                tooltip="Res. 0312/2019 Art. 32 y Res. 20223040040595 (Paso 2 — Comité de Seguridad Vial y Líder PESV)"
+                moduleName="Comité de Seguridad Vial (PESV)"
+              />
             </div>
             <h2 className="text-2xl font-black tracking-tight flex items-center gap-2.5">
               Comité de Seguridad Vial (CSV) & Líder del PESV

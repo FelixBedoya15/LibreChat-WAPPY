@@ -27,6 +27,7 @@ import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 import SingleSelect from './SingleSelect';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import AcpmActionPlanBox, { type ActionPlanItem } from './AcpmActionPlanBox';
@@ -571,7 +572,67 @@ const PermisoAlturas = () => {
 
     return (
         <div className="flex flex-col gap-4">
-                        {/* ═══ Toolbar ═══ */}
+            {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
+            <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    {/* Lado Izquierdo: Título y Badges */}
+                    <div className="flex items-center gap-3.5">
+                        <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
+                            <Target className="h-6 w-6 sm:h-7 sm:w-7" />
+                        </div>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h1 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
+                                    Permiso de Trabajo Seguro en Alturas (PTSA)
+                                </h1>
+                                <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-500 text-white shrink-0">
+                                    Oficial
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                                {/* Estado Documento */}
+                                <div
+                                    title={generatedObjectives || editorContentRef.current ? 'Permiso de Alturas Generado' : 'Formulario de Permiso Pendiente'}
+                                    className={`group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 ${
+                                        generatedObjectives || editorContentRef.current
+                                            ? 'border-teal-500/30 bg-surface-primary text-teal-700 dark:text-teal-300'
+                                            : 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                    }`}
+                                >
+                                    <div className="relative flex flex-shrink-0 items-center justify-center">
+                                        <FileText className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                                    </div>
+                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+                                        <span className="text-sm font-bold tracking-wide">
+                                            {generatedObjectives || editorContentRef.current ? 'Permiso Elaborado' : 'Pendiente de Emisión'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Res. 0312 / Res. 4272: CUMPLE */}
+                                <SGSSTLegalBadge
+                                    standardCode="4.2.1"
+                                    label="Res. 0312 / Res. 4272: CUMPLE"
+                                    tooltip="Res. 0312/2019 Estándar 4.2.1 y Res. 4272/2021 — Permiso de Trabajo en Alturas y Medidas de Prevención y Protección"
+                                    moduleName="Permiso de Trabajo en Alturas"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Lado Derecho */}
+                    <div className="flex md:flex-col items-end justify-center gap-1 shrink-0">
+                        <span className="text-xs font-bold text-text-primary">
+                            Res. 0312 / Res. 4272
+                        </span>
+                        <span className="text-[10px] text-text-tertiary">
+                            Estándar 4.2.1 Alto Riesgo
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {/* ═══ Toolbar ═══ */}
             <SGSSTToolbar
                 onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                 isHistoryOpen={isHistoryOpen}

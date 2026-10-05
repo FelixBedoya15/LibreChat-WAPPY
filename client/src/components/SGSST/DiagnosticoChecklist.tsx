@@ -555,6 +555,15 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     }
   }, [token, runComplianceScan]);
 
+  // Sincronización reactiva en tiempo real al hacer clic en botones legales de otros aplicativos
+  React.useEffect(() => {
+    const handleDiagnosticUpdate = () => {
+      runComplianceScan(true);
+    };
+    window.addEventListener('sgsst-diagnostic-updated', handleDiagnosticUpdate);
+    return () => window.removeEventListener('sgsst-diagnostic-updated', handleDiagnosticUpdate);
+  }, [runComplianceScan]);
+
   const handleSaveData = () => {
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ statuses, observations }));

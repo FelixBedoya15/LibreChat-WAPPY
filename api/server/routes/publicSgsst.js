@@ -527,11 +527,43 @@ router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
     }
 
     if (targetDoc) {
+      // Actualizar también testigosList si el testigo ya estaba registrado como convocado
+      const cleanCed = String(cedula).trim();
+      let updatedTestigosList = [...(targetDoc.testigosList || [])];
+      let witnessIndex = updatedTestigosList.findIndex(t => 
+        String(t.cedula || t.identificacion || '').trim() === cleanCed
+      );
+
+      if (witnessIndex !== -1) {
+        updatedTestigosList[witnessIndex] = {
+          ...updatedTestigosList[witnessIndex],
+          testimonio: data?.testimonio || '',
+          estado: 'recibido',
+          fechaTestimonio: new Date().toISOString().split('T')[0],
+          foto1: data?.foto1 || null,
+          foto2: data?.foto2 || null
+        };
+      } else {
+        updatedTestigosList.push({
+          nombre,
+          cedula: cleanCed,
+          cargo: data?.cargo || 'Testigo',
+          testimonio: data?.testimonio || '',
+          estado: 'recibido',
+          fechaTestimonio: new Date().toISOString().split('T')[0],
+          foto1: data?.foto1 || null,
+          foto2: data?.foto2 || null
+        });
+      }
+
       await InvestigacionAtelData.findByIdAndUpdate(
         targetDoc._id,
         { 
           $push: { inboxTestimonios: newInboxItem }, 
-          $set: { updatedAt: Date.now() } 
+          $set: { 
+            testigosList: updatedTestigosList,
+            updatedAt: Date.now() 
+          } 
         }
       );
     } else {
@@ -592,6 +624,58 @@ router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
   } catch (error) {
     logger.error('[Public SGSST] ATEL Testimony submission error:', error);
     res.status(500).json({ error: 'Error al procesar el testimonio' });
+  }
+});
+
+// ─── GET /api/public-sgsst/atel/llamados-testigo/:companyId/:cedula ─────────
+// Consultar si el trabajador tiene una citación o llamado activo como testigo en ATEL
+router.get('/atel/llamados-testigo/:companyId/:cedula', async (req, res) => {
+  try {
+    const { companyId, cedula } = req.params;
+    const { company } = await resolveCompanyAndWorker(companyId, { cedula });
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+
+    const InvestigacionAtelData = mongoose.models.InvestigacionAtelData;
+    if (!InvestigacionAtelData) {
+      return res.json({ llamados: [] });
+    }
+
+    const cedulaClean = String(cedula).trim();
+    const docs = await InvestigacionAtelData.find({
+      companyId: company._id,
+      $or: [
+        { 'testigosList.cedula': cedulaClean },
+        { 'testigosList.identificacion': cedulaClean }
+      ]
+    }).lean();
+
+    const llamados = [];
+    for (const doc of docs) {
+      const matchWitness = (doc.testigosList || []).find(t => 
+        String(t.cedula || t.identificacion || '').trim() === cedulaClean
+      );
+      if (matchWitness && (!matchWitness.testimonio || matchWitness.estado !== 'recibido')) {
+        llamados.push({
+          investigacionId: doc.id || doc._id.toString(),
+          tipoEvento: doc.formData?.tipoEvento || 'Incidente / Accidente',
+          fechaEvento: doc.formData?.fechaEvento || 'Fecha reciente',
+          afectado: doc.formData?.nombreAfectado || doc.formData?.personaAfectada || 'Compañero de trabajo',
+          descripcion: doc.formData?.descripcionHechos || 'Citación oficial para rendir declaración testimonial.',
+          testigo: {
+            nombre: matchWitness.nombre,
+            cargo: matchWitness.cargo,
+            cedula: matchWitness.cedula
+          }
+        });
+      }
+    }
+
+    res.json({ llamados });
+  } catch (error) {
+    logger.error('[Public SGSST] Error fetching ATEL witness calls:', error);
+    res.status(500).json({ error: 'Error al consultar citaciones de testigo' });
   }
 });
 
@@ -3409,6 +3493,391 @@ router.post('/brigadista/:companyId', async (req, res) => {
   } catch (error) {
     logger.error('[Public SGSST] POST /brigadista error:', error);
     res.status(500).json({ error: 'Error al registrar hoja de vida del brigadista' });
+  }
+});
+
+// ─── DOTACIÓN Y EPP (PORTAL PÚBLICO) ─────────────────────────────────────────
+
+// GET /api/public-sgsst/epp/catalogo/:companyId — Catálogo disponible en almacén/bodega
+router.get('/epp/catalogo/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+
+    const SgsstEppInventory = require('../../../models/SgsstEppInventory');
+    let items = await SgsstEppInventory.find({
+      companyId: company._id,
+      activo: { $ne: false }
+    }).sort({ categoria: 1, nombre: 1 }).lean();
+
+    // Fallback: si la empresa no ha creado inventario aún, proveer catálogo normativo de referencia
+    if (!items || items.length === 0) {
+      items = [
+        {
+          _id: 'std-cab-1',
+          codigo: 'EPP-CAB-01',
+          nombre: 'Casco de seguridad dieléctrico Tipo II con barbuquejo',
+          categoria: 'Protección de Cabeza',
+          tipo: 'Regular',
+          stockActual: 15,
+          talla: 'Ajustable',
+          unidad: 'Unidad'
+        },
+        {
+          _id: 'std-ocu-1',
+          codigo: 'EPP-OCU-01',
+          nombre: 'Gafas de seguridad con filtro UV y antiempañante',
+          categoria: 'Protección Ocular / Facial',
+          tipo: 'Regular',
+          stockActual: 30,
+          talla: 'Única',
+          unidad: 'Unidad'
+        },
+        {
+          _id: 'std-aud-1',
+          codigo: 'EPP-AUD-01',
+          nombre: 'Protectores auditivos de inserción en silicona tipo copa/tapón',
+          categoria: 'Protección Auditiva',
+          tipo: 'Regular',
+          stockActual: 40,
+          talla: 'Única',
+          unidad: 'Par'
+        },
+        {
+          _id: 'std-res-1',
+          codigo: 'EPP-RES-01',
+          nombre: 'Respirador N95 / Mascarilla para material particulado',
+          categoria: 'Protección Respiratoria',
+          tipo: 'Regular',
+          stockActual: 25,
+          talla: 'M/L',
+          unidad: 'Unidad'
+        },
+        {
+          _id: 'std-man-1',
+          codigo: 'EPP-MAN-01',
+          nombre: 'Guantes de nitrilo / vaqueta de alta resistencia abrasiva',
+          categoria: 'Protección de Manos',
+          tipo: 'Regular',
+          stockActual: 35,
+          talla: '8 / 9 / 10',
+          unidad: 'Par'
+        },
+        {
+          _id: 'std-pie-1',
+          codigo: 'EPP-PIE-01',
+          nombre: 'Botas de seguridad dieléctricas con puntera de protección',
+          categoria: 'Protección de Pies / Calzado',
+          tipo: 'Regular',
+          stockActual: 10,
+          talla: '38 a 43',
+          unidad: 'Par'
+        },
+        {
+          _id: 'std-alt-1',
+          codigo: 'EPP-ALT-01',
+          nombre: 'Arnés de cuerpo entero multipropósito en X (4 argollas)',
+          categoria: 'Trabajo en Alturas',
+          tipo: 'Alturas',
+          stockActual: 8,
+          talla: 'Universal',
+          unidad: 'Unidad'
+        }
+      ];
+    }
+
+    res.json({ catalogo: items });
+  } catch (error) {
+    logger.error('[Public SGSST] Error fetching EPP catalog:', error);
+    res.status(500).json({ error: 'Error al obtener catálogo de EPP' });
+  }
+});
+
+// POST /api/public-sgsst/epp/solicitar/:companyId — Registrar solicitud de EPP del colaborador
+router.post('/epp/solicitar/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const {
+      workerId,
+      documento,
+      nombreTrabajador,
+      cargo,
+      items,
+      justificacion,
+      fotoEvidencia,
+      urgencia
+    } = req.body;
+
+    if (!documento || !nombreTrabajador) {
+      return res.status(400).json({ error: 'Nombre y documento son obligatorios' });
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Debe seleccionar al menos un elemento de protección' });
+    }
+
+    const { company } = await resolveCompanyAndWorker(companyId, { cedula: documento });
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+
+    const SgsstEppSolicitud = require('../../../models/SgsstEppSolicitud');
+
+    const nuevaSolicitud = await SgsstEppSolicitud.create({
+      companyId: company._id,
+      user: company.user,
+      workerId: workerId || documento,
+      documento: String(documento).trim(),
+      nombreTrabajador: nombreTrabajador.trim(),
+      cargo: cargo || 'No especificado',
+      items: items.map(it => ({
+        eppId: it.eppId || null,
+        codigo: it.codigo || '',
+        nombre: it.nombre,
+        categoria: it.categoria || 'General',
+        tipo: it.tipo || 'Regular',
+        talla: it.talla || '',
+        cantidad: Number(it.cantidad) || 1,
+        motivo: it.motivo || 'Desgaste normal por uso',
+        observaciones: it.observaciones || ''
+      })),
+      justificacion: justificacion || '',
+      fotoEvidencia: fotoEvidencia || null,
+      urgencia: urgencia || 'Media',
+      estado: 'pendiente',
+      fechaSolicitud: new Date()
+    });
+
+    // Otorgar gamificación (+25 pts)
+    const cleanDoc = String(documento).trim();
+    try {
+      const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+      await feedWorkerEvent(
+        company.user,
+        cleanDoc,
+        'solicitud_epp',
+        `Solicitud de dotación/reposición de EPP (${items.length} ítems)`,
+        25,
+        String(nuevaSolicitud._id)
+      );
+    } catch (gErr) {
+      logger.warn('[Public SGSST] Gamification error on EPP request:', gErr.message);
+    }
+
+    // Notificar al coordinador SST
+    setImmediate(async () => {
+      try {
+        await Notification.create({
+          user: new mongoose.Types.ObjectId(company.user),
+          type: 'sgsst_solicitud_epp',
+          title: `Nueva Solicitud de EPP: ${nombreTrabajador}`,
+          body: `${nombreTrabajador} (${cargo || 'Colaborador'}) ha solicitado ${items.length} EPP desde el portal del colaborador.`,
+          metadata: { module: 'epp', solicitudId: nuevaSolicitud._id },
+        });
+      } catch (nErr) {
+        logger.warn('[Public SGSST] Notification error on EPP request:', nErr.message);
+      }
+    });
+
+    res.json({
+      success: true,
+      message: '¡Solicitud de EPP radicada exitosamente! Recibirás notificación de entrega. (+25 pts)',
+      solicitud: nuevaSolicitud
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] Error creating EPP request:', error);
+    res.status(500).json({ error: 'Error al radicar solicitud de EPP' });
+  }
+});
+
+// GET /api/public-sgsst/epp/mis-solicitudes/:companyId/:cedula — Historial de solicitudes del colaborador
+router.get('/epp/mis-solicitudes/:companyId/:cedula', async (req, res) => {
+  try {
+    const { companyId, cedula } = req.params;
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+
+    const SgsstEppSolicitud = require('../../../models/SgsstEppSolicitud');
+    const solicitudes = await SgsstEppSolicitud.find({
+      companyId: company._id,
+      documento: String(cedula).trim()
+    }).sort({ createdAt: -1 }).lean();
+
+    res.json({ solicitudes });
+  } catch (error) {
+    logger.error('[Public SGSST] Error fetching worker EPP requests:', error);
+    res.status(500).json({ error: 'Error al consultar solicitudes de EPP' });
+  }
+});
+
+// ─── INSPECCIÓN PREOPERACIONAL VEHICULAR PESV (PORTAL PÚBLICO) ──────────────
+
+// GET /api/public-sgsst/pesv/vehiculos-activos/:companyId — Flota registrada autorizada
+router.get('/pesv/vehiculos-activos/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+
+    const SgsstVehicleData = require('../../../models/SgsstVehicleData');
+    const vehiculos = await SgsstVehicleData.find({ companyId: company._id })
+      .select('placa marca referencia modelo anio tipo conductorId conductorNombre soatVencimiento tecnomecanicaVencimiento kilometrajeActual ultimoMantenimiento')
+      .lean();
+
+    res.json({ vehiculos });
+  } catch (error) {
+    logger.error('[Public SGSST] Error fetching active vehicles:', error);
+    res.status(500).json({ error: 'Error al consultar vehículos activos' });
+  }
+});
+
+// POST /api/public-sgsst/pesv/inspeccion-diaria/:companyId — Registrar inspección preoperacional diaria
+router.post('/pesv/inspeccion-diaria/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const {
+      placa,
+      conductorCedula,
+      conductorNombre,
+      fecha,
+      kilometraje,
+      checklist,
+      resultado,
+      observaciones,
+      firmaConductor,
+      fotos
+    } = req.body;
+
+    if (!placa || !conductorCedula) {
+      return res.status(400).json({ error: 'Placa y documento del conductor son requeridos' });
+    }
+
+    const company = await resolveActiveCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+
+    const cleanPlaca = String(placa).trim().toUpperCase();
+    const SgsstVehicleData = require('../../../models/SgsstVehicleData');
+
+    // CRUCE ESTRICTO CON HOJA DE VIDA DE AUTOMOTORES
+    const vehicle = await SgsstVehicleData.findOne({
+      companyId: company._id,
+      placa: cleanPlaca
+    });
+
+    if (!vehicle) {
+      return res.status(400).json({
+        error: `El vehículo con placa ${cleanPlaca} no se encuentra registrado en la Hoja de Vida de la flota oficial de la empresa. Según el Paso 16 del PESV (Res. 20223040040595), solo los vehículos vinculados pueden ser operados.`
+      });
+    }
+
+    const km = Number(kilometraje) || vehicle.kilometrajeActual || 0;
+    const todayStr = fecha || new Date().toISOString().split('T')[0];
+
+    const nuevaInspeccion = {
+      fecha: todayStr,
+      hora: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+      kilometraje: km,
+      conductorCedula: String(conductorCedula).trim(),
+      conductorNombre: conductorNombre || vehicle.conductorNombre,
+      tipoVehiculo: vehicle.tipo || 'Automóvil',
+      luces: checklist?.luces || 'Bueno',
+      frenos: checklist?.frenos || 'Bueno',
+      llantas: checklist?.llantas || 'Bueno',
+      direccion: checklist?.direccion || 'Bueno',
+      cinturones: checklist?.cinturones || 'Bueno',
+      checklist: Array.isArray(checklist?.items) ? checklist.items : (Array.isArray(checklist) ? checklist : []),
+      resultado: resultado === 'Rechazado' ? 'Rechazado' : 'Aprobado',
+      firmaConductor: firmaConductor || null,
+      fotos: Array.isArray(fotos) ? fotos : [],
+      observaciones: observaciones || '',
+      origen: 'portal_colaborador'
+    };
+
+    vehicle.inspecciones = vehicle.inspecciones || [];
+    vehicle.inspecciones.push(nuevaInspeccion);
+    vehicle.kilometrajeActual = Math.max(vehicle.kilometrajeActual || 0, km);
+    vehicle.updatedAt = Date.now();
+    await vehicle.save();
+
+    // Sincronizar alertas con el perfil del conductor (IPEVAR)
+    try {
+      const SgsstWorker = require('~/models/SgsstWorker');
+      const worker = await SgsstWorker.findOne({
+        companyId: company._id,
+        $or: [
+          { documento: String(conductorCedula).trim() },
+          { perfilId: vehicle.conductorId }
+        ]
+      });
+
+      if (worker) {
+        if (resultado === 'Rechazado') {
+          const currentAlerts = new Set(worker.fitAlerts || []);
+          currentAlerts.add(`Inspección Preoperacional Rechazada - Vehículo ${cleanPlaca}`);
+          worker.fitAlerts = Array.from(currentAlerts);
+        } else {
+          const currentAlerts = new Set(worker.fitAlerts || []);
+          currentAlerts.delete(`Inspección Preoperacional Rechazada - Vehículo ${cleanPlaca}`);
+          worker.fitAlerts = Array.from(currentAlerts);
+        }
+        await worker.save();
+      }
+    } catch (syncErr) {
+      logger.warn('[Public PESV] Error syncing inspection with worker alerts:', syncErr.message);
+    }
+
+    // Gamificación: +40 Puntos por inspección preoperacional realizada
+    try {
+      const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+      await feedWorkerEvent(
+        company.user,
+        String(conductorCedula).trim(),
+        'inspeccion_vehicular_pesv',
+        `Inspección preoperacional diaria PESV completada (${cleanPlaca}) - ${resultado}`,
+        40,
+        `PESV-${cleanPlaca}-${todayStr}`
+      );
+    } catch (gErr) {
+      logger.warn('[Public PESV] Gamification error on inspection:', gErr.message);
+    }
+
+    // Notificación al coordinador si fue Rechazada
+    if (resultado === 'Rechazado') {
+      setImmediate(async () => {
+        try {
+          await Notification.create({
+            user: new mongoose.Types.ObjectId(company.user),
+            type: 'sgsst_pesv_alerta',
+            title: `🚨 Alerta PESV: Vehículo Inmovilizado / No Conforme (${cleanPlaca})`,
+            body: `${conductorNombre || 'Conductor'} reportó hallazgos críticos en la inspección diaria de ${cleanPlaca}. El automotor no debe ser operado.`,
+            metadata: { module: 'pesv', placa: cleanPlaca },
+          });
+        } catch (nErr) {
+          logger.warn('[Public PESV] Notification error:', nErr.message);
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: resultado === 'Rechazado' 
+        ? '⚠️ Inspección registrada con NO CONFORMIDAD. El vehículo NO debe circular hasta subsanar hallazgos.' 
+        : '¡Inspección preoperacional diaria PESV completada exitosamente! Buen viaje seguro. (+40 pts)',
+      inspeccion: nuevaInspeccion,
+      kilometrajeActual: vehicle.kilometrajeActual
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] Error saving vehicle inspection:', error);
+    res.status(500).json({ error: 'Error al registrar inspección preoperacional' });
   }
 });
 

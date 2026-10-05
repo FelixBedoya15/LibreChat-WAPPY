@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { UpgradeWall } from './UpgradeWall';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles,
@@ -719,19 +720,12 @@ const MatrizLegal = () => {
                                 </div>
 
                                 {/* Res. 0312 Est. 2.1.1: CUMPLE */}
-                                <div
-                                    title="Res. 0312/2019 Estándar 2.1.1 — Matriz Legal y Requisitos Normativos del SG-SST (Dec. 1072/15 Art. 2.2.4.6.8): CUMPLE"
-                                    className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                                >
-                                    <div className="relative flex flex-shrink-0 items-center justify-center">
-                                        <Scale className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 shrink-0" />
-                                    </div>
-                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                                        <span className="text-sm font-bold tracking-wide">
-                                            Res. 0312 Est. 2.1.1: CUMPLE
-                                        </span>
-                                    </div>
-                                </div>
+                                <SGSSTLegalBadge
+                                    standardCode="2.1.1"
+                                    label="Res. 0312 Est. 2.1.1: CUMPLE"
+                                    tooltip="Res. 0312/2019 Estándar 2.1.1 — Matriz Legal y Requisitos Normativos del SG-SST (Dec. 1072/15 Art. 2.2.4.6.8)"
+                                    moduleName="Matriz Legal"
+                                />
                             </div>
                         </div>
                     </div>

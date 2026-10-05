@@ -550,6 +550,33 @@ async function scanComplianceForUser(userId, user = {}) {
     }
   }
 
+  // 6. Incorporate standards verified directly from module legal buttons in DiagnosticoData
+  try {
+    const DiagnosticoData = mongoose.models.DiagnosticoData || require('~/models/DiagnosticoData');
+    if (DiagnosticoData) {
+      const diagDoc = await DiagnosticoData.findOne({ user: targetUserId, companyId }).lean();
+      if (diagDoc && Array.isArray(diagDoc.statusData)) {
+        for (const item of diagDoc.statusData) {
+          if (item && item.status === 'cumple') {
+            const payload = {
+              status: 'cumple',
+              evidence: item.observation || `Estándar verificado y validado desde el aplicativo institucional de WAPPY (Res. 0312/2019).`,
+              source: 'Aplicativo Oficial WAPPY',
+            };
+            if (item.code) {
+              evidenceMap[`code_${item.code}`] = payload;
+            }
+            if (item.itemId) {
+              evidenceMap[item.itemId] = payload;
+            }
+          }
+        }
+      }
+    }
+  } catch (dErr) {
+    logger.warn('[ComplianceScanner] Error merging DiagnosticoData verified standards:', dErr.message);
+  }
+
   // Number of unique standards with verified reports
   const compliantCount = Object.keys(evidenceMap).length;
 

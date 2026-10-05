@@ -97,6 +97,141 @@ router.post('/sync-manual', requireJwtAuth, async (req, res) => {
   }
 });
 
+// ─── POST /seed-defaults — Prerrealizar Flota Modelo PESV ─────────────────────
+router.post('/seed-defaults', requireJwtAuth, async (req, res) => {
+  try {
+    const companyId = await getActiveCompanyId(req.user.id);
+    if (!companyId) {
+      return res.status(400).json({ error: 'No se encontró empresa activa' });
+    }
+
+    // Buscar si hay trabajadores disponibles para asignar como conductores
+    const workers = await SgsstWorker.find({ companyId }).limit(5).lean();
+    const defaultWorkers = workers.length > 0 ? workers : [
+      { perfilId: 'COND-01', nombre: 'Carlos Andrés Rodríguez' },
+      { perfilId: 'COND-02', nombre: 'Juan Fernando Gómez' },
+      { perfilId: 'COND-03', nombre: 'Luis Eduardo Morales' },
+      { perfilId: 'COND-04', nombre: 'Julián David Pérez' },
+      { perfilId: 'COND-05', nombre: 'Oscar Mauricio Henao' },
+    ];
+
+    const today = new Date();
+    const nextYear = new Date(today);
+    nextYear.setFullYear(nextYear.getFullYear() + 1);
+    const soatVigente = nextYear.toISOString().split('T')[0];
+    const tecnoVigente = nextYear.toISOString().split('T')[0];
+    const prevMonth = new Date(today);
+    prevMonth.setMonth(prevMonth.getMonth() - 1);
+    const ultMaint = prevMonth.toISOString().split('T')[0];
+    const nextMonth = new Date(today);
+    nextMonth.setMonth(nextMonth.getMonth() + 2);
+    const proxMaint = nextMonth.toISOString().split('T')[0];
+
+    const defaultVehicles = [
+      {
+        placa: 'WAP-45E',
+        marca: 'Yamaha',
+        referencia: 'XTZ 150 Crosser ED',
+        modelo: '2024',
+        anio: 2024,
+        tipo: 'Motocicleta',
+        conductorId: defaultWorkers[0]?.perfilId || defaultWorkers[0]?.documento || 'COND-01',
+        conductorNombre: defaultWorkers[0]?.nombre || 'Conductor de Operaciones',
+        soatVencimiento: soatVigente,
+        tecnomecanicaVencimiento: tecnoVigente,
+        ultimoMantenimiento: ultMaint,
+        proximoMantenimiento: proxMaint,
+        kilometrajeActual: 12500,
+        inspecciones: []
+      },
+      {
+        placa: 'WAP-101',
+        marca: 'Chevrolet',
+        referencia: 'Onix LTZ 1.0 Turbo Sedán',
+        modelo: '2023',
+        anio: 2023,
+        tipo: 'Automóvil',
+        conductorId: defaultWorkers[1]?.perfilId || defaultWorkers[1]?.documento || 'COND-02',
+        conductorNombre: defaultWorkers[1]?.nombre || 'Conductor Administrativo',
+        soatVencimiento: soatVigente,
+        tecnomecanicaVencimiento: tecnoVigente,
+        ultimoMantenimiento: ultMaint,
+        proximoMantenimiento: proxMaint,
+        kilometrajeActual: 34200,
+        inspecciones: []
+      },
+      {
+        placa: 'CMP-404',
+        marca: 'Toyota',
+        referencia: 'Land Cruiser Prado TXL 4x4',
+        modelo: '2022',
+        anio: 2022,
+        tipo: 'Campero',
+        conductorId: defaultWorkers[2]?.perfilId || defaultWorkers[2]?.documento || 'COND-03',
+        conductorNombre: defaultWorkers[2]?.nombre || 'Conductor Terreno / Campo',
+        soatVencimiento: soatVigente,
+        tecnomecanicaVencimiento: tecnoVigente,
+        ultimoMantenimiento: ultMaint,
+        proximoMantenimiento: proxMaint,
+        kilometrajeActual: 68900,
+        inspecciones: []
+      },
+      {
+        placa: 'CMT-505',
+        marca: 'Toyota',
+        referencia: 'Hilux Doble Cabina 2.4 Diesel 4x4',
+        modelo: '2024',
+        anio: 2024,
+        tipo: 'Camioneta',
+        conductorId: defaultWorkers[3]?.perfilId || defaultWorkers[3]?.documento || 'COND-04',
+        conductorNombre: defaultWorkers[3]?.nombre || 'Conductor Logística & Despachos',
+        soatVencimiento: soatVigente,
+        tecnomecanicaVencimiento: tecnoVigente,
+        ultimoMantenimiento: ultMaint,
+        proximoMantenimiento: proxMaint,
+        kilometrajeActual: 18400,
+        inspecciones: []
+      },
+      {
+        placa: 'CMN-707',
+        marca: 'Chevrolet',
+        referencia: 'NPR Reward 4.5 Furgón Carga Seca',
+        modelo: '2021',
+        anio: 2021,
+        tipo: 'Camión',
+        conductorId: defaultWorkers[4]?.perfilId || defaultWorkers[4]?.documento || 'COND-05',
+        conductorNombre: defaultWorkers[4]?.nombre || 'Conductor de Carga Pesada',
+        soatVencimiento: soatVigente,
+        tecnomecanicaVencimiento: tecnoVigente,
+        ultimoMantenimiento: ultMaint,
+        proximoMantenimiento: proxMaint,
+        kilometrajeActual: 112000,
+        inspecciones: []
+      }
+    ];
+
+    const results = [];
+    for (const v of defaultVehicles) {
+      const existing = await SgsstVehicleData.findOne({ user: req.user.id, companyId, placa: v.placa });
+      if (!existing) {
+        const doc = await SgsstVehicleData.create({
+          user: req.user.id,
+          companyId,
+          ...v
+        });
+        results.push(doc);
+      } else {
+        results.push(existing);
+      }
+    }
+
+    res.json({ success: true, count: results.length, vehicles: results });
+  } catch (error) {
+    logger.error('[SGSST Vehicles] Seed defaults error:', error);
+    res.status(500).json({ error: 'Error al sembrar flota modelo PESV' });
+  }
+});
+
 // ─── Lógica de Sincronización PESV -> IPEVAR ─────────────────────────────────
 async function syncVehicleWithIpevar(userId, companyId, conductorId, vehicleDoc) {
   try {

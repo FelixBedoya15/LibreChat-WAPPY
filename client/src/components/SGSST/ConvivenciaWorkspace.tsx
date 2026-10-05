@@ -40,6 +40,7 @@ import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { QRCodeSVG } from 'qrcode.react';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
+import SGSSTLegalBadge from './SGSSTLegalBadge';
 import SignaturePad from './SignaturePad';
 import ExpandingButton from './ExpandingButton';
 import WorkerAutocomplete from './WorkerAutocomplete';
@@ -810,6 +811,13 @@ export default function ConvivenciaWorkspace() {
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                   Resolución 3461 de 2025 • Ley 2365 de 2024
                 </span>
+                {/* Res. 0312 Est. 1.1.8: CUMPLE */}
+                <SGSSTLegalBadge
+                  standardCode="1.1.8"
+                  label="Res. 0312 Est. 1.1.8: CUMPLE"
+                  tooltip="Res. 0312/2019 Estándar 1.1.8 — Conformación y funcionamiento del Comité de Convivencia Laboral (Res. 652/12, Res. 1356/12 y Res. 3461/25)"
+                  moduleName="Comité de Convivencia Laboral"
+                />
               </div>
               <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
                 Órgano de prevención del acoso laboral, mediación y trámite expedito en máximo 65 días calendario con ruta prioritaria para acoso sexual

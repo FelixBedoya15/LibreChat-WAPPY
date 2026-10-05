@@ -849,6 +849,117 @@ router.post('/save-state', requireJwtAuth, async (req, res) => {
     }
 });
 
+// ─── POST /toggle-standard — Alternar o registrar cumplimiento de un estándar desde un aplicativo ───
+router.post('/toggle-standard', requireJwtAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        let activeCompany = await CompanyInfo.findOne({ user: userId, isActive: true });
+        if (!activeCompany) activeCompany = await CompanyInfo.findOne({ user: userId });
+        const companyId = activeCompany?._id;
+        if (!companyId) {
+            return res.status(400).json({ error: 'No se encontró empresa activa' });
+        }
+
+        const { standardCode, targetStatus, moduleName } = req.body;
+        if (!standardCode) {
+            return res.status(400).json({ error: 'Se requiere standardCode' });
+        }
+
+        let doc = await DiagnosticoData.findOne({ user: userId, companyId });
+        if (!doc) {
+            doc = new DiagnosticoData({
+                user: userId,
+                companyId,
+                statusData: [],
+                companySize: 'medium',
+                riskLevel: 3,
+                score: 0,
+                totalPoints: 100,
+                complianceLevel: '',
+            });
+        }
+
+        let statusList = Array.isArray(doc.statusData) ? [...doc.statusData] : [];
+        const codeClean = String(standardCode).replace(/^(est\.|art\.|estándar|numeral)\s*/i, '').trim();
+
+        const existingIdx = statusList.findIndex(
+            (item) => item.code === codeClean || item.code === standardCode || (item.itemId && item.itemId.includes(codeClean.replace(/\./g, '_')))
+        );
+
+        let newStatus = targetStatus;
+        if (!newStatus) {
+            if (existingIdx >= 0) {
+                newStatus = statusList[existingIdx].status === 'cumple' ? 'pendiente' : 'cumple';
+            } else {
+                newStatus = 'cumple';
+            }
+        }
+
+        const updatedItem = {
+            itemId: existingIdx >= 0 ? statusList[existingIdx].itemId : `std_${codeClean.replace(/[^a-zA-Z0-9]/g, '_')}`,
+            code: codeClean,
+            status: newStatus,
+            observation: newStatus === 'cumple'
+                ? `Verificado y cumplido mediante el aplicativo institucional de ${moduleName || 'WAPPY SG-SST'} (Res. 0312/2019)`
+                : 'Pendiente de verificación',
+            updatedAt: new Date().toISOString(),
+        };
+
+        if (existingIdx >= 0) {
+            statusList[existingIdx] = { ...statusList[existingIdx], ...updatedItem };
+        } else {
+            statusList.push(updatedItem);
+        }
+
+        doc.statusData = statusList;
+        doc.updatedAt = new Date();
+        await doc.save();
+
+        res.json({
+            success: true,
+            standardCode: codeClean,
+            status: newStatus,
+            isCompliant: newStatus === 'cumple',
+            updatedItem,
+        });
+    } catch (error) {
+        logger.error('[SGSST Diagnostico] Error toggling standard:', error);
+        res.status(500).json({ error: 'Error al actualizar estándar en el diagnóstico' });
+    }
+});
+
+// ─── GET /standard-status — Consultar estado de cumplimiento de estándares ─────
+router.get('/standard-status', requireJwtAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        let activeCompany = await CompanyInfo.findOne({ user: userId, isActive: true });
+        if (!activeCompany) activeCompany = await CompanyInfo.findOne({ user: userId });
+        const companyId = activeCompany?._id;
+
+        if (!companyId) {
+            return res.json({ statuses: {} });
+        }
+
+        const doc = await DiagnosticoData.findOne({ user: userId, companyId }).lean();
+        const statusMap = {};
+        if (doc && Array.isArray(doc.statusData)) {
+            doc.statusData.forEach((item) => {
+                if (item.code) {
+                    statusMap[item.code] = item.status;
+                }
+                if (item.itemId) {
+                    statusMap[item.itemId] = item.status;
+                }
+            });
+        }
+
+        res.json({ statuses: statusMap });
+    } catch (error) {
+        logger.error('[SGSST Diagnostico] Error getting standard status:', error);
+        res.status(500).json({ error: 'Error al consultar estado de estándares' });
+    }
+});
+
 // ─── POST /sync-kanban — Sincronizar hallazgos del Diagnóstico al ACPM ─────────
 router.post('/sync-kanban', requireJwtAuth, async (req, res) => {
     try {
