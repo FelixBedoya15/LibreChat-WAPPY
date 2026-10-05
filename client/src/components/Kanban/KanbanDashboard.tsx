@@ -30,6 +30,7 @@ import {
   Layers,
   Download,
   FileSpreadsheet,
+  RefreshCw,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -380,12 +381,24 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
   const isLocked = !isProOrAdmin;
 
   // Fetch tasks
-  const fetchTasks = async () => {
+  const fetchTasks = async (force: boolean = false) => {
     try {
-      const res = await axios.get('/api/sgsst/kanban/data');
-      setTasks(res.data);
-    } catch (err) {
+      const url = force ? '/api/sgsst/kanban/data?force=true' : '/api/sgsst/kanban/data';
+      const res = await axios.get(url, { timeout: 15000 });
+      if (Array.isArray(res.data)) {
+        setTasks(res.data);
+      } else {
+        setTasks([]);
+      }
+    } catch (err: any) {
       console.error('Error fetching Kanban tasks:', err);
+      if (force) {
+        showToast({
+          message: 'Error al sincronizar actividades del tablero.',
+          status: 'error',
+        });
+      }
+      setTasks(prev => (Array.isArray(prev) ? prev : []));
     } finally {
       setIsLoading(false);
     }
@@ -896,6 +909,23 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                 <span className="sm:hidden">Analíticas</span>
               </>
             )}
+          </button>
+
+          <button
+            onClick={() => {
+              setIsLoading(true);
+              fetchTasks(true);
+            }}
+            disabled={isLoading}
+            className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 shadow-sm hover:shadow-md shrink-0 cursor-pointer border border-border-medium/40 outline-none rounded-xl bg-white dark:bg-gray-900 text-text-secondary hover:text-text-primary hover:bg-surface-hover active:scale-95 disabled:opacity-50"
+            title="Sincronizar Actividades y Fuentes"
+          >
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+              <RefreshCw className={`w-4 h-4 sm:w-4.5 sm:h-4.5 text-teal-600 dark:text-teal-400 ${isLoading ? 'animate-spin' : ''}`} />
+            </div>
+            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+              <span className="text-xs sm:text-sm font-bold tracking-wide">Sincronizar</span>
+            </div>
           </button>
 
           <button

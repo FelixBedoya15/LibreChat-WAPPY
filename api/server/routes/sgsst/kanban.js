@@ -65,6 +65,10 @@ const addDays = (date, days) => {
   return result;
 };
 
+// Cache to throttle heavy background ETL synchronizations (60 seconds per company)
+const lastSyncByCompany = new Map();
+const SYNC_THROTTLE_MS = 60 * 1000;
+
 // ─── GET /data — Obtener y sincronizar tareas ───────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
@@ -74,14 +78,151 @@ router.get('/data', requireJwtAuth, async (req, res) => {
       return res.status(400).json({ error: 'No se encontró empresa activa' });
     }
 
+    const companyKey = companyId.toString();
+    const forceSync = req.query.force === 'true' || req.query.sync === 'true';
+    const now = Date.now();
+    const lastSync = lastSyncByCompany.get(companyKey) || 0;
+
+    // Fast path: If synced within last 60 seconds and not forced, return cached DB state immediately (< 10ms)
+    if (!forceSync && (now - lastSync < SYNC_THROTTLE_MS)) {
+      const cachedTasks = await KanbanTask.find({
+        user: userId,
+        companyId,
+        status: { $ne: 'dismissed' },
+      }).lean().sort({ dueDate: 1 });
+      return res.json(cachedTasks);
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const activeBioTaskIds = [];
+    const activeTrainingIds = [];
+    const activeIpevarRefs = new Set();
+    const bulkOps = [];
+    const tasksToDelete = [];
+
+    // Parallel fetch of all source documents and current Kanban tasks
+    const gtcDocPromise = GTC45WorkspaceSession ? GTC45WorkspaceSession.findOne({
+      $or: [
+        { user: userId, isOfficial: true },
+        ...(companyId ? [{ companyId, isOfficial: true }] : []),
+        { conversationId: `official-${companyId || userId}` },
+      ],
+    }).lean().then(async (doc) => {
+      if (doc) return doc;
+      return GTC45WorkspaceSession.findOne({
+        $or: [{ user: userId }, ...(companyId ? [{ companyId }] : [])],
+        'matrixRows.0': { $exists: true },
+      }).sort({ updatedAt: -1 }).lean();
+    }) : Promise.resolve(null);
+
+    const [
+      profile,
+      vehicles,
+      trainingData,
+      auditData,
+      diagData,
+      altaDirDoc,
+      actosDoc,
+      gtcDoc,
+      existingTasks
+    ] = await Promise.all([
+      PerfilSociodemograficoData ? PerfilSociodemograficoData.findOne({ user: userId, companyId }).lean() : Promise.resolve(null),
+      SgsstVehicleData ? SgsstVehicleData.find({ user: userId, companyId }).lean() : Promise.resolve([]),
+      ProgramaCapacitacionesData ? ProgramaCapacitacionesData.findOne({ user: userId, companyId }).lean() : Promise.resolve(null),
+      AuditoriaData ? AuditoriaData.findOne({ user: userId, companyId }).lean() : Promise.resolve(null),
+      DiagnosticoData ? DiagnosticoData.findOne({ user: userId, companyId }).lean() : Promise.resolve(null),
+      AltaDireccionData ? AltaDireccionData.findOne({ user: userId, companyId }).lean() : Promise.resolve(null),
+      ReporteActosData ? ReporteActosData.findOne({ user: userId, companyId }).lean() : Promise.resolve(null),
+      gtcDocPromise,
+      KanbanTask.find({ user: userId, companyId }).lean(),
+    ]);
+
+    const taskMap = new Map();
+    for (const t of (existingTasks || [])) {
+      if (t.referenceId) {
+        taskMap.set(t.referenceId, t);
+      }
+    }
+
+    // In-memory sync helper for expiration-based tasks
+    const processSyncTask = (taskData) => {
+      const { title, description, dueDate, diffDays, type, referenceId, referenceName } = taskData;
+      const task = taskMap.get(referenceId);
+
+      // If document is renewed and expires in > 30 days
+      if (diffDays > 30) {
+        if (task && task.status !== 'done') {
+          tasksToDelete.push(task._id);
+          taskMap.delete(referenceId);
+        }
+        return;
+      }
+
+      const calculatedStatus = diffDays < 0 ? 'overdue' : 'due_soon';
+
+      if (!task) {
+        bulkOps.push({
+          insertOne: {
+            document: {
+              user: userId,
+              companyId,
+              title,
+              description,
+              dueDate,
+              status: calculatedStatus,
+              type,
+              referenceId,
+              referenceName,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          },
+        });
+        taskMap.set(referenceId, { referenceId, status: calculatedStatus, dueDate, title, description });
+      } else {
+        const taskDueDate = task.dueDate ? new Date(task.dueDate) : null;
+        const taskDateStr = taskDueDate && !isNaN(taskDueDate.getTime()) ? taskDueDate.toISOString().split('T')[0] : '';
+        const newDateStr = dueDate && !isNaN(dueDate.getTime()) ? dueDate.toISOString().split('T')[0] : '';
+
+        if (taskDateStr !== newDateStr) {
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: task._id },
+              update: {
+                $set: {
+                  dueDate,
+                  status: calculatedStatus,
+                  description,
+                  title,
+                  updatedAt: new Date(),
+                },
+                $unset: { completedAt: 1 },
+              },
+            },
+          });
+          task.dueDate = dueDate;
+          task.status = calculatedStatus;
+        } else if (task.status !== 'done' && task.status !== calculatedStatus) {
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: task._id },
+              update: {
+                $set: {
+                  status: calculatedStatus,
+                  updatedAt: new Date(),
+                },
+              },
+            },
+          });
+          task.status = calculatedStatus;
+        }
+      }
+    };
 
     // 1. Sync worker expirations & biocentric alerts
-    const profile = await PerfilSociodemograficoData.findOne({ user: userId, companyId }).lean();
-    if (profile && profile.trabajadores) {
+    if (profile && Array.isArray(profile.trabajadores)) {
       for (const w of profile.trabajadores) {
         const workerName = w.nombre || 'Trabajador';
         const workerId = w._id || w.id;
@@ -93,7 +234,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
           if (lastExam) {
             const dueDate = addDays(lastExam, 365);
             const diffDays = Math.round((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-            await handleSyncTask(userId, companyId, {
+            processSyncTask({
               title: `Examen médico periódico: ${workerName}`,
               description: `Último examen médico reportado el ${w.fechaExamenMedico}.`,
               dueDate,
@@ -111,7 +252,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
           if (lastAuth) {
             const dueDate = addDays(lastAuth, 365);
             const diffDays = Math.round((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-            await handleSyncTask(userId, companyId, {
+            processSyncTask({
               title: `Curso Alturas Autorizado: ${workerName}`,
               description: `Último curso de alturas autorizado el ${w.fechaCursoAlturasAutorizado}.`,
               dueDate,
@@ -129,7 +270,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
           if (lastCoord) {
             const dueDate = addDays(lastCoord, 365);
             const diffDays = Math.round((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-            await handleSyncTask(userId, companyId, {
+            processSyncTask({
               title: `Curso Alturas Coordinador: ${workerName}`,
               description: `Último curso de alturas coordinador el ${w.fechaCursoAlturasCoordinador}.`,
               dueDate,
@@ -146,7 +287,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
           const dueDate = parseDateString(w.licenciaConduccionVencimiento);
           if (dueDate) {
             const diffDays = Math.round((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-            await handleSyncTask(userId, companyId, {
+            processSyncTask({
               title: `Licencia conducción: ${workerName}`,
               description: `Vence el ${w.licenciaConduccionVencimiento}.`,
               dueDate,
@@ -163,7 +304,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
           const dueDate = parseDateString(w.licenciaVencimiento);
           if (dueDate) {
             const diffDays = Math.round((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-            await handleSyncTask(userId, companyId, {
+            processSyncTask({
               title: `Licencia SST: ${workerName}`,
               description: `Vence el ${w.licenciaVencimiento}.`,
               dueDate,
@@ -180,92 +321,101 @@ router.get('/data', requireJwtAuth, async (req, res) => {
           const referenceId = `worker-${workerId}-biocentric`;
           activeBioTaskIds.push(referenceId);
 
-          let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
+          const task = taskMap.get(referenceId);
           const alertsList = w.biocentricAlerts.join(', ');
           const title = `Auditoría Biocéntrica Crítica: ${workerName}`;
           const description = `El índice biocéntrico del trabajador es del ${biocentricScore}%, inferior al límite de 75%. Alertas activas: ${alertsList}. Requiere intervención y seguimiento médico.`;
 
           if (!task) {
-            const dueDate = new Date();
-            dueDate.setDate(dueDate.getDate() + 7);
-            await KanbanTask.create({
-              user: userId,
-              companyId,
-              title,
-              description,
-              dueDate,
-              status: 'todo',
-              type: 'other',
-              referenceId,
-              referenceName: workerName,
+            const dueDate = addDays(today, 7);
+            bulkOps.push({
+              insertOne: {
+                document: {
+                  user: userId,
+                  companyId,
+                  title,
+                  description,
+                  dueDate,
+                  status: 'todo',
+                  type: 'other',
+                  referenceId,
+                  referenceName: workerName,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                },
+              },
             });
+            taskMap.set(referenceId, { referenceId, status: 'todo', dueDate, title, description });
           } else {
-            // Update details if alerts changed
             if (task.description !== description || task.title !== title) {
+              bulkOps.push({
+                updateOne: {
+                  filter: { _id: task._id },
+                  update: {
+                    $set: { description, title, updatedAt: new Date() },
+                  },
+                },
+              });
               task.description = description;
               task.title = title;
-              await task.save();
             }
           }
         }
       }
     }
 
-    // Clean up active biocentric tasks that are resolved or in old format
-    await KanbanTask.deleteMany({
-      user: userId,
-      companyId,
-      status: { $ne: 'done' },
-      referenceId: {
-        $regex: /^worker-.*-(bio-|biocentric$)/,
-        $nin: activeBioTaskIds
+    // Clean up active biocentric tasks that are resolved or in old format (in memory)
+    const bioRegex = /^worker-.*-(bio-|biocentric$)/;
+    for (const t of (existingTasks || [])) {
+      if (t.status !== 'done' && t.referenceId && bioRegex.test(t.referenceId) && !activeBioTaskIds.includes(t.referenceId)) {
+        tasksToDelete.push(t._id);
+        taskMap.delete(t.referenceId);
       }
-    });
+    }
 
     // 2. Sync vehicle expirations
-    const vehicles = await SgsstVehicleData.find({ user: userId, companyId }).lean();
-    for (const veh of vehicles) {
-      const vehName = `${veh.marca} ${veh.modelo} (${veh.placa})`;
+    if (Array.isArray(vehicles)) {
+      for (const veh of vehicles) {
+        const vehName = `${veh.marca || ''} ${veh.modelo || ''} (${veh.placa || ''})`.trim();
 
-      // A. SOAT
-      if (veh.soatVencimiento) {
-        const dueDate = parseDateString(veh.soatVencimiento);
-        if (dueDate) {
-          const diffDays = Math.round((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          await handleSyncTask(userId, companyId, {
-            title: `SOAT Vehículo: ${veh.placa}`,
-            description: `SOAT para vehículo ${vehName}. Vence el ${veh.soatVencimiento}.`,
-            dueDate,
-            diffDays,
-            type: 'soat',
-            referenceId: `vehicle-${veh._id}-soat`,
-            referenceName: veh.placa,
-          });
+        // A. SOAT
+        if (veh.soatVencimiento) {
+          const dueDate = parseDateString(veh.soatVencimiento);
+          if (dueDate) {
+            const diffDays = Math.round((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+            processSyncTask({
+              title: `SOAT Vehículo: ${veh.placa}`,
+              description: `SOAT para vehículo ${vehName}. Vence el ${veh.soatVencimiento}.`,
+              dueDate,
+              diffDays,
+              type: 'soat',
+              referenceId: `vehicle-${veh._id}-soat`,
+              referenceName: veh.placa,
+            });
+          }
         }
-      }
 
-      // B. RTM
-      if (veh.tecnomecanicaVencimiento) {
-        const dueDate = parseDateString(veh.tecnomecanicaVencimiento);
-        if (dueDate) {
-          const diffDays = Math.round((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          await handleSyncTask(userId, companyId, {
-            title: `RTM Vehículo: ${veh.placa}`,
-            description: `Revisión Técnico-Mecánica para vehículo ${vehName}. Vence el ${veh.tecnomecanicaVencimiento}.`,
-            dueDate,
-            diffDays,
-            type: 'rtm',
-            referenceId: `vehicle-${veh._id}-rtm`,
-            referenceName: veh.placa,
-          });
+        // B. RTM
+        if (veh.tecnomecanicaVencimiento) {
+          const dueDate = parseDateString(veh.tecnomecanicaVencimiento);
+          if (dueDate) {
+            const diffDays = Math.round((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+            processSyncTask({
+              title: `RTM Vehículo: ${veh.placa}`,
+              description: `Revisión Técnico-Mecánica para vehículo ${vehName}. Vence el ${veh.tecnomecanicaVencimiento}.`,
+              dueDate,
+              diffDays,
+              type: 'rtm',
+              referenceId: `vehicle-${veh._id}-rtm`,
+              referenceName: veh.placa,
+            });
+          }
         }
       }
     }
 
     // 3. Sync scheduled training sessions (ProgramaCapacitacionesData)
-    const trainingData = await ProgramaCapacitacionesData.findOne({ user: userId, companyId }).lean();
-    const activeTrainingIds = [];
-    if (trainingData && trainingData.sesiones) {
+    if (trainingData && Array.isArray(trainingData.sesiones)) {
       for (const ses of trainingData.sesiones) {
         if (ses.estado === 'Cancelada') continue;
 
@@ -288,64 +438,74 @@ router.get('/data', requireJwtAuth, async (req, res) => {
           const referenceId = `training_session-${ses.id}`;
           activeTrainingIds.push(referenceId);
 
-          let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
+          const task = taskMap.get(referenceId);
+          const title = `Capacitación: ${ses.tema}`;
+          const description = `Tema: ${ses.tema}. Responsable: ${ses.responsable || 'No asignado'}. Descripción: ${ses.descripcion || ''}.`;
+
           if (!task) {
-            await KanbanTask.create({
-              user: userId,
-              companyId,
-              title: `Capacitación: ${ses.tema}`,
-              description: `Tema: ${ses.tema}. Responsable: ${ses.responsable || 'No asignado'}. Descripción: ${ses.descripcion || ''}.`,
-              dueDate: sesDate,
-              status,
-              type: 'training',
-              referenceId,
-              referenceName: ses.responsable || 'Capacitación',
-              completedAt: ses.estado === 'Completada' ? new Date() : undefined
+            bulkOps.push({
+              insertOne: {
+                document: {
+                  user: userId,
+                  companyId,
+                  title,
+                  description,
+                  dueDate: sesDate,
+                  status,
+                  type: 'training',
+                  referenceId,
+                  referenceName: ses.responsable || 'Capacitación',
+                  completedAt: ses.estado === 'Completada' ? new Date() : undefined,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                },
+              },
             });
+            taskMap.set(referenceId, { referenceId, status, dueDate: sesDate, title, description });
           } else {
-            const taskDateStr = task.dueDate.toISOString().split('T')[0];
+            const taskDueDate = task.dueDate ? new Date(task.dueDate) : null;
+            const taskDateStr = taskDueDate && !isNaN(taskDueDate.getTime()) ? taskDueDate.toISOString().split('T')[0] : '';
             const newDateStr = ses.fecha;
 
-            let hasChanged = false;
+            const updateSet = {};
             if (taskDateStr !== newDateStr) {
-              task.dueDate = sesDate;
-              hasChanged = true;
+              updateSet.dueDate = sesDate;
             }
-            if (task.title !== `Capacitación: ${ses.tema}`) {
-              task.title = `Capacitación: ${ses.tema}`;
-              hasChanged = true;
+            if (task.title !== title) {
+              updateSet.title = title;
             }
             if (task.status !== 'done' && task.status !== status) {
-              task.status = status;
-              hasChanged = true;
+              updateSet.status = status;
             }
             if (ses.estado === 'Completada' && task.status !== 'done') {
-              task.status = 'done';
-              task.completedAt = new Date();
-              hasChanged = true;
+              updateSet.status = 'done';
+              updateSet.completedAt = new Date();
             }
 
-            if (hasChanged) {
-              await task.save();
+            if (Object.keys(updateSet).length > 0) {
+              updateSet.updatedAt = new Date();
+              bulkOps.push({
+                updateOne: {
+                  filter: { _id: task._id },
+                  update: { $set: updateSet },
+                },
+              });
+              Object.assign(task, updateSet);
             }
           }
         }
       }
     }
 
-    // Clean up active training session tasks that are deleted or canceled
-    await KanbanTask.deleteMany({
-      user: userId,
-      companyId,
-      status: { $ne: 'done' },
-      referenceId: {
-        $regex: /^training_session-/,
-        $nin: activeTrainingIds
+    // Clean up active training session tasks that are deleted or canceled (in memory)
+    for (const t of (existingTasks || [])) {
+      if (t.status !== 'done' && t.referenceId && t.referenceId.startsWith('training_session-') && !activeTrainingIds.includes(t.referenceId)) {
+        tasksToDelete.push(t._id);
+        taskMap.delete(t.referenceId);
       }
-    });
+    }
 
     // 4. Sync Auditoría SG-SST findings (no_cumple & parcial)
-    const auditData = await AuditoriaData.findOne({ user: userId, companyId }).lean();
     if (auditData && Array.isArray(auditData.statusData)) {
       for (const item of auditData.statusData) {
         if (item.status === 'no_cumple' || item.status === 'parcial') {
@@ -361,29 +521,47 @@ router.get('/data', requireJwtAuth, async (req, res) => {
             ? `No Conformidad identificada en Auditoría Interna: ${name}. ${item.description || ''}. Criterio: ${item.criteria || 'Dec. 1072 / Res. 0312'}. ${item.observation ? 'Hallazgo específico: ' + item.observation : 'Requiere formulación de plan de acción correctivo inmediato.'}`
             : `Oportunidad de Mejora identificada en Auditoría Interna: ${name}. ${item.description || ''}. ${item.observation ? 'Observación: ' + item.observation : 'Requiere plan de acción preventivo.'}`;
 
-          let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
+          const task = taskMap.get(referenceId);
           if (!task) {
-            await KanbanTask.create({
-              user: userId,
-              companyId,
-              title,
-              description,
-              dueDate,
-              status: 'todo',
-              type: 'audit_finding',
-              priority: isNoCumple ? 'alta' : 'media',
-              actionType: isNoCumple ? 'correctiva' : 'mejora',
-              sourceModule: 'auditoria',
-              referenceId,
-              referenceName,
+            bulkOps.push({
+              insertOne: {
+                document: {
+                  user: userId,
+                  companyId,
+                  title,
+                  description,
+                  dueDate,
+                  status: 'todo',
+                  type: 'audit_finding',
+                  priority: isNoCumple ? 'alta' : 'media',
+                  actionType: isNoCumple ? 'correctiva' : 'mejora',
+                  sourceModule: 'auditoria',
+                  referenceId,
+                  referenceName,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                },
+              },
             });
-          } else if (task.status !== 'done') {
-            if (task.title !== title || task.description !== description) {
-              task.title = title;
-              task.description = description;
-              task.priority = isNoCumple ? 'alta' : 'media';
-              task.actionType = isNoCumple ? 'correctiva' : 'mejora';
-              await task.save();
+            taskMap.set(referenceId, { referenceId, status: 'todo', dueDate, title, description, priority: isNoCumple ? 'alta' : 'media', actionType: isNoCumple ? 'correctiva' : 'mejora' });
+          } else if (task.status !== 'done' && task.status !== 'dismissed') {
+            const updateSet = {};
+            if (task.title !== title) updateSet.title = title;
+            if (task.description !== description) updateSet.description = description;
+            const newPriority = isNoCumple ? 'alta' : 'media';
+            const newActionType = isNoCumple ? 'correctiva' : 'mejora';
+            if (task.priority !== newPriority) updateSet.priority = newPriority;
+            if (task.actionType !== newActionType) updateSet.actionType = newActionType;
+
+            if (Object.keys(updateSet).length > 0) {
+              updateSet.updatedAt = new Date();
+              bulkOps.push({
+                updateOne: {
+                  filter: { _id: task._id },
+                  update: { $set: updateSet },
+                },
+              });
+              Object.assign(task, updateSet);
             }
           }
         }
@@ -391,7 +569,6 @@ router.get('/data', requireJwtAuth, async (req, res) => {
     }
 
     // 5. Sync Diagnóstico Inicial findings (no_cumple & parcial)
-    const diagData = await DiagnosticoData.findOne({ user: userId, companyId }).lean();
     if (diagData && Array.isArray(diagData.statusData)) {
       for (const item of diagData.statusData) {
         if (item.status === 'no_cumple' || item.status === 'parcial') {
@@ -407,29 +584,47 @@ router.get('/data', requireJwtAuth, async (req, res) => {
             ? `Estándar Mínimo No Cumplido según Diagnóstico Inicial. Criterio: ${name}. ${item.description || ''}. ${item.observation ? 'Observación: ' + item.observation : 'Requiere plan de mejoramiento para cumplimiento legal.'}`
             : `Estándar con Cumplimiento Parcial según Diagnóstico Inicial. ${name}. ${item.observation ? 'Observación: ' + item.observation : 'Requiere subsanación para alcanzar conformidad total.'}`;
 
-          let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
+          const task = taskMap.get(referenceId);
           if (!task) {
-            await KanbanTask.create({
-              user: userId,
-              companyId,
-              title,
-              description,
-              dueDate,
-              status: 'todo',
-              type: 'diagnostico_finding',
-              priority: isNoCumple ? 'alta' : 'media',
-              actionType: isNoCumple ? 'correctiva' : 'mejora',
-              sourceModule: 'diagnostico',
-              referenceId,
-              referenceName,
+            bulkOps.push({
+              insertOne: {
+                document: {
+                  user: userId,
+                  companyId,
+                  title,
+                  description,
+                  dueDate,
+                  status: 'todo',
+                  type: 'diagnostico_finding',
+                  priority: isNoCumple ? 'alta' : 'media',
+                  actionType: isNoCumple ? 'correctiva' : 'mejora',
+                  sourceModule: 'diagnostico',
+                  referenceId,
+                  referenceName,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                },
+              },
             });
-          } else if (task.status !== 'done') {
-            if (task.title !== title || task.description !== description) {
-              task.title = title;
-              task.description = description;
-              task.priority = isNoCumple ? 'alta' : 'media';
-              task.actionType = isNoCumple ? 'correctiva' : 'mejora';
-              await task.save();
+            taskMap.set(referenceId, { referenceId, status: 'todo', dueDate, title, description, priority: isNoCumple ? 'alta' : 'media', actionType: isNoCumple ? 'correctiva' : 'mejora' });
+          } else if (task.status !== 'done' && task.status !== 'dismissed') {
+            const updateSet = {};
+            if (task.title !== title) updateSet.title = title;
+            if (task.description !== description) updateSet.description = description;
+            const newPriority = isNoCumple ? 'alta' : 'media';
+            const newActionType = isNoCumple ? 'correctiva' : 'mejora';
+            if (task.priority !== newPriority) updateSet.priority = newPriority;
+            if (task.actionType !== newActionType) updateSet.actionType = newActionType;
+
+            if (Object.keys(updateSet).length > 0) {
+              updateSet.updatedAt = new Date();
+              bulkOps.push({
+                updateOne: {
+                  filter: { _id: task._id },
+                  update: { $set: updateSet },
+                },
+              });
+              Object.assign(task, updateSet);
             }
           }
         }
@@ -437,193 +632,202 @@ router.get('/data', requireJwtAuth, async (req, res) => {
     }
 
     // 6. Sync Alta Dirección requirements
-    if (AltaDireccionData) {
-      const altaDirDoc = await AltaDireccionData.findOne({ user: userId, companyId }).lean();
-      if (altaDirDoc && Array.isArray(altaDirDoc.statusData)) {
-        for (const item of altaDirDoc.statusData) {
-          if (item.status === 'no_cumple' || item.status === 'parcial') {
-            const isNoCumple = item.status === 'no_cumple';
-            const itemId = item.itemId || 'Item';
-            const referenceId = `altadireccion-${itemId}`;
-            const referenceName = `Alta Dirección (Punto ${itemId})`;
-            const dueDate = addDays(today, isNoCumple ? 20 : 35);
+    if (altaDirDoc && Array.isArray(altaDirDoc.statusData)) {
+      for (const item of altaDirDoc.statusData) {
+        if (item.status === 'no_cumple' || item.status === 'parcial') {
+          const isNoCumple = item.status === 'no_cumple';
+          const itemId = item.itemId || 'Item';
+          const referenceId = `altadireccion-${itemId}`;
+          const referenceName = `Alta Dirección (Punto ${itemId})`;
+          const dueDate = addDays(today, isNoCumple ? 20 : 35);
 
-            const title = `[Alta Dirección] Revisión Gerencial Punto ${itemId}`;
-            const description = `Compromiso / No conformidad de Revisión por la Alta Dirección: ${item.observation || item.itemText || 'Requiere intervención gerencial y asignación de recursos.'}`;
+          const title = `[Alta Dirección] Revisión Gerencial Punto ${itemId}`;
+          const description = `Compromiso / No conformidad de Revisión por la Alta Dirección: ${item.observation || item.itemText || 'Requiere intervención gerencial y asignación de recursos.'}`;
 
-            let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
-            if (!task) {
-              await KanbanTask.create({
+          const task = taskMap.get(referenceId);
+          if (!task) {
+            bulkOps.push({
+              insertOne: {
+                document: {
+                  user: userId,
+                  companyId,
+                  title,
+                  description,
+                  dueDate,
+                  status: 'todo',
+                  type: 'alta_direccion_finding',
+                  priority: isNoCumple ? 'alta' : 'media',
+                  actionType: isNoCumple ? 'correctiva' : 'mejora',
+                  sourceModule: 'alta_direccion',
+                  referenceId,
+                  referenceName,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                },
+              },
+            });
+            taskMap.set(referenceId, { referenceId, status: 'todo', dueDate, title, description, priority: isNoCumple ? 'alta' : 'media', actionType: isNoCumple ? 'correctiva' : 'mejora' });
+          } else if (task.status !== 'done' && task.status !== 'dismissed') {
+            const updateSet = {};
+            if (task.description !== description) updateSet.description = description;
+            if (task.title !== title) updateSet.title = title;
+            const newPriority = isNoCumple ? 'alta' : 'media';
+            const newActionType = isNoCumple ? 'correctiva' : 'mejora';
+            if (task.priority !== newPriority) updateSet.priority = newPriority;
+            if (task.actionType !== newActionType) updateSet.actionType = newActionType;
+
+            if (Object.keys(updateSet).length > 0) {
+              updateSet.updatedAt = new Date();
+              bulkOps.push({
+                updateOne: {
+                  filter: { _id: task._id },
+                  update: { $set: updateSet },
+                },
+              });
+              Object.assign(task, updateSet);
+            }
+          }
+        }
+      }
+    }
+
+    // 7. Sync Actos y Condiciones Inseguras (Purge phantom tasks in memory)
+    for (const t of (existingTasks || [])) {
+      if (
+        t.title === '[Acto Inseguro] Peligro en terreno' ||
+        t.title === '[Condición Insegura] Peligro en terreno' ||
+        /Detalle:\s*\.?\s*$/i.test(t.description || '')
+      ) {
+        tasksToDelete.push(t._id);
+        if (t.referenceId) taskMap.delete(t.referenceId);
+      }
+    }
+
+    if (actosDoc && Array.isArray(actosDoc.inboxPublico)) {
+      for (const rep of actosDoc.inboxPublico) {
+        const desc = (rep.descripcion || '').trim();
+        // STRICT FILTER: Do not sync empty, test, or placeholder reports
+        if (!desc || desc.length < 5) continue;
+        if (rep.estado === 'cerrado' || rep.status === 'processed' || rep.status === 'dismissed' || rep.descartado) continue;
+
+        const isCondicion = rep.tipo === 'condicion';
+        const referenceId = `acto-${rep.id}`;
+        const referenceName = isCondicion ? 'Condición Insegura' : 'Acto Inseguro';
+        const dueDate = addDays(today, 7);
+
+        const title = `[${isCondicion ? 'Condición Insegura' : 'Acto Inseguro'}] ${desc.slice(0, 60)}`;
+        const description = `Reporte de seguridad en terreno. Tipo: ${isCondicion ? 'Condición Insegura' : 'Acto Inseguro'}. Ubicación: ${rep.ubicacion || 'En frentes operativos'}. Fecha reporte: ${rep.fecha || 'Reciente'}. Detalle: ${desc}.`;
+
+        const task = taskMap.get(referenceId);
+        if (!task) {
+          bulkOps.push({
+            insertOne: {
+              document: {
                 user: userId,
                 companyId,
                 title,
                 description,
                 dueDate,
                 status: 'todo',
-                type: 'alta_direccion_finding',
-                priority: isNoCumple ? 'alta' : 'media',
-                actionType: isNoCumple ? 'correctiva' : 'mejora',
-                sourceModule: 'alta_direccion',
+                type: 'unsafe_act_finding',
+                priority: 'alta',
+                actionType: 'correctiva',
+                sourceModule: 'reporte_actos',
                 referenceId,
                 referenceName,
-              });
-            } else if (task.status !== 'done') {
-              if (task.description !== description || task.title !== title) {
-                task.description = description;
-                task.title = title;
-                await task.save();
-              }
-            }
-          }
-        }
-      }
-    }
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              },
+            },
+          });
+          taskMap.set(referenceId, { referenceId, status: 'todo', dueDate, title, description, priority: 'alta', actionType: 'correctiva' });
+        } else if (task.status !== 'done' && task.status !== 'dismissed') {
+          const updateSet = {};
+          if (task.description !== description) updateSet.description = description;
+          if (task.title !== title) updateSet.title = title;
 
-    // 7. Sync Actos y Condiciones Inseguras (Only genuine reports with real content)
-    if (ReporteActosData) {
-      // Purge any legacy/phantom auto-generated tasks with empty detail or placeholder title
-      await KanbanTask.deleteMany({
-        user: userId,
-        companyId,
-        $or: [
-          { title: '[Acto Inseguro] Peligro en terreno' },
-          { title: '[Condición Insegura] Peligro en terreno' },
-          { description: { $regex: /Detalle:\s*\.?\s*$/i } },
-        ]
-      });
-
-      const actosDoc = await ReporteActosData.findOne({ user: userId, companyId }).lean();
-      if (actosDoc && Array.isArray(actosDoc.inboxPublico)) {
-        for (const rep of actosDoc.inboxPublico) {
-          const desc = (rep.descripcion || '').trim();
-          // STRICT FILTER: Do not sync empty, test, or placeholder reports
-          if (!desc || desc.length < 5) continue;
-          if (rep.estado === 'cerrado' || rep.status === 'processed' || rep.status === 'dismissed' || rep.descartado) continue;
-
-          const isCondicion = rep.tipo === 'condicion';
-          const referenceId = `acto-${rep.id}`;
-          const referenceName = isCondicion ? 'Condición Insegura' : 'Acto Inseguro';
-          const dueDate = addDays(today, 7);
-
-          const title = `[${isCondicion ? 'Condición Insegura' : 'Acto Inseguro'}] ${desc.slice(0, 60)}`;
-          const description = `Reporte de seguridad en terreno. Tipo: ${isCondicion ? 'Condición Insegura' : 'Acto Inseguro'}. Ubicación: ${rep.ubicacion || 'En frentes operativos'}. Fecha reporte: ${rep.fecha || 'Reciente'}. Detalle: ${desc}.`;
-
-          let task = await KanbanTask.findOne({ user: userId, companyId, referenceId });
-          if (!task) {
-            await KanbanTask.create({
-              user: userId,
-              companyId,
-              title,
-              description,
-              dueDate,
-              status: 'todo',
-              type: 'unsafe_act_finding',
-              priority: 'alta',
-              actionType: 'correctiva',
-              sourceModule: 'reporte_actos',
-              referenceId,
-              referenceName,
+          if (Object.keys(updateSet).length > 0) {
+            updateSet.updatedAt = new Date();
+            bulkOps.push({
+              updateOne: {
+                filter: { _id: task._id },
+                update: { $set: updateSet },
+              },
             });
-          } else if (task.status !== 'done' && task.status !== 'dismissed') {
-            if (task.description !== description || task.title !== title) {
-              task.description = description;
-              task.title = title;
-              await task.save();
-            }
+            Object.assign(task, updateSet);
           }
         }
       }
     }
 
     // 8. Sync Controles Propuestos y Peligros IPEVAR GTC-45 (Mejor Costo/Beneficio - Anexo E)
-    if (GTC45WorkspaceSession) {
-      let gtcDoc = await GTC45WorkspaceSession.findOne({
-        $or: [
-          { user: userId, isOfficial: true },
-          ...(companyId ? [{ companyId, isOfficial: true }] : []),
-          { conversationId: `official-${companyId || userId}` },
-        ],
-      }).lean();
+    if (gtcDoc && Array.isArray(gtcDoc.matrixRows)) {
+      const cleanControlText = (val) => {
+        if (!val || typeof val !== 'string') return '';
+        const trimmed = val.trim();
+        const lower = trimmed.toLowerCase();
+        if (['ninguno', 'ninguna', 'no aplica', 'n/a', 'na', 'ninguno.', 'no'].includes(lower)) return '';
+        return trimmed;
+      };
 
-      if (!gtcDoc) {
-        gtcDoc = await GTC45WorkspaceSession.findOne({
-          $or: [{ user: userId }, ...(companyId ? [{ companyId }] : [])],
-          'matrixRows.0': { $exists: true },
-        }).sort({ updatedAt: -1 }).lean();
-      }
+      for (let i = 0; i < gtcDoc.matrixRows.length; i++) {
+        const row = gtcDoc.matrixRows[i];
+        const rowId = row.id || `row-${i}`;
 
-      if (gtcDoc && Array.isArray(gtcDoc.matrixRows)) {
-        const cleanControlText = (val) => {
-          if (!val || typeof val !== 'string') return '';
-          const trimmed = val.trim();
-          const lower = trimmed.toLowerCase();
-          if (['ninguno', 'ninguna', 'no aplica', 'n/a', 'na', 'ninguno.', 'no'].includes(lower)) return '';
-          return trimmed;
-        };
+        // Extraer controles propuestos
+        const controls = [];
+        const elim = cleanControlText(row.medida_eliminacion);
+        if (elim) controls.push({ category: 'Eliminación', text: elim, hierarchy: 1, actionType: 'correctiva' });
 
-        const activeIpevarRefs = new Set();
+        const sust = cleanControlText(row.medida_sustitucion);
+        if (sust) controls.push({ category: 'Sustitución', text: sust, hierarchy: 2, actionType: 'correctiva' });
 
-        for (let i = 0; i < gtcDoc.matrixRows.length; i++) {
-          const row = gtcDoc.matrixRows[i];
-          const rowId = row.id || `row-${i}`;
+        const ing = cleanControlText(row.medida_ingenieria);
+        if (ing) controls.push({ category: 'Ingeniería', text: ing, hierarchy: 3, actionType: 'correctiva' });
 
-          // Extraer controles propuestos
-          const controls = [];
-          const elim = cleanControlText(row.medida_eliminacion);
-          if (elim) controls.push({ category: 'Eliminación', text: elim, hierarchy: 1, actionType: 'correctiva' });
+        const adm = cleanControlText(row.medida_administrativa);
+        if (adm) controls.push({ category: 'Administrativo', text: adm, hierarchy: 4, actionType: 'preventiva' });
 
-          const sust = cleanControlText(row.medida_sustitucion);
-          if (sust) controls.push({ category: 'Sustitución', text: sust, hierarchy: 2, actionType: 'correctiva' });
+        const epp = cleanControlText(row.medida_eppu);
+        if (epp) controls.push({ category: 'EPP', text: epp, hierarchy: 5, actionType: 'preventiva' });
 
-          const ing = cleanControlText(row.medida_ingenieria);
-          if (ing) controls.push({ category: 'Ingeniería', text: ing, hierarchy: 3, actionType: 'correctiva' });
+        const isCritical = (row.nd >= 6 && row.nc >= 25) || (row.nr >= 500) ||
+          (typeof row.aceptabilidad === 'string' && (row.aceptabilidad.includes('I') || row.aceptabilidad.toLowerCase().includes('no aceptable')));
+        const isHigh = (row.nr >= 150) || (typeof row.interpretacion_nr === 'string' && row.interpretacion_nr === 'II');
 
-          const adm = cleanControlText(row.medida_administrativa);
-          if (adm) controls.push({ category: 'Administrativo', text: adm, hierarchy: 4, actionType: 'preventiva' });
+        // Sincronizar si tiene controles propuestos o si es riesgo crítico/alto
+        if (controls.length > 0 || isCritical || isHigh) {
+          let bestControl = controls.find((c) => c.category === 'Ingeniería')
+            || controls.find((c) => c.category === 'Sustitución')
+            || controls.find((c) => c.category === 'Eliminación')
+            || controls.find((c) => c.category === 'Administrativo')
+            || controls.find((c) => c.category === 'EPP');
 
-          const epp = cleanControlText(row.medida_eppu);
-          if (epp) controls.push({ category: 'EPP', text: epp, hierarchy: 5, actionType: 'preventiva' });
+          if (!bestControl) {
+            bestControl = {
+              category: 'Intervención Crítica',
+              text: 'Diseñar e implementar controles de mitigación inmediata en la fuente o medio',
+              actionType: 'correctiva',
+            };
+          }
 
-          const isCritical = (row.nd >= 6 && row.nc >= 25) || (row.nr >= 500) ||
-            (typeof row.aceptabilidad === 'string' && (row.aceptabilidad.includes('I') || row.aceptabilidad.toLowerCase().includes('no aceptable')));
-          const isHigh = (row.nr >= 150) || (typeof row.interpretacion_nr === 'string' && row.interpretacion_nr === 'II');
+          const otherControls = controls.filter((c) => c !== bestControl);
 
-          // Sincronizar si tiene controles propuestos o si es riesgo crítico/alto
-          if (controls.length > 0 || isCritical || isHigh) {
-            // Seleccionar el control de MEJOR COSTO/BENEFICIO (Anexo E GTC-45)
-            // Según la jerarquía de control y retorno preventivo (Ingeniería protege en fuente/medio colectivamente)
-            let bestControl = controls.find((c) => c.category === 'Ingeniería')
-              || controls.find((c) => c.category === 'Sustitución')
-              || controls.find((c) => c.category === 'Eliminación')
-              || controls.find((c) => c.category === 'Administrativo')
-              || controls.find((c) => c.category === 'EPP');
+          let anexoE = '';
+          if (row.factores_reduccion && typeof row.factores_reduccion === 'string' && !row.factores_reduccion.toLowerCase().includes('no aplica')) {
+            anexoE = row.factores_reduccion.trim();
+          } else {
+            anexoE = `Control prioritario por relación costo-beneficio según Anexo E (GTC-45): Se prioriza la medida de ${bestControl.category} ('${bestControl.text.replace(/^[*•-]\s*/, '')}') al atacar directamente el origen del peligro (${row.peligro_clasificacion || 'evaluado'}) con protección colectiva y continua para ${row.cargo || 'el personal expuesto'}. Esta intervención mitiga la severidad potencial (${row.peor_consecuencia || 'daño a la salud laboral'}) con el mayor retorno de inversión frente al costo directo e indirecto de incapacidades o contingencias legales.`;
+          }
 
-            if (!bestControl) {
-              bestControl = {
-                category: 'Intervención Crítica',
-                text: 'Diseñar e implementar controles de mitigación inmediata en la fuente o medio',
-                actionType: 'correctiva',
-              };
-            }
+          const dueDate = isCritical ? addDays(today, 15) : isHigh ? addDays(today, 30) : addDays(today, 60);
+          const priority = (isCritical || isHigh) ? 'alta' : 'media';
+          const actionType = bestControl.actionType || 'correctiva';
 
-            const otherControls = controls.filter((c) => c !== bestControl);
+          const cleanText = bestControl.text.replace(/^[*•-]\s*/, '').trim();
+          const title = `[Control Propuesto · ${bestControl.category}] ${cleanText.length > 70 ? cleanText.substring(0, 67) + '…' : cleanText}`;
 
-            // Anexo E: Justificación de reducción y costo/beneficio
-            let anexoE = '';
-            if (row.factores_reduccion && typeof row.factores_reduccion === 'string' && !row.factores_reduccion.toLowerCase().includes('no aplica')) {
-              anexoE = row.factores_reduccion.trim();
-            } else {
-              anexoE = `Control prioritario por relación costo-beneficio según Anexo E (GTC-45): Se prioriza la medida de ${bestControl.category} ('${bestControl.text.replace(/^[*•-]\s*/, '')}') al atacar directamente el origen del peligro (${row.peligro_clasificacion || 'evaluado'}) con protección colectiva y continua para ${row.cargo || 'el personal expuesto'}. Esta intervención mitiga la severidad potencial (${row.peor_consecuencia || 'daño a la salud laboral'}) con el mayor retorno de inversión frente al costo directo e indirecto de incapacidades o contingencias legales.`;
-            }
-
-            const dueDate = isCritical ? addDays(today, 15) : isHigh ? addDays(today, 30) : addDays(today, 60);
-            const priority = (isCritical || isHigh) ? 'alta' : 'media';
-            const actionType = bestControl.actionType || 'correctiva';
-
-            const cleanText = bestControl.text.replace(/^[*•-]\s*/, '').trim();
-            const title = `[Control Propuesto · ${bestControl.category}] ${cleanText.length > 70 ? cleanText.substring(0, 67) + '…' : cleanText}`;
-
-            const description = `Control propuesto con mejor relación costo-beneficio según Factores de Reducción (Anexo E GTC-45).
+          const description = `Control propuesto con mejor relación costo-beneficio según Factores de Reducción (Anexo E GTC-45).
 • Proceso: ${row.proceso || 'Operativo'} | Zona/Lugar: ${row.zona || 'Área general'}
 • Peligro: ${row.peligro_clasificacion || 'Peligro'} - ${row.peligro_descripcion || 'No especificado'}
 • Nivel de Riesgo: ${row.interpretacion_nr ? `Nivel ${row.interpretacion_nr}` : 'Evaluado'} (NR: ${row.nr || 'N/A'}) - ${row.aceptabilidad || ''}
@@ -631,83 +835,99 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 • Control Óptimo (Costo/Beneficio): [${bestControl.category}] ${bestControl.text}
 ${otherControls.length > 0 ? `• Controles Complementarios: ${otherControls.map((c) => `[${c.category}] ${c.text}`).join(' | ')}\n` : ''}• Factores de Reducción (Anexo E): ${anexoE}`;
 
-            const referenceId = `ipevar-control-${rowId}`;
-            const referenceName = `Matriz IPEVAR (${row.peligro_clasificacion || 'GTC-45'})`;
+          const referenceId = `ipevar-control-${rowId}`;
+          const referenceName = `Matriz IPEVAR (${row.peligro_clasificacion || 'GTC-45'})`;
 
-            activeIpevarRefs.add(referenceId);
-            activeIpevarRefs.add(`ipevar-${rowId}`);
+          activeIpevarRefs.add(referenceId);
+          activeIpevarRefs.add(`ipevar-${rowId}`);
 
-            // Buscar si ya existía tarea con ID nuevo o ID antiguo (ipevar-${rowId})
-            let task = await KanbanTask.findOne({
-              user: userId,
-              companyId,
-              referenceId: { $in: [referenceId, `ipevar-${rowId}`] },
+          const task = taskMap.get(referenceId) || taskMap.get(`ipevar-${rowId}`);
+
+          if (!task) {
+            bulkOps.push({
+              insertOne: {
+                document: {
+                  user: userId,
+                  companyId,
+                  title,
+                  description,
+                  dueDate,
+                  status: 'todo',
+                  type: 'ipevar_finding',
+                  priority,
+                  actionType,
+                  assignedTo: row.cargo || 'Coordinador SST',
+                  sourceModule: 'matriz_ipevar',
+                  referenceId,
+                  referenceName,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                },
+              },
             });
+            taskMap.set(referenceId, { referenceId, status: 'todo', dueDate, title, description, priority, actionType });
+          } else if (task.status !== 'done' && task.status !== 'dismissed') {
+            const updateSet = {};
+            if (task.referenceId !== referenceId) updateSet.referenceId = referenceId;
+            if (task.title !== title) updateSet.title = title;
+            if (task.description !== description) updateSet.description = description;
+            if (task.priority !== priority) updateSet.priority = priority;
+            if (task.actionType !== actionType) updateSet.actionType = actionType;
 
-            if (!task) {
-              await KanbanTask.create({
-                user: userId,
-                companyId,
-                title,
-                description,
-                dueDate,
-                status: 'todo',
-                type: 'ipevar_finding',
-                priority,
-                actionType,
-                assignedTo: row.cargo || 'Coordinador SST',
-                sourceModule: 'matriz_ipevar',
-                referenceId,
-                referenceName,
+            if (Object.keys(updateSet).length > 0) {
+              updateSet.updatedAt = new Date();
+              bulkOps.push({
+                updateOne: {
+                  filter: { _id: task._id },
+                  update: { $set: updateSet },
+                },
               });
-            } else if (task.status !== 'done' && task.status !== 'dismissed') {
-              let changed = false;
-              if (task.referenceId !== referenceId) {
-                task.referenceId = referenceId;
-                changed = true;
-              }
-              if (task.title !== title) {
-                task.title = title;
-                changed = true;
-              }
-              if (task.description !== description) {
-                task.description = description;
-                changed = true;
-              }
-              if (task.priority !== priority) {
-                task.priority = priority;
-                changed = true;
-              }
-              if (task.actionType !== actionType) {
-                task.actionType = actionType;
-                changed = true;
-              }
-              if (changed) {
-                await task.save();
-              }
+              Object.assign(task, updateSet);
             }
           }
         }
+      }
 
-        // Si la matriz cambió (ej. se estableció otra matriz oficial o se eliminaron filas),
-        // limpiar tareas pendientes automáticas de IPEVAR que ya no pertenezcan a la matriz activa
-        if (activeIpevarRefs.size > 0) {
-          await KanbanTask.deleteMany({
-            user: userId,
-            companyId,
-            sourceModule: 'matriz_ipevar',
-            status: { $in: ['todo', 'due_soon'] },
-            referenceId: { $nin: Array.from(activeIpevarRefs) },
-          });
+      if (activeIpevarRefs.size > 0) {
+        for (const t of (existingTasks || [])) {
+          if (t.sourceModule === 'matriz_ipevar' && ['todo', 'due_soon'].includes(t.status) && t.referenceId && !activeIpevarRefs.has(t.referenceId)) {
+            tasksToDelete.push(t._id);
+            taskMap.delete(t.referenceId);
+          }
         }
       }
     }
 
+    // Single batch deletion for cleaned/orphaned tasks
+    if (tasksToDelete.length > 0) {
+      const uniqueIds = Array.from(new Set(tasksToDelete.map((id) => id.toString())));
+      await KanbanTask.deleteMany({ _id: { $in: uniqueIds } });
+    }
+
+    // Single bulk write for all inserts & updates
+    if (bulkOps.length > 0) {
+      await KanbanTask.bulkWrite(bulkOps, { ordered: false });
+    }
+
+    // Update throttle timestamp
+    lastSyncByCompany.set(companyKey, Date.now());
+
     // 9. Fetch and return all active tasks for user and company (exclude dismissed)
-    const tasks = await KanbanTask.find({ user: userId, companyId, status: { $ne: 'dismissed' } }).sort({ dueDate: 1 });
+    const tasks = await KanbanTask.find({ user: userId, companyId, status: { $ne: 'dismissed' } }).lean().sort({ dueDate: 1 });
     res.json(tasks);
   } catch (error) {
     logger.error('[SGSST Kanban] Load error:', error);
+    // Defensive fallback: Try to return existing tasks so the UI never hangs
+    try {
+      const userId = req.user?.id;
+      const companyId = await getActiveCompanyId(userId);
+      if (userId && companyId) {
+        const fallbackTasks = await KanbanTask.find({ user: userId, companyId, status: { $ne: 'dismissed' } }).lean().sort({ dueDate: 1 });
+        return res.json(fallbackTasks);
+      }
+    } catch (fallbackErr) {
+      logger.error('[SGSST Kanban] Fallback load error:', fallbackErr);
+    }
     res.status(500).json({ error: 'Error al cargar el tablero de tareas' });
   }
 });
@@ -765,6 +985,8 @@ router.post('/dispatch-actions', requireJwtAuth, async (req, res) => {
       }
       createdTasks.push(task);
     }
+
+    lastSyncByCompany.delete(companyId.toString());
 
     res.json({
       success: true,
@@ -989,6 +1211,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         logger.debug('[Kanban] Error syncing back to actas:', syncBackErr.message);
       }
 
+      lastSyncByCompany.delete(companyId.toString());
       return res.json(updatedTask);
     } else {
       // Create new manual task
@@ -1008,6 +1231,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         actionType: req.body.actionType || 'correctiva',
         assignedTo: req.body.assignedTo || '',
       });
+      lastSyncByCompany.delete(companyId.toString());
       return res.json(task);
     }
   } catch (error) {
@@ -1065,6 +1289,7 @@ router.post('/bulk-save', requireJwtAuth, async (req, res) => {
       }
     }
 
+    lastSyncByCompany.delete(companyId.toString());
     res.json({ success: true, count: processedTasks.length, tasks: processedTasks });
   } catch (error) {
     logger.error('[SGSST Kanban] Bulk save error:', error);
@@ -1172,6 +1397,10 @@ router.delete('/delete/:id', requireJwtAuth, async (req, res) => {
       await task.save();
     } else {
       await KanbanTask.deleteOne({ _id: id, user: userId });
+    }
+
+    if (task.companyId) {
+      lastSyncByCompany.delete(task.companyId.toString());
     }
 
     res.json({ success: true });

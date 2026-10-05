@@ -95,6 +95,9 @@ const kanbanTaskSchema = new mongoose.Schema(
   }
 );
 
+kanbanTaskSchema.index({ user: 1, companyId: 1, status: 1 });
+kanbanTaskSchema.index({ user: 1, companyId: 1, referenceId: 1 });
+
 const KanbanTask = mongoose.models.KanbanTask || mongoose.model('KanbanTask', kanbanTaskSchema);
 
 module.exports = KanbanTask;
