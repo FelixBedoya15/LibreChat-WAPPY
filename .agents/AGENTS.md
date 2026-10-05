@@ -74,3 +74,24 @@ docker exec -it LibreChat node scripts/restore-and-sync-all.js
 > 3. **MANEJO DE ERRORES 503 / SOBRECARGA:**
 >    Si un modelo responde con 503 (alta demanda en los servidores del proveedor), no desmantelar ni reemplazar la lista con modelos obsoletos; verificar siempre en la web las opciones oficiales activas de respaldo vigentes en la plataforma.
 
+---
+
+## 6. Reglas Estrictas de Tenshi Voice y Despacho Multiturno (Prevención de Regresiones)
+> [!CRITICAL]
+> **PROHIBICIÓN ESTRICTA DE REGRESIONES EN TENSHI Y DESPACHO DE CHATS:**
+> Consultar siempre la bitácora técnica permanente en `docs/AUDITORIA_Y_LECCIONES_TENSHI.md`. Todo agente que toque la interacción por voz o despacho de mensajes DEBE acatar:
+>
+> 1. **CONTINUIDAD DE CHAT POR DEFECTO (NO ABRIR CHATS COMPULSIVAMENTE):**
+>    - Si el usuario continúa conversando con el mismo especialista o sobre el mismo tema, **NUNCA abrir una nueva conversación (`/c/new`)**. Se debe reutilizar la conversación activa mediante el evento `tenshi-submit-agent-prompt`.
+>    - Solo abrir un nuevo chat (`/c/new`) si el usuario solicita explícitamente cambiar de especialista (ej: "pásame al abogado") o pide explícitamente "abrir un nuevo chat" o "desde cero".
+> 2. **DESPACHO FÍSICO ASISTIDO POR DOM Y WATCHDOG DE ENVÍO:**
+>    - Nunca depender exclusivamente de hooks asíncronos de React/Recoil para enviar mensajes desde URL o eventos de voz. Se debe escribir en el textarea físico del DOM, disparar eventos `input`/`change` y hacer clic físico en el botón `#send-button`.
+>    - Mantener un watchdog activo de verificación que reintente el clic hasta que el mensaje sea despachado y el textarea quede limpio antes de borrar los parámetros de la URL.
+> 3. **ESPECIFICACIÓN DE GOOGLE MULTIMODAL LIVE API:**
+>    - En `api/server/routes/voice/geminiLive.js`, `inputAudioTranscription: {}` y `outputAudioTranscription: {}` **DEBEN ser objetos vacíos**. Está terminantemente prohibido incluir `languageCodes` u otros campos internos dentro de `inputAudioTranscription`, ya que causa el error **Code 1011 (Internal error encountered)** y cierra el WebSocket inmediatamente.
+>    - Todas las herramientas en `voiceSession.js` deben definir siempre el objeto `properties` tipado para evitar rechazos en el validador OpenAPI/Protobuf de Google.
+> 4. **RECONEXIÓN RESILIENTE Y ROTACIÓN DE MODELOS:**
+>    - Ante cualquier desconexión abrupta de Google (1011, 1006, 1001), `voiceSession.js` no debe matar la llamada; debe ejecutar `reconnectGemini()` rotando de modelo y clave en caliente y reenviando la última consulta huérfana del usuario.
+> 5. **OBEDIENCIA DIRECTA A PETICIÓN DEL USUARIO:**
+>    - Si el usuario dice "hazlo tú", "respóndeme tú", "no abras el chat" o se frustra con la delegación, Tenshi debe responder de inmediato con su base de conocimientos en SG-SST (normativa colombiana) sin insistir tozudamente en delegar al especialista.
+
