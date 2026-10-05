@@ -2168,11 +2168,171 @@ server.tool(
   }
 );
 
+// ─── 31. NOTIFICACIONES Y ALERTAS DEL USUARIO ──────────────────────────────
+
+server.tool(
+  'wappy_consultar_notificaciones',
+  {},
+  async () => {
+    try {
+      const data = await wappyRequest('/notifications', { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_crear_notificacion',
+  {
+    title: z.string().describe('Título de la notificación o alerta'),
+    body: z.string().describe('Mensaje de la notificación'),
+    type: z.enum([
+      'ticket_created', 'ticket_responded', 'contact_request', 'payment_received',
+      'sgsst_reporte_acto', 'sgsst_participacion_ipevar', 'sgsst_alta_direccion',
+      'sgsst_perfil_update', 'sgsst_testimonio_atel', 'system_update', 'welcome_promo', 'group_invitation'
+    ]).optional().describe('Tipo de notificación'),
+  },
+  async (args) => {
+    try {
+      const data = await wappyRequest('/notifications', {
+        method: 'POST',
+        body: JSON.stringify(args),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_marcar_notificacion_leida',
+  {
+    id: z.string().describe('ID de la notificación a marcar como leída'),
+  },
+  async ({ id }) => {
+    try {
+      const data = await wappyRequest(`/notifications/${encodeURIComponent(id)}/read`, {
+        method: 'PATCH',
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+// ─── 32. MATRIZ DE COMPATIBILIDAD QUÍMICA ──────────────────────────────────
+
+server.tool(
+  'wappy_consultar_compatibilidad_quimica',
+  {},
+  async () => {
+    try {
+      const data = await wappyRequest('/compatibilidad-quimica', { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_guardar_compatibilidad_quimica',
+  {
+    officialTitle: z.string().optional().describe('Título del reporte oficial de compatibilidad'),
+    matrixRows: z.array(z.any()).optional().describe('Filas de la matriz de compatibilidad (sustancias y cruces)'),
+    chartConclusions: z.record(z.any()).optional().describe('Conclusiones técnicas de compatibilidad química'),
+    reportHtml: z.string().optional().describe('Informe técnico en formato HTML'),
+  },
+  async (args) => {
+    try {
+      const data = await wappyRequest('/compatibilidad-quimica', {
+        method: 'POST',
+        body: JSON.stringify(args),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+// ─── 33. CRM Y PROSPECTOS / LEADS ──────────────────────────────────────────
+
+server.tool(
+  'wappy_consultar_leads',
+  {},
+  async () => {
+    try {
+      const data = await wappyRequest('/leads', { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_registrar_lead',
+  {
+    fullName: z.string().describe('Nombre completo del prospecto o cliente'),
+    email: z.string().describe('Correo electrónico'),
+    phone: z.string().describe('Número telefónico de WhatsApp'),
+    funnelKey: z.string().optional().describe('Canal o embudo de procedencia (ej: comunidad, web, webinar)'),
+  },
+  async (args) => {
+    try {
+      const data = await wappyRequest('/leads', {
+        method: 'POST',
+        body: JSON.stringify(args),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_eliminar_lead',
+  {
+    id: z.string().describe('ID del lead a eliminar del CRM'),
+  },
+  async ({ id }) => {
+    try {
+      const data = await wappyRequest(`/leads/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+// ─── 34. PLAN, SUSCRIPCIÓN Y SALDO DE PUNTOS ───────────────────────────────
+
+server.tool(
+  'wappy_consultar_plan_y_balance',
+  {},
+  async () => {
+    try {
+      const data = await wappyRequest('/user/plan-balance', { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
 // Conectar mediante transporte stdio estándar de MCP
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('[WAPPY MCP Bridge] Conectado exitosamente por stdio con 65+ herramientas especializadas.');
+  console.error('[WAPPY MCP Bridge] Conectado exitosamente por stdio con 110+ herramientas especializadas.');
 }
 
 main().catch((err) => {

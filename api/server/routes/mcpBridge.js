@@ -4242,5 +4242,274 @@ router.put('/tenshi/config', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+// ─── 31. NOTIFICACIONES Y ALERTAS DEL USUARIO ──────────────────────────────
+
+router.get('/notifications', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const Notification = mongoose.models.Notification || require('~/models/Notification');
+    const notifs = await Notification.find({ user: userId }).sort({ createdAt: -1 }).limit(50).lean();
+
+    return res.json({
+      total: notifs.length,
+      notificaciones: notifs.map((n) => ({
+        id: n._id.toString(),
+        title: n.title,
+        body: n.body,
+        type: n.type,
+        read: !!n.read,
+        createdAt: n.createdAt,
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /notifications error:', error);
+    return res.status(500).json({ error: 'Error al consultar notificaciones.' });
+  }
+});
+
+router.post('/notifications', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { title, body, type } = req.body;
+
+    if (!title || !body) {
+      return res.status(400).json({ error: 'title y body son requeridos.' });
+    }
+
+    const Notification = mongoose.models.Notification || require('~/models/Notification');
+    const notif = new Notification({
+      user: userId,
+      title: title.trim(),
+      body: body.trim(),
+      type: type || 'system_update',
+      read: false,
+    });
+
+    await notif.save();
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: 'Notificación enviada con éxito.',
+      id: notif._id.toString(),
+      notificacion: notif,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /notifications error:', error);
+    return res.status(500).json({ error: 'Error al crear notificación.' });
+  }
+});
+
+router.patch('/notifications/:id/read', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetId = req.params.id;
+
+    const Notification = mongoose.models.Notification || require('~/models/Notification');
+    const notif = await Notification.findOne({ _id: targetId, user: userId });
+
+    if (!notif) {
+      return res.status(404).json({ error: 'Notificación no encontrada.' });
+    }
+
+    notif.read = true;
+    await notif.save();
+
+    return res.json({
+      exito: true,
+      mensaje: 'Notificación marcada como leída.',
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] PATCH /notifications/:id/read error:', error);
+    return res.status(500).json({ error: 'Error al marcar notificación.' });
+  }
+});
+
+// ─── 32. MATRIZ DE COMPATIBILIDAD QUÍMICA ──────────────────────────────────
+
+router.get('/compatibilidad-quimica', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+
+    const ChemicalCompatibilitySession =
+      mongoose.models.ChemicalCompatibilitySession ||
+      require('~/models/ChemicalCompatibilitySession');
+
+    const query = companyId
+      ? { $or: [{ companyId }, { user: userId }] }
+      : { user: userId };
+
+    const sessions = await ChemicalCompatibilitySession.find(query).sort({ createdAt: -1 }).limit(20).lean();
+
+    return res.json({
+      total: sessions.length,
+      sesiones: sessions.map((s) => ({
+        id: s._id.toString(),
+        conversationId: s.conversationId,
+        isOfficial: !!s.isOfficial,
+        officialTitle: s.officialTitle || '',
+        totalFilas: s.matrixRows?.length || 0,
+        matrixRows: s.matrixRows || [],
+        chartConclusions: s.chartConclusions || {},
+        createdAt: s.createdAt,
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /compatibilidad-quimica error:', error);
+    return res.status(500).json({ error: 'Error al consultar matrices de compatibilidad química.' });
+  }
+});
+
+router.post('/compatibilidad-quimica', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+    const { officialTitle, matrixRows, chartConclusions, reportHtml } = req.body;
+
+    const ChemicalCompatibilitySession =
+      mongoose.models.ChemicalCompatibilitySession ||
+      require('~/models/ChemicalCompatibilitySession');
+
+    const conversationId = req.body.conversationId || `chem_${Date.now()}`;
+
+    const session = new ChemicalCompatibilitySession({
+      user: userId,
+      companyId,
+      conversationId,
+      officialTitle: officialTitle || 'Matriz Oficial de Compatibilidad Química',
+      isOfficial: true,
+      matrixRows: Array.isArray(matrixRows) ? matrixRows : [],
+      chartConclusions: chartConclusions || {},
+      reportHtml: reportHtml || '',
+      promotedAt: new Date(),
+    });
+
+    await session.save();
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: 'Matriz de compatibilidad química guardada con éxito.',
+      id: session._id.toString(),
+      sesion: session,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /compatibilidad-quimica error:', error);
+    return res.status(500).json({ error: 'Error al registrar matriz de compatibilidad química.' });
+  }
+});
+
+// ─── 33. CRM Y PROSPECTOS / LEADS ──────────────────────────────────────────
+
+router.get('/leads', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const { Lead } = require('~/models/Lead');
+    const leads = await Lead.find({}).sort({ createdAt: -1 }).limit(100).lean();
+
+    return res.json({
+      total: leads.length,
+      leads: leads.map((l) => ({
+        id: l._id.toString(),
+        fullName: l.fullName,
+        email: l.email,
+        phone: l.phone,
+        funnelKey: l.funnelKey || 'comunidad',
+        createdAt: l.createdAt,
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /leads error:', error);
+    return res.status(500).json({ error: 'Error al consultar leads.' });
+  }
+});
+
+router.post('/leads', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const { fullName, email, phone, funnelKey } = req.body;
+
+    if (!fullName || !email || !phone) {
+      return res.status(400).json({ error: 'fullName, email y phone son requeridos.' });
+    }
+
+    const { Lead } = require('~/models/Lead');
+    const lead = new Lead({
+      fullName: fullName.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone.trim(),
+      funnelKey: funnelKey || 'comunidad',
+    });
+
+    await lead.save();
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: `Prospecto "${fullName}" registrado en el CRM.`,
+      id: lead._id.toString(),
+      lead,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /leads error:', error);
+    return res.status(500).json({ error: 'Error al registrar lead.' });
+  }
+});
+
+router.delete('/leads/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const { Lead } = require('~/models/Lead');
+    const result = await Lead.findByIdAndDelete(targetId);
+
+    if (!result) {
+      return res.status(404).json({ error: 'Lead no encontrado.' });
+    }
+
+    return res.json({
+      exito: true,
+      mensaje: 'Lead eliminado del CRM.',
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /leads/:id error:', error);
+    return res.status(500).json({ error: 'Error al eliminar lead.' });
+  }
+});
+
+// ─── 34. PLAN, SUSCRIPCIÓN Y SALDO DE PUNTOS ───────────────────────────────
+
+router.get('/user/plan-balance', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { User, Balance } = require('~/db/models');
+    const PointTransaction = mongoose.models.PointTransaction || require('~/models/PointTransaction');
+
+    const user = await User.findById(userId).select('name email role points currentPlan').lean();
+    const balance = await Balance.findOne({ user: userId }).lean();
+    const pointsHistory = await PointTransaction.find({ userId }).sort({ createdAt: -1 }).limit(10).lean();
+
+    return res.json({
+      usuario: {
+        id: user?._id?.toString(),
+        nombre: user?.name || '',
+        email: user?.email || '',
+        rol: user?.role || 'USER',
+        plan: user?.currentPlan || 'Plan LibreChat WAPPY',
+      },
+      creditosTokens: balance?.tokenCredits !== undefined ? balance.tokenCredits : 'Ilimitado / Sin restricción',
+      saldoPuntos: user?.points || 0,
+      historialPuntos: pointsHistory.map((p) => ({
+        id: p._id.toString(),
+        puntos: p.points,
+        tipo: p.type,
+        descripcion: p.description,
+        createdAt: p.createdAt,
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /user/plan-balance error:', error);
+    return res.status(500).json({ error: 'Error al consultar plan y balance.' });
+  }
+});
+
 module.exports = router;
+
 
