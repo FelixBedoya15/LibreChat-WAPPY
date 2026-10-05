@@ -1129,6 +1129,7 @@ router.put('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
 
         // Mapear campos entrantes con soporte para alias
         const cleanNombre = updates.nombre_completo || updates.nombre || current.nombre;
+        const cleanCedula = String(updates.cedula || updates.identificacion || updates.documento || current.identificacion || current.cedula || current.documento || target).trim();
         const cleanCargo = updates.cargo || current.cargo;
         const cleanArea = updates.area || updates.areaTrabajo || current.areaTrabajo;
         const cleanSede = updates.sede || current.sede;
@@ -1164,9 +1165,13 @@ router.put('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
         }
 
         const merged = {
-          ...current,
+          ...(typeof current.toObject === 'function' ? current.toObject() : current),
           ...updates,
+          id: current.id || target,
           nombre: cleanNombre,
+          identificacion: cleanCedula,
+          cedula: cleanCedula,
+          documento: cleanCedula,
           cargo: cleanCargo,
           areaTrabajo: cleanArea,
           sede: cleanSede,
@@ -1273,7 +1278,9 @@ router.delete('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
         doc.trabajadores = doc.trabajadores.filter((w) => {
           const match =
             String(w.id || '').trim() === target ||
-            String(w.identificacion || w.documento || '').trim() === target ||
+            String(w.identificacion || '').trim() === target ||
+            String(w.documento || '').trim() === target ||
+            String(w.cedula || '').trim() === target ||
             (w.nombre && w.nombre.toLowerCase().includes(target.toLowerCase()));
           if (match && !workerName) workerName = w.nombre;
           return !match;

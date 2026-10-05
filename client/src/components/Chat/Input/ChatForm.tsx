@@ -249,87 +249,49 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
 
       console.log('[ChatForm] Enviando consulta delegada:', prompt);
 
-      const dispatchClickOrSubmit = () => {
-        let submitted = false;
+      console.log('[ChatForm] Enviando consulta delegada (única ejecución):', prompt);
 
-        // 1. Invocar React Hook Form handleSubmit directamente
-        try {
-          const textVal = methods.getValues('text') || prompt;
-          methods.handleSubmit((data) => {
-            console.log('[ChatForm] methods.handleSubmit ejecutado exitosamente:', data.text || textVal);
-            submitMessage({ text: data.text || textVal });
-            submitted = true;
-          })();
-        } catch (err) {
-          console.warn('[ChatForm] Error en methods.handleSubmit:', err);
-        }
+      // Despacho canónico único
+      try {
+        submitMessage({ text: prompt });
+      } catch (err) {
+        console.warn('[ChatForm] Error en submitMessage:', err);
+      }
 
-        // 2. Disparar submitMessage directo del hook como garantía paralela
-        try {
-          console.log('[ChatForm] Invocando submitMessage directo para:', prompt);
-          submitMessage({ text: prompt });
-          submitted = true;
-        } catch (err) {
-          console.warn('[ChatForm] Error en submitMessage directo:', err);
-        }
+      // Limpieza inmediata del formulario y del textarea para evitar texto remanente
+      methods.reset();
+      methods.setValue('text', '');
+      if (textAreaRef.current) {
+        textAreaRef.current.value = '';
+        textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+        textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+      }
 
-        // 3. Soporte DOM nativo: requestSubmit() o click físico en botón
-        try {
-          const form = (textAreaRef.current?.closest('form') || document.querySelector('form')) as HTMLFormElement | null;
-          const sendBtn = (document.getElementById('send-button') ||
-            document.querySelector('button[data-testid="send-button"]') ||
-            submitButtonRef.current) as HTMLButtonElement | null;
-          if (form && typeof form.requestSubmit === 'function') {
-            form.requestSubmit(sendBtn && !sendBtn.disabled ? sendBtn : undefined);
-            submitted = true;
-          } else if (sendBtn && !sendBtn.disabled) {
-            sendBtn.click();
-            submitted = true;
-          }
-        } catch (domErr) {
-          console.warn('[ChatForm] Error en DOM requestSubmit/click:', domErr);
-        }
-
-        return submitted;
-      };
-
-      dispatchClickOrSubmit();
-
-      // Watchdog activo (hasta 25 ticks de 100ms = 2.5s)
+      // Watchdog de limpieza: verifica que el textarea quede limpio y no retenga el texto enviado
       let attempts = 0;
-      const maxAttempts = 25;
+      const maxAttempts = 15;
       const watchdog = setInterval(() => {
         attempts++;
         const currentVal = textAreaRef.current?.value || '';
 
-        // Si el textarea ya se vació o cambió respecto al prompt, se despachó exitosamente
         if (!currentVal || currentVal.trim() === '' || currentVal !== prompt) {
           clearInterval(watchdog);
-          console.log('[ChatForm] Auto-envío delegado verificado con éxito tras', attempts, 'intentos.');
           return;
         }
 
-        // Si alcanzó el máximo de intentos y aún tiene texto, reintento final de emergencia
-        if (attempts >= maxAttempts) {
-          clearInterval(watchdog);
-          console.warn('[ChatForm] Watchdog timeout: intentando submitMessage final de emergencia para:', prompt);
-          try {
-            submitMessage({ text: prompt });
-          } catch (finalErr) {
-            console.error('[ChatForm] Error en submitMessage final:', finalErr);
-          }
-          releaseAutoSubmit(prompt);
-          return;
-        }
-
-        // Si sigue presente, refrescar inputs y reintentar despacho
+        // Si todavía tiene el texto viejo pegado, vaciarlo
         if (textAreaRef.current) {
-          textAreaRef.current.value = prompt;
+          textAreaRef.current.value = '';
           textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
           textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
         }
-        methods.setValue('text', prompt, { shouldValidate: true });
-        dispatchClickOrSubmit();
+        methods.reset();
+        methods.setValue('text', '');
+
+        if (attempts >= maxAttempts) {
+          clearInterval(watchdog);
+          releaseAutoSubmit(prompt);
+        }
       }, 100);
     },
     [methods, submitMessage, textAreaRef, submitButtonRef],

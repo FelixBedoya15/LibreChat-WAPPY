@@ -326,12 +326,13 @@ export function cleanDelegatedPrompt(raw: string): string {
   }
 
   // 6. ESTRUCTURACIÓN TÉCNICA PROFESIONAL:
-  // Si la consulta es corta o telegráfica (menos de 130 caracteres) y no incluye contexto normativo,
+  // Si la consulta es corta o no incluye marco legal técnico específico (decreto, resolución, ley, etc.),
   // se enriquece para solicitar fundamentación normativa colombiana, alcance y recomendaciones para el SG-SST.
-  const hasNormativeContext = /\b(concepto|normativ|decreto|resoluci[oó]n|sg-sst|marco\s+legal|alcance|obligaci|est[aá]ndar|recomendaci|colombia)\b/i.test(text);
-  if (text.length < 130 && !hasNormativeContext) {
-    const cleanQuestion = text.endsWith('?') ? text : `${text}.`;
-    text = `${cleanQuestion} Por favor proporciona concepto técnico especializado, fundamentación normativa colombiana aplicable y recomendaciones clave para el Sistema de Gestión SG-SST de la empresa.`;
+  const hasNormativeContext = /\b(concepto\s+t[eé]cnico|decreto\s+\d+|resoluci[oó]n\s+\d+|ley\s+\d+|art[ií]culo\s+\d+|marco\s+legal|est[aá]ndar\s+m[ií]nimo)\b/i.test(text);
+  if (text.length < 160 && !hasNormativeContext) {
+    const cleanQuestion = text.replace(/[.?\s]+$/, '');
+    const prefix = cleanQuestion.startsWith('¿') ? cleanQuestion + '?' : `¿${cleanQuestion}?`;
+    text = `${prefix} Por favor proporciona concepto técnico especializado, fundamentación normativa colombiana aplicable (Decretos, Resoluciones vigentes) y recomendaciones clave para el Sistema de Gestión SG-SST de la empresa.`;
   }
 
   return text;
@@ -1166,115 +1167,100 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             if (!pregunta || isGenericGreeting(pregunta) || pregunta.length < 4) {
               console.warn('[TenshiChat] wappy_abrir_chat_agente rechazado por falta de consulta:', pregunta);
               resultMsg = `NO se abrió el chat con ${agentName}: falta la consulta concreta del usuario. Pregúntale verbalmente al usuario qué tema o duda desea consultar con ${agentName} antes de abrir el chat.`;
-              return;
-            }
+            } else {
+              // Registrar consulta pendiente para que Tenshi escuche la respuesta del agente
+              if (consultationTimerRef.current) {
+                clearTimeout(consultationTimerRef.current);
+                consultationTimerRef.current = null;
+              }
+              const initialMessageId = latestChatMessageRef.current?.messageId || null;
+              pendingAgentConsultationRef.current = {
+                agentName,
+                question: pregunta,
+                active: true,
+                hadStarted: false,
+                timestamp: Date.now(),
+                initialMessageId,
+              };
+              lastContentChangeRef.current = { text: '', time: Date.now() };
+              setIsWaitingConsultation(true);
+              setVoiceStatusText(`Esperando a ${agentName}...`);
 
-            // Registrar consulta pendiente para que Tenshi escuche la respuesta del agente
-            if (consultationTimerRef.current) {
-              clearTimeout(consultationTimerRef.current);
-              consultationTimerRef.current = null;
-            }
-            const initialMessageId = latestChatMessageRef.current?.messageId || null;
-            pendingAgentConsultationRef.current = {
-              agentName,
-              question: pregunta,
-              active: true,
-              hadStarted: false,
-              timestamp: Date.now(),
-              initialMessageId,
-            };
-            lastContentChangeRef.current = { text: '', time: Date.now() };
-            setIsWaitingConsultation(true);
-            setVoiceStatusText(`Esperando a ${agentName}...`);
+              const targetAgentId = matchedAgent?.id;
 
-            const targetAgentId = matchedAgent?.id;
+              // 1. Detección robusta de agente activo en pantalla
+              const currentAgentId =
+                conversation?.agent_id ||
+                new URLSearchParams(window.location.search).get('agent_id') ||
+                activeConsultationAgentIdRef.current;
 
-            // 1. Detección robusta de agente activo en pantalla
-            const currentAgentId =
-              conversation?.agent_id ||
-              new URLSearchParams(window.location.search).get('agent_id') ||
-              activeConsultationAgentIdRef.current;
-
-            // 2. Detección robusta de si el especialista en pantalla es el mismo
-            const isSameAgentActive = Boolean(
-              (targetAgentId && currentAgentId && currentAgentId === targetAgentId) ||
-              (activeConsultationAgentIdRef.current && targetAgentId && activeConsultationAgentIdRef.current === targetAgentId)
-            );
-
-            // 3. Detección robusta de solicitud explícita de nuevo chat (por backend, turnos previos por voz o texto actual)
-            const requestedNewChat = Boolean(
-              action.args?.nuevo_chat ||
-              pendingForceNewChatRef.current ||
-              /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(rawPregunta) ||
-              /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(action.args?.pregunta || '')
-            );
-
-            // Consumir la bandera de forzar nuevo chat
-            pendingForceNewChatRef.current = false;
-
-            // CASO A: CONTINUIDAD (Mismo especialista y NO se solicitó nuevo chat)
-            if (isSameAgentActive && !requestedNewChat) {
-              console.log(`[TenshiChat] Continuidad de chat detectada con ${agentName} (${targetAgentId}) en conversación ${conversation?.conversationId || 'actual'}`);
-              activeConsultationAgentIdRef.current = targetAgentId || currentAgentId || null;
-              activeConsultationAgentNameRef.current = agentName;
-              activeConsultationConvoIdRef.current = conversation?.conversationId || 'current';
-
-              // Disparar auto-envío en el chat actual SIN recargar ni crear nuevo chat
-              window.dispatchEvent(
-                new CustomEvent('tenshi-submit-agent-prompt', {
-                  detail: {
-                    agentId: targetAgentId,
-                    prompt: pregunta,
-                  },
-                })
+              // 2. Detección robusta de si el especialista en pantalla es el mismo
+              const isSameAgentActive = Boolean(
+                (targetAgentId && currentAgentId && currentAgentId === targetAgentId) ||
+                (activeConsultationAgentIdRef.current && targetAgentId && activeConsultationAgentIdRef.current === targetAgentId)
               );
 
-              resultMsg = `Consulta enviada en el chat actual con ${agentName}: "${pregunta}". [AVISO CRÍTICO PARA TENSHI]: El especialista ya está analizando y respondiendo en pantalla. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. Limítate a confirmar en una sola frase breve que ya le transmitiste la consulta y que espere un momento a que responda.`;
-              return;
-            }
-
-            // CASO B: NUEVO CHAT (Especialista distinto O usuario solicitó nuevo chat)
-            console.log(`[TenshiChat] Abriendo nuevo chat para ${agentName} (targetId: ${targetAgentId}, isSameAgentActive: ${isSameAgentActive}, requestedNewChat: ${requestedNewChat})`);
-            activeConsultationAgentIdRef.current = targetAgentId || null;
-            activeConsultationAgentNameRef.current = agentName;
-            activeConsultationConvoIdRef.current = 'new';
-
-            // 1. Limpiar caché de mensajes de la conversación anterior para aislamiento absoluto
-            try {
-              clearMessagesCache(queryClient, conversation?.conversationId);
-              queryClient.invalidateQueries([QueryKeys.messages]);
-            } catch (cacheErr) {
-              console.warn('[TenshiChat] Error limpiando cache de mensajes:', cacheErr);
-            }
-
-            // 2. Preparar parámetros canónicos de URL para que el chat siempre reciba el agente, prompt y submit
-            const params = new URLSearchParams();
-            if (targetAgentId) {
-              params.set('agent_id', targetAgentId);
-            }
-            params.set('endpoint', EModelEndpoint.agents);
-            params.set('prompt', pregunta);
-            params.set('submit', 'true');
-
-            // 3. Navegar canónicamente a /c/new para que useQueryParams tome el control
-            navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
-
-            // 4. Doble canal de garantía: emitir evento diferido tenshi-submit-agent-prompt
-            // para que ChatForm ejecute el auto-envío si useQueryParams tarda en resolver los parámetros
-            setTimeout(() => {
-              window.dispatchEvent(
-                new CustomEvent('tenshi-submit-agent-prompt', {
-                  detail: {
-                    agentId: targetAgentId,
-                    prompt: pregunta,
-                  },
-                })
+              // 3. Detección robusta de solicitud explícita de nuevo chat (por backend, turnos previos por voz o texto actual)
+              const requestedNewChat = Boolean(
+                action.args?.nuevo_chat ||
+                pendingForceNewChatRef.current ||
+                /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(rawPregunta) ||
+                /\b(nuevo\s+chat|nueva\s+conversaci[oó]n|otro\s+chat|desde\s+cero|otro\s+tema|distinto|cambia|cambiemos)\b/i.test(action.args?.pregunta || '')
               );
-            }, 350);
 
-            resultMsg = matchedAgent
-              ? `Chat nuevo abierto con ${matchedAgent.name} y consulta formulada con éxito en pantalla: "${pregunta}". [AVISO CRÍTICO PARA TENSHI]: El especialista apenas está analizando y empezando a redactar en la pantalla. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. Limítate a confirmar al usuario en una sola frase breve que ya le abriste el chat y le dejaste la pregunta en pantalla, y que espere a que el especialista termine de responder. NO inventes ni resumas la respuesta técnica.`
-              : `Nuevo chat abierto y consulta formulada. [AVISO]: Esperando respuesta en pantalla.`;
+              // Consumir la bandera de forzar nuevo chat
+              pendingForceNewChatRef.current = false;
+
+              // CASO A: CONTINUIDAD (Mismo especialista y NO se solicitó nuevo chat)
+              if (isSameAgentActive && !requestedNewChat) {
+                console.log(`[TenshiChat] Continuidad de chat detectada con ${agentName} (${targetAgentId}) en conversación ${conversation?.conversationId || 'actual'}`);
+                activeConsultationAgentIdRef.current = targetAgentId || currentAgentId || null;
+                activeConsultationAgentNameRef.current = agentName;
+                activeConsultationConvoIdRef.current = conversation?.conversationId || 'current';
+
+                // Disparar auto-envío en el chat actual SIN recargar ni crear nuevo chat
+                window.dispatchEvent(
+                  new CustomEvent('tenshi-submit-agent-prompt', {
+                    detail: {
+                      agentId: targetAgentId,
+                      prompt: pregunta,
+                    },
+                  })
+                );
+
+                resultMsg = `Consulta enviada en el chat actual con ${agentName}: "${pregunta}". [AVISO CRÍTICO PARA TENSHI]: El especialista ya está analizando y respondiendo en pantalla. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. Limítate a confirmar en una sola frase breve que ya le transmitiste la consulta y que espere un momento a que responda.`;
+              } else {
+                // CASO B: NUEVO CHAT (Especialista distinto O usuario solicitó nuevo chat)
+                console.log(`[TenshiChat] Abriendo nuevo chat para ${agentName} (targetId: ${targetAgentId}, isSameAgentActive: ${isSameAgentActive}, requestedNewChat: ${requestedNewChat})`);
+                activeConsultationAgentIdRef.current = targetAgentId || null;
+                activeConsultationAgentNameRef.current = agentName;
+                activeConsultationConvoIdRef.current = 'new';
+
+                // 1. Limpiar caché de mensajes de la conversación anterior para aislamiento absoluto
+                try {
+                  clearMessagesCache(queryClient, conversation?.conversationId);
+                  queryClient.invalidateQueries([QueryKeys.messages]);
+                } catch (cacheErr) {
+                  console.warn('[TenshiChat] Error limpiando cache de mensajes:', cacheErr);
+                }
+
+                // 2. Preparar parámetros canónicos de URL para que el chat siempre reciba el agente, prompt y submit
+                const params = new URLSearchParams();
+                if (targetAgentId) {
+                  params.set('agent_id', targetAgentId);
+                }
+                params.set('endpoint', EModelEndpoint.agents);
+                params.set('prompt', pregunta);
+                params.set('submit', 'true');
+
+                // 3. Navegar canónicamente a /c/new para que useQueryParams tome el control
+                navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
+
+                resultMsg = matchedAgent
+                  ? `Chat nuevo abierto con ${matchedAgent.name} y consulta formulada con éxito en pantalla: "${pregunta}". [AVISO CRÍTICO PARA TENSHI]: El especialista apenas está analizando y empezando a redactar en la pantalla. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. Limítate a confirmar al usuario en una sola frase breve que ya le abriste el chat y le dejaste la pregunta en pantalla, y que espere a que el especialista termine de responder. NO inventes ni resumas la respuesta técnica.`
+                  : `Nuevo chat abierto y consulta formulada. [AVISO]: Esperando respuesta en pantalla.`;
+              }
+            }
           } else if (action.name === 'canvas_tool' || action.name === 'canvas') {
             const fileType = action.args?.fileType || (action as any).fileType || 'html';
             const title = action.args?.title || (action as any).title || 'Documento SG-SST';

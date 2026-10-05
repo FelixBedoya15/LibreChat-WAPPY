@@ -313,90 +313,52 @@ export default function useQueryParams({
       textAreaRef.current.focus();
     }
 
-    const dispatchSend = () => {
-      let sent = false;
+    // Despacho canónico único
+    console.log('[useQueryParams] Ejecutando submitMessage único para:', textToSend);
+    try {
+      submitMessage({ text: textToSend });
+    } catch (err) {
+      console.warn('[useQueryParams] Error en submitMessage:', err);
+    }
 
-      // 1. Invocar React Hook Form handleSubmit directamente (no depende de eventos DOM)
-      try {
-        const textVal = methods.getValues('text') || textToSend;
-        console.log('[useQueryParams] Ejecutando methods.handleSubmit directo:', textVal);
-        methods.handleSubmit((data) => {
-          submitMessage({ text: data.text || textVal });
-          sent = true;
-        })();
-      } catch (err) {
-        console.warn('[useQueryParams] Error en methods.handleSubmit:', err);
-      }
+    // Limpieza inmediata del formulario y del textarea
+    methods.reset();
+    methods.setValue('text', '');
+    if (textAreaRef.current) {
+      textAreaRef.current.value = '';
+      textAreaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+      textAreaRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+    }
 
-      // 2. Disparar submitMessage directo del hook como garantía paralela
-      try {
-        console.log('[useQueryParams] Invocando submitMessage directo:', textToSend);
-        submitMessage({ text: textToSend });
-        sent = true;
-      } catch (err) {
-        console.warn('[useQueryParams] Error en submitMessage directo:', err);
-      }
-
-      // 3. Soporte DOM nativo: requestSubmit() o click físico en botón
-      try {
-        const form = (textAreaRef.current?.closest('form') || document.querySelector('form')) as HTMLFormElement | null;
-        const sendBtn = (document.getElementById('send-button') ||
-          document.querySelector('button[data-testid="send-button"]')) as HTMLButtonElement | null;
-        if (form && typeof form.requestSubmit === 'function') {
-          form.requestSubmit(sendBtn && !sendBtn.disabled ? sendBtn : undefined);
-          sent = true;
-        } else if (sendBtn && !sendBtn.disabled) {
-          sendBtn.click();
-          sent = true;
-        }
-      } catch (domErr) {
-        console.warn('[useQueryParams] Error en DOM requestSubmit/click:', domErr);
-      }
-
-      return sent;
-    };
-
-    // Disparo inmediato
-    dispatchSend();
-
-    // Watchdog activo (hasta 30 ticks de 100ms = 3.0s) que garantiza que el mensaje no se quede en el textarea
+    // Watchdog de limpieza: verifica que el textarea quede vacío y limpie la URL del historial
     let watchdogCount = 0;
-    const maxWatchdog = 30;
+    const maxWatchdog = 15;
     const watchdogInterval = setInterval(() => {
       watchdogCount++;
       const currentArea = textAreaRef.current || document.querySelector<HTMLTextAreaElement>('textarea');
       const val = currentArea?.value || '';
 
-      // Si el textarea ya se vació o cambió respecto al prompt inicial, significa que se envió con éxito
+      // Si el textarea ya se vació o cambió respecto al prompt inicial, confirmar y limpiar URL
       if (!val || val.trim() === '' || val !== textToSend) {
         clearInterval(watchdogInterval);
-        console.log('[useQueryParams] Auto-envío verificado y confirmado con éxito tras', watchdogCount, 'intentos.');
         window.history.replaceState({}, '', window.location.pathname);
         return;
       }
 
-      // Si se alcanzó el límite de intentos y aún sigue con texto, intentar un envío final de emergencia y liberar guard
-      if (watchdogCount >= maxWatchdog) {
-        clearInterval(watchdogInterval);
-        console.warn('[useQueryParams] Watchdog timeout: intentando submitMessage final de emergencia para:', textToSend);
-        try {
-          submitMessage({ text: textToSend });
-        } catch (finalErr) {
-          console.error('[useQueryParams] Error en submitMessage final:', finalErr);
-        }
-        window.history.replaceState({}, '', window.location.pathname);
-        releaseAutoSubmit(textToSend);
-        return;
-      }
-
-      // Si sigue con el texto, asegurar valor y volver a despachar por todos los canales
+      // Si todavía retiene el texto pegado en la caja, forzar su vaciado
       if (currentArea) {
-        currentArea.value = textToSend;
+        currentArea.value = '';
         currentArea.dispatchEvent(new Event('input', { bubbles: true }));
         currentArea.dispatchEvent(new Event('change', { bubbles: true }));
       }
-      methods.setValue('text', textToSend, { shouldValidate: true });
-      dispatchSend();
+      methods.reset();
+      methods.setValue('text', '');
+
+      if (watchdogCount >= maxWatchdog) {
+        clearInterval(watchdogInterval);
+        window.history.replaceState({}, '', window.location.pathname);
+        releaseAutoSubmit(textToSend);
+      }
     }, 100);
 
     console.log('[useQueryParams] Dispatch de mensaje iniciado con estado de conversación:', conversation);
