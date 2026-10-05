@@ -30,6 +30,7 @@ import {
     Layers,
     Coins,
     Upload,
+    Scale,
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { useAuthContext } from '~/hooks/AuthContext';
@@ -1083,6 +1084,20 @@ const EstadisticasATEL = () => {
                                 </button>
                             </div>
                             <span className="text-xs text-text-secondary">| Res. 0312 Art. 30 · NTC 3793 · Factor Financiero IBC</span>
+                            {/* Res. 0312 Art. 30: CUMPLE */}
+                            <div
+                                title="Res. 0312/2019 Art. 30 y Dec. 1072/15 Art. 2.2.4.6.21 — Indicadores Mínimos del SG-SST (Frecuencia, Severidad, Mortalidad y Ausentismo): CUMPLE"
+                                className="group flex h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] shrink-0 cursor-default items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                            >
+                                <div className="relative flex flex-shrink-0 items-center justify-center">
+                                    <Scale className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                                </div>
+                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                                    <span className="text-xs font-bold tracking-wide">
+                                        Res. 0312 Art. 30: CUMPLE
+                                    </span>
+                                </div>
+                            </div>
                             {activeCompanyInfo?.name && (
                                 <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-700 dark:text-teal-300 bg-teal-500/10 dark:bg-teal-500/20 px-2.5 py-0.5 rounded-full border border-teal-500/20 shadow-xs">
                                     <Building2 className="w-3 h-3 text-teal-500" />

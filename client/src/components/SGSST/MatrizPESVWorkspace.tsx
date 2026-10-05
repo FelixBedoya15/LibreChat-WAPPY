@@ -274,17 +274,17 @@ export default function MatrizPESVWorkspace() {
                   </div>
                 </div>
 
-                {/* Res. 40595 Paso 6: CUMPLE */}
+                {/* Res. 0312 Art. 32 / Paso 8: CUMPLE */}
                 <div
-                  title="Res. 20223040040595 (Paso 6 — Evaluación de Riesgos Viales): CUMPLE"
+                  title="Res. 0312/2019 Art. 32 y Res. 20223040040595 (Paso 8 — Evaluación y Control de Riesgos Viales): CUMPLE"
                   className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
                 >
                   <div className="relative flex flex-shrink-0 items-center justify-center">
                     <Scale className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 shrink-0" />
                   </div>
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[220px] group-hover:opacity-100 sm:flex">
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
                     <span className="text-sm font-bold tracking-wide">
-                      Res. 40595 Paso 6: CUMPLE
+                      Res. 0312 Art. 32 / Paso 8: CUMPLE
                     </span>
                   </div>
                 </div>

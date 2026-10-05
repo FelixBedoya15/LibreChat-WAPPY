@@ -292,6 +292,21 @@ const PlanEmergenciasWorkspace: React.FC = () => {
                     <span className="text-sm font-bold tracking-wide">Hito 6: Simulacros Anuales</span>
                   </div>
                 </div>
+
+                {/* Res. 0312 Est. 5.1.1: CUMPLE */}
+                <div
+                  title="Res. 0312/2019 Estándar 5.1.1 — Plan de Prevención, Preparación y Respuesta ante Emergencias (PPRE): CUMPLE"
+                  className="group flex h-8 min-w-[32px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 sm:px-2.5 shadow-sm outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                >
+                  <div className="relative flex flex-shrink-0 items-center justify-center">
+                    <Scale className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 shrink-0" />
+                  </div>
+                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                    <span className="text-sm font-bold tracking-wide">
+                      Res. 0312 Est. 5.1.1: CUMPLE
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
