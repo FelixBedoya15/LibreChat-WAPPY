@@ -35,18 +35,13 @@ const initializeClient = async ({ req, res, endpointOption, overrideModel, optio
 
   let resolvedApiKey = agentApiKey || (envKey && envKey !== 'user_provided' ? envKey : null);
 
-  // 3. Fallback: Search Key collection in database for admin/platform keys (tenshi_google, google)
+  // 3. Fallback: Search platform Super Admin's key if user has no key and no env key
   if (!userKey && !resolvedApiKey) {
     try {
-      const { Key } = require('~/db/models');
-      if (Key) {
-        const adminKeyDoc = await Key.findOne({ name: { $in: ['tenshi_google', 'google'] } }).lean();
-        if (adminKeyDoc) {
-          const stored = await getUserKey({ userId: String(adminKeyDoc.userId), name: adminKeyDoc.name });
-          if (stored) {
-            resolvedApiKey = stored.includes(',') ? stored.split(',')[0].trim() : stored.trim();
-          }
-        }
+      const { getSystemGoogleKey } = require('~/server/controllers/AdminMarketingController');
+      const sysKey = await getSystemGoogleKey();
+      if (sysKey) {
+        resolvedApiKey = sysKey;
       }
     } catch (_e) {
       // ignore

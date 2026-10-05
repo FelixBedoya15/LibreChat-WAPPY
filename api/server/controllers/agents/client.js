@@ -1531,56 +1531,56 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       }
       initialKeys = initialKeys.filter(Boolean);
 
-      // CRITICAL FALLBACK: Merge environment keys (GOOGLE_KEY, GEMINI_API_KEY, GOOGLE_API_KEY) so that
-      // when a single user/agent key hits daily quota (429 limit: 20), rotation can try other available keys!
-      const envKeys = [process.env.GOOGLE_KEY, process.env.GEMINI_API_KEY, process.env.GOOGLE_API_KEY]
-        .filter(Boolean)
-        .flatMap((k) => k.split(','))
-        .map((k) => k.trim())
-        .filter((k) => k.length > 0 && k !== 'user_provided');
-
-      let keys = [...initialKeys];
-      for (const ek of envKeys) {
-        if (!keys.includes(ek)) {
-          keys.push(ek);
-        }
+      // Prioritize active user's key (and parentUser if sub-user)
+      const userKeys = [...initialKeys];
+      const activeUserId = this.options.req?.user?.id;
+      if (activeUserId) {
+        try {
+          const userKey = await getUserKey({ userId: activeUserId, name: EModelEndpoint.google });
+          if (userKey && userKey !== 'user_provided') {
+            const parsedKeys = userKey.includes(',') ? userKey.split(',').map((k) => k.trim()).filter(Boolean) : [userKey.trim()];
+            for (const uk of parsedKeys) {
+              if (uk && !userKeys.includes(uk)) userKeys.push(uk);
+            }
+          }
+          // If sub-user with no personal keys, inherit from parentUser (empresa matriz)
+          if (this.options.req?.user?.isSubUser && this.options.req?.user?.parentUser && userKeys.length === 0) {
+            const parentKey = await getUserKey({ userId: String(this.options.req.user.parentUser), name: EModelEndpoint.google });
+            if (parentKey && parentKey !== 'user_provided') {
+              const parsedKeys = parentKey.includes(',') ? parentKey.split(',').map((k) => k.trim()).filter(Boolean) : [parentKey.trim()];
+              for (const pk of parsedKeys) {
+                if (pk && !userKeys.includes(pk)) userKeys.push(pk);
+              }
+            }
+          }
+        } catch (_e) {}
       }
 
-      // If no valid AIza keys found yet, fall back to active user's key and database Key collection (tenshi_google, google)
-      if (!keys.some((k) => k && k.startsWith('AIza'))) {
-        if (this.options.req?.user?.id) {
-          try {
-            const userKey = await getUserKey({ userId: this.options.req.user.id, name: EModelEndpoint.google });
-            if (userKey && userKey !== 'user_provided') {
-              const parsedKeys = userKey.includes(',') ? userKey.split(',').map((k) => k.trim()).filter(Boolean) : [userKey.trim()];
-              for (const uk of parsedKeys) {
-                if (uk && !keys.includes(uk)) keys.push(uk);
-              }
-            }
-          } catch (_e) {}
+      let keys = [...userKeys];
+
+      // If and ONLY IF user has no personal/company key, fall back to system environment keys or platform Super Admin key
+      if (keys.length === 0) {
+        const envKeys = [process.env.GOOGLE_KEY, process.env.GEMINI_API_KEY, process.env.GOOGLE_API_KEY]
+          .filter(Boolean)
+          .flatMap((k) => k.split(','))
+          .map((k) => k.trim())
+          .filter((k) => k.length > 0 && k !== 'user_provided');
+
+        for (const ek of envKeys) {
+          if (!keys.includes(ek)) {
+            keys.push(ek);
+          }
         }
 
-        if (!keys.some((k) => k && k.startsWith('AIza'))) {
+        if (keys.length === 0) {
           try {
-            const { Key } = require('~/db/models');
-            if (Key) {
-              const dbKeyDocs = await Key.find({ name: { $in: ['tenshi_google', 'google'] } }).lean();
-              for (const doc of dbKeyDocs) {
-                try {
-                  const stored = await getUserKey({ userId: String(doc.userId), name: doc.name });
-                  if (stored) {
-                    const parsed = stored.includes(',') ? stored.split(',').map((k) => k.trim()).filter(Boolean) : [stored.trim()];
-                    for (const pk of parsed) {
-                      if (pk && pk.startsWith('AIza') && !keys.includes(pk)) {
-                        keys.push(pk);
-                      }
-                    }
-                  }
-                } catch (_e) {}
-              }
+            const { getSystemGoogleKey } = require('~/server/controllers/AdminMarketingController');
+            const sysKey = await getSystemGoogleKey();
+            if (sysKey && !keys.includes(sysKey)) {
+              keys.push(sysKey);
             }
           } catch (_err) {
-            logger.debug('[AgentClient] Fallback Key lookup error:', _err?.message);
+            logger.debug('[AgentClient] Fallback system key error:', _err?.message);
           }
         }
       }

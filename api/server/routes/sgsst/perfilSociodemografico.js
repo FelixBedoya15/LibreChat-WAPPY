@@ -2148,8 +2148,12 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
         const savedDoc = await PerfilSociodemograficoData.findOne({ user: targetUserId, companyId }).lean();
         const savedWorkers = savedDoc?.trabajadores || [];
 
-        const evalPromises = updatedWithBio.map(async (w) => {
-          if (!w.id) return w;
+        const evaluatedWorkers = [];
+        for (const w of updatedWithBio) {
+          if (!w.id) {
+            evaluatedWorkers.push(w);
+            continue;
+          }
           const currentHash = buildClinicalHash(w);
           const savedWorker = savedWorkers.find(sw => sw.id === w.id);
           const savedHash = savedWorker?.bioScoreIAVersion || '';
@@ -2166,13 +2170,13 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
                 bioScoreIADate: new Date()
               };
               logger.info(`[OraculoH1] IA tags generados para ${w.nombre}: [${(result.tags || []).join(', ')}]`);
-              return updated;
+              evaluatedWorkers.push(updated);
+              continue;
             }
           }
-          return { ...w, ...(savedWorker ? { bioTagsIA: savedWorker.bioTagsIA, bioScoreIAReason: savedWorker.bioScoreIAReason, bioScoreIAAptitud: savedWorker.bioScoreIAAptitud, bioScoreIAVersion: savedWorker.bioScoreIAVersion, bioScoreIADate: savedWorker.bioScoreIADate } : {}) };
-        });
-
-        updatedWorkers = await Promise.all(evalPromises);
+          evaluatedWorkers.push({ ...w, ...(savedWorker ? { bioTagsIA: savedWorker.bioTagsIA, bioScoreIAReason: savedWorker.bioScoreIAReason, bioScoreIAAptitud: savedWorker.bioScoreIAAptitud, bioScoreIAVersion: savedWorker.bioScoreIAVersion, bioScoreIADate: savedWorker.bioScoreIADate } : {}) });
+        }
+        updatedWorkers = evaluatedWorkers;
 
         // Recalculate bio score again to reflect any newly generated IA tags
         updatedWorkers = await recalculateAndSyncAllWorkers(targetUserId, companyId, updatedWorkers);

@@ -22,7 +22,7 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys, EModelEndpoint } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
-const { User, Key } = require('~/db/models');
+const { User } = require('~/db/models');
 const { logger } = require('~/config');
 const geminiPoolManager = require('~/server/services/GeminiPoolManager');
 
@@ -92,6 +92,7 @@ async function resolveApiKeys(userId) {
   let isSubUser = false;
   let hasAiPermission = true;
   let subUserSuspended = false;
+  let parentUserId = null;
 
   const userKeys = [];
 
@@ -99,10 +100,11 @@ async function resolveApiKeys(userId) {
     try {
       if (User) {
         const userDoc = await User.findById(cleanUserId)
-          .select('isSubUser subUserStatus subUserPermissions permissions')
+          .select('isSubUser parentUser subUserStatus subUserPermissions permissions')
           .lean();
         if (userDoc && userDoc.isSubUser) {
           isSubUser = true;
+          parentUserId = userDoc.parentUser ? String(userDoc.parentUser) : null;
           if (userDoc.subUserStatus === 'suspended') {
             subUserSuspended = true;
           }
@@ -123,6 +125,7 @@ async function resolveApiKeys(userId) {
       throw new Error('Tu cuenta de sub-usuario se encuentra suspendida por el administrador principal.');
     }
 
+    // 1.1 Claves personales del usuario
     for (const keyName of [EModelEndpoint?.google || 'google', 'tenshi_google']) {
       try {
         const stored = await getUserKey({ userId: cleanUserId, name: keyName });
@@ -131,6 +134,20 @@ async function resolveApiKeys(userId) {
         }
       } catch (e) {
         logger.debug(`[SGSST Gemini] No user key (${keyName}) in DB for ${cleanUserId}: ${e.message}`);
+      }
+    }
+
+    // 1.2 Si es sub-usuario con permisos de IA y no tiene clave propia, heredar la clave de su empresa matriz (parentUser)
+    if (isSubUser && hasAiPermission && userKeys.length === 0 && parentUserId) {
+      for (const keyName of [EModelEndpoint?.google || 'google', 'tenshi_google']) {
+        try {
+          const stored = await getUserKey({ userId: parentUserId, name: keyName });
+          for (const k of extractKeysFromStoredString(stored)) {
+            if (!userKeys.includes(k)) userKeys.push(k);
+          }
+        } catch (e) {
+          logger.debug(`[SGSST Gemini] No parent user key (${keyName}) in DB for ${parentUserId}: ${e.message}`);
+        }
       }
     }
   }
@@ -149,7 +166,16 @@ async function resolveApiKeys(userId) {
     return userKeys;
   }
 
-  // 3. Combinar con variables de entorno (GOOGLE_KEY, GEMINI_API_KEY) como respaldo
+  // 2. Si el usuario o su empresa tienen claves propias registradas, usar EXCLUSIVAMENTE esas claves
+  if (userKeys.length > 0) {
+    logger.debug(`[SGSST Gemini] Utilizando ${userKeys.length} clave(s) API propias del usuario ${cleanUserId}.`);
+    return userKeys;
+  }
+
+  // 3. Fallback del sistema: SOLO si el usuario NO tiene ninguna clave configurada en su perfil,
+  // recurrir a las claves globales del sistema (.env o Super Admin de la plataforma).
+  // ¡PROHIBICIÓN ESTRICTA: NUNCA consultar ni mezclar claves de otros usuarios de la base de datos!
+  const keys = [];
   const envKeysRaw = [process.env.GOOGLE_KEY, process.env.GEMINI_API_KEY].filter(Boolean).join(',');
 
   const envKeys = envKeysRaw
@@ -157,37 +183,14 @@ async function resolveApiKeys(userId) {
     .map((k) => k.trim())
     .filter((k) => k.length > 0 && k !== 'user_provided');
 
-  const keys = [...userKeys];
   for (const ek of envKeys) {
     if (!keys.includes(ek)) {
       keys.push(ek);
     }
   }
 
-  // 4. Si no hay claves AIza aún (ej. entorno local con GOOGLE_KEY=user_provided o cuenta admin secundaria),
-  // buscar claves corporativas guardadas en la colección Key (tenshi_google / google)
-  if (!keys.some((k) => k.startsWith('AIza')) && Key) {
-    try {
-      const dbKeyDocs = await Key.find({ name: { $in: ['tenshi_google', 'google'] } })
-        .select('userId name')
-        .lean();
-      for (const doc of dbKeyDocs) {
-        try {
-          const stored = await getUserKey({ userId: String(doc.userId), name: doc.name });
-          for (const k of extractKeysFromStoredString(stored)) {
-            if (!keys.includes(k)) keys.push(k);
-          }
-        } catch {
-          /* ignore */
-        }
-      }
-    } catch (fallbackErr) {
-      logger.debug(`[SGSST Gemini] Fallback Key lookup error: ${fallbackErr.message}`);
-    }
-  }
-
-  // 5. Fallback a la clave del sistema (Admin Google Key)
-  if (!keys.some((k) => k.startsWith('AIza'))) {
+  // 4. Fallback a la clave oficial del Super Admin de la plataforma si no hay envKeys
+  if (keys.length === 0) {
     try {
       const { getSystemGoogleKey } = require('~/server/controllers/AdminMarketingController');
       const sysKey = await getSystemGoogleKey();
@@ -199,7 +202,7 @@ async function resolveApiKeys(userId) {
     }
   }
 
-  // Priorizar siempre claves estándar de Gemini API ('AIza...') al inicio de la lista
+  // Priorizar siempre claves estándar de Gemini API ('AIza...') al inicio si hay varias
   keys.sort((a, b) => {
     const aIsAIza = a.startsWith('AIza') ? 0 : 1;
     const bIsAIza = b.startsWith('AIza') ? 0 : 1;
@@ -208,12 +211,12 @@ async function resolveApiKeys(userId) {
 
   if (keys.length === 0) {
     throw new Error(
-      'No hay claves API de Google configuradas. ' +
-        'Configura tu clave en "Establecer clave API para Google" en el panel del chat.'
+      'No hay claves API de Google configuradas para tu cuenta. ' +
+        'Por favor, registra tu clave API en "Establecer clave API para Google" en el panel de configuración.'
     );
   }
 
-  logger.debug(`[SGSST Gemini] ${keys.length} clave(s) API para usuario ${cleanUserId}.`);
+  logger.debug(`[SGSST Gemini] ${keys.length} clave(s) API de respaldo del sistema para usuario ${cleanUserId}.`);
   return keys;
 }
 
