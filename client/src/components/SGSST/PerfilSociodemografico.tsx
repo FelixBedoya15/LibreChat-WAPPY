@@ -383,7 +383,7 @@ const PerfilSociodemografico = () => {
         setExpandedWorkers(prev => new Set(prev).add(newWorker.id));
     };
 
-    const handleToggleEstadoLaboral = (workerId: string) => {
+    const handleToggleEstadoLaboral = async (workerId: string) => {
         const worker = trabajadores.find(w => w.id === workerId);
         if (!worker) return;
 
@@ -391,40 +391,99 @@ const PerfilSociodemografico = () => {
         const nuevoEstado = isRetirado ? 'Activo' : 'Retirado';
         const today = new Date().toISOString().split('T')[0];
 
+        let motivo = worker.motivoRetiro || 'Terminación de contrato';
+        let fecha = worker.fechaRetiro || today;
+
+        if (!isRetirado) {
+            const inputMotivo = window.prompt(
+                `¿Deseas marcar como RETIRADO a "${worker.nombre || 'este colaborador'}"?\n\nIndica el motivo de retiro (ej: Terminación de contrato, Renuncia voluntaria, Mutuo acuerdo, Pensión):`,
+                worker.motivoRetiro || 'Terminación de contrato'
+            );
+            if (inputMotivo === null) return; // Usuario canceló
+            motivo = inputMotivo.trim() || 'Terminación de contrato';
+            fecha = today;
+        }
+
         const updated = trabajadores.map(w => {
             if (w.id !== workerId) return w;
             return {
                 ...w,
                 estadoLaboral: nuevoEstado,
-                fechaRetiro: nuevoEstado === 'Retirado' ? (w.fechaRetiro || today) : '',
-                motivoRetiro: nuevoEstado === 'Activo' ? '' : (w.motivoRetiro || 'Retiro de la empresa')
+                fechaRetiro: nuevoEstado === 'Retirado' ? fecha : '',
+                motivoRetiro: nuevoEstado === 'Activo' ? '' : motivo
             };
         });
 
         setTrabajadores(updated);
 
+        // Auto-sincronización con la base de datos
+        if (token) {
+            try {
+                const trabajadoresConBio = updated.map(w => {
+                    const bio = calculateBiocentricFit(w);
+                    return {
+                        ...w,
+                        biocentricScore: bio.score,
+                        biocentricAlerts: bio.alerts,
+                        biocentricIsLethal: bio.isLethal
+                    };
+                });
+                await fetch('/api/sgsst/perfil-sociodemografico/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+                });
+            } catch (err) {
+                console.error('Error auto-guardando cambio de estado laboral:', err);
+            }
+        }
+
         if (nuevoEstado === 'Retirado') {
             showToast({
-                message: `${worker.nombre || 'Trabajador'} marcado como Retirado. Se conserva su trazabilidad SG-SST.`,
+                message: `${worker.nombre || 'Colaborador'} marcado como Retirado (${motivo}). Se conserva su trazabilidad en 'Retirados'.`,
                 status: 'info',
                 severity: 'info'
             });
         } else {
             showToast({
-                message: `${worker.nombre || 'Trabajador'} reactivado como Activo exitosamente.`,
+                message: `${worker.nombre || 'Colaborador'} reactivado como Activo exitosamente.`,
                 status: 'success',
                 severity: 'success'
             });
         }
     };
 
-    const handleDeleteWorker = (workerId: string) => {
+    const handleDeleteWorker = async (workerId: string) => {
         const worker = trabajadores.find(w => w.id === workerId);
         if (!worker) return;
-        const confirmMsg = `¿Deseas ELIMINAR permanentemente a "${worker.nombre || 'este trabajador'}"?\n\nTip SG-SST: Si el trabajador se retiró de la empresa, te recomendamos usar el botón 'Retirar' para conservar su historial médico, sociodemográfico y trazabilidad legal.`;
+        const confirmMsg = `¿Deseas ELIMINAR permanentemente a "${worker.nombre || 'este trabajador'}" de la base de datos?\n\nADVERTENCIA: Esta acción es irreversible.\n\nTip SG-SST: Si el trabajador se retiró de la empresa, te recomendamos usar el botón 'Retirar' para conservar su historial médico, sociodemográfico y trazabilidad legal sin borrarlo.`;
         if (window.confirm(confirmMsg)) {
-            setTrabajadores(prev => prev.filter(w => w.id !== workerId));
-            showToast({ message: 'Trabajador eliminado permanentemente', status: 'info', severity: 'info' });
+            const updated = trabajadores.filter(w => w.id !== workerId);
+            setTrabajadores(updated);
+
+            // Auto-guardado en base de datos
+            if (token) {
+                try {
+                    const trabajadoresConBio = updated.map(w => {
+                        const bio = calculateBiocentricFit(w);
+                        return {
+                            ...w,
+                            biocentricScore: bio.score,
+                            biocentricAlerts: bio.alerts,
+                            biocentricIsLethal: bio.isLethal
+                        };
+                    });
+                    await fetch('/api/sgsst/perfil-sociodemografico/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+                    });
+                } catch (err) {
+                    console.error('Error auto-guardando eliminación:', err);
+                }
+            }
+
+            showToast({ message: 'Trabajador eliminado permanentemente de la base de datos', status: 'info', severity: 'info' });
         }
     };
 

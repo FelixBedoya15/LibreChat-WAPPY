@@ -483,12 +483,49 @@ server.tool(
 server.tool(
   'wappy_eliminar_trabajador',
   {
-    idOrCedula: z.string().describe('Cédula, ID de MongoDB o nombre del trabajador a eliminar permanentemente'),
+    idOrCedula: z.string().describe('Cédula, ID de MongoDB o nombre del trabajador a eliminar permanentemente de la base de datos (destructivo). NOTA: Si el trabajador solo salió de la empresa, usa wappy_retirar_trabajador para conservar su historial y trazabilidad.'),
   },
   async (args) => {
     try {
       const data = await wappyRequest(`/workers/${encodeURIComponent(args.idOrCedula)}`, {
         method: 'DELETE',
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_retirar_trabajador',
+  {
+    idOrCedula: z.string().describe('Cédula, ID de MongoDB o nombre del trabajador que se retira de la empresa'),
+    fechaRetiro: z.string().optional().describe('Fecha efectiva del retiro en formato YYYY-MM-DD (por defecto la fecha actual de hoy)'),
+    motivoRetiro: z.string().optional().describe('Motivo del retiro (ej: Terminación de contrato, Renuncia voluntaria, Mutuo acuerdo, Pensión, etc.)'),
+  },
+  async (args) => {
+    try {
+      const data = await wappyRequest(`/workers/${encodeURIComponent(args.idOrCedula)}/retirar`, {
+        method: 'POST',
+        body: JSON.stringify(args),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_reactivar_trabajador',
+  {
+    idOrCedula: z.string().describe('Cédula, ID de MongoDB o nombre del trabajador retirado a reactivar como Activo'),
+  },
+  async (args) => {
+    try {
+      const data = await wappyRequest(`/workers/${encodeURIComponent(args.idOrCedula)}/reactivar`, {
+        method: 'POST',
       });
       return formatMcpResponse(data);
     } catch (err) {

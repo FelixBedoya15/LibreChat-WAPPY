@@ -1331,6 +1331,171 @@ router.delete('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+router.post('/workers/:idOrCedula/retirar', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const target = (req.params.idOrCedula || '').trim();
+    const { fechaRetiro, motivoRetiro } = req.body || {};
+
+    if (!target) {
+      return res.status(400).json({ error: 'Debes proporcionar la cédula, ID o nombre del trabajador a retirar.' });
+    }
+
+    const PerfilSociodemograficoData =
+      mongoose.models.PerfilSociodemograficoData ||
+      require('~/models/PerfilSociodemograficoData');
+
+    const socioDocs = await PerfilSociodemograficoData.find({ user: userId });
+    let updated = false;
+    let workerData = null;
+    const today = new Date().toISOString().split('T')[0];
+    const fecha = (fechaRetiro || today).trim();
+    const motivo = (motivoRetiro || 'Terminación de contrato').trim();
+
+    for (const doc of socioDocs) {
+      if (Array.isArray(doc.trabajadores)) {
+        for (const w of doc.trabajadores) {
+          const match =
+            String(w.id || '').trim() === target ||
+            String(w.identificacion || '').trim() === target ||
+            String(w.documento || '').trim() === target ||
+            String(w.cedula || '').trim() === target ||
+            (w.nombre && w.nombre.toLowerCase().includes(target.toLowerCase()));
+          if (match) {
+            w.estadoLaboral = 'Retirado';
+            w.fechaRetiro = fecha;
+            w.motivoRetiro = motivo;
+            updated = true;
+            workerData = w;
+          }
+        }
+        if (updated) {
+          doc.markModified('trabajadores');
+          await doc.save();
+        }
+      }
+    }
+
+    // Sincronizar en SgsstWorker si existe
+    await SgsstWorker.updateMany(
+      {
+        user: userId,
+        $or: [
+          { perfilId: target },
+          { documento: target },
+          { nombre: { $regex: new RegExp(target, 'i') } },
+        ],
+      },
+      {
+        $set: {
+          estadoLaboral: 'Retirado',
+          fechaRetiro: fecha,
+          motivoRetiro: motivo,
+        },
+      }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ error: `Trabajador "${target}" no encontrado para retirar.` });
+    }
+
+    return res.json({
+      exito: true,
+      mensaje: `Trabajador "${workerData?.nombre || target}" marcado como Retirado exitosamente. Se conserva su historial y pasa a la pestaña 'Retirados'.`,
+      trabajador: {
+        id: workerData?.id,
+        nombre: workerData?.nombre,
+        cedula: workerData?.identificacion || workerData?.documento || target,
+        estadoLaboral: 'Retirado',
+        fechaRetiro: fecha,
+        motivoRetiro: motivo,
+      },
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /workers/:idOrCedula/retirar error:', error);
+    return res.status(500).json({ error: 'Error al retirar trabajador.' });
+  }
+});
+
+router.post('/workers/:idOrCedula/reactivar', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const target = (req.params.idOrCedula || '').trim();
+
+    if (!target) {
+      return res.status(400).json({ error: 'Debes proporcionar la cédula, ID o nombre del trabajador a reactivar.' });
+    }
+
+    const PerfilSociodemograficoData =
+      mongoose.models.PerfilSociodemograficoData ||
+      require('~/models/PerfilSociodemograficoData');
+
+    const socioDocs = await PerfilSociodemograficoData.find({ user: userId });
+    let updated = false;
+    let workerData = null;
+
+    for (const doc of socioDocs) {
+      if (Array.isArray(doc.trabajadores)) {
+        for (const w of doc.trabajadores) {
+          const match =
+            String(w.id || '').trim() === target ||
+            String(w.identificacion || '').trim() === target ||
+            String(w.documento || '').trim() === target ||
+            String(w.cedula || '').trim() === target ||
+            (w.nombre && w.nombre.toLowerCase().includes(target.toLowerCase()));
+          if (match) {
+            w.estadoLaboral = 'Activo';
+            w.fechaRetiro = '';
+            w.motivoRetiro = '';
+            updated = true;
+            workerData = w;
+          }
+        }
+        if (updated) {
+          doc.markModified('trabajadores');
+          await doc.save();
+        }
+      }
+    }
+
+    await SgsstWorker.updateMany(
+      {
+        user: userId,
+        $or: [
+          { perfilId: target },
+          { documento: target },
+          { nombre: { $regex: new RegExp(target, 'i') } },
+        ],
+      },
+      {
+        $set: {
+          estadoLaboral: 'Activo',
+          fechaRetiro: '',
+          motivoRetiro: '',
+        },
+      }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ error: `Trabajador "${target}" no encontrado para reactivar.` });
+    }
+
+    return res.json({
+      exito: true,
+      mensaje: `Trabajador "${workerData?.nombre || target}" reactivado exitosamente como Activo en la empresa.`,
+      trabajador: {
+        id: workerData?.id,
+        nombre: workerData?.nombre,
+        cedula: workerData?.identificacion || workerData?.documento || target,
+        estadoLaboral: 'Activo',
+      },
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /workers/:idOrCedula/reactivar error:', error);
+    return res.status(500).json({ error: 'Error al reactivar trabajador.' });
+  }
+});
+
 // ─── 6. CRONOGRAMA SST Y TAREAS KANBAN ──────────────────────────────────────
 
 router.get('/tasks', requireApiKeyOrJwt, async (req, res) => {
