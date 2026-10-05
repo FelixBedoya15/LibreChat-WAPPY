@@ -1259,6 +1259,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             // 3. Navegar canónicamente a /c/new para que useQueryParams tome el control
             navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
 
+            // 4. Doble canal de garantía: emitir evento diferido tenshi-submit-agent-prompt
+            // para que ChatForm ejecute el auto-envío si useQueryParams tarda en resolver los parámetros
+            setTimeout(() => {
+              window.dispatchEvent(
+                new CustomEvent('tenshi-submit-agent-prompt', {
+                  detail: {
+                    agentId: targetAgentId,
+                    prompt: pregunta,
+                  },
+                })
+              );
+            }, 350);
+
             resultMsg = matchedAgent
               ? `Chat nuevo abierto con ${matchedAgent.name} y consulta formulada con éxito en pantalla: "${pregunta}". [AVISO CRÍTICO PARA TENSHI]: El especialista apenas está analizando y empezando a redactar en la pantalla. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. Limítate a confirmar al usuario en una sola frase breve que ya le abriste el chat y le dejaste la pregunta en pantalla, y que espere a que el especialista termine de responder. NO inventes ni resumas la respuesta técnica.`
               : `Nuevo chat abierto y consulta formulada. [AVISO]: Esperando respuesta en pantalla.`;

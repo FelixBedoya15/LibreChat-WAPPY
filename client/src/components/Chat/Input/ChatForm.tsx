@@ -98,8 +98,8 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
   const showStopAdded = useRecoilValue(store.showStopButtonByIndex(addedIndex));
 
   const endpoint = useMemo(
-    () => conversation?.endpointType ?? conversation?.endpoint,
-    [conversation?.endpointType, conversation?.endpoint],
+    () => conversation?.endpointType ?? conversation?.endpoint ?? (conversation?.agent_id ? EModelEndpoint.agents : undefined),
+    [conversation?.endpointType, conversation?.endpoint, conversation?.agent_id],
   );
   const { conversationId: urlConversationId } = useParams();
   const conversationId = useMemo(
@@ -611,15 +611,13 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
               <div className={`${isRTL ? 'ml-2' : 'mr-2'}`}>
                 {(isSubmitting || isSubmittingAdded) && (showStopButton || showStopAdded) ? (
                   <StopButton stop={handleStopGenerating} setShowStopButton={setShowStopButton} />
-                ) : (
-                  endpoint && (
-                    <SendButton
-                      ref={submitButtonRef}
-                      control={methods.control}
-                      disabled={filesLoading || isSubmitting || disableInputs || isNotAppendable}
-                    />
-                  )
-                )}
+                ) : (endpoint || conversation?.agent_id) ? (
+                  <SendButton
+                    ref={submitButtonRef}
+                    control={methods.control}
+                    disabled={filesLoading || isSubmitting || disableInputs || isNotAppendable}
+                  />
+                ) : null}
               </div>
             </div>
             {TextToSpeech && automaticPlayback && <StreamAudio index={index} />}

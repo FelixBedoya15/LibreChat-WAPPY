@@ -263,6 +263,13 @@ export default function useQueryParams({
         continue;
       }
 
+      if (key === 'endpoint') {
+        const currentEndpoint = conversation.endpoint ?? conversation.endpointType;
+        if (currentEndpoint === value || (value === EModelEndpoint.agents && conversation.agent_id)) {
+          continue;
+        }
+      }
+
       if (conversation[key] !== value) {
         return false;
       }

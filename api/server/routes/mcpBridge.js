@@ -640,33 +640,120 @@ router.post('/pesv', requireApiKeyOrJwt, async (req, res) => {
 router.get('/workers', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
+    const { cedula, nombre, cargo } = req.query;
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
     const PerfilSociodemograficoData =
       mongoose.models.PerfilSociodemograficoData ||
       require('~/models/PerfilSociodemograficoData');
-    const socioDoc = await PerfilSociodemograficoData.findOne({
-      $or: [{ user: userId }, { companyId }],
+    
+    // Buscar en todos los documentos de la empresa o usuario
+    const socioDocs = await PerfilSociodemograficoData.find({
+      $or: [{ user: userId, companyId }, { user: userId }],
     }).lean();
 
-    const trabajadores = Array.isArray(socioDoc?.trabajadores)
-      ? socioDoc.trabajadores
-      : Array.isArray(socioDoc?.perfiles)
-      ? socioDoc.perfiles
-      : [];
+    let allTrabajadores = [];
+    for (const doc of socioDocs) {
+      if (Array.isArray(doc.trabajadores)) {
+        allTrabajadores = allTrabajadores.concat(doc.trabajadores);
+      }
+    }
+
+    // Deduplicar por identificación o id
+    const seenMap = new Map();
+    let deduplicated = [];
+    for (const t of allTrabajadores) {
+      const key = String(t.identificacion || t.documento || t.id || '').trim();
+      if (key && !seenMap.has(key)) {
+        seenMap.set(key, true);
+        deduplicated.push(t);
+      } else if (!key) {
+        deduplicated.push(t);
+      }
+    }
+
+    if (cedula) {
+      const cleanCedula = String(cedula).trim();
+      deduplicated = deduplicated.filter(
+        (t) => String(t.identificacion || t.documento || '').trim() === cleanCedula
+      );
+    }
+    if (nombre) {
+      const q = String(nombre).toLowerCase().trim();
+      deduplicated = deduplicated.filter((t) => (t.nombre || '').toLowerCase().includes(q));
+    }
+    if (cargo) {
+      const q = String(cargo).toLowerCase().trim();
+      deduplicated = deduplicated.filter((t) => (t.cargo || '').toLowerCase().includes(q));
+    }
 
     return res.json({
-      total: trabajadores.length,
-      trabajadores: trabajadores.map((t) => ({
+      total: deduplicated.length,
+      trabajadores: deduplicated.map((t) => ({
         id: t.id || t._id?.toString(),
         nombre_completo: t.nombre || 'Colaborador',
         cedula: t.identificacion || t.documento || 'N/A',
         cargo: t.cargo || 'Operativo',
-        area: t.areaTrabajo || '',
-        biocentricScore: t.biocentricScore || 90,
+        area: t.areaTrabajo || t.area || 'Operaciones',
+        sede: t.sede || 'Principal',
         tipoContrato: t.tipoContrato || 'Indefinido',
-        estado: 'Activo',
+        salario: t.salario || '',
+        eps: t.eps || '',
+        afp: t.afp || '',
+        estadoPila: t.estadoPila || 'Pendiente de soporte PILA',
+        estadoLaboral: t.estadoLaboral || 'Activo',
+        fechaRetiro: t.fechaRetiro || '',
+        motivoRetiro: t.motivoRetiro || '',
+        telefono: t.telefono || '',
+        correoElectronico: t.correoElectronico || '',
+        direccion: t.direccion || '',
+        municipioDomicilio: t.municipioDomicilio || '',
+        barrio: t.barrio || '',
+        fechaNacimiento: t.fechaNacimiento || '',
+        edad: t.edad || '',
+        genero: t.genero || 'No especificado',
+        estadoCivil: t.estadoCivil || '',
+        nivelEscolaridad: t.nivelEscolaridad || '',
+        emergenciaContacto: t.emergenciaContacto || '',
+        tipoSangre: t.tipoSangre || '',
+        rh: t.rh || '',
+        enfermedades: t.enfermedades || '',
+        medicamentos: t.medicamentos || '',
+        diagnosticoMedico: t.diagnosticoMedico || '',
+        recomendacionesMedicas: t.recomendacionesMedicas || '',
+        fechaExamenMedico: t.fechaExamenMedico || '',
+        fechaSeguimiento: t.fechaSeguimiento || '',
+        peso: t.peso || '',
+        talla: t.talla || '',
+        imc: t.imc || '',
+        presionArterial: t.presionArterial || '',
+        frecuenciaCardiaca: t.frecuenciaCardiaca || '',
+        limitacionesBiomecanicas: t.limitacionesBiomecanicas || '',
+        alergiasQuimicas: t.alergiasQuimicas || '',
+        fuma: t.fuma || '',
+        alcohol: t.alcohol || '',
+        deporte: t.deporte || '',
+        alimentacion: t.alimentacion || '',
+        riesgoCardiovascular: t.riesgoCardiovascular || '',
+        terapiaPsicologica: t.terapiaPsicologica || '',
+        personasCargo: t.personasCargo || '',
+        estrato: t.estrato || '',
+        vivienda: t.vivienda || '',
+        soatVencimiento: t.soatVencimiento || '',
+        tecnicomecanicaVencimiento: t.tecnicomecanicaVencimiento || '',
+        licenciaConduccion: t.licenciaConduccion || '',
+        licenciaSST: t.licenciaSST || '',
+        curso50h: t.curso50h || '',
+        curso20h: t.curso20h || '',
+        esCopasst: t.esCopasst || 'No',
+        esComiteConvivencia: t.esComiteConvivencia || 'No',
+        esBrigadista: t.esBrigadista || 'No',
+        esComiteSeguridadVial: t.esComiteSeguridadVial || 'No',
+        biocentricScore: t.biocentricScore !== undefined ? t.biocentricScore : 95,
+        biocentricAlerts: Array.isArray(t.biocentricAlerts) ? t.biocentricAlerts : [],
+        biocentricIsLethal: !!t.biocentricIsLethal,
+        completedByAI: !!t.completedByAI,
       })),
     });
   } catch (error) {
@@ -685,11 +772,20 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
     const nombre = (workerData.nombre_completo || workerData.nombre || '').trim();
     const documento = String(workerData.cedula || workerData.documento || workerData.identificacion || '').trim();
     const cargo = (workerData.cargo || 'Operativo').trim();
-    const area = (workerData.area || 'Operaciones').trim();
-    const tipoContrato = workerData.tipo_contrato || 'Indefinido';
+    const area = (workerData.area || workerData.areaTrabajo || 'Operaciones').trim();
+    const tipoContrato = workerData.tipo_contrato || workerData.tipoContrato || 'Indefinido';
 
     if (!nombre || !documento) {
       return res.status(400).json({ error: 'nombre_completo y cedula son campos requeridos.' });
+    }
+
+    // Calcular IMC si vienen peso y talla
+    let imc = workerData.imc || '';
+    const peso = workerData.peso ? parseFloat(String(workerData.peso).replace(',', '.')) : null;
+    const talla = workerData.talla ? parseFloat(String(workerData.talla).replace(',', '.')) : null;
+    if (peso && talla && peso > 0 && talla > 0) {
+      const tMeters = talla > 3 ? talla / 100 : talla;
+      imc = (peso / (tMeters * tMeters)).toFixed(1);
     }
 
     // 1. Guardar o actualizar en PerfilSociodemograficoData (lo que alimenta Hito 2 - Huella Biocéntrica)
@@ -698,7 +794,7 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
       require('~/models/PerfilSociodemograficoData');
 
     let socioDoc = await PerfilSociodemograficoData.findOne({
-      $or: [{ user: userId }, { companyId }],
+      $or: [{ user: userId, companyId }, { user: userId }],
     });
 
     if (!socioDoc) {
@@ -727,11 +823,64 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
       identificacion: documento,
       cargo,
       areaTrabajo: area,
+      sede: workerData.sede || 'Principal',
       tipoContrato,
-      jornadaLaboral: 'Diurna',
-      biocentricScore: 95,
+      salario: workerData.salario || '',
+      jornadaLaboral: workerData.jornadaLaboral || 'Diurna',
+      eps: workerData.eps || '',
+      afp: workerData.afp || '',
+      estadoPila: workerData.estadoPila || 'Pendiente de soporte PILA',
+      estadoLaboral: workerData.estadoLaboral || 'Activo',
+      fechaRetiro: workerData.fechaRetiro || '',
+      motivoRetiro: workerData.motivoRetiro || '',
+      telefono: workerData.telefono || '',
+      correoElectronico: workerData.correoElectronico || workerData.correo || '',
+      direccion: workerData.direccion || '',
+      municipioDomicilio: workerData.municipioDomicilio || workerData.municipio || '',
+      barrio: workerData.barrio || '',
+      fechaNacimiento: workerData.fechaNacimiento || '',
+      edad: workerData.edad || '',
+      genero: workerData.genero || 'No especificado',
+      estadoCivil: workerData.estadoCivil || '',
+      nivelEscolaridad: workerData.nivelEscolaridad || '',
+      emergenciaContacto: workerData.emergenciaContacto || '',
+      tipoSangre: workerData.tipoSangre || '',
+      rh: workerData.rh || '',
+      enfermedades: workerData.enfermedades || '',
+      medicamentos: workerData.medicamentos || '',
+      diagnosticoMedico: workerData.diagnosticoMedico || '',
+      recomendacionesMedicas: workerData.recomendacionesMedicas || '',
+      fechaExamenMedico: workerData.fechaExamenMedico || '',
+      fechaSeguimiento: workerData.fechaSeguimiento || '',
+      peso: workerData.peso || '',
+      talla: workerData.talla || '',
+      imc,
+      presionArterial: workerData.presionArterial || '',
+      frecuenciaCardiaca: workerData.frecuenciaCardiaca || '',
+      limitacionesBiomecanicas: workerData.limitacionesBiomecanicas || '',
+      alergiasQuimicas: workerData.alergiasQuimicas || '',
+      fuma: workerData.fuma || '',
+      alcohol: workerData.alcohol || '',
+      deporte: workerData.deporte || '',
+      alimentacion: workerData.alimentacion || '',
+      riesgoCardiovascular: workerData.riesgoCardiovascular || '',
+      terapiaPsicologica: workerData.terapiaPsicologica || '',
+      personasCargo: workerData.personasCargo || '',
+      estrato: workerData.estrato || '',
+      vivienda: workerData.vivienda || '',
+      soatVencimiento: workerData.soatVencimiento || '',
+      tecnicomecanicaVencimiento: workerData.tecnicomecanicaVencimiento || '',
+      licenciaConduccion: workerData.licenciaConduccion || '',
+      licenciaSST: workerData.licenciaSST || '',
+      curso50h: workerData.curso50h || '',
+      curso20h: workerData.curso20h || '',
+      esCopasst: workerData.esCopasst || 'No',
+      esComiteConvivencia: workerData.esComiteConvivencia || 'No',
+      esBrigadista: workerData.esBrigadista || 'No',
+      esComiteSeguridadVial: workerData.esComiteSeguridadVial || 'No',
+      biocentricScore: workerData.biocentricScore !== undefined ? workerData.biocentricScore : 95,
       completedByAI: true,
-      consentimientoFirmaDigital: 'No',
+      consentimientoFirmaDigital: workerData.consentimientoFirmaDigital || 'No',
     };
 
     if (workerIndex >= 0) {
@@ -748,7 +897,7 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
 
     // 2. Sincronizar en SgsstWorker para consistencia integral
     let worker = await SgsstWorker.findOne({
-      $or: [{ user: userId }, { companyId }],
+      user: userId,
       documento,
     });
 
@@ -758,6 +907,10 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
       worker.cargo = cargo;
       worker.area = area;
       worker.tipo_contrato = tipoContrato;
+      worker.salario = workerData.salario || worker.salario;
+      worker.eps = workerData.eps || worker.eps;
+      worker.afp = workerData.afp || worker.afp;
+      worker.estadoLaboral = workerData.estadoLaboral || worker.estadoLaboral;
       await worker.save();
     } else {
       worker = new SgsstWorker({
@@ -769,7 +922,10 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
         cargo,
         area,
         tipo_contrato: tipoContrato,
-        estadoLaboral: 'Activo',
+        salario: workerData.salario || '',
+        eps: workerData.eps || '',
+        afp: workerData.afp || '',
+        estadoLaboral: workerData.estadoLaboral || 'Activo',
       });
       await worker.save();
     }
@@ -779,10 +935,229 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
       mensaje: `Trabajador ${nombre} registrado exitosamente en el Perfil Sociodemográfico (Hito 2).`,
       id: workerId,
       totalTrabajadores: socioDoc.trabajadores.length,
+      trabajador: workerItem,
     });
   } catch (error) {
     logger.error('[MCP Bridge] POST /workers error:', error);
     return res.status(500).json({ error: 'Error al registrar trabajador.' });
+  }
+});
+
+// ─── Actualizar / Editar Trabajador (Todas las variables) ───────────────────
+router.put('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const target = (req.params.idOrCedula || '').trim();
+    const updates = req.body || {};
+
+    if (!target) {
+      return res.status(400).json({ error: 'Se requiere cédula o ID del trabajador a actualizar.' });
+    }
+
+    const PerfilSociodemograficoData =
+      mongoose.models.PerfilSociodemograficoData ||
+      require('~/models/PerfilSociodemograficoData');
+
+    const socioDocs = await PerfilSociodemograficoData.find({ user: userId });
+    let updatedWorker = null;
+    let foundInSocio = false;
+
+    for (const doc of socioDocs) {
+      if (!Array.isArray(doc.trabajadores)) continue;
+
+      const idx = doc.trabajadores.findIndex(
+        (w) =>
+          String(w.id || '').trim() === target ||
+          String(w.identificacion || w.documento || '').trim() === target ||
+          (w.nombre && w.nombre.toLowerCase() === target.toLowerCase())
+      );
+
+      if (idx >= 0) {
+        const current = doc.trabajadores[idx];
+
+        // Mapear campos entrantes con soporte para alias
+        const cleanNombre = updates.nombre_completo || updates.nombre || current.nombre;
+        const cleanCargo = updates.cargo || current.cargo;
+        const cleanArea = updates.area || updates.areaTrabajo || current.areaTrabajo;
+        const cleanSede = updates.sede || current.sede;
+        const cleanContrato = updates.tipo_contrato || updates.tipoContrato || current.tipoContrato;
+        const cleanSalario = updates.salario !== undefined ? updates.salario : current.salario;
+        const cleanEps = updates.eps !== undefined ? updates.eps : current.eps;
+        const cleanAfp = updates.afp !== undefined ? updates.afp : current.afp;
+        const cleanTelefono = updates.telefono !== undefined ? updates.telefono : current.telefono;
+        const cleanCorreo = updates.correoElectronico || updates.correo || current.correoElectronico;
+        const cleanDireccion = updates.direccion !== undefined ? updates.direccion : current.direccion;
+        const cleanMunicipio = updates.municipioDomicilio || updates.municipio || current.municipioDomicilio;
+        const cleanBarrio = updates.barrio !== undefined ? updates.barrio : current.barrio;
+        const cleanDiagnostico = updates.diagnosticoMedico || updates.diagnostico_medico || current.diagnosticoMedico;
+        const cleanRecomendaciones = updates.recomendacionesMedicas || updates.recomendaciones_medicas || current.recomendacionesMedicas;
+        const cleanEnfermedades = updates.enfermedades !== undefined ? updates.enfermedades : current.enfermedades;
+        const cleanMedicamentos = updates.medicamentos !== undefined ? updates.medicamentos : current.medicamentos;
+        const cleanRh = updates.rh || updates.tipoSangre || current.rh;
+        const cleanEstadoLaboral = updates.estadoLaboral || updates.estado_laboral || current.estadoLaboral;
+        const cleanFechaRetiro = updates.fechaRetiro || updates.fecha_retiro || current.fechaRetiro;
+        const cleanMotivoRetiro = updates.motivoRetiro || updates.motivo_retiro || current.motivoRetiro;
+
+        // Recalcular IMC si se actualizaron peso o talla
+        const pesoVal = updates.peso !== undefined ? updates.peso : current.peso;
+        const tallaVal = updates.talla !== undefined ? updates.talla : current.talla;
+        let imcVal = updates.imc || current.imc;
+        if (pesoVal && tallaVal) {
+          const p = parseFloat(String(pesoVal).replace(',', '.'));
+          const t = parseFloat(String(tallaVal).replace(',', '.'));
+          if (p > 0 && t > 0) {
+            const tMeters = t > 3 ? t / 100 : t;
+            imcVal = (p / (tMeters * tMeters)).toFixed(1);
+          }
+        }
+
+        const merged = {
+          ...current,
+          ...updates,
+          nombre: cleanNombre,
+          cargo: cleanCargo,
+          areaTrabajo: cleanArea,
+          sede: cleanSede,
+          tipoContrato: cleanContrato,
+          salario: cleanSalario,
+          eps: cleanEps,
+          afp: cleanAfp,
+          telefono: cleanTelefono,
+          correoElectronico: cleanCorreo,
+          direccion: cleanDireccion,
+          municipioDomicilio: cleanMunicipio,
+          barrio: cleanBarrio,
+          diagnosticoMedico: cleanDiagnostico,
+          recomendacionesMedicas: cleanRecomendaciones,
+          enfermedades: cleanEnfermedades,
+          medicamentos: cleanMedicamentos,
+          rh: cleanRh,
+          peso: pesoVal,
+          talla: tallaVal,
+          imc: imcVal,
+          estadoLaboral: cleanEstadoLaboral,
+          fechaRetiro: cleanFechaRetiro,
+          motivoRetiro: cleanMotivoRetiro,
+        };
+
+        doc.trabajadores[idx] = merged;
+        doc.markModified('trabajadores');
+        await doc.save();
+
+        updatedWorker = merged;
+        foundInSocio = true;
+      }
+    }
+
+    // Actualizar en SgsstWorker
+    const cleanDoc = updatedWorker?.identificacion || target;
+    await SgsstWorker.updateMany(
+      {
+        user: userId,
+        $or: [
+          { perfilId: target },
+          { documento: cleanDoc },
+          { nombre: { $regex: new RegExp(`^${target}$`, 'i') } },
+        ],
+      },
+      {
+        $set: {
+          ...(updates.nombre ? { nombre: updates.nombre } : {}),
+          ...(updates.cargo ? { cargo: updates.cargo } : {}),
+          ...(updates.area || updates.areaTrabajo ? { area: updates.area || updates.areaTrabajo } : {}),
+          ...(updates.tipo_contrato || updates.tipoContrato ? { tipo_contrato: updates.tipo_contrato || updates.tipoContrato } : {}),
+          ...(updates.salario !== undefined ? { salario: updates.salario } : {}),
+          ...(updates.eps !== undefined ? { eps: updates.eps } : {}),
+          ...(updates.afp !== undefined ? { afp: updates.afp } : {}),
+          ...(updates.estadoLaboral || updates.estado_laboral ? { estadoLaboral: updates.estadoLaboral || updates.estado_laboral } : {}),
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    if (foundInSocio && updatedWorker) {
+      return res.json({
+        exito: true,
+        mensaje: `Trabajador "${updatedWorker.nombre}" actualizado exitosamente.`,
+        trabajador: updatedWorker,
+      });
+    }
+
+    return res.status(404).json({ error: `No se encontró el trabajador con identificador "${target}".` });
+  } catch (error) {
+    logger.error('[MCP Bridge] PUT /workers/:idOrCedula error:', error);
+    return res.status(500).json({ error: 'Error al actualizar trabajador.' });
+  }
+});
+
+// Soporte también vía PATCH
+router.patch('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
+  req.method = 'PUT';
+  return router.handle(req, res);
+});
+
+router.delete('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const target = (req.params.idOrCedula || '').trim();
+
+    if (!target) {
+      return res.status(400).json({ error: 'Debes proporcionar la cédula, ID o nombre del trabajador a eliminar.' });
+    }
+
+    const PerfilSociodemograficoData =
+      mongoose.models.PerfilSociodemograficoData ||
+      require('~/models/PerfilSociodemograficoData');
+
+    // Buscar en TODOS los documentos de PerfilSociodemograficoData de este usuario
+    const socioDocs = await PerfilSociodemograficoData.find({ user: userId });
+    let removed = false;
+    let workerName = '';
+    let remainingCount = 0;
+
+    for (const doc of socioDocs) {
+      if (Array.isArray(doc.trabajadores)) {
+        const initialCount = doc.trabajadores.length;
+        doc.trabajadores = doc.trabajadores.filter((w) => {
+          const match =
+            String(w.id || '').trim() === target ||
+            String(w.identificacion || w.documento || '').trim() === target ||
+            (w.nombre && w.nombre.toLowerCase().includes(target.toLowerCase()));
+          if (match && !workerName) workerName = w.nombre;
+          return !match;
+        });
+
+        if (doc.trabajadores.length !== initialCount) {
+          doc.markModified('trabajadores');
+          await doc.save();
+          removed = true;
+        }
+        remainingCount = doc.trabajadores.length;
+      }
+    }
+
+    // Sincronizar eliminación en SgsstWorker
+    await SgsstWorker.deleteMany({
+      user: userId,
+      $or: [
+        { perfilId: target },
+        { documento: target },
+        { nombre: { $regex: new RegExp(target, 'i') } },
+      ],
+    });
+
+    if (removed) {
+      return res.json({
+        exito: true,
+        mensaje: `Trabajador "${workerName || target}" eliminado exitosamente del Perfil Sociodemográfico (Hito 2).`,
+        totalTrabajadores: remainingCount,
+      });
+    }
+
+    return res.status(404).json({ error: `Trabajador con identificador o nombre "${target}" no encontrado.` });
+  } catch (error) {
+    logger.error('[MCP Bridge] DELETE /workers/:idOrCedula error:', error);
+    return res.status(500).json({ error: 'Error al eliminar trabajador.' });
   }
 });
 

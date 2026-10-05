@@ -57,7 +57,7 @@ const planSchema = new mongoose.Schema({
         showPlanGo: { type: Boolean, default: false },
         showPlanPlus: { type: Boolean, default: false },
         showPlanPro: { type: Boolean, default: true },
-        showSectionAppPlans: { type: Boolean, default: false },
+        showSectionAppPlans: { type: Boolean, default: true },
         showSectionCustomPlan: { type: Boolean, default: false },
         showSectionEnterprise: { type: Boolean, default: false },
     },

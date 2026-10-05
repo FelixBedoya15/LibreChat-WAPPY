@@ -366,7 +366,7 @@ const createTransaction = async (req, res) => {
         
         if (!planDoc && planId === 'ipevar') {
             // Auto-seed ipevar if missing
-            await Plan.create({ planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 250000 } });
+            await Plan.create({ planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 350000 } });
             planDoc = await Plan.findOne({ planId }).lean();
         }
 
@@ -583,20 +583,25 @@ const handleWebhook = async (req, res) => {
                             user = await createUser(newUserData, appConfig?.balance, true, true);
                             console.log(`[Wompi Webhook] Auto-created user ${user._id} (${normEmail}) with default password (phone: ${purchase.phone})`);
                         } else {
+                            const oneYearExpiry = new Date();
+                            oneYearExpiry.setFullYear(oneYearExpiry.getFullYear() + 1);
                             // Use updateOne to avoid Mongoose validation issues with partial documents
                             await User.updateOne(
                                 { _id: user._id },
-                                { $set: { role: 'USER_IPEVAR', accountStatus: 'active', activeAt: new Date(), inactiveAt: null } }
+                                { $set: { role: 'USER_IPEVAR', accountStatus: 'active', activeAt: new Date(), inactiveAt: oneYearExpiry } }
                             );
                         }
+
+                        const oneYearExpiry = new Date();
+                        oneYearExpiry.setFullYear(oneYearExpiry.getFullYear() + 1);
 
                         // Update/Create UserPlan
                         await UserPlan.findOneAndUpdate(
                             { userId: user._id },
                             {
                                 plan: 'ipevar',
-                                planExpiresAt: null,   // Lifetime — no expiry
-                                planInterval: null,    // Lifetime has no interval
+                                planExpiresAt: oneYearExpiry,   // 1 año de vigencia
+                                planInterval: 'annual',
                                 cancelAtPeriodEnd: false
                             },
                             { upsert: true, new: true }
@@ -932,7 +937,7 @@ const createManualTransaction = async (req, res) => {
         
         if (!planDoc && planId === 'ipevar') {
             // Auto-seed ipevar if missing
-            await Plan.create({ planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 250000 } });
+            await Plan.create({ planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 350000 } });
             planDoc = await Plan.findOne({ planId }).lean();
         }
 
@@ -1089,7 +1094,7 @@ const guestCheckout = async (req, res) => {
         // ── 2. Calculate price (same logic as createTransaction) ──────────
         let planDoc = await Plan.findOne({ planId }).lean();
         if (!planDoc && planId === 'ipevar') {
-            await Plan.create({ planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 250000 } });
+            await Plan.create({ planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 350000 } });
             planDoc = await Plan.findOne({ planId }).lean();
         }
         if (!planDoc) return res.status(500).json({ error: `Plan ${planId} no configurado en DB` });
@@ -1577,7 +1582,7 @@ const getPlansVisibility = async (req, res) => {
             showPlanGo: false,
             showPlanPlus: false,
             showPlanPro: true,
-            showSectionAppPlans: false,
+            showSectionAppPlans: true,
             showSectionCustomPlan: false,
             showSectionEnterprise: false,
         };

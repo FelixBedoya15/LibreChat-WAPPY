@@ -119,6 +119,21 @@
 
 ---
 
+### Error 9: Botón de envío no renderizado y `ask()` abortando silenciosamente por `endpoint: null` al inicializar chat de agente
+- **Síntoma:** Al abrir `/c/new?agent_id=...&endpoint=agents&prompt=...`, el prompt se escribe en el textarea pero el botón de envío no aparece en pantalla (ausente en el DOM), el auto-envío no se ejecuta y el mensaje queda atascado sin enviarse jamás.
+- **Causa Raíz:**
+  1. **Omisión de `agent_id` en `useNewConvo.ts`:** La condición `paramEndpoint === true && templateConvoId === Constants.NEW_CONVO` reconstruía `template = { endpoint: _template.endpoint }`, eliminando `agent_id` del objeto `template`.
+  2. **Botón SendButton no renderizado en `ChatForm.tsx`:** `endpoint` solo evaluaba `conversation?.endpointType ?? conversation?.endpoint`. Al ser ambos null, la condición `{endpoint && <SendButton />}` era falsa y el botón desaparecía completamente del DOM.
+  3. **Aborto silencioso en `useChatFunctions.ts`:** La función central `ask()` ejecutaba `if (endpoint === null) return;`. Al estar `conversation.endpoint` en null/undefined al momento del despacho, abortaba silenciosamente sin procesar el mensaje.
+  4. **Fallo de concordancia en `useQueryParams.ts`:** `areSettingsApplied()` fallaba al validar la igualdad estricta de `endpoint` y `agent_id` cuando la conversación aún no había hidratado el tipo `agents`.
+- **Regla y Solución Obligatoria:**
+  1. En `useNewConvo.ts`: preservar siempre `agent_id` en el template: `{ endpoint: _template.endpoint, agent_id: _template.agent_id }`.
+  2. En `useChatFunctions.ts`: fallback obligatorio que garantiza que si existe `agent_id`, el endpoint es `EModelEndpoint.agents` y se asienta en `conversation.endpoint`.
+  3. En `ChatForm.tsx`: renderizar siempre el botón de envío con `{(endpoint || conversation?.agent_id) && <SendButton ... />}`.
+  4. En `TenshiChat.tsx`: disparo dual diferido (350ms) del evento `tenshi-submit-agent-prompt` como salvaguarda en caso de que la navegación URL demore en aplicar los parámetros.
+
+---
+
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
 
 Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el chat:

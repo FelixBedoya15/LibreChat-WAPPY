@@ -640,6 +640,46 @@ Formato (texto plano, 3 viñetas):
     console.warn('⚠️ No se pudo sanitizar telemetría previa:', err.message);
   }
 
+  // 7. Sincronización de Planes WAPPY (Precios y Visibilidad)
+  try {
+    const Plan = mongoose.models.Plan || require(path.resolve(__dirname, '../models/Plan'));
+    await Plan.updateOne(
+      { planId: 'ipevar' },
+      {
+        $set: {
+          'prices.annual': 350000,
+          name: 'IPEVAR',
+          featuresText: [
+            'Acceso total a la Matriz IPEVAR',
+            'Valoraciones automáticas con IA',
+            'Generación de reportes PDF',
+            'Licencia por 1 año'
+          ]
+        }
+      },
+      { upsert: true }
+    );
+
+    await Plan.updateOne(
+      { planId: '__visibility__' },
+      {
+        $set: {
+          'visibility.showPlanFree': false,
+          'visibility.showPlanGo': false,
+          'visibility.showPlanPlus': false,
+          'visibility.showPlanPro': true,
+          'visibility.showSectionAppPlans': true,
+          'visibility.showSectionCustomPlan': false,
+          'visibility.showSectionEnterprise': false,
+        }
+      },
+      { upsert: true }
+    );
+    console.log('✅ Plan Wappy Vital (ipevar) actualizado a $350.000 COP anual y visibilidad sincronizada en MongoDB.');
+  } catch (err) {
+    console.error('⚠️ Error sincronizando Plan Wappy Vital en MongoDB:', err.message);
+  }
+
   await mongoose.disconnect();
   console.log('🔌 Desconectado de MongoDB.');
 

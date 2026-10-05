@@ -16,7 +16,7 @@ async function seedPlan() {
         monthly: 0,
         quarterly: 0,
         semiannual: 0,
-        annual: 250000
+        annual: 350000
       },
       featuresText: [
         'Acceso total a la Matriz IPEVAR',

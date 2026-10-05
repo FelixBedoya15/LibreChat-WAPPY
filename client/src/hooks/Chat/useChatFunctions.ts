@@ -99,10 +99,16 @@ export default function useChatFunctions({
 
     const conversation = cloneDeep(immutableConversation);
 
-    const endpoint = conversation?.endpoint;
-    if (endpoint === null) {
+    const endpoint =
+      conversation?.endpoint ??
+      conversation?.endpointType ??
+      (conversation?.agent_id ? EModelEndpoint.agents : null);
+    if (endpoint === null || endpoint === undefined) {
       console.error('No endpoint available');
       return;
+    }
+    if (!conversation.endpoint) {
+      conversation.endpoint = endpoint;
     }
 
     conversationId = conversationId ?? conversation?.conversationId ?? null;

@@ -278,10 +278,19 @@ server.tool(
 
 server.tool(
   'wappy_consultar_trabajadores',
-  {},
-  async () => {
+  {
+    cedula: z.string().optional().describe('Cédula o documento del trabajador a buscar'),
+    nombre: z.string().optional().describe('Filtro por nombre o apellido'),
+    cargo: z.string().optional().describe('Filtro por cargo u ocupación'),
+  },
+  async ({ cedula, nombre, cargo }) => {
     try {
-      const data = await wappyRequest('/workers', { method: 'GET' });
+      const params = new URLSearchParams();
+      if (cedula) params.append('cedula', cedula);
+      if (nombre) params.append('nombre', nombre);
+      if (cargo) params.append('cargo', cargo);
+      const queryStr = params.toString() ? `?${params.toString()}` : '';
+      const data = await wappyRequest(`/workers${queryStr}`, { method: 'GET' });
       return formatMcpResponse(data);
     } catch (err) {
       return formatMcpError(err);
@@ -295,10 +304,32 @@ server.tool(
     nombre_completo: z.string().describe('Nombre y apellidos del trabajador'),
     cedula: z.string().describe('Número de documento de identidad'),
     cargo: z.string().describe('Cargo u ocupación'),
-    area: z.string().optional().describe('Área o departamento'),
+    area: z.string().optional().describe('Área o departamento (ej: Operaciones, Administración, Obras)'),
     sede: z.string().optional().describe('Sede o centro de trabajo'),
-    nivel_riesgo_arl: z.string().optional().describe('Nivel de riesgo ARL asignado (I, II, III, IV, V)'),
+    salario: z.string().optional().describe('Salario o remuneración mensual'),
     tipo_contrato: z.string().optional().describe('Tipo de contrato (Indefinido, Fijo, Obra o Labor, Aprendizaje, Prestación de Servicios)'),
+    eps: z.string().optional().describe('Entidad Promotora de Salud (EPS)'),
+    afp: z.string().optional().describe('Fondo de Pensiones (AFP)'),
+    telefono: z.string().optional().describe('Número telefónico o celular'),
+    correo: z.string().optional().describe('Correo electrónico'),
+    direccion: z.string().optional().describe('Dirección de residencia'),
+    municipio: z.string().optional().describe('Municipio o ciudad de residencia'),
+    fecha_nacimiento: z.string().optional().describe('Fecha de nacimiento (AAAA-MM-DD)'),
+    edad: z.number().optional().describe('Edad en años'),
+    genero: z.string().optional().describe('Género (Masculino, Femenino, Otro)'),
+    estado_civil: z.string().optional().describe('Estado civil (Soltero, Casado, Unión Libre, Divorciado, Viudo)'),
+    rh: z.string().optional().describe('Grupo sanguíneo y factor RH (ej: O+, A+, B+, O-)'),
+    peso: z.string().optional().describe('Peso en kilogramos (ej: 72)'),
+    talla: z.string().optional().describe('Estatura o talla en centímetros o metros (ej: 175 o 1.75)'),
+    enfermedades: z.string().optional().describe('Enfermedades diagnosticadas preexistentes'),
+    medicamentos: z.string().optional().describe('Medicamentos de consumo habitual'),
+    diagnostico_medico: z.string().optional().describe('Concepto o diagnóstico de aptitud médica ocupacional'),
+    recomendaciones_medicas: z.string().optional().describe('Restricciones o recomendaciones médicas emitidas'),
+    fecha_examen_medico: z.string().optional().describe('Fecha del último examen médico ocupacional (AAAA-MM-DD)'),
+    estado_laboral: z.enum(['Activo', 'Retirado']).optional().describe('Estado laboral (Activo o Retirado)'),
+    es_copasst: z.enum(['Sí', 'No']).optional().describe('¿Es miembro del COPASST o Vigía?'),
+    es_convivencia: z.enum(['Sí', 'No']).optional().describe('¿Es miembro del Comité de Convivencia?'),
+    es_brigadista: z.enum(['Sí', 'No']).optional().describe('¿Es miembro de la Brigada de Emergencias?'),
   },
   async (args) => {
     try {
@@ -314,9 +345,53 @@ server.tool(
 );
 
 server.tool(
+  'wappy_actualizar_trabajador',
+  {
+    idOrCedula: z.string().describe('Cédula, ID de MongoDB o nombre del trabajador a editar/actualizar'),
+    nombre_completo: z.string().optional().describe('Nuevo nombre y apellidos'),
+    cargo: z.string().optional().describe('Nuevo cargo u ocupación'),
+    area: z.string().optional().describe('Nueva área o departamento'),
+    sede: z.string().optional().describe('Nueva sede o centro de trabajo'),
+    salario: z.string().optional().describe('Nuevo salario o remuneración mensual'),
+    tipo_contrato: z.string().optional().describe('Nuevo tipo de contrato'),
+    eps: z.string().optional().describe('Nueva EPS'),
+    afp: z.string().optional().describe('Nuevo fondo de pensiones'),
+    telefono: z.string().optional().describe('Nuevo teléfono o celular'),
+    correo: z.string().optional().describe('Nuevo correo electrónico'),
+    direccion: z.string().optional().describe('Nueva dirección de residencia'),
+    municipio: z.string().optional().describe('Nuevo municipio de residencia'),
+    rh: z.string().optional().describe('Grupo sanguíneo y factor RH'),
+    peso: z.string().optional().describe('Peso en kg'),
+    talla: z.string().optional().describe('Estatura en cm o m'),
+    enfermedades: z.string().optional().describe('Enfermedades o diagnósticos'),
+    medicamentos: z.string().optional().describe('Medicamentos'),
+    diagnostico_medico: z.string().optional().describe('Concepto o diagnóstico médico ocupacional'),
+    recomendaciones_medicas: z.string().optional().describe('Recomendaciones o restricciones médicas'),
+    estado_laboral: z.enum(['Activo', 'Retirado']).optional().describe('Estado laboral: Activo o Retirado'),
+    fecha_retiro: z.string().optional().describe('Fecha de retiro laboral (AAAA-MM-DD)'),
+    motivo_retiro: z.string().optional().describe('Motivo de retiro del trabajador'),
+    es_copasst: z.enum(['Sí', 'No']).optional().describe('Pertenencia al COPASST'),
+    es_convivencia: z.enum(['Sí', 'No']).optional().describe('Pertenencia al Comité de Convivencia'),
+    es_brigadista: z.enum(['Sí', 'No']).optional().describe('Pertenencia a la Brigada de Emergencias'),
+  },
+  async (args) => {
+    try {
+      const { idOrCedula, ...updates } = args;
+      const data = await wappyRequest(`/workers/${encodeURIComponent(idOrCedula)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
   'wappy_eliminar_trabajador',
   {
-    idOrCedula: z.string().describe('ID de MongoDB o cédula del trabajador a eliminar'),
+    idOrCedula: z.string().describe('Cédula, ID de MongoDB o nombre del trabajador a eliminar permanentemente'),
   },
   async (args) => {
     try {
