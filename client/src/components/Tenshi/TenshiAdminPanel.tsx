@@ -13,15 +13,21 @@ interface Skill {
 }
 import { useGetEndpointsQuery } from '~/data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
-import { createProviderOption } from '~/utils';
+import { createProviderOption, cn } from '~/utils';
 import { isAssistantsEndpoint } from 'librechat-data-provider';
 import { useOutletContext } from 'react-router-dom';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import type { ContextType } from '~/common';
 
-export default function TenshiAdminPanel() {
+interface TenshiAdminPanelProps {
+    isEmbedded?: boolean;
+}
+
+export default function TenshiAdminPanel({ isEmbedded = false }: TenshiAdminPanelProps = {}) {
     const { user, token } = useAuthContext();
-    const { navVisible, setNavVisible } = useOutletContext<ContextType>();
+    const outlet = useOutletContext<ContextType>() || ({} as Partial<ContextType>);
+    const navVisible = outlet.navVisible;
+    const setNavVisible = outlet.setNavVisible;
     const { showToast } = useToastContext();
     const queryClient = useQueryClient();
 
@@ -146,23 +152,25 @@ export default function TenshiAdminPanel() {
     };
 
     return (
-        <div className="max-w-4xl mx-auto p-6 md:p-8 overflow-y-auto h-full">
-            <div className="flex items-center gap-4 mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
-                {!navVisible && (
-                    <div className="hidden md:block shrink-0">
-                        <OpenSidebar setNavVisible={setNavVisible} />
+        <div className={cn("mx-auto", isEmbedded ? "w-full p-1 sm:p-2" : "max-w-4xl p-6 md:p-8 overflow-y-auto h-full")}>
+            {!isEmbedded && (
+                <div className="flex items-center gap-4 mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
+                    {!navVisible && setNavVisible && (
+                        <div className="hidden md:block shrink-0">
+                            <OpenSidebar setNavVisible={setNavVisible} />
+                        </div>
+                    )}
+                    <div className="bg-gradient-to-tr from-green-500 to-emerald-400 p-3 rounded-2xl shadow-lg">
+                        <Sparkles className="w-8 h-8 text-white" />
                     </div>
-                )}
-                <div className="bg-gradient-to-tr from-green-500 to-emerald-400 p-3 rounded-2xl shadow-lg">
-                    <Sparkles className="w-8 h-8 text-white" />
+                    <div>
+                        <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Configuración de Tenshi</h1>
+                        <p className="text-gray-500 dark:text-gray-400 mt-1">
+                            Personaliza el chatbot de ayuda nativo de WAPPY IA.
+                        </p>
+                    </div>
                 </div>
-                <div>
-                    <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Configuración de Tenshi</h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1">
-                        Personaliza el chatbot de ayuda nativo de WAPPY IA.
-                    </p>
-                </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">

@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
+import { cn } from '~/utils';
 import AmbassadorContactModal, { TargetFollowUpUser, formatPlanBadge } from './AmbassadorContactModal';
 import CommercialProposalGenerator from './CommercialProposalGenerator';
 import AmbassadorKanbanBoard, { KanbanUser, CRM_STAGES } from './AmbassadorKanbanBoard';
@@ -124,7 +125,11 @@ interface DashboardKpis {
   topAmbassadorName: string;
 }
 
-export default function AmbassadorDashboard() {
+interface AmbassadorDashboardProps {
+  isEmbedded?: boolean;
+}
+
+export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDashboardProps = {}) {
   const { user } = useAuthContext();
   const { showToast } = useToastContext();
 
@@ -758,9 +763,15 @@ export default function AmbassadorDashboard() {
   const conversionRate = totalLeadsCount > 0 ? Math.round((wonLeadsCount / totalLeadsCount) * 100) : 0;
 
   return (
-    <div className="flex-1 flex flex-col bg-surface-secondary/30 relative min-h-screen h-auto overflow-y-auto pb-12 w-full max-w-full overflow-x-hidden">
+    <div className={cn(
+      "flex-1 flex flex-col bg-surface-secondary/30 relative overflow-y-auto pb-12 w-full max-w-full overflow-x-hidden",
+      isEmbedded ? "min-h-0 h-auto rounded-2xl" : "min-h-screen h-auto"
+    )}>
       {/* Header section - exact same style as Centro de Control ACPM */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center p-3.5 sm:p-4 md:p-6 bg-white dark:bg-gray-900 border-b border-border-medium/40 gap-3 sm:gap-4 w-full min-w-0">
+      <div className={cn(
+        "flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white dark:bg-gray-900 border-b border-border-medium/40 gap-3 sm:gap-4 w-full min-w-0",
+        isEmbedded ? "p-3 sm:p-4 rounded-t-2xl" : "p-3.5 sm:p-4 md:p-6"
+      )}>
         <div className="min-w-0 flex-1">
           <h1 className="text-base sm:text-xl md:text-2xl font-extrabold flex items-center gap-2 sm:gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-emerald-600 dark:from-teal-400 dark:to-emerald-400">
             <Award className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-teal-500 shrink-0" />

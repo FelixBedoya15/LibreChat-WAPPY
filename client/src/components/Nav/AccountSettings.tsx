@@ -4,12 +4,12 @@ import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { useNavigate } from 'react-router-dom';
 import { useRecoilState } from 'recoil';
 import * as Select from '@ariakit/react/select';
-import { FileText, LogOut, BookOpen, Shield, Newspaper, CreditCard, UserCircle, Bot, Bell, Map, Award } from 'lucide-react';
+import { FileText, LogOut, BookOpen, Shield, Newspaper, CreditCard, UserCircle, Bell, Map } from 'lucide-react';
 import { GearIcon, DropdownMenuSeparator, Avatar } from '@librechat/client';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import FilesView from '~/components/Chat/Input/Files/FilesView';
 import { useAuthContext } from '~/hooks/AuthContext';
-import { useLocalize, useAmbassadorAccess } from '~/hooks';
+import { useLocalize } from '~/hooks';
 import Settings from './Settings';
 import store from '~/store';
 import axios from 'axios';
@@ -20,7 +20,6 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
   const localize = useLocalize();
   const navigate = useNavigate();
   const { user, token, isAuthenticated, logout } = useAuthContext();
-  const { hasAmbassadorAccess } = useAmbassadorAccess();
   const { data: startupConfig } = useGetStartupConfig();
   const balanceQuery = useGetUserBalance({
     enabled: !!isAuthenticated && startupConfig?.balance?.enabled,
@@ -246,26 +245,6 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
             <GearIcon className="icon-md" aria-hidden="true" />
             {localize('com_nav_settings')}
           </Select.SelectItem>
-          {user?.role === 'ADMIN' && (
-            <Select.SelectItem
-              value=""
-              onClick={() => navigate('/tenshi/admin')}
-              className="select-item text-sm text-green-600 dark:text-green-500 font-medium"
-            >
-              <Bot className="icon-md" aria-hidden="true" />
-              Configurar Tenshi
-            </Select.SelectItem>
-          )}
-          {hasAmbassadorAccess && (
-            <Select.SelectItem
-              value=""
-              onClick={() => navigate('/embajadores/dashboard')}
-              className="select-item text-sm text-teal-600 dark:text-teal-400 font-medium"
-            >
-              <Award className="icon-md" aria-hidden="true" />
-              Métricas & Embajadores
-            </Select.SelectItem>
-          )}
           <DropdownMenuSeparator />
           <Select.SelectItem
             aria-selected={true}

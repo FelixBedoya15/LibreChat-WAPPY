@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, lazy, Suspense } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { SettingsTabValues, SystemRoles } from 'librechat-data-provider';
 import { 
@@ -14,7 +14,10 @@ import {
   ShieldCheck, 
   Megaphone, 
   Coins, 
-  X 
+  X,
+  Bot,
+  Award,
+  Loader2
 } from 'lucide-react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { useMediaQuery } from '@librechat/client';
@@ -36,8 +39,12 @@ import TicketManagement from '~/components/Tickets/TicketManagement';
 import { useAuthContext } from '~/hooks/AuthContext';
 import usePersonalizationAccess from '~/hooks/usePersonalizationAccess';
 import { useLocalize, TranslationKeys } from '~/hooks';
+import useAmbassadorAccess from '~/hooks/useAmbassadorAccess';
 import { useGetStartupConfig } from '~/data-provider';
 import { cn } from '~/utils';
+
+const TenshiAdminPanel = lazy(() => import('~/components/Tenshi/TenshiAdminPanel'));
+const AmbassadorDashboard = lazy(() => import('~/components/Ambassadors/AmbassadorDashboard'));
 
 const SECTIONS: Record<string, { label: string }> = {
   account: { label: 'Cuenta & Perfil' },
@@ -50,6 +57,7 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
   const isSmallScreen = useMediaQuery('(max-width: 767px)');
   const { data: startupConfig } = useGetStartupConfig();
   const { user } = useAuthContext();
+  const { hasAmbassadorAccess } = useAmbassadorAccess();
   const localize = useLocalize();
   const [activeTab, setActiveTab] = useState<SettingsTabValues | string>(initialTab || SettingsTabValues.ACCOUNT);
   const [targetTicketId, setTargetTicketId] = useState<string | undefined>(undefined);
@@ -173,10 +181,26 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
               label: 'Ads' as TranslationKeys,
               section: 'admin' as const,
             },
+            {
+              value: 'tenshi',
+              icon: Bot,
+              label: 'Configurar Tenshi' as TranslationKeys,
+              section: 'admin' as const,
+            },
+          ]
+        : []),
+      ...((isAdmin || hasAmbassadorAccess)
+        ? [
+            {
+              value: 'metricas',
+              icon: Award,
+              label: 'Métricas & Embajadores' as TranslationKeys,
+              section: 'admin' as const,
+            },
           ]
         : []),
     ];
-  }, [user?.role, startupConfig?.balance?.enabled, hasAnyPersonalizationFeature]);
+  }, [user?.role, startupConfig?.balance?.enabled, hasAnyPersonalizationFeature, hasAmbassadorAccess]);
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     const tabs = settingsTabs.map((t) => t.value);
@@ -269,6 +293,18 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
           title: 'Gestión de Anuncios (Ads)',
           subtitle: 'Publicación de banners publicitarios y comunicados para usuarios',
         };
+      case 'tenshi':
+        return {
+          icon: Bot,
+          title: 'Configuración de Tenshi',
+          subtitle: 'Personalización de agente de voz, modelo IA, prompts y habilidades',
+        };
+      case 'metricas':
+        return {
+          icon: Award,
+          title: 'Métricas & Embajadores',
+          subtitle: 'Estadísticas de referidos, comisiones, conversiones y red WAPPY',
+        };
       default:
         return {
           icon: SlidersHorizontal,
@@ -307,7 +343,7 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
             <DialogPanel
               className={cn(
                 'overflow-hidden rounded-3xl bg-white dark:bg-zinc-950 border border-slate-200/90 dark:border-zinc-800 shadow-2xl backdrop-blur-2xl transition-all duration-300 flex flex-col',
-                activeTab === SettingsTabValues.ADMIN || activeTab === 'tickets'
+                activeTab === SettingsTabValues.ADMIN || activeTab === 'tickets' || activeTab === 'metricas' || activeTab === 'tenshi'
                   ? 'w-[98vw] max-w-[1440px] h-[92vh] max-h-[950px] min-h-[580px]'
                   : 'w-[96vw] max-w-[1060px] h-[88vh] max-h-[850px] min-h-[520px]',
               )}
@@ -442,7 +478,7 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
                   <div
                     className={cn(
                       'flex-1 min-w-0 bg-white/70 dark:bg-zinc-900/40 rounded-2xl border border-slate-200/70 dark:border-zinc-800/80 p-4 sm:p-6 overflow-y-auto max-h-full shadow-xs transition-all duration-300',
-                      activeTab === SettingsTabValues.ADMIN ? 'w-full' : '',
+                      activeTab === SettingsTabValues.ADMIN || activeTab === 'metricas' || activeTab === 'tenshi' ? 'w-full' : '',
                     )}
                   >
                     <Tabs.Content value={SettingsTabValues.GENERAL} tabIndex={-1} className="outline-none">
@@ -484,6 +520,20 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
                     {user?.role === SystemRoles.ADMIN && (
                       <Tabs.Content value={'ads'} tabIndex={-1} className="outline-none">
                         <Ads />
+                      </Tabs.Content>
+                    )}
+                    {user?.role === SystemRoles.ADMIN && (
+                      <Tabs.Content value={'tenshi'} tabIndex={-1} className="outline-none">
+                        <Suspense fallback={<div className="flex h-64 items-center justify-center gap-2 text-text-secondary"><Loader2 className="w-6 h-6 animate-spin text-teal-600" /><span>Cargando configuración de Tenshi...</span></div>}>
+                          <TenshiAdminPanel isEmbedded={true} />
+                        </Suspense>
+                      </Tabs.Content>
+                    )}
+                    {(user?.role === SystemRoles.ADMIN || hasAmbassadorAccess) && (
+                      <Tabs.Content value={'metricas'} tabIndex={-1} className="outline-none">
+                        <Suspense fallback={<div className="flex h-64 items-center justify-center gap-2 text-text-secondary"><Loader2 className="w-6 h-6 animate-spin text-teal-600" /><span>Cargando métricas de embajadores...</span></div>}>
+                          <AmbassadorDashboard isEmbedded={true} />
+                        </Suspense>
                       </Tabs.Content>
                     )}
                     <Tabs.Content value={'notifications'} tabIndex={-1} className="outline-none">
