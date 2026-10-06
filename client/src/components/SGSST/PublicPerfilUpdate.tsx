@@ -288,6 +288,7 @@ export default function PublicPerfilUpdate() {
                 currentApp="perfil"
                 title="Actualización Sociodemográfica"
                 subtitle="Ficha médica, laboral y sociodemográfica anual"
+                workerCedula={cedula || workerId || sessionWorker?.cedula || sessionWorker?.identificacion}
             />
 
             <main className="flex-1 p-4 sm:p-6 w-full max-w-lg mx-auto flex flex-col justify-center">

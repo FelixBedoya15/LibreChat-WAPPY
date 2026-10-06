@@ -3263,7 +3263,34 @@ router.get('/brigadista/:companyId/:cedula?', async (req, res) => {
     // 3. Obtener datos del trabajador en PerfilSociodemografico para enriquecer o precargar
     const { worker } = await resolveCompanyAndWorker(companyId, { cedula: targetCedula });
 
+    // Helper para detectar capacitaciones mock ficticias de prueba
+    const isMockCap = (c) => {
+      const t = String(c?.tema || '').toLowerCase();
+      const inst = String(c?.institucion || '').toLowerCase();
+      return (
+        (t.includes('soporte vital') && inst.includes('socorro')) ||
+        (t.includes('conatos') && inst.includes('bomberos')) ||
+        (t.includes('normalizados') && inst.includes('sst empresa')) ||
+        (t.includes('comando de incidentes') && inst.includes('defensa civil'))
+      );
+    };
+    const isMockSim = (s) => {
+      const n = String(s?.nombre || '').toLowerCase();
+      const r = String(s?.rolDesempenado || '').toLowerCase();
+      return n.includes('simulacro nacional') && r.includes('coordinador de evacuación');
+    };
+
     if (brigadista) {
+      const cleanBrigadista = {
+        ...brigadista,
+        capacitaciones: Array.isArray(brigadista.capacitaciones)
+          ? brigadista.capacitaciones.filter((c) => !isMockCap(c))
+          : [],
+        simulacrosParticipados: Array.isArray(brigadista.simulacrosParticipados)
+          ? brigadista.simulacrosParticipados.filter((s) => !isMockSim(s))
+          : [],
+      };
+
       return res.json({
         success: true,
         company: {
@@ -3271,7 +3298,7 @@ router.get('/brigadista/:companyId/:cedula?', async (req, res) => {
           companyName: company.companyName,
           logoUrl: company.logoUrl || null,
         },
-        brigadista,
+        brigadista: cleanBrigadista,
         worker,
         isDraft: false,
       });
@@ -3296,22 +3323,15 @@ router.get('/brigadista/:companyId/:cedula?', async (req, res) => {
       contactoEmergenciaParentesco: 'Familiar',
       contactoEmergenciaTelefono: worker?.emergenciaTelefono || worker?.telefono || '',
       dotacion: [
-        { item: 'Chaleco reflectivo de brigadista con distintivo', entregado: true, observacion: 'Dotación reglamentaria' },
-        { item: 'Brazalete reflectivo de brigada SCI', entregado: true, observacion: 'Identificación rápida' },
-        { item: 'Silbato de advertencia y evacuación', entregado: true, observacion: 'Señalización acústica' },
+        { item: 'Chaleco reflectivo de brigadista con distintivo', entregado: false, observacion: 'Dotación reglamentaria' },
+        { item: 'Brazalete reflectivo de brigada SCI', entregado: false, observacion: 'Identificación rápida' },
+        { item: 'Silbato de advertencia y evacuación', entregado: false, observacion: 'Señalización acústica' },
         { item: 'Linterna táctica recargable de alta potencia', entregado: false, observacion: 'Pendiente de entrega' },
         { item: 'Botiquín personal de primeros auxilios y trauma', entregado: false, observacion: 'Dotación por sede' },
-        { item: 'Guantes de nitrilo y protección ocular', entregado: true, observacion: 'Bioseguridad' },
+        { item: 'Guantes de nitrilo y protección ocular', entregado: false, observacion: 'Bioseguridad' },
       ],
-      capacitaciones: [
-        { tema: 'Primer Respondiente & Soporte Vital Básico (SVB)', horas: 8, institucion: 'ARL / Organismo de Socorro', estado: 'Certificado' },
-        { tema: 'Prevención, Control de Conatos y Manejo de Extintores', horas: 6, institucion: 'Cuerpo de Bomberos', estado: 'Certificado' },
-        { tema: 'Procedimientos Operativos Normalizados (PON) de Evacuación', horas: 4, institucion: 'SST Empresa', estado: 'Certificado' },
-        { tema: 'Sistema Comando de Incidentes (SCI) en Terreno', horas: 8, institucion: 'Defensa Civil / Cruz Roja', estado: 'En curso' },
-      ],
-      simulacrosParticipados: [
-        { nombre: 'Simulacro Nacional de Respuesta a Emergencias', rolDesempenado: 'Coordinador de Evacuación y Conteo' },
-      ],
+      capacitaciones: [],
+      simulacrosParticipados: [],
       carnetEmitido: true,
       fechaIngresoBrigada: new Date(),
     };

@@ -414,6 +414,7 @@ export default function PublicEstudioPuesto() {
         currentApp="estudio_puesto"
         title="Auto-evaluación Ergonómica (EPT)"
         subtitle="Verificación biomecánica y hábitos ergonómicos de puesto"
+        workerCedula={workerId || worker?.cedula}
       />
 
       <main className={`flex-1 p-4 sm:p-6 w-full ${submitted && showLiveEditor ? 'max-w-5xl' : 'max-w-xl'} mx-auto flex flex-col justify-center transition-all duration-300`}>

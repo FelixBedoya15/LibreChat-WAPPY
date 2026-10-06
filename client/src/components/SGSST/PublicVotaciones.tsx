@@ -163,6 +163,7 @@ export default function PublicVotaciones() {
         companyLogo={company?.logo}
         currentModule="votaciones"
         title="Elecciones Paritarias SST"
+        workerCedula={cedula || worker?.cedula}
       />
 
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 md:p-8 space-y-6">

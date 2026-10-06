@@ -52,12 +52,20 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
     try {
       const q = new URLSearchParams(window.location.search).get('cedula');
       if (q && q.trim()) return q.trim();
+      const parts = window.location.pathname.split('/').filter(Boolean);
+      if (parts.length >= 3) {
+        const lastPart = parts[parts.length - 1];
+        if (lastPart && /^\d+$/.test(lastPart) && lastPart.length >= 6) {
+          return lastPart.trim();
+        }
+      }
       const directCed = localStorage.getItem('wappy_worker_cedula');
       if (directCed && directCed.trim()) return directCed.trim();
       const rawSession = localStorage.getItem('wappy_worker_session');
       if (rawSession) {
         const parsed = JSON.parse(rawSession);
         if (parsed?.cedula) return String(parsed.cedula).trim();
+        if (parsed?.identificacion) return String(parsed.identificacion).trim();
       }
     } catch (e) {}
     return '';
@@ -176,12 +184,21 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
         },
         {
           id: 'comites',
-          name: 'Comités & Brigadas',
-          desc: 'Firma de asistencia para COPASST, COCOLAB, Brigada y PESV',
+          name: 'Comités & Actas SST',
+          desc: 'Firma de actas para COPASST, Convivencia y comités',
           icon: UserCheck,
           path: `/sgsst-public/comites/${companyId}`,
           color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800',
           badge: '+25 pts',
+        },
+        {
+          id: 'brigadista',
+          name: 'Ficha del Brigadista (SCI)',
+          desc: 'Credencial digital, dotación y registro médico',
+          icon: Shield,
+          path: `/sgsst-public/brigadista/${companyId}`,
+          color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800',
+          badge: 'Brigada',
         },
         {
           id: 'convivencia',
@@ -271,17 +288,16 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
 
         {/* Action Pills */}
         <div className="flex items-center gap-2">
-          {/* Botón Volver al Panel de Gamificación (Visible en TODOS los módulos fuera del Hub) */}
+          {/* Botón Mis Puntos (Visible en TODOS los módulos fuera del Hub) */}
           {!isHub && (
             <button
               type="button"
               onClick={() => navigate(`/sgsst-public/colaborador/${companyId}${resolvedCedula ? `/${encodeURIComponent(resolvedCedula)}` : ''}`)}
-              title="Volver a Mi Pasaporte SST (Panel del Colaborador)"
-              className="flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl text-xs font-bold bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/60 shadow-2xs transition-all active:scale-95 cursor-pointer"
+              title="Mi Pasaporte SST (Puntos & Perfil)"
+              className="flex items-center gap-1.5 h-8 sm:h-9 px-3 rounded-xl text-xs font-bold bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/60 shadow-2xs transition-all active:scale-95 cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
               <Award className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <span className="inline font-bold whitespace-nowrap">Panel Gamificación</span>
+              <span className="font-bold whitespace-nowrap">Mis Puntos</span>
             </button>
           )}
 
@@ -332,9 +348,8 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
                         className="w-full p-2.5 rounded-xl bg-gradient-to-r from-teal-600/10 via-emerald-600/10 to-transparent border border-teal-500/30 text-teal-800 dark:text-teal-200 flex items-center justify-between text-xs font-bold hover:bg-teal-500/20 transition-all text-left cursor-pointer"
                       >
                         <div className="flex items-center gap-2">
-                          <ArrowLeft className="w-4 h-4 text-teal-600 dark:text-teal-400" />
                           <Award className="w-4 h-4 text-amber-500" />
-                          <span>Volver a Mi Pasaporte SST</span>
+                          <span>Volver a Mis Puntos (Pasaporte SST)</span>
                         </div>
                       </button>
                     </div>

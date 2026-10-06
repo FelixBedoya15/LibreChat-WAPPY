@@ -87,26 +87,37 @@ export default function PublicBrigadistas() {
 
   // Dotación & Equipos Asignados
   const [dotacion, setDotacion] = useState<DotacionItem[]>([
-    { item: 'Chaleco reflectivo de brigadista con distintivo', entregado: true, observacion: 'Dotación reglamentaria' },
-    { item: 'Brazalete reflectivo de brigada SCI', entregado: true, observacion: 'Identificación rápida' },
-    { item: 'Silbato de advertencia y evacuación', entregado: true, observacion: 'Señalización acústica' },
+    { item: 'Chaleco reflectivo de brigadista con distintivo', entregado: false, observacion: 'Dotación reglamentaria' },
+    { item: 'Brazalete reflectivo de brigada SCI', entregado: false, observacion: 'Identificación rápida' },
+    { item: 'Silbato de advertencia y evacuación', entregado: false, observacion: 'Señalización acústica' },
     { item: 'Linterna táctica recargable de alta potencia', entregado: false, observacion: 'Pendiente de entrega' },
     { item: 'Botiquín personal de primeros auxilios y trauma', entregado: false, observacion: 'Dotación por sede' },
-    { item: 'Guantes de nitrilo y protección ocular', entregado: true, observacion: 'Bioseguridad' },
+    { item: 'Guantes de nitrilo y protección ocular', entregado: false, observacion: 'Bioseguridad' },
   ]);
 
-  // Capacitaciones acreditadas
-  const [capacitaciones, setCapacitaciones] = useState<CapacitacionItem[]>([
-    { tema: 'Primer Respondiente & Soporte Vital Básico (SVB)', horas: 8, institucion: 'ARL / Organismo de Socorro', estado: 'Certificado' },
-    { tema: 'Prevención, Control de Conatos y Manejo de Extintores', horas: 6, institucion: 'Cuerpo de Bomberos', estado: 'Certificado' },
-    { tema: 'Procedimientos Operativos Normalizados (PON) de Evacuación', horas: 4, institucion: 'SST Empresa', estado: 'Certificado' },
-    { tema: 'Sistema Comando de Incidentes (SCI) en Terreno', horas: 8, institucion: 'Defensa Civil / Cruz Roja', estado: 'En curso' },
-  ]);
+  // Helper para detectar capacitaciones mock ficticias
+  const isMockCapacitacion = (c: CapacitacionItem) => {
+    const t = String(c?.tema || '').toLowerCase();
+    const inst = String(c?.institucion || '').toLowerCase();
+    return (
+      (t.includes('soporte vital') && inst.includes('socorro')) ||
+      (t.includes('conatos') && inst.includes('bomberos')) ||
+      (t.includes('normalizados') && inst.includes('sst empresa')) ||
+      (t.includes('comando de incidentes') && inst.includes('defensa civil'))
+    );
+  };
 
-  // Simulacros
-  const [simulacros, setSimulacros] = useState<SimulacroItem[]>([
-    { nombre: 'Simulacro Nacional de Respuesta a Emergencias', rolDesempenado: 'Coordinador de Evacuación y Conteo' },
-  ]);
+  const isMockSimulacro = (s: SimulacroItem) => {
+    const n = String(s?.nombre || '').toLowerCase();
+    const r = String(s?.rolDesempenado || '').toLowerCase();
+    return n.includes('simulacro nacional') && r.includes('coordinador de evacuación');
+  };
+
+  // Capacitaciones acreditadas (inicialmente vacío para no suponer certificaciones)
+  const [capacitaciones, setCapacitaciones] = useState<CapacitacionItem[]>([]);
+
+  // Simulacros participados (inicialmente vacío)
+  const [simulacros, setSimulacros] = useState<SimulacroItem[]>([]);
 
   const [observaciones, setObservaciones] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -153,9 +164,15 @@ export default function PublicBrigadistas() {
         if (b.contactoEmergenciaParentesco) setContactoEmergenciaParentesco(b.contactoEmergenciaParentesco);
         if (b.contactoEmergenciaTelefono) setContactoEmergenciaTelefono(b.contactoEmergenciaTelefono);
         if (Array.isArray(b.dotacion) && b.dotacion.length > 0) setDotacion(b.dotacion);
-        if (Array.isArray(b.capacitaciones) && b.capacitaciones.length > 0) setCapacitaciones(b.capacitaciones);
-        if (Array.isArray(b.simulacrosParticipados) && b.simulacrosParticipados.length > 0) {
-          setSimulacros(b.simulacrosParticipados);
+        if (Array.isArray(b.capacitaciones)) {
+          setCapacitaciones(b.capacitaciones.filter((c: CapacitacionItem) => !isMockCapacitacion(c)));
+        } else {
+          setCapacitaciones([]);
+        }
+        if (Array.isArray(b.simulacrosParticipados)) {
+          setSimulacros(b.simulacrosParticipados.filter((s: SimulacroItem) => !isMockSimulacro(s)));
+        } else {
+          setSimulacros([]);
         }
         if (b.firmaDigital) {
           setExistingSignature(b.firmaDigital);
@@ -317,7 +334,7 @@ export default function PublicBrigadistas() {
         companyId={companyId || ''}
         companyName={company?.companyName || 'Somos SST'}
         companyLogo={company?.logoUrl}
-        currentModule="comites"
+        currentModule="brigadista"
         workerCedula={cedula}
       />
 
@@ -716,41 +733,82 @@ export default function PublicBrigadistas() {
                 <Award className="w-4 h-4" /> Competencias Normativas
               </span>
               <h2 className="text-xl font-black text-text-primary mt-1">
-                Capacitaciones y Simulacros Certificados
+                Capacitaciones y Simulacros Acreditados
               </h2>
               <p className="text-xs text-text-secondary mt-1">
-                Horas de formación acumuladas y participación en simulacros de evacuación según Dec. 1072 de 2015.
+                Registro de formación acumulada y participación en simulacros de emergencias (Dec. 1072 de 2015 Art. 2.2.4.6.25).
               </p>
             </div>
 
             <div className="space-y-3">
-              <h3 className="text-xs font-black uppercase tracking-wider text-text-primary">Cursos Acreditados</h3>
-              {capacitaciones.map((c, i) => (
-                <div key={i} className="p-3.5 rounded-2xl bg-surface-secondary/60 border border-border-light flex items-center justify-between gap-3 text-xs">
-                  <div>
-                    <p className="font-bold text-text-primary">{c.tema}</p>
-                    <p className="text-[11px] text-text-secondary">{c.institucion} • {c.horas} Horas</p>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black uppercase tracking-wider text-text-primary">Cursos Acreditados</h3>
+                <span className="text-[11px] font-bold text-text-secondary">
+                  {capacitaciones.length} {capacitaciones.length === 1 ? 'registrado' : 'registrados'}
+                </span>
+              </div>
+              {capacitaciones.length > 0 ? (
+                capacitaciones.map((c, i) => (
+                  <div key={i} className="p-3.5 rounded-2xl bg-surface-secondary/60 border border-border-light flex items-center justify-between gap-3 text-xs">
+                    <div>
+                      <p className="font-bold text-text-primary">{c.tema}</p>
+                      <p className="text-[11px] text-text-secondary">{c.institucion} • {c.horas} Horas</p>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200">
+                      {c.estado}
+                    </span>
                   </div>
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200">
-                    {c.estado}
-                  </span>
+                ))
+              ) : (
+                <div className="p-6 rounded-2xl bg-surface-secondary/30 border border-dashed border-border-medium text-center space-y-3">
+                  <div className="w-12 h-12 mx-auto rounded-2xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                    <Award className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-text-primary">Sin Certificaciones Registradas</p>
+                    <p className="text-xs text-text-secondary max-w-md mx-auto leading-relaxed">
+                      Este brigadista no registra cursos ni certificados de emergencias acreditados formalmente por el Área de SST o entidades de socorro (ARL, Bomberos, Defensa Civil, Cruz Roja).
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/sgsst-public/ruta-aprendizaje/${companyId}?cedula=${encodeURIComponent(cedula)}`)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white transition-all shadow-sm active:scale-95 cursor-pointer"
+                  >
+                    <GraduationCap className="w-3.5 h-3.5" />
+                    <span>Ver Escuela SST y Capacitaciones</span>
+                  </button>
                 </div>
-              ))}
+              )}
             </div>
 
             <div className="space-y-3 pt-2">
-              <h3 className="text-xs font-black uppercase tracking-wider text-text-primary">Simulacros de Evacuación</h3>
-              {simulacros.map((s, i) => (
-                <div key={i} className="p-3.5 rounded-2xl bg-surface-secondary/60 border border-border-light flex items-center justify-between gap-3 text-xs">
-                  <div>
-                    <p className="font-bold text-text-primary">{s.nombre}</p>
-                    <p className="text-[11px] text-text-secondary">Rol asignado: {s.rolDesempenado}</p>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black uppercase tracking-wider text-text-primary">Simulacros de Evacuación</h3>
+                <span className="text-[11px] font-bold text-text-secondary">
+                  {simulacros.length} {simulacros.length === 1 ? 'registrado' : 'registrados'}
+                </span>
+              </div>
+              {simulacros.length > 0 ? (
+                simulacros.map((s, i) => (
+                  <div key={i} className="p-3.5 rounded-2xl bg-surface-secondary/60 border border-border-light flex items-center justify-between gap-3 text-xs">
+                    <div>
+                      <p className="font-bold text-text-primary">{s.nombre}</p>
+                      <p className="text-[11px] text-text-secondary">Rol asignado: {s.rolDesempenado}</p>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Participó
+                    </span>
                   </div>
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    Participó
-                  </span>
+                ))
+              ) : (
+                <div className="p-4 rounded-2xl bg-surface-secondary/30 border border-dashed border-border-medium text-center space-y-1">
+                  <p className="text-xs font-bold text-text-primary">Sin Registro de Participación en Simulacros</p>
+                  <p className="text-[11px] text-text-secondary max-w-md mx-auto">
+                    La participación en simulacros periódicos se registrará una vez se ejecute y evalúe la jornada de evacuación en la empresa.
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}

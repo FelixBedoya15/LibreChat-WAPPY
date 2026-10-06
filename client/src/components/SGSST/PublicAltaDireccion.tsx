@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
     Shield, AlertTriangle, UserCircle, Key, Send, CheckCircle, X,
     ClipboardCheck, ChevronDown, ChevronRight, CheckCircle2, XCircle, AlertCircle, MinusCircle,
-    Loader2, Building2, Lock
+    Loader2, Building2, Lock, Award
 } from 'lucide-react';
 import axios from 'axios';
 import { ALTA_DIRECCION_ITEMS, CATEGORY_TITLES, GERENCIA_KEYWORDS } from '../SGSST/altaDireccionData';
@@ -34,6 +34,7 @@ const STATUS_OPTS = [
 
 export default function PublicAltaDireccion() {
     const { companyId } = useParams();
+    const navigate = useNavigate();
     const { session, worker: sessionWorker, isAuthenticated, saveSession, clearSession } = useWorkerSession(companyId);
 
     const [company, setCompany] = useState<any>(null);
@@ -194,7 +195,16 @@ export default function PublicAltaDireccion() {
                         <h1 className="font-bold text-sm text-gray-900 leading-tight">{company.companyName}</h1>
                         <p className="text-xs text-teal-600 font-semibold">Revisión por Alta Dirección · SG-SST</p>
                     </div>
-                    <div className="ml-auto">
+                    <div className="ml-auto flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => navigate(`/sgsst-public/colaborador/${companyId}`)}
+                            title="Mi Pasaporte SST (Puntos & Perfil)"
+                            className="flex items-center gap-1.5 h-8 px-2.5 rounded-xl text-xs font-bold bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition-all cursor-pointer"
+                        >
+                            <Award className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            <span className="font-bold">Mis Puntos</span>
+                        </button>
                         <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-bold uppercase tracking-wide flex items-center gap-1">
                             <Lock className="w-3 h-3" /> Acceso Restringido
                         </span>

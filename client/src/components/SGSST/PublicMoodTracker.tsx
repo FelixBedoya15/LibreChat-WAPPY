@@ -577,6 +577,7 @@ export default function PublicMoodTracker() {
         currentApp="termometro"
         title="Termómetro Psicosocial"
         subtitle="100% Anónimo y Voluntario • Bienestar Emocional"
+        workerCedula={claimCedula || sessionWorker?.cedula || session?.cedula}
       />
 
       {/* Main Container */}

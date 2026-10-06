@@ -288,6 +288,7 @@ export default function PublicAtelTestimonio() {
         currentApp="atel"
         title="Buzón de Testimonios ATEL"
         subtitle="Declaración confidencial en investigación de incidentes y accidentes"
+        workerCedula={cedula}
       />
 
       {/* Main Content */}
