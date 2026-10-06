@@ -117,9 +117,6 @@ class GeminiLiveClient extends EventEmitter {
 
                     // Send initial setup message
                     this.sendSetup();
-
-                    // Flush any buffered messages (audio/video sent while connecting)
-                    this.flushBuffer();
                 });
 
                 this.ws.on('error', (error) => {
@@ -216,6 +213,7 @@ class GeminiLiveClient extends EventEmitter {
                         if (response.setupComplete) {
                             logger.info('[GeminiLive] Setup complete');
                             this.setupCompleted = true;
+                            this.flushBuffer();
                             cleanup();
                             resolve(); // Now the connection is TRULY established and approved by Google!
                         }

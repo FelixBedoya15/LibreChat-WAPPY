@@ -1443,7 +1443,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         setTenshiStatus('');
       },
       onStatusChange: (newStatus: string) => {
-        if (newStatus === 'ready' || newStatus === 'connected' || newStatus === 'listening' || newStatus === 'turn_complete') {
+        if (newStatus === 'connecting') {
+          setVoiceStatusText('Conectando con Tenshi...');
+        } else if (newStatus === 'ready' || newStatus === 'connected' || newStatus === 'listening' || newStatus === 'turn_complete') {
           if (newStatus === 'turn_complete') {
             setMessages((prev) => prev.map((m) => ({ ...m, isLiveVoice: false })));
             refetchHistoryRef.current?.();
@@ -1578,7 +1580,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     }
 
     lastActivityRef.current = Date.now();
-    setVoiceStatusText('Tenshi te escucha...');
+    setVoiceStatusText('Conectando con Tenshi...');
     connectVoice();
   }, [connectVoice]);
 
@@ -2053,7 +2055,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           tenshiAudio.playBlip();
           stopVoiceMode();
         } else {
-          tenshiAudio.playSuccess();
+          tenshiAudio.playBlip();
           startVoiceMode();
         }
       }, 260);
@@ -2112,30 +2114,53 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         setMessages((prev) => {
           // Extraer mensajes locales que contengan archivos (file o htmlReport)
           const localFiles = prev.filter((m) => m.file || m.htmlReport);
+
+          // 1. Mapa de archivos locales por contenido o por título
+          const localFileMap = new Map<string, any>();
+          prev.forEach((m) => {
+            if (m.file) {
+              if (m.content) localFileMap.set(m.content.trim(), m.file);
+              if (m.file.title) localFileMap.set(m.file.title.trim(), m.file);
+            }
+          });
+
+          // 2. Enriquecer historyData si algún mensaje del historial carece de file pero existía localmente
+          const enrichedHistory = historyData.map((h: any) => {
+            if (!h.file && h.content) {
+              const matched = localFileMap.get(h.content.trim());
+              if (matched) return { ...h, file: matched };
+            }
+            return h;
+          });
+
           if (localFiles.length === 0) {
-            return historyData;
+            return enrichedHistory;
           }
 
-          // Identificadores y firmas de mensajes ya existentes en historyData
+          // 3. Identificadores y firmas de mensajes ya existentes en enrichedHistory
           const historySignatures = new Set<string>();
-          historyData.forEach((h: any) => {
+          enrichedHistory.forEach((h: any) => {
             if (h._id) historySignatures.add(String(h._id));
+            if (h.content) historySignatures.add(h.content.trim());
+            if (h.file?.canvasId) historySignatures.add(String(h.file.canvasId));
             const sig = `${(h.content || '').trim()}-${(h.file?.title || '').trim()}`;
             if (sig !== '-') historySignatures.add(sig);
           });
 
-          // Filtrar archivos locales que aún no hayan sido devueltos por el backend
+          // 4. Filtrar archivos locales que aún no hayan sido devueltos por el backend
           const unpersistedFiles = localFiles.filter((lf: any) => {
             if (lf._id && historySignatures.has(String(lf._id))) return false;
+            if (lf.file?.canvasId && historySignatures.has(String(lf.file.canvasId))) return false;
+            if (lf.content && historySignatures.has(lf.content.trim())) return false;
             const sig = `${(lf.content || '').trim()}-${(lf.file?.title || '').trim()}`;
             return !historySignatures.has(sig);
           });
 
           if (unpersistedFiles.length === 0) {
-            return historyData;
+            return enrichedHistory;
           }
 
-          return [...historyData, ...unpersistedFiles];
+          return [...enrichedHistory, ...unpersistedFiles];
         });
       } else {
         setMessages((prev) => {
@@ -3234,7 +3259,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 tenshiAudio.playBlip();
                 stopVoiceMode();
               } else {
-                tenshiAudio.playSuccess();
+                tenshiAudio.playBlip();
                 startVoiceMode();
               }
             }}

@@ -246,6 +246,39 @@
 
 ---
 
+### LECCIÓN 7 (2026-10-06): Resolución de Falla de "Segundo Llamado" en Modo Voz y Persistencia de Archivos Canvas
+
+#### A. Falla de "Segundo Llamado" al Conectar Modo Voz
+- **Síntoma Reportado:** Al encender el modo voz y hablar por primera vez ("Hola Tenshi"), Tenshi permanecía en silencio. Solo cuando el usuario hablaba por segunda vez ("Hola Tenchi, ¿cómo estás?"), Tenshi respondía.
+- **Causas Raíces Diagnosticadas:**
+  1. **Prematuridad del Estado `listening` en Cliente:** Al hacer clic en el micrófono, `TenshiChat` marcaba inmediatamente *"Tenshi te escucha..."* y `useVoiceSession` en `ws.onopen` fijaba `status: 'listening'`, a pesar de que el backend tardaba de 1.5 a 2.5 segundos en cargar memorias, autenticar y completar el handshake WebSocket con Google Multimodal Live API (`setupComplete`).
+  2. **Descarte Silencioso de Audio en Backend:** Durante esos 1.5 - 2.5 segundos de inicialización, en `voiceSession.js` la condición `if (!this.isActive || !this.geminiClient) break;` descartaba silenciosamente los primeros chunks de audio (el primer llamado del usuario). Cuando el backend completaba el setup y activaba la escucha, el usuario ya había terminado de hablar y esperaba en silencio. Al hablar por segunda vez, la sesión ya estaba activa y Gemini respondía de inmediato.
+  3. **Contaminación Acústica por `playSuccess`:** Al hacer clic en el micrófono se ejecutaba `tenshiAudio.playSuccess()`, un arpegio sonoro de 4 notas (510ms) que sonaba por los altavoces directo al micrófono abierto, alterando el suelo de ruido y la VAD de Google.
+  4. **Flush Prematuro en `geminiLive.js`:** Se enviaba `flushBuffer()` en el evento `open` del socket antes de recibir `setupComplete`.
+- **Solución Implementada:**
+  1. `TenshiChat` muestra *"Conectando con Tenshi..."* hasta que el backend confirma explícitamente `status: 'listening'` tras recibir `setupComplete` de Google.
+  2. Sustitución de `tenshiAudio.playSuccess()` por `tenshiAudio.playBlip()` (blip suave de 50ms) al alternar el micrófono.
+  3. `useVoiceSession` bloquea el envío de PCM chunks (`sendPCMChunk`) mientras el estado no sea 'listening' o 'ready', e incluye una ventana de gracia de 200ms para que el flujo de audio comience en silencio pristino.
+  4. `geminiLive.js` posterga `flushBuffer()` hasta el evento `setupComplete`.
+  5. En `voiceSession.js`, se valida `this.geminiClient.setupCompleted` antes de procesar audio.
+
+#### B. Desaparición de Archivos Canvas ("Apareció la opción para descargar y se borró" / "Dice que generó pero no aparece")
+- **Síntoma Reportado:** Al solicitar un informe o documento a Tenshi, ella decía verbalmente *"¡Por supuesto! Ya te generé el documento..."*, pero la tarjeta de archivo no aparecía en pantalla o aparecía por 1 segundo y se borraba inmediatamente. Además, Gemini Live empezaba a hablar en inglés tras recibir la confirmación de la herramienta.
+- **Causas Raíces Diagnosticadas:**
+  1. **Omisión de `file` en Esquema Mongoose (`TenshiMessage.js`):** El esquema solo contemplaba `user`, `role`, `content` y `htmlReport`. Al llamar `TenshiMessage.create({ ..., file: { ... } })`, Mongoose en modo estricto eliminaba silenciosamente el objeto `file` antes de guardar en MongoDB.
+  2. **Omisión de `file` en Ruta de API (`GET /api/tenshi/history`):** La ruta mapeaba los mensajes retornando `{ _id, role, content, htmlReport }`, omitiendo por completo `file: m.file`.
+  3. **Sobrescritura Reactiva en Frontend:** Cuando `canvas_tool` emitía `wappy_action`, `setMessages` agregaba el archivo localmente. Segundos después, `turn_complete` llamaba a `refetchHistory()`; al llegar `historyData` desde el backend sin `file`, el estado local reemplazaba o eliminaba el objeto `file`, haciendo que la tarjeta de descarga desapareciera ante los ojos del usuario.
+  4. **Latencia Desmedida en `gemini-3.6-flash` (51 segundos):** En `CanvasTool.js`, el prompt de enriquecimiento pedía hasta 2,500 palabras y no acotaba `maxOutputTokens`, generando ~20,000 caracteres (3,500 palabras). Durante esos 51 segundos en segundo plano, Gemini Live en modo voz alucinaba que ya lo había generado y cerraba el turno.
+  5. **Fuga de Idioma Inglés:** Gemini Live respondía en inglés (*"I already generated the Word document..."*) ante el `toolResponse` de `canvas_tool`.
+- **Solución Implementada:**
+  1. Adición del subdocumento `file: { title, fileType, content, canvasId }` en `api/models/TenshiMessage.js`.
+  2. Inclusión de `file: m.file` en `GET /api/tenshi/history` y `POST /api/tenshi/message`.
+  3. En `TenshiChat.tsx`, lógica de sincronización defensiva en `useEffect([historyData])`: mapea y preserva `file` enriqueciendo mensajes de historial si existían localmente, impidiendo cualquier borrado o desaparición de tarjetas de descarga.
+  4. En `CanvasTool.js`, optimización del prompt de `processTextReportDocument`: se calibra la extensión a 800-1,200 palabras de alta densidad técnica con las 3 tablas obligatorias (Demográfica, Peligros, Plan de Acción) y marco legal colombiano (Dec. 1072/2015, Res. 0312/2019), limitando `maxOutputTokens: 3500`. La generación pasa de 51s a 5-7s.
+  5. En `voiceSession.js`, directiva de transición verbal en `systemInstruction` (*"Estoy redactando y compilando el documento en tu pantalla con las tablas correspondientes, dame un momento..."* sin afirmar que ya está listo hasta recibir el resultado) y forzamiento estricto de confirmación en español en el `toolResponse` (`[INSTRUCCIÓN ESTRICTA EN ESPAÑOL]: Confirma únicamente en español... ESTÁ TERMINANTEMENTE PROHIBIDO RESPONDER EN INGLÉS`).
+
+---
+
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
 
 Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el chat:

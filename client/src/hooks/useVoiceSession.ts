@@ -57,6 +57,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const autoMuteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const inputAnalyserRef = useRef<AnalyserNode | null>(null);
     const isStartingAudioRef = useRef(false);
+    const listeningStartTimeRef = useRef(0);
     const statusRef = useRef(status);
     useEffect(() => {
         statusRef.current = status;
@@ -128,6 +129,10 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             let resamplePhase = 0;
 
             const sendPCMChunk = (float32Array: Float32Array) => {
+                // Silenciar envío mientras el backend aún no está listo en escucha activa ('listening' o 'ready')
+                if (statusRef.current !== 'listening' && statusRef.current !== 'ready') return;
+                // Grace period: descartar primeros 200ms de captura para abrir el canal de audio con silencio limpio sin pops
+                if (listeningStartTimeRef.current && (Date.now() - listeningStartTimeRef.current < 200)) return;
                 // Silenciar envío mientras la IA reproduce voz para evitar eco acústico del altavoz y tartamudeo
                 if (isHardwareMutedRef.current || isPlayingAudioRef.current || isAutoMutedRef.current) return;
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
@@ -271,10 +276,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 (workletNodeRef as any).current = scriptProcessor;
             }
 
-            // Audio capture successfully setup and streaming
-            statusRef.current = 'listening';
-            setStatus('listening');
-            optionsRef.current.onStatusChange?.('listening');
+            // Audio capture successfully setup and awaiting server listening state
+            console.log('[VoiceSession] Audio capture listo y precalentado, a la espera del estado listening del backend');
 
         } catch (error: any) {
             console.error('[VoiceSession] Error starting audio capture:', error);
@@ -317,6 +320,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
      */
     const stopAudioCapture = () => {
         isStartingAudioRef.current = false;
+        listeningStartTimeRef.current = 0;
         // Detener tracks del micrófono
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
@@ -442,12 +446,12 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             wsRef.current = ws;
 
             ws.onopen = async () => {
-                console.log('[VoiceSession] Connected');
+                console.log('[VoiceSession] WebSocket conectado, esperando confirmación listening del backend...');
                 setIsConnected(true);
                 setIsConnecting(false);
-                statusRef.current = 'listening';
-                setStatus('listening');
-                optionsRef.current.onStatusChange?.('listening');
+                statusRef.current = 'connecting';
+                setStatus('connecting');
+                optionsRef.current.onStatusChange?.('connecting');
 
                 if (!disableAudio && !streamRef.current) {
                     await startAudioCapture();
@@ -474,6 +478,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 console.log('[VoiceSession] WebSocket closed:', event.code, event.reason);
                 setIsConnected(false);
                 setIsConnecting(false);
+                listeningStartTimeRef.current = 0;
                 setStatus('idle');
                 optionsRef.current.onStatusChange?.('idle');
                 stopAudioCapture();
@@ -556,6 +561,12 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 setStatus(newStatus);
                 statusRef.current = newStatus;
                 optionsRef.current.onStatusChange?.(newStatus);
+
+                if (newStatus === 'listening') {
+                    if (!listeningStartTimeRef.current) {
+                        listeningStartTimeRef.current = Date.now();
+                    }
+                }
 
                 if (newStatus === 'listening' || newStatus === 'turn_complete') {
                     serverFinishedRef.current = true;

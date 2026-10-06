@@ -2745,8 +2745,8 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                 break;
 
             case 'audio':
-                // Do not process audio if session is stopped or geminiClient is not ready
-                if (!this.isActive || !this.geminiClient) {
+                // Do not process audio if session is stopped or geminiClient is not ready or setup not complete
+                if (!this.isActive || !this.geminiClient || !this.geminiClient.setupCompleted) {
                     break;
                 }
                 // Do not forward client mic audio to Gemini while AI is speaking (prevents speaker echo)
