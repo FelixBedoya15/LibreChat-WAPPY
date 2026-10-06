@@ -76,10 +76,19 @@ class MatrizIPEVAR extends Tool {
 
       // Obtener sesión
       const userId = this.req?.user?.id;
+      let targetUserId = userId;
+      try {
+        const User = mongoose.models.User || require('~/models/User');
+        const userDoc = await User.findById(userId).select('isSubUser parentUser assignedCompany').lean();
+        if (userDoc?.isSubUser && userDoc?.parentUser) {
+          targetUserId = userDoc.parentUser.toString();
+        }
+      } catch (_) {}
+
       let companyId = null;
-      if (userId) {
-        let active = await CompanyInfo.findOne({ user: userId, isActive: true });
-        if (!active) active = await CompanyInfo.findOne({ user: userId });
+      if (targetUserId) {
+        let active = await CompanyInfo.findOne({ user: targetUserId, isActive: true });
+        if (!active) active = await CompanyInfo.findOne({ user: targetUserId });
         companyId = active ? active._id : null;
       }
 
@@ -185,28 +194,65 @@ class MatrizIPEVAR extends Tool {
       // LOGICA DE LECTURA
       if (accion === 'leer') {
         console.log(`[MatrizIPEVAR Tool] LECTURA para convo: ${conversationId}`);
-        if (!session || !session.matrixRows || session.matrixRows.length === 0) {
+        let rows = session?.matrixRows || [];
+
+        // Fallback a matriz oficial o corporativa de la empresa si la sesión actual no tiene filas
+        if (rows.length === 0 && (userId || targetUserId || companyId)) {
+          const userFilter = [userId, targetUserId].filter(Boolean);
+          const officialConvoIds = [
+            companyId ? `official-${companyId}` : null,
+            targetUserId ? `official-${targetUserId}` : null,
+            userId ? `official-${userId}` : null,
+          ].filter(Boolean);
+
+          let fallbackDoc = await GTC45Matrix.findOne({
+            user: { $in: userFilter },
+            ...(companyId ? { companyId } : {}),
+            isOfficial: true,
+          });
+          if (!fallbackDoc && officialConvoIds.length > 0) {
+            fallbackDoc = await GTC45Matrix.findOne({ conversationId: { $in: officialConvoIds } });
+          }
+          if (!fallbackDoc) {
+            fallbackDoc = await GTC45Matrix.findOne({
+              ...(companyId ? { companyId } : { user: { $in: userFilter } }),
+              'matrixRows.0': { $exists: true },
+            }).sort({ updatedAt: -1 });
+          }
+          if (!fallbackDoc && userFilter.length > 0) {
+            fallbackDoc = await GTC45Matrix.findOne({
+              user: { $in: userFilter },
+              'matrixRows.0': { $exists: true },
+            }).sort({ updatedAt: -1 });
+          }
+          if (fallbackDoc && Array.isArray(fallbackDoc.matrixRows) && fallbackDoc.matrixRows.length > 0) {
+            rows = fallbackDoc.matrixRows;
+            console.log(`[MatrizIPEVAR Tool] Fallback exitoso a Matriz Oficial/Corporativa: ${rows.length} riesgos encontrados.`);
+          }
+        }
+
+        if (!rows || rows.length === 0) {
           return JSON.stringify({ mensaje: 'La matriz está vacía. No hay riesgos registrados aún.', resultados: [] });
         }
         
-        let rows = session.matrixRows;
+        let filteredRows = rows;
         if (filtro_proceso) {
-          rows = rows.filter(r => r.proceso && r.proceso.toLowerCase().includes(filtro_proceso.toLowerCase()));
+          filteredRows = filteredRows.filter(r => r.proceso && r.proceso.toLowerCase().includes(filtro_proceso.toLowerCase()));
         }
         if (filtro_cargo) {
-          rows = rows.filter(r => r.cargo && r.cargo.toLowerCase().includes(filtro_cargo.toLowerCase()));
+          filteredRows = filteredRows.filter(r => r.cargo && r.cargo.toLowerCase().includes(filtro_cargo.toLowerCase()));
         }
         if (filtro_actividad) {
-          rows = rows.filter(r => r.actividad && r.actividad.toLowerCase().includes(filtro_actividad.toLowerCase()));
+          filteredRows = filteredRows.filter(r => r.actividad && r.actividad.toLowerCase().includes(filtro_actividad.toLowerCase()));
         }
         if (filtro_peligro) {
-          rows = rows.filter(r => r.peligro_clasificacion && r.peligro_clasificacion.toLowerCase().includes(filtro_peligro.toLowerCase()));
+          filteredRows = filteredRows.filter(r => r.peligro_clasificacion && r.peligro_clasificacion.toLowerCase().includes(filtro_peligro.toLowerCase()));
         }
         
         return JSON.stringify({
-          mensaje: `Se encontraron ${rows.length} riesgos.`,
-          totalRegistros: session.matrixRows.length,
-          resultados: rows
+          mensaje: `Se encontraron ${filteredRows.length} riesgos.`,
+          totalRegistros: rows.length,
+          resultados: filteredRows
         });
       }
 

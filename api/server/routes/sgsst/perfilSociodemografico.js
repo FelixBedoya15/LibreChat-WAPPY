@@ -2128,6 +2128,19 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
       { upsert: true, new: true }
     );
 
+    // Sincronizar en vivo el conteo de trabajadores activos con la empresa
+    try {
+      const activeWorkersCount = updatedWithBio.filter(w => {
+        const est = (w.estadoLaboral || w.estado || '').toLowerCase().trim();
+        return est !== 'retirado' && est !== 'inactivo';
+      }).length;
+      if (companyId) {
+        await CompanyInfo.updateOne({ _id: companyId }, { $set: { workerCount: activeWorkersCount } }).catch(() => {});
+      } else {
+        await CompanyInfo.updateOne({ user: targetUserId, isActive: true }, { $set: { workerCount: activeWorkersCount } }).catch(() => {});
+      }
+    } catch (_) {}
+
     // Sync basic health data to master SgsstWorker profile (using bulkWrite for instant performance)
     const SgsstWorker = require('../../../models/SgsstWorker');
     const workerBulkOps = updatedWithBio

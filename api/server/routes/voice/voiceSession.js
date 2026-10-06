@@ -147,43 +147,50 @@ function cleanAgentInstructions(instructions) {
 }
 
 /**
- * Enriches short or flat questions with professional occupational health & safety structure
- * complying strictly with Rule 6 of AGENTS.md / GEMINI.md
+ * Enriches queries delegated to specialists with professional occupational health & safety structure
+ * complying strictly with Rule 6 of AGENTS.md / GEMINI.md, while GUARANTEEING that the user's
+ * specific inquiry is ALWAYS preserved 100% intact as the central core.
  */
 function enrichTechnicalPrompt(rawPrompt, agent) {
     let q = (rawPrompt || '').trim();
     if (!q) return q;
 
-    // Patrones específicos de alta frecuencia médica y ergonómica
-    if (/manguito.*rotador|hombro/i.test(q)) {
-        return `¿Qué es el síndrome del manguito rotador y cuál es su mecanismo de lesión en el entorno laboral? Solicito concepto médico ocupacional detallado que incluya: factores de riesgo ergonómicos y biomecánicos asociados, puestos de trabajo con mayor incidencia, protocolos preventivos y de pausas activas, y fundamentación normativa colombiana aplicable al SG-SST (Decreto 1477 de 2014 - Tabla de Enfermedades Laborales y Decreto 1072 de 2015).`;
-    }
-    if (/co-?tenista|codo.*tenista|epicondilitis/i.test(q)) {
-        return `¿Qué es el codo de tenista (epicondilitis lateral) y cuál es su mecanismo biomecánico en el entorno laboral? Solicito concepto técnico osteomuscular, identificación de movimientos repetitivos y posturas de riesgo, protocolo preventivo con pausas activas específicas y marco normativo colombiano aplicable en el SG-SST (Decreto 1477 de 2014 / Decreto 1072 de 2015).`;
-    }
-    if (/tunel.*carp|carpiano/i.test(q)) {
-        return `¿Qué es el síndrome del túnel carpiano y cuáles son sus factores de riesgo ocupacionales? Solicito concepto técnico osteomuscular, pruebas clínicas diagnósticas, medidas de control ergonómico en puestos de oficina y operativos, y marco legal colombiano en el SG-SST (Decreto 1477 de 2014 y Decreto 1072 de 2015).`;
-    }
-    if (/0312|resoluci[oó]n\s*0312|est[aá]ndares\s*m[ií]nimos/i.test(q)) {
-        return `Solicito análisis jurídico y técnico de la Resolución 0312 de 2019 sobre los Estándares Mínimos del SG-SST en Colombia. Por favor detalla la clasificación por número de trabajadores y nivel de riesgo, obligaciones no negociables para el empleador y consecuencias jurídicas o sanciones por incumplimiento.`;
-    }
-    if (/gtc\s*45|matriz.*riesgo|identificaci[oó]n.*peligro/i.test(q)) {
-        return `Solicito orientación técnica y metodológica sobre la Guía Técnica Colombiana GTC 45 para la identificación de peligros, evaluación y valoración de riesgos en el SG-SST. Por favor especifica los niveles de deficiencia, exposición y probabilidad, y la jerarquía de controles requerida según el Decreto 1072 de 2015.`;
-    }
-    if (/pesv|seguridad\s*vial|20223040040595/i.test(q)) {
-        return `Solicito concepto técnico sobre el Plan Estratégico de Seguridad Vial (PESV) bajo la Resolución 20223040040595 de 2022. Por favor explica el nivel de diseño e implementación aplicable, los pasos obligatorios y la articulación con el SG-SST de la empresa.`;
+    // 1. Limpiar vocativos y prefijos de delegación como "pregúntale al abogado que si...", "dile que..."
+    let cleanQ = q
+        .replace(/^(?:por\s+favor\s+)?(?:dile|preg[uú]ntale|p[ií]dele|consulta(?:le)?|av[ií]sale|comun[ií]cale)\s+(?:a\s+la\s+gente\s+|al\s+agente\s+|al\s+|a\s+la\s+|al\s+doctor\s+|al\s+m[eé]dico\s+|al\s+abogado\s+|al\s+especialista\s+|a\s+[\w\s]+\s+)?(?:que\s+)?/i, '')
+        .replace(/^(?:a\s+la\s+gente|al\s+agente|al\s+doctor|al\s+m[eé]dico|al\s+abogado|al\s+especialista)\s+(?:laboral\s+|m[eé]dico\s+|sst\s+)?(?:que\s+)?/i, '')
+        .replace(/^que\s+(qu[eé]|c[oó]mo|cu[aá]l|cu[aá]ndo|d[oó]nde|por\s+qu[eé]|si)\s+/i, '$1 ')
+        .trim();
+
+    if (!cleanQ) cleanQ = q;
+
+    // Formatear signos de interrogación si parece o contiene pregunta
+    if (/^(qu[eé]|c[oó]mo|cu[aá]l|cu[aá]ndo|qui[eé]n|d[oó]nde|por\s+qu[eé]|si)\b/i.test(cleanQ)) {
+        if (!cleanQ.startsWith('¿')) cleanQ = '¿' + cleanQ;
+        if (!cleanQ.endsWith('?')) cleanQ = cleanQ + '?';
     }
 
-    // Si la consulta es corta (menos de 80 caracteres), enriquecerla con estructura técnica profesional
-    if (q.length < 80) {
-        const temaLimpio = q
-            .replace(/^(?:qu[eé]\s+es|sobre|acerca\s+de|dime|cu[aá]l\s+es|por\s+favor\s+explica|expl[ií]came|preg[uú]ntale\s+qu[eé]\s+es)\s+/i, '')
-            .replace(/[?¿]/g, '')
-            .trim();
-        return `Solicito concepto técnico especializado sobre "${temaLimpio || q}". Por favor proporciona un análisis detallado, identificación de factores de riesgo ocupacionales, medidas preventivas y de control jerárquico aplicables al SG-SST de la empresa, y la fundamentación normativa colombiana correspondiente (Decreto 1072 de 2015, Resoluciones ministeriales o guías técnicas aplicables).`;
+    // Capitalizar primera letra (o después de ¿)
+    if (cleanQ.startsWith('¿') && cleanQ.length > 1) {
+        cleanQ = '¿' + cleanQ.charAt(1).toUpperCase() + cleanQ.slice(2);
+    } else if (cleanQ.length > 0) {
+        cleanQ = cleanQ.charAt(0).toUpperCase() + cleanQ.slice(1);
     }
 
-    return q;
+    // 2. Si la consulta ya cuenta con contexto técnico/normativo detallado o es suficientemente extensa,
+    // retornarla directamente para no sobrecargar el prompt
+    const hasNormativeContext = /\b(concepto\s+t[eé]cnico|decreto\s+\d+|resoluci[oó]n\s+\d+|ley\s+\d+|art[ií]culo\s+\d+|marco\s+legal|normativa|jurisprudencia|est[aá]ndar\s+m[ií]nimo)\b/i.test(cleanQ);
+    if (hasNormativeContext && cleanQ.length >= 120) {
+        return cleanQ;
+    }
+
+    // 3. ESTRUCTURACIÓN TÉCNICA PROFESIONAL OBLIGATORIA (REGLA 6):
+    // Preservar la consulta EXACTA del usuario como primer párrafo ineludible
+    // y anexar la solicitud de fundamentación técnico-normativa colombiana.
+    const cleanCore = cleanQ.replace(/[.?\s]+$/, '');
+    const coreQuestion = cleanCore.startsWith('¿') ? `${cleanCore}?` : cleanCore;
+
+    return `${coreQuestion}\n\nPor favor emite concepto técnico ocupacional y jurídico detallado para esta consulta concreta, fundamentado en la normativa colombiana aplicable al SG-SST (Decreto 1072 de 2015, Resoluciones ministeriales vigentes o jurisprudencia) y recomendaciones de aplicación práctica para la empresa.`;
 }
 
 /**
@@ -1418,6 +1425,41 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     rawMemories = fetchedMemories;
 
                     if (companyInfo) {
+                        let liveWorkerCount = null;
+                        try {
+                            const PerfilSocioModel = mongoose.models.PerfilSociodemograficoData || require('../sgsst/perfilSociodemografico');
+                            const socioDoc = await PerfilSocioModel.findOne({
+                                user: targetUserId,
+                                ...(companyInfo._id ? { companyId: companyInfo._id } : {})
+                            }).lean() || await PerfilSocioModel.findOne({ user: targetUserId }).lean();
+
+                            if (socioDoc && Array.isArray(socioDoc.trabajadores)) {
+                                const activeWorkers = socioDoc.trabajadores.filter(w => {
+                                    const estado = (w.estadoLaboral || w.estado || '').toLowerCase().trim();
+                                    return estado !== 'retirado' && estado !== 'inactivo';
+                                });
+                                liveWorkerCount = activeWorkers.length;
+                            }
+                        } catch (e) {
+                            try {
+                                const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+                                const count = await SgsstWorker.countDocuments({
+                                    user: targetUserId,
+                                    ...(companyInfo._id ? { companyId: companyInfo._id } : {}),
+                                    estadoLaboral: { $ne: 'Retirado' }
+                                });
+                                if (count > 0) liveWorkerCount = count;
+                            } catch (_) {}
+                        }
+
+                        const finalWorkerCount = liveWorkerCount !== null ? liveWorkerCount : (companyInfo.workerCount ?? 'N/A');
+
+                        // Mantener sincronizado el workerCount de la empresa con el censo real activo
+                        if (liveWorkerCount !== null && companyInfo.workerCount !== liveWorkerCount) {
+                            CompanyInfo.updateOne({ _id: companyInfo._id }, { $set: { workerCount: liveWorkerCount } }).catch(() => {});
+                            companyInfo.workerCount = liveWorkerCount;
+                        }
+
                         const companyType = companyInfo.companyType || 'Persona Jurídica';
                         const nitLabel = companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT';
                         let sedesStr = '';
@@ -1426,7 +1468,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         }
                         companyAndMemoryPrompt += `\n\n[EMPRESA ACTIVA DEL USUARIO]:
 - Empresa: ${companyInfo.companyName || 'N/A'} (${companyType}, ${nitLabel}: ${companyInfo.nit || 'N/A'}).
-- Representante: ${companyInfo.legalRepresentative || 'N/A'}. Trabajadores: ${companyInfo.workerCount ?? 'N/A'}.
+- Representante: ${companyInfo.legalRepresentative || 'N/A'}. Trabajadores: ${finalWorkerCount} activos en Huella Biocéntrica / Nómina.
 - ARL: ${companyInfo.arl || 'N/A'} (Riesgo: ${companyInfo.riskLevel || 'N/A'}). Actividad: ${companyInfo.economicActivity || 'N/A'}. CIIU: ${companyInfo.ciiu || 'N/A'}.
 - Ubicación: ${companyInfo.address || 'N/A'}, ${companyInfo.city || 'N/A'}, ${companyInfo.departamento || 'N/A'}.
 - Responsable SST: ${companyInfo.responsibleSST || 'N/A'}.${sedesStr}`;

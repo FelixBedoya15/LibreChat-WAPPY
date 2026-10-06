@@ -306,6 +306,41 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         let fullCompanyAndMemoryBlock = '';
         if (isMemoryEnabled) {
             if (companyInfo) {
+                let liveWorkerCount = null;
+                try {
+                    const PerfilSocioModel = mongoose.models.PerfilSociodemograficoData || require('./sgsst/perfilSociodemografico');
+                    const socioDoc = await PerfilSocioModel.findOne({
+                        user: targetUserId,
+                        ...(companyInfo._id ? { companyId: companyInfo._id } : {})
+                    }).lean() || await PerfilSocioModel.findOne({ user: targetUserId }).lean();
+
+                    if (socioDoc && Array.isArray(socioDoc.trabajadores)) {
+                        const activeWorkers = socioDoc.trabajadores.filter(w => {
+                            const estado = (w.estadoLaboral || w.estado || '').toLowerCase().trim();
+                            return estado !== 'retirado' && estado !== 'inactivo';
+                        });
+                        liveWorkerCount = activeWorkers.length;
+                    }
+                } catch (e) {
+                    try {
+                        const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+                        const count = await SgsstWorker.countDocuments({
+                            user: targetUserId,
+                            ...(companyInfo._id ? { companyId: companyInfo._id } : {}),
+                            estadoLaboral: { $ne: 'Retirado' }
+                        });
+                        if (count > 0) liveWorkerCount = count;
+                    } catch (_) {}
+                }
+
+                const finalWorkerCount = liveWorkerCount !== null ? liveWorkerCount : (companyInfo.workerCount ?? 'N/A');
+
+                if (liveWorkerCount !== null && companyInfo.workerCount !== liveWorkerCount) {
+                    const CompanyInfoModel = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
+                    CompanyInfoModel.updateOne({ _id: companyInfo._id }, { $set: { workerCount: liveWorkerCount } }).catch(() => {});
+                    companyInfo.workerCount = liveWorkerCount;
+                }
+
                 const companyType = companyInfo.companyType || 'Persona Jurídica';
                 const nitLabel = companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT';
                 let sedesStr = '';
@@ -317,7 +352,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                     `- Tipo de Empresa: ${companyType}\n` +
                     `- ${nitLabel}: ${companyInfo.nit || 'N/A'}\n` +
                     `- Representante Legal: ${companyInfo.legalRepresentative || 'N/A'}` + (companyInfo.legalRepresentativeId ? ` (Cédula: ${companyInfo.legalRepresentativeId})` : '') + `\n` +
-                    `- Número de Trabajadores: ${companyInfo.workerCount ?? 'N/A'}\n` +
+                    `- Número de Trabajadores: ${finalWorkerCount} activos en Huella Biocéntrica / Nómina\n` +
                     `- ARL: ${companyInfo.arl || 'N/A'} (Nivel de Riesgo ARL: ${companyInfo.riskLevel || 'N/A'})\n` +
                     `- Actividad Económica: ${companyInfo.economicActivity || 'N/A'}\n` +
                     `- Código CIIU: ${companyInfo.ciiu || 'N/A'}\n` +

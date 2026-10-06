@@ -268,6 +268,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
 };
 
 export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
+  id,
   onClick,
   title,
   label,
@@ -296,6 +297,9 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
 
   return (
     <motion.button
+      id={id}
+      data-action={id || 'toolbar-button'}
+      data-clickable="true"
       whileHover="hover"
       whileTap="tap"
       onClick={(e) => {
@@ -305,7 +309,7 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
       }}
       disabled={disabled}
       title={title}
-      aria-label={title}
+      aria-label={title || label}
       className={cn(
         'group flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2 shadow-sm outline-none transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:min-w-[36px] sm:px-2.5 sm:hover:-rotate-3 sm:hover:scale-105',
         variantStyles[variant],

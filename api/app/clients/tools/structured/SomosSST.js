@@ -399,6 +399,18 @@ class SomosSST extends Tool {
         perfil.markModified('trabajadores');
         await perfil.save();
 
+        // Sincronizar conteo en CompanyInfo
+        try {
+          const activeCount = perfil.trabajadores.filter(w => {
+            const est = (w.estadoLaboral || w.estado || '').toLowerCase().trim();
+            return est !== 'retirado' && est !== 'inactivo';
+          }).length;
+          if (companyId) {
+            const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
+            await CompanyInfo.updateOne({ _id: companyId }, { $set: { workerCount: activeCount } }).catch(() => {});
+          }
+        } catch (_) {}
+
         // 3. Sincronizar en SgsstWorker
         if (SgsstWorkerModel) {
           await SgsstWorkerModel.findOneAndUpdate(
@@ -466,6 +478,18 @@ class SomosSST extends Tool {
           if (workerFound) {
             perfil.markModified('trabajadores');
             await perfil.save();
+
+            // Sincronizar conteo en CompanyInfo
+            try {
+              const activeCount = perfil.trabajadores.filter(w => {
+                const est = (w.estadoLaboral || w.estado || '').toLowerCase().trim();
+                return est !== 'retirado' && est !== 'inactivo';
+              }).length;
+              if (companyId) {
+                const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
+                await CompanyInfo.updateOne({ _id: companyId }, { $set: { workerCount: activeCount } }).catch(() => {});
+              }
+            } catch (_) {}
           }
         }
 
@@ -537,6 +561,18 @@ class SomosSST extends Tool {
           if (workerFound) {
             perfil.markModified('trabajadores');
             await perfil.save();
+
+            // Sincronizar conteo en CompanyInfo
+            try {
+              const activeCount = perfil.trabajadores.filter(w => {
+                const est = (w.estadoLaboral || w.estado || '').toLowerCase().trim();
+                return est !== 'retirado' && est !== 'inactivo';
+              }).length;
+              if (companyId) {
+                const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
+                await CompanyInfo.updateOne({ _id: companyId }, { $set: { workerCount: activeCount } }).catch(() => {});
+              }
+            } catch (_) {}
           }
         }
 
@@ -1082,6 +1118,31 @@ class SomosSST extends Tool {
           }
         }
 
+        // Fallback a Matriz Oficial IPEVAR / GTC45 si el modelo legacy no tiene datos
+        if (resumen.hito_2_nucleo_bio_evaluativo_global.total_peligros_identificados === 0) {
+          try {
+            const GTC45WorkspaceSession = mongoose.models.GTC45WorkspaceSession || require('~/models/GTC45WorkspaceSession');
+            if (GTC45WorkspaceSession) {
+              const officialConvoId = `official-${companyId || userId}`;
+              const gtcDoc = (await GTC45WorkspaceSession.findOne({ user: userId, ...(companyId ? { companyId } : {}), isOfficial: true }).lean())
+                || (await GTC45WorkspaceSession.findOne({ conversationId: officialConvoId }).lean())
+                || (await GTC45WorkspaceSession.findOne({ user: userId, 'matrixRows.0': { $exists: true } }).sort({ updatedAt: -1 }).lean());
+              if (gtcDoc && Array.isArray(gtcDoc.matrixRows)) {
+                resumen.hito_2_nucleo_bio_evaluativo_global.total_peligros_identificados = gtcDoc.matrixRows.length;
+                const distinctProc = new Set(gtcDoc.matrixRows.map(r => r.proceso).filter(Boolean));
+                resumen.hito_2_nucleo_bio_evaluativo_global.total_procesos_evaluados = distinctProc.size || 1;
+                gtcDoc.matrixRows.forEach(r => {
+                  const nr = Number(r.nr || r.nivelRiesgo || 0);
+                  const interp = String(r.interpretacion || r.aceptabilidad || '').toLowerCase();
+                  if (nr >= 150 || interp.includes('no aceptable') || interp.includes('i')) {
+                    resumen.hito_2_nucleo_bio_evaluativo_global.riesgos_inaceptables_ipevar++;
+                  }
+                });
+              }
+            }
+          } catch (_) {}
+        }
+
         // Hito 3: Programa de Capacitaciones (Dinámica de Exposición)
         if (ProgramaCapacitacionesModel) {
           const capDoc = await ProgramaCapacitacionesModel.findOne(queryObj).lean();
@@ -1405,6 +1466,25 @@ class SomosSST extends Tool {
           });
         }
 
+        let liveWorkerCount = company.workerCount;
+        try {
+          const socioDoc = PerfilSocioModel
+            ? (await PerfilSocioModel.findOne({ user: targetUserId, companyId: company._id }).lean() || await PerfilSocioModel.findOne({ user: targetUserId }).lean())
+            : null;
+          if (socioDoc && Array.isArray(socioDoc.trabajadores)) {
+            const activeWorkers = socioDoc.trabajadores.filter(w => {
+              const est = (w.estadoLaboral || w.estado || '').toLowerCase().trim();
+              return est !== 'retirado' && est !== 'inactivo';
+            });
+            liveWorkerCount = activeWorkers.length;
+          }
+        } catch (_) {}
+
+        if (liveWorkerCount !== undefined && liveWorkerCount !== null && company.workerCount !== liveWorkerCount) {
+          company.workerCount = liveWorkerCount;
+          await company.save().catch(() => {});
+        }
+
         return JSON.stringify({
           exito: true,
           mensaje: `Información de la empresa activa "${company.companyName || 'Sin Nombre'}" consultada exitosamente.`,
@@ -1415,7 +1495,8 @@ class SomosSST extends Tool {
             nit: company.nit,
             representante_legal: company.legalRepresentative,
             cedula_representante: company.legalRepresentativeId,
-            numero_trabajadores: company.workerCount,
+            numero_trabajadores: liveWorkerCount ?? company.workerCount,
+            numero_trabajadores_nomina_activa: liveWorkerCount ?? company.workerCount,
             arl: company.arl,
             actividad_economica: company.economicActivity,
             nivel_riesgo: company.riskLevel,

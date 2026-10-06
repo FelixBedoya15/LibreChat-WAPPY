@@ -399,6 +399,36 @@
   3. **Voice Activity Detection (VAD) / Noise Gate Inteligente:** Cálculo de energía RMS en cada frame con seguimiento adaptativo del piso de ruido ambiental (`noiseFloor`) y umbral dinámico de activación vocal.
   4. **Hangover y Pre-Roll:** Ventana de retención de 450ms para evitar cortar finales de palabras entre sílabas y búfer circular pre-roll de 120ms para preservar intactos los fonemas iniciales. Durante el silencio, la compuerta se cierra y **NO se transmiten paquetes a Google**, garantizando un canal de audio 100% limpio y libre de ruido.
 
+#### F. Prohibición Absoluta de Sustitución Destructiva en `enrichTechnicalPrompt`
+- **Síntoma Reportado:** Al preguntar por voz *"Pregúntale, porfa, que si un psicólogo especialista en seguridad y salud en el trabajo puede ser el responsable"*, Tenshi delegaba al Abogado Laboral una plantilla prefabricada genérica sobre sanciones y número de trabajadores bajo la Res. 0312, mutilando por completo la consulta del usuario.
+- **Causa Raíz:** `enrichTechnicalPrompt` contenía regexes agresivos (`/0312|resoluci[oó]n\s*0312|est[aá]ndares/i`, `/manguito/i`, etc.) que retornaban cadenas fijas estáticas, sustituyendo de forma destructiva cualquier texto que coincidiera con dichas palabras clave.
+- **Solución Implementada:**
+  1. Erradicación total de plantillas fijas sustitutivas en `enrichTechnicalPrompt` (`voiceSession.js`).
+  2. Preservación innegociable de la consulta exacta del usuario como núcleo central del mensaje (limpiando únicamente vocativos de intermediación como *"pregúntale al abogado que si..."*).
+  3. Formateo respetuoso y anexo de la solicitud de fundamentación técnica y normativa colombiana (Dec. 1072/2015, resoluciones aplicables) sin alterar en absoluto la inquietud planteada por el usuario.
+
+#### G. Fallback Corporativo y de Matriz Oficial en Herramienta `MatrizIPEVAR`
+- **Síntoma Reportado:** Estando en la pantalla con 6 riesgos identificados en la Matriz IPEVAR Oficial, Tenshi Voice afirmaba *"La matriz se encuentra vacía actualmente, no tenemos riesgos registrados"*.
+- **Causa Raíz:** `MatrizIPEVAR._call` consultaba únicamente `GTC45Matrix.findOne({ conversationId })`. Como el widget de voz o la nueva conversación de chat poseía un ID efímero/nuevo, la consulta retornaba array vacío a pesar de que la empresa sí tenía su matriz documentada en la sesión oficial corporativa (`official-${companyId || userId}` o `isOfficial: true`).
+- **Solución Implementada:**
+  1. En `MatrizIPEVAR.js`, cuando `session.matrixRows` esté vacío en `accion === 'leer'`, se ejecuta una cascada de fallback resiliente a: `isOfficial: true`, `official-${companyId || userId}` o la sesión más reciente del usuario con registros guardados.
+  2. En `SomosSST.js` (`resumen_empresa`), se integró la lectura de `GTC45WorkspaceSession` cuando el modelo legacy no reporte peligros, reflejando fielmente los 6 riesgos oficiales en el resumen global.
+
+#### H. Sincronización en Vivo del Censo de Trabajadores (Cero Discrepancias)
+- **Síntoma Reportado:** La pantalla de Huella Biocéntrica mostraba `Todos (58) | Activos (58) | Retirados (0)`, pero Tenshi afirmaba por voz que habían 59 trabajadores.
+- **Causa Raíz:** `CompanyInfo.workerCount` mantenía un valor estático desactualizado (59) guardado al registrar la empresa, el cual no se sincronizaba automáticamente cuando se modificaba o reintegraba la nómina en `PerfilSociodemograficoData` o `SgsstWorker`.
+- **Solución Implementada:**
+  1. En `voiceSession.js` y `tenshi.js`, el conteo de trabajadores inyectado al system prompt se calcula en vivo consultando los colaboradores activos reales de `PerfilSociodemograficoData` (`estadoLaboral !== 'retirado'`).
+  2. Si existe discrepancia entre el conteo en vivo y `CompanyInfo.workerCount`, el sistema actualiza automáticamente `CompanyInfo.workerCount` en MongoDB.
+  3. En `perfilSociodemografico.js` (`router.post('/')`) y en las acciones `crear_trabajador`, `retirar_trabajador` y `actualizar_trabajador` de `SomosSST.js`, se mantiene la sincronización atómica con `CompanyInfo.workerCount`.
+
+#### I. Detección DOM y Clic Confiable en Botón de Análisis IA en `SGSSTToolbar`
+- **Síntoma Reportado:** Al pedir *"genera el informe con IA del perfil sociodemográfico"*, Tenshi respondía verbalmente que lo había generado pero nunca pulsaba el botón ni ejecutaba la acción.
+- **Causa Raíz:** `<ToolbarButton>` no propagaba los atributos `id` ni `data-action` al elemento `<motion.button>` del DOM. Por ende, `TenshiPageController` no podía encontrar `#ai-default` al invocar `operar_interfaz_visual`.
+- **Solución Implementada:**
+  1. En `SGSSTToolbar.tsx`, `<ToolbarButton>` ahora pasa explícitamente `id={id}`, `data-action={id || 'toolbar-button'}` y `data-clickable="true"` a `<motion.button>`.
+  2. En `TenshiPageController.ts`, se incluyó `[data-action="ai-default"]` y `#ai-default` en los selectores directos de alta prioridad ante órdenes de generación o análisis con IA.
+
 ---
 
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue

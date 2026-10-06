@@ -568,7 +568,7 @@ function matchesInteractiveTarget(el: HTMLElement, rawQuery: string): boolean {
       // 3. Fallback directo a botón de IA (#ai-default) si la consulta era sobre generar análisis o informe
       if (!el && /generar|analiz|informe|ia\b|reporte/i.test(query)) {
         const aiDefaultBtn = document.querySelector<HTMLElement>(
-          '#ai-default, button[title*="Generar"], button[aria-label*="Generar"]'
+          '#ai-default, [data-action="ai-default"], button[title*="Generar"], button[aria-label*="Generar"]'
         );
         if (aiDefaultBtn && isElementVisible(aiDefaultBtn)) {
           el = aiDefaultBtn;
