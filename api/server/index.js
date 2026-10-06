@@ -684,6 +684,10 @@ const startServer = async () => {
     res.sendFile(path.resolve(__dirname, '../../cursoappweb.html'));
   });
 
+  app.get(['/cursowappy01', '/cursowappy01.html'], (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../../cursowappy01.html'));
+  });
+
   app.post('/api/embajadores/send-otp', async (req, res) => {
     try {
       const { email, name, otpCode } = req.body;

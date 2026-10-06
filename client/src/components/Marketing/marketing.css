@@ -785,9 +785,12 @@ body,
   border-radius: 24px;
   box-shadow: 0 24px 50px -10px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05);
   padding: 16px;
-  max-height: calc(100vh - 90px);
+  padding-bottom: max(24px, env(safe-area-inset-bottom, 24px));
+  max-height: min(85dvh, calc(100dvh - 85px), calc(100vh - 85px));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  pointer-events: auto;
   z-index: 1001;
   display: flex;
   flex-direction: column;
@@ -918,19 +921,42 @@ body,
 .mkt .mkt-mobile-menu-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin-top: 4px;
+  position: relative;
+  z-index: 1005;
+}
+
+.mkt .mkt-mobile-menu-actions .btn {
+  height: 48px;
+  min-height: 48px;
+  padding: 0 20px;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 9999px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  z-index: 1006;
 }
 
 .mkt .btn-outline-dark {
-  background: transparent;
+  background: #ffffff;
   color: var(--ink);
-  border: 1.5px solid rgba(14, 19, 0, 0.2);
+  border: 1.5px solid rgba(14, 19, 0, 0.25);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .mkt .btn-outline-dark:hover {
   background: rgba(14, 19, 0, 0.05);
   border-color: var(--ink);
+}
+
+.mkt .btn-outline-dark:active {
+  background: rgba(14, 19, 0, 0.08);
+  transform: scale(0.97);
 }
 
 /* Hero */

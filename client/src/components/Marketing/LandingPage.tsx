@@ -480,7 +480,54 @@ export default function LandingPage() {
 
             <div className="mkt-mobile-menu-divider"></div>
 
-            {/* Language Selector */}
+            {/* Mobile CTAs: Botones de Acción Principales */}
+            <div className="mkt-mobile-menu-actions">
+              <button
+                type="button"
+                className="btn btn-outline-dark mkt-btn-ir-wappy"
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  minHeight: '48px',
+                  touchAction: 'manipulation',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleLogin();
+                  setTimeout(() => setIsMobileMenuOpen(false), 80);
+                }}
+              >
+                {lang === 'es' ? 'Ir a WAPPY' : 'Go to WAPPY'}
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-primary mkt-btn-start-trial"
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  minHeight: '48px',
+                  touchAction: 'manipulation',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleStartTrial();
+                  setTimeout(() => setIsMobileMenuOpen(false), 80);
+                }}
+              >
+                {lang === 'es' ? 'Comenzar prueba gratis de 7 días' : 'Start 7-day free trial'}
+              </button>
+            </div>
+
+            <div className="mkt-mobile-menu-divider"></div>
+
+            {/* Language Selector (Colocado de último por indicación del usuario) */}
             <div className="mkt-mobile-lang-row">
               <span className="mkt-mobile-lang-label">{lang === 'es' ? 'Idioma:' : 'Language:'}</span>
               <div className="mkt-mobile-lang-btns">
@@ -499,27 +546,6 @@ export default function LandingPage() {
                   🇺🇸 English
                 </button>
               </div>
-            </div>
-
-            {/* Mobile CTAs */}
-            <div className="mkt-mobile-menu-actions">
-              <button
-                type="button"
-                className="btn btn-outline-dark"
-                style={{ width: '100%', justifyContent: 'center' }}
-                onClick={() => { setIsMobileMenuOpen(false); handleLogin(); }}
-              >
-                {lang === 'es' ? 'Ir a WAPPY' : 'Go to WAPPY'}
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-primary"
-                style={{ width: '100%', justifyContent: 'center' }}
-                onClick={() => { setIsMobileMenuOpen(false); handleStartTrial(); }}
-              >
-                {lang === 'es' ? 'Comenzar prueba gratis de 7 días' : 'Start 7-day free trial'}
-              </button>
             </div>
           </div>
         )}

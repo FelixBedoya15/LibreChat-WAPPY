@@ -3075,102 +3075,70 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               </h2>
               <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5 leading-snug">
                 {isVoiceActive
-                  ? 'Te estoy escuchando. Puedes hablarme o gestionar actividades abajo.'
-                  : 'Soy tu copiloto en SG-SST. Tócame para activar voz o elige una actividad.'}
+                  ? 'Te estoy escuchando. Puedes hablarme o escribirme abajo.'
+                  : 'Soy tu copiloto en SG-SST. Tócame para hablar o escríbeme abajo.'}
               </p>
             </div>
 
-            {/* 3. Contenido: Mensajes si existen, o Píldoras de Actividades */}
-            {messages.length > 1 ? (
-              <div className="w-full max-w-md flex flex-col gap-2.5 mb-2">
-                <div className="flex items-center justify-between pb-1 border-b border-slate-200/50 dark:border-zinc-800/50">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-                    Conversación con Tenshi
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleClearHistory}
-                    className="flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300"
+            {/* 3. Conversación limpia con Tenshi (sin cajones de actividades) */}
+            <div className="w-full max-w-md flex flex-col gap-2.5 mb-2">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-200/50 dark:border-zinc-800/50">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                  Conversación con Tenshi
+                </span>
+                <button
+                  type="button"
+                  onClick={handleClearHistory}
+                  className="flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Reiniciar</span>
+                </button>
+              </div>
+              {messages
+                .filter((m) => !m.content?.startsWith('[RESULTADO_GUI]') && !(m as any).isIntermediate)
+                .map((msg, i) => (
+                  <div
+                    key={i}
+                    className={cn('flex flex-col', msg.role === 'user' ? 'items-end' : 'items-start')}
                   >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Reiniciar</span>
-                  </button>
-                </div>
-                {messages
-                  .filter((m) => !m.content?.startsWith('[RESULTADO_GUI]') && !(m as any).isIntermediate)
-                  .map((msg, i) => (
                     <div
-                      key={i}
-                      className={cn('flex flex-col', msg.role === 'user' ? 'items-end' : 'items-start')}
+                      className={cn(
+                        'max-w-[88%] rounded-2xl p-2.5 text-xs shadow-xs',
+                        msg.role === 'user'
+                          ? 'rounded-tr-none bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-medium'
+                          : 'rounded-tl-none border border-slate-200/80 bg-white dark:border-zinc-800 dark:bg-zinc-800/90 text-slate-800 dark:text-zinc-100'
+                      )}
                     >
-                      <div
-                        className={cn(
-                          'max-w-[88%] rounded-2xl p-2.5 text-xs shadow-xs',
-                          msg.role === 'user'
-                            ? 'rounded-tr-none bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-medium'
-                            : 'rounded-tl-none border border-slate-200/80 bg-white dark:border-zinc-800 dark:bg-zinc-800/90 text-slate-800 dark:text-zinc-100'
-                        )}
-                      >
-                        {msg.content && <Markdown content={msg.content} />}
-                        {msg.file && (
-                          <div className="mt-2 p-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900/80 flex items-center justify-between gap-2">
-                            <span className="truncate text-[11px] font-bold text-slate-800 dark:text-zinc-100">
-                              {msg.file.title}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleDownloadFile(msg.file!)}
-                              className="px-2 py-1 rounded-lg bg-teal-600 text-white text-[10px] font-bold flex items-center gap-1 active:scale-95"
-                            >
-                              <Download className="w-3 h-3" /> Descargar
-                            </button>
-                          </div>
-                        )}
-                        {msg.htmlReport && (
+                      {msg.content && <Markdown content={msg.content} />}
+                      {msg.file && (
+                        <div className="mt-2 p-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900/80 flex items-center justify-between gap-2">
+                          <span className="truncate text-[11px] font-bold text-slate-800 dark:text-zinc-100">
+                            {msg.file.title}
+                          </span>
                           <button
                             type="button"
-                            onClick={() => openHtmlReport(msg.htmlReport!)}
-                            className="mt-2 w-full text-center py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-[10px] font-bold border border-emerald-500/20 active:scale-95"
+                            onClick={() => handleDownloadFile(msg.file!)}
+                            className="px-2 py-1 rounded-lg bg-teal-600 text-white text-[10px] font-bold flex items-center gap-1 active:scale-95"
                           >
-                            Ver Informe Oficial
+                            <Download className="w-3 h-3" /> Descargar
                           </button>
-                        )}
-                      </div>
+                        </div>
+                      )}
+                      {msg.htmlReport && (
+                        <button
+                          type="button"
+                          onClick={() => openHtmlReport(msg.htmlReport!)}
+                          className="mt-2 w-full text-center py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-[10px] font-bold border border-emerald-500/20 active:scale-95"
+                        >
+                          Ver Informe Oficial
+                        </button>
+                      )}
                     </div>
-                  ))}
-                <div ref={messagesEndRef} />
-              </div>
-            ) : (
-              /* Píldoras de Actividades Rápidas ("para gestionar actividades") */
-              <div className="w-full max-w-md my-1">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-2 px-1">
-                  Gestión de Actividades
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {TENSHI_ACTIVITIES.map((act, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        tenshiAudio.playBlip();
-                        handleSend(act.prompt);
-                      }}
-                      className="flex flex-col items-start p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 hover:border-teal-500/50 hover:bg-teal-50/30 dark:hover:bg-zinc-800/80 text-left transition-all active:scale-95 shadow-2xs"
-                    >
-                      <div className="flex items-center gap-1.5 w-full">
-                        <span className="text-sm">{act.icon}</span>
-                        <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate">
-                          {act.title}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1 line-clamp-1">
-                        {act.desc}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </div>
+                ))}
+              <div ref={messagesEndRef} />
+            </div>
           </div>
 
           {/* Barra de Entrada Táctil & Voz Fija (Sobre el Pie de Página) */}

@@ -104,6 +104,11 @@ const MauricioPosadaRedirect = () => {
   return null;
 };
 
+const CursoWappy01Redirect = () => {
+  window.location.replace('/cursowappy01.html');
+  return null;
+};
+
 const RootIndexRedirect = () => {
   const { isAuthenticated, user } = useAuthContext();
   const location = useLocation();
@@ -430,6 +435,16 @@ export const router = createBrowserRouter(
     {
       path: 'mauricioposada',
       element: <MauricioPosadaRedirect />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'cursowappy01',
+      element: <CursoWappy01Redirect />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'cursowappy01.html',
+      element: <CursoWappy01Redirect />,
       errorElement: <RouteErrorBoundary />,
     },
     {
