@@ -2149,7 +2149,6 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
         const savedWorkers = savedDoc?.trabajadores || [];
 
         const evaluatedWorkers = [];
-        let batchUseDeterministic = false;
         for (const w of updatedWithBio) {
           if (!w.id) {
             evaluatedWorkers.push(w);
@@ -2158,19 +2157,9 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
           const currentHash = buildClinicalHash(w);
           const savedWorker = savedWorkers.find(sw => sw.id === w.id);
           const savedHash = savedWorker?.bioScoreIAVersion || '';
-          // Only call IA if text fields changed
+          // Etiquetado 100% determinista local (0 tokens, 0 llamadas a Gemini, 0 riesgo de 429)
           if (currentHash !== savedHash) {
-            let result = null;
-            if (!batchUseDeterministic) {
-              try {
-                result = await runIASemanticTagging(w, targetUserId, { fastFallback: true });
-              } catch (tagErr) {
-                batchUseDeterministic = true;
-                result = runDeterministicSemanticTagging(w);
-              }
-            } else {
-              result = runDeterministicSemanticTagging(w);
-            }
+            const result = runDeterministicSemanticTagging(w);
             if (result) {
               const updated = {
                 ...w,
@@ -2180,7 +2169,6 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
                 bioScoreIAVersion: currentHash,
                 bioScoreIADate: new Date()
               };
-              logger.info(`[OraculoH1] IA tags generados para ${w.nombre}: [${(result.tags || []).join(', ')}]`);
               evaluatedWorkers.push(updated);
               continue;
             }
