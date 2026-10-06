@@ -1285,8 +1285,10 @@ router.put('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
         };
 
         doc.trabajadores[idx] = merged;
-        doc.markModified('trabajadores');
-        await doc.save();
+        await PerfilSociodemograficoData.updateOne(
+          { _id: doc._id },
+          { $set: { trabajadores: doc.trabajadores, updatedAt: new Date() } }
+        );
 
         updatedWorker = merged;
         foundInSocio = true;
@@ -1374,8 +1376,10 @@ router.delete('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
         });
 
         if (doc.trabajadores.length !== initialCount) {
-          doc.markModified('trabajadores');
-          await doc.save();
+          await PerfilSociodemograficoData.updateOne(
+            { _id: doc._id },
+            { $set: { trabajadores: doc.trabajadores, updatedAt: new Date() } }
+          );
           removed = true;
         }
         remainingCount = doc.trabajadores.length;
@@ -1446,8 +1450,10 @@ router.post('/workers/:idOrCedula/retirar', requireApiKeyOrJwt, async (req, res)
           }
         }
         if (updated) {
-          doc.markModified('trabajadores');
-          await doc.save();
+          await PerfilSociodemograficoData.updateOne(
+            { _id: doc._id },
+            { $set: { trabajadores: doc.trabajadores, updatedAt: new Date() } }
+          );
         }
       }
     }
@@ -1528,8 +1534,10 @@ router.post('/workers/:idOrCedula/reactivar', requireApiKeyOrJwt, async (req, re
           }
         }
         if (updated) {
-          doc.markModified('trabajadores');
-          await doc.save();
+          await PerfilSociodemograficoData.updateOne(
+            { _id: doc._id },
+            { $set: { trabajadores: doc.trabajadores, updatedAt: new Date() } }
+          );
         }
       }
     }

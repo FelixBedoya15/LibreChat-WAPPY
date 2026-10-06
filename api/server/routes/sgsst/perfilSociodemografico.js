@@ -118,7 +118,7 @@ const WorkerEntrySchema = new mongoose.Schema({
   estadoLaboral: { type: String, enum: ['Activo', 'Retirado'], default: 'Activo' },
   fechaRetiro: { type: String, default: '' },
   motivoRetiro: { type: String, default: '' },
-}, { _id: false });
+}, { _id: false, strict: false });
 
 const PerfilSociodemograficoDataSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -127,7 +127,7 @@ const PerfilSociodemograficoDataSchema = new mongoose.Schema({
   actualizacionesPendientes: { type: Array, default: [] },
   actualizacionesPendientesSalud: { type: Array, default: [] },
   updatedAt: { type: Date, default: Date.now },
-});
+}, { strict: false });
 
 PerfilSociodemograficoDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
 
