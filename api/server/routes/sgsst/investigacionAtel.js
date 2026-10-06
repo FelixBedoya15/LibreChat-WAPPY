@@ -105,9 +105,41 @@ router.post('/save', requireJwtAuth, async (req, res) => {
             return res.status(400).json({ error: 'El ID de la investigación es requerido.' });
         }
 
+        // Preservar testimonios ya recibidos desde el Portal del Colaborador
+        // (evita que un estado local desactualizado del admin borre la declaración o reactive la citación)
+        let mergedTestigos = Array.isArray(testigosList) ? testigosList : [];
+        try {
+            const stored = await InvestigacionAtelData.findOne(
+                { user: req.user.id, companyId: companyId, id: id },
+                { testigosList: 1 }
+            ).lean();
+            const storedList = Array.isArray(stored?.testigosList) ? stored.testigosList : [];
+            mergedTestigos = mergedTestigos.map((t) => {
+                const ced = String(t?.cedula || t?.identificacion || '').trim();
+                if (!ced) return t;
+                const prev = storedList.find(
+                    (s) => String(s?.cedula || s?.identificacion || '').trim() === ced,
+                );
+                if (prev?.estado === 'recibido' && !(t?.testimonio || '').trim()) {
+                    return {
+                        ...t,
+                        testimonio: prev.testimonio,
+                        estado: 'recibido',
+                        solicitudActiva: false,
+                        fechaTestimonio: prev.fechaTestimonio,
+                        foto1: prev.foto1 || null,
+                        foto2: prev.foto2 || null,
+                    };
+                }
+                return t;
+            });
+        } catch (mergeErr) {
+            logger.warn('[InvestigacionATEL] Could not merge stored witnesses:', mergeErr.message);
+        }
+
         await InvestigacionAtelData.findOneAndUpdate(
             { user: req.user.id, companyId: companyId, id: id },
-            { $set: { companyId, formData, equipoList, testigosList, images, video, updatedAt: Date.now() } },
+            { $set: { companyId, formData, equipoList, testigosList: mergedTestigos, images, video, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
         res.json({ success: true });

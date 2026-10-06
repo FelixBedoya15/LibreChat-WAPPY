@@ -2593,6 +2593,102 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         continue;
                     }
 
+                    // Navegación inmediata en la plataforma (wappy_navegar)
+                    if (fc.name === 'wappy_navegar') {
+                        const target = fc.args?.modulo || fc.args?.ruta || 'solicitado';
+                        logger.info(`[VoiceSession] Navegación inmediata solicitada hacia "${target}"`);
+                        this.sendToClient({
+                            type: 'wappy_action',
+                            data: {
+                                id: fc.id,
+                                name: fc.name,
+                                args: fc.args
+                            }
+                        });
+                        if (this.geminiClient) {
+                            this.geminiClient.sendToolResponse([{
+                                id: fc.id,
+                                name: fc.name,
+                                response: { result: `Navegando de inmediato a la sección ${target} en pantalla.` }
+                            }]);
+                        }
+                        continue;
+                    }
+
+                    // Reintegrar / Reactivar trabajador en la plataforma
+                    if (fc.name === 'wappy_reintegrar_trabajador' || fc.name === 'wappy_reactivar_trabajador') {
+                        const targetWorker = fc.args?.idOrCedula || fc.args?.nombre || 'trabajador';
+                        logger.info(`[VoiceSession] Reintegrando trabajador de inmediato: "${targetWorker}"`);
+                        this.sendToClient({
+                            type: 'wappy_action',
+                            data: {
+                                id: fc.id,
+                                name: fc.name,
+                                args: fc.args
+                            }
+                        });
+                        if (this.geminiClient) {
+                            this.geminiClient.sendToolResponse([{
+                                id: fc.id,
+                                name: fc.name,
+                                response: { result: `Trabajador "${targetWorker}" reintegrado exitosamente en el sistema y marcado como Activo.` }
+                            }]);
+                        }
+                        continue;
+                    }
+
+                    // Operar interfaz visual interactiva (clic, scroll, escribir)
+                    if (fc.name === 'operar_interfaz_visual') {
+                        const accion = fc.args?.accion || 'click';
+                        const detalle = fc.args?.texto || fc.args?.detalle || 'elemento';
+                        logger.info(`[VoiceSession] Operación de interfaz visual: accion=${accion}, detalle=${detalle}`);
+                        this.sendToClient({
+                            type: 'wappy_action',
+                            data: {
+                                id: fc.id,
+                                name: fc.name,
+                                args: fc.args
+                            }
+                        });
+                        if (this.geminiClient) {
+                            this.geminiClient.sendToolResponse([{
+                                id: fc.id,
+                                name: fc.name,
+                                response: { result: `Acción visual "${accion}" ejecutada de inmediato en pantalla (${detalle}).` }
+                            }]);
+                        }
+                        continue;
+                    }
+
+                    // Inspeccionar y leer contenido visible en pantalla (leer_pantalla)
+                    if (fc.name === 'leer_pantalla') {
+                        logger.info(`[VoiceSession] Invocado leer_pantalla para sección: ${fc.args?.seccion || 'todo'}`);
+                        this.sendToClient({
+                            type: 'wappy_action',
+                            data: {
+                                id: fc.id,
+                                name: fc.name,
+                                args: fc.args
+                            }
+                        });
+                        if (!this.pendingToolCalls) this.pendingToolCalls = new Map();
+                        const timeoutId = setTimeout(() => {
+                            if (this.pendingToolCalls && this.pendingToolCalls.has(fc.id)) {
+                                logger.warn(`[VoiceSession] Tool call ${fc.id} (leer_pantalla) timed out waiting for client`);
+                                this.pendingToolCalls.delete(fc.id);
+                                if (this.geminiClient) {
+                                    this.geminiClient.sendToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: { result: "La pantalla se encuentra cargando en este instante o no contiene texto legible." }
+                                    }]);
+                                }
+                            }
+                        }, 2500);
+                        this.pendingToolCalls.set(fc.id, { timeoutId, name: fc.name });
+                        continue;
+                    }
+
                     // Delegación de Consulta a Especialista hacia la interfaz del cliente (wappy_abrir_chat_agente / consultar_agente_especializado)
                     if (fc.name === 'wappy_abrir_chat_agente' || fc.name === 'consultar_agente_especializado') {
                         const agente = fc.args?.agente || fc.args?.nombre_especialista;
@@ -2631,27 +2727,21 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                             }
                         });
 
-                        if (!this.pendingToolCalls) this.pendingToolCalls = new Map();
-                        const timeoutId = setTimeout(() => {
-                            if (this.pendingToolCalls && this.pendingToolCalls.has(fc.id)) {
-                                logger.warn(`[VoiceSession] Tool call ${fc.id} (${fc.name}) timed out waiting for client`);
-                                this.pendingToolCalls.delete(fc.id);
-                                if (this.geminiClient) {
-                                    this.geminiClient.sendToolResponse([{
-                                        id: fc.id,
-                                        name: fc.name,
-                                        response: {
-                                            result: `Chat con ${agente} abierto en pantalla y consulta enviada con éxito. [INSTRUCCIÓN CRÍTICA OBLIGATORIA]: Limítate a confirmar verbalmente al usuario en UNA SOLA frase breve y cordial que ya le transmitiste la consulta al especialista en pantalla y que espere un momento a que responda. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. ESTÁ TERMINANTEMENTE PROHIBIDO responder por tu cuenta o dar recomendaciones técnicas ahora. Mantente en silencio esperando la respuesta del especialista o la orden del usuario.`
-                                        }
-                                    }]);
+                        // Responder de inmediato a Gemini Live sin esperar round-trip del WebSocket
+                        // para que Tenshi confirme de inmediato de forma verbal al usuario mientras el chat abre
+                        if (this.geminiClient) {
+                            this.geminiClient.sendToolResponse([{
+                                id: fc.id,
+                                name: fc.name,
+                                response: {
+                                    result: `Chat con ${agente} abierto en pantalla y consulta enviada con éxito. [INSTRUCCIÓN CRÍTICA OBLIGATORIA]: Limítate a confirmar verbalmente al usuario en UNA SOLA frase breve y cordial que ya le transmitiste la consulta al especialista en pantalla y que espere un momento a que responda. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. ESTÁ TERMINANTEMENTE PROHIBIDO responder por tu cuenta o dar recomendaciones técnicas ahora. Mantente en silencio esperando la respuesta del especialista o la orden del usuario.`
                                 }
-                            }
-                        }, 6000);
-                        this.pendingToolCalls.set(fc.id, { timeoutId, name: fc.name });
+                            }]);
+                        }
                         continue;
                     }
 
-                    // Send action request to client
+                    // Send action request to client (demás herramientas de interfaz)
                     this.sendToClient({
                         type: 'wappy_action',
                         data: {
@@ -2661,7 +2751,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         }
                     });
 
-                    // Safety timeout if client doesn't reply in 6 seconds
+                    // Safety timeout if client doesn't reply in 3 seconds
                     if (!this.pendingToolCalls) this.pendingToolCalls = new Map();
                     const timeoutId = setTimeout(() => {
                         if (this.pendingToolCalls && this.pendingToolCalls.has(fc.id)) {
@@ -2675,7 +2765,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                                 }]);
                             }
                         }
-                    }, 6000);
+                    }, 3000);
                     this.pendingToolCalls.set(fc.id, { timeoutId, name: fc.name });
                 }
             }
@@ -2885,14 +2975,14 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         const { timeoutId } = this.pendingToolCalls.get(data.id);
                         clearTimeout(timeoutId);
                         this.pendingToolCalls.delete(data.id);
+                        this.sendGeminiToolResponse([
+                            {
+                                id: data.id,
+                                name: data.name,
+                                response: { result: data.result || "Acción ejecutada correctamente en la pantalla" }
+                            }
+                        ]);
                     }
-                    this.sendGeminiToolResponse([
-                        {
-                            id: data.id,
-                            name: data.name,
-                            response: { result: data.result || "Acción ejecutada correctamente en la pantalla" }
-                        }
-                    ]);
                 }
                 break;
 

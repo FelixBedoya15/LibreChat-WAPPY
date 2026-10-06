@@ -508,84 +508,62 @@ router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
       status: 'pending',
     };
 
-    // Find the correct investigation to push the testimony into
+    // ─── Validación estricta: solo se admite testimonio si existe citación activa ───
+    // La citación se activa desde el aplicativo Investigación ATEL (testigo.solicitudActiva === true)
+    const cleanCed = String(cedula).trim();
+    const baseQuery = {
+      companyId: company._id,
+      testigosList: {
+        $elemMatch: {
+          $or: [{ cedula: cleanCed }, { identificacion: cleanCed }],
+          solicitudActiva: true,
+        },
+      },
+    };
+
     let targetDoc = null;
     if (investigacionId) {
-      targetDoc = await InvestigacionAtelData.findOne({
-        user: new mongoose.Types.ObjectId(company.user),
-        companyId: company._id,
-        id: investigacionId
+      targetDoc = await InvestigacionAtelData.findOne({ ...baseQuery, id: investigacionId });
+    }
+    if (!targetDoc) {
+      targetDoc = await InvestigacionAtelData.findOne(baseQuery).sort({ updatedAt: -1 });
+    }
+
+    const witnessIndex = targetDoc
+      ? (targetDoc.testigosList || []).findIndex(t =>
+          String(t.cedula || t.identificacion || '').trim() === cleanCed &&
+          t.solicitudActiva === true &&
+          t.estado !== 'recibido'
+        )
+      : -1;
+
+    if (!targetDoc || witnessIndex === -1) {
+      return res.status(403).json({
+        error: 'No tienes una citación activa para rendir testimonio. El responsable de la investigación ATEL debe solicitarlo primero.',
       });
     }
 
-    if (!targetDoc) {
-      // Fallback: get the most recent investigation for this company
-      targetDoc = await InvestigacionAtelData.findOne({
-        user: new mongoose.Types.ObjectId(company.user),
-        companyId: company._id
-      }).sort({ updatedAt: -1 });
-    }
+    const updatedTestigosList = [...(targetDoc.testigosList || [])];
+    updatedTestigosList[witnessIndex] = {
+      ...updatedTestigosList[witnessIndex],
+      testimonio: data?.testimonio || '',
+      estado: 'recibido',
+      solicitudActiva: false,
+      fechaTestimonio: new Date().toISOString().split('T')[0],
+      foto1: data?.foto1 || null,
+      foto2: data?.foto2 || null
+    };
 
-    if (targetDoc) {
-      // Actualizar también testigosList si el testigo ya estaba registrado como convocado
-      const cleanCed = String(cedula).trim();
-      let updatedTestigosList = [...(targetDoc.testigosList || [])];
-      let witnessIndex = updatedTestigosList.findIndex(t => 
-        String(t.cedula || t.identificacion || '').trim() === cleanCed
-      );
-
-      if (witnessIndex !== -1) {
-        updatedTestigosList[witnessIndex] = {
-          ...updatedTestigosList[witnessIndex],
-          testimonio: data?.testimonio || '',
-          estado: 'recibido',
-          fechaTestimonio: new Date().toISOString().split('T')[0],
-          foto1: data?.foto1 || null,
-          foto2: data?.foto2 || null
-        };
-      } else {
-        updatedTestigosList.push({
-          nombre,
-          cedula: cleanCed,
-          cargo: data?.cargo || 'Testigo',
-          testimonio: data?.testimonio || '',
-          estado: 'recibido',
-          fechaTestimonio: new Date().toISOString().split('T')[0],
-          foto1: data?.foto1 || null,
-          foto2: data?.foto2 || null
-        });
+    await InvestigacionAtelData.findByIdAndUpdate(
+      targetDoc._id,
+      { 
+        $push: { inboxTestimonios: newInboxItem }, 
+        $set: { 
+          testigosList: updatedTestigosList,
+          updatedAt: Date.now() 
+        } 
       }
-
-      await InvestigacionAtelData.findByIdAndUpdate(
-        targetDoc._id,
-        { 
-          $push: { inboxTestimonios: newInboxItem }, 
-          $set: { 
-            testigosList: updatedTestigosList,
-            updatedAt: Date.now() 
-          } 
-        }
-      );
-    } else {
-      // Fallback: create a new investigation if none exists at all
-      await InvestigacionAtelData.findOneAndUpdate(
-        { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
-        { 
-          $push: { inboxTestimonios: newInboxItem }, 
-          $set: { 
-            id: new mongoose.Types.ObjectId().toString(), 
-            updatedAt: Date.now(),
-            formData: {
-              tipoEvento: 'Incidente',
-              fechaEvento: new Date().toISOString().split('T')[0],
-              horaEvento: '08:00',
-              descripcionHechos: 'Creado automáticamente al recibir primer testimonio.'
-            }
-          } 
-        },
-        { upsert: true, new: true }
-      );
-    }
+    );
 
     // Gamificación: +30 Puntos por testimonio aportado en investigación ATEL
     if (company.user && cedula) {
@@ -593,11 +571,11 @@ router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
         const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
         await feedWorkerEvent(
           company.user,
-          String(cedula).trim(),
+          cleanCed,
           'atel_testimonio',
           `Testimonio aportado en investigación de incidente/accidente ATEL`,
           30,
-          String(targetId || newInboxItem.id || 'ATEL-TEST')
+          String(targetDoc.id || newInboxItem.id || 'ATEL-TEST')
         );
       } catch (feedErr) {
         logger.error('[Public SGSST] Error feeding worker event for ATEL testimony:', feedErr);
@@ -654,13 +632,16 @@ router.get('/atel/llamados-testigo/:companyId/:cedula', async (req, res) => {
     const llamados = [];
     for (const doc of docs) {
       const matchWitness = (doc.testigosList || []).find(t => 
-        String(t.cedula || t.identificacion || '').trim() === cedulaClean
+        String(t.cedula || t.identificacion || '').trim() === cedulaClean &&
+        t.solicitudActiva === true &&
+        t.estado !== 'recibido'
       );
-      if (matchWitness && (!matchWitness.testimonio || matchWitness.estado !== 'recibido')) {
+      if (matchWitness) {
         llamados.push({
           investigacionId: doc.id || doc._id.toString(),
           tipoEvento: doc.formData?.tipoEvento || 'Incidente / Accidente',
           fechaEvento: doc.formData?.fechaEvento || 'Fecha reciente',
+          fechaSolicitud: matchWitness.fechaSolicitud || null,
           afectado: doc.formData?.nombreAfectado || doc.formData?.personaAfectada || 'Compañero de trabajo',
           descripcion: doc.formData?.descripcionHechos || 'Citación oficial para rendir declaración testimonial.',
           testigo: {

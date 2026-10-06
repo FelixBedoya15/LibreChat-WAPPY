@@ -12,6 +12,7 @@ import {
   X,
   Mic,
   Sparkles,
+  Lock,
 } from 'lucide-react';
 import axios from 'axios';
 import PublicWorkerHeader from './PublicWorkerHeader';
@@ -62,26 +63,52 @@ export default function PublicAtelTestimonio() {
   }, [companyId]);
 
   const [citacionInfo, setCitacionInfo] = useState<any | null>(null);
+  const [citacionStatus, setCitacionStatus] = useState<'idle' | 'checking' | 'active' | 'none'>('idle');
 
+  // Solo se permite rendir testimonio si el responsable de la investigación ATEL
+  // activó la citación para esta cédula (testigo.solicitudActiva === true)
   useEffect(() => {
+    if (step < 2 || step > 3) return;
+    const targetCed = (cedula || sessionWorker?.cedula || session?.cedula || '').toString().trim();
+    if (!targetCed || !companyId) return;
+    let cancelled = false;
     const fetchCitacion = async () => {
-      const targetCed = cedula || sessionWorker?.cedula || session?.cedula;
-      if (!targetCed || !companyId) return;
+      setCitacionStatus('checking');
       try {
         const res = await axios.get(`/api/public-sgsst/atel/llamados-testigo/${companyId}/${targetCed}`);
-        const llamados = res.data?.llamados || [];
+        const llamados = Array.isArray(res.data?.llamados) ? res.data.llamados : [];
+        if (cancelled) return;
         if (llamados.length > 0) {
-          const matched = investigacionId 
+          const matched = investigacionId
             ? llamados.find((l: any) => l.investigacionId === investigacionId) || llamados[0]
             : llamados[0];
           setCitacionInfo(matched);
+          setCitacionStatus('active');
+        } else {
+          setCitacionInfo(null);
+          setCitacionStatus('none');
         }
       } catch (e) {
         console.warn('Error fetching witness summons:', e);
+        if (!cancelled) {
+          setCitacionInfo(null);
+          setCitacionStatus('none');
+        }
       }
     };
     fetchCitacion();
-  }, [companyId, cedula, sessionWorker, session, investigacionId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId, cedula, sessionWorker, session, investigacionId, step >= 2 && step <= 3]);
+
+  // Al regresar a Identificación se invalida la verificación previa
+  useEffect(() => {
+    if (step === 1) {
+      setCitacionStatus('idle');
+      setCitacionInfo(null);
+    }
+  }, [step]);
 
   // Auto-populate & auto-advance when worker session is detected
   useEffect(() => {
@@ -207,7 +234,7 @@ export default function PublicAtelTestimonio() {
       const payload = {
         cedula,
         nombre,
-        investigacionId,
+        investigacionId: citacionInfo?.investigacionId || investigacionId,
         data: {
           cargo,
           testimonio,
@@ -391,8 +418,61 @@ export default function PublicAtelTestimonio() {
             </div>
           )}
 
+          {/* Gate: verificación de citación activa */}
+          {(step === 2 || step === 3) && citacionStatus !== 'active' && (
+            <div className="flex h-full flex-col duration-500 animate-in fade-in">
+              {cedula && nombre && (
+                <WorkerSessionBadge
+                  nombre={nombre}
+                  cedula={cedula}
+                  cargo={cargo}
+                  onClear={() => {
+                    clearSession();
+                    setNombre('');
+                    setCedula('');
+                    setCargo('');
+                    setCitacionStatus('idle');
+                    setCitacionInfo(null);
+                    setStep(1);
+                  }}
+                  className="mb-4"
+                />
+              )}
+
+              {citacionStatus === 'none' ? (
+                <div className="flex flex-1 flex-col items-center justify-center text-center py-6">
+                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
+                    <Lock className="h-8 w-8 text-slate-500 dark:text-zinc-400" />
+                  </div>
+                  <h2 className="text-lg font-black text-text-primary">Sin citación activa</h2>
+                  <p className="mt-2 text-xs text-text-secondary leading-relaxed max-w-xs">
+                    Este buzón solo se habilita cuando el responsable de la investigación ATEL te cita
+                    formalmente como testigo. Actualmente no tienes ninguna solicitud de testimonio pendiente.
+                  </p>
+                  <p className="mt-3 text-[10px] text-text-tertiary">
+                    Res. 1401 de 2007 • Investigación de incidentes y accidentes de trabajo
+                  </p>
+                  <div className="mt-6 flex w-full flex-col gap-2">
+                    <a
+                      href={`/sgsst-public/colaborador/${company?._id || companyId}/${cedula.trim() || ''}`}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
+                    >
+                      Volver al Portal del Colaborador
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center text-center py-10">
+                  <Shield className="mb-3 h-10 w-10 animate-pulse text-teal-500" />
+                  <p className="text-sm font-bold text-text-primary">Verificando citación...</p>
+                  <p className="mt-1 text-[11px] text-text-secondary">Consultando investigaciones ATEL activas</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Step 2: Testimonio */}
-          {step === 2 && (
+          {step === 2 && citacionStatus === 'active' && (
             <div className="flex h-full flex-col duration-500 animate-in fade-in slide-in-from-right-4">
               {/* Worker Session Badge */}
               {cedula && nombre && (
@@ -464,7 +544,7 @@ export default function PublicAtelTestimonio() {
           )}
 
           {/* Step 3: Evidencia */}
-          {step === 3 && (
+          {step === 3 && citacionStatus === 'active' && (
             <div className="flex h-full flex-col duration-500 animate-in fade-in slide-in-from-right-4">
               <div className="mb-6 flex items-center gap-3 text-teal-600 dark:text-teal-400">
                 <Camera className="h-8 w-8" />

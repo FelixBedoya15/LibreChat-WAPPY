@@ -21,6 +21,9 @@ class GeminiPoolManager {
 
     /** @type {Map<string, number>} `${apiKey}_${model}` -> timestampExpiresAt (midnight Pacific) */
     this.dailyExhausted = new Map();
+
+    /** @type {Set<string>} Claves API inválidas o revocadas (400) en cuarentena permanente */
+    this.invalidKeys = new Set();
   }
 
   /**
@@ -89,8 +92,12 @@ class GeminiPoolManager {
     }
 
     const cleanKeys = keys.filter((k) => typeof k === 'string' && k.trim().length > 0);
-    if (cleanKeys.length <= 1) {
-      return cleanKeys;
+    // Filtrar llaves que hayan arrojado 400 Bad Request (API_KEY_INVALID), salvo que todas lo sean
+    const validKeys = cleanKeys.filter((k) => !this.invalidKeys.has(k));
+    const candidateKeys = validKeys.length > 0 ? validKeys : cleanKeys;
+
+    if (candidateKeys.length <= 1) {
+      return candidateKeys;
     }
 
     const now = Date.now();
@@ -117,7 +124,7 @@ class GeminiPoolManager {
     const coolingKeys = [];
     const exhaustedKeys = [];
 
-    for (const key of cleanKeys) {
+    for (const key of candidateKeys) {
       const isCooling = this.keyCooldowns.has(key);
       const isDailyExhausted = cleanModel ? this.dailyExhausted.has(`${key}_${cleanModel}`) : false;
 
@@ -189,6 +196,21 @@ class GeminiPoolManager {
     const cleanModel = (model || '').toLowerCase().trim();
     const masked = this.maskKey(key);
     const msg = message.toLowerCase();
+
+    // 0. Detección de Clave Inválida o Revocada (400 Bad Request / API_KEY_INVALID)
+    const isInvalidKey = status === 400 ||
+      msg.includes('api_key_invalid') ||
+      msg.includes('api key not valid') ||
+      msg.includes('invalid api key') ||
+      msg.includes('api_key_expired');
+
+    if (isInvalidKey) {
+      this.invalidKeys.add(key);
+      logger.error(
+        `[GeminiPoolManager] [CircuitBreaker] Llave ${masked} INVÁLIDA O REVOCADA (400). Aislada en cuarentena para no retrasar futuras peticiones.`
+      );
+      return;
+    }
 
     // 1. Detección de Cuota Diaria Agotada (RPD - 20/20)
     const isDaily = isDailyLimit ||

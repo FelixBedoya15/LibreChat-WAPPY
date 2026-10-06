@@ -330,6 +330,33 @@
 
 ---
 
+### LECCIÓN 10 (2026-10-06): Eliminación de Ejecución Espuria de Canvas y Despacho Inmediato Simutáneo en Modo Voz
+
+#### A. Activación Espuria de la Herramienta `canvas` en Consultas Ordinarias
+- **Síntoma Reportado:** Al formular cualquier consulta ordinaria o técnica a un especialista en el chat (ej: *"pregúntale qué trata la Resolución 1843"*), el especialista abría espontáneamente el panel lateral de Canvas y se demoraba 20 a 30 segundos generando un documento formal no solicitado, bloqueando la respuesta del chat.
+- **Causa Raíz:** En `CanvasTool.js`, la descripción general declaraba que Canvas era `"OBLIGATORIO para políticas, reglamentos, manuales... informes y cualquier documento tradicional"` y en `fileType` indicaba `"PRIORIDAD POR DEFECTO: Úsalo si el usuario menciona: documento, redactar, escribir, política, informe, procedimiento, guía, texto, estandares..."`. Al enriquecer Tenshi la consulta con terminología técnica ("procedimiento", "estándares"), el modelo del especialista consideraba que invocar Canvas era obligatorio por defecto.
+- **Solución Implementada:**
+  1. En `CanvasTool.js`, se reescribió `this.description` y el esquema de `fileType` estableciendo que Canvas se invoca **ÚNICAMENTE** ante solicitud expresa y explícita del usuario (ej: *"créalo en canvas"*, *"haz un documento word"*, *"genera un excel"*).
+  2. Prohibición estricta en el schema para responder preguntas o consultas en el chat con Canvas. Toda consulta ordinaria debe responderse directamente en Markdown en el cuerpo del chat.
+
+#### B. Latencia Crítica en Modo Voz y Secuencia Invertida ("Primero hace la tarea y luego habla")
+- **Síntoma Reportado:** Al dar órdenes como navegar a un módulo o abrir un chat con un especialista, la pantalla ejecutaba la acción primero, Tenshi permanecía en un silencio absoluto de 6 a 10 segundos, y solo después empezaba a hablar ("Listo, ya le abrí el chat..."), haciendo que la interacción se percibiera sumamente lenta y desconectada.
+- **Causa Raíz:** En el protocolo Gemini Live Multimodal WebSocket, Google silencia el canal de audio del modelo desde que emite un `toolCall` hasta que recibe su respectivo `toolResponse`. En `voiceSession.js`, el backend enviaba `wappy_action` al cliente del navegador y se quedaba esperando de forma bloqueante (con timeout de 6 segundos) a que el cliente completara la navegación/renderizado y enviara `wappy_action_result`. Gemini Live permanecía completamente mudo durante ese intervalo.
+- **Solución Implementada:**
+  1. **Despacho Inmediato y Respuesta Simultánea:** Para acciones de interfaz (`wappy_navegar`, `wappy_abrir_chat_agente`, `operar_interfaz_visual` de clics/scroll, `wappy_reintegrar_trabajador`), el backend envía de inmediato la acción al cliente y **en el mismo milisegundo responde a Gemini Live** con `sendToolResponse`.
+  2. Gemini Live comienza a generar y emitir audio en menos de 200ms, hablando y confirmando la acción de forma perfectamente simultánea mientras el navegador transiciona en pantalla.
+  3. Para herramientas que requieren datos de pantalla (`leer_pantalla`), se mantiene la espera del resultado DOM pero se reduce el timeout a 2.5s.
+  4. En `case 'wappy_action_result'`, solo se reenvía respuesta a Gemini si el ID estaba en `pendingToolCalls`, evitando respuestas duplicadas.
+
+#### C. Claves API en Cuarentena Inmediata ante Error 400 (`API_KEY_INVALID`)
+- **Síntoma Reportado:** Retardo reiterado en cada invocación de agentes especialistas debido a reintentos fallidos en claves no válidas.
+- **Causa Raíz:** `GeminiPoolManager` no manejaba errores HTTP 400 (`API key not valid`), volviendo a incluir la clave en cada nuevo turno.
+- **Solución Implementada:**
+  1. En `GeminiPoolManager.js`, se implementó `this.invalidKeys = new Set()`.
+  2. Al reportar un error 400 o `API_KEY_INVALID`, la clave se añade inmediatamente a la lista de cuarentena y `getPrioritizedKeys` la filtra de todas las peticiones posteriores, ahorrando segundos vitales.
+
+---
+
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
 
 Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el chat:

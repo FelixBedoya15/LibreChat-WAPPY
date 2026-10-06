@@ -28,7 +28,7 @@ import {
     Link,
     QrCode,
     Check,
-    ShieldAlert, Download, Info } from 'lucide-react';
+    ShieldAlert, Download, Info, BellRing, BellOff, MessageCircle } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
@@ -352,7 +352,17 @@ const InvestigacionATEL = () => {
     ]);
 
     // Testigos
-    const [testigosList, setTestigosList] = useState([
+    const [testigosList, setTestigosList] = useState<Array<{
+        nombre: string;
+        cedula: string;
+        cargo: string;
+        testimonio: string;
+        estado?: string;
+        solicitudActiva?: boolean;
+        fechaSolicitud?: string;
+        fechaTestimonio?: string;
+        [key: string]: any;
+    }>>([
         { nombre: '', cedula: '', cargo: '', testimonio: '' }
     ]);
 
@@ -483,6 +493,61 @@ const InvestigacionATEL = () => {
         } catch (err) {
             if (!silent) showToast({ message: 'Error al guardar los datos.', status: 'error' });
         }
+    };
+
+    // ── Activar / cancelar citación de testigo en el Portal del Colaborador ──
+    const handleToggleSolicitudTestigo = async (idx: number) => {
+        const testigo = testigosList[idx];
+        if (!testigo) return;
+        const ced = (testigo.cedula || '').toString().trim();
+        if (!ced || !(testigo.nombre || '').trim()) {
+            showToast({ message: 'Ingresa nombre y cédula del testigo antes de solicitar su testimonio.', status: 'warning' });
+            return;
+        }
+        if (!token || !activeInvestId) return;
+
+        const activar = !testigo.solicitudActiva;
+        const newList = testigosList.map((t, i) =>
+            i === idx
+                ? {
+                    ...t,
+                    solicitudActiva: activar,
+                    estado: activar ? 'solicitado' : 'sin_solicitar',
+                    fechaSolicitud: activar ? new Date().toISOString() : t.fechaSolicitud,
+                }
+                : t
+        );
+        setTestigosList(newList);
+
+        try {
+            const res = await fetch('/api/sgsst/investigacion-atel/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ id: activeInvestId, formData, equipoList, testigosList: newList, images, video })
+            });
+            if (!res.ok) throw new Error('save failed');
+            fetchInvestigationsList(activeInvestId);
+            showToast({
+                message: activar
+                    ? `Citación activada: ${testigo.nombre} ya puede rendir su testimonio desde el Portal del Colaborador.`
+                    : `Citación cancelada para ${testigo.nombre}.`,
+                status: 'success',
+            });
+        } catch (err) {
+            setTestigosList(testigosList);
+            showToast({ message: 'No se pudo actualizar la citación del testigo.', status: 'error' });
+        }
+    };
+
+    const getTestigoPortalLink = (ced: string) => {
+        const cid = companyInfo?._id || user?.id || user?._id || '';
+        return `${window.location.origin}/sgsst-public/atel-testimonio/${cid}?investigacionId=${activeInvestId || ''}&cedula=${encodeURIComponent(ced)}`;
+    };
+
+    const handleWhatsAppTestigo = (testigo: { nombre: string; cedula: string }) => {
+        const link = getTestigoPortalLink((testigo.cedula || '').toString().trim());
+        const msg = `Hola ${testigo.nombre}, has sido citado(a) como testigo en una investigación de incidente/accidente laboral (Res. 1401 de 2007). Por favor rinde tu testimonio en el siguiente enlace: ${link}`;
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
     const handleAddInvestigacion = () => {
@@ -1528,17 +1593,53 @@ const InvestigacionATEL = () => {
                             )}
                             {testigosList.map((testigo, idx) => (
                                 <div key={idx} className="border border-border-medium rounded-xl p-4 bg-surface-primary space-y-3 relative">
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
                                         <p className="text-xs text-text-secondary font-medium">Testigo {idx + 1}</p>
-                                        <div className="flex items-center gap-2">
-                                            {testigo.testimonio ? (
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            {testigo.testimonio || testigo.estado === 'recibido' ? (
                                                 <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200 dark:border-emerald-800">
                                                     <Check className="w-3 h-3" /> Declaración Recibida
                                                 </span>
+                                            ) : testigo.solicitudActiva ? (
+                                                <>
+                                                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-200 dark:border-amber-800">
+                                                        <BellRing className="w-3 h-3 animate-pulse" /> Citación activa en Portal
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleWhatsAppTestigo(testigo)}
+                                                        title="Enviar enlace de citación por WhatsApp"
+                                                        className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100"
+                                                    >
+                                                        <MessageCircle className="h-3.5 w-3.5" />
+                                                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex"><span className="text-[10px] font-bold">WhatsApp</span></div>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleToggleSolicitudTestigo(idx)}
+                                                        title="Cancelar citación del testigo"
+                                                        className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600"
+                                                    >
+                                                        <BellOff className="h-3.5 w-3.5" />
+                                                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex"><span className="text-[10px] font-bold">Cancelar</span></div>
+                                                    </button>
+                                                </>
                                             ) : (
-                                                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-200 dark:border-amber-800">
-                                                    Pendiente en Portal de Trabajador
-                                                </span>
+                                                <>
+                                                    <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full flex items-center gap-1 border border-slate-200 dark:border-zinc-700">
+                                                        Sin solicitar
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleToggleSolicitudTestigo(idx)}
+                                                        disabled={!(testigo.cedula || '').toString().trim()}
+                                                        title={(testigo.cedula || '').toString().trim() ? 'Habilitar al testigo para rendir testimonio en el Portal del Colaborador' : 'Ingresa la cédula del testigo para poder solicitar su testimonio'}
+                                                        className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                    >
+                                                        <BellRing className="h-3.5 w-3.5" />
+                                                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[120px] group-hover:opacity-100 sm:flex"><span className="text-[10px] font-bold">Solicitar Testimonio</span></div>
+                                                    </button>
+                                                </>
                                             )}
                                         </div>
                                     </div>
