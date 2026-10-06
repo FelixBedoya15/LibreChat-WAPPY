@@ -219,6 +219,17 @@ IMPORTANTE:
     tools = structuredTools.concat(options.tools);
   }
 
+  if (Array.isArray(tools)) {
+    const seenToolNames = new Set();
+    tools = tools.filter((tool) => {
+      const name = tool?.name || (typeof tool === 'string' ? tool : null);
+      if (!name) return true;
+      if (seenToolNames.has(name)) return false;
+      seenToolNames.add(name);
+      return true;
+    });
+  }
+
   if (isPublicChat) {
     tools = [];
     agent.tools = [];

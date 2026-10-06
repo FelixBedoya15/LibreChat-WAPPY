@@ -40,7 +40,7 @@ index 702a29d..4e48e88 100644
                      });
                  }, {
 diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs b/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
-index 48c6de6..7568bdc 100644
+index 48c6de6..8ca8230 100644
 --- a/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
 +++ b/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
 @@ -72,6 +72,14 @@ class CustomChatGoogleGenerativeAI extends googleGenai.ChatGoogleGenerativeAI {
@@ -58,7 +58,7 @@ index 48c6de6..7568bdc 100644
      static lc_name() {
          return 'LibreChatGoogleGenerativeAI';
      }
-@@ -102,9 +110,79 @@ class CustomChatGoogleGenerativeAI extends googleGenai.ChatGoogleGenerativeAI {
+@@ -102,9 +110,91 @@ class CustomChatGoogleGenerativeAI extends googleGenai.ChatGoogleGenerativeAI {
              ...parameters,
              contents: actualPrompt,
          };
@@ -100,8 +100,14 @@ index 48c6de6..7568bdc 100644
 +                    sanitizeSchema(schema.items);
 +                }
 +            };
++            const seenFns = new Set();
 +            for (const tool of request.tools) {
 +                if (Array.isArray(tool.functionDeclarations)) {
++                    tool.functionDeclarations = tool.functionDeclarations.filter((fn) => {
++                        if (!fn || !fn.name || seenFns.has(fn.name)) return false;
++                        seenFns.add(fn.name);
++                        return true;
++                    });
 +                    for (const fn of tool.functionDeclarations) {
 +                        if (fn && fn.parameters) {
 +                            sanitizeSchema(fn.parameters);
@@ -109,6 +115,12 @@ index 48c6de6..7568bdc 100644
 +                    }
 +                }
 +            }
++            request.tools = request.tools.filter((tool) => {
++                if ('functionDeclarations' in tool && Array.isArray(tool.functionDeclarations)) {
++                    return tool.functionDeclarations.length > 0;
++                }
++                return true;
++            });
 +        }
          const stream = await this.caller.callWithOptions({ signal: options.signal }, async () => {
 +            const clientToUse = new generativeAi.GoogleGenerativeAI(this.apiKey).getGenerativeModel({
@@ -657,7 +669,7 @@ index 2ce0a08..9bd5b62 100644
                      });
                  }, {
 diff --git a/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs b/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs
-index f936ded..9c2e380 100644
+index f936ded..ef246a4 100644
 --- a/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs
 +++ b/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs
 @@ -70,6 +70,14 @@ class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
@@ -675,7 +687,7 @@ index f936ded..9c2e380 100644
      static lc_name() {
          return 'LibreChatGoogleGenerativeAI';
      }
-@@ -100,6 +108,31 @@ class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+@@ -100,6 +108,43 @@ class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
              ...parameters,
              contents: actualPrompt,
          };
@@ -694,8 +706,14 @@ index f936ded..9c2e380 100644
 +                    sanitizeSchema(schema.items);
 +                }
 +            };
++            const seenFns = new Set();
 +            for (const tool of request.tools) {
 +                if (Array.isArray(tool.functionDeclarations)) {
++                    tool.functionDeclarations = tool.functionDeclarations.filter((fn) => {
++                        if (!fn || !fn.name || seenFns.has(fn.name)) return false;
++                        seenFns.add(fn.name);
++                        return true;
++                    });
 +                    for (const fn of tool.functionDeclarations) {
 +                        if (fn && fn.parameters) {
 +                            sanitizeSchema(fn.parameters);
@@ -703,6 +721,12 @@ index f936ded..9c2e380 100644
 +                    }
 +                }
 +            }
++            request.tools = request.tools.filter((tool) => {
++                if ('functionDeclarations' in tool && Array.isArray(tool.functionDeclarations)) {
++                    return tool.functionDeclarations.length > 0;
++                }
++                return true;
++            });
 +        }
          const stream = await this.caller.callWithOptions({ signal: options.signal }, async () => {
              /** @ts-ignore */
@@ -911,7 +935,7 @@ index 8bcddd9..b2a3452 100644
                });
              },
 diff --git a/node_modules/@librechat/agents/src/llm/google/index.ts b/node_modules/@librechat/agents/src/llm/google/index.ts
-index 2ab8c94..5368f2e 100644
+index 2ab8c94..50f99b5 100644
 --- a/node_modules/@librechat/agents/src/llm/google/index.ts
 +++ b/node_modules/@librechat/agents/src/llm/google/index.ts
 @@ -107,6 +107,15 @@ export class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
@@ -930,7 +954,7 @@ index 2ab8c94..5368f2e 100644
    static lc_name(): 'LibreChatGoogleGenerativeAI' {
      return 'LibreChatGoogleGenerativeAI';
    }
-@@ -149,6 +158,31 @@ export class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+@@ -149,6 +158,43 @@ export class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
        ...parameters,
        contents: actualPrompt,
      };
@@ -949,8 +973,14 @@ index 2ab8c94..5368f2e 100644
 +          sanitizeSchema(schema.items);
 +        }
 +      };
++      const seenFns = new Set<string>();
 +      for (const tool of (request as any).tools) {
 +        if (Array.isArray(tool.functionDeclarations)) {
++          tool.functionDeclarations = tool.functionDeclarations.filter((fn: any) => {
++            if (!fn || !fn.name || seenFns.has(fn.name)) return false;
++            seenFns.add(fn.name);
++            return true;
++          });
 +          for (const fn of tool.functionDeclarations) {
 +            if (fn && fn.parameters) {
 +              sanitizeSchema(fn.parameters);
@@ -958,6 +988,12 @@ index 2ab8c94..5368f2e 100644
 +          }
 +        }
 +      }
++      (request as any).tools = (request as any).tools.filter((tool: any) => {
++        if ('functionDeclarations' in tool && Array.isArray(tool.functionDeclarations)) {
++          return tool.functionDeclarations.length > 0;
++        }
++        return true;
++      });
 +    }
      const stream = await this.caller.callWithOptions(
        { signal: options.signal },

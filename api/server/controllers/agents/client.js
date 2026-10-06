@@ -1472,11 +1472,24 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         // memoryPromise generation is extracted out of runAgents to prevent duplicate memory evaluations on key retry
 
         // Copy tools arrays to prevent mutation by MultiAgentGraph.createHandoffTools() across retries
-        const agentsForRun = agents.map((agent) => ({
-          ...agent,
-          tools: agent.tools ? [...agent.tools] : agent.tools,
-          ...(agent.provider === Providers.GOOGLE || agent.provider === 'google' ? { reasoningKey: 'reasoning' } : {}),
-        }));
+        const agentsForRun = agents.map((agent) => {
+          let agentTools = agent.tools ? [...agent.tools] : agent.tools;
+          if (Array.isArray(agentTools)) {
+            const seenToolNames = new Set();
+            agentTools = agentTools.filter((t) => {
+              const name = typeof t === 'string' ? t : (t?.name || '');
+              if (!name) return true;
+              if (seenToolNames.has(name)) return false;
+              seenToolNames.add(name);
+              return true;
+            });
+          }
+          return {
+            ...agent,
+            tools: agentTools,
+            ...(agent.provider === Providers.GOOGLE || agent.provider === 'google' ? { reasoningKey: 'reasoning' } : {}),
+          };
+        });
 
         // Build agentId → name map for transfer tracking (safe: only used after execution)
         const agentIdNameMap = {};

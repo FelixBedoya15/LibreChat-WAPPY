@@ -443,8 +443,15 @@ async function loadAgentTools({ req, res, agent, signal, tool_resources, openAIA
   });
 
   const agentTools = [];
+  const seenAgentToolNames = new Set();
   for (let i = 0; i < loadedTools.length; i++) {
     const tool = loadedTools[i];
+    if (tool.name && seenAgentToolNames.has(tool.name)) {
+      continue;
+    }
+    if (tool.name) {
+      seenAgentToolNames.add(tool.name);
+    }
     if (tool.name && (tool.name === Tools.execute_code || tool.name === Tools.file_search)) {
       agentTools.push(tool);
       continue;

@@ -457,6 +457,11 @@ Current Date & Time: ${replaceSpecialVars({ text: '{{iso_datetime}}' })}
         continue;
       }
 
+      // If 'all' is already requested for this server, do not add individual tools
+      if (requestedMCPTools[serverName]?.some((c) => c.type === 'all')) {
+        continue;
+      }
+
       requestedMCPTools[serverName] = requestedMCPTools[serverName] || [];
       requestedMCPTools[serverName].push({
         type: 'single',
@@ -571,7 +576,23 @@ Current Date & Time: ${replaceSpecialVars({ text: '{{iso_datetime}}' })}
     }
   }
   loadedTools.push(...(await Promise.all(mcpToolPromises)).flatMap((plugin) => plugin || []));
-  return { loadedTools, toolContextMap };
+
+  const seenToolNames = new Set();
+  const dedupedTools = [];
+  for (const tool of loadedTools) {
+    if (!tool) continue;
+    const name = tool.name;
+    if (name) {
+      if (seenToolNames.has(name)) {
+        logger.warn(`[handleTools] Duplicate tool "${name}" omitted.`);
+        continue;
+      }
+      seenToolNames.add(name);
+    }
+    dedupedTools.push(tool);
+  }
+
+  return { loadedTools: dedupedTools, toolContextMap };
 };
 
 module.exports = {
