@@ -179,16 +179,16 @@ export default function Root() {
             <PromptGroupsProvider>
               <Banner onHeightChange={setBannerHeight} />
               <div className="flex" style={{ height: `calc(100dvh - ${bannerHeight}px)` }}>
-                <div className={`relative z-0 flex h-full w-full ${isEditorFullscreen ? '' : 'overflow-hidden'}`}>
+                <div className={`relative flex h-full w-full ${isEditorFullscreen ? '' : 'overflow-hidden'}`}>
                   <Nav navVisible={navVisible} setNavVisible={setNavVisible} />
                   <div className={`relative flex h-full max-w-full flex-1 flex-col ${isEditorFullscreen ? '' : 'overflow-hidden'}`}>
-                    <div className="relative flex flex-1 flex-col min-h-0 overflow-hidden pt-[env(safe-area-inset-top,0px)] md:pt-0">
+                    <div className="relative flex flex-1 flex-col min-h-0 overflow-hidden pt-[env(safe-area-inset-top,0px)] md:pt-0 pb-[74px] md:pb-0">
                       <Outlet context={{ navVisible, setNavVisible } satisfies ContextType} />
                     </div>
-                    <MobileBottomNav navVisible={navVisible} setNavVisible={setNavVisible} />
                   </div>
                 </div>
               </div>
+              <MobileBottomNav navVisible={navVisible} setNavVisible={setNavVisible} />
             </PromptGroupsProvider>
           {config?.interface?.termsOfService?.modalAcceptance === true && (
             <TermsAndConditionsModal

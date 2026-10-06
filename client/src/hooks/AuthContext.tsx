@@ -117,6 +117,10 @@ const AuthContextProvider = ({
       } else if (!hasActivePlan(user)) {
         redirectUrl = '/planes';
       }
+      try {
+        sessionStorage.removeItem('tenshi_mobile_hero_exited');
+        sessionStorage.setItem('tenshi_mobile_just_logged_in', 'true');
+      } catch (_) {}
       setUserContext({ token, isAuthenticated: true, user, redirect: redirectUrl });
     },
     onError: (error: TResError | unknown) => {
@@ -128,6 +132,10 @@ const AuthContextProvider = ({
   });
   const logoutUser = useLogoutUserMutation({
     onSuccess: (data) => {
+      try {
+        sessionStorage.removeItem('tenshi_mobile_hero_exited');
+        sessionStorage.removeItem('tenshi_mobile_just_logged_in');
+      } catch (_) {}
       setUserContext({
         token: undefined,
         isAuthenticated: false,

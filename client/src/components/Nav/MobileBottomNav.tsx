@@ -149,7 +149,7 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
     <div
       id="wappy-mobile-bottom-nav-wrapper"
       className={cn(
-        'md:hidden flex-shrink-0 w-full z-40 px-3 transition-all duration-200 ease-out',
+        'fixed bottom-0 inset-x-0 md:hidden flex-shrink-0 w-full z-50 px-3 transition-all duration-200 ease-out pointer-events-auto',
         isKeyboardOpen
           ? 'max-h-0 opacity-0 pointer-events-none overflow-hidden pb-0'
           : 'max-h-24 opacity-100 pointer-events-auto overflow-visible',

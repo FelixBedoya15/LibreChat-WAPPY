@@ -842,13 +842,30 @@ export default function TenshiChat() {
   const { isAuthenticated, token, user } = useAuthContext();
 
   // ─── Modo Protagonista en Celular (Hero Mode) ───────────────────────────────
+  const checkIsMobile = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.innerWidth < 768 ||
+      window.matchMedia('(max-width: 767px)').matches ||
+      (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && window.innerWidth < 1024)
+    );
+  }, []);
+
   const [isMobileScreen, setIsMobileScreen] = useState<boolean>(() => {
-    return typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+    if (typeof window === 'undefined') return false;
+    return (
+      window.innerWidth < 768 ||
+      window.matchMedia('(max-width: 767px)').matches ||
+      (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && window.innerWidth < 1024)
+    );
   });
 
   const [isMobileHeroMode, setIsMobileHeroMode] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
-    const isMobile = window.innerWidth < 768;
+    const isMobile =
+      window.innerWidth < 768 ||
+      window.matchMedia('(max-width: 767px)').matches ||
+      (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && window.innerWidth < 1024);
     const alreadyExited = sessionStorage.getItem('tenshi_mobile_hero_exited') === 'true';
     const isChatRoute =
       window.location.pathname === '/' ||
@@ -858,17 +875,17 @@ export default function TenshiChat() {
   });
 
   useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
+    const handleResize = () => {
+      const mobile = checkIsMobile();
       setIsMobileScreen(mobile);
       if (!mobile) {
         setIsMobileHeroMode(false);
       }
     };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [checkIsMobile]);
 
   useEffect(() => {
     const handleExitHero = () => {
@@ -878,15 +895,33 @@ export default function TenshiChat() {
     return () => window.removeEventListener('tenshi-exit-mobile-hero', handleExitHero);
   }, []);
 
+  // Activación al cargar o loguearse en celular
+  const prevAuthRef = useRef(isAuthenticated);
   useEffect(() => {
+    const isMobile = checkIsMobile();
+    if (!isMobile) return;
+
     const isChatRoute =
       location.pathname === '/' ||
       location.pathname === '/c/new' ||
       location.pathname.startsWith('/c/');
-    if (!isChatRoute && isMobileHeroMode) {
+
+    const justLoggedIn = sessionStorage.getItem('tenshi_mobile_just_logged_in') === 'true';
+
+    if (isAuthenticated && isChatRoute) {
+      if (justLoggedIn || sessionStorage.getItem('tenshi_mobile_hero_exited') !== 'true') {
+        setIsMobileHeroMode(true);
+        try {
+          sessionStorage.removeItem('tenshi_mobile_just_logged_in');
+          sessionStorage.removeItem('tenshi_mobile_hero_exited');
+        } catch (_) {}
+      }
+    } else if (!isChatRoute && isMobileHeroMode) {
       setIsMobileHeroMode(false);
     }
-  }, [location.pathname, isMobileHeroMode]);
+
+    prevAuthRef.current = isAuthenticated;
+  }, [location.pathname, isAuthenticated, checkIsMobile, isMobileHeroMode]);
 
   const agentsMap = useAgentsMapContext();
   const { data: agentsData } = useListAgentsQuery({ requiredPermission: 1, limit: 100 });
@@ -2113,8 +2148,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       const tenshiH = tenshiRef.current?.offsetHeight || 92;
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
+      const isMobile = viewportWidth < 768;
+      const bottomMargin = isMobile ? 86 : 8;
       newX = Math.max(8, Math.min(newX, viewportWidth - tenshiW - 8));
-      newY = Math.max(8, Math.min(newY, viewportHeight - tenshiH - 8));
+      newY = Math.max(8, Math.min(newY, viewportHeight - tenshiH - bottomMargin));
 
       setPosition({ x: newX, y: newY });
     };
@@ -2149,9 +2186,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         const tenshiH = 92;
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
+        const isMobile = viewportWidth < 768;
+        const bottomMargin = isMobile ? 86 : 8;
         return {
           x: Math.max(8, Math.min(prev.x, viewportWidth - tenshiW - 8)),
-          y: Math.max(8, Math.min(prev.y, viewportHeight - tenshiH - 8)),
+          y: Math.max(8, Math.min(prev.y, viewportHeight - tenshiH - bottomMargin)),
         };
       });
     };
@@ -2975,7 +3014,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       {isMobileHeroMode && isMobileScreen ? (
         <div
           id="tenshi-mobile-hero-container"
-          className="fixed inset-x-0 top-0 bottom-0 z-30 flex flex-col md:hidden bg-gradient-to-b from-slate-50 via-teal-50/20 to-slate-100 dark:bg-gradient-to-b dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden animate-in fade-in duration-200"
+          className="fixed inset-x-0 top-0 bottom-0 z-40 flex flex-col md:hidden bg-gradient-to-b from-slate-50 via-teal-50/20 to-slate-100 dark:bg-gradient-to-b dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden animate-in fade-in duration-200"
           style={{
             paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 74px)',
           }}
@@ -3035,6 +3074,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   try {
                     sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
                   } catch (_) {}
+                  navigate('/c/new');
                 }}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 shadow-2xs active:scale-95 transition-all"
                 title="Ir a chat tradicional de WAPPY"
@@ -3656,12 +3696,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         style={{
           position: 'fixed',
           left: `${position ? position.x : (typeof window !== 'undefined' ? window.innerWidth - 88 : 0)}px`,
-          top: `${position ? position.y : (typeof window !== 'undefined' ? window.innerHeight - 110 : 0)}px`,
-          zIndex: 9999,
+          top: `${position ? position.y : (typeof window !== 'undefined' ? window.innerHeight - (isMobileScreen ? 185 : 110) : 0)}px`,
+          zIndex: 45,
         }}
         className="group relative cursor-grab active:cursor-grabbing select-none transition-transform duration-200 hover:scale-105 active:scale-95"
       >
-        {/* Micro-dock flotante en Hover (Estable con puente interactivo y estado de gracia) */}
+        {/* Micro-dock flotante en Hover (Desktop) o Siempre Visible en Móvil */}
         <div
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
@@ -3669,7 +3709,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             'absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-40 transition-all duration-200 select-none',
             'bg-zinc-900/90 backdrop-blur-md px-2.5 py-1 rounded-full border border-emerald-500/30 shadow-xl',
             'before:absolute before:-bottom-3 before:inset-x-0 before:h-4 before:content-[""]',
-            isHoveringTenshi ? 'opacity-100 pointer-events-auto scale-100' : 'opacity-0 pointer-events-none scale-95'
+            isMobileScreen || isHoveringTenshi
+              ? 'opacity-100 pointer-events-auto scale-100'
+              : 'opacity-0 pointer-events-none scale-95'
           )}
         >
           {/* Botón 1: Chat de texto */}
@@ -3722,6 +3764,24 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             className="p-1.5 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 transition-colors active:scale-90"
           >
             {isSFXMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+          </button>
+
+          {/* Botón 4: Maximizar a Pantalla Completa (EXCLUSIVO PARA CELULAR) */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              tenshiAudio.playPop();
+              try {
+                sessionStorage.removeItem('tenshi_mobile_hero_exited');
+                sessionStorage.removeItem('tenshi_mobile_just_logged_in');
+              } catch (_) {}
+              setIsMobileHeroMode(true);
+            }}
+            title="Tenshi en Pantalla Completa"
+            className="flex md:hidden p-1.5 rounded-full text-teal-300 hover:text-teal-200 hover:bg-white/10 transition-colors active:scale-90"
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
           </button>
         </div>
 
