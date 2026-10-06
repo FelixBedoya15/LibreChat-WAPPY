@@ -105,6 +105,8 @@ services:
       - NOTEBOOKLM_MCP_PORT=9420
     ports:
       - "9420:9420"
+    mem_limit: 256m
+    mem_reservation: 64m
     networks:
       - dokploy-network
 
