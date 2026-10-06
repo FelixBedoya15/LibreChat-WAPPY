@@ -1091,6 +1091,50 @@ class VoiceSession {
                                 },
                                 required: ["nombre_especialista", "consulta_completa"]
                             }
+                        },
+                        {
+                            name: "wappy_leer_informe_aplicativo",
+                            description: "Lee e inspecciona el informe técnico oficial de cualquier aplicativo del SG-SST (Perfiles de Cargo, Matriz IPEVAR / GTC-45, Diagnóstico Res. 0312, Investigación ATEL, PESV, Químicos SGA, Auditoría Anual). Si se trata de perfiles de cargo, consulta el catálogo completo de todos los cargos de la empresa y el informe del cargo seleccionado o solicitado.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    aplicativo: {
+                                        type: "string",
+                                        description: "Nombre del aplicativo o módulo: 'perfil_cargo', 'matriz_ipevar', 'gtc45', 'diagnostico_0312', 'investigacion_atel', 'pesv', 'quimicos', 'sga', 'auditoria'."
+                                    },
+                                    cargo: {
+                                        type: "string",
+                                        description: "Nombre puntual del cargo para consultar su perfil específico (ej: 'Conductor', 'Operario', 'Auxiliar contable', 'Gerente')."
+                                    },
+                                    id: {
+                                        type: "string",
+                                        description: "ID opcional del caso o registro a consultar."
+                                    }
+                                },
+                                required: ["aplicativo"]
+                            }
+                        },
+                        {
+                            name: "wappy_activar_herramienta_agente",
+                            description: "Activa y ejecuta de inmediato cualquiera de las herramientas especializadas de los agentes de WAPPY ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario pida abrir o activar una herramienta de un agente.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    herramienta: {
+                                        type: "string",
+                                        description: "Nombre de la herramienta especializada: 'canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'."
+                                    },
+                                    parametros: {
+                                        type: "object",
+                                        description: "Parámetros o argumentos específicos para la herramienta.",
+                                        properties: {
+                                            accion: { type: "string", description: "Acción a realizar en la herramienta" },
+                                            datos: { type: "string", description: "Datos, contenido o configuración" }
+                                        }
+                                    }
+                                },
+                                required: ["herramienta"]
+                            }
                         }
                     ]
                 }
@@ -1194,11 +1238,20 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
    - Cuando el especialista responda o recibas una notificación "[SISTEMA INTERNO WAPPY - RESPUESTA TÉCNICA EMITIDA]: ...", explica verbalmente de forma clara las conclusiones técnicas que dictaminó el especialista de forma fiel y veraz, sin añadir advertencias ni disclaimers. ESTÁ TERMINANTEMENTE PROHIBIDO limitarte a decir "ya respondió" o mandar al usuario a revisar la pantalla.
    - Si el usuario te pide que leas la respuesta o dice "léelo", "léemelo", "qué dice exactamente", "no lo resumas": léele el dictamen real citando sus artículos, decretos (ej. Decreto 1072 de 2015) y argumentos sin comprimirlo a una sola frase genérica.
    - PROHIBICIÓN ESTRICTA DE INVENTAR O ALUCINAR: NUNCA inventes lo que dice un especialista ni asumas hechos que no estén en pantalla. Si aún no recibes la notificación oficial, dile con honestidad al usuario que el especialista está analizando y redactando en pantalla. Si el usuario te insiste o te dice que ya respondió o que revises, INVOCA DE INMEDIATO 'leer_pantalla' para extraer el texto real del chat y léelo fielmente.
-6. **LEER LA PANTALLA O INFORMES VISIBLES**:
-   - Tienes la herramienta 'leer_pantalla' para inspeccionar, extraer y leer lo que el usuario tiene abierto en pantalla (chat con especialistas, informes, tablas, registros, tarjetas o formularios).
+6. **LEER LA PANTALLA O INFORMES VISIBLES ('leer_pantalla' y 'wappy_leer_informe_aplicativo')**:
+   - Tienes la herramienta 'leer_pantalla' para inspeccionar lo visible en el DOM, y 'wappy_leer_informe_aplicativo' para extraer el informe técnico oficial estructurado desde la base de datos de cualquier aplicativo.
+   - PERFILES DE CARGO COMPLETOS (REGLA ESTRICTA):
+     * Cuando el usuario te pregunte por los perfiles de cargo, te pida verlos o te encuentres en el módulo de Perfiles de Cargo:
+     * ESTÁ TERMINANTEMENTE PROHIBIDO limitarte a leer únicamente el perfil de cargo que está seleccionado en pantalla.
+     * DEBES reportar el CATÁLOGO COMPLETO de TODOS los cargos existentes en la empresa (ej: "La empresa cuenta con 5 cargos registrados: Conductor, Operario de Producción, Auxiliar Administrativo, Coordinador SST y Gerente General") e indicar con claridad cuál de ellos está seleccionado actualmente en pantalla.
+     * Si el usuario te pide el perfil o informe de cualquier cargo puntual (esté o no seleccionado en pantalla), invoca 'wappy_leer_informe_aplicativo' con aplicativo: 'perfil_cargo' y cargo: '<nombre del cargo>'.
+   - LECTURA UNIVERSAL DE INFORMES DE CUALQUIER APLICATIVO:
+     * Cuando el usuario te dé la orden de leer el informe de cualquier aplicativo (Perfiles de Cargo, Matriz IPEVAR / GTC-45, Diagnóstico Res. 0312, Investigación ATEL, PESV, Matriz de Compatibilidad Química SGA, Auditoría Anual, etc.):
+     * INVOCA DE INMEDIATO 'wappy_leer_informe_aplicativo' con el nombre del aplicativo (y cargo si aplica), o 'leer_pantalla' si el usuario pide leer lo que está en pantalla.
+     * Léele el contenido técnico sustancial del informe con fidelidad, citando conclusiones, nivel de cumplimiento, requisitos y recomendaciones.
    - Siempre que el usuario te diga "revisa la pantalla", "léeme lo que hay", "qué dice ahí", "mira el chat", "léelo" o pregunte por lo que está visible:
-     1. Invoca 'leer_pantalla' de inmediato para extraer el contenido visible.
-     2. Léele o explícale el contenido real extraído de la pantalla con fidelidad, sin inventar y sin omitir datos clave. Si el chat visible es de un tema anterior o diferente, indícaselo con sinceridad.
+     1. Invoca 'leer_pantalla' o 'wappy_leer_informe_aplicativo' de inmediato para extraer el contenido real.
+     2. Léele o explícale el contenido real extraído con fidelidad, sin inventar y sin omitir datos clave.
 7. **canvas_tool (Creación de Archivos Word, Excel, HTML y Presentaciones en Canvas)**:
    - Tienes la herramienta 'canvas_tool' para crear y entregar archivos descargables directamente en el chat de Tenshi (con tarjeta y botón de descarga directa) y en el lienzo Canvas.
    - INVÓCALA SIEMPRE que el usuario te pida crear, generar, redactar o entregar un documento, archivo, protocolo, procedimiento, política, tabla, matriz de datos, hoja de cálculo, aplicativo interactivo, presentación, o cuando te pida un resumen en Canva o Canvas ("haz un resumen en canva", "créalo tú en canva").
@@ -1231,6 +1284,10 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
 14. **ANALÍTICAS**:
    - 'consultar_analitica_psicosocial': Métricas agregadas de ánimo, estrés y clima laboral.
    - 'consultar_analitica_actos_condiciones': Estadísticas y buzón de reportes de seguridad.
+15. **wappy_leer_informe_aplicativo (Lectura Universal de Informes de Aplicativos)**:
+   - Permite consultar y leer el informe oficial de cualquier aplicativo (Perfiles de Cargo, Matriz IPEVAR GTC-45, Diagnóstico Res. 0312, Investigación ATEL, PESV, Químicos SGA, Auditoría Anual).
+16. **wappy_activar_herramienta_agente (Activación Total de Herramientas de Agentes)**:
+   - TIENES FACULTAD TOTAL para activar y ejecutar directamente cualquiera de las herramientas especializadas de los agentes ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario te pida abrir, activar o ejecutar la herramienta de un agente.
 
 [DOMINIO INTEGRAL DE METODOLOGÍAS Y SKILLS DE WAPPY IA]:
 1. **Investigación de Accidentes e Incidentes (Resolución 1401 de 2007)**:

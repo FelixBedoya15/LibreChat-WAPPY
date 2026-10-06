@@ -449,7 +449,12 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
 6. **CONTROL TOTAL DE LA PLATAFORMA MEDIANTE CLICS Y OPERACIÓN VISUAL ('operar_interfaz_visual')**:
    - Puedes hacer clic en CUALQUIER BOTÓN, pestaña, menú o tarjeta de todos los aplicativos (ej: pestañas 'Retirados', 'Activos', 'Todos', botones '+ Agregar Trabajador', 'Guardar Localmente', 'Descargar', etc.) usando 'operar_interfaz_visual' indicando el índice [índice] o el texto/nombre del botón.
 7. **SUITE COMPLETA DE 41 OPERACIONES MCP DEL SG-SST ('wappy_mcp_sst' y 'wappy_resumen_general_360')**:
-   - Cuentas con acceso integral a las 41 operaciones MCP para consultar y alimentar: Diagnóstico 360°, Empresa, Matriz GTC-45, Matriz PESV, Matriz Legal, Estándares 0312, Comités (COPASST, Convivencia, Brigadas), Químicos SGA, Vehículos, EPP, Reportes de Actos y Condiciones, Perfiles de Cargo, Casos ATEL, Cronograma y Tareas, Capacitaciones, Auditorías y Automatizaciones.`;
+   - Cuentas con acceso integral a las 41 operaciones MCP para consultar y alimentar: Diagnóstico 360°, Empresa, Matriz GTC-45, Matriz PESV, Matriz Legal, Estándares 0312, Comités (COPASST, Convivencia, Brigadas), Químicos SGA, Vehículos, EPP, Reportes de Actos y Condiciones, Perfiles de Cargo, Casos ATEL, Cronograma y Tareas, Capacitaciones, Auditorías y Automatizaciones.
+8. **PERFILES DE CARGO COMPLETOS Y LECTURA UNIVERSAL DE INFORMES ('wappy_leer_informe_aplicativo')**:
+   - PERFILES DE CARGO COMPLETOS: En Perfiles de Cargo, ESTÁ TERMINANTEMENTE PROHIBIDO limitarte a leer únicamente el cargo seleccionado en pantalla. DEBES reportar el catálogo completo de todos los cargos de la empresa (cuántos hay, cuáles son sus nombres y áreas) y señalar cuál está seleccionado actualmente. Si te piden el informe o perfil de un cargo puntual, consúltalo con 'wappy_leer_informe_aplicativo' pasando aplicativo: 'perfil_cargo' y cargo: '<nombre del cargo>'.
+   - LECTURA UNIVERSAL DE INFORMES DE APLICATIVOS: Si te ordenan leer el informe de cualquier aplicativo (Perfiles de Cargo, Matriz IPEVAR / GTC-45, Diagnóstico Res. 0312, Investigación ATEL, PESV, Químicos SGA, Auditoría Anual, etc.), INVOCA DE INMEDIATO 'wappy_leer_informe_aplicativo' con el nombre del aplicativo (y cargo si aplica) y reporta el contenido técnico sustancial y conclusiones con fidelidad.
+9. **ACTIVACIÓN TOTAL DE HERRAMIENTAS DE AGENTES ('wappy_activar_herramienta_agente')**:
+   - TIENES FACULTAD TOTAL para activar y ejecutar directamente cualquiera de las herramientas especializadas de los agentes ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario te pida abrir, activar o ejecutar la herramienta de un agente.`;
 
         if (skillInstructions) {
             systemMessage += `\n\n${skillInstructions}`;
@@ -1227,6 +1232,52 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyLeerInformeAplicativoDeclaration = {
+                name: 'wappy_leer_informe_aplicativo',
+                description: 'Lee e inspecciona el informe técnico oficial de cualquier aplicativo del SG-SST (Perfiles de Cargo, Matriz IPEVAR / GTC-45, Diagnóstico Res. 0312, Investigación ATEL, PESV, Químicos SGA, Auditoría Anual). Si se trata de perfiles de cargo, consulta el catálogo completo de todos los cargos de la empresa y el informe del cargo seleccionado o solicitado.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        aplicativo: {
+                            type: 'STRING',
+                            description: "Nombre del aplicativo o módulo: 'perfil_cargo', 'matriz_ipevar', 'gtc45', 'diagnostico_0312', 'investigacion_atel', 'pesv', 'quimicos', 'sga', 'auditoria'."
+                        },
+                        cargo: {
+                            type: 'STRING',
+                            description: "Nombre puntual del cargo para consultar su perfil específico (ej: 'Conductor', 'Operario', 'Auxiliar contable', 'Gerente')."
+                        },
+                        id: {
+                            type: 'STRING',
+                            description: 'ID opcional del caso o registro a consultar.'
+                        }
+                    },
+                    required: ['aplicativo']
+                }
+            };
+
+            const wappyActivarHerramientaAgenteDeclaration = {
+                name: 'wappy_activar_herramienta_agente',
+                description: "Activa y ejecuta de inmediato cualquiera de las herramientas especializadas de los agentes de WAPPY ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario pida abrir o activar una herramienta de un agente.",
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        herramienta: {
+                            type: 'STRING',
+                            description: "Nombre de la herramienta especializada: 'canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'."
+                        },
+                        parametros: {
+                            type: 'OBJECT',
+                            description: 'Parámetros o argumentos específicos para la herramienta.',
+                            properties: {
+                                accion: { type: 'STRING', description: 'Acción a realizar en la herramienta' },
+                                datos: { type: 'STRING', description: 'Datos, contenido o configuración' }
+                            }
+                        }
+                    },
+                    required: ['herramienta']
+                }
+            };
+
             // Assemble base tools and dynamically triggered tools (strictly excluding Group 7)
             const baseFunctionDeclarations = [
                 wappyNavegarDeclaration,
@@ -1238,6 +1289,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyRegistrarTrabajadorDeclaration,
                 wappyResumenGeneral360Declaration,
                 wappyMcpSstDeclaration,
+                wappyLeerInformeAplicativoDeclaration,
+                wappyActivarHerramientaAgenteDeclaration,
                 googleDriveDeclaration,
                 consultarAgenteDeclaration,
                 canvasDeclaration,

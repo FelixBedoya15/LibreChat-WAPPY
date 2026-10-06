@@ -1718,7 +1718,18 @@ const PerfilesCargo = () => {
                         </button>
                     </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" data-tenshi-section="perfiles-cargo-lista">
+                    {/* Resumen semántico accesible para Tenshi IA y lectores de pantalla */}
+                    <div className="sr-only" aria-hidden="false" data-tenshi-data="resumen-perfiles-cargo">
+                        <h6>Catálogo completo de Perfiles de Cargo de la Empresa (Total: {perfiles.length})</h6>
+                        <ul>
+                            {perfiles.map((p) => (
+                                <li key={p.id}>
+                                    Cargo: {p.nombreCargo} | Área: {p.area} | Nivel: {p.nivelCargo} | Vacantes: {p.numVacantes || '0'} | Estado en pantalla: {activePerfilId === p.id ? 'Seleccionado actualmente' : 'No seleccionado'} | Informe: {p.report ? 'Generado' : 'Pendiente'}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
                     {isLoadingPerfiles ? (
                         <>
                             {[...Array(4)].map((_, i) => (
@@ -1738,12 +1749,20 @@ const PerfilesCargo = () => {
                             <div 
                                 key={p.id} 
                                 draggable
+                                data-tenshi-perfil-card="true"
+                                data-cargo-id={p.id}
+                                data-cargo-nombre={p.nombreCargo}
+                                data-cargo-area={p.area || 'Sin área'}
+                                data-cargo-nivel={p.nivelCargo || 'N/A'}
+                                data-cargo-vacantes={p.numVacantes || '0'}
+                                data-cargo-activo={isActive ? 'true' : 'false'}
+                                data-cargo-tiene-informe={Boolean(p.report) ? 'true' : 'false'}
                                 onDragStart={(e) => handlePerfilDragStart(e, index)}
                                 onDragOver={(e) => handlePerfilDragOver(e, index)}
                                 onDrop={(e) => handlePerfilDrop(e, index)}
                                 onDragEnd={handlePerfilDragEnd}
                                 className={cn(
-                                    "group relative flex flex-col justify-between p-5 rounded-3xl transition-all duration-200 cursor-grab active:cursor-grabbing border select-none transform overflow-hidden h-[150px] shadow-sm hover:shadow-md",
+                                    "report-card perfil-cargo-card group relative flex flex-col justify-between p-5 rounded-3xl transition-all duration-200 cursor-grab active:cursor-grabbing border select-none transform overflow-hidden h-[150px] shadow-sm hover:shadow-md",
                                     isDragging && "opacity-30 scale-95 border-2 border-dashed border-teal-500 shadow-none z-10",
                                     isDragOver && "ring-2 ring-teal-500 scale-[1.04] shadow-2xl z-20 border-teal-500 bg-teal-500/10",
                                     !isDragging && !isDragOver && (

@@ -1556,6 +1556,56 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           } else if (action.name === 'wappy_retirar_trabajador') {
             window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
             resultMsg = `Trabajador marcado como retirado exitosamente.`;
+          } else if (action.name === 'wappy_leer_informe_aplicativo') {
+            const rawApp = action.args?.aplicativo || action.args?.modulo || 'perfil_cargo';
+            const cargo = action.args?.cargo;
+            const res = (action as any).result || {};
+            let details = '';
+            if (res.informeCompleto) {
+              details = res.informeCompleto;
+            } else if (res.catalogoCargos) {
+              details = `Catálogo de Cargos (${res.totalCargos}): ${res.catalogoCargos.map((c: any) => c.nombre).join(', ')}`;
+            } else {
+              details = `Informe del aplicativo ${rawApp} consultado en el sistema.`;
+            }
+            resultMsg = details;
+
+            // Si hay informe completo o datos sustanciales, mostrar tarjeta en el chat de Tenshi
+            if (res.informeCompleto && res.informeCompleto.length > 30) {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: 'assistant',
+                  content: `📑 **Informe Técnico Oficial - ${res.aplicativo || rawApp}**:\n\n${res.informeCompleto}`,
+                },
+              ]);
+            }
+          } else if (action.name === 'wappy_activar_herramienta_agente') {
+            const tool = (action.args?.herramienta || '').toLowerCase().trim();
+            const params = action.args?.parametros || {};
+
+            if (tool.includes('canvas')) {
+              setIsCanvasActive(true);
+            }
+
+            if (tool.includes('gtc45') || tool.includes('ipevar')) {
+              navigate('/sgsst?hito=hito4&module=peligros');
+              window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module: 'peligros' } }));
+            } else if (tool.includes('pesv')) {
+              navigate('/sgsst?hito=hito5&module=vehicles_pesv');
+              window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module: 'vehicles_pesv' } }));
+            } else if (tool.includes('quimic') || tool.includes('compatib')) {
+              navigate('/sgsst?hito=hito5&module=chemical_registry');
+              window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module: 'chemical_registry' } }));
+            } else if (tool.includes('auto') || tool.includes('cron')) {
+              navigate('/sgsst?hito=hito8&module=predictivo');
+              window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module: 'predictivo' } }));
+            }
+
+            window.dispatchEvent(
+              new CustomEvent('wappy-herramienta-activada', { detail: { herramienta: tool, parametros: params } })
+            );
+            resultMsg = `Herramienta de agente "${tool}" activada con éxito en la plataforma.`;
           }
         } catch (e: any) {
           resultMsg = `Error ejecutando acción: ${e.message}`;

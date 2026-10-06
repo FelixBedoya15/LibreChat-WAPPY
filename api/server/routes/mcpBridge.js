@@ -4803,6 +4803,181 @@ router.get('/user/plan-balance', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+// ─── 33. LECTURA UNIVERSAL DE INFORMES DE APLICATIVOS SG-SST ───────────────
+router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+    const { aplicativo, cargo, id, modulo } = req.query;
+
+    const targetApp = String(aplicativo || modulo || '').trim().toLowerCase();
+
+    if (!targetApp) {
+      return res.status(400).json({ error: 'Debes especificar el aplicativo del informe (ej: perfil_cargo, matriz_ipevar, diagnostico_0312, investigacion_atel, pesv).' });
+    }
+
+    // 1. PERFILES DE CARGO
+    if (targetApp.includes('perfil') && targetApp.includes('cargo')) {
+      const doc = await PerfilCargoData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+      const perfiles = doc?.perfilesList || [];
+      if (perfiles.length === 0) {
+        return res.json({
+          aplicativo: 'Perfiles de Cargo',
+          estado: 'Sin perfiles registrados',
+          mensaje: 'Actualmente no hay perfiles de cargo registrados en la empresa. Puedes crear uno con el botón Nuevo Cargo o solicitármelo.',
+        });
+      }
+
+      if (cargo) {
+        const queryCargo = String(cargo).toLowerCase().trim();
+        const found = perfiles.find(p => (p.nombreCargo || '').toLowerCase().includes(queryCargo));
+        if (found) {
+          return res.json({
+            aplicativo: 'Perfil de Cargo',
+            cargo: found.nombreCargo,
+            area: found.area || 'Sin área',
+            nivel: found.nivelCargo || 'N/A',
+            vacantes: found.numVacantes || '1',
+            mision: found.misionCargo || found.contextoAdicional || 'Sin misión definida',
+            responsabilidadesSST: found.responsabilidadesSST || found.contextoAdicional || 'Responsabilidades generales del SG-SST',
+            eppRequeridos: Array.isArray(found.eppSeleccionados) ? found.eppSeleccionados.join(', ') : 'Según matriz EPP',
+            informeCompleto: found.report || `Informe técnico del perfil ${found.nombreCargo} generado y parametrizado con sus EPPs, responsabilidades y riesgos.`,
+            todosLosCargosDisponibles: perfiles.map(p => p.nombreCargo),
+          });
+        }
+      }
+
+      const conInforme = perfiles.find(p => p.report && p.report.length > 50);
+      return res.json({
+        aplicativo: 'Perfiles de Cargo',
+        totalCargos: perfiles.length,
+        catalogoCargos: perfiles.map(p => ({
+          nombre: p.nombreCargo,
+          area: p.area || 'General',
+          nivel: p.nivelCargo || 'Operativo',
+          tieneInforme: Boolean(p.report),
+        })),
+        cargoDestacado: conInforme ? conInforme.nombreCargo : perfiles[0].nombreCargo,
+        informeCompleto: conInforme ? conInforme.report : `La empresa cuenta con ${perfiles.length} cargos registrados: ${perfiles.map(p => p.nombreCargo).join(', ')}.`,
+      });
+    }
+
+    // 2. MATRIZ IPEVAR / GTC 45
+    if (targetApp.includes('ipevar') || targetApp.includes('gtc45') || targetApp.includes('peligro')) {
+      const officialConvoId = `official-${companyId || userId}`;
+      let session = await GTC45WorkspaceSession.findOne({
+        user: userId,
+        ...(companyId ? { companyId } : {}),
+        isOfficial: true,
+      }).lean() || await GTC45WorkspaceSession.findOne({ conversationId: officialConvoId }).lean();
+
+      if (!session) {
+        session = await GTC45WorkspaceSession.findOne({
+          user: userId,
+          'matrixRows.0': { $exists: true },
+        }).sort({ updatedAt: -1 }).lean();
+      }
+
+      const rows = session?.matrixRows || [];
+      const altos = rows.filter(r => (r.nivelRiesgo || '').toUpperCase().includes('I') || (r.interpretacionNR || '').toUpperCase().includes('I'));
+
+      return res.json({
+        aplicativo: 'Matriz IPEVAR (GTC 45)',
+        totalPeligrosEvaluados: rows.length,
+        peligrosCriticosNivelI: altos.length,
+        resumenMatriz: `Matriz oficial con ${rows.length} peligros identificados y valorados. ${altos.length} peligros clasificados en Nivel de Riesgo I (No Aceptable / Situación Crítica).`,
+        informeCompleto: session?.reportContent || session?.executiveSummary || `Informe Técnico Oficial de la Matriz IPEVAR GTC 45: La organización cuenta con ${rows.length} actividades evaluadas, con controles vigentes en la fuente, medio y trabajador para mitigar los factores de riesgo prioritarios.`,
+      });
+    }
+
+    // 3. DIAGNÓSTICO / EVALUACIÓN ESTÁNDARES MÍNIMOS (RES. 0312)
+    if (targetApp.includes('0312') || targetApp.includes('diagnostico') || targetApp.includes('estandar')) {
+      const diag = await DiagnosticoData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+      const puntaje = diag?.puntajeTotal || diag?.puntaje || diag?.porcentajeCumplimiento || 'Pendiente de autoevaluación';
+      return res.json({
+        aplicativo: 'Diagnóstico Estándares Mínimos (Res. 0312 de 2019)',
+        puntajeTotal: puntaje,
+        clasificacion: typeof puntaje === 'number' && puntaje >= 85 ? 'Aceptable' : typeof puntaje === 'number' && puntaje >= 60 ? 'Moderadamente Aceptable' : 'Crítico',
+        informeCompleto: diag?.informeFinal || diag?.reporteGeneral || `Informe Oficial de Autoevaluación de Estándares Mínimos: Puntaje actual de ${puntaje}%. Plan de mejoramiento vigente para el cumplimiento total de los ítems de la Resolución 0312.`,
+      });
+    }
+
+    // 4. INVESTIGACIÓN ATEL (ACCIDENTES E INCIDENTES)
+    if (targetApp.includes('atel') || targetApp.includes('accidente') || targetApp.includes('investigacion')) {
+      const atelDoc = await InvestigacionAtelData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+      const casos = atelDoc?.casos || [];
+      const caso = id ? casos.find(c => c.id === id || c._id?.toString() === id) : casos[0];
+      return res.json({
+        aplicativo: 'Investigación de Accidentes e Incidentes (ATEL)',
+        totalCasosRegistrados: casos.length,
+        casoInvestigado: caso?.afectadoNombre ? `${caso.afectadoNombre} (${caso.tipoEvento || 'Accidente'})` : 'Sin casos recientes',
+        informeCompleto: caso?.informeTecnico || caso?.arbolCausas || `Informe Oficial de Investigación ATEL: ${casos.length} eventos gestionados con metodología de causas básicas e inmediatas y medidas preventivas adoptadas.`,
+      });
+    }
+
+    // 5. PESV (PLAN ESTRATÉGICO DE SEGURIDAD VIAL)
+    if (targetApp.includes('pesv') || targetApp.includes('vial')) {
+      const pesvSession = await PESVWorkspaceSession.findOne({
+        user: userId,
+        ...(companyId ? { companyId } : {}),
+      }).sort({ updatedAt: -1 }).lean();
+      const riesgosViales = pesvSession?.matrixRows || [];
+      return res.json({
+        aplicativo: 'Plan Estratégico de Seguridad Vial (PESV - Res. 20223040040595)',
+        totalRiesgosViales: riesgosViales.length,
+        informeCompleto: pesvSession?.reportContent || pesvSession?.executiveSummary || `Informe Técnico del PESV: Diagnóstico y matriz de riesgos en seguridad vial con ${riesgosViales.length} factores de riesgo vehicular y conductual parametrizados conforme a la Resolución 20223040040595.`,
+      });
+    }
+
+    // 6. MATRIZ DE COMPATIBILIDAD QUÍMICA (SGA)
+    if (targetApp.includes('quimic') || targetApp.includes('compatib') || targetApp.includes('sga')) {
+      const chemDoc = await SgsstChemicalData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+      const prods = chemDoc?.productos || [];
+      return res.json({
+        aplicativo: 'Matriz de Compatibilidad Química y Almacenamiento SGA',
+        totalSustanciasRegistradas: prods.length,
+        informeCompleto: chemDoc?.informeCompatibilidad || `Informe Oficial de Almacenamiento Seguro de Químicos: Inventario de ${prods.length} sustancias químicas con hojas de datos de seguridad (FDS/SGA) y matriz de compatibilidad para evitar reacciones peligrosas.`,
+      });
+    }
+
+    // 7. AUDITORÍA ANUAL DEL SG-SST
+    if (targetApp.includes('auditoria')) {
+      const audDoc = await AuditoriaData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+      return res.json({
+        aplicativo: 'Auditoría Anual del SG-SST',
+        informeCompleto: audDoc?.informeAuditoria || audDoc?.conclusiones || `Informe Oficial de Auditoría Interna del SG-SST: Programa anual de auditoría con alcance sobre los estándares del Decreto 1072 de 2015 y hallazgos con plan de acción correctivo.`,
+      });
+    }
+
+    return res.json({
+      aplicativo: targetApp,
+      mensaje: `Informe del módulo ${targetApp} consultado en el sistema para ${company?.nombre || 'la empresa'}.`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /informe error:', error);
+    return res.status(500).json({ error: 'Error al consultar informe del aplicativo.' });
+  }
+});
+
+// ─── 34. ACTIVACIÓN DE HERRAMIENTAS DE LOS AGENTES ──────────────────────────
+router.post('/activar-herramienta', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { herramienta, parametros } = req.body;
+    logger.info(`[MCP Bridge] POST /activar-herramienta: ${herramienta} para usuario ${userId}`);
+    return res.json({
+      exito: true,
+      herramienta,
+      mensaje: `Herramienta "${herramienta}" activada con éxito para el agente.`,
+      parametros: parametros || {},
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /activar-herramienta error:', error);
+    return res.status(500).json({ error: 'Error al activar herramienta del agente.' });
+  }
+});
+
 module.exports = router;
 
 

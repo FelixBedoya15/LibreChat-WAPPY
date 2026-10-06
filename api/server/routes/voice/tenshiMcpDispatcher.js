@@ -112,6 +112,18 @@ const TOOL_ROUTES = {
   wappy_consultar_conversaciones: { method: 'GET', path: '/conversations' },
   wappy_consultar_mensajes_conversacion: { method: 'GET', path: '/messages' },
   wappy_consultar_archivos: { method: 'GET', path: '/files' },
+
+  // 6. Lectura Universal de Informes de Aplicativos
+  wappy_leer_informe_aplicativo: { method: 'GET', path: '/informe' },
+
+  // 7. Herramientas Especializadas de Agentes
+  wappy_activar_herramienta_agente: { method: 'POST', path: '/activar-herramienta' },
+  matriz_ipevar: { method: 'GET', path: '/gtc45' },
+  matriz_pesv: { method: 'GET', path: '/pesv' },
+  matriz_compatibilidad: { method: 'GET', path: '/quimicos' },
+  gestor_automatizaciones: { method: 'GET', path: '/agentes-automatizaciones' },
+  consultar_analitica_psicosocial: { method: 'GET', path: '/resumen-360' },
+  consultar_analitica_actos_condiciones: { method: 'GET', path: '/actos-condiciones' },
 };
 
 async function executeTenshiMcpTool(toolName, args = {}, userId) {

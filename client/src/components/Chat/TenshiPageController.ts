@@ -266,6 +266,45 @@ export function getVisibleScreenContent(section?: string): string {
       }
     }
 
+    // 1.2 Extracción Prioritaria de Informes Oficiales Completos en Pantalla
+    const reportEditorEl = rootScope.querySelector<HTMLElement>(
+      '.live-editor, [data-live-editor], .ProseMirror, [contenteditable="true"], #sgsst-live-editor-content, [data-report-content], [data-report-markdown], .report-preview, .report-viewer'
+    );
+    if (reportEditorEl && isElementVisible(reportEditorEl)) {
+      const reportText = reportEditorEl.innerText?.trim();
+      if (reportText && reportText.length > 80) {
+        lines.push('=== INFORME OFICIAL COMPLETO EN PANTALLA ===');
+        lines.push(reportText.length > 10000 ? reportText.substring(0, 10000) + '... [Informe extenso continúa en pantalla]' : reportText);
+        lines.push('');
+      }
+    }
+
+    // 1.3 Detección Especializada de Catálogo de Perfiles de Cargo (Todos los cargos de la empresa)
+    const perfilesResumenEl = rootScope.querySelector<HTMLElement>('[data-tenshi-data="resumen-perfiles-cargo"]');
+    const perfilCards = Array.from(rootScope.querySelectorAll<HTMLElement>(
+      '[data-tenshi-perfil-card], .perfil-cargo-card, [data-cargo-nombre]'
+    )).filter(c => isElementVisible(c) && !c.closest('.tenshi-widget-container'));
+
+    if (perfilesResumenEl || perfilCards.length > 0) {
+      lines.push(`=== CATÁLOGO COMPLETO DE PERFILES DE CARGO EN LA EMPRESA (Total: ${perfilCards.length} cargos) ===`);
+      if (perfilesResumenEl) {
+        const resumenText = perfilesResumenEl.innerText?.trim();
+        if (resumenText) {
+          lines.push(resumenText);
+        }
+      } else {
+        perfilCards.forEach((card, idx) => {
+          const nombre = card.getAttribute('data-cargo-nombre') || card.querySelector('h5')?.innerText?.trim() || `Cargo #${idx + 1}`;
+          const area = card.getAttribute('data-cargo-area') || card.querySelector('p')?.innerText?.trim() || 'Sin área';
+          const nivel = card.getAttribute('data-cargo-nivel') || '';
+          const activo = card.getAttribute('data-cargo-activo') === 'true';
+          const tieneInforme = card.getAttribute('data-cargo-tiene-informe') === 'true';
+          lines.push(`* ${nombre} | Área: ${area}${nivel ? ` | Nivel: ${nivel}` : ''}${tieneInforme ? ' | [Informe disponible]' : ''}${activo ? ' << [SELECCIONADO ACTUALMENTE EN PANTALLA]' : ''}`);
+        });
+      }
+      lines.push('');
+    }
+
     // 2. Extraer Título Principal del módulo o pantalla
     const headers = Array.from(rootScope.querySelectorAll<HTMLElement>('h1, h2, h3, header h4'));
     const visibleHeaders = headers.filter(h => isElementVisible(h) && !h.closest('.tenshi-widget-container'));
@@ -302,12 +341,12 @@ export function getVisibleScreenContent(section?: string): string {
       'article, [role="article"], .report-card, .card, [class*="card"], [class*="report"], [class*="record"]'
     )).filter(c => isElementVisible(c) && !c.closest('.tenshi-widget-container') && (c.innerText?.length || 0) > 30);
 
-    if (reportCards.length > 0) {
+    if (reportCards.length > 0 && !perfilesResumenEl && perfilCards.length === 0) {
       lines.push('INFORMES / REGISTROS VISIBLES EN PANTALLA:');
       reportCards.slice(0, 6).forEach((card, idx) => {
         const text = card.innerText?.trim().replace(/\n{3,}/g, '\n\n');
         if (text && text.length > 20) {
-          const truncated = text.length > 500 ? text.substring(0, 500) + '...' : text;
+          const truncated = text.length > 800 ? text.substring(0, 800) + '...' : text;
           lines.push(`--- Registro #${idx + 1} ---`);
           lines.push(truncated);
         }
@@ -353,8 +392,8 @@ export function getVisibleScreenContent(section?: string): string {
       return `[PANTALLA ACTUAL: ${currentUrl}]\nNo se detectó un informe abierto en primer plano. Puedes pedirme que abra el aplicativo para ver los registros.`;
     }
 
-    // Limitar a ~8000 caracteres para permitir informes y dictámenes completos
-    return fullResult.length > 8000 ? fullResult.substring(0, 8000) + '\n... [Contenido truncado por longitud]' : fullResult;
+    // Limitar a ~12000 caracteres para permitir informes y dictámenes completos
+    return fullResult.length > 12000 ? fullResult.substring(0, 12000) + '\n... [Contenido truncado por longitud]' : fullResult;
   } catch (err: any) {
     return `Error extrayendo contenido de pantalla: ${err.message}`;
   }
