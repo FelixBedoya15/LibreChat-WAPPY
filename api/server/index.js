@@ -684,8 +684,18 @@ const startServer = async () => {
     res.sendFile(path.resolve(__dirname, '../../cursoappweb.html'));
   });
 
-  app.get(['/cursowappy01', '/cursowappy01.html'], (req, res) => {
-    res.sendFile(path.resolve(__dirname, '../../cursowappy01.html'));
+  app.get(['/cursowappy01', '/cursowappy01.html'], (req, res, next) => {
+    const candidatePaths = [
+      path.resolve(__dirname, '../../client/dist/cursowappy01.html'),
+      path.resolve(__dirname, '../../client/public/cursowappy01.html'),
+      path.resolve(__dirname, '../../cursowappy01.html'),
+    ];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        return res.sendFile(p);
+      }
+    }
+    next();
   });
 
   app.post('/api/embajadores/send-otp', async (req, res) => {

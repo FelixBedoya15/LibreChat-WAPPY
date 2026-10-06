@@ -72,6 +72,7 @@ const PlansPage = lazy(() => import('~/components/Plans/PlansPage'));
 const ContactPage = lazy(() => import('~/components/Plans/ContactPage'));
 const AmbassadorDashboard = lazy(() => import('~/components/Ambassadors/AmbassadorDashboard'));
 const RoadmapPage = lazy(() => import('~/components/Roadmap/RoadmapPage'));
+const CursoWappy01Page = lazy(() => import('~/components/Courses/CursoWappy01Page'));
 
 const PageLoader = () => (
   <div className="flex h-full w-full items-center justify-center p-8 min-h-[50vh]">
@@ -104,9 +105,13 @@ const MauricioPosadaRedirect = () => {
   return null;
 };
 
-const CursoWappy01Redirect = () => {
-  window.location.replace('/cursowappy01.html');
-  return null;
+const CursoWappy01Route = () => {
+  return withSuspense(
+    <AuthContextProvider>
+      <CursoWappy01Page />
+      <ApiErrorWatcher />
+    </AuthContextProvider>
+  );
 };
 
 const RootIndexRedirect = () => {
@@ -439,12 +444,12 @@ export const router = createBrowserRouter(
     },
     {
       path: 'cursowappy01',
-      element: <CursoWappy01Redirect />,
+      element: <CursoWappy01Route />,
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'cursowappy01.html',
-      element: <CursoWappy01Redirect />,
+      element: <CursoWappy01Route />,
       errorElement: <RouteErrorBoundary />,
     },
     {

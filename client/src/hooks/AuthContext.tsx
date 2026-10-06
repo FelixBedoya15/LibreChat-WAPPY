@@ -119,6 +119,7 @@ const AuthContextProvider = ({
       }
       try {
         sessionStorage.removeItem('tenshi_mobile_hero_exited');
+        sessionStorage.removeItem('tenshi_mobile_hero_minimized');
         sessionStorage.setItem('tenshi_mobile_just_logged_in', 'true');
       } catch (_) {}
       setUserContext({ token, isAuthenticated: true, user, redirect: redirectUrl });
@@ -134,6 +135,7 @@ const AuthContextProvider = ({
     onSuccess: (data) => {
       try {
         sessionStorage.removeItem('tenshi_mobile_hero_exited');
+        sessionStorage.removeItem('tenshi_mobile_hero_minimized');
         sessionStorage.removeItem('tenshi_mobile_just_logged_in');
       } catch (_) {}
       setUserContext({

@@ -126,6 +126,7 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
     window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
     try {
       sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
+      sessionStorage.setItem('tenshi_mobile_hero_minimized', 'true');
     } catch (_) {}
     if (location.pathname !== '/c/new') {
       navigate('/c/new');
@@ -141,6 +142,7 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
     window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
     try {
       sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
+      sessionStorage.setItem('tenshi_mobile_hero_minimized', 'true');
     } catch (_) {}
     navigate(path);
   };

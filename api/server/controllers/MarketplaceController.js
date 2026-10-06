@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
+const mongoose = require('mongoose');
 const MarketplaceProduct = require('~/models/MarketplaceProduct');
 const MarketplaceOrder = require('~/models/MarketplaceOrder');
 const MarketplaceCategory = require('~/models/MarketplaceCategory');
@@ -349,6 +350,9 @@ const DEFAULT_PRODUCTS = [
 
 // Helper: Ensure default data on boot/first request
 const ensureSeedData = async () => {
+  if (mongoose.connection.readyState !== 1) {
+    return;
+  }
   try {
     const catCount = await MarketplaceCategory.countDocuments();
     if (catCount === 0) {
@@ -393,8 +397,12 @@ const ensureSeedData = async () => {
   }
 };
 
-// Auto-seed on load
-ensureSeedData();
+// Auto-seed when mongoose connects
+if (mongoose.connection.readyState === 1) {
+  ensureSeedData();
+} else {
+  mongoose.connection.once('connected', () => ensureSeedData());
+}
 
 // ── Public Endpoints ──
 

@@ -135,59 +135,71 @@ const MarketplaceCheckoutModal: React.FC<Props> = ({ onSuccess }) => {
 
       // 2. Handle WOMPI
       if (paymentMethod === 'WOMPI' && wompi) {
-        // Load official Wompi Widget dynamically
-        const scriptId = 'wompi-widget-script';
-        let script = document.getElementById(scriptId) as HTMLScriptElement;
-
-        if (!script) {
-          script = document.createElement('script');
-          script.id = scriptId;
-          script.src = 'https://checkout.wompi.co/widget.js';
-          document.body.appendChild(script);
-          await new Promise((resolve) => {
-            script.onload = resolve;
-          });
-        }
-
-        // @ts-ignore
-        if (typeof window.WidgetCheckout === 'undefined') {
-          throw new Error('No se pudo inicializar la pasarela de pagos Wompi.');
-        }
-
-        // @ts-ignore
-        const checkout = new window.WidgetCheckout({
-          currency: wompi.currency || 'COP',
-          amountInCents: wompi.amountInCents,
-          reference: wompi.reference,
-          publicKey: wompi.publicKey,
-          signature: wompi.signature ? { integrity: wompi.signature } : undefined,
-          customerData: {
-            email: customer.email,
-            fullName: customer.fullName,
-            phoneNumber: customer.phone,
-            legalId: customer.documentId,
-            legalIdType: customer.documentId.length === 9 || customer.documentId.length === 10 ? 'NIT' : 'CC',
-          },
-        });
-
-        checkout.open(async (result: any) => {
-          const transaction = result?.transaction;
-          if (transaction) {
-            try {
-              await axios.post('/api/marketplace/verify-payment', {
-                reference: wompi.reference,
-                transactionId: transaction.id,
-              });
-            } catch (verErr) {
-              console.warn('[Marketplace] Error on instant verify:', verErr);
+        const openWompi = () => {
+          try {
+            // @ts-ignore
+            if (typeof window.WidgetCheckout === 'undefined') {
+              throw new Error('El script de pagos Wompi aún no está disponible.');
             }
-          }
-          clearCart();
-          setIsCheckoutOpen(false);
-          onSuccess(orderNumber);
-        });
 
-        setIsLoading(false);
+            // @ts-ignore
+            const checkout = new window.WidgetCheckout({
+              currency: wompi.currency || 'COP',
+              amountInCents: wompi.amountInCents,
+              reference: wompi.reference,
+              publicKey: wompi.publicKey,
+              signature: wompi.signature ? { integrity: wompi.signature } : undefined,
+            });
+
+            checkout.open(async (result: any) => {
+              const transaction = result?.transaction;
+              if (transaction) {
+                try {
+                  await axios.post('/api/marketplace/verify-payment', {
+                    reference: wompi.reference,
+                    transactionId: transaction.id,
+                  });
+                } catch (verErr) {
+                  console.warn('[Marketplace] Error on instant verify:', verErr);
+                }
+              }
+              clearCart();
+              setIsCheckoutOpen(false);
+              onSuccess(orderNumber);
+            });
+            setIsLoading(false);
+          } catch (widgetErr: any) {
+            console.error('[Marketplace Wompi Open Error]:', widgetErr);
+            setErrorMessage(widgetErr.message || 'Error al abrir la pasarela de pagos Wompi.');
+            setIsLoading(false);
+          }
+        };
+
+        // @ts-ignore
+        if (typeof window.WidgetCheckout !== 'undefined') {
+          openWompi();
+        } else {
+          const scriptId = 'wompi-widget-script';
+          let script = document.getElementById(scriptId) as HTMLScriptElement;
+          if (!script) {
+            script = document.createElement('script');
+            script.id = scriptId;
+            script.src = 'https://checkout.wompi.co/widget.js';
+            document.body.appendChild(script);
+          }
+          script.onload = () => openWompi();
+          script.onerror = () => {
+            setErrorMessage('No fue posible cargar el widget seguro de Wompi. Por favor intenta de nuevo.');
+            setIsLoading(false);
+          };
+          // Fallback in case script was already cached/loaded
+          setTimeout(() => {
+            // @ts-ignore
+            if (typeof window.WidgetCheckout !== 'undefined') {
+              openWompi();
+            }
+          }, 600);
+        }
         return;
       }
 
@@ -198,7 +210,11 @@ const MarketplaceCheckoutModal: React.FC<Props> = ({ onSuccess }) => {
       }
     } catch (err: any) {
       console.error('[Marketplace Checkout Error]:', err);
-      setErrorMessage(err.response?.data?.error || err.message || 'Error al procesar el pago.');
+      const backendError = err.response?.data?.error;
+      const backendDetails = err.response?.data?.details;
+      setErrorMessage(
+        backendDetails ? `${backendError}: ${backendDetails}` : (backendError || err.message || 'Error al procesar el pago.')
+      );
       setIsLoading(false);
     }
   };
