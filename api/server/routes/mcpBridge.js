@@ -196,9 +196,13 @@ router.get('/sse', async (req, res) => {
 
     const host = req.get('host') || 'localhost:3080';
     const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+    const baseUrl = `http://127.0.0.1:${process.env.PORT || 3080}`;
+
     if (!createWappyMcpServer) {
       return res.status(503).send('Servidor WAPPY MCP temporalmente no disponible en este entorno.');
     }
+
+    res.setHeader('X-Accel-Buffering', 'no');
 
     const mcpServer = createWappyMcpServer({
       apiKey: rawApiKey,
