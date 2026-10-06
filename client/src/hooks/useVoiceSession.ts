@@ -60,6 +60,9 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const inputAnalyserRef = useRef<AnalyserNode | null>(null);
     const isStartingAudioRef = useRef(false);
     const listeningStartTimeRef = useRef(0);
+    const noiseFloorRef = useRef<number>(0.003);
+    const lastVoiceTimeRef = useRef<number>(0);
+    const preRollChunksRef = useRef<Float32Array[]>([]);
     const statusRef = useRef(status);
     useEffect(() => {
         statusRef.current = status;
@@ -79,19 +82,24 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             isAutoMutedRef.current = false;
             isPlayingAudioRef.current = false;
 
-            // 1. Get Microphone Stream
+            // 1. Get Microphone Stream con Supresión Avanzada de Ruido y Aislamiento de Voz
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     channelCount: 1,
                     echoCancellation: true,
                     noiseSuppression: true,
                     autoGainControl: true,
-                    // No forzar sampleRate — dejar que el browser elija (más compatible)
-                },
+                    // Parámetros avanzados para aislar voz humana y cancelar ruido de fondo (Chromium/Safari)
+                    googEchoCancellation: true,
+                    googAutoGainControl: true,
+                    googNoiseSuppression: true,
+                    googHighpassFilter: true,
+                    voiceIsolation: true,
+                } as MediaTrackConstraints,
                 video: false
             });
             streamRef.current = stream;
-            console.log('[VoiceSession] Micrófono obtenido, tracks:', stream.getAudioTracks().map(t => t.label));
+            console.log('[VoiceSession] Micrófono obtenido con supresión de ruido, tracks:', stream.getAudioTracks().map(t => t.label));
 
             // 2. Inicializar o Reutilizar AudioContext a 16kHz
             const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -126,19 +134,11 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             }
             console.log('[VoiceSession] AudioContext 16kHz listo, estado:', audioContext.state, '| sampleRate:', audioContext.sampleRate);
 
-            // 3. Helper: enviar PCM int16 a 16kHz al servidor via WebSocket
+            // 3. Helper: codificar y enviar PCM int16 a 16kHz al servidor via WebSocket
             let sendCount = 0;
             let resamplePhase = 0;
 
-            const sendPCMChunk = (float32Array: Float32Array) => {
-                // Silenciar envío mientras el backend aún no está listo en escucha activa ('listening' o 'ready')
-                if (statusRef.current !== 'listening' && statusRef.current !== 'ready') return;
-                // Grace period: descartar primeros 200ms de captura para abrir el canal de audio con silencio limpio sin pops
-                if (listeningStartTimeRef.current && (Date.now() - listeningStartTimeRef.current < 200)) return;
-                // Silenciar envío mientras la IA reproduce voz para evitar eco acústico del altavoz y tartamudeo
-                if (isHardwareMutedRef.current || isPlayingAudioRef.current || isAutoMutedRef.current) return;
-                if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-
+            const encodeAndSend = (float32Array: Float32Array) => {
                 const currentSampleRate = audioContext?.sampleRate || 16000;
                 let dataToEncode = float32Array;
 
@@ -176,30 +176,98 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     binary += String.fromCharCode(bytes[i]);
                 }
                 const base64 = btoa(binary);
-                wsRef.current.send(JSON.stringify({ type: 'audio', data: { audioData: base64 } }));
+                wsRef.current?.send(JSON.stringify({ type: 'audio', data: { audioData: base64 } }));
 
                 sendCount++;
                 if (sendCount === 1 || sendCount % 50 === 0) {
-                    console.log(`[VoiceSession] Audio 16kHz enviado al servidor (chunk #${sendCount}, ${base64.length} chars, inRate: ${currentSampleRate})`);
+                    console.log(`[VoiceSession] Voz humana 16kHz enviada al servidor (chunk #${sendCount}, ${base64.length} chars, inRate: ${currentSampleRate})`);
                 }
             };
 
-            // 4. Crear grafo de audio con filtro anti-aliasing hardware
+            const sendPCMChunk = (float32Array: Float32Array) => {
+                // Silenciar envío mientras el backend aún no está listo en escucha activa ('listening' o 'ready')
+                if (statusRef.current !== 'listening' && statusRef.current !== 'ready') return;
+                // Grace period: descartar primeros 200ms de captura para abrir el canal de audio con silencio limpio sin pops
+                if (listeningStartTimeRef.current && (Date.now() - listeningStartTimeRef.current < 200)) return;
+                // Silenciar envío mientras la IA reproduce voz para evitar eco acústico del altavoz y tartamudeo
+                if (isHardwareMutedRef.current || isPlayingAudioRef.current || isAutoMutedRef.current) return;
+                if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+
+                // ── Voice Activity Detection (VAD) / Supresor de Ruido Inteligente ──
+                // Calcular energía RMS (Root Mean Square) del chunk de audio
+                let sumSquare = 0;
+                for (let k = 0; k < float32Array.length; k++) {
+                    const sample = float32Array[k];
+                    sumSquare += sample * sample;
+                }
+                const rms = Math.sqrt(sumSquare / float32Array.length);
+
+                // Adaptación continua del piso de ruido ambiental (fondo)
+                if (rms < noiseFloorRef.current * 1.5 || rms < 0.008) {
+                    noiseFloorRef.current = noiseFloorRef.current * 0.96 + rms * 0.04;
+                }
+                // Umbral de activación vocal dinámico (garantiza superar el piso de ruido)
+                const voiceThreshold = Math.max(0.010, noiseFloorRef.current * 2.2);
+
+                const now = Date.now();
+                const isSpeechNow = rms >= voiceThreshold;
+
+                if (isSpeechNow) {
+                    lastVoiceTimeRef.current = now;
+                }
+
+                // Hangover de 450ms: mantiene el canal abierto durante pausas breves entre palabras
+                const isInHangover = (now - lastVoiceTimeRef.current) < 450;
+                const shouldTransmit = isSpeechNow || isInHangover;
+
+                // Si NO hay voz activa ni hangover (silencio / ventilador / ruido ambiental), guardar en pre-roll y NO enviar
+                if (!shouldTransmit) {
+                    // Mantener pre-roll buffer circular de los últimos 2 chunks (~120ms) para no cortar inicios de palabras
+                    preRollChunksRef.current.push(new Float32Array(float32Array));
+                    if (preRollChunksRef.current.length > 2) {
+                        preRollChunksRef.current.shift();
+                    }
+                    return;
+                }
+
+                // Si acabamos de detectar voz tras silencio, vaciar primero el pre-roll buffer
+                if (preRollChunksRef.current.length > 0) {
+                    const flushed = [...preRollChunksRef.current];
+                    preRollChunksRef.current = [];
+                    for (const pastChunk of flushed) {
+                        encodeAndSend(pastChunk);
+                    }
+                }
+
+                encodeAndSend(float32Array);
+            };
+
+            // 4. Crear grafo de audio con filtrado de banda de voz (85Hz - 7000Hz)
             const source = audioContext.createMediaStreamSource(stream);
             let audioInputNode: AudioNode = source;
 
-            // En frecuencias > 16kHz (ej. 44.1k o 48k en Safari), atenuar por encima de 7.5kHz para evitar aliasing
-            if (audioContext.sampleRate > 16000) {
-                try {
-                    const lowPassFilter = audioContext.createBiquadFilter();
-                    lowPassFilter.type = 'lowpass';
-                    lowPassFilter.frequency.value = 7500;
-                    lowPassFilter.Q.value = 0.707;
-                    source.connect(lowPassFilter);
-                    audioInputNode = lowPassFilter;
-                } catch (filterErr) {
-                    console.warn('[VoiceSession] No se pudo crear BiquadFilter, usando source directo:', filterErr);
-                }
+            // Filtro paso alto a 85Hz: elimina ruidos mecánicos sub-acústicos, golpes de mesa, vibraciones y zumbido de ventiladores/AC
+            try {
+                const highPassFilter = audioContext.createBiquadFilter();
+                highPassFilter.type = 'highpass';
+                highPassFilter.frequency.value = 85;
+                highPassFilter.Q.value = 0.707;
+                source.connect(highPassFilter);
+                audioInputNode = highPassFilter;
+            } catch (hpErr) {
+                console.warn('[VoiceSession] No se pudo crear HighPassFilter, usando source directo:', hpErr);
+            }
+
+            // Filtro paso bajo a 7000Hz: elimina siseos, estática de alta frecuencia y aliasing
+            try {
+                const lowPassFilter = audioContext.createBiquadFilter();
+                lowPassFilter.type = 'lowpass';
+                lowPassFilter.frequency.value = 7000;
+                lowPassFilter.Q.value = 0.707;
+                audioInputNode.connect(lowPassFilter);
+                audioInputNode = lowPassFilter;
+            } catch (lpErr) {
+                console.warn('[VoiceSession] No se pudo crear LowPassFilter:', lpErr);
             }
 
             const analyser = audioContext.createAnalyser();
@@ -323,6 +391,9 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const stopAudioCapture = () => {
         isStartingAudioRef.current = false;
         listeningStartTimeRef.current = 0;
+        lastVoiceTimeRef.current = 0;
+        preRollChunksRef.current = [];
+        noiseFloorRef.current = 0.003;
         // Detener tracks del micrófono
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());

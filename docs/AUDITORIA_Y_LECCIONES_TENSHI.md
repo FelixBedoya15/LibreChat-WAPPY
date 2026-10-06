@@ -390,6 +390,15 @@
   1. Reducción de la carga textual de `recentConvos` a un máximo de 250 caracteres por mensaje y etiquetado explícito como `[ARCHIVADO - HISTORIAL PASADO DE OTRAS CONSULTAS (TEMAS CERRADOS)]`.
   2. Refuerzo de la directiva de foco temático: el tema actual de Tenshi está delimitado exclusivamente por el último mensaje del usuario y la pantalla visible actual (`${humanScreen}`).
 
+#### E. Supresión de Ruido de Hardware, Filtros de Banda Vocal y VAD Inteligente en el Cliente
+- **Mejora Solicitada:** *"¿No podemos poner algo como suprimir ruido para que solo identifique voz?"*
+- **Problema Previo:** El cliente transmitía 100% de los frames de audio al WebSocket sin filtrar, incluso en silencio ambiental, enviando ruido de ventiladores de PC, tecleo, aire acondicionado o respiración a Google Gemini Live. Esto saturaba el VAD del servidor y provocaba falsas interrupciones.
+- **Solución Implementada:**
+  1. **Constraints de DSP en `getUserMedia`:** Inclusión de `googEchoCancellation`, `googAutoGainControl`, `googNoiseSuppression`, `googHighpassFilter` y `voiceIsolation` (aislamiento de voz de macOS/iOS y Chromium).
+  2. **Grafo de Filtrado Biquad (Banda de Voz Humana):** Filtro paso alto a 85Hz (corta vibraciones mecánicas, golpes de escritorio y zumbido de ventiladores) + Filtro paso bajo a 7000Hz (elimina siseo y estática).
+  3. **Voice Activity Detection (VAD) / Noise Gate Inteligente:** Cálculo de energía RMS en cada frame con seguimiento adaptativo del piso de ruido ambiental (`noiseFloor`) y umbral dinámico de activación vocal.
+  4. **Hangover y Pre-Roll:** Ventana de retención de 450ms para evitar cortar finales de palabras entre sílabas y búfer circular pre-roll de 120ms para preservar intactos los fonemas iniciales. Durante el silencio, la compuerta se cierra y **NO se transmiten paquetes a Google**, garantizando un canal de audio 100% limpio y libre de ruido.
+
 ---
 
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
