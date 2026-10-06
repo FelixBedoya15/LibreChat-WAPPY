@@ -41,13 +41,24 @@ function isInteractive(el: HTMLElement): boolean {
   const tagName = el.tagName.toLowerCase();
   
   // Elementos interactivos nativos
-  if (['button', 'input', 'select', 'textarea', 'a'].includes(tagName)) {
+  if (['button', 'input', 'select', 'textarea', 'a', 'summary'].includes(tagName)) {
     return true;
   }
 
   // Roles interactivos de ARIA
   const role = el.getAttribute('role');
-  if (role && ['button', 'link', 'checkbox', 'radio', 'tab', 'menuitem', 'option'].includes(role)) {
+  if (role && ['button', 'link', 'checkbox', 'radio', 'tab', 'menuitem', 'option', 'switch'].includes(role)) {
+    return true;
+  }
+
+  // Atributos y marcas de interactividad (Radix UI, tabs, accordions)
+  if (el.getAttribute('data-action') || el.getAttribute('data-clickable') || el.getAttribute('tabindex') === '0' || el.getAttribute('aria-expanded')) {
+    return true;
+  }
+
+  // Clases CSS de interactividad (Tailwind y WAPPY buttons / pills / micro-botones)
+  const classList = el.className || '';
+  if (typeof classList === 'string' && (classList.includes('cursor-pointer') || classList.includes('btn') || classList.includes('group-hover') || classList.includes('active:scale-95'))) {
     return true;
   }
 
@@ -57,7 +68,7 @@ function isInteractive(el: HTMLElement): boolean {
     return true;
   }
 
-  // Elementos con evento click (aproximación)
+  // Elementos con evento click
   if (el.onclick || el.getAttribute('onclick')) {
     return true;
   }
@@ -460,15 +471,49 @@ export async function executeGUIAction(
     return { success: true, message: `Desplazamiento hacia ${direccion || 'abajo'} completado en ${targetDesc}.` };
   }
 
-  if (index === undefined || !selectorMap.has(index)) {
-    return { success: false, message: `El índice [${index}] no existe en la pantalla actual.` };
+  let el: HTMLElement | null = null;
+  let targetIndex = index;
+
+  if (index !== undefined && selectorMap.has(index)) {
+    el = selectorMap.get(index)!;
+  } else if (texto || direccion) {
+    // Si no se proporcionó índice o cambió el DOM, buscar interactivamente por texto/etiqueta
+    const query = String(texto || direccion || '').toLowerCase().trim();
+    if (query) {
+      // 1. Buscar en selectorMap
+      for (const [idx, itemEl] of selectorMap.entries()) {
+        const itemText = (itemEl.innerText || itemEl.getAttribute('title') || itemEl.getAttribute('aria-label') || '').toLowerCase().trim();
+        if (itemText && (itemText === query || itemText.includes(query) || query.includes(itemText))) {
+          el = itemEl;
+          targetIndex = idx;
+          break;
+        }
+      }
+      // 2. Si no se encontró en selectorMap, buscar en todos los botones y elementos interactivos del DOM visible
+      if (!el) {
+        const candidates = Array.from(document.querySelectorAll<HTMLElement>(
+          'button, [role="button"], [role="tab"], a, input[type="button"], input[type="submit"], [tabindex="0"], summary, [data-action], [data-clickable]'
+        )).filter(isElementVisible);
+
+        for (const cand of candidates) {
+          if (cand.closest('.tenshi-widget-container')) continue;
+          const cText = (cand.innerText || cand.getAttribute('title') || cand.getAttribute('aria-label') || '').toLowerCase().trim();
+          if (cText && (cText === query || cText.includes(query) || query.includes(cText))) {
+            el = cand;
+            break;
+          }
+        }
+      }
+    }
   }
 
-  const el = selectorMap.get(index)!;
+  if (!el) {
+    return { success: false, message: `No se encontró el elemento interactivo [${index !== undefined ? index : (texto || 'N/A')}] en la pantalla actual.` };
+  }
 
   // Desplazar elemento a la vista
-  el.scrollIntoView({ block: 'center', inline: 'center' });
-  await new Promise(resolve => setTimeout(resolve, 150));
+  el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+  await new Promise(resolve => setTimeout(resolve, 200));
 
   if (action === 'click') {
     try {
@@ -479,12 +524,12 @@ export async function executeGUIAction(
         el.style.outline = originalOutline;
       }, 800);
 
-      // Secuencia de eventos para simular comportamiento humano
+      // Secuencia de eventos para simular comportamiento humano completo
       const coords = el.getBoundingClientRect();
       const clientX = coords.left + coords.width / 2;
       const clientY = coords.top + coords.height / 2;
 
-      const opts = { bubbles: true, cancelable: true, clientX, clientY };
+      const opts = { bubbles: true, cancelable: true, view: window, clientX, clientY };
 
       el.dispatchEvent(new PointerEvent('pointerover', { ...opts, pointerType: 'mouse' }));
       el.dispatchEvent(new PointerEvent('pointerenter', { ...opts, pointerType: 'mouse', bubbles: false }));
@@ -504,7 +549,9 @@ export async function executeGUIAction(
       // Esperar a que la SPA procese la navegación o transición y renderice la nueva UI
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      return { success: true, message: `Clic ejecutado en el elemento [${index}] (${el.tagName.toLowerCase()}).` };
+      const elTag = el.tagName.toLowerCase();
+      const elLabel = (el.innerText || el.getAttribute('title') || el.getAttribute('aria-label') || '').trim();
+      return { success: true, message: `Clic ejecutado exitosamente en "${elLabel || elTag}" [${targetIndex !== undefined ? targetIndex : 'directo'}].` };
     } catch (err: any) {
       return { success: false, message: `Error al hacer clic: ${err.message}` };
     }

@@ -172,6 +172,39 @@ Descripción General de Actividades: ${companyData.generalActivities || 'N/A'}`;
   }
 }
 
+/**
+ * Helper para búsqueda flexible y coincidencia inteligente de trabajadores
+ * por ID, Cédula/Documento, Nombre exacto, Substring o Coincidencia de Palabras/Tokens.
+ */
+function matchWorker(w, target) {
+  if (!w || !target) return false;
+  const cleanTarget = String(target).trim().toLowerCase();
+  if (!cleanTarget) return false;
+  const wId = String(w.id || '').trim().toLowerCase();
+  const wDoc = String(w.identificacion || w.documento || w.cedula || '').trim().toLowerCase();
+  const wName = String(w.nombre || '').trim().toLowerCase();
+
+  // 1. Coincidencia directa por ID o Documento / Cédula
+  if (wId && wId === cleanTarget) return true;
+  if (wDoc && wDoc === cleanTarget) return true;
+
+  // 2. Coincidencia directa por Nombre completo
+  if (wName && wName === cleanTarget) return true;
+
+  // 3. Substring (uno contiene al otro)
+  if (wName && cleanTarget.length >= 3 && (wName.includes(cleanTarget) || cleanTarget.includes(wName))) return true;
+
+  // 4. Coincidencia por tokens / palabras (ej: "Jorge Ricky Pineda" vs "Jorge Enrique Pineda Celis")
+  const targetTokens = cleanTarget.split(/\s+/).filter((t) => t.length > 2);
+  const nameTokens = wName.split(/\s+/).filter((t) => t.length > 2);
+  if (targetTokens.length >= 2 && nameTokens.length >= 2) {
+    const commonTokens = targetTokens.filter((t) => nameTokens.some((nt) => nt === t || nt.includes(t) || t.includes(nt)));
+    if (commonTokens.length >= 2) return true;
+  }
+
+  return false;
+}
+
 // ─── 0. TRANSPORTE REMOTO SSE (SERVER-SENT EVENTS) PARA ANTIGRAVITY ─────────
 // Permite que Antigravity (y cualquier cliente MCP compatible) se conecte directamente
 // por la nube sin requerir Node.js, Git ni archivos locales en la máquina del usuario.
@@ -899,7 +932,7 @@ router.delete('/pesv/:id', requireApiKeyOrJwt, async (req, res) => {
 router.get('/workers', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { cedula, nombre, cargo } = req.query;
+    const { cedula, nombre, cargo, busqueda, filtro, estado } = req.query;
     const company = await getActiveCompany(userId);
     const companyId = company?._id;
 
@@ -932,6 +965,18 @@ router.get('/workers', requireApiKeyOrJwt, async (req, res) => {
       }
     }
 
+    const filterEstado = String(filtro || estado || '').toLowerCase().trim();
+    if (filterEstado) {
+      if (filterEstado.includes('retirad')) {
+        deduplicated = deduplicated.filter((t) => t.estadoLaboral === 'Retirado');
+      } else if (filterEstado.includes('activ')) {
+        deduplicated = deduplicated.filter((t) => (t.estadoLaboral || 'Activo') !== 'Retirado');
+      }
+    }
+
+    if (busqueda) {
+      deduplicated = deduplicated.filter((t) => matchWorker(t, busqueda));
+    }
     if (cedula) {
       const cleanCedula = String(cedula).trim();
       deduplicated = deduplicated.filter(
@@ -939,8 +984,7 @@ router.get('/workers', requireApiKeyOrJwt, async (req, res) => {
       );
     }
     if (nombre) {
-      const q = String(nombre).toLowerCase().trim();
-      deduplicated = deduplicated.filter((t) => (t.nombre || '').toLowerCase().includes(q));
+      deduplicated = deduplicated.filter((t) => matchWorker(t, nombre));
     }
     if (cargo) {
       const q = String(cargo).toLowerCase().trim();
@@ -1186,30 +1230,30 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
 router.put('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
-    const target = (req.params.idOrCedula || '').trim();
+    const rawTarget = req.params.idOrCedula || req.body?.idOrCedula || req.body?.cedula || req.body?.identificacion || req.body?.nombre || req.body?.target || '';
+    const target = decodeURIComponent(String(rawTarget).trim());
     const updates = req.body || {};
 
     if (!target) {
-      return res.status(400).json({ error: 'Se requiere cédula o ID del trabajador a actualizar.' });
+      return res.status(400).json({ error: 'Se requiere cédula, ID o nombre del trabajador a actualizar.' });
     }
 
     const PerfilSociodemograficoData =
       mongoose.models.PerfilSociodemograficoData ||
       require('~/models/PerfilSociodemograficoData');
 
-    const socioDocs = await PerfilSociodemograficoData.find({ user: userId });
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+    const socioDocs = await PerfilSociodemograficoData.find({
+      $or: [{ user: userId, companyId }, { user: userId }],
+    });
     let updatedWorker = null;
     let foundInSocio = false;
 
     for (const doc of socioDocs) {
       if (!Array.isArray(doc.trabajadores)) continue;
 
-      const idx = doc.trabajadores.findIndex(
-        (w) =>
-          String(w.id || '').trim() === target ||
-          String(w.identificacion || w.documento || '').trim() === target ||
-          (w.nombre && w.nombre.toLowerCase() === target.toLowerCase())
-      );
+      const idx = doc.trabajadores.findIndex((w) => matchWorker(w, target));
 
       if (idx >= 0) {
         const current = doc.trabajadores[idx];
@@ -1345,7 +1389,8 @@ router.patch('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
 router.delete('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
-    const target = (req.params.idOrCedula || '').trim();
+    const rawTarget = req.params.idOrCedula || req.body?.idOrCedula || req.body?.cedula || req.body?.identificacion || req.body?.nombre || req.body?.target || '';
+    const target = decodeURIComponent(String(rawTarget).trim());
 
     if (!target) {
       return res.status(400).json({ error: 'Debes proporcionar la cédula, ID o nombre del trabajador a eliminar.' });
@@ -1355,8 +1400,11 @@ router.delete('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
       mongoose.models.PerfilSociodemograficoData ||
       require('~/models/PerfilSociodemograficoData');
 
-    // Buscar en TODOS los documentos de PerfilSociodemograficoData de este usuario
-    const socioDocs = await PerfilSociodemograficoData.find({ user: userId });
+    const company = await getActiveCompany(userId);
+    const companyId = company?._id;
+    const socioDocs = await PerfilSociodemograficoData.find({
+      $or: [{ user: userId, companyId }, { user: userId }],
+    });
     let removed = false;
     let workerName = '';
     let remainingCount = 0;
@@ -1365,12 +1413,7 @@ router.delete('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
       if (Array.isArray(doc.trabajadores)) {
         const initialCount = doc.trabajadores.length;
         doc.trabajadores = doc.trabajadores.filter((w) => {
-          const match =
-            String(w.id || '').trim() === target ||
-            String(w.identificacion || '').trim() === target ||
-            String(w.documento || '').trim() === target ||
-            String(w.cedula || '').trim() === target ||
-            (w.nombre && w.nombre.toLowerCase().includes(target.toLowerCase()));
+          const match = matchWorker(w, target);
           if (match && !workerName) workerName = w.nombre;
           return !match;
         });
@@ -1387,12 +1430,13 @@ router.delete('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
     }
 
     // Sincronizar eliminación en SgsstWorker
+    const syncName = workerName || target;
     await SgsstWorker.deleteMany({
       user: userId,
       $or: [
         { perfilId: target },
         { documento: target },
-        { nombre: { $regex: new RegExp(target, 'i') } },
+        { nombre: { $regex: new RegExp(syncName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } },
       ],
     });
 

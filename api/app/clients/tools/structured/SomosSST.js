@@ -36,9 +36,12 @@ class SomosSST extends Tool {
           'crear_actividad_acpm',
           'actualizar_actividad_acpm',
           'crear_trabajador',
+          'retirar_trabajador',
+          'eliminar_trabajador',
+          'actualizar_trabajador',
         ])
         .describe(
-          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, consultar_informacion_empresa, crear_trabajador, actualizar_informacion_empresa, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, o actualizar_actividad_acpm.',
+          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, consultar_informacion_empresa, crear_trabajador, retirar_trabajador, actualizar_trabajador, eliminar_trabajador, actualizar_informacion_empresa, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, o actualizar_actividad_acpm.',
         ),
       razon_social: z.string().optional().describe('Razón Social o Nombre de la empresa.'),
       tipo_empresa: z.string().optional().describe('Tipo de empresa: "Persona Jurídica" o "Persona Natural".'),
@@ -427,6 +430,124 @@ class SomosSST extends Tool {
             eptIntegrado: integratedEpt,
             diagnosticoMedico: workerResult.diagnosticoMedico || '',
           },
+        });
+      }
+
+      // ── ACTION: RETIRAR O DAR DE BAJA TRABAJADOR ──
+      if (accion === 'retirar_trabajador' || accion === 'eliminar_trabajador') {
+        const rawTarget = input.identificador_o_filtro || input.nombre_o_cargo || '';
+        if (!rawTarget) {
+          return JSON.stringify({ error: 'Debes proporcionar la cédula o nombre del trabajador a retirar.' });
+        }
+        const cleanTarget = String(rawTarget).trim();
+        const motivo = input.campo_a_modificar || input.nuevo_valor || 'Terminación de contrato';
+        const fecha = new Date().toISOString().split('T')[0];
+
+        let perfil = PerfilSocioModel ? await PerfilSocioModel.findOne({ companyId }) : null;
+        if (!perfil && PerfilSocioModel) {
+          perfil = await PerfilSocioModel.findOne({ user: userId });
+        }
+
+        let workerFound = null;
+        if (perfil && Array.isArray(perfil.trabajadores)) {
+          for (const w of perfil.trabajadores) {
+            const match =
+              String(w.id || '').trim().toLowerCase() === cleanTarget.toLowerCase() ||
+              String(w.identificacion || '').trim() === cleanTarget ||
+              (w.nombre && w.nombre.toLowerCase().includes(cleanTarget.toLowerCase()));
+            if (match) {
+              w.estadoLaboral = 'Retirado';
+              w.fechaRetiro = fecha;
+              w.motivoRetiro = motivo;
+              workerFound = w;
+              break;
+            }
+          }
+          if (workerFound) {
+            perfil.markModified('trabajadores');
+            await perfil.save();
+          }
+        }
+
+        if (SgsstWorkerModel && workerFound) {
+          await SgsstWorkerModel.updateMany(
+            {
+              user: userId,
+              $or: [
+                { perfilId: workerFound.identificacion || cleanTarget },
+                { documento: workerFound.identificacion || cleanTarget },
+                { nombre: { $regex: new RegExp(workerFound.nombre.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } },
+              ],
+            },
+            {
+              $set: {
+                estadoLaboral: 'Retirado',
+                fechaRetiro: fecha,
+                motivoRetiro: motivo,
+              },
+            }
+          ).catch(() => {});
+        }
+
+        if (!workerFound) {
+          return JSON.stringify({ error: `No se encontró al trabajador "${cleanTarget}" en la nómina para marcar como retirado.` });
+        }
+
+        return JSON.stringify({
+          success: true,
+          mensaje: `✅ Trabajador ${workerFound.nombre} (C.C. ${workerFound.identificacion || cleanTarget}) marcado como Retirado exitosamente en el Perfil Sociodemográfico. Se conserva su historial de 20 años y pasa a la pestaña 'Retirados'.`,
+          trabajador: {
+            nombre: workerFound.nombre,
+            identificacion: workerFound.identificacion,
+            estadoLaboral: 'Retirado',
+            fechaRetiro: fecha,
+            motivoRetiro: motivo,
+          },
+        });
+      }
+
+      // ── ACTION: ACTUALIZAR TRABAJADOR ──
+      if (accion === 'actualizar_trabajador') {
+        const rawTarget = input.identificador_o_filtro || input.nombre_o_cargo || '';
+        if (!rawTarget) {
+          return JSON.stringify({ error: 'Debes proporcionar la cédula o nombre del trabajador a actualizar.' });
+        }
+        const cleanTarget = String(rawTarget).trim();
+        let perfil = PerfilSocioModel ? await PerfilSocioModel.findOne({ companyId }) : null;
+        if (!perfil && PerfilSocioModel) {
+          perfil = await PerfilSocioModel.findOne({ user: userId });
+        }
+
+        let workerFound = null;
+        if (perfil && Array.isArray(perfil.trabajadores)) {
+          for (const w of perfil.trabajadores) {
+            const match =
+              String(w.id || '').trim().toLowerCase() === cleanTarget.toLowerCase() ||
+              String(w.identificacion || '').trim() === cleanTarget ||
+              (w.nombre && w.nombre.toLowerCase().includes(cleanTarget.toLowerCase()));
+            if (match) {
+              if (input.cargo_trabajador) w.cargo = input.cargo_trabajador;
+              if (input.campo_a_modificar && input.nuevo_valor) {
+                w[input.campo_a_modificar] = input.nuevo_valor;
+              }
+              workerFound = w;
+              break;
+            }
+          }
+          if (workerFound) {
+            perfil.markModified('trabajadores');
+            await perfil.save();
+          }
+        }
+
+        if (!workerFound) {
+          return JSON.stringify({ error: `No se encontró al trabajador "${cleanTarget}" para actualizar.` });
+        }
+
+        return JSON.stringify({
+          success: true,
+          mensaje: `✅ Trabajador ${workerFound.nombre} actualizado exitosamente.`,
+          trabajador: workerFound,
         });
       }
 

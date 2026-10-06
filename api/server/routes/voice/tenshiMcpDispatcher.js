@@ -14,45 +14,87 @@ const TOOL_ROUTES = {
   // 2. Matrices de Riesgo & Cumplimiento
   wappy_consultar_matriz_gtc45: { method: 'GET', path: '/gtc45' },
   wappy_alimentar_matriz_gtc45: { method: 'POST', path: '/gtc45' },
+  wappy_actualizar_riesgo_gtc45: { method: 'PUT', path: (args) => `/gtc45/${encodeURIComponent(args.id || '')}` },
+  wappy_eliminar_riesgo_gtc45: { method: 'DELETE', path: (args) => `/gtc45/${encodeURIComponent(args.id || '')}` },
   wappy_consultar_matriz_pesv: { method: 'GET', path: '/pesv' },
   wappy_alimentar_matriz_pesv: { method: 'POST', path: '/pesv' },
+  wappy_actualizar_riesgo_pesv: { method: 'PUT', path: (args) => `/pesv/${encodeURIComponent(args.id || '')}` },
+  wappy_eliminar_riesgo_pesv: { method: 'DELETE', path: (args) => `/pesv/${encodeURIComponent(args.id || '')}` },
   wappy_consultar_matriz_legal: { method: 'GET', path: '/matriz-legal' },
   wappy_registrar_requisito_legal: { method: 'POST', path: '/matriz-legal' },
+  wappy_actualizar_requisito_legal: { method: 'PUT', path: (args) => `/matriz-legal/${encodeURIComponent(args.id || '')}` },
+  wappy_eliminar_requisito_legal: { method: 'DELETE', path: (args) => `/matriz-legal/${encodeURIComponent(args.id || '')}` },
   wappy_consultar_diagnostico_0312: { method: 'GET', path: '/diagnostico-0312' },
   wappy_evaluar_estandar_0312: { method: 'POST', path: '/diagnostico-0312' },
 
   // 3. Gestión Operativa & Colaboradores
   wappy_consultar_trabajadores: { method: 'GET', path: '/workers' },
   wappy_registrar_trabajador: { method: 'POST', path: '/workers' },
-  wappy_actualizar_trabajador: { method: 'PUT', path: (args) => `/workers/${args.id || args.identificacion || args.cedula || ''}` },
-  wappy_eliminar_trabajador: { method: 'POST', path: (args) => `/workers/${args.id || args.identificacion || args.cedula || ''}/retirar` },
+  wappy_actualizar_trabajador: {
+    method: 'PUT',
+    path: (args) => {
+      const target = args.idOrCedula || args.id || args.identificacion || args.cedula || args.nombre || args.target || '';
+      return `/workers/${encodeURIComponent(String(target).trim())}`;
+    },
+  },
+  wappy_retirar_trabajador: {
+    method: 'POST',
+    path: (args) => {
+      const target = args.idOrCedula || args.id || args.identificacion || args.cedula || args.nombre || args.target || '';
+      return `/workers/${encodeURIComponent(String(target).trim())}/retirar`;
+    },
+  },
+  wappy_eliminar_trabajador: {
+    method: 'POST',
+    path: (args) => {
+      const target = args.idOrCedula || args.id || args.identificacion || args.cedula || args.nombre || args.target || '';
+      return `/workers/${encodeURIComponent(String(target).trim())}/retirar`;
+    },
+  },
   wappy_consultar_comites: { method: 'GET', path: '/comites' },
   wappy_registrar_miembro_comite: { method: 'POST', path: '/comites' },
+  wappy_eliminar_miembro_comite: { method: 'DELETE', path: (args) => `/comites/${encodeURIComponent(args.id || '')}` },
   wappy_consultar_epp: { method: 'GET', path: '/epp' },
   wappy_registrar_entrega_epp: { method: 'POST', path: '/epp' },
+  wappy_eliminar_entrega_epp: { method: 'DELETE', path: (args) => `/epp/${encodeURIComponent(args.id || '')}` },
   wappy_consultar_perfiles_cargo: { method: 'GET', path: '/perfiles-cargo' },
   wappy_guardar_perfil_cargo: { method: 'POST', path: '/perfiles-cargo' },
+  wappy_eliminar_perfil_cargo: { method: 'DELETE', path: (args) => `/perfiles-cargo/${encodeURIComponent(args.id || '')}` },
 
   // 4. Seguridad Industrial & Prevención
   wappy_consultar_inventario_quimico: { method: 'GET', path: '/quimicos' },
   wappy_registrar_producto_quimico: { method: 'POST', path: '/quimicos' },
+  wappy_actualizar_producto_quimico: { method: 'PUT', path: (args) => `/quimicos/${encodeURIComponent(args.id || '')}` },
+  wappy_eliminar_producto_quimico: { method: 'DELETE', path: (args) => `/quimicos/${encodeURIComponent(args.id || '')}` },
   wappy_consultar_vehiculos: { method: 'GET', path: '/vehiculos' },
   wappy_registrar_vehiculo: { method: 'POST', path: '/vehiculos' },
+  wappy_actualizar_vehiculo: { method: 'PUT', path: (args) => `/vehiculos/${encodeURIComponent(args.id || '')}` },
+  wappy_eliminar_vehiculo: { method: 'DELETE', path: (args) => `/vehiculos/${encodeURIComponent(args.id || '')}` },
   wappy_consultar_reportes_actos_condiciones: { method: 'GET', path: '/actos-condiciones' },
   wappy_registrar_reporte_acto_condicion: { method: 'POST', path: '/actos-condiciones' },
+  wappy_actualizar_reporte_acto_condicion: { method: 'PUT', path: (args) => `/actos-condiciones/${encodeURIComponent(args.id || '')}` },
+  wappy_eliminar_reporte_acto_condicion: { method: 'DELETE', path: (args) => `/actos-condiciones/${encodeURIComponent(args.id || '')}` },
   wappy_consultar_casos_atel: { method: 'GET', path: '/atel' },
   wappy_registrar_caso_atel: { method: 'POST', path: '/atel' },
+  wappy_actualizar_caso_atel: { method: 'PUT', path: (args) => `/atel/${encodeURIComponent(args.id || '')}` },
+  wappy_eliminar_caso_atel: { method: 'DELETE', path: (args) => `/atel/${encodeURIComponent(args.id || '')}` },
 
   // 5. Cronograma, LMS & Agentes Autónomos
   wappy_consultar_cronograma_sst: { method: 'GET', path: '/tasks' },
   wappy_crear_actividad_cronograma: { method: 'POST', path: '/tasks' },
-  wappy_actualizar_estado_tarea: { method: 'PUT', path: (args) => `/tasks/${args.id || args.taskId || ''}` },
+  wappy_actualizar_estado_tarea: { method: 'PUT', path: (args) => `/tasks/${encodeURIComponent(args.id || args.taskId || '')}` },
+  wappy_eliminar_tarea_cronograma: { method: 'DELETE', path: (args) => `/tasks/${encodeURIComponent(args.id || args.taskId || '')}` },
   wappy_consultar_capacitaciones: { method: 'GET', path: '/capacitaciones' },
   wappy_programar_capacitacion: { method: 'POST', path: '/capacitaciones' },
+  wappy_actualizar_capacitacion: { method: 'PUT', path: (args) => `/capacitaciones/${encodeURIComponent(args.id || '')}` },
+  wappy_eliminar_capacitacion: { method: 'DELETE', path: (args) => `/capacitaciones/${encodeURIComponent(args.id || '')}` },
   wappy_consultar_auditorias: { method: 'GET', path: '/auditorias' },
   wappy_registrar_hallazgo_auditoria: { method: 'POST', path: '/auditorias' },
+  wappy_actualizar_hallazgo_auditoria: { method: 'PUT', path: (args) => `/auditorias/${encodeURIComponent(args.id || '')}` },
+  wappy_eliminar_hallazgo_auditoria: { method: 'DELETE', path: (args) => `/auditorias/${encodeURIComponent(args.id || '')}` },
   wappy_consultar_agentes_y_automatizaciones: { method: 'GET', path: '/agentes-automatizaciones' },
   wappy_programar_automatizacion: { method: 'POST', path: '/agentes-automatizaciones' },
+  wappy_eliminar_automatizacion: { method: 'DELETE', path: (args) => `/agentes-automatizaciones/${encodeURIComponent(args.id || '')}` },
   wappy_consultar_conversaciones: { method: 'GET', path: '/conversations' },
   wappy_consultar_mensajes_conversacion: { method: 'GET', path: '/messages' },
   wappy_consultar_archivos: { method: 'GET', path: '/files' },

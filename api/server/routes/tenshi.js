@@ -21,6 +21,7 @@ const ConsultarAgenteEspecializado = require('../../app/clients/tools/structured
 const CanvasTool = require('../../app/clients/tools/structured/CanvasTool');
 const { getActiveSkillInstructions, getActiveSkillsData } = require('~/server/services/skillRouter');
 const { resolveApiKeys } = require('./sgsst/sgsstGemini');
+const { executeTenshiMcpTool, TOOL_ROUTES } = require('./voice/tenshiMcpDispatcher');
 
 // Knowledge Retrieval System (RAG)
 async function getRelevantTickets(req, userQuery) {
@@ -392,7 +393,18 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
 4. **GOOGLE DRIVE, INFORMACIÓN DE EMPRESA Y COBERTURA TOTAL DE SOMOS SST**:
    - Tienes acceso nativo a 'google_drive' ('list_files_and_folders', 'read_document_content') para navegar carpetas y leer documentos (RUT, Cámara de Comercio, planillas, matrices GTC45, FDS químicas, etc.).
    - Si lees documentos con datos de la empresa (RUT, cámara de comercio, actas), debes llamar a 'somos_sst' con 'actualizar_informacion_empresa' para autocompletar la Razón Social, NIT, Tipo de Empresa, Representante Legal, ARL, Nivel de Riesgo, CIIU, Dirección, etc.
-   - Tienes control y acceso sobre la totalidad de los 34 aplicativos de Somos SST: Perfiles de Cargo ('cargos'), Estudio de Puesto de Trabajo ('estudio_puesto'), Auditoría Interna ('auditoria'), Diagnóstico Res. 0312 ('diagnostico'), Matriz GTC-45 / IPEVAR, PESV, Químicos SGA, Alturas, ATS, EPP, Capacitaciones, Reglamentos RIT/RHS, etc., pudiendo actualizarlos con 'editar_cualquier_aplicativo' y disparar tareas con 'crear_actividad_acpm'.`;
+   - Tienes control y acceso sobre la totalidad de los 34 aplicativos de Somos SST: Perfiles de Cargo ('cargos'), Estudio de Puesto de Trabajo ('estudio_puesto'), Auditoría Interna ('auditoria'), Diagnóstico Res. 0312 ('diagnostico'), Matriz GTC-45 / IPEVAR, PESV, Químicos SGA, Alturas, ATS, EPP, Capacitaciones, Reglamentos RIT/RHS, etc., pudiendo actualizarlos con 'editar_cualquier_aplicativo' y disparar tareas con 'crear_actividad_acpm'.
+5. **GESTIÓN DIRECTA DE COLABORADORES Y NÓMINA SG-SST (HUELLA BIOCÉNTRICA)**:
+   - TIENES HERRAMIENTAS DIRECTAS PARA CONTROL TOTAL DE COLABORADORES:
+     * 'wappy_retirar_trabajador': Cuando el usuario te pida retirar, desvincular, dar de baja o sacar a un trabajador (ej: "dejar como retirado a Jorge Ricky Pineda" o "retirar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_retirar_trabajador' con su nombre o cédula. El sistema conservará su historial médico y ocupacional de 20 años y lo trasladará a la pestaña 'Retirados'.
+     * ESTÁ TERMINANTEMENTE PROHIBIDO decir que no tienes una función para cambiar el estado de un colaborador a 'retirado'. ¡TIENES la función 'wappy_retirar_trabajador'!
+     * 'wappy_actualizar_trabajador': Para editar cargos, salarios, áreas, sedes o estado de un trabajador.
+     * 'wappy_consultar_trabajadores': Para buscar trabajadores o consultar nómina (activos, retirados, o todos).
+     * 'wappy_registrar_trabajador': Para dar de alta a un nuevo colaborador en el SG-SST.
+6. **CONTROL TOTAL DE LA PLATAFORMA MEDIANTE CLICS Y OPERACIÓN VISUAL ('operar_interfaz_visual')**:
+   - Puedes hacer clic en CUALQUIER BOTÓN, pestaña, menú o tarjeta de todos los aplicativos (ej: pestañas 'Retirados', 'Activos', 'Todos', botones '+ Agregar Trabajador', 'Guardar Localmente', 'Descargar', etc.) usando 'operar_interfaz_visual' indicando el índice [índice] o el texto/nombre del botón.
+7. **SUITE COMPLETA DE 41 OPERACIONES MCP DEL SG-SST ('wappy_mcp_sst' y 'wappy_resumen_general_360')**:
+   - Cuentas con acceso integral a las 41 operaciones MCP para consultar y alimentar: Diagnóstico 360°, Empresa, Matriz GTC-45, Matriz PESV, Matriz Legal, Estándares 0312, Comités (COPASST, Convivencia, Brigadas), Químicos SGA, Vehículos, EPP, Reportes de Actos y Condiciones, Perfiles de Cargo, Casos ATEL, Cronograma y Tareas, Capacitaciones, Auditorías y Automatizaciones.`;
 
         if (skillInstructions) {
             systemMessage += `\n\n${skillInstructions}`;
@@ -511,7 +523,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                     properties: {
                         accion: {
                             type: 'STRING',
-                            description: 'La acción a ejecutar: actualizar_informacion_empresa, consultar_expediente_integral, listar_trabajadores, resumen_empresa, actualizar_examen_medico, registrar_accidente_atel, actualizar_hito_tarea, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, actualizar_actividad_acpm, crear_trabajador.'
+                            description: 'La acción a ejecutar: actualizar_informacion_empresa, consultar_expediente_integral, listar_trabajadores, resumen_empresa, actualizar_examen_medico, registrar_accidente_atel, actualizar_hito_tarea, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, actualizar_actividad_acpm, crear_trabajador, retirar_trabajador, actualizar_trabajador, eliminar_trabajador.'
                         },
                         razon_social: { type: 'STRING', description: 'Razón Social o Nombre legal de la empresa' },
                         tipo_empresa: { type: 'STRING', description: '"Persona Jurídica" o "Persona Natural"' },
@@ -1067,10 +1079,106 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyRetirarTrabajadorDeclaration = {
+                name: 'wappy_retirar_trabajador',
+                description: 'Marca a un trabajador o colaborador como RETIRADO en el SG-SST (Huella Biocéntrica / Perfil Sociodemográfico). Conserva todo su historial médico y ocupacional de 20 años según el Decreto 1072 de 2015, y traslada su ficha a la pestaña "Retirados". Invócala de inmediato cuando el usuario te pida retirar, desvincular o dar de baja a un empleado de la empresa.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        idOrCedula: { type: 'STRING', description: 'Cédula, ID o nombre del trabajador a retirar (ej: "80123456", "Jorge Ricky Pineda" o "Jorge Pineda").' },
+                        nombre: { type: 'STRING', description: 'Nombre del trabajador si se conoce.' },
+                        motivoRetiro: { type: 'STRING', description: 'Motivo del retiro (ej: "Renuncia voluntaria", "Terminación de contrato", "Salida de la empresa").' },
+                        fechaRetiro: { type: 'STRING', description: 'Fecha de retiro en formato YYYY-MM-DD (opcional).' }
+                    },
+                    required: ['idOrCedula']
+                }
+            };
+
+            const wappyActualizarTrabajadorDeclaration = {
+                name: 'wappy_actualizar_trabajador',
+                description: 'Actualiza los datos de un trabajador en el SG-SST (cargo, área, sede, salario, estado laboral "Activo" o "Retirado", EPS, AFP, teléfono, etc.).',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        idOrCedula: { type: 'STRING', description: 'Cédula, ID o nombre del trabajador a actualizar.' },
+                        nombre: { type: 'STRING', description: 'Nombre completo actualizado.' },
+                        cargo: { type: 'STRING', description: 'Cargo u ocupación.' },
+                        estadoLaboral: { type: 'STRING', description: '"Activo" o "Retirado".' },
+                        motivoRetiro: { type: 'STRING', description: 'Motivo del retiro si aplica.' },
+                        area: { type: 'STRING', description: 'Área de trabajo.' },
+                        sede: { type: 'STRING', description: 'Sede.' }
+                    },
+                    required: ['idOrCedula']
+                }
+            };
+
+            const wappyConsultarTrabajadoresDeclaration = {
+                name: 'wappy_consultar_trabajadores',
+                description: 'Consulta o busca colaboradores en el SG-SST de la empresa activa (Huella Biocéntrica). Permite buscar por nombre, cédula o filtrar por activos o retirados.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        filtro: { type: 'STRING', description: '"Activo", "Retirado", o "todos".' },
+                        busqueda: { type: 'STRING', description: 'Nombre o cédula para buscar un colaborador específico.' }
+                    }
+                }
+            };
+
+            const wappyRegistrarTrabajadorDeclaration = {
+                name: 'wappy_registrar_trabajador',
+                description: 'Registra y da de alta a un nuevo colaborador en la nómina del SG-SST de la empresa.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        nombre: { type: 'STRING', description: 'Nombre completo del trabajador.' },
+                        cedula: { type: 'STRING', description: 'Número de cédula o documento de identidad.' },
+                        cargo: { type: 'STRING', description: 'Cargo u ocupación.' },
+                        tipoContrato: { type: 'STRING', description: 'Tipo de contrato.' }
+                    },
+                    required: ['nombre', 'cedula', 'cargo']
+                }
+            };
+
+            const wappyResumenGeneral360Declaration = {
+                name: 'wappy_resumen_general_360',
+                description: 'Diagnóstico 360° integral de la empresa en WAPPY: consulta en tiempo real el estado general, cantidad de trabajadores, riesgos GTC-45 y PESV, cumplimiento de matriz legal, puntaje de estándares 0312, comités, EPP, inventario químico, flota vehicular, incidentes ATEL y tareas pendientes.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        dummy: { type: 'STRING', description: 'Parámetro opcional' }
+                    }
+                }
+            };
+
+            const wappyMcpSstDeclaration = {
+                name: 'wappy_mcp_sst',
+                description: 'Suite oficial de operaciones y consultas MCP del SG-SST de WAPPY (las 41 herramientas). Permite consultar o alimentar de forma autónoma: diagnóstico 360°, empresa, trabajadores, matriz GTC45, matriz PESV, matriz legal, estándares 0312, comités (COPASST, Convivencia, Brigadas), químicos SGA, vehículos, EPP, reportes de actos y condiciones, perfiles de cargo, casos ATEL, cronograma y tareas, capacitaciones, auditorías y automatizaciones.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        herramienta: {
+                            type: 'STRING',
+                            description: 'Nombre de la herramienta MCP a ejecutar (ej: wappy_resumen_general_360, wappy_consultar_matriz_gtc45, wappy_consultar_comites, etc.).'
+                        },
+                        parametros: {
+                            type: 'OBJECT',
+                            description: 'Argumentos para la herramienta.'
+                        }
+                    },
+                    required: ['herramienta']
+                }
+            };
+
             // Assemble base tools and dynamically triggered tools (strictly excluding Group 7)
             const baseFunctionDeclarations = [
                 wappyNavegarDeclaration,
                 somosSSTDeclaration,
+                wappyRetirarTrabajadorDeclaration,
+                wappyActualizarTrabajadorDeclaration,
+                wappyConsultarTrabajadoresDeclaration,
+                wappyRegistrarTrabajadorDeclaration,
+                wappyResumenGeneral360Declaration,
+                wappyMcpSstDeclaration,
                 googleDriveDeclaration,
                 consultarAgenteDeclaration,
                 canvasDeclaration,
@@ -1273,7 +1381,37 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         direccion: c.args.direccion
                                     }));
                                     requestedGuiAction = requestedGuiActions[0]; // fallback
-                                    break;
+                                } else if (call.name === 'wappy_retirar_trabajador' || call.name === 'wappy_eliminar_trabajador') {
+                                    const rawArgs = call.args || {};
+                                    const target = rawArgs.idOrCedula || rawArgs.id || rawArgs.cedula || rawArgs.nombre || rawArgs.identificacion || rawArgs.target || '';
+                                    const argsToSend = {
+                                        ...rawArgs,
+                                        idOrCedula: target,
+                                        id: target,
+                                        nombre: rawArgs.nombre || target
+                                    };
+                                    const res = await executeTenshiMcpTool('wappy_retirar_trabajador', argsToSend, targetUserId);
+                                    toolOutput = JSON.stringify(res);
+                                } else if (call.name === 'wappy_actualizar_trabajador') {
+                                    const rawArgs = call.args || {};
+                                    const target = rawArgs.idOrCedula || rawArgs.id || rawArgs.cedula || rawArgs.nombre || rawArgs.identificacion || rawArgs.target || '';
+                                    const argsToSend = { ...rawArgs, idOrCedula: target, id: target };
+                                    const res = await executeTenshiMcpTool('wappy_actualizar_trabajador', argsToSend, targetUserId);
+                                    toolOutput = JSON.stringify(res);
+                                } else if (call.name === 'wappy_consultar_trabajadores') {
+                                    const res = await executeTenshiMcpTool('wappy_consultar_trabajadores', call.args || {}, targetUserId);
+                                    toolOutput = JSON.stringify(res);
+                                } else if (call.name === 'wappy_registrar_trabajador') {
+                                    const res = await executeTenshiMcpTool('wappy_registrar_trabajador', call.args || {}, targetUserId);
+                                    toolOutput = JSON.stringify(res);
+                                } else if (call.name === 'wappy_resumen_general_360') {
+                                    const res = await executeTenshiMcpTool('wappy_resumen_general_360', call.args || {}, targetUserId);
+                                    toolOutput = JSON.stringify(res);
+                                } else if (call.name === 'wappy_mcp_sst' || call.name in TOOL_ROUTES || (call.name.startsWith('wappy_') && !['wappy_navegar', 'wappy_diligenciar_formulario', 'wappy_seleccionar_empresa'].includes(call.name))) {
+                                    const targetTool = call.name === 'wappy_mcp_sst' ? (call.args?.herramienta || call.args?.tool || 'wappy_resumen_general_360') : call.name;
+                                    const targetArgs = call.name === 'wappy_mcp_sst' ? (call.args?.parametros || call.args?.args || call.args || {}) : (call.args || {});
+                                    const res = await executeTenshiMcpTool(targetTool, targetArgs, targetUserId);
+                                    toolOutput = JSON.stringify(res);
                                 } else {
                                     break;
                                 }

@@ -318,6 +318,74 @@ class VoiceSession {
                             }
                         },
                         {
+                            name: "wappy_retirar_trabajador",
+                            description: "Marca a un colaborador como RETIRADO en el SG-SST (Huella Biocéntrica) conservando todo su historial ocupacional y trasladándolo a la pestaña 'Retirados'. Invócala de inmediato cuando el usuario te pida retirar, dar de baja o desvincular a un empleado.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    idOrCedula: {
+                                        type: "string",
+                                        description: "Cédula, ID o nombre del trabajador a retirar."
+                                    },
+                                    nombre: {
+                                        type: "string",
+                                        description: "Nombre del trabajador si se conoce."
+                                    },
+                                    motivoRetiro: {
+                                        type: "string",
+                                        description: "Motivo del retiro (ej: 'Renuncia voluntaria', 'Terminación de contrato', 'Salida de la empresa')."
+                                    },
+                                    fechaRetiro: {
+                                        type: "string",
+                                        description: "Fecha de retiro en formato YYYY-MM-DD (opcional)."
+                                    }
+                                },
+                                required: ["idOrCedula"]
+                            }
+                        },
+                        {
+                            name: "wappy_actualizar_trabajador",
+                            description: "Actualiza los datos de un trabajador en el SG-SST (cargo, área, sede, salario, estado laboral 'Activo' o 'Retirado', motivo de retiro).",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    idOrCedula: {
+                                        type: "string",
+                                        description: "Cédula, ID o nombre del trabajador a actualizar."
+                                    },
+                                    nombre: { type: "string", description: "Nombre actualizado" },
+                                    cargo: { type: "string", description: "Cargo" },
+                                    estadoLaboral: { type: "string", description: "'Activo' o 'Retirado'" },
+                                    motivoRetiro: { type: "string", description: "Motivo del retiro si aplica" }
+                                },
+                                required: ["idOrCedula"]
+                            }
+                        },
+                        {
+                            name: "wappy_consultar_trabajadores",
+                            description: "Consulta o busca colaboradores en el SG-SST de la empresa activa (Huella Biocéntrica). Permite buscar por nombre, cédula o filtrar por activos/retirados.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    filtro: { type: "string", description: "'Activo', 'Retirado' o 'todos'" },
+                                    busqueda: { type: "string", description: "Nombre o cédula para buscar" }
+                                }
+                            }
+                        },
+                        {
+                            name: "wappy_registrar_trabajador",
+                            description: "Registra a un nuevo trabajador en el SG-SST de la empresa.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    nombre: { type: "string", description: "Nombre completo" },
+                                    cedula: { type: "string", description: "Cédula" },
+                                    cargo: { type: "string", description: "Cargo" }
+                                },
+                                required: ["nombre", "cedula", "cargo"]
+                            }
+                        },
+                        {
                             name: "wappy_mcp_sst",
                             description: "Suite oficial de operaciones y consultas MCP del SG-SST de WAPPY (las 41 herramientas). Permite consultar o alimentar de forma autónoma: diagnóstico 360°, empresa, trabajadores, matriz GTC45, matriz PESV, matriz legal, estándares 0312, comités (COPASST, Convivencia, Brigadas), químicos SGA, vehículos, EPP, reportes de actos y condiciones, perfiles de cargo, casos ATEL, cronograma y tareas, capacitaciones, auditorías y automatizaciones.",
                             parameters: {
@@ -947,6 +1015,17 @@ class VoiceSession {
 
 [ROL]:
 Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes control en tiempo real para abrir cualquier agente, navegar a cualquier sección, entrar a Google Drive, generar archivos Canvas y diligenciar formularios en pantalla. Además, cuentas con acceso directo a la SUITE TOTAL DE 41 OPERACIONES MCP DEL SG-SST (diagnóstico 360° total, empresa, colaboradores, matrices GTC-45 / PESV / Legal, estándares 0312, comités, inventario químico, vehículos, EPP, actos y condiciones, perfiles de cargo, casos ATEL, cronograma y capacitaciones). Invoca 'wappy_resumen_general_360' o 'wappy_mcp_sst' con la herramienta adecuada para consultar o gestionar los datos del usuario de forma inmediata y profesional.
+
+[GESTIÓN DE TRABAJADORES Y COLABORADORES]:
+- TIENES CONTROL TOTAL para gestionar colaboradores en el SG-SST (Huella Biocéntrica):
+  * 'wappy_retirar_trabajador': Cuando el usuario te pida retirar, desvincular, dar de baja o sacar a un trabajador (ej: "dejar como retirado a Jorge Ricky Pineda" o "retirar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_retirar_trabajador'. El sistema conservará su historial y lo pasará a la pestaña 'Retirados'.
+  * ESTÁ TERMINANTEMENTE PROHIBIDO decir que no tienes una función para cambiar el estado de un colaborador a 'retirado'. ¡TIENES la función 'wappy_retirar_trabajador'!
+  * 'wappy_actualizar_trabajador': Para editar cargos, salarios o información del empleado.
+  * 'wappy_consultar_trabajadores': Para buscar trabajadores o consultar nómina (activos o retirados).
+  * 'wappy_registrar_trabajador': Para registrar nuevos trabajadores.
+
+[INTERACCIÓN Y CLICS EN BOTONES DE TODOS LOS APLICATIVOS ('operar_interfaz_visual')]:
+- TIENES CONTROL TOTAL para hacer clic en CUALQUIER BOTÓN, pestaña, menú o tarjeta de todos los aplicativos de WAPPY (ej: pestañas 'Retirados', 'Activos', 'Todos', botones '+ Agregar Trabajador', 'Guardar Localmente', 'Descargar', etc.) usando tu herramienta 'operar_interfaz_visual' con accion: 'click' e indicando el índice o el texto/nombre del botón.
 
 [HERRAMIENTAS]:
 1. **google_drive**: Tienes acceso directo a Google Drive mediante tu herramienta 'google_drive'.
