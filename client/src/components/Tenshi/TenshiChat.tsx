@@ -25,6 +25,7 @@ import {
   FileSpreadsheet,
   Presentation,
   Code2,
+  ArrowRight,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
@@ -796,10 +797,97 @@ export function resolveWappyDestination(
   return { targetRoute, targetSgsstModule };
 }
 
+const TENSHI_ACTIVITIES = [
+  {
+    icon: '📊',
+    title: 'Matriz IPEVAR',
+    desc: 'Consultar peligros y riesgos',
+    prompt: 'Solicito consultar el estado de la Matriz IPEVAR de la empresa y los principales peligros evaluados.',
+  },
+  {
+    icon: '📋',
+    title: 'Plan de Trabajo',
+    desc: 'Metas y cronograma SST',
+    prompt: '¿Cómo va el cumplimiento del Plan de Trabajo Anual del SG-SST y qué hitos están próximos a vencer?',
+  },
+  {
+    icon: '👥',
+    title: 'Censo Laboral',
+    desc: 'Trabajadores y cargos',
+    prompt: 'Muéstrame el censo de trabajadores y los cargos activos registrados en la empresa.',
+  },
+  {
+    icon: '🩺',
+    title: 'Medicina Laboral',
+    desc: 'Casos médicos y reintegro',
+    prompt: 'Revisar casos de reintegro laboral y seguimiento a recomendaciones médicas ocupacionales.',
+  },
+  {
+    icon: '⚡',
+    title: 'Auditoría Res. 0312',
+    desc: 'Estándares mínimos',
+    prompt: 'Realiza una auditoría del cumplimiento de estándares mínimos según Resolución 0312 de 2019.',
+  },
+  {
+    icon: '🚒',
+    title: 'Plan Emergencias',
+    desc: 'Brigadas y contingencias',
+    prompt: '¿Cuál es el estado del Plan de Prevención, Preparación y Respuesta ante Emergencias?',
+  },
+];
+
 export default function TenshiChat() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, token } = useAuthContext();
+  const { isAuthenticated, token, user } = useAuthContext();
+
+  // ─── Modo Protagonista en Celular (Hero Mode) ───────────────────────────────
+  const [isMobileScreen, setIsMobileScreen] = useState<boolean>(() => {
+    return typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+  });
+
+  const [isMobileHeroMode, setIsMobileHeroMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const isMobile = window.innerWidth < 768;
+    const alreadyExited = sessionStorage.getItem('tenshi_mobile_hero_exited') === 'true';
+    const isChatRoute =
+      window.location.pathname === '/' ||
+      window.location.pathname === '/c/new' ||
+      window.location.pathname.startsWith('/c/');
+    return isMobile && !alreadyExited && isChatRoute;
+  });
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobileScreen(mobile);
+      if (!mobile) {
+        setIsMobileHeroMode(false);
+      }
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    const handleExitHero = () => {
+      setIsMobileHeroMode(false);
+    };
+    window.addEventListener('tenshi-exit-mobile-hero', handleExitHero);
+    return () => window.removeEventListener('tenshi-exit-mobile-hero', handleExitHero);
+  }, []);
+
+  useEffect(() => {
+    const isChatRoute =
+      location.pathname === '/' ||
+      location.pathname === '/c/new' ||
+      location.pathname.startsWith('/c/');
+    if (!isChatRoute && isMobileHeroMode) {
+      setIsMobileHeroMode(false);
+    }
+  }, [location.pathname, isMobileHeroMode]);
+
   const agentsMap = useAgentsMapContext();
   const { data: agentsData } = useListAgentsQuery({ requiredPermission: 1, limit: 100 });
   const agentsRef = useRef<any[]>([]);
@@ -2066,6 +2154,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     };
   };
 
+  const tapTimestampsRef = useRef<number[]>([]);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleTenshiInteraction = (e: React.MouseEvent | React.TouchEvent) => {
@@ -2075,16 +2164,44 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       return;
     }
 
+    const now = Date.now();
+    // Conservar toques ocurridos en una ventana de 850ms
+    tapTimestampsRef.current = tapTimestampsRef.current.filter((t) => now - t < 850);
+    tapTimestampsRef.current.push(now);
+
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
+    // 🌟 TRIPLE TAP (3 Toques seguidos en Móvil): Expansión a Pantalla Completa / Modo Protagonista
+    if (tapTimestampsRef.current.length >= 3 && isMobile) {
+      tapTimestampsRef.current = [];
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
+      tenshiAudio.playPop();
+      try {
+        sessionStorage.removeItem('tenshi_mobile_hero_exited');
+      } catch (_) {}
+      setIsMobileHeroMode(true);
+      return;
+    }
+
     if (clickTimeoutRef.current) {
-      // 💬 Doble Clic Rápido: Alternar Ventana de Modo Chat
       clearTimeout(clickTimeoutRef.current);
       clickTimeoutRef.current = null;
-      tenshiAudio.playBlip();
-      setIsOpen((prev) => !prev);
-    } else {
-      // 🎙️ Un Clic Simple (espera 260ms para descartar doble clic): Alternar Modo Live (Voz) SIN abrir nada
-      clickTimeoutRef.current = setTimeout(() => {
-        clickTimeoutRef.current = null;
+    }
+
+    clickTimeoutRef.current = setTimeout(() => {
+      clickTimeoutRef.current = null;
+      const count = tapTimestampsRef.current.length;
+      tapTimestampsRef.current = [];
+
+      if (count === 2) {
+        // 💬 Doble Clic Rápido: Alternar Ventana de Modo Chat
+        tenshiAudio.playBlip();
+        setIsOpen((prev) => !prev);
+      } else if (count === 1) {
+        // 🎙️ Un Clic Simple: Alternar Modo Live (Voz) SIN abrir nada
         if (isVoiceActive) {
           tenshiAudio.playBlip();
           stopVoiceMode();
@@ -2092,8 +2209,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           tenshiAudio.playBlip();
           startVoiceMode();
         }
-      }, 260);
-    }
+      }
+    }, 280);
   };
 
   const handleButtonClick = handleTenshiInteraction;
@@ -2804,17 +2921,287 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         }
       `}</style>
 
-      {/* 1. BURBUJA FLOTANTE DE CHAT (Independiente y anclada al mejor espacio de pantalla) */}
-      {isOpen && (
+      {/* 📱 1. MODO HEROICO / PANTALLA COMPLETA EN CELULAR */}
+      {isMobileHeroMode && isMobileScreen ? (
         <div
-          style={getChatPositionStyle()}
-          className={cn(
-            'flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 shadow-2xl backdrop-blur-xl transition-all duration-300 animate-in fade-in zoom-in-95',
-            isFullscreen
-              ? 'fixed inset-3 sm:inset-6 z-[10000] w-auto h-auto'
-              : ''
-          )}
+          id="tenshi-mobile-hero-container"
+          className="fixed inset-x-0 top-0 bottom-0 z-30 flex flex-col md:hidden bg-gradient-to-b from-slate-50 via-teal-50/20 to-slate-100 dark:bg-gradient-to-b dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden animate-in fade-in duration-200"
+          style={{
+            paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 74px)',
+          }}
         >
+          {/* Cabecera Móvil */}
+          <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-slate-200/60 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md shrink-0 select-none">
+            <div className="flex items-center gap-2">
+              <div className="relative flex h-7 w-7 items-center justify-center">
+                <img
+                  src="/assets/tenshi.png"
+                  alt="Tenshi"
+                  className="h-full w-full object-contain pointer-events-none"
+                />
+                <span
+                  className={cn(
+                    'absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-white dark:ring-zinc-900',
+                    isVoiceActive ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-400'
+                  )}
+                />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-zinc-100 leading-none">
+                    {config?.name || 'Tenshi'}
+                  </h3>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 font-bold">
+                    WAPPY SST
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[9px] font-medium text-slate-500 dark:text-zinc-400">
+                  {isTenshiSpeaking
+                    ? 'Hablando contigo...'
+                    : isVoiceActive
+                    ? 'Voz en vivo activa'
+                    : 'Asistente WAPPY IA'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {/* Botón SFX */}
+              <button
+                type="button"
+                onClick={handleToggleSFX}
+                title={isSFXMuted ? 'Activar efectos de sonido' : 'Silenciar efectos de sonido'}
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              >
+                {isSFXMuted ? <VolumeX className="h-3.5 w-3.5 text-emerald-500" /> : <Volume2 className="h-3.5 w-3.5" />}
+              </button>
+
+              {/* Botón Salir a WAPPY normal */}
+              <button
+                type="button"
+                onClick={() => {
+                  tenshiAudio.playBlip();
+                  setIsMobileHeroMode(false);
+                  try {
+                    sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
+                  } catch (_) {}
+                }}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 shadow-2xs active:scale-95 transition-all"
+                title="Ir a chat tradicional de WAPPY"
+              >
+                <span>Ir a Chat</span>
+                <ArrowRight className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+              </button>
+            </div>
+          </div>
+
+          {/* Área Central Hero & Conversación */}
+          <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col items-center">
+            {/* 1. Avatar Grande Tenshi */}
+            <div
+              className="relative flex flex-col items-center my-2 cursor-pointer select-none"
+              onClick={() => {
+                tenshiAudio.playPop();
+                if (!isVoiceActive) startVoiceMode();
+              }}
+              title="Tócame para hablar"
+            >
+              <TenshiAvatar
+                size={135}
+                isSpeaking={isTenshiSpeaking}
+                outputAmplitude={outputAmplitude}
+                isVoiceActive={isVoiceActive}
+                isTyping={isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)}
+                interactive={true}
+                showHaloEffect={true}
+                showHUD={true}
+              />
+            </div>
+
+            {/* 2. Saludo & Subtítulo */}
+            <div className="text-center max-w-xs mb-3">
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
+                ¡Hola, {user?.name?.split(' ')[0] || user?.username || 'Especialista'}!
+              </h2>
+              <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5 leading-snug">
+                {isVoiceActive
+                  ? 'Te estoy escuchando. Puedes hablarme o gestionar actividades abajo.'
+                  : 'Soy tu copiloto en SG-SST. Tócame para activar voz o elige una actividad.'}
+              </p>
+            </div>
+
+            {/* 3. Contenido: Mensajes si existen, o Píldoras de Actividades */}
+            {messages.length > 1 ? (
+              <div className="w-full max-w-md flex flex-col gap-2.5 mb-2">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-200/50 dark:border-zinc-800/50">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                    Conversación con Tenshi
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleClearHistory}
+                    className="flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Reiniciar</span>
+                  </button>
+                </div>
+                {messages
+                  .filter((m) => !m.content?.startsWith('[RESULTADO_GUI]') && !(m as any).isIntermediate)
+                  .map((msg, i) => (
+                    <div
+                      key={i}
+                      className={cn('flex flex-col', msg.role === 'user' ? 'items-end' : 'items-start')}
+                    >
+                      <div
+                        className={cn(
+                          'max-w-[88%] rounded-2xl p-2.5 text-xs shadow-xs',
+                          msg.role === 'user'
+                            ? 'rounded-tr-none bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-medium'
+                            : 'rounded-tl-none border border-slate-200/80 bg-white dark:border-zinc-800 dark:bg-zinc-800/90 text-slate-800 dark:text-zinc-100'
+                        )}
+                      >
+                        {msg.content && <Markdown content={msg.content} />}
+                        {msg.file && (
+                          <div className="mt-2 p-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900/80 flex items-center justify-between gap-2">
+                            <span className="truncate text-[11px] font-bold text-slate-800 dark:text-zinc-100">
+                              {msg.file.title}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadFile(msg.file!)}
+                              className="px-2 py-1 rounded-lg bg-teal-600 text-white text-[10px] font-bold flex items-center gap-1 active:scale-95"
+                            >
+                              <Download className="w-3 h-3" /> Descargar
+                            </button>
+                          </div>
+                        )}
+                        {msg.htmlReport && (
+                          <button
+                            type="button"
+                            onClick={() => openHtmlReport(msg.htmlReport!)}
+                            className="mt-2 w-full text-center py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-[10px] font-bold border border-emerald-500/20 active:scale-95"
+                          >
+                            Ver Informe Oficial
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                <div ref={messagesEndRef} />
+              </div>
+            ) : (
+              /* Píldoras de Actividades Rápidas ("para gestionar actividades") */
+              <div className="w-full max-w-md my-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-2 px-1">
+                  Gestión de Actividades
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {TENSHI_ACTIVITIES.map((act, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        tenshiAudio.playBlip();
+                        handleSend(act.prompt);
+                      }}
+                      className="flex flex-col items-start p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 hover:border-teal-500/50 hover:bg-teal-50/30 dark:hover:bg-zinc-800/80 text-left transition-all active:scale-95 shadow-2xs"
+                    >
+                      <div className="flex items-center gap-1.5 w-full">
+                        <span className="text-sm">{act.icon}</span>
+                        <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate">
+                          {act.title}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1 line-clamp-1">
+                        {act.desc}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Barra de Entrada Táctil & Voz Fija (Sobre el Pie de Página) */}
+          <div className="px-3 pt-2 pb-2 border-t border-slate-200/60 dark:border-zinc-800/80 bg-white/85 dark:bg-zinc-900/85 backdrop-blur-xl shrink-0">
+            <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800/90 px-2.5 py-1.5 shadow-sm">
+              <input
+                type="file"
+                id="tenshi-hero-file-input"
+                accept=".xlsx,.xls,.csv,.pdf,.docx,.txt"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setInput((prev) => `${prev ? prev + ' ' : ''}[Archivo: ${file.name}] `);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => document.getElementById('tenshi-hero-file-input')?.click()}
+                title="Adjuntar archivo"
+                className="p-1 rounded-lg text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
+              >
+                <Paperclip className="h-4 w-4" />
+              </button>
+
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                placeholder={isVoiceActive ? 'Habla por micrófono o escribe...' : 'Escribe una actividad o consulta...'}
+                className="flex-1 border-none bg-transparent text-xs text-slate-800 placeholder-slate-400 outline-none focus:outline-none focus:ring-0 dark:text-zinc-100"
+                disabled={isTyping}
+              />
+
+              <button
+                type="button"
+                onClick={() => {
+                  tenshiAudio.playBlip();
+                  if (isVoiceActive) {
+                    stopVoiceMode();
+                  } else {
+                    startVoiceMode();
+                  }
+                }}
+                title={isVoiceActive ? 'Pausar modo voz' : 'Hablar con Tenshi'}
+                className={cn(
+                  'p-1.5 rounded-xl transition-all active:scale-95',
+                  isVoiceActive
+                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30 animate-pulse'
+                    : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700'
+                )}
+              >
+                <Mic className="h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSend()}
+                disabled={isTyping || !input.trim()}
+                title="Enviar"
+                className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 p-1.5 text-white shadow-sm transition-all hover:from-teal-500 hover:to-emerald-500 active:scale-95 disabled:opacity-40"
+              >
+                <Send className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* 1. BURBUJA FLOTANTE DE CHAT (Independiente y anclada al mejor espacio de pantalla) */}
+          {isOpen && (
+            <div
+              style={getChatPositionStyle()}
+              className={cn(
+                'flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 shadow-2xl backdrop-blur-xl transition-all duration-300 animate-in fade-in zoom-in-95',
+                isFullscreen
+                  ? 'fixed inset-3 sm:inset-6 z-[10000] w-auto h-auto'
+                  : ''
+              )}
+            >
           {/* Cabecera Glassmorphic Minimalista Compacta */}
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200/60 bg-slate-50/80 px-3.5 py-2.5 dark:border-zinc-800/80 dark:bg-zinc-800/60 select-none">
             <div className="flex items-center gap-2">
@@ -3333,5 +3720,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         />
       </div>
     </>
-  );
+  )}
+</>
+);
 }

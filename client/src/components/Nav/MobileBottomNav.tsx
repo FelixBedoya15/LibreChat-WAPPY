@@ -123,6 +123,10 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
     !location.pathname.startsWith('/sgsst/automatizaciones');
 
   const handleNewChat = () => {
+    window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
+    try {
+      sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
+    } catch (_) {}
     if (location.pathname !== '/c/new') {
       navigate('/c/new');
     } else {
@@ -131,6 +135,14 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
         textarea.focus();
       }
     }
+  };
+
+  const handleNavClick = (path: string) => {
+    window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
+    try {
+      sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
+    } catch (_) {}
+    navigate(path);
   };
 
   return (
@@ -160,7 +172,13 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
         {/* 1. EXTREMO IZQUIERDO: PANEL IZQUIERDO (SIN TEXTO) */}
         <motion.button
           whileTap={{ scale: 0.88 }}
-          onClick={toggleLeftPanel}
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
+            try {
+              sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
+            } catch (_) {}
+            toggleLeftPanel();
+          }}
           aria-label="Abrir panel izquierdo"
           className={cn(
             'flex items-center justify-center flex-1 py-2 px-1 rounded-xl transition-all',
@@ -175,7 +193,7 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
         {/* 2. MANO IZQUIERDA: ACADEMIA */}
         <motion.button
           whileTap={{ scale: 0.88 }}
-          onClick={() => navigate('/academia')}
+          onClick={() => handleNavClick('/academia')}
           aria-label="Ir a Academia WAPPY"
           className={cn(
             'flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all',
@@ -224,7 +242,7 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
         {/* 4. MANO DERECHA: SOMOS SST */}
         <motion.button
           whileTap={{ scale: 0.88 }}
-          onClick={() => navigate('/sgsst')}
+          onClick={() => handleNavClick('/sgsst')}
           aria-label="Ir a Somos SST"
           className={cn(
             'flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all',
@@ -252,7 +270,13 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
         {/* 5. EXTREMO DERECHO: PANEL DERECHO (SIN TEXTO) */}
         <motion.button
           whileTap={{ scale: 0.88 }}
-          onClick={toggleRightPanel}
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
+            try {
+              sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
+            } catch (_) {}
+            toggleRightPanel();
+          }}
           aria-label="Abrir panel derecho"
           className={cn(
             'flex items-center justify-center flex-1 py-2 px-1 rounded-xl transition-all',
