@@ -111,7 +111,7 @@ async def get_client_for_request() -> NotebookLMClient:
     storage_file = target_profile_dir / "storage_state.json"
 
     # Si el usuario suministró nuevas cookies en la cabecera, actualizamos su perfil
-    if user_auth and safe_profile != "default":
+    if user_auth and not user_auth.startswith("{{") and safe_profile != "default":
         cookies = _safe_parse_cookies(user_auth)
         if cookies:
             target_profile_dir.mkdir(parents=True, exist_ok=True)
