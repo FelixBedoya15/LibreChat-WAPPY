@@ -147,8 +147,12 @@ helm/**/.values.yaml
 # Scratch and local scripts
 scratch/
 
-# NotebookLM credentials and browser session
-config/notebooklm/
+# NotebookLM credentials and browser session (protect private cookies)
+config/notebooklm/profiles/
+config/notebooklm/*.json
+config/notebooklm/storage_state.json
 !config/notebooklm/.gitkeep
+__pycache__/
+*.pyc
 
 

@@ -90,6 +90,23 @@ services:
       - .env
     networks:
       - dokploy-network
+  notebooklm-mcp:
+    container_name: notebooklm-mcp
+    build:
+      context: ./config/notebooklm
+      dockerfile: Dockerfile
+    image: notebooklm-mcp:latest
+    restart: always
+    volumes:
+      - ./config/notebooklm/profiles:/root/.notebooklm/profiles
+    environment:
+      - NOTEBOOKLM_HOME=/root/.notebooklm
+      - NOTEBOOKLM_MCP_HOST=0.0.0.0
+      - NOTEBOOKLM_MCP_PORT=9420
+    ports:
+      - "9420:9420"
+    networks:
+      - dokploy-network
 
 volumes:
   pgdata2:

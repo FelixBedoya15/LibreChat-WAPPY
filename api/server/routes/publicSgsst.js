@@ -3488,7 +3488,7 @@ router.get('/epp/catalogo/:companyId', async (req, res) => {
       return res.status(404).json({ error: 'Empresa no encontrada' });
     }
 
-    const SgsstEppInventory = require('../../../models/SgsstEppInventory');
+    const SgsstEppInventory = require('~/models/SgsstEppInventory');
     let items = await SgsstEppInventory.find({
       companyId: company._id,
       activo: { $ne: false }
@@ -3605,7 +3605,7 @@ router.post('/epp/solicitar/:companyId', async (req, res) => {
       return res.status(404).json({ error: 'Empresa no encontrada' });
     }
 
-    const SgsstEppSolicitud = require('../../../models/SgsstEppSolicitud');
+    const SgsstEppSolicitud = require('~/models/SgsstEppSolicitud');
 
     const nuevaSolicitud = await SgsstEppSolicitud.create({
       companyId: company._id,
@@ -3683,7 +3683,7 @@ router.get('/epp/mis-solicitudes/:companyId/:cedula', async (req, res) => {
       return res.status(404).json({ error: 'Empresa no encontrada' });
     }
 
-    const SgsstEppSolicitud = require('../../../models/SgsstEppSolicitud');
+    const SgsstEppSolicitud = require('~/models/SgsstEppSolicitud');
     const solicitudes = await SgsstEppSolicitud.find({
       companyId: company._id,
       documento: String(cedula).trim()
@@ -3707,7 +3707,7 @@ router.get('/pesv/vehiculos-activos/:companyId', async (req, res) => {
       return res.status(404).json({ error: 'Empresa no encontrada' });
     }
 
-    const SgsstVehicleData = require('../../../models/SgsstVehicleData');
+    const SgsstVehicleData = require('~/models/SgsstVehicleData');
     const companyQueries = [{ companyId: company._id }];
     if (company.user) companyQueries.push({ user: company.user });
     const vehiculos = await SgsstVehicleData.find({ $or: companyQueries })
@@ -3748,7 +3748,7 @@ router.post('/pesv/inspeccion-diaria/:companyId', async (req, res) => {
     }
 
     const cleanPlaca = String(placa).trim().toUpperCase();
-    const SgsstVehicleData = require('../../../models/SgsstVehicleData');
+    const SgsstVehicleData = require('~/models/SgsstVehicleData');
 
     // CRUCE ESTRICTO CON HOJA DE VIDA DE AUTOMOTORES
     const matchQueries = [{ companyId: company._id, placa: cleanPlaca }];
