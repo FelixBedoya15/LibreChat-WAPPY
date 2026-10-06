@@ -408,7 +408,12 @@ class CanvasTool extends Tool {
     super();
     this.name = 'canvas';
     this.description =
-      'Herramienta interactiva de pantalla dividida (Canvas). Úsala ÚNICAMENTE cuando el usuario solicite EXPLÍCITAMENTE abrir, crear o exportar un lienzo o archivo en Canvas (ejemplos claros: "créalo en canvas", "ábreme un canvas", "redáctalo en un documento word/canvas", "diseña un excel en canvas", "haz una presentación de diapositivas en canvas"). ESTÁ TERMINANTEMENTE PROHIBIDO usar canvas para responder dudas, preguntas, conceptos técnicos o consultas médicas/jurídicas en el chat si el usuario no pidió expresamente un archivo o lienzo en Canvas. En consultas ordinarias, responde directamente en el chat en formato Markdown. (NOTA: Para la Matriz de Peligros IPEVR / GTC-45, NO uses canvas; usa exclusivamente matriz_ipevar).';
+      'Herramienta interactiva de pantalla dividida (Canvas). Permite crear, visualizar y editar 4 tipos de lienzos/archivos interactivos:\n' +
+      '1. Documento Word / Texto enriquecido ("text"): Úsalo cuando el usuario solicite crear un archivo en Word, redactar un documento formal descargable o abrir un lienzo de texto (ej: "crea un archivo en word", "redáctalo en un documento", "haz un word de...", "ábreme un canvas de texto").\n' +
+      '2. Hoja de cálculo ("excel"): Úsalo cuando el usuario solicite crear un archivo en Excel, una hoja de cálculo, grilla de datos, tabla con fórmulas o presupuesto (ej: "crea un archivo en excel", "haz un excel", "genera una hoja de cálculo", "créame una grilla en excel").\n' +
+      '3. Presentación ("presentation"): Úsalo cuando el usuario solicite crear una presentación, diapositivas, slides, charla o material de capacitación (ej: "crea una presentación", "haz diapositivas", "diseña un powerpoint", "slides en canvas").\n' +
+      '4. Aplicativo interactivo ("html"): Úsalo cuando el usuario solicite crear un aplicativo, calculadora interactiva, formulario, widget, juego o simulador web (ej: "crea un aplicativo", "desarrolla un aplicativo interactivo", "haz una calculadora en html", "prototipo interactivo").\n' +
+      'REGLA CRÍTICA DE DISTINCIÓN: Canvas se activa ÚNICAMENTE ante solicitudes expresas de crear o editar archivos, documentos, hojas de cálculo, presentaciones, aplicativos o lienzos ("créalo en canvas", "crea un archivo en word", "haz un excel", "crea una presentación", "crea un aplicativo", etc.). ESTÁ TERMINANTEMENTE PROHIBIDO invocar canvas para responder dudas, preguntas, conceptos técnicos, consultas normativas o explicaciones en el chat donde el usuario no haya pedido crear un archivo o lienzo (ej: "¿qué es la Resolución 1843?", "¿cuáles son los procedimientos?", "explícame las responsabilidades"); esas consultas se responden de forma inmediata y ligera en el cuerpo del chat en formato Markdown. (NOTA: Para la Matriz de Peligros IPEVR / GTC-45, usa matriz_ipevar).';
     this.req = fields.req;
 
     this.schema = z.object({
@@ -421,11 +426,12 @@ class CanvasTool extends Tool {
       fileType: z
         .enum(['text', 'excel', 'presentation', 'html'])
         .describe(
-          'Tipo de archivo/lienzo del Canvas a crear o gestionar. Úsalo ÚNICAMENTE si el usuario solicitó explícitamente un Canvas o archivo:\n' +
-            '- "text" (Word / Documento formal en Canvas): Úsalo si el usuario pide explícitamente redactar o exportar en Canvas o en documento Word ("en un documento word", "en canvas", "crea el documento de política en canvas"). ESTÁ TERMINANTEMENTE PROHIBIDO activarlo para consultas ordinarias o explicativas del chat.\n' +
-            '- "excel" (Hoja de cálculo en Canvas): Úsalo si el usuario pide explícitamente una hoja de cálculo o grilla en Canvas ("haz una hoja de cálculo excel", "en un excel", "grilla de cálculo en canvas"). (Para Matriz de Peligros IPEVR / GTC-45, usa matriz_ipevar).\n' +
-            '- "presentation" (Presentación / Diapositivas en Canvas): Úsalo si el usuario pide explícitamente diapositivas o presentación en Canvas ("diapositivas", "presentación de diapositivas", "powerpoint", "slides en canvas").\n' +
-            '- "html" (Prototipo HTML / Aplicativo en Canvas): Úsalo si el usuario pide explícitamente un aplicativo interactivo o código HTML en Canvas ("aplicativo interactivo", "calculadora en html", "código html interactivo en canvas").',
+          'Tipo de archivo/lienzo del Canvas a crear o gestionar. Selecciónalo según la solicitud del usuario:\n' +
+            '- "text" (Word / Documento formal en Canvas): Úsalo si el usuario solicita crear un archivo en Word, un documento formal descargable o un documento en Canvas ("crea un archivo en word", "un documento en word", "redáctalo en un word", "créalo en canvas", "ábreme un lienzo de texto").\n' +
+            '- "excel" (Hoja de cálculo en Canvas): Úsalo si el usuario solicita crear un archivo en Excel, una hoja de cálculo, tabla con fórmulas o presupuesto ("crea un archivo en excel", "haz un excel", "en una hoja de cálculo", "un excel de..."). (Para Matriz IPEVAR / GTC-45, usa matriz_ipevar).\n' +
+            '- "presentation" (Presentación / Diapositivas en Canvas): Úsalo si el usuario solicita crear una presentación, diapositivas o material de capacitación ("crea una presentación", "haz diapositivas", "diseña una presentación", "powerpoint", "slides").\n' +
+            '- "html" (Aplicativo interactivo / Código en Canvas): Úsalo si el usuario solicita crear un aplicativo, calculadora, simulador, formulario interactivo o código web ("crea un aplicativo", "un aplicativo interactivo", "una calculadora en html", "desarrolla un aplicativo").\n' +
+            'IMPORTANTE: NUNCA uses ningún fileType si el usuario solo hace una pregunta o pide una explicación ordinaria en el chat.',
         ),
 
       title: z

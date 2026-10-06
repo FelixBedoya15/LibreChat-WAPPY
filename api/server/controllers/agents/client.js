@@ -1616,6 +1616,9 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       const CANVAS_APP_TRIGGERS = [
         'aplicativo', 'dashboard', 'canvas', 'lienzo', 'interactivo', 'calculadora',
         'componente html', 'interfaz web', 'aplicación interactiva', 'aplicacion interactiva',
+        'archivo en word', 'archivo word', 'documento en word', 'documento word', 'haz un word', 'crea un word',
+        'archivo en excel', 'archivo excel', 'hoja de cálculo', 'hoja de calculo', 'haz un excel', 'crea un excel',
+        'presentación', 'presentacion', 'diapositivas', 'powerpoint', 'slides',
         'diseñar', 'diseña'
       ];
 
