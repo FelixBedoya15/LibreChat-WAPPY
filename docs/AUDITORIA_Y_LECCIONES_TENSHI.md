@@ -357,6 +357,41 @@
 
 ---
 
+### LECCIÓN 11 (2026-10-06): Erradicación de Canvas Espurio, Descarte de Turnos de Texto por Colisión de Micrófono en Gemini Live y Sincronización de Voz Previa a la Acción
+
+#### A. Erradicación Definitiva de Canvas Espurio en Consultas Técnicas Ordinarias
+- **Síntoma Reportado:** Al formular consultas médicas u ocupacionales ordinarias en el chat (ej: *"¿Qué es el síndrome del manguito rotador y cuál es su mecanismo de lesión en el entorno laboral?"*), el agente especialista (ej: Fisioterapeuta Laboral) continuaba ejecutando la herramienta `canvas`, bloqueando la respuesta durante 30 a 40 segundos e incrustando el panel lateral de Canvas en pantalla sin haberlo solicitado.
+- **Causas Raíces Identificadas:**
+  1. **Inyección Incondicional de Prompt en `agent.js`:** En `api/server/services/Endpoints/agents/agent.js`, el backend inyectaba en `additional_instructions` para los 22 agentes (que tienen `canvas` configurado por defecto) la instrucción: `El Canvas está actualmente vacío para esta conversación. Si necesitas producir un informe, política, contrato u otro documento, debes inicializarlo/crearlo usando la directiva :::canvas`. Al recibir el agente una consulta técnica estructurada con solicitud de concepto detallado, el LLM interpretaba erróneamente que debía inicializar un Canvas formal.
+  2. **Sobrecarga de Redacción en Camino B (`CanvasTool.js`):** Al ejecutarse `canvas` con `fileType='text'`, `CanvasTool.js` invocaba a `gemini-3.6-flash` para sintetizar un documento de 3,500 tokens con tablas formales, consumiendo 30 segundos de tiempo de cómputo y bloqueando el chat.
+- **Solución Implementada:**
+  1. **Inversión de Prompt en `agent.js`:** Se eliminó la directiva permisiva y se sustituyó por una regla imperativa obligatoria (`[REGLA ESTRICTA DE ACTIVACIÓN DE CANVAS]`): queda estrictamente prohibido usar Canvas para responder dudas, preguntas o conceptos técnicos en el chat; Canvas se reserva ÚNICAMENTE para cuando el usuario pida explícitamente crear un archivo o abrir un lienzo (*"hazlo en canvas"*, *"crea un archivo en word"*, *"haz un excel"*, *"diapositivas"*, etc.).
+  2. **Guardia Preventiva Instantánea en `CanvasTool._call`:** En `api/app/clients/tools/structured/CanvasTool.js`, ante `accion === 'crear'`, se analiza el prompt del usuario. Si carece de intención explícita de creación de archivo/lienzo (`hasCanvasCreationIntent === false`), la herramienta rechaza de inmediato (1ms) la llamada devolviendo: `{"error": "CANVAS NO AUTORIZADO: El usuario formuló una consulta o concepto técnico en el chat sin solicitar explícitamente un archivo descargable ni un lienzo en Canvas. Responde DIRECTAMENTE en el cuerpo del chat en formato Markdown..."}`. Esto ahorra 30 segundos y obliga al LLM a emitir su dictamen de inmediato en el chat.
+
+#### B. Colisión de Streaming de Micrófono vs Turno de Texto en Gemini Live (Silencio de 84 segundos)
+- **Síntoma Reportado:** Al terminar el especialista de responder en el chat, Tenshi Voice permanecía en un silencio total durante más de 80 segundos. El usuario tenía que hablar al micrófono dos veces (*"¿Me escuchaste?"*, *"¿Qué respondió el agente?"*) para que Tenshi reaccionara.
+- **Causa Raíz:** En `client/src/components/Tenshi/TenshiChat.tsx`, al capturar el dictamen del especialista, el cliente enviaba el mensaje `[SISTEMA INTERNO WAPPY - RESPUESTA TÉCNICA EMITIDA]` por WebSocket. En `voiceSession.js`, se llamaba a `this.geminiClient.sendText(data.text)` (`clientContent` con `turnComplete: true`). Sin embargo, el micrófono del navegador seguía transmitiendo chunks de audio continuos (`case 'audio'`) porque `this.isAiSpeaking` aún era `false` (la síntesis de Google toma ~500ms en arrancar). En la API Google Multimodal Live, recibir frames de audio (`realtimeInput.mediaChunks`) inmediatamente después de un `clientContent` hace que el VAD de Google asuma que el usuario empezó a hablar por el micrófono, interrumpiendo o descartando el turno de texto inyectado. Por tanto, Google cancelaba la respuesta y Tenshi se quedaba mudo.
+- **Solución Implementada:**
+  1. En `api/server/routes/voice/voiceSession.js`, al enviar texto mediante `case 'message'`, se activa una ventana temporal de supresión de audio: `this.suppressClientAudioUntil = Date.now() + 3000`.
+  2. En `case 'audio'`, si la ventana está activa, se descarta el reenvío de chunks de audio del micrófono a Gemini Live durante esos segundos o hasta que `geminiClient.on('audio')` empiece a sonar.
+  3. Esto permite que Gemini Live procese y sintetice el turno de texto sin que el ruido ambiental descarte la respuesta, asegurando que Tenshi lea el dictamen del especialista al instante.
+
+#### C. Sincronización de Voz Previa a la Acción Visual ("Hablar primero, actuar después")
+- **Síntoma Reportado:** Al dar órdenes como *"abre un chat con el abogado"* o *"haz clic en generar análisis"*, la interfaz gráfica cambiaba al instante en 0ms, mientras que la voz de Tenshi tardaba ~450ms en empezar a sonar, provocando la sensación de que primero actuaba y luego hablaba a destiempo.
+- **Causa Raíz:** El renderizado de React y la navegación de URL (`navigate()`) o interacción DOM (`executeGUIAction`) ocurrían de forma síncrona e instantánea, mientras que los paquetes de audio PCM24 de Google requieren ~400ms de latencia de red y síntesis para iniciar la reproducción en el Web Audio API.
+- **Solución Implementada:**
+  1. En `client/src/components/Tenshi/TenshiChat.tsx`, se introdujo un retardo amortiguador intencional de 400 a 450ms en `wappy_navegar`, `wappy_abrir_chat_agente` y `operar_interfaz_visual`.
+  2. Este margen permite que la voz de Tenshi comience a escucharse en los altavoces de forma previa o simultánea a la transición de pantalla o clic en botones, eliminando por completo la disonancia visual y auditiva.
+
+#### D. Descontaminación de Contexto Histórico en Memoria de Tenshi Voice
+- **Síntoma Reportado:** Al estar en el Perfil Sociodemográfico y pedir generar el análisis, Tenshi comenzaba a hablar sobre riesgos psicosociales o patologías tratadas en turnos previos.
+- **Causa Raíz:** `recentConvos` inyectaba hasta 3,500 caracteres por mensaje de conversaciones pasadas con especialistas en el system instruction de Gemini Live, provocando que el modelo sufriera contaminación de contexto y mezclara temas de módulos distintos.
+- **Solución Implementada:**
+  1. Reducción de la carga textual de `recentConvos` a un máximo de 250 caracteres por mensaje y etiquetado explícito como `[ARCHIVADO - HISTORIAL PASADO DE OTRAS CONSULTAS (TEMAS CERRADOS)]`.
+  2. Refuerzo de la directiva de foco temático: el tema actual de Tenshi está delimitado exclusivamente por el último mensaje del usuario y la pantalla visible actual (`${humanScreen}`).
+
+---
+
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
 
 Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el chat:

@@ -1220,14 +1220,15 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const rawRuta = action.args?.ruta;
             const { targetRoute, targetSgsstModule } = resolveWappyDestination(rawModulo, rawRuta);
 
-            navigate(targetRoute);
-
-            // Emit live event so active SGSST Dashboard updates immediately without full page reload
-            if (targetSgsstModule) {
-              window.dispatchEvent(
-                new CustomEvent('navigate-sgsst', { detail: { module: targetSgsstModule } })
-              );
-            }
+            // Buffer temporal de 450ms para que la voz de Tenshi empiece a sonar antes del cambio visual en pantalla
+            setTimeout(() => {
+              navigate(targetRoute);
+              if (targetSgsstModule) {
+                window.dispatchEvent(
+                  new CustomEvent('navigate-sgsst', { detail: { module: targetSgsstModule } })
+                );
+              }
+            }, 450);
 
             resultMsg = `Navegación exitosa a ${targetRoute}`;
           } else if (action.name === 'wappy_abrir_chat_agente') {
@@ -1295,15 +1296,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 activeConsultationAgentNameRef.current = agentName;
                 activeConsultationConvoIdRef.current = conversation?.conversationId || 'current';
 
-                // Disparar auto-envío en el chat actual SIN recargar ni crear nuevo chat
-                window.dispatchEvent(
-                  new CustomEvent('tenshi-submit-agent-prompt', {
-                    detail: {
-                      agentId: targetAgentId,
-                      prompt: pregunta,
-                    },
-                  })
-                );
+                // Disparar auto-envío en el chat actual tras breve buffer de 450ms para que la voz de Tenshi empiece antes
+                setTimeout(() => {
+                  window.dispatchEvent(
+                    new CustomEvent('tenshi-submit-agent-prompt', {
+                      detail: {
+                        agentId: targetAgentId,
+                        prompt: pregunta,
+                      },
+                    })
+                  );
+                }, 450);
 
                 resultMsg = `Consulta enviada en el chat actual con ${agentName}: "${pregunta}". [AVISO CRÍTICO PARA TENSHI]: El especialista ya está analizando y respondiendo en pantalla. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. Limítate a confirmar en una sola frase breve que ya le transmitiste la consulta y que espere un momento a que responda.`;
               } else {
@@ -1330,21 +1333,23 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 params.set('prompt', pregunta);
                 params.set('submit', 'true');
 
-                // 3. Navegar canónicamente a /c/new para que useQueryParams tome el control
-                navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
-
-                // 4. Doble canal de garantía: emitir evento diferido tenshi-submit-agent-prompt
+                // 3. Buffer temporal de 450ms para que la voz de Tenshi empiece a hablar antes de cambiar de pantalla a /c/new
                 setTimeout(() => {
-                  window.dispatchEvent(
-                    new CustomEvent('tenshi-submit-agent-prompt', {
-                      detail: {
-                        agentId: targetAgentId,
-                        prompt: pregunta,
-                        nuevoChat: true,
-                      },
-                    })
-                  );
-                }, 400);
+                  navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
+
+                  // 4. Doble canal de garantía: emitir evento diferido tenshi-submit-agent-prompt
+                  setTimeout(() => {
+                    window.dispatchEvent(
+                      new CustomEvent('tenshi-submit-agent-prompt', {
+                        detail: {
+                          agentId: targetAgentId,
+                          prompt: pregunta,
+                          nuevoChat: true,
+                        },
+                      })
+                    );
+                  }, 400);
+                }, 450);
 
                 resultMsg = matchedAgent
                   ? `Chat nuevo abierto con ${matchedAgent.name} y consulta formulada con éxito en pantalla: "${pregunta}". [AVISO CRÍTICO PARA TENSHI]: El especialista apenas está analizando y empezando a redactar en la pantalla. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. Limítate a confirmar al usuario en una sola frase breve que ya le abriste el chat y le dejaste la pregunta en pantalla, y que espere a que el especialista termine de responder. NO inventes ni resumas la respuesta técnica.`
@@ -1429,6 +1434,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const screenText = getVisibleScreenContent(action.args?.seccion);
             resultMsg = screenText;
           } else if (action.name === 'operar_interfaz_visual') {
+            // Buffer de 400ms para permitir que la voz inicial de Tenshi empiece a sonar antes de pulsar el botón o manipular el DOM
+            await new Promise((resolve) => setTimeout(resolve, 400));
             const guiRes = await executeGUIAction(
               action.args.accion,
               action.args.indice,

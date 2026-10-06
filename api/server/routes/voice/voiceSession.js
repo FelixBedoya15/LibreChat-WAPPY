@@ -1389,13 +1389,13 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                                 const { Conversation, Message } = require('~/db/models');
                                 const convos = await Conversation.find({ user: { $in: userIds.map(String) } })
                                     .sort({ updatedAt: -1 })
-                                    .limit(3)
+                                    .limit(2)
                                     .select('conversationId title updatedAt agent_id')
                                     .lean();
 
                                 if (!convos || convos.length === 0) return [];
 
-                                // Consultar únicamente los últimos 2 mensajes por cada conversación para máxima velocidad y ligereza
+                                // Consultar únicamente el último mensaje clave por cada conversación para máxima ligereza y evitar desviar el tema actual
                                 return await Promise.all(
                                     convos.map(async (c) => {
                                         const msgs = await Message.find({ conversationId: c.conversationId })
@@ -1491,15 +1491,15 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         }
                     }
 
-                    // Inyectar síntesis de las últimas 2-3 conversaciones con especialistas (solo últimos 2 mensajes clave)
+                    // Inyectar síntesis muy breve de las últimas 1-2 conversaciones con especialistas (máximo 250 caracteres)
                     if (recentConvos && recentConvos.length > 0) {
-                        companyAndMemoryPrompt += '\n\n[HISTORIAL PASADO DE CONSULTAS CON ESPECIALISTAS (WAPPY)]:\n(Referencia histórica pasiva de consultas en otros chats. NO sustituyen ni deben interferir con el tema activo actual de la pantalla):';
+                        companyAndMemoryPrompt += '\n\n[ARCHIVADO - HISTORIAL PASADO DE OTRAS CONSULTAS (TEMAS CERRADOS)]:\n(ESTOS ANTECEDENTES PERTENECEN A CHATS PASADOS Y NO TIENEN NADA QUE VER CON LO QUE EL USUARIO HACE AHORA. ESTÁ TERMINANTEMENTE PROHIBIDO TRAER ESTOS TEMAS AL TURNO ACTUAL A MENOS QUE EL USUARIO PREGUNTE EXPLÍCITAMENTE POR ELLOS):';
                         for (const c of recentConvos) {
                             if (!c.messages || c.messages.length === 0) continue;
-                            companyAndMemoryPrompt += `\n- Consulta histórica: "${c.title}":`;
+                            companyAndMemoryPrompt += `\n- Consulta histórica archivada: "${c.title}":`;
                             for (const m of c.messages) {
                                 const sender = m.isCreatedByUser ? 'Usuario' : (m.sender || 'Especialista');
-                                const maxLen = m.isCreatedByUser ? 300 : 3500;
+                                const maxLen = m.isCreatedByUser ? 150 : 250;
                                 const text = (m.text || '').replace(/\s+/g, ' ').trim();
                                 const snippet = text.length > maxLen ? text.substring(0, maxLen) + '...' : text;
                                 if (snippet) {
@@ -1509,10 +1509,12 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         }
                     }
 
-                    companyAndMemoryPrompt += `\n\n[REGLAS DE CONOCIMIENTO CORPORATIVO Y CONTINUIDAD]:
-1. Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.
-2. Tienes memoria total de las conversaciones previas con el usuario en este widget y de las consultas que el usuario ha realizado con los distintos especialistas en los chats de WAPPY.
-3. Si el usuario te pregunta expresamente por conversaciones pasadas, te dice "¿qué hablamos antes?" o "¿recuérdame qué consultamos?", responde con base en los antecedentes con naturalidad, calidez y precisión técnica. PERO en la conversación ordinaria, peticiones de acción o preguntas de seguimiento, mantén el foco riguroso en el [HILO CONDUCTOR ACTIVO Y VIGENTE] y la pantalla visible. NUNCA digas que no recuerdas o que tu memoria fue reiniciada al prenderte o apagar el modo voz.`;
+                    companyAndMemoryPrompt += `\n\n[DIRECTIVA ABSOLUTA DE ENFOQUE TEMÁTICO Y CONTINUIDAD]:
+1. TU TEMA DE TRABAJO EN ESTE MOMENTO está 100% delimitado por la pantalla visible actual (${humanScreen}) y por lo que el usuario te acaba de pedir en el último turno.
+2. Si estás en el Perfil Sociodemográfico, habla EXCLUSIVAMENTE de demografía, nómina, cargos, trabajadores y condiciones de salud de ese módulo. NUNCA menciones riesgos psicosociales ni temas de otros hitos que se trataron en el pasado.
+3. El último mensaje del usuario marca el hilo conductor exacto. Prohibido saltar a antecedentes pasados archivados.
+4. Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.
+5. Si el usuario te pregunta expresamente por conversaciones pasadas ("¿qué hablamos antes?"), responde con base en los antecedentes con precisión. Pero en la conversación ordinaria, mantén el foco riguroso en el turno actual y la pantalla visible.`;
 
                     this.liveConfig.systemInstruction = (this.liveConfig.systemInstruction || '') + companyAndMemoryPrompt;
                     logger.info(`[VoiceSession] Injected active company, ${rawMemories?.length || 0} memories, ${recentTenshiMessages?.length || 0} Tenshi turns & ${recentConvos?.length || 0} specialist convos into Tenshi Voice instructions`);
@@ -1661,6 +1663,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
         // Listen for AUDIO from Gemini (AI voice response)
         this.geminiClient.on('audio', (audioData) => {
             this.isAiSpeaking = true;
+            this.suppressClientAudioUntil = null;
             // Forward audio to client for playback
             this.sendToClient({ type: 'audio', data: { audioData } });
 
@@ -2775,6 +2778,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
         this.geminiClient.on('turnComplete', () => {
             logger.info('[VoiceSession] ========== TURN COMPLETE ==========');
             this.isAiSpeaking = false;
+            this.suppressClientAudioUntil = null;
             if (this.aiSpeakingTimeout) {
                 clearTimeout(this.aiSpeakingTimeout);
                 this.aiSpeakingTimeout = null;
@@ -2793,6 +2797,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             logger.info('[VoiceSession] ========== USER INTERRUPTED RESPONSE ==========');
             this.toolCalledThisTurn = false;
             this.isAiSpeaking = false;
+            this.suppressClientAudioUntil = null;
             if (this.aiSpeakingTimeout) {
                 clearTimeout(this.aiSpeakingTimeout);
                 this.aiSpeakingTimeout = null;
@@ -2993,6 +2998,10 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                 }
                 // Do not forward client mic audio to Gemini while AI is speaking (prevents speaker echo)
                 if (this.isAiSpeaking) {
+                    break;
+                }
+                // Suprimir reenvío de audio del micrófono brevemente tras inyección de texto para permitir que Gemini Live sintetice la respuesta sin ser cancelado por ruido ambiental
+                if (this.suppressClientAudioUntil && Date.now() < this.suppressClientAudioUntil) {
                     break;
                 }
                 // Forward audio to Gemini
@@ -3240,6 +3249,9 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     }
                     
                     if (this.geminiClient) {
+                        // Suprimir reenvío de audio del micrófono durante 3 segundos para que Gemini Live
+                        // procese y sintetice el turno de texto sin ser interrumpido/descartado por el VAD ante ruido ambiental
+                        this.suppressClientAudioUntil = Date.now() + 3000;
                         this.geminiClient.sendText(data.text);
                     } else {
                         logger.warn('[VoiceSession] Received text message but Gemini client is not ready');
@@ -3251,6 +3263,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                 // User interrupted, stop current Gemini response
                 logger.info('[VoiceSession] Manual interrupt command received from client');
                 this.isAiSpeaking = false;
+                this.suppressClientAudioUntil = null;
                 if (this.geminiClient) {
                     this.geminiClient.interrupt();
                 }

@@ -272,7 +272,11 @@ IMPORTANTE:
         } else {
           canvasStatusPrompt = `
 # ESTADO ACTUAL DEL CANVAS (LIENZO):
-- El Canvas está actualmente vacío para esta conversación. Si necesitas producir un informe, política, contrato u otro documento, debes inicializarlo/crearlo usando la directiva \`:::canvas\`.
+- El Canvas está actualmente vacío para esta conversación.
+[REGLA ESTRICTA DE ACTIVACIÓN DE CANVAS]:
+Está TERMINANTEMENTE PROHIBIDO invocar la herramienta 'canvas' o emitir la directiva ':::canvas' para responder preguntas, dudas, conceptos médicos u ocupacionales, consultas normativas o explicaciones técnicas del chat.
+ÚNICAMENTE tienes permitido usar Canvas si el usuario ha solicitado EXPLÍCITAMENTE abrir un lienzo o crear un archivo descargable (ejemplos claros: "hazlo en canvas", "ábreme un canvas", "crea un archivo en word", "haz un excel", "diseña diapositivas", "crea un aplicativo en html").
+Para cualquier duda o solicitud ordinaria de concepto o explicación técnica, responde DIRECTAMENTE en el chat en formato Markdown de forma ágil y rápida.
 `;
         }
       } catch (err) {
@@ -286,13 +290,17 @@ IMPORTANTE:
 
     const canvasPrompt = `
 # INSTRUCCIONES DEL CANVAS (LIENZO DE TRABAJO DERECHO):
-El Canvas permite mostrar al usuario documentos, hojas de cálculo, diapositivas o código interactivo en un panel lateral derecho.
+El Canvas permite mostrar al usuario documentos descargables, hojas de cálculo, diapositivas o código interactivo en un panel lateral derecho.
+
+## 0. REGLA FUNDAMENTAL DE ACTIVACIÓN:
+- NUNCA uses Canvas para responder consultas normales, explicaciones técnicas o preguntas del chat. Responde siempre en el chat en Markdown.
+- ÚNICAMENTE utiliza Canvas si el usuario pide explícitamente crear un archivo o abrir un lienzo ("en canvas", "archivo en word", "haz un excel", "presentación en diapositivas", "crea un aplicativo interactivo").
 
 ## 1. LECTURA (Consultar documento existente):
-- Si el usuario menciona un documento preexistente y necesitas examinarlo, llama a la herramienta \`canvas\` con \`accion: "leer"\`.
+- Si el usuario menciona un documento preexistente en el Canvas y necesitas examinarlo, llama a la herramienta \`canvas\` con \`accion: "leer"\`.
 
-## 2. CREACIÓN (Inicializar un Canvas nuevo):
-Para crear un documento, hoja de cálculo, diapositivas o código nuevo desde cero, genera el bloque de marcas en tu respuesta de texto con esta sintaxis:
+## 2. CREACIÓN (Inicializar un Canvas nuevo tras solicitud expresa):
+Cuando el usuario pida EXPLÍCITAMENTE crear un archivo o lienzo nuevo, genera el bloque de marcas en tu respuesta de texto con esta sintaxis:
 
 :::canvas{identifier="unique-id" fileType="text|excel|presentation|html" title="Título del Documento"}
 [Tu contenido aquí en formato crudo sin comillas escapadas ni formateo JSON]
