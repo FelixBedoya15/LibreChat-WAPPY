@@ -16,6 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const SKILLS_DIR = path.resolve(__dirname, '../../../config/skills');
 const { resolveInspectionProtocol, INSPECTION_PROTOCOLS } = require('./inspectionProtocols');
+const { executeTenshiMcpTool, TOOL_ROUTES } = require('./tenshiMcpDispatcher');
 
 /**
  * Sanitizes voice transcription for common Spanish/SST phonetic misrecognitions
@@ -314,6 +315,43 @@ class VoiceSession {
                                     }
                                 },
                                 required: ["nombre_o_id"]
+                            }
+                        },
+                        {
+                            name: "wappy_mcp_sst",
+                            description: "Suite oficial de operaciones y consultas MCP del SG-SST de WAPPY (las 41 herramientas). Permite consultar o alimentar de forma autónoma: diagnóstico 360°, empresa, trabajadores, matriz GTC45, matriz PESV, matriz legal, estándares 0312, comités (COPASST, Convivencia, Brigadas), químicos SGA, vehículos, EPP, reportes de actos y condiciones, perfiles de cargo, casos ATEL, cronograma y tareas, capacitaciones, auditorías y automatizaciones.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    herramienta: {
+                                        type: "string",
+                                        description: "Nombre exacto de la herramienta MCP a ejecutar: 'wappy_resumen_general_360', 'wappy_consultar_perfil_empresa', 'wappy_actualizar_perfil_empresa', 'wappy_consultar_matriz_gtc45', 'wappy_alimentar_matriz_gtc45', 'wappy_consultar_matriz_pesv', 'wappy_alimentar_matriz_pesv', 'wappy_consultar_matriz_legal', 'wappy_registrar_requisito_legal', 'wappy_consultar_diagnostico_0312', 'wappy_evaluar_estandar_0312', 'wappy_consultar_trabajadores', 'wappy_registrar_trabajador', 'wappy_actualizar_trabajador', 'wappy_eliminar_trabajador', 'wappy_consultar_comites', 'wappy_registrar_miembro_comite', 'wappy_consultar_epp', 'wappy_registrar_entrega_epp', 'wappy_consultar_perfiles_cargo', 'wappy_guardar_perfil_cargo', 'wappy_consultar_inventario_quimico', 'wappy_registrar_producto_quimico', 'wappy_consultar_vehiculos', 'wappy_registrar_vehiculo', 'wappy_consultar_reportes_actos_condiciones', 'wappy_registrar_reporte_acto_condicion', 'wappy_consultar_casos_atel', 'wappy_registrar_caso_atel', 'wappy_consultar_cronograma_sst', 'wappy_crear_actividad_cronograma', 'wappy_actualizar_estado_tarea', 'wappy_consultar_capacitaciones', 'wappy_programar_capacitacion', 'wappy_consultar_auditorias', 'wappy_registrar_hallazgo_auditoria', 'wappy_consultar_agentes_y_automatizaciones', 'wappy_programar_automatizacion', 'wappy_consultar_conversaciones', 'wappy_consultar_mensajes_conversacion', 'wappy_consultar_archivos'."
+                                    },
+                                    parametros: {
+                                        type: "object",
+                                        description: "Argumentos u opciones para la herramienta.",
+                                        properties: {
+                                            id: { type: "string", description: "ID del elemento o registro" },
+                                            cedula: { type: "string", description: "Cédula o número de documento" },
+                                            nombre: { type: "string", description: "Nombre del elemento o persona" },
+                                            cargo: { type: "string", description: "Cargo del colaborador" },
+                                            filtro: { type: "string", description: "Criterio de filtro" },
+                                            estado: { type: "string", description: "Estado ('todo', 'in_progress', 'done', etc.)" },
+                                            datos: { type: "string", description: "Detalles adicionales en texto o JSON" }
+                                        }
+                                    }
+                                },
+                                required: ["herramienta"]
+                            }
+                        },
+                        {
+                            name: "wappy_resumen_general_360",
+                            description: "Diagnóstico 360° integral de la empresa en WAPPY: consulta en tiempo real el estado general, cantidad de trabajadores, riesgos GTC-45 y PESV, cumplimiento de matriz legal, puntaje de estándares 0312, comités, EPP, inventario químico, flota vehicular, incidentes ATEL y tareas pendientes del cronograma anual.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    dummy: { type: "string", description: "Parámetro opcional" }
+                                }
                             }
                         },
                         {
@@ -908,7 +946,7 @@ class VoiceSession {
     4. NUNCA digas que "es la respuesta exacta" si solo estás diciendo un micro-resumen. Sé transparente y cita la sustancia real.
 
 [ROL]:
-Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes control en tiempo real para abrir cualquier agente, navegar a cualquier sección, entrar a Google Drive y diligenciar formularios en pantalla.
+Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes control en tiempo real para abrir cualquier agente, navegar a cualquier sección, entrar a Google Drive, generar archivos Canvas y diligenciar formularios en pantalla. Además, cuentas con acceso directo a la SUITE TOTAL DE 41 OPERACIONES MCP DEL SG-SST (diagnóstico 360° total, empresa, colaboradores, matrices GTC-45 / PESV / Legal, estándares 0312, comités, inventario químico, vehículos, EPP, actos y condiciones, perfiles de cargo, casos ATEL, cronograma y capacitaciones). Invoca 'wappy_resumen_general_360' o 'wappy_mcp_sst' con la herramienta adecuada para consultar o gestionar los datos del usuario de forma inmediata y profesional.
 
 [HERRAMIENTAS]:
 1. **google_drive**: Tienes acceso directo a Google Drive mediante tu herramienta 'google_drive'.
@@ -2270,6 +2308,52 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                                     id: fc.id,
                                     name: fc.name,
                                     response: { error: `Error en consultar_analitica_actos_condiciones: ${actosErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo universal de operaciones MCP de WAPPY (las 41 herramientas oficiales)
+                    const isMcpCall =
+                        fc.name === 'wappy_mcp_sst' ||
+                        fc.name in TOOL_ROUTES ||
+                        (fc.name.startsWith('wappy_') &&
+                            !['wappy_navegar', 'wappy_seleccionar_empresa', 'wappy_diligenciar_formulario', 'wappy_abrir_chat_agente'].includes(fc.name));
+
+                    if (isMcpCall) {
+                        const targetTool = fc.name === 'wappy_mcp_sst' ? (fc.args?.herramienta || fc.args?.tool) : fc.name;
+                        const targetArgs = fc.name === 'wappy_mcp_sst' ? (fc.args?.parametros || fc.args?.args || fc.args || {}) : (fc.args || {});
+
+                        logger.info(`[VoiceSession] Gemini Live invoked WAPPY MCP tool "${targetTool}" with args:`, JSON.stringify(targetArgs));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: `Consultando ${targetTool.replace(/_/g, ' ')}...` }
+                        });
+
+                        try {
+                            const result = await executeTenshiMcpTool(targetTool, targetArgs, this.userId);
+                            const resultStr = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: { id: fc.id, name: targetTool, args: targetArgs, result }
+                            });
+
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: resultStr }
+                                }]);
+                            }
+                        } catch (mcpErr) {
+                            logger.error(`[VoiceSession] Error executing MCP tool "${targetTool}":`, mcpErr);
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en la operación ${targetTool}: ${mcpErr.message}` }
                                 }]);
                             }
                         }

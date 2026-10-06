@@ -76,6 +76,21 @@ const requireApiKeyAuth = async (req, res, next) => {
  * Hybrid middleware: accepts either an API Key (wpy_live_...) or standard JWT session.
  */
 const requireApiKeyOrJwt = async (req, res, next) => {
+  // Support for internal server services (like Tenshi Voice Session)
+  if (req.headers['x-internal-user-id']) {
+    const internalSecret = req.headers['x-internal-secret'];
+    const expectedSecret = process.env.JWT_SECRET || 'wappy-internal-secret';
+    if (internalSecret && internalSecret === expectedSecret) {
+      const User = mongoose.models.User || mongoose.model('User');
+      const user = await User.findById(req.headers['x-internal-user-id']).lean();
+      if (user) {
+        user.id = user._id.toString();
+        req.user = user;
+        return next();
+      }
+    }
+  }
+
   const authHeader = req.headers.authorization;
   const rawApiKey =
     req.headers['x-api-key'] ||
