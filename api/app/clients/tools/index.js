@@ -35,6 +35,7 @@ const OneDrive = require('./structured/OneDrive');
 const PuterImageGen = require('./structured/PuterImageGen');
 const GestorAutomatizaciones = require('./structured/GestorAutomatizaciones');
 const WebSearch = require('./structured/WebSearch');
+const GenerarImagenSST = require('./structured/GenerarImagenSST');
 
 module.exports = {
   ...manifest,
@@ -51,6 +52,7 @@ module.exports = {
   TavilySearchResults,
   createOpenAIImageTools,
   GoogleImageTools,
+  GenerarImagenSST,
   n8nWebhook,
   MatrizIPEVAR,
   MatrizPESV,

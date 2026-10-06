@@ -20,6 +20,12 @@ const tenshiMessageSchema = mongoose.Schema(
         htmlReport: {
             type: String,
         },
+        file: {
+            title: { type: String },
+            fileType: { type: String },
+            content: { type: String },
+            canvasId: { type: String },
+        },
     },
     { timestamps: true }
 );

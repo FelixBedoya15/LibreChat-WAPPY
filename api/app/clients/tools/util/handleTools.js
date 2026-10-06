@@ -57,6 +57,7 @@ const {
   OneDrive,
   PuterImageGen,
   GestorAutomatizaciones,
+  GenerarImagenSST,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -154,7 +155,7 @@ const loadToolWithAuth = (userId, authFields, ToolConstructor, options = {}) => 
  * @returns {Array<string>}
  */
 const getAuthFields = (toolKey) => {
-  return manifestToolMap[toolKey]?.authConfig.map((auth) => auth.authField) ?? [];
+  return manifestToolMap[toolKey]?.authConfig?.map((auth) => auth.authField) ?? [];
 };
 
 /**
@@ -305,6 +306,22 @@ const loadTools = async ({
     },
     gestor_automatizaciones: async (_toolContextMap) => {
       return new GestorAutomatizaciones({ req: options.req });
+    },
+    generar_imagen_sst: async (_toolContextMap) => {
+      return new GenerarImagenSST({
+        userId: user,
+        req: options.req,
+        isAgent: !!agent,
+        imageOutputType,
+      });
+    },
+    'google-image-gen': async (_toolContextMap) => {
+      return new GenerarImagenSST({
+        userId: user,
+        req: options.req,
+        isAgent: !!agent,
+        imageOutputType,
+      });
     },
   };
 

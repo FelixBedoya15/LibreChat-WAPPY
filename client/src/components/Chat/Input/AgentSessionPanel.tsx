@@ -236,6 +236,8 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
         consultar_analitica_psicosocial: 'Consultar Analítica Psicosocial',
         consultar_analitica_actos_condiciones: 'Analítica de Actos y Condiciones',
         gestor_automatizaciones: 'Automatizaciones',
+        generar_imagen_sst: 'Generador de Imágenes SST',
+        'google-image-gen': 'Generador de Imágenes',
         google_drive: 'Google Drive',
         google_calendar: 'Google Calendar',
         google_gmail: 'Google Gmail',

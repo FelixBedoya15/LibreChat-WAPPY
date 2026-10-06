@@ -998,6 +998,7 @@ class VoiceSession {
 [REGLA DE ORO DE VERACIDAD Y GROUNDING - PROHIBICIÓN DE AFIRMAR ACCIONES NO EJECUTADAS]:
 - ESTÁ TERMINANTEMENTE PROHIBIDO afirmar verbalmente que has creado un archivo, landing page, prototipo, o que has buscado en Google Drive o que has abierto un chat SI NO ESTÁS INVOCANDO EL TOOL CALL EN ESTE MISMO TURNO O SI NO HAS RECIBIDO SU RESULTADO EXITOSO.
 - NUNCA digas "¡Listo! Ya creé...", "Ya te compartí el documento...", "Ya desplegué...", "Ya busqué..." si no estás enviando el Tool Call correspondiente.
+- AL INVOCAR 'canvas_tool' O GENERAR DOCUMENTOS: Cuando invoques 'canvas_tool' para crear un documento, informe o archivo, di únicamente una frase breve de transición como: "Estoy redactando y compilando el documento en tu pantalla con las tablas correspondientes, dame un momento..." y ESPERA el resultado del tool call antes de confirmar que está listo. ESTÁ TERMINANTEMENTE PROHIBIDO decir "ya te lo generé", "ya está listo" o "lo tienes disponible" antes de recibir la confirmación exitosa de 'canvas_tool'.
 - DISTINCIÓN ESTRICTA ENTRE GOOGLE DRIVE Y CANVAS: Si el usuario te pide buscar en su Google Drive o te pregunta por qué no encontraste un archivo, o insiste en que sí tiene una política, matriz o documento guardado en su empresa o Drive ("¿Buscaste bien?"), NUNCA digas que creaste o compartiste un documento. En su lugar, INVOCA 'google_drive' con action: 'list_files_and_folders' y términos de búsqueda amplios o palabras clave raíz (ej: query: "politica", query: "sst", query: "matriz", o query: "" para listar los archivos recientes). ESTÁ ESTRICTAMENTE PROHIBIDO inventar que creaste un documento cuando el usuario está preguntando por sus archivos en Google Drive.
 - CONTINUIDAD CON EL ESPECIALISTA EN PANTALLA: Si ya estás con un especialista en pantalla (ej. Médico Laboral) y el usuario dice "dile que...", "pregúntale qué...", "continúa...", formula la nueva consulta al especialista con 'wappy_abrir_chat_agente'.
 - SI EL USUARIO DICE QUE NO VE NADA O QUE LA PANTALLA TIENE OTRO CONTENIDO: ESTÁ PROHIBIDO insistir ("le aseguro que está en su pantalla"); en su lugar, invoca DE INMEDIATO 'leer_pantalla' para verificar la realidad antes de contestar.
@@ -1470,6 +1471,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             this.setupGeminiHandlers();
 
             this.isActive = true;
+            this.sessionStartTime = Date.now();
             logger.info(`[VoiceSession] Started for user: ${this.userId}`);
             this.sendToClient({ type: 'status', data: { status: 'listening' } });
 
@@ -1767,8 +1769,8 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         const res = await this.executeCanvasTool(fc.args, userRequestText, fc.id);
 
                         const resultText = res.ok
-                            ? `ÉXITO: El archivo ${res.fileTypeLabel} "${res.finalTitle}" fue creado y quedó en el chat de Tenshi con botón de descarga y en el lienzo Canvas. Confírmalo al usuario en UNA sola frase breve en español, sin leer el contenido y sin añadir advertencias.`
-                            : `FALLO: NO se pudo crear el archivo ${res.fileTypeLabel} "${fc.args?.title}". Motivo: ${res.failReason}. Dile honestamente al usuario en español que no se pudo crear y ofrécele intentarlo de nuevo. PROHIBIDO decir que el archivo está en pantalla.`;
+                            ? `[INSTRUCCIÓN ESTRICTA EN ESPAÑOL]: Confirma al usuario ÚNICAMENTE en español en una sola frase breve y directa: "¡Listo! Ya te generé el ${res.fileTypeLabel} '${res.finalTitle}' en pantalla y tienes los botones para descargarlo o visualizarlo." ESTÁ TERMINANTEMENTE PROHIBIDO RESPONDER EN INGLÉS.`
+                            : `[INSTRUCCIÓN ESTRICTA EN ESPAÑOL]: Dile al usuario honestamente en español: "No se pudo crear el archivo '${fc.args?.title}': ${res.failReason}."`;
                         this.sendGeminiToolResponse([{
                             id: fc.id,
                             name: fc.name,

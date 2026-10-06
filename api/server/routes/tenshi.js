@@ -131,7 +131,14 @@ router.get('/history', requireJwtAuth, async (req, res) => {
         const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
         const userIds = [req.user.id, targetUserId].filter(Boolean);
         const history = await TenshiMessage.find({ user: { $in: userIds } }).sort({ createdAt: 1 }).lean();
-        res.json(history.map(m => ({ _id: m._id, role: m.role, content: m.content, htmlReport: m.htmlReport })));
+        res.json(history.map(m => ({
+            _id: m._id,
+            role: m.role,
+            content: m.content,
+            htmlReport: m.htmlReport,
+            file: m.file,
+            createdAt: m.createdAt,
+        })));
     } catch (error) {
         console.error('Error fetching Tenshi history:', error);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -140,7 +147,7 @@ router.get('/history', requireJwtAuth, async (req, res) => {
 
 router.post('/message', requireJwtAuth, async (req, res) => {
     try {
-        const { role = 'assistant', content, htmlReport } = req.body;
+        const { role = 'assistant', content, htmlReport, file } = req.body;
         if (!content || !content.trim()) {
             return res.status(400).json({ error: 'Content is required' });
         }
@@ -149,6 +156,7 @@ router.post('/message', requireJwtAuth, async (req, res) => {
             role,
             content: content.trim(),
             htmlReport,
+            file,
         });
         res.json(newMsg);
     } catch (error) {

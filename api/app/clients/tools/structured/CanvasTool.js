@@ -347,10 +347,10 @@ ${toolsContext ? `## DATOS DE HERRAMIENTAS PREVIAS:\n${toolsContext}\n` : ''}
 ${stringContent ? `## BORRADOR O BASE INICIAL SUMINISTRADA:\n${stringContent}\n` : ''}
 
 ## REGLAS TÉCNICAS OBLIGATORIAS (SG-SST COLOMBIA):
-1. EXTENSIÓN Y PROFUNDIDAD: El documento debe ser completo, profundo y detallado (mínimo 1,200 a 2,500 palabras de desarrollo técnico real). ESTÁ PROHIBIDO generar resúmenes telegráficos de 2 párrafos.
+1. EXTENSIÓN Y DENSIDAD TÉCNICA: Documento formal y exhaustivo pero conciso y ágil (alrededor de 800 a 1,200 palabras de desarrollo técnico sustancial, sin rellenos redundantes).
 2. MARCO LEGAL VIGENTE: Fundamenta con rigor en la legislación colombiana aplicable (Decreto Único Reglamentario 1072 de 2015 Libro 2 Parte 2 Título 4 Capítulo 6, Resolución 0312 de 2019 - Estándares Mínimos, Ley 1562 de 2012, y normas técnicas específicas como GTC 45, NTC o resoluciones sectoriales según el tema).
 3. INCLUSIÓN OBLIGATORIA DE TABLAS TÉCNICAS (MÍNIMO 2 A 3 TABLAS ESTRUCTURADAS EN FORMATO MARKDOWN):
-   - Cada tabla debe tener encabezados claros y al menos 4 a 6 filas de datos realistas y coherentes con la empresa y su actividad económica.
+   - Cada tabla debe tener encabezados claros y 3 a 5 filas de datos realistas y coherentes con la empresa y su actividad económica.
    - TABLA 1: Diagnóstico Demográfico y Población Trabajadora Expuesta (Variables: Grupo de Edad, Género, Nivel de Escolaridad, Cargos Críticos, Sede, % Población, Horarios/Turnos).
    - TABLA 2: Matriz de Hallazgos Ocupacionales, Factores de Peligro y Efectos en Salud (Variables: Proceso/Área, Factor de Riesgo identificado, Fuente generadora, Posibles efectos en la salud, Nivel de Deficiencia/Exposición/Riesgo, Prioridad).
    - TABLA 3: Plan de Intervención Prioritaria con Jerarquía de Controles (Variables: Medida de intervención clasificada por Jerarquía [Eliminación, Sustitución, Ingeniería, Administrativo, EPP], Meta/Indicador, Responsable de Ejecución, Periodicidad/Fecha de Cumplimiento).
@@ -370,7 +370,9 @@ ${stringContent ? `## BORRADOR O BASE INICIAL SUMINISTRADA:\n${stringContent}\n`
   try {
     const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
     logger.info('[CanvasTool Camino B - Text] Delegando redacción técnica de informe a gemini-3.6-flash (Rotación completa)...');
-    const result = await generateWithKeyRotation('gemini-3.6-flash', userId, prompt);
+    const result = await generateWithKeyRotation('gemini-3.6-flash', userId, prompt, null, {
+      generationConfig: { maxOutputTokens: 3500 },
+    });
     const response = await result?.response;
     let generatedReport = response?.text ? response.text() : '';
 

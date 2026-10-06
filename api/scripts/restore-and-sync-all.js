@@ -122,7 +122,8 @@ const DEFAULT_TOOLS = [
   'canvas',
   'web_search',
   'consultar_agente_especializado',
-  'gestor_automatizaciones'
+  'gestor_automatizaciones',
+  'generar_imagen_sst'
 ];
 
 async function main() {
@@ -334,8 +335,9 @@ ${cleanContent}
   * **EXCEPCIÓN CRÍTICA - MATRIZ DE PELIGROS / IPEVR (GTC-45):** Para la identificación, evaluación y valoración de peligros GTC-45 (matriz de peligros, matriz ipevr, evaluación de riesgos), está TERMINANTEMENTE PROHIBIDO usar la herramienta \`canvas\`. DEBES usar SIEMPRE y EXCLUSIVAMENTE la herramienta \`matriz_ipevar\` (\`accion: "escribir"\`) para que los registros se sincronicen directamente con la base de datos y se reflejen en tiempo real en la tabla Matriz IPEVR Live.`;
     const conciseResponseRule = `\n\n⚠️ REGLA DE CONCISIÓN: Si la solicitud del usuario es un saludo, una pregunta corta o un cambio simple en algún editor o herramienta, responde directamente de forma concisa y sin extender tu proceso de razonamiento.`;
     const automationToolRule = `\n\n⚠️ REGLA DE ORO DE AUTOMATIZACIONES (gestor_automatizaciones): Si el usuario te pide automatizar, programar una tarea periódica, revisar periódicamente carpetas de Google Drive, monitorear indicadores, inspecciones o auditorías recurrentes, NO te limites a dar explicaciones teóricas ni a redactar scripts de Apps Script en Canvas si la herramienta \`gestor_automatizaciones\` está disponible o activa. DEBES llamar a \`gestor_automatizaciones\` con \`accion: "crear"\` para registrar y programar la tarea en el sistema de WAPPY (/sgsst/automatizaciones). Si no se indica hora o frecuencia, asume valores óptimos (ej. diario a las 8:00 AM) y confírmalos al usuario.`;
+    const imageGenRule = `\n\n⚠️ REGLA DE ORO DE GENERACIÓN DE IMÁGENES (generar_imagen_sst): Si el usuario te pide dibujar, ilustrar, generar una imagen, afiche o recrear visualmente una escena laboral, inspección de seguridad, trabajador con EPP (casco, gafas, arnés), simulacro de emergencia o accidente, DEBES llamar INMEDIATAMENTE a la herramienta \`generar_imagen_sst\` con un prompt descriptivo, técnico y fotorrealista. NUNCA respondas diciendo que eres un modelo de solo texto o que no puedes generar imágenes.`;
     
-    const finalInstructions = mdContent + searchWebRule + wappyCardRule + formatVisualRule + conciseResponseRule + automationToolRule;
+    const finalInstructions = mdContent + searchWebRule + wappyCardRule + formatVisualRule + conciseResponseRule + automationToolRule + imageGenRule;
     
     let tools = [...DEFAULT_TOOLS];
     
