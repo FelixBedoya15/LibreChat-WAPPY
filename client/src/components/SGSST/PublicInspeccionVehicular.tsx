@@ -224,8 +224,12 @@ export default function PublicInspeccionVehicular() {
       const template = GET_CHECKLIST_TEMPLATE(currentVehicle.tipo || 'Automóvil');
       setChecklist(template);
       setKilometraje(currentVehicle.kilometrajeActual ? currentVehicle.kilometrajeActual + 5 : 0);
+    } else if (!loadingFleet && fleet.length === 0) {
+      // Si no hay vehículos registrados, cargar la plantilla estándar para demostración y guía técnica
+      const demoTemplate = GET_CHECKLIST_TEMPLATE('Automóvil');
+      setChecklist(demoTemplate);
     }
-  }, [currentVehicle]);
+  }, [currentVehicle, loadingFleet, fleet.length]);
 
   // Calculate legal document statuses
   const soatStatus = useMemo(() => getDaysUntil(currentVehicle?.soatVencimiento), [currentVehicle]);
@@ -234,12 +238,15 @@ export default function PublicInspeccionVehicular() {
   // Calculate inspection outcome:
   // If ANY critical item is 'Malo', or SOAT is expired, or Tecno is expired -> 'Rechazado'
   const computedResultado = useMemo(() => {
+    if (!currentVehicle) {
+      return 'Sin Vehículo';
+    }
     const hasCriticalFail = checklist.some(item => item.critico && item.estado === 'Malo');
     if (hasCriticalFail || soatStatus.isExpired || tecnoStatus.isExpired) {
       return 'Rechazado';
     }
     return 'Aprobado';
-  }, [checklist, soatStatus, tecnoStatus]);
+  }, [checklist, soatStatus, tecnoStatus, currentVehicle]);
 
   const handleToggleItem = (id: string, nuevoEstado: 'Bueno' | 'Malo') => {
     setChecklist(prev => prev.map(it => it.id === id ? { ...it, estado: nuevoEstado } : it));
@@ -301,9 +308,11 @@ export default function PublicInspeccionVehicular() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-text-primary flex flex-col font-sans">
       <PublicWorkerHeader 
-        companyId={companyId}
-        moduleTitle="Inspección Preoperacional PESV"
-        currentPath={`/sgsst-public/inspeccion-vehicular/${companyId}`}
+        companyId={companyId || ''}
+        currentModule="pesv"
+        title="Inspección Preoperacional Diaria PESV"
+        subtitle="Paso 16 • Res. 20223040040595"
+        workerCedula={conductorCedula}
       />
 
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6 space-y-6">
@@ -571,21 +580,43 @@ export default function PublicInspeccionVehicular() {
                     <CheckCircle2 className="w-4 h-4 text-blue-600" /> Lista de Chequeo Técnico (Paso 16 PESV)
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-zinc-400">
-                    Adaptada automáticamente para: <strong className="text-slate-800 dark:text-zinc-200">{currentVehicle?.tipo || 'Vehículo'}</strong>
+                    {currentVehicle ? (
+                      <>Adaptada automáticamente para: <strong className="text-slate-800 dark:text-zinc-200">{currentVehicle.tipo}</strong> ({currentVehicle.placa})</>
+                    ) : (
+                      <>Plantilla modelo de referencia: <strong className="text-slate-800 dark:text-zinc-200">Automóvil / Camioneta</strong> (Modo Guía PESV)</>
+                    )}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-                    computedResultado === 'Aprobado'
-                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
-                      : 'bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/30'
-                  }`}>
-                    {computedResultado === 'Aprobado' ? <Check className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-                    Resultado: {computedResultado}
-                  </span>
+                  {currentVehicle ? (
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                      computedResultado === 'Aprobado'
+                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                        : 'bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/30'
+                    }`}>
+                      {computedResultado === 'Aprobado' ? <Check className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                      Resultado: {computedResultado}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Modo Guía (Sin Vehículo)
+                    </span>
+                  )}
                 </div>
               </div>
+
+              {fleet.length === 0 && (
+                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5 text-xs">
+                    <p className="font-bold">Vista previa de la lista de chequeo estándar según Paso 16 del PESV</p>
+                    <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                      Actualmente no hay vehículos registrados en la Hoja de Vida PESV de la empresa. Para radicar una inspección oficial, el área de SST debe ingresar los automotores en el aplicativo o activar la <strong>Flota Modelo PESV</strong>. Abajo puedes explorar los ítems obligatorios.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Items del Checklist agrupados */}
               <div className="divide-y divide-slate-100 dark:divide-zinc-800">
@@ -696,7 +727,9 @@ export default function PublicInspeccionVehicular() {
                 type="submit"
                 disabled={submitting || !currentVehicle}
                 className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm shadow-md transition-all active:scale-95 text-white disabled:opacity-50 disabled:cursor-not-allowed ${
-                  computedResultado === 'Aprobado'
+                  !currentVehicle
+                    ? 'bg-slate-500 cursor-not-allowed'
+                    : computedResultado === 'Aprobado'
                     ? 'bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600'
                     : 'bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600'
                 }`}
@@ -704,6 +737,10 @@ export default function PublicInspeccionVehicular() {
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" /> Guardando Inspección...
+                  </>
+                ) : !currentVehicle ? (
+                  <>
+                    <AlertTriangle className="w-4 h-4" /> Registra o selecciona un vehículo para radicar
                   </>
                 ) : (
                   <>

@@ -16,14 +16,19 @@ import {
   MessageSquare,
   LayoutGrid,
   Vote,
+  ArrowLeft,
+  Package,
+  Car,
 } from 'lucide-react';
 
 interface PublicWorkerHeaderProps {
   companyId: string;
   companyName?: string;
   companyLogo?: string | null;
-  currentModule?: 'colaborador' | 'ipevar' | 'reportar' | 'animo' | 'estudio_puesto' | 'comites' | 'convivencia' | 'perfil_update' | 'lms' | string;
+  currentModule?: 'colaborador' | 'ipevar' | 'reportar' | 'animo' | 'estudio_puesto' | 'comites' | 'convivencia' | 'perfil_update' | 'lms' | 'epp' | 'pesv' | string;
   currentApp?: string;
+  moduleTitle?: string;
+  currentPath?: string;
   title?: string;
   subtitle?: string;
   workerCedula?: string;
@@ -161,15 +166,6 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
       groupTitle: 'Participación, Comités y Convivencia',
       items: [
         {
-          id: 'comites',
-          name: 'Comités & Brigadas',
-          desc: 'Firma de asistencia para COPASST, COCOLAB, Brigada y PESV',
-          icon: UserCheck,
-          path: `/sgsst-public/comites/${companyId}`,
-          color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800',
-          badge: '+25 pts',
-        },
-        {
           id: 'votaciones',
           name: 'Votaciones Paritarias (Voto Secreto)',
           desc: 'Elige tus representantes COPASST y Convivencia',
@@ -179,6 +175,15 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
           badge: '+20 pts',
         },
         {
+          id: 'comites',
+          name: 'Comités & Brigadas',
+          desc: 'Firma de asistencia para COPASST, COCOLAB, Brigada y PESV',
+          icon: UserCheck,
+          path: `/sgsst-public/comites/${companyId}`,
+          color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800',
+          badge: '+25 pts',
+        },
+        {
           id: 'convivencia',
           name: 'Canal Confidencial de Convivencia',
           desc: 'Radicación protegida de quejas (Ley 1010 y Ley 2365)',
@@ -186,6 +191,29 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
           path: `/sgsst-public/convivencia/${companyId}`,
           color: 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/40 border-violet-200 dark:border-violet-800',
           badge: 'Seguro',
+        },
+      ],
+    },
+    {
+      groupTitle: 'Dotación, EPP y Seguridad Vial',
+      items: [
+        {
+          id: 'epp',
+          name: 'Solicitud y Reposición de EPP',
+          desc: 'Solicita dotación y consulta el estado en bodega',
+          icon: Package,
+          path: `/sgsst-public/solicitud-epp/${companyId}`,
+          color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800',
+          badge: '+25 pts',
+        },
+        {
+          id: 'pesv',
+          name: 'Inspección Preoperacional PESV',
+          desc: 'Inspección técnica diaria de automotores (Paso 16)',
+          icon: Car,
+          path: `/sgsst-public/inspeccion-vehicular/${companyId}`,
+          color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800',
+          badge: '+40 pts',
         },
       ],
     },
@@ -204,6 +232,8 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
       ],
     },
   ];
+
+  const isHub = typeof window !== 'undefined' && window.location.pathname.includes('/sgsst-public/colaborador');
 
   return (
     <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-surface-primary/90 dark:bg-slate-900/90 border-b border-border-medium/60 shadow-sm transition-all">
@@ -241,18 +271,17 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
 
         {/* Action Pills */}
         <div className="flex items-center gap-2">
-          {/* Botón Pasaporte SST (expandible) */}
-          {activeModule !== 'colaborador' && (
+          {/* Botón Volver al Panel de Gamificación (Visible en TODOS los módulos fuera del Hub) */}
+          {!isHub && (
             <button
               type="button"
               onClick={() => navigate(`/sgsst-public/colaborador/${companyId}${resolvedCedula ? `/${encodeURIComponent(resolvedCedula)}` : ''}`)}
-              title="Mi Pasaporte SST (Puntos & Perfil)"
-              className="group flex items-center justify-center h-8 sm:h-9 min-w-[34px] px-2.5 rounded-xl text-xs font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-all duration-300 active:scale-95 shadow-2xs cursor-pointer"
+              title="Volver a Mi Pasaporte SST (Panel del Colaborador)"
+              className="flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl text-xs font-bold bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/60 shadow-2xs transition-all active:scale-95 cursor-pointer"
             >
-              <Award className="w-3.5 h-3.5 shrink-0" />
-              <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap">
-                Mis Puntos
-              </span>
+              <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+              <Award className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span className="inline font-bold whitespace-nowrap">Panel Gamificación</span>
             </button>
           )}
 
@@ -291,6 +320,25 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
                       <X className="w-4 h-4" />
                     </button>
                   </div>
+
+                  {!isHub && (
+                    <div className="p-1 border-b border-border-medium/60">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          navigate(`/sgsst-public/colaborador/${companyId}${resolvedCedula ? `/${encodeURIComponent(resolvedCedula)}` : ''}`);
+                        }}
+                        className="w-full p-2.5 rounded-xl bg-gradient-to-r from-teal-600/10 via-emerald-600/10 to-transparent border border-teal-500/30 text-teal-800 dark:text-teal-200 flex items-center justify-between text-xs font-bold hover:bg-teal-500/20 transition-all text-left cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <ArrowLeft className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                          <Award className="w-4 h-4 text-amber-500" />
+                          <span>Volver a Mi Pasaporte SST</span>
+                        </div>
+                      </button>
+                    </div>
+                  )}
 
                   <div className="space-y-2.5 pt-1">
                     {moduleGroups.map((group) => (

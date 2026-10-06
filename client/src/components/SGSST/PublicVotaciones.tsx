@@ -157,7 +157,13 @@ export default function PublicVotaciones() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-zinc-100 flex flex-col font-sans transition-colors">
-      <PublicWorkerHeader companyId={companyId || ''} companyName={company?.companyName} />
+      <PublicWorkerHeader 
+        companyId={companyId || ''} 
+        companyName={company?.companyName}
+        companyLogo={company?.logo}
+        currentModule="votaciones"
+        title="Elecciones Paritarias SST"
+      />
 
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 md:p-8 space-y-6">
         <WorkerSessionBadge companyId={companyId || ''} />

@@ -3708,7 +3708,9 @@ router.get('/pesv/vehiculos-activos/:companyId', async (req, res) => {
     }
 
     const SgsstVehicleData = require('../../../models/SgsstVehicleData');
-    const vehiculos = await SgsstVehicleData.find({ companyId: company._id })
+    const companyQueries = [{ companyId: company._id }];
+    if (company.user) companyQueries.push({ user: company.user });
+    const vehiculos = await SgsstVehicleData.find({ $or: companyQueries })
       .select('placa marca referencia modelo anio tipo conductorId conductorNombre soatVencimiento tecnomecanicaVencimiento kilometrajeActual ultimoMantenimiento')
       .lean();
 
@@ -3749,10 +3751,9 @@ router.post('/pesv/inspeccion-diaria/:companyId', async (req, res) => {
     const SgsstVehicleData = require('../../../models/SgsstVehicleData');
 
     // CRUCE ESTRICTO CON HOJA DE VIDA DE AUTOMOTORES
-    const vehicle = await SgsstVehicleData.findOne({
-      companyId: company._id,
-      placa: cleanPlaca
-    });
+    const matchQueries = [{ companyId: company._id, placa: cleanPlaca }];
+    if (company.user) matchQueries.push({ user: company.user, placa: cleanPlaca });
+    const vehicle = await SgsstVehicleData.findOne({ $or: matchQueries });
 
     if (!vehicle) {
       return res.status(400).json({

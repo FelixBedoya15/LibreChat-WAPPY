@@ -64,7 +64,17 @@ export default function PublicSolicitudEpp() {
   const navigate = useNavigate();
   const { session, worker: sessionWorker, isAuthenticated, saveSession } = useWorkerSession(companyId);
 
-  const [activeTab, setActiveTab] = useState<'solicitar' | 'historial'>('solicitar');
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialTab = searchParams.get('tab') === 'historial' ? 'historial' : 'solicitar';
+  const [activeTab, setActiveTab] = useState<'solicitar' | 'historial'>(initialTab);
+
+  useEffect(() => {
+    const qTab = new URLSearchParams(window.location.search).get('tab');
+    if (qTab === 'historial' || qTab === 'solicitar') {
+      setActiveTab(qTab);
+    }
+  }, [window.location.search]);
+
   const [loading, setLoading] = useState(false);
   const [catalog, setCatalog] = useState<EppCatalogItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
@@ -232,9 +242,11 @@ export default function PublicSolicitudEpp() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-text-primary flex flex-col font-sans">
       <PublicWorkerHeader 
-        companyId={companyId}
-        moduleTitle="Solicitud y Dotación de EPP"
-        currentPath={`/sgsst-public/solicitud-epp/${companyId}`}
+        companyId={companyId || ''}
+        currentModule="epp"
+        title="Solicitud y Reposición de EPP"
+        subtitle="Dotación, reposición por desgaste y trazabilidad en almacén"
+        workerCedula={documento}
       />
 
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 space-y-6">
