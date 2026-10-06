@@ -369,10 +369,12 @@ ${stringContent ? `## BORRADOR O BASE INICIAL SUMINISTRADA:\n${stringContent}\n`
 
   try {
     const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
-    logger.info('[CanvasTool Camino B - Text] Delegando redacción técnica de informe a gemini-3.6-flash (Rotación completa)...');
-    const result = await generateWithKeyRotation('gemini-3.6-flash', userId, prompt, null, {
-      generationConfig: { maxOutputTokens: 3500 },
-    });
+    const result = await generateWithKeyRotation(
+      { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 3500 } },
+      userId,
+      prompt,
+      { generationConfig: { maxOutputTokens: 3500 } }
+    );
     const response = await result?.response;
     let generatedReport = response?.text ? response.text() : '';
 

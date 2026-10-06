@@ -404,6 +404,8 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
    - Tienes control y acceso sobre la totalidad de los 34 aplicativos de Somos SST: Perfiles de Cargo ('cargos'), Estudio de Puesto de Trabajo ('estudio_puesto'), Auditoría Interna ('auditoria'), Diagnóstico Res. 0312 ('diagnostico'), Matriz GTC-45 / IPEVAR, PESV, Químicos SGA, Alturas, ATS, EPP, Capacitaciones, Reglamentos RIT/RHS, etc., pudiendo actualizarlos con 'editar_cualquier_aplicativo' y disparar tareas con 'crear_actividad_acpm'.
 5. **GESTIÓN DIRECTA DE COLABORADORES Y NÓMINA SG-SST (HUELLA BIOCÉNTRICA)**:
    - TIENES HERRAMIENTAS DIRECTAS PARA CONTROL TOTAL DE COLABORADORES:
+     * 'wappy_reintegrar_trabajador': Cuando el usuario te pida reintegrar, reactivar, volver a contratar, reincorporar o pasar a activo a un trabajador previamente retirado (ej: "reintegrar al trabajador Jorge Enrique Pineda" o "reactivar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_reintegrar_trabajador' con su nombre o cédula. El sistema restaurará su estado laboral a 'Activo' en la base de datos y refrescará la plataforma.
+     * ESTÁ TERMINANTEMENTE PROHIBIDO afirmar que ya reintegraste a un colaborador sin antes invocar 'wappy_reintegrar_trabajador'.
      * 'wappy_retirar_trabajador': Cuando el usuario te pida retirar, desvincular, dar de baja o sacar a un trabajador (ej: "dejar como retirado a Jorge Ricky Pineda" o "retirar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_retirar_trabajador' con su nombre o cédula. El sistema conservará su historial médico y ocupacional de 20 años y lo trasladará a la pestaña 'Retirados'.
      * ESTÁ TERMINANTEMENTE PROHIBIDO decir que no tienes una función para cambiar el estado de un colaborador a 'retirado'. ¡TIENES la función 'wappy_retirar_trabajador'!
      * 'wappy_actualizar_trabajador': Para editar cargos, salarios, áreas, sedes o estado de un trabajador.
@@ -1102,6 +1104,19 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyReintegrarTrabajadorDeclaration = {
+                name: 'wappy_reintegrar_trabajador',
+                description: 'Reintegra, reactiva o vuelve a pasar a estado ACTIVO a un trabajador previamente retirado en el SG-SST (Huella Biocéntrica / Perfil Sociodemográfico), limpiando su fecha de retiro y actualizando su estado laboral a "Activo". Invócala de inmediato cuando el usuario te pida reintegrar, reactivar o volver a contratar a un colaborador.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        idOrCedula: { type: 'STRING', description: 'Cédula, ID o nombre del trabajador a reintegrar (ej: "80123456" o "Jorge Enrique Pineda").' },
+                        nombre: { type: 'STRING', description: 'Nombre del trabajador si se conoce.' }
+                    },
+                    required: ['idOrCedula']
+                }
+            };
+
             const wappyActualizarTrabajadorDeclaration = {
                 name: 'wappy_actualizar_trabajador',
                 description: 'Actualiza los datos de un trabajador en el SG-SST (cargo, área, sede, salario, estado laboral "Activo" o "Retirado", EPS, AFP, teléfono, etc.).',
@@ -1182,6 +1197,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyNavegarDeclaration,
                 somosSSTDeclaration,
                 wappyRetirarTrabajadorDeclaration,
+                wappyReintegrarTrabajadorDeclaration,
                 wappyActualizarTrabajadorDeclaration,
                 wappyConsultarTrabajadoresDeclaration,
                 wappyRegistrarTrabajadorDeclaration,
@@ -1389,6 +1405,17 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         direccion: c.args.direccion
                                     }));
                                     requestedGuiAction = requestedGuiActions[0]; // fallback
+                                } else if (call.name === 'wappy_reintegrar_trabajador' || call.name === 'wappy_reactivar_trabajador') {
+                                    const rawArgs = call.args || {};
+                                    const target = rawArgs.idOrCedula || rawArgs.id || rawArgs.cedula || rawArgs.nombre || rawArgs.identificacion || rawArgs.target || '';
+                                    const argsToSend = {
+                                        ...rawArgs,
+                                        idOrCedula: target,
+                                        id: target,
+                                        nombre: rawArgs.nombre || target
+                                    };
+                                    const res = await executeTenshiMcpTool('wappy_reintegrar_trabajador', argsToSend, targetUserId);
+                                    toolOutput = JSON.stringify(res);
                                 } else if (call.name === 'wappy_retirar_trabajador' || call.name === 'wappy_eliminar_trabajador') {
                                     const rawArgs = call.args || {};
                                     const target = rawArgs.idOrCedula || rawArgs.id || rawArgs.cedula || rawArgs.nombre || rawArgs.identificacion || rawArgs.target || '';

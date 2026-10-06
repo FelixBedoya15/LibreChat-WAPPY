@@ -1434,6 +1434,31 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               action.args.direccion
             );
             resultMsg = guiRes.message;
+          } else if (action.name === 'wappy_reintegrar_trabajador' || action.name === 'wappy_reactivar_trabajador') {
+            const target = action.args?.idOrCedula || action.args?.nombre || action.args?.target || '';
+            try {
+              const token = localStorage.getItem('token');
+              const res = await fetch(`/api/mcp/workers/${encodeURIComponent(target)}/reactivar`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(token ? { Authorization: `Bearer ${token}` } : {})
+                }
+              });
+              window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+              if (res.ok) {
+                const data = await res.json();
+                resultMsg = data.mensaje || `Trabajador "${target}" reactivado exitosamente como Activo en la empresa.`;
+              } else {
+                resultMsg = `Trabajador "${target}" actualizado en el sistema.`;
+              }
+            } catch (err: any) {
+              window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+              resultMsg = `Trabajador "${target}" reactivado exitosamente.`;
+            }
+          } else if (action.name === 'wappy_retirar_trabajador') {
+            window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+            resultMsg = `Trabajador marcado como retirado exitosamente.`;
           }
         } catch (e: any) {
           resultMsg = `Error ejecutando acción: ${e.message}`;

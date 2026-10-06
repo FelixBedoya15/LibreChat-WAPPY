@@ -242,6 +242,8 @@ async function resolveApiKeys(userId) {
  * @returns {Promise<*>}
  */
 async function generateWithKeyRotation(modelInstance, userId, promptText, options = {}) {
+  const safeOpts = (options && typeof options === 'object') ? options : {};
+
   // Auto-detección si los argumentos se pasaron invertidos (userId, modelInstance, ...)
   if (
     typeof modelInstance === 'string' &&
@@ -271,7 +273,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
 
   const candidateFallbacks = envModels.length > 0 ? envModels : SGSST_FALLBACK_MODELS;
   const fallbacks = candidateFallbacks.filter(m => m !== preferredModel);
-  const modelsToTry = options.fastFallback ? [preferredModel] : [...new Set([preferredModel, ...fallbacks])];
+  const modelsToTry = safeOpts.fastFallback ? [preferredModel] : [...new Set([preferredModel, ...fallbacks])];
 
   const apiKeys = await resolveApiKeys(userId);
 
@@ -283,7 +285,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
     let allKeysExhaustedDueTo429 = false;
 
     const prioritizedKeys = geminiPoolManager.getPrioritizedKeys(apiKeys, currentModel, userId);
-    const keysToTry = options.fastFallback ? prioritizedKeys.slice(0, 1) : prioritizedKeys;
+    const keysToTry = safeOpts.fastFallback ? prioritizedKeys.slice(0, 1) : prioritizedKeys;
 
     // Inner loop: iterate over keys (mirrors chat's this.rotateKey() pattern)
     for (let keyIdx = 0; keyIdx < keysToTry.length; keyIdx++) {
@@ -305,21 +307,21 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
           maxOutputTokens: maxOut,
           temperature: 0.1,
           ...genConfig,
-          ...(options.generationConfig || {}),
+          ...(safeOpts.generationConfig || {}),
         };
 
-        if (options.responseMimeType && !mergedGenConfig.responseMimeType) {
-          mergedGenConfig.responseMimeType = options.responseMimeType;
+        if (safeOpts.responseMimeType && !mergedGenConfig.responseMimeType) {
+          mergedGenConfig.responseMimeType = safeOpts.responseMimeType;
         }
 
         const modelParams = { model: currentModel, generationConfig: mergedGenConfig };
 
-        const systemInstruction = options.systemInstruction || (modelInstance && modelInstance.systemInstruction);
+        const systemInstruction = safeOpts.systemInstruction || (modelInstance && modelInstance.systemInstruction);
         if (systemInstruction) {
           modelParams.systemInstruction = systemInstruction;
         }
         
-        if (options.useWebSearch) {
+        if (safeOpts.useWebSearch) {
           modelParams.tools = [{ googleSearch: {} }];
         }
         

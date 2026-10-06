@@ -344,6 +344,38 @@ class VoiceSession {
                             }
                         },
                         {
+                            name: "wappy_reintegrar_trabajador",
+                            description: "Reintegra, reactiva o vuelve a pasar a estado ACTIVO a un trabajador previamente retirado en el SG-SST (Huella Biocéntrica), limpiando su fecha de retiro y actualizando su estado laboral a 'Activo'. Invócala de inmediato cuando el usuario te pida reintegrar, reactivar o volver a contratar a un colaborador.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    idOrCedula: {
+                                        type: "string",
+                                        description: "Cédula, ID o nombre del trabajador a reintegrar."
+                                    },
+                                    nombre: {
+                                        type: "string",
+                                        description: "Nombre del trabajador si se conoce."
+                                    }
+                                },
+                                required: ["idOrCedula"]
+                            }
+                        },
+                        {
+                            name: "wappy_reactivar_trabajador",
+                            description: "Alias de wappy_reintegrar_trabajador para reactivar a un trabajador retirado.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    idOrCedula: {
+                                        type: "string",
+                                        description: "Cédula, ID o nombre del trabajador a reactivar."
+                                    }
+                                },
+                                required: ["idOrCedula"]
+                            }
+                        },
+                        {
                             name: "wappy_actualizar_trabajador",
                             description: "Actualiza los datos de un trabajador en el SG-SST (cargo, área, sede, salario, estado laboral 'Activo' o 'Retirado', motivo de retiro).",
                             parameters: {
@@ -1019,14 +1051,27 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
 
 [GESTIÓN DE TRABAJADORES Y COLABORADORES]:
 - TIENES CONTROL TOTAL para gestionar colaboradores en el SG-SST (Huella Biocéntrica):
+  * 'wappy_reintegrar_trabajador': Cuando el usuario te pida reintegrar, reactivar, volver a contratar, reincorporar o pasar a estado activo a un trabajador previamente retirado (ej: "reintegrar al trabajador Jorge Enrique Pineda" o "reactivar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_reintegrar_trabajador' con su nombre o cédula. El sistema restaurará su estado laboral a 'Activo' en la base de datos y refrescará la plataforma.
+  * ESTÁ TERMINANTEMENTE PROHIBIDO afirmar verbalmente que has reintegrado a un trabajador sin invocar 'wappy_reintegrar_trabajador'.
   * 'wappy_retirar_trabajador': Cuando el usuario te pida retirar, desvincular, dar de baja o sacar a un trabajador (ej: "dejar como retirado a Jorge Ricky Pineda" o "retirar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_retirar_trabajador'. El sistema conservará su historial y lo pasará a la pestaña 'Retirados'.
   * ESTÁ TERMINANTEMENTE PROHIBIDO decir que no tienes una función para cambiar el estado de un colaborador a 'retirado'. ¡TIENES la función 'wappy_retirar_trabajador'!
   * 'wappy_actualizar_trabajador': Para editar cargos, salarios o información del empleado.
   * 'wappy_consultar_trabajadores': Para buscar trabajadores o consultar nómina (activos o retirados).
   * 'wappy_registrar_trabajador': Para registrar nuevos trabajadores.
 
-[INTERACCIÓN Y CLICS EN BOTONES DE TODOS LOS APLICATIVOS ('operar_interfaz_visual')]:
-- TIENES CONTROL TOTAL para hacer clic en CUALQUIER BOTÓN, pestaña, menú o tarjeta de todos los aplicativos de WAPPY (ej: pestañas 'Retirados', 'Activos', 'Todos', botones '+ Agregar Trabajador', 'Guardar Localmente', 'Descargar', etc.) usando tu herramienta 'operar_interfaz_visual' con accion: 'click' e indicando el índice o el texto/nombre del botón.
+[INTERACCIÓN, GENERACIÓN IA Y CLICS EN BOTONES EN PANTALLA ('operar_interfaz_visual')]:
+- ACCIÓN REAL ANTE ÓRDENES DE CLIC / GENERAR ANÁLISIS:
+  * Cuando el usuario te pida:
+    - "Genera el informe con IA del perfil sociodemográfico"
+    - "Genera el análisis con IA"
+    - "Dale clic al botón de generar análisis"
+    - "Dale clic tú"
+    - "Regenera el informe"
+    - O hacer clic en cualquier botón de la botonera o pantalla:
+    INVOCA DE INMEDIATO 'operar_interfaz_visual' con { accion: 'click', texto: 'Generar IA' } (o el nombre del botón correspondiente).
+  * DI ÚNICAMENTE una frase breve de transición como: "Haciendo clic en Generar IA en tu pantalla para procesar el informe..." y ESPERA a que el sistema lo ejecute.
+  * PROHIBICIÓN ESTRICTA DE MENTIR O AFIRMAR ACCIONES NO EJECUTADAS: ESTÁ TERMINANTEMENTE PROHIBIDO afirmar verbalmente que el informe ya fue generado, que ya le diste clic o que ya está disponible en pantalla SIN HABER ENVIADO 'operar_interfaz_visual'. NUNCA mientas diciendo "¡Listo! Ya le di clic y ya se generó" si no enviaste el tool call en este mismo turno.
+  * SI EL USUARIO TE CONFRONTA ("no le has dado clic", "es mentiras", "no aparece nada"): NO discutas ni inventes datos viejos de la pantalla; pide disculpas brevemente: "Tienes razón, discúlpame. En este instante pulso el botón de Generar IA" e INVOCA 'operar_interfaz_visual' ({ accion: 'click', texto: 'Generar IA' }) de inmediato.
 
 [HERRAMIENTAS]:
 1. **google_drive**: Tienes acceso directo a Google Drive mediante tu herramienta 'google_drive'.
@@ -4539,24 +4584,64 @@ ${workerSubHeaderHtml}
         if (!userText || userText.includes('[SISTEMA INTERNO WAPPY')) return;
         const userLower = userText.toLowerCase();
 
-        // 1. Detección de intención EXPLÍCITA del usuario para abrir chat o consultar un agente especialista
+        // 0. Filtro estricto de frases conversacionales cortas: NUNCA disparan delegación de agentes
+        const isConversationalCheck = /^(¿?\s*(me\s+escuchas?|me\s+o[yi]es?|est[aá]s\s+ah[ií]|qu[eé]\s+dijo|qu[eé]\s+respondi[oó]|ya\s+respondi[oó]|hola|buenas|gracias|ok|listo|entendido)\s*\??)$/i.test(userLower);
+        if (isConversationalCheck) {
+            logger.debug(`[VoiceSession] [Tenshi Voice Failsafe] Ignorando frase puramente conversacional: "${userLower}"`);
+            return;
+        }
+
+        // 1. Failsafe para reintegrar / reactivar trabajadores si Gemini omitió el tool call
+        const reinstateMatch = userLower.match(/(?:reintegra|reactiva|reincorporar|volver\s+a\s+contratar|pasa\s+a\s+activo)\s+(?:al\s+trabajador\s+|a\s+)?([a-zñáéíóú\s]+)/i);
+        if (reinstateMatch && reinstateMatch[1]) {
+            const workerTarget = reinstateMatch[1].replace(/\b(por\s+favor|ya|que|lo|la|le)\b/gi, '').trim();
+            if (workerTarget.length >= 3) {
+                logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Gemini omitió toolCall! Disparando wappy_reintegrar_trabajador para "${workerTarget}"`);
+                this.sendToClient({
+                    type: 'wappy_action',
+                    data: {
+                        id: `failsafe-reinstate-${Date.now()}`,
+                        name: 'wappy_reintegrar_trabajador',
+                        args: { idOrCedula: workerTarget, nombre: workerTarget }
+                    }
+                });
+                return;
+            }
+        }
+
+        // 2. Failsafe para clics en 'Generar IA' / 'Generar Análisis' si Gemini omitió el tool call
+        const clickAnalyzeMatch = /(?:dale\s+clic|haz\s+clic|pulsa|presiona|genera|generar|regenera|regenerar)\s+(?:en\s+|el\s+)?(?:bot[oó]n\s+)?(?:de\s+)?(?:generar\s+)?(?:an[aá]lisis|informe|ia)/i.test(userLower) ||
+            /^(?:dale\s+clic\s+t[uú]|hazlo\s+t[uú]|dale\s+clic)$/i.test(userLower);
+        if (clickAnalyzeMatch) {
+            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Gemini omitió toolCall! Disparando operar_interfaz_visual con click a "Generar IA"`);
+            this.sendToClient({
+                type: 'wappy_action',
+                data: {
+                    id: `failsafe-click-${Date.now()}`,
+                    name: 'operar_interfaz_visual',
+                    args: { accion: 'click', texto: 'Generar IA' }
+                }
+            });
+            return;
+        }
+
+        // 3. Detección de intención EXPLÍCITA del usuario para abrir chat o consultar un agente especialista
         const explicitAgentCommand = /(abre|abrir|abreme|inicia|iniciar|crea|crear|p[aá]same|cambia|cambiar|ll[eé]vame)\s+(un\s+)?(chat|conversaci[oó]n)?\s*(con|al|a)\s+/i;
         const consultCommand = /(?:intenta\s+ahora\s+)?(preg[uú]ntale|p[ií]dele|dile|consulta|cons[uú]ltale)\s+(?:tambi[eé]n\s+)?(a|al|con)?\s*(el|la)?\s*/i;
-        const aiClaimedConsultation = /(ya\s+le\s+envi[eé]|envi[eé]\s+tu\s+consulta|le\s+pas[eé]\s+tu\s+consulta|le\s+pregunt[eé]|le\s+consult[eé]|esperemos\s+a\s+que\s+responda)/i.test(currentAiText);
 
         let matchedAgent = null;
 
         // Soporte multi-turno: Si en el turno anterior el usuario pidió un especialista y ahora formula la pregunta
         if (this.pendingAgentForConsultation && (Date.now() - (this.pendingAgentTimestamp || 0) < 90000)) {
             const isFollowUpQuestion = /^(preg[uú]ntale|pregunta|dile|consulta|que qu[eé]|qu[eé]|c[oó]mo|cu[aá]l|cu[aá]ndo|por\s+qu[eé]|si|sobre|acerca de)\b/i.test(userLower);
-            if (isFollowUpQuestion || consultCommand.test(userLower) || userText.length >= 10) {
+            if (isFollowUpQuestion || consultCommand.test(userLower) || (userText.length >= 10 && !isConversationalCheck)) {
                 matchedAgent = this.pendingAgentForConsultation;
                 logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Multi-turn match: Usando especialista solicitado en turno anterior "${matchedAgent}".`);
             }
         }
 
-        if (!matchedAgent && (explicitAgentCommand.test(userLower) || consultCommand.test(userLower) || aiClaimedConsultation)) {
-            const textToInspect = `${userLower} ${currentAiText.toLowerCase()}`;
+        if (!matchedAgent && (explicitAgentCommand.test(userLower) || consultCommand.test(userLower))) {
+            const textToInspect = userLower;
             if (/fisioterap|biomec|ergonom|owas|rula|rosa|postur|puesto.*trabajo|dme|músculo|musculo|epicondilitis|tenista|carpo|manguito/i.test(textToInspect)) {
                 matchedAgent = 'fisioterapeuta_laboral';
             } else if (/abogado.*rit|reglamento interno.*rit/i.test(textToInspect)) {
@@ -4656,14 +4741,12 @@ ${workerSubHeaderHtml}
         }
 
         if (matchedAgent) {
-            // Extraer la pregunta o consulta formulada por el usuario
+            // Extraer la pregunta o consulta técnica formulada por el usuario
             let pregunta = '';
             const qMatch = userText.match(/(?:(?:intenta\s+ahora\s+)?(?:preg[uú]ntale|pregunta|dile|p[ií]dele|cons[uú]ltale)\s+(?:tambi[eé]n\s+)?(?:a\s+[^\s]+\s+)?(?:que\s+|qu[eé]\s+)?|sobre\s+|acerca de\s+|para\s+)(.+)/i);
             if (qMatch && qMatch[1] && qMatch[1].trim().length >= 3) {
                 pregunta = qMatch[1].trim();
-            } else if (this.pendingAgentForConsultation && userText.length >= 5) {
-                pregunta = userText.trim();
-            } else if (userText.length >= 6) {
+            } else if (this.pendingAgentForConsultation && userText.length >= 5 && !isConversationalCheck) {
                 pregunta = userText.trim();
             }
 

@@ -44,6 +44,20 @@ const TOOL_ROUTES = {
       return `/workers/${encodeURIComponent(String(target).trim())}/retirar`;
     },
   },
+  wappy_reintegrar_trabajador: {
+    method: 'POST',
+    path: (args) => {
+      const target = args.idOrCedula || args.id || args.identificacion || args.cedula || args.nombre || args.target || '';
+      return `/workers/${encodeURIComponent(String(target).trim())}/reactivar`;
+    },
+  },
+  wappy_reactivar_trabajador: {
+    method: 'POST',
+    path: (args) => {
+      const target = args.idOrCedula || args.id || args.identificacion || args.cedula || args.nombre || args.target || '';
+      return `/workers/${encodeURIComponent(String(target).trim())}/reactivar`;
+    },
+  },
   wappy_eliminar_trabajador: {
     method: 'POST',
     path: (args) => {

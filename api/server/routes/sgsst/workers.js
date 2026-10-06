@@ -1630,8 +1630,14 @@ Genera EXACTAMENTE 5 riesgos IPEVR personalizados en formato JSON. Cada riesgo d
 
 PRIORIZA riesgos relacionados con las condiciones de salud del trabajador. Devuelve SOLO el array JSON, sin texto adicional.`;
 
-        const apiKeys = await resolveApiKeys(req.user.id, getUserKey, AuthKeys);
-        const rawJson = await generateWithKeyRotation(prompt, null, 'application/json', null, apiKeys);
+        const result = await generateWithKeyRotation(
+            'gemini-3.5-flash',
+            req.user.id || req.user,
+            prompt,
+            { responseMimeType: 'application/json' }
+        );
+        const response = await result?.response;
+        const rawJson = response?.text ? response.text() : '';
 
         let riesgosIpevar = [];
         const match = rawJson.match(/\[\s*\{[\s\S]*?\}\s*\]/m);

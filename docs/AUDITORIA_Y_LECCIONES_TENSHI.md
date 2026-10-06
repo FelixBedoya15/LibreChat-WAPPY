@@ -279,6 +279,36 @@
 
 ---
 
+### LECCIÓN 8 (2026-10-06): Corrección de Falso Failsafe al Especialista ("¿Me escuchaste?"), Invocación Real de Clics en la Interfaz y Herramienta de Reintegración de Colaboradores
+
+#### A. Despacho Espurio al Abogado Laboral ante "¿Me escuchaste?"
+- **Síntoma Reportado:** Al preguntar el usuario "¿Me escuchaste?" a Tenshi, Tenshi despachaba una consulta espuria al Abogado Laboral con la pregunta *"Solicito concepto técnico especializado sobre 'Me escuchaste...'"*, abriendo un chat innecesario y alterando la conversación.
+- **Causa Raíz:** En `handleTenshiVoiceFailsafe` (`voiceSession.js`), la condición `aiClaimedConsultation` evaluaba `currentAiText`. Al decir Tenshi verbalmente *"Ya le pasé tu consulta al abogado..."*, la expresión regular dio `true`, `textToInspect` incluyó el texto de la IA, detectó `abogado_laboral` y tomó la pregunta conversacional del usuario (`"¿Me escuchaste?"`) como consulta técnica por ser `>= 6 caracteres`.
+- **Solución Implementada:**
+  1. Se eliminó por completo `aiClaimedConsultation` y la inspección de `currentAiText`. El failsafe se evalúa **EXCLUSIVAMENTE sobre `userLower`**.
+  2. Filtro estricto de preguntas o checks conversacionales (`isConversationalCheck`: *"¿me escuchas?", "¿me oyes?", "hola", "qué dijo", "gracias"*, etc.) para descartar cualquier activación espuria.
+  3. Se eliminó la asignación de preguntas por defecto por longitud (`>= 6 caracteres`), exigiendo coincidencias reales con patrones de consulta técnica o seguimiento.
+
+#### B. Alucinación de Clics en Botones ("Generar IA" en Perfil Sociodemográfico) y "No le has dado clic, es mentiras"
+- **Síntoma Reportado:** El usuario ordenó repetidamente *"genera el informe con IA del perfil sociodemográfico"*, *"dale clic en el botón de generar análisis"* o *"dale clic tú"*. Tenshi afirmó verbalmente *"¡Listo! Ya he generado el informe y está disponible en tu pantalla"*, pero nunca hizo clic real en el botón `Generar IA` (`#ai-default`). Al confrontarla el usuario, Tenshi invocó `leer_pantalla` y leyó datos obsoletos o plantillas previas para justificar su afirmación.
+- **Causas Raíces:**
+  1. **Falta de Invocación Obligatoria:** Gemini Live carecía de una directiva imperativa que le prohibiera responder antes de emitir el tool call `operar_interfaz_visual`.
+  2. **Mismatch Semántico en `executeGUIAction`:** La búsqueda en el DOM comparaba cadenas literales (`itemText.includes(query)`). Cuando Tenshi pasaba `texto: 'generar análisis'` y el botón en el DOM tenía `title="Generar con IA"` o `label="Generar IA"`, la comparación fallaba y el clic no se ejecutaba.
+- **Solución Implementada:**
+  1. En `TenshiPageController.ts`, se implementó `matchesInteractiveTarget`: normaliza tildes/mayúsculas, elimina stopwords ("el", "la", "botón", "clic", "dale"), analiza superposición de tokens técnicos clave (`generar`, `analisis`, `ia`, `informe`) y cuenta con alias directos para el botón de IA (`#ai-default`) y pestañas de personal.
+  2. En `voiceSession.js`, regla estricta en `systemInstruction`: ante cualquier orden de clic o generación de informe, Tenshi **DEBE PRIMERO invocar `operar_interfaz_visual({ accion: 'click', texto: 'Generar IA' })`**, emitiendo únicamente una frase breve de transición y esperando la ejecución real. Prohibición total de discutir o alucinar datos viejos ante la confrontación del usuario.
+  3. Failsafe activo en `voiceSession.js`: si Gemini Live responde por voz sin emitir el tool call ante órdenes como *"dale clic tú"* o *"genera el informe con IA"*, el failsafe intercepta y despacha automáticamente `operar_interfaz_visual`.
+
+#### C. Inexistencia de la Herramienta para Reintegrar / Reactivar Colaboradores
+- **Síntoma Reportado:** Al pedir *"reintegra al trabajador Jorge Enrique Pineda"*, Tenshi afirmó haberlo hecho sin invocar ninguna función.
+- **Causa Raíz:** La plataforma disponía de `wappy_retirar_trabajador`, pero carecía de la herramienta `wappy_reintegrar_trabajador` en el catálogo de Tenshi y en el despachador MCP, a pesar de que el backend ya contaba con la ruta `/workers/:idOrCedula/reactivar`.
+- **Solución Implementada:**
+  1. Implementación de `wappy_reintegrar_trabajador` y `wappy_reactivar_trabajador` en `tenshiMcpDispatcher.js`, `voiceSession.js` y `tenshi.js`.
+  2. En `TenshiChat.tsx`, captura de la acción con invocación directa al endpoint de reactivación y emisión del evento `wappy-reload-sgsst-data` para refrescar de inmediato las tablas de colaboradores en pantalla.
+  3. Failsafe específico en `handleTenshiVoiceFailsafe` que captura intenciones de reintegro/reactivación y asegura su ejecución.
+
+---
+
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
 
 Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el chat:
@@ -287,4 +317,5 @@ Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el 
 3. [ ] **Inclusión de Bundles en Git:** Asegurar que `git add client/src client/dist` incluya tanto el código fuente como los compilados.
 4. [ ] **Verificación de Modelos de IA:** Nunca degradar ni inventar nombres de modelos; verificar siempre con `search_web` en la documentación oficial.
 5. [ ] **Despliegue en VPS:** Indicar al usuario la ejecución de `git pull` y `docker exec -it LibreChat node scripts/restore-and-sync-all.js`.
+
 

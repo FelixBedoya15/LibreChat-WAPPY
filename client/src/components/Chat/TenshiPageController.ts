@@ -474,22 +474,83 @@ export async function executeGUIAction(
   let el: HTMLElement | null = null;
   let targetIndex = index;
 
+/**
+ * Comprueba con alta tolerancia a sinónimos y variaciones semánticas si un elemento interactivo
+ * coincide con la orden o etiqueta buscada por Tenshi.
+ */
+function matchesInteractiveTarget(el: HTMLElement, rawQuery: string): boolean {
+  if (!el || !rawQuery) return false;
+  const normalize = (s: string) =>
+    s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const q = normalize(rawQuery);
+  if (!q) return false;
+
+  const innerText = normalize(el.innerText || '');
+  const title = normalize(el.getAttribute('title') || '');
+  const ariaLabel = normalize(el.getAttribute('aria-label') || '');
+  const id = normalize(el.id || '');
+  const elData = normalize(el.getAttribute('data-action') || el.getAttribute('data-clickable') || '');
+  const childSpans = Array.from(el.querySelectorAll('span, p, div, svg'))
+    .map((s) => normalize((s as HTMLElement).innerText || s.getAttribute('aria-label') || ''))
+    .join(' ');
+
+  const allClues = [innerText, title, ariaLabel, id, elData, childSpans].filter(Boolean);
+  const combined = allClues.join(' ');
+
+  // 1. Coincidencia exacta o inclusión de subcadena directa
+  for (const clue of allClues) {
+    if (clue === q || clue.includes(q) || q.includes(clue)) return true;
+  }
+
+  // 2. Tokenización eliminando stopwords
+  const stopWords = new Set([
+    'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'en', 'con', 'por', 'para', 'y', 'o',
+    'boton', 'botón', 'clic', 'click', 'haz', 'dale', 'presiona', 'pulsa', 'por favor', 'tu', 'tú'
+  ]);
+  const qTokens = q.split(/[\s,._\-+/]+/).filter((t) => t.length > 1 && !stopWords.has(t));
+  if (qTokens.length > 0) {
+    const allFound = qTokens.every((tok) => combined.includes(tok));
+    if (allFound) return true;
+
+    // Tokens semánticos de alta prioridad en WAPPY
+    const strongTokens = [
+      'generar', 'analisis', 'analizar', 'informe', 'reintegrar', 'reactivar', 'retirar',
+      'guardar', 'exportar', 'importar', 'historial', 'descargar', 'plantilla'
+    ];
+    for (const st of strongTokens) {
+      if (q.includes(st) && combined.includes(st)) return true;
+    }
+  }
+
+  // 3. Alias específico para botones de Generar IA / Análisis en SGSSTToolbar
+  const isAiGenQuery = /generar|analiz|informe|ia\b|reporte/i.test(q);
+  const isAiGenBtn = /generar\s+con\s+ia|generar\s+ia|ai-default|sparkles/i.test(combined) || id === 'ai-default';
+  if (isAiGenQuery && isAiGenBtn) return true;
+
+  // 4. Pestañas de trabajadores
+  if (/retirad/i.test(q) && /retirad/i.test(combined)) return true;
+  if (/activ/i.test(q) && /activ/i.test(combined)) return true;
+  if (/reintegrar|reactivar/i.test(q) && (/reactivar|reintegrar|activ/i.test(combined))) return true;
+
+  return false;
+}
+
   if (index !== undefined && selectorMap.has(index)) {
     el = selectorMap.get(index)!;
   } else if (texto || direccion) {
     // Si no se proporcionó índice o cambió el DOM, buscar interactivamente por texto/etiqueta
     const query = String(texto || direccion || '').toLowerCase().trim();
     if (query) {
-      // 1. Buscar en selectorMap
+      // 1. Buscar en selectorMap con matchesInteractiveTarget
       for (const [idx, itemEl] of selectorMap.entries()) {
-        const itemText = (itemEl.innerText || itemEl.getAttribute('title') || itemEl.getAttribute('aria-label') || '').toLowerCase().trim();
-        if (itemText && (itemText === query || itemText.includes(query) || query.includes(itemText))) {
+        if (matchesInteractiveTarget(itemEl, query)) {
           el = itemEl;
           targetIndex = idx;
           break;
         }
       }
-      // 2. Si no se encontró en selectorMap, buscar en todos los botones y elementos interactivos del DOM visible
+
+      // 2. Si no se encontró en selectorMap, buscar en todos los elementos interactivos del DOM visible
       if (!el) {
         const candidates = Array.from(document.querySelectorAll<HTMLElement>(
           'button, [role="button"], [role="tab"], a, input[type="button"], input[type="submit"], [tabindex="0"], summary, [data-action], [data-clickable]'
@@ -497,11 +558,20 @@ export async function executeGUIAction(
 
         for (const cand of candidates) {
           if (cand.closest('.tenshi-widget-container')) continue;
-          const cText = (cand.innerText || cand.getAttribute('title') || cand.getAttribute('aria-label') || '').toLowerCase().trim();
-          if (cText && (cText === query || cText.includes(query) || query.includes(cText))) {
+          if (matchesInteractiveTarget(cand, query)) {
             el = cand;
             break;
           }
+        }
+      }
+
+      // 3. Fallback directo a botón de IA (#ai-default) si la consulta era sobre generar análisis o informe
+      if (!el && /generar|analiz|informe|ia\b|reporte/i.test(query)) {
+        const aiDefaultBtn = document.querySelector<HTMLElement>(
+          '#ai-default, button[title*="Generar"], button[aria-label*="Generar"]'
+        );
+        if (aiDefaultBtn && isElementVisible(aiDefaultBtn)) {
+          el = aiDefaultBtn;
         }
       }
     }
