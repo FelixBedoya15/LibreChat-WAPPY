@@ -52,22 +52,6 @@ const MarketplaceContent: React.FC = () => {
     setActiveTab('catalog');
   };
 
-  if (!isAdmin) {
-    return (
-      <div className="flex h-full w-full items-center justify-center p-8 bg-slate-50/50 dark:bg-zinc-950">
-        <div className="text-center max-w-md space-y-3 p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
-          <ShieldCheck className="h-10 w-10 text-teal-600 mx-auto" />
-          <h2 className="text-lg font-bold text-slate-800 dark:text-zinc-100">
-            Marketplace en fase privada
-          </h2>
-          <p className="text-xs text-slate-500">
-            Este módulo se encuentra en fase de configuración exclusiva para administradores.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-full w-full flex-col overflow-y-auto bg-slate-50/50 dark:bg-zinc-950 px-4 py-6 sm:px-8 sm:py-8 pb-28 scroll-smooth">
       <div className="max-w-7xl mx-auto w-full space-y-6">
@@ -84,13 +68,13 @@ const MarketplaceContent: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl font-black text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-                <span>Marketplace</span>
+                <span>Tienda</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300">
-                  WAPPY Store
+                  WAPPY Oficial
                 </span>
               </h1>
               <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Contratación directa de servicios de salud ocupacional y seguridad en el trabajo
+                Cursos certificados, servicios oficiales y soluciones de Seguridad y Salud en el Trabajo
               </p>
             </div>
           </div>
@@ -110,7 +94,7 @@ const MarketplaceContent: React.FC = () => {
                     ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold'
                     : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
                 }`}
-                title="Catálogo de Servicios"
+                title="Catálogo de la Tienda"
               >
                 <Layers className="h-4 w-4" />
               </button>

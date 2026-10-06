@@ -47,6 +47,7 @@ const marketplaceProductSchema = new mongoose.Schema({
   // Status and visibility
   status: { type: String, enum: ['published', 'draft', 'archived'], default: 'published' },
   isFeatured: { type: Boolean, default: false },
+  isTest: { type: Boolean, default: false }, // true for test products (visible only to admin)
   salesCount: { type: Number, default: 0 },
   rating: { type: Number, default: 5.0 },
   reviewsCount: { type: Number, default: 1 },

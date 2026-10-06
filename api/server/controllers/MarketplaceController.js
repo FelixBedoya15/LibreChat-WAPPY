@@ -20,12 +20,65 @@ const DEFAULT_CATEGORIES = [
   { name: 'Capacitación Certificada', slug: 'capacitaciones', description: 'Formación normativa en SST, COPASST y brigadas', icon: 'GraduationCap', order: 7 }
 ];
 
+// Official primary course product (visible to all users)
+const OFFICIAL_COURSE_PRODUCT = {
+  title: 'Curso Ecosistema Autónomo SST: De la Operatividad a la Prevención Real',
+  slug: 'curso-ecosistema-autonomo-sst',
+  sku: 'WAPPY-CURSO-01',
+  shortDescription: '6 Clases grupales en vivo (martes 7 a 9 PM, inicia Octubre 20) + 1 sesión final VIP personalizada (3 a 4 horas). Conecta WAPPY con Antigravity, Tenshi Voice, NotebookLM y Workspace.',
+  description: 'Entrenamiento intensivo de alto nivel para profesionales y consultores SST en Colombia. Aprende a conectar WAPPY con Google Antigravity, Tenshi Voice (manos libres en campo), Google NotebookLM (citas normativas exactas y podcasts de capacitación), Google Workspace (Drive con archivo 20 años, Calendar y Gmail automatizados), Flow y la construcción de tu propio aplicativo o asistente SST llave en mano. Reduce el 50% de tu carga administrativa y documental desde la primera sesión.',
+  category: 'capacitaciones',
+  tags: ['Curso SST', 'Antigravity', 'Tenshi Voice', 'NotebookLM', 'WAPPY IA', 'Inteligencia Artificial', 'Normativa Colombiana'],
+  serviceType: 'service_virtual',
+  regularPrice: 620000,
+  salePrice: 620000,
+  hasDiscount: false,
+  hasVariants: false,
+  estimatedDeliveryDays: 'Inicio Martes 20 Octubre · 7:00 PM',
+  deliverables: [
+    '6 Clases grupales en vivo los martes de 7:00 PM a 9:00 PM con streaming y grabaciones',
+    '1 Sesión VIP personalizada 1 a 1 de 3 a 4 horas llave en mano (acordada individualmente)',
+    'Ecosistema completo WAPPY + Antigravity + Tenshi Voice + NotebookLM + Workspace',
+    'Plantillas y automatizaciones para inspecciones, matrices, actas y archivo digital',
+    'Máximo 12 cupos disponibles · Se reciben inscripciones estrictamente hasta copar cupos',
+    'Certificado oficial de finalización y aprobación emitido por WAPPY'
+  ],
+  requirements: [
+    'Computador con Windows 10/11, macOS o Linux con 8GB+ RAM',
+    'Conexión a internet estable para las sesiones en vivo'
+  ],
+  faqs: [
+    {
+      question: '¿Cuáles son las formas de pago?',
+      answer: 'El valor es de contado ($620.000 COP). Puedes pagar de contado mediante QR oficial WAPPY, Nequi, Bancolombia, PSE o financiar a crédito en 4 cuotas de $155.000 COP sin interés con Bancolombia/Nequi BNPL (comienzas a pagar el próximo mes) o con tu tarjeta de crédito habitual.'
+    },
+    {
+      question: '¿Cómo funciona la sesión final VIP personalizada?',
+      answer: 'Es una sesión intensiva 1 a 1 de 3 a 4 horas directamente con Félix Bedoya. La fecha y el horario se acuerdan de forma flexible y personalizada con cada alumno para dejar su propio aplicativo o entorno de trabajo SST llave en mano.'
+    },
+    {
+      question: '¿Cuántos cupos hay disponibles?',
+      answer: 'El curso tiene un cupo estrictamente limitado a 12 participantes para garantizar la calidad pedagógica y el acompañamiento individual en la sesión VIP.'
+    }
+  ],
+  featuredImage: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800&auto=format&fit=crop&q=80',
+  status: 'published',
+  isFeatured: true,
+  isTest: false,
+  stockType: 'limited',
+  availableSlots: 12,
+  rating: 5.0,
+  reviewsCount: 12
+};
+
 // Default initial catalog products
 const DEFAULT_PRODUCTS = [
+  OFFICIAL_COURSE_PRODUCT,
   {
     title: 'Batería de Riesgo Psicosocial Completa (Res. 2764 / 2022)',
     slug: 'bateria-riesgo-psicosocial-completa',
     sku: 'SST-PSI-001',
+    isTest: true, // Modo prueba solo admin
     shortDescription: 'Aplicación digital y presencial de la batería oficial por psicólogo especialista con licencia SST.',
     description: 'Servicio integral de evaluación del riesgo psicosocial intra-laboral, extra-laboral y de estrés conforme a la Resolución 2764 de 2022 del Ministerio del Trabajo. Incluye plataforma digital asistida, informe general de la empresa, informe individual confidencial y plan de intervención recomendado.',
     category: 'psicosocial',
@@ -71,6 +124,7 @@ const DEFAULT_PRODUCTS = [
     title: 'Diseño y Actualización de Matriz IPEVAR (GTC-45)',
     slug: 'matriz-ipevar-gtc45-asistida',
     sku: 'SST-PEL-002',
+    isTest: true, // Modo prueba solo admin
     shortDescription: 'Identificación de peligros y valoración de riesgos bajo GTC-45 con asistencia técnica experta.',
     description: 'Levantamiento y actualización de la Matriz de Peligros, Evaluación y Valoración de Riesgos (IPEVAR) conforme a la Guía Técnica Colombiana GTC-45 y el Decreto 1072 de 2015. Diseñada a la medida de los procesos, áreas operativas y cargos de su empresa.',
     category: 'gtc45_ipevar',
@@ -111,6 +165,7 @@ const DEFAULT_PRODUCTS = [
     title: 'Plan Estratégico de Seguridad Vial (PESV - Res. 20223040040595)',
     slug: 'diseno-implementacion-pesv',
     sku: 'SST-VIA-003',
+    isTest: true, // Modo prueba solo admin
     shortDescription: 'Estructuración y diseño del PESV según nivel Básico, Estándar o Avanzado.',
     description: 'Estructuración técnica del Plan Estratégico de Seguridad Vial conforme a la metodología de la Resolución 20223040040595 de 2022. Cubre los 4 pasos y 24 pasos según el nivel de su organización (Liderazgo, Gestión del Riesgo Vial, Talento Humano y Vehículos Seguros).',
     category: 'pesv',
@@ -151,6 +206,7 @@ const DEFAULT_PRODUCTS = [
     title: 'Paquete Exámenes Médicos Ocupacionales (x10 Trabajadores)',
     slug: 'paquete-examenes-medicos-ocupacionales-10',
     sku: 'SST-MED-004',
+    isTest: true, // Modo prueba solo admin
     shortDescription: 'Exámenes de ingreso o periódicos con énfasis osteomuscular, visiometría y audiometría.',
     description: 'Paquete de exámenes médicos ocupacionales en red de IPS aliadas con cobertura nacional. Incluye valoración médica con énfasis osteomuscular, agudeza visual (visiometría), tamiz auditivo (audiometría) y expedición de certificados de aptitud laboral en formato digital.',
     category: 'medicina_laboral',
@@ -190,6 +246,7 @@ const DEFAULT_PRODUCTS = [
     title: 'Estudio de Puesto de Trabajo Ergonómico (Método OWAS / REBA)',
     slug: 'estudio-puesto-trabajo-ergonomico',
     sku: 'SST-ERG-005',
+    isTest: true, // Modo prueba solo admin
     shortDescription: 'Evaluación biomecánica y postural para calificación de origen o prevención osteomuscular.',
     description: 'Análisis ergonómico detallado del puesto de trabajo mediante metodologías internacionales (OWAS, RULA, REBA o ROSA). Dirigido a casos de sospecha de enfermedad laboral, reintegros o rediseño preventivo de puestos operativos y de oficina.',
     category: 'ergonomia',
@@ -220,6 +277,7 @@ const DEFAULT_PRODUCTS = [
     title: 'Auditoría Externa de Estándares Mínimos (Res. 0312 / 2019)',
     slug: 'auditoria-externa-estandares-minimos-0312',
     sku: 'SST-AUD-006',
+    isTest: true, // Modo prueba solo admin
     shortDescription: 'Evaluación imparcial del cumplimiento legal de su SG-SST (7, 21 o 60 estándares).',
     description: 'Auditoría independiente para verificar el grado de implementación y cumplimiento de los Estándares Mínimos del SG-SST establecidos en la Resolución 0312 de 2019. Ideal para preparación de visitas del Ministerio del Trabajo, ARL o auditorías de clientes.',
     category: 'auditoria',
@@ -259,6 +317,7 @@ const DEFAULT_PRODUCTS = [
     title: 'Investigación Técnica de Accidente de Trabajo (ATEL)',
     slug: 'investigacion-tecnica-accidente-trabajo-atel',
     sku: 'SST-INV-007',
+    isTest: true, // Modo prueba solo admin
     shortDescription: 'Investigación formal con Árbol de Causas y radicación ante la ARL.',
     description: 'Acompañamiento especializado para la investigación de accidentes graves, leves o de alta potencialidad conforme a la Resolución 1401 de 2007. Se aplica la metodología de Árbol de Causas o 5 Porqués, determinando causas básicas e inmediatas.',
     category: 'auditoria',
@@ -300,6 +359,34 @@ const ensureSeedData = async () => {
     if (prodCount === 0) {
       await MarketplaceProduct.insertMany(DEFAULT_PRODUCTS);
       logger.info('[Marketplace] Default SST products seeded successfully.');
+    } else {
+      // Upsert the official course product (available to all users)
+      const course = await MarketplaceProduct.findOne({ slug: 'curso-ecosistema-autonomo-sst' });
+      if (!course) {
+        await MarketplaceProduct.create(OFFICIAL_COURSE_PRODUCT);
+        logger.info('[Marketplace] Official Course seeded into database.');
+      } else {
+        await MarketplaceProduct.updateOne(
+          { slug: 'curso-ecosistema-autonomo-sst' },
+          {
+            $set: {
+              title: OFFICIAL_COURSE_PRODUCT.title,
+              regularPrice: 620000,
+              salePrice: 620000,
+              hasDiscount: false,
+              isTest: false,
+              status: 'published',
+              isFeatured: true,
+              availableSlots: 12
+            }
+          }
+        );
+      }
+      // Ensure all test products have isTest: true
+      await MarketplaceProduct.updateMany(
+        { slug: { $ne: 'curso-ecosistema-autonomo-sst' }, isTest: { $ne: true } },
+        { $set: { isTest: true } }
+      );
     }
   } catch (err) {
     logger.error('[Marketplace] Error seeding default data:', err);
@@ -329,12 +416,19 @@ const getCategories = async (req, res) => {
 // GET /api/marketplace/products
 const getProducts = async (req, res) => {
   try {
-    const totalCount = await MarketplaceProduct.countDocuments();
-    if (totalCount === 0) {
-      await ensureSeedData();
-    }
+    await ensureSeedData();
     const { category, search, tag, sort, featured } = req.query;
     const query = { status: 'published' };
+
+    const isAdmin = !!(req.user && (
+      req.user.role === 'ADMIN' ||
+      req.user.email?.toLowerCase() === 'felix.bedoya15@gmail.com'
+    ));
+
+    // Non-admin users and visitors ONLY see official public products (never test products)
+    if (!isAdmin) {
+      query.isTest = { $ne: true };
+    }
 
     if (category && category !== 'all') {
       query.category = category;
@@ -355,14 +449,14 @@ const getProducts = async (req, res) => {
       ];
     }
 
-    let sortOption = { isFeatured: -1, createdAt: -1 };
+    let sortOption = { isFeatured: -1, isTest: 1, createdAt: -1 };
     if (sort === 'price_asc') sortOption = { salePrice: 1, regularPrice: 1 };
     if (sort === 'price_desc') sortOption = { salePrice: -1, regularPrice: -1 };
     if (sort === 'rating') sortOption = { rating: -1 };
     if (sort === 'sales') sortOption = { salesCount: -1 };
 
     const products = await MarketplaceProduct.find(query).sort(sortOption).lean();
-    return res.json({ success: true, count: products.length, products });
+    return res.json({ success: true, count: products.length, products, isAdmin });
   } catch (error) {
     logger.error('[Marketplace] getProducts error:', error);
     return res.status(500).json({ error: 'Error al obtener servicios.' });
@@ -385,14 +479,28 @@ const getProductBySlugOrId = async (req, res) => {
       return res.status(404).json({ error: 'Servicio no encontrado.' });
     }
 
+    const isAdmin = !!(req.user && (
+      req.user.role === 'ADMIN' ||
+      req.user.email?.toLowerCase() === 'felix.bedoya15@gmail.com'
+    ));
+
+    // If it is a test product, only admins can view it
+    if (product.isTest && !isAdmin) {
+      return res.status(404).json({ error: 'Servicio no disponible públicamente.' });
+    }
+
     // Related products in the same category
-    const related = await MarketplaceProduct.find({
+    const relatedQuery = {
       category: product.category,
       _id: { $ne: product._id },
       status: 'published'
-    }).limit(3).lean();
+    };
+    if (!isAdmin) {
+      relatedQuery.isTest = { $ne: true };
+    }
+    const related = await MarketplaceProduct.find(relatedQuery).limit(3).lean();
 
-    return res.json({ success: true, product, related });
+    return res.json({ success: true, product, related, isAdmin });
   } catch (error) {
     logger.error('[Marketplace] getProductBySlugOrId error:', error);
     return res.status(500).json({ error: 'Error al obtener detalle del servicio.' });

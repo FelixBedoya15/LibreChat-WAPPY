@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Star, CheckCircle2, Clock, Eye, ShoppingCart } from 'lucide-react';
+import { Star, CheckCircle2, Clock, Eye, ShoppingCart, ShieldAlert } from 'lucide-react';
+import { cn } from '~/utils';
 import type { MarketplaceProduct } from './types';
 import { useMarketplace } from './MarketplaceContext';
 
@@ -42,7 +43,12 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
       whileHover={{ y: -3 }}
       transition={{ duration: 0.2 }}
       onClick={() => setSelectedProductDetail(product)}
-      className="group cursor-pointer rounded-2xl border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs hover:shadow-md hover:border-teal-500/40 dark:hover:border-teal-500/40 transition-all duration-200 overflow-hidden flex flex-col h-full"
+      className={cn(
+        'group cursor-pointer rounded-2xl transition-all duration-200 overflow-hidden flex flex-col h-full',
+        product.isTest
+          ? 'border-2 border-dashed border-amber-400 dark:border-amber-500/80 bg-gradient-to-b from-amber-50/70 via-white to-amber-50/30 dark:from-amber-950/40 dark:via-zinc-900 dark:to-amber-950/20 shadow-xs hover:shadow-md hover:border-amber-500 ring-2 ring-amber-400/20'
+          : 'border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs hover:shadow-md hover:border-teal-500/40 dark:hover:border-teal-500/40'
+      )}
     >
       {/* Header Image */}
       <div className="relative h-44 w-full overflow-hidden bg-slate-100 dark:bg-zinc-800">
@@ -53,10 +59,19 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
           loading="lazy"
         />
         <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 items-center">
+          {product.isTest ? (
+            <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 shadow-md border border-amber-300 flex items-center gap-1">
+              🧪 Prueba · Solo Admin
+            </span>
+          ) : (
+            <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-teal-600 text-white shadow-2xs">
+              🌟 Oficial WAPPY
+            </span>
+          )}
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shadow-2xs ${serviceBadge.color}`}>
             {serviceBadge.label}
           </span>
-          {product.isFeatured && (
+          {product.isFeatured && !product.isTest && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-2xs">
               Destacado
             </span>
@@ -109,11 +124,29 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
           </div>
         )}
 
+        {/* Admin test notice or Official public notice */}
+        {product.isTest ? (
+          <div className="mb-3 py-1.5 px-2.5 rounded-xl bg-amber-100/90 dark:bg-amber-950/60 border border-amber-300/80 dark:border-amber-800 text-[10px] font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+            <span className="text-xs">🔒</span>
+            <span>Servicio en Prueba (Solo tú como Admin lo ves)</span>
+          </div>
+        ) : (
+          <div className="mb-3 py-1.5 px-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-800 text-[10px] font-bold text-teal-800 dark:text-teal-200 flex items-center justify-between gap-1.5">
+            <span className="flex items-center gap-1">
+              <span>🌟</span>
+              <span>Servicio Oficial WAPPY</span>
+            </span>
+            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200">
+              12 Cupos
+            </span>
+          </div>
+        )}
+
         {/* Spacer */}
         <div className="mt-auto pt-2 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between">
           <div>
             <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500 block">
-              Inversión desde
+              {product.isTest ? 'Inversión desde' : 'Contado (Opción Crédito)'}
             </span>
             <div className="flex items-baseline gap-1.5">
               <span className="text-base font-extrabold text-teal-700 dark:text-teal-300">
@@ -143,10 +176,15 @@ const MarketplaceProductCard: React.FC<Props> = ({ product }) => {
             <button
               type="button"
               onClick={handleQuickAdd}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
+              className={cn(
+                'flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 text-white',
+                product.isTest
+                  ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600'
+                  : 'bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600'
+              )}
             >
               <ShoppingCart className="h-3.5 w-3.5" />
-              <span>Contratar</span>
+              <span>{product.isTest ? 'Probar' : 'Inscribirme'}</span>
             </button>
           </div>
         </div>

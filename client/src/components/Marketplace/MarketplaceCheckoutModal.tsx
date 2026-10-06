@@ -243,10 +243,10 @@ const MarketplaceCheckoutModal: React.FC<Props> = ({ onSuccess }) => {
           <div className="p-5 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
             <div>
               <h3 className="text-lg font-bold text-slate-800 dark:text-zinc-100">
-                Finalizar Contratación de Servicios SST
+                Finalizar Compra · Tienda WAPPY
               </h3>
               <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Facturación empresarial y pasarela de pago segura
+                Cursos oficiales y servicios SST · Pasarela de pago segura
               </p>
             </div>
             <button
@@ -269,15 +269,32 @@ const MarketplaceCheckoutModal: React.FC<Props> = ({ onSuccess }) => {
                 Pedido Registrado con Éxito: {registeredOrderNumber}
               </h4>
               <p className="text-xs text-slate-600 dark:text-zinc-400 max-w-md mx-auto">
-                Realiza la transferencia por <strong>{formatCOP(totalAmount)}</strong> a nuestra cuenta Bancolombia o Nequi y adjunta el comprobante aquí:
+                Realiza la transferencia por <strong>{formatCOP(totalAmount)}</strong> escaneando el QR oficial WAPPY o directo a Bancolombia / Nequi, y adjunta el comprobante a continuación:
               </p>
 
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 max-w-md mx-auto text-left text-xs space-y-1.5">
-                <div className="font-bold text-slate-800 dark:text-zinc-200">Datos de Pago:</div>
-                <div><strong>Banco:</strong> Bancolombia Cuenta de Ahorros</div>
-                <div><strong>Número:</strong> 912-000000-00</div>
-                <div><strong>Titular:</strong> WAPPY CLUB S.A.S. - NIT: 901.800.000</div>
-                <div><strong>Nequi / Llave:</strong> 310-500-0000</div>
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 max-w-md mx-auto text-left text-xs space-y-2">
+                <div className="font-bold text-slate-800 dark:text-zinc-200 flex items-center justify-between">
+                  <span>Datos Oficiales de Pago:</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300">
+                    WAPPY IA
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <img
+                    src="/QRWAPPY.png"
+                    alt="Código QR Oficial WAPPY"
+                    className="w-24 h-24 object-contain rounded-xl border border-slate-200 dark:border-zinc-700 bg-white p-1 shrink-0"
+                    onError={(e: any) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                  <div className="space-y-1">
+                    <div><strong>Bancolombia:</strong> Cuenta de Ahorros</div>
+                    <div><strong>Nequi / Llave:</strong> 310 291 3651</div>
+                    <div><strong>Titular:</strong> Félix Bedoya / WAPPY CLUB</div>
+                    <div className="text-[11px] text-slate-500 dark:text-zinc-400">
+                      Escanea el QR desde tu app Bancolombia/Nequi para pago instantáneo
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Upload area */}

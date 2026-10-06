@@ -44,7 +44,7 @@ const MarketplaceNavButton = ({
   if (isCollapsed) {
     return (
       <TooltipAnchor
-        description="Marketplace"
+        description="Tienda WAPPY"
         side="right"
         render={
           <motion.button
@@ -82,7 +82,7 @@ const MarketplaceNavButton = ({
       )}
     >
       <ShoppingBag className={cn("h-4 w-4 shrink-0 transition-colors", isActive ? "text-teal-600 dark:text-teal-400" : "text-slate-500 dark:text-zinc-400 group-hover:text-teal-500")} />
-      <span className={cn("font-bold text-xs flex-1 text-left", isActive ? "text-teal-800 dark:text-teal-200" : "text-slate-800 dark:text-zinc-200")}>Marketplace</span>
+      <span className={cn("font-bold text-xs flex-1 text-left", isActive ? "text-teal-800 dark:text-teal-200" : "text-slate-800 dark:text-zinc-200")}>Tienda</span>
       {!hasVisited && (
         <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-teal-500 text-white animate-pulse">
           NUEVO

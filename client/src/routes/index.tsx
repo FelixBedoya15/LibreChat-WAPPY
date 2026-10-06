@@ -549,6 +549,18 @@ export const router = createBrowserRouter(
               element: withSuspense(<MarketplaceDashboard />),
             },
             {
+              path: 'tienda',
+              element: withSuspense(<MarketplaceDashboard />),
+            },
+            {
+              path: 'tienda/admin',
+              element: withSuspense(<MarketplaceDashboard />),
+            },
+            {
+              path: 'tienda/pedido/:orderNumber',
+              element: withSuspense(<MarketplaceDashboard />),
+            },
+            {
               path: 'training',
               element: withSuspense(<AcademiaDashboard />),
             },

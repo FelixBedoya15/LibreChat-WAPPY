@@ -37,10 +37,10 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024 } // 25MB
 });
 
-// ── Public Routes ──
-router.get('/categories', controller.getCategories);
-router.get('/products', controller.getProducts);
-router.get('/products/:idOrSlug', controller.getProductBySlugOrId);
+// ── Public Routes (with optional JWT auth to detect admin role) ──
+router.get('/categories', checkJwtAuth, controller.getCategories);
+router.get('/products', checkJwtAuth, controller.getProducts);
+router.get('/products/:idOrSlug', checkJwtAuth, controller.getProductBySlugOrId);
 router.post('/validate-coupon', controller.validateCoupon);
 router.post('/checkout', checkJwtAuth, controller.createCheckout);
 router.post('/verify-payment', controller.verifyPayment);

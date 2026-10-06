@@ -47,6 +47,9 @@ export interface MarketplaceProduct {
   brochureUrl?: string;
   status: ProductStatus;
   isFeatured?: boolean;
+  isTest?: boolean; // true for test products (visible only to admin)
+  stockType?: 'unlimited' | 'limited';
+  availableSlots?: number;
   salesCount?: number;
   rating?: number;
   reviewsCount?: number;

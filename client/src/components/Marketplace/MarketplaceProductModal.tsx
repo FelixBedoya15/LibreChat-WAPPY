@@ -12,6 +12,7 @@ import {
   MessageCircle,
   ShoppingCart,
   Zap,
+  ExternalLink,
 } from 'lucide-react';
 import type { MarketplaceProduct, ProductVariantOption } from './types';
 import { useMarketplace } from './MarketplaceContext';
@@ -56,9 +57,9 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
 
   const handleWhatsAppInquiry = () => {
     const text = encodeURIComponent(
-      `Hola equipo WAPPY, estoy interesado en el servicio "${product.title}" del Marketplace. Quisiera más información sobre la cotización y fechas.`
+      `Hola Félix, estoy interesado en "${product.title}" de la Tienda WAPPY ($${Math.round(currentPrice).toLocaleString('es-CO')} COP). Quisiera más información sobre los medios de pago de contado y a crédito.`
     );
-    window.open(`https://wa.me/573105000000?text=${text}`, '_blank');
+    window.open(`https://wa.me/573102913651?text=${text}`, '_blank');
   };
 
   return (
@@ -102,6 +103,15 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
             <div className="md:col-span-7 p-6 flex flex-col justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-2">
+                  {product.isTest ? (
+                    <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 shadow-xs border border-amber-300">
+                      🧪 Modo Prueba (Solo Admin)
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-teal-600 text-white shadow-xs">
+                      🌟 Servicio Oficial WAPPY
+                    </span>
+                  )}
                   <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/50">
                     {product.category?.replace(/_/g, ' ').toUpperCase()}
                   </span>
@@ -144,7 +154,7 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
               <div className="mt-5 p-4 rounded-2xl bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-900/50 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <span className="text-[10px] font-bold text-teal-800 dark:text-teal-300 uppercase tracking-wider block">
-                    Inversión Total
+                    {product.isTest ? 'Inversión' : 'Pago de Contado (Opciones a Crédito)'}
                   </span>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-black text-teal-900 dark:text-teal-100">
@@ -156,9 +166,26 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
                       </span>
                     )}
                   </div>
+                  {!product.isTest && (
+                    <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 mt-1">
+                      💳 Opción a crédito: 4 cuotas de $155.000 COP (0% interés con Bancolombia / Nequi)
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {!product.isTest && (
+                    <a
+                      href="/cursowappy01"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition-all"
+                    >
+                      <span>Ver Landing Page</span>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+
                   <button
                     type="button"
                     onClick={handleAddToCart}
@@ -174,7 +201,7 @@ const MarketplaceProductModal: React.FC<Props> = ({ product, onClose }) => {
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white"
                   >
                     <Zap className="h-4 w-4" />
-                    <span>Comprar Ahora</span>
+                    <span>{product.isTest ? 'Probar Compra' : 'Comprar Ahora'}</span>
                   </button>
                 </div>
               </div>

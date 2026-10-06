@@ -72,10 +72,10 @@ const MarketplaceOrdersView: React.FC = () => {
           <ShoppingBag className="h-7 w-7" />
         </div>
         <h3 className="font-bold text-base text-slate-800 dark:text-zinc-100">
-          No tienes servicios contratados aún
+          No tienes compras registradas aún
         </h3>
         <p className="text-xs text-slate-500 leading-relaxed">
-          Cuando adquieras exámenes médicos, matrices IPEVAR, PESV o consultorías SST desde el catálogo, podrás hacer seguimiento a su estado y entregables aquí.
+          Cuando adquieras el curso oficial o servicios SST desde la Tienda WAPPY, podrás hacer seguimiento a su estado, pagos y entregables aquí.
         </p>
       </div>
     );
@@ -86,10 +86,10 @@ const MarketplaceOrdersView: React.FC = () => {
       <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-zinc-800">
         <div>
           <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100">
-            Mis Servicios SST Contratados
+            Mis Compras y Servicios SST
           </h2>
           <p className="text-xs text-slate-500">
-            Historial de pedidos y trazabilidad de ejecución
+            Historial de compras en la Tienda WAPPY y trazabilidad de pedidos
           </p>
         </div>
         <span className="text-xs font-semibold text-slate-500">
@@ -104,9 +104,9 @@ const MarketplaceOrdersView: React.FC = () => {
 
           const handleWhatsApp = () => {
             const text = encodeURIComponent(
-              `Hola equipo WAPPY, consulto por el avance de mi orden ${ord.orderNumber} contratada en el Marketplace.`
+              `Hola Félix, consulto por el estado de mi orden ${ord.orderNumber} realizada en la Tienda WAPPY.`
             );
-            window.open(`https://wa.me/573105000000?text=${text}`, '_blank');
+            window.open(`https://wa.me/573102913651?text=${text}`, '_blank');
           };
 
           return (

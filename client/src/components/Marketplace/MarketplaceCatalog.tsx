@@ -16,6 +16,7 @@ import {
   Layers,
 } from 'lucide-react';
 import axios from 'axios';
+import { useAuthContext } from '~/hooks/AuthContext';
 import type { MarketplaceProduct, MarketplaceCategory } from './types';
 import MarketplaceProductCard from './MarketplaceProductCard';
 
@@ -31,6 +32,11 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 };
 
 const MarketplaceCatalog: React.FC = () => {
+  const { user } = useAuthContext();
+  const isAdmin =
+    user?.role === 'ADMIN' ||
+    user?.email?.toLowerCase() === 'felix.bedoya15@gmail.com';
+
   const [products, setProducts] = useState<MarketplaceProduct[]>([]);
   const [categories, setCategories] = useState<MarketplaceCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -85,6 +91,9 @@ const MarketplaceCatalog: React.FC = () => {
     };
   }, [selectedCategory, searchQuery, sortBy]);
 
+  // Non-admins strictly only see public non-test products
+  const visibleProducts = isAdmin ? products : products.filter((p) => !p.isTest);
+
   return (
     <div className="space-y-6">
       {/* Hero Banner with Value Proposition */}
@@ -92,12 +101,15 @@ const MarketplaceCatalog: React.FC = () => {
         <div className="relative z-10 max-w-2xl space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[11px] font-bold text-teal-200">
             <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-            <span>Marketplace Oficial</span>
+            <span>Tienda Oficial WAPPY</span>
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-black leading-tight tracking-tight">
-            Productos y Servicios Wappy IA
+            Cursos, Formación y Servicios SST
           </h1>
+          <p className="text-xs sm:text-sm text-teal-100/90 leading-relaxed">
+            Formación especializada de alto nivel y contratación directa de soluciones para la gestión integral de Seguridad y Salud en el Trabajo.
+          </p>
 
           <div className="pt-2 flex flex-wrap gap-4 text-xs font-semibold text-teal-200">
             <div className="flex items-center gap-1.5">
@@ -110,7 +122,7 @@ const MarketplaceCatalog: React.FC = () => {
             </div>
             <div className="flex items-center gap-1.5">
               <Clock className="h-4 w-4 text-teal-400" />
-              <span>Tiempos de Entrega Ágiles</span>
+              <span>Cupos Exclusivos & Acompañamiento VIP</span>
             </div>
           </div>
         </div>
@@ -118,6 +130,21 @@ const MarketplaceCatalog: React.FC = () => {
         {/* Decorative background glow */}
         <div className="absolute -right-10 -bottom-10 w-96 h-96 rounded-full bg-teal-500/20 blur-3xl pointer-events-none" />
       </div>
+
+      {/* Admin Test Notification Banner */}
+      {isAdmin && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 shadow-xs">
+          <div className="flex items-start sm:items-center gap-2">
+            <span className="text-base">👑</span>
+            <span>
+              <strong>Panel Admin Activo:</strong> Estás visualizando el <strong>Curso Oficial WAPPY</strong> (visible para todos) y los <strong>servicios en modo prueba</strong> ({visibleProducts.filter((p) => p.isTest).length} productos con borde y etiqueta ámbar). Los usuarios normales <strong>únicamente ven el curso oficial</strong>.
+            </span>
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 shrink-0 self-start sm:self-auto">
+            Solo Admin
+          </span>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
@@ -195,7 +222,7 @@ const MarketplaceCatalog: React.FC = () => {
             />
           ))}
         </div>
-      ) : products.length === 0 ? (
+      ) : visibleProducts.length === 0 ? (
         <div className="p-12 text-center max-w-md mx-auto space-y-3">
           <Search className="h-10 w-10 text-slate-300 dark:text-zinc-600 mx-auto" />
           <h3 className="text-base font-bold text-slate-800 dark:text-zinc-100">
@@ -217,7 +244,7 @@ const MarketplaceCatalog: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {products.map((product) => (
+          {visibleProducts.map((product) => (
             <MarketplaceProductCard key={product._id} product={product} />
           ))}
         </div>
