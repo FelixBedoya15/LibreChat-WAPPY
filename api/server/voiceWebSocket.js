@@ -104,6 +104,8 @@ function setupVoiceWebSocket(server) {
             if (params.workerId) config.workerId = params.workerId;
             if (params.cargo) config.cargo = params.cargo;
             if (params.actividad) config.actividad = params.actividad;
+            if (params.route) config.route = params.route;
+            if (params.agentName) config.agentName = params.agentName;
 
             const result = await createSession(ws, user.id, conversationId, config);
 

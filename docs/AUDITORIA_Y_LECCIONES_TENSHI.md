@@ -309,6 +309,27 @@
 
 ---
 
+### LECCIÓN 9 (2026-10-06): Correlación Temporal Estricta en Memoria Episódica de Tenshi Voice y Sincronización de Módulo Activo en Pantalla
+
+#### A. Anclaje a Temas Antiguos Concluidos ("Baterías de Riesgo Psicosocial") vs Hilo Conductor Activo ("Perfil Sociodemográfico")
+- **Síntoma Reportado:** Al pedir el usuario trabajar en el Perfil Sociodemográfico o regenerar el análisis, Tenshi comenzó a hablar de baterías de riesgo psicosocial (tema tratado horas o turnos antes y ya terminado), ignorando el hilo conductor actual y perdiendo la continuidad.
+- **Causas Raíces Identificadas:**
+  1. **Inyección Cronológica Plana sin Jerarquía:** En `voiceSession.js`, los últimos 10 mensajes de `TenshiMessage` se consultaban en orden descendente y luego se invertían (`.reverse()`). El mensaje más antiguo (índice 0, de sesiones pasadas) aparecía de primero bajo un rótulo genérico sin distinguir si eran antecedentes archivados o la conversación en curso. Gemini Live leía secuencialmente de arriba a abajo y se anclaba en el primer tema leído.
+  2. **Ejemplo Hardcodeado de Priming en la Instrucción del Sistema:** En la regla de memoria de `voiceSession.js`, existía la frase literal: `(como "¿recuérdame la última consulta que te hicimos sobre los resultados de la batería de riesgo psicosocial en la empresa?")`. Esto provocaba un sesgo cognitivo directo (*prompt priming*) en Gemini Live, forzándolo a mencionar "baterías de riesgo psicosocial" ante cualquier ambigüedad.
+  3. **Ausencia de Ruta/Módulo Activo en la Instrucción Inicial:** El WebSocket no transmitía el query string (`window.location.search`, ej: `?hito=hito2&module=perfil_socio`), enviando únicamente `/sgsst`. Por tanto, Tenshi no sabía qué módulo específico estaba abierto ante los ojos del usuario al inicializar la sesión de voz.
+- **Solución Implementada:**
+  1. **Estructuración Temporal de la Memoria Episódica:** En `voiceSession.js`, el historial de Tenshi se divide explícitamente en:
+     - `[ANTECEDENTES PREVIOS ARCHIVADOS (TEMAS YA FINALIZADOS EN TURNOS ANTERIORES)]`: Con advertencia expresa al modelo de que son intercambios concluidos del pasado que NO debe retomar.
+     - `[HILO CONDUCTOR ACTIVO Y VIGENTE (CONVERSACIÓN ACTUAL EN CURSO)]`: Con directiva crítica imperativa indicando que el último mensaje marca el presente inmediato sobre el que debe continuar.
+  2. **Eliminación Total de Ejemplos Hardcodeados de Priming:** Se eliminó cualquier mención estática de baterías o temas específicos en las reglas de memoria.
+  3. **Directiva Imperativa de Continuidad:** Se añadió en `systemInstruction` la `[REGLA ESTRICTA DE CORRELACIÓN TEMPORAL Y CONTINUIDAD DEL HILO CONVERSACIONAL]`, prohibiendo retroceder a temas viejos o tomar el primer mensaje como tema vigente.
+  4. **Traducción Semántica de Pantalla y Sincronización en Vivo:**
+     - Función `formatScreenRouteHuman(route, agent)` que mapea rutas y parámetros de URL a nombres técnicos legibles de módulos SG-SST (ej: *Módulo: Perfil Sociodemográfico y Nómina de Colaboradores (Hito 2 - Huella Biocéntrica)*).
+     - Inyección destacada de `[PANTALLA Y MÓDULO VISIBLE EN ESTE MOMENTO]` en el system prompt.
+     - En `TenshiChat.tsx` y `useVoiceSession.ts`, sincronización completa de `location.pathname + location.search` tanto en los parámetros de conexión iniciales del WebSocket como en el `useEffect` reactivo a los cambios de ruta con `useLocation()`.
+
+---
+
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
 
 Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el chat:

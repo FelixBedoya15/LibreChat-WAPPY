@@ -29,6 +29,8 @@ interface UseVoiceSessionOptions {
     workerId?: string;
     cargo?: string;
     actividad?: string;
+    route?: string;
+    agentName?: string;
 }
 
 export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
@@ -439,6 +441,12 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             }
             if (options.actividad) {
                 wsUrl += `&actividad=${encodeURIComponent(options.actividad)}`;
+            }
+            if (options.route) {
+                wsUrl += `&route=${encodeURIComponent(options.route)}`;
+            }
+            if (options.agentName) {
+                wsUrl += `&agentName=${encodeURIComponent(options.agentName)}`;
             }
 
             console.log('[VoiceSession] Connecting to:', wsUrl);

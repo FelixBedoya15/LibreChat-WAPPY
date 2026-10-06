@@ -187,6 +187,73 @@ function enrichTechnicalPrompt(rawPrompt, agent) {
 }
 
 /**
+ * Translates application routes and active screen contexts into clear, human-readable
+ * modules of the SG-SST platform so Tenshi has crystal-clear grounded context.
+ */
+function formatScreenRouteHuman(route, agent) {
+    if (!route && !agent) return 'Plataforma SG-SST WAPPY';
+    const r = (route || '').toLowerCase();
+
+    // Si hay especialista activo en pantalla
+    if (agent && agent.name) {
+        return `Chat activo con Especialista: ${agent.name} (Ruta: ${route || '/c/new'})`;
+    }
+
+    if (r.includes('perfil_socio') || r.includes('sociodemografico') || (r.includes('hito2') && !r.includes('perfil_cargo') && !r.includes('condiciones_salud'))) {
+        return 'Módulo: Perfil Sociodemográfico y Nómina de Colaboradores (Hito 2 - Huella Biocéntrica)';
+    }
+    if (r.includes('perfil_cargo') || r.includes('profesigrama')) {
+        return 'Módulo: Perfiles de Cargo y Profesiogramas (Hito 2 - Huella Biocéntrica)';
+    }
+    if (r.includes('condiciones_salud')) {
+        return 'Módulo: Condiciones de Salud y Evaluaciones Médicas Ocupacionales (Hito 2)';
+    }
+    if (r.includes('diagnostico') || r.includes('0312')) {
+        return 'Módulo: Diagnóstico Inicial y Estándares Mínimos Resolución 0312 (Hito 1)';
+    }
+    if (r.includes('matriz_ipevar') || r.includes('peligros') || r.includes('gtc45')) {
+        return 'Módulo: Matriz de Riesgos y Peligros IPEVAR / GTC-45 (Hito 1 / Hito 4)';
+    }
+    if (r.includes('matriz_pesv') || r.includes('vehicles_pesv') || r.includes('pesv')) {
+        return 'Módulo: Plan Estratégico de Seguridad Vial PESV (Resolución 20223040040595)';
+    }
+    if (r.includes('matriz_compatibilidad') || r.includes('chemical')) {
+        return 'Módulo: Matriz de Compatibilidad Química y Sustancias Peligrosas SGA (Hito 5)';
+    }
+    if (r.includes('animo')) {
+        return 'Módulo: Termómetro Emocional y Monitoreo de Clima Laboral (Hito 4)';
+    }
+    if (r.includes('investigacion_atel') || r.includes('atel')) {
+        return 'Módulo: Investigación de Incidentes y Accidentes de Trabajo ATEL (Hito 7)';
+    }
+    if (r.includes('estadisticas')) {
+        return 'Módulo: Indicadores y Estadísticas de Siniestralidad y Ausentismo (Hito 7)';
+    }
+    if (r.includes('control_acpm') || r.includes('/control')) {
+        return 'Módulo: Centro de Control de Acciones Correctivas y Preventivas ACPM (Kanban)';
+    }
+    if (r.includes('copasst')) {
+        return 'Módulo: Comité Paritario de Seguridad y Salud en el Trabajo (COPASST - Hito 3)';
+    }
+    if (r.includes('cocolab')) {
+        return 'Módulo: Comité de Convivencia Laboral (COCOLAB - Hito 3)';
+    }
+    if (r.includes('academia') || r.includes('cursos')) {
+        return 'Módulo: Escuela WAPPY / Academia y Cursos de Capacitación (Hito 6)';
+    }
+    if (r.includes('predictivo')) {
+        return 'Módulo: Inteligencia Artificial y Oráculo Predictivo (Hito 8)';
+    }
+    if (r.includes('/sgsst')) {
+        return 'Módulo: Sistema de Gestión SG-SST (Dashboard de Hitos)';
+    }
+    if (r.includes('/c/') || r.includes('/chat')) {
+        return 'Pantalla: Chat de Consultas WAPPY';
+    }
+    return `Pantalla actual: ${route}`;
+}
+
+/**
  * Active voice sessions
  * Map of userId -> VoiceSession
  */
@@ -258,6 +325,8 @@ class VoiceSession {
         this.conversationId = conversationId;
         this.geminiClient = null;
         this.isActive = false;
+        this.activeScreenRoute = config.route || '';
+        this.activeScreenAgent = config.agentId || config.agentName ? { id: config.agentId, name: config.agentName || '' } : null;
 
         // Text accumulation for saving
         this.userTranscriptionText = '';
@@ -1046,6 +1115,11 @@ class VoiceSession {
     3. NUNCA inventes lo que dice el especialista ni lo reduzcas a una frase genérica de 10 palabras si el usuario te pidió leerlo o conocer los detalles.
     4. NUNCA digas que "es la respuesta exacta" si solo estás diciendo un micro-resumen. Sé transparente y cita la sustancia real.
 
+[REGLA ESTRICTA DE CORRELACIÓN TEMPORAL Y CONTINUIDAD DEL HILO CONVERSACIONAL]:
+- EL HILO CONDUCTOR LO MARCA EL MENSAJE MÁS RECIENTE Y LA PANTALLA ACTUAL: La conversación siempre avanza hacia adelante en el tiempo. Si el usuario saluda, dice "continuemos", "¿en qué íbamos?", da una orden o hace una pregunta, básate EXCLUSIVAMENTE en el [HILO CONDUCTOR ACTIVO Y VIGENTE] y en el módulo o pantalla abierta en este momento.
+- PROHIBICIÓN ESTRICTA DE REGRESIONAR O RETOMAR TEMAS VIEJOS YA CONCLUIDOS: Si en el pasado (turnos anteriores, días anteriores o sesiones previas) se habló de baterías de riesgo psicosocial, comités, auditorías o cualquier otro tema, y la conversación avanzó hacia el Perfil Sociodemográfico, colaboradores o cualquier otro módulo, ESTÁ TOTALMENTE PROHIBIDO volver a sacar a colación o hablar de los temas viejos a menos que el usuario lo solicite explícitamente por su nombre.
+- NUNCA TOMES EL PRIMER MENSAJE DEL HISTORIAL COMO EL TEMA VIGENTE: El historial episódico contiene antecedentes ordenados en el tiempo. El primer mensaje es el más antiguo del pasado. El ÚLTIMO mensaje es el presente. Sigue siempre la línea del presente.
+
 [ROL]:
 Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes control en tiempo real para abrir cualquier agente, navegar a cualquier sección, entrar a Google Drive, generar archivos Canvas y diligenciar formularios en pantalla. Además, cuentas con acceso directo a la SUITE TOTAL DE 41 OPERACIONES MCP DEL SG-SST (diagnóstico 360° total, empresa, colaboradores, matrices GTC-45 / PESV / Legal, estándares 0312, comités, inventario químico, vehículos, EPP, actos y condiciones, perfiles de cargo, casos ATEL, cronograma y capacitaciones). Invoca 'wappy_resumen_general_360' o 'wappy_mcp_sst' con la herramienta adecuada para consultar o gestionar los datos del usuario de forma inmediata y profesional.
 
@@ -1358,6 +1432,12 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
 - Responsable SST: ${companyInfo.responsibleSST || 'N/A'}.${sedesStr}`;
                     }
 
+                    // Inyectar contexto inmediato de pantalla y módulo activo
+                    const humanScreen = formatScreenRouteHuman(this.activeScreenRoute, this.activeScreenAgent);
+                    companyAndMemoryPrompt += `\n\n[PANTALLA Y MÓDULO VISIBLE EN ESTE MOMENTO]:
+- Módulo en pantalla: ${humanScreen} (Ruta: ${this.activeScreenRoute || '/sgsst'}).
+- FOCO DE TRABAJO INMEDIATO: El usuario tiene este módulo abierto en su pantalla ahora mismo. Cualquier petición de acción, clic en botones, generación de análisis o informe con IA, o consulta sobre datos debe entenderse y ejecutarse EXCLUSIVAMENTE sobre este módulo visible (${humanScreen}). ESTÁ TOTALMENTE PROHIBIDO desviar la conversación hacia módulos o temas tratados en el pasado.`;
+
                     if (Array.isArray(rawMemories) && rawMemories.length > 0) {
                         const uniqueMap = new Map();
                         const sortedRaw = [...rawMemories].sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
@@ -1370,26 +1450,53 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         }
                     }
 
-                    // Inyectar Historial reciente de Tenshi (TenshiMessage) - compacto
+                    // Inyectar Historial reciente de Tenshi (TenshiMessage) - con distinción temporal de antecedentes vs hilo activo
                     if (recentTenshiMessages && recentTenshiMessages.length > 0) {
-                        companyAndMemoryPrompt += `\n\n[HISTORIAL RECIENTE DE CONVERSACIONES DIRECTAS CON TENSHI (MEMORIA EPISÓDICA)]:`;
-                        const chronological = [...recentTenshiMessages].reverse();
-                        for (const m of chronological) {
+                        const validMessages = [];
+                        const reversedChronological = [...recentTenshiMessages].reverse();
+                        for (const m of reversedChronological) {
                             const role = m.role === 'user' ? 'Usuario' : 'Tenshi';
                             const cleanContent = (m.content || '').replace(/\s+/g, ' ').trim();
-                            const snippet = cleanContent.length > 180 ? cleanContent.substring(0, 180) + '...' : cleanContent;
+                            const snippet = cleanContent.length > 200 ? cleanContent.substring(0, 200) + '...' : cleanContent;
                             if (snippet && !snippet.startsWith('[RESULTADO_GUI]')) {
-                                companyAndMemoryPrompt += `\n- ${role}: "${snippet}"`;
+                                validMessages.push({ role, snippet });
                             }
+                        }
+
+                        if (validMessages.length > 3) {
+                            const archived = validMessages.slice(0, validMessages.length - 3);
+                            const activeThread = validMessages.slice(validMessages.length - 3);
+
+                            companyAndMemoryPrompt += `\n\n[ANTECEDENTES PREVIOS ARCHIVADOS (TEMAS YA FINALIZADOS EN TURNOS ANTERIORES)]:
+(ATENCIÓN: Los siguientes intercambios ya finalizaron y pertenecen al pasado. NUNCA los uses como tema de conversación activo ni hables de ellos a menos que el usuario te pregunte explícitamente "¿qué hablamos antes?"):`;
+                            for (const m of archived) {
+                                companyAndMemoryPrompt += `\n- [Turno pasado archivado] ${m.role}: "${m.snippet}"`;
+                            }
+
+                            companyAndMemoryPrompt += `\n\n[HILO CONDUCTOR ACTIVO Y VIGENTE (CONVERSACIÓN ACTUAL EN CURSO)]:
+(DIRECTIVA CRÍTICA: ESTE ES EL TEMA VIVO Y PRESENTE. El último mensaje marca la continuidad exacta de lo que estás haciendo en este instante. Tu respuesta DEBE alinearse con este hilo conductor y con la pantalla activa):`;
+                            activeThread.forEach((m, idx) => {
+                                const isLast = idx === activeThread.length - 1;
+                                const tag = isLast ? 'ÚLTIMO TURNO - PRESENTE INMEDIATO' : 'Turno reciente';
+                                companyAndMemoryPrompt += `\n- [${tag}] ${m.role}: "${m.snippet}"`;
+                            });
+                        } else if (validMessages.length > 0) {
+                            companyAndMemoryPrompt += `\n\n[HILO CONDUCTOR ACTIVO Y VIGENTE (CONVERSACIÓN ACTUAL EN CURSO)]:
+(DIRECTIVA CRÍTICA: ESTE ES EL TEMA VIVO Y PRESENTE. El último mensaje marca la continuidad de lo que estás haciendo en este instante):`;
+                            validMessages.forEach((m, idx) => {
+                                const isLast = idx === validMessages.length - 1;
+                                const tag = isLast ? 'ÚLTIMO TURNO - PRESENTE INMEDIATO' : 'Turno reciente';
+                                companyAndMemoryPrompt += `\n- [${tag}] ${m.role}: "${m.snippet}"`;
+                            });
                         }
                     }
 
                     // Inyectar síntesis de las últimas 2-3 conversaciones con especialistas (solo últimos 2 mensajes clave)
                     if (recentConvos && recentConvos.length > 0) {
-                        companyAndMemoryPrompt += '\n\n[ÚLTIMAS CONSULTAS DEL USUARIO EN CHATS CON ESPECIALISTAS (WAPPY)]:';
+                        companyAndMemoryPrompt += '\n\n[HISTORIAL PASADO DE CONSULTAS CON ESPECIALISTAS (WAPPY)]:\n(Referencia histórica pasiva de consultas en otros chats. NO sustituyen ni deben interferir con el tema activo actual de la pantalla):';
                         for (const c of recentConvos) {
                             if (!c.messages || c.messages.length === 0) continue;
-                            companyAndMemoryPrompt += `\n- Consulta: "${c.title}":`;
+                            companyAndMemoryPrompt += `\n- Consulta histórica: "${c.title}":`;
                             for (const m of c.messages) {
                                 const sender = m.isCreatedByUser ? 'Usuario' : (m.sender || 'Especialista');
                                 const maxLen = m.isCreatedByUser ? 300 : 3500;
@@ -1404,8 +1511,8 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
 
                     companyAndMemoryPrompt += `\n\n[REGLAS DE CONOCIMIENTO CORPORATIVO Y CONTINUIDAD]:
 1. Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.
-2. Tienes memoria total de las conversaciones previas con el usuario en este widget y de las consultas que el usuario ha realizado con los distintos especialistas en los chats de WAPPY (por ejemplo: consultas a fisioterapeutas, psicólogos laborales, inspectores, auditores, etc.).
-3. Si el usuario te pregunta por conversaciones pasadas, te dice "¿qué hablamos antes?", o te pide recordar una consulta específica (como "¿recuérdame la última consulta que te hicimos sobre los resultados de la batería de riesgo psicosocial en la empresa?"), responde con base en este historial anterior con total naturalidad, calidez y precisión técnica. NUNCA digas que no recuerdas o que tu memoria fue reiniciada al prenderte o apagar el modo voz.`;
+2. Tienes memoria total de las conversaciones previas con el usuario en este widget y de las consultas que el usuario ha realizado con los distintos especialistas en los chats de WAPPY.
+3. Si el usuario te pregunta expresamente por conversaciones pasadas, te dice "¿qué hablamos antes?" o "¿recuérdame qué consultamos?", responde con base en los antecedentes con naturalidad, calidez y precisión técnica. PERO en la conversación ordinaria, peticiones de acción o preguntas de seguimiento, mantén el foco riguroso en el [HILO CONDUCTOR ACTIVO Y VIGENTE] y la pantalla visible. NUNCA digas que no recuerdas o que tu memoria fue reiniciada al prenderte o apagar el modo voz.`;
 
                     this.liveConfig.systemInstruction = (this.liveConfig.systemInstruction || '') + companyAndMemoryPrompt;
                     logger.info(`[VoiceSession] Injected active company, ${rawMemories?.length || 0} memories, ${recentTenshiMessages?.length || 0} Tenshi turns & ${recentConvos?.length || 0} specialist convos into Tenshi Voice instructions`);
@@ -3078,7 +3185,8 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     if (data.route) {
                         this.activeScreenRoute = data.route;
                     }
-                    logger.info(`[VoiceSession] Updated screen context: conversationId=${this.conversationId}, activeScreenAgent=${JSON.stringify(this.activeScreenAgent)}, route=${this.activeScreenRoute}`);
+                    const humanDesc = formatScreenRouteHuman(this.activeScreenRoute, this.activeScreenAgent);
+                    logger.info(`[VoiceSession] Updated screen context: conversationId=${this.conversationId}, activeScreenAgent=${JSON.stringify(this.activeScreenAgent)}, route=${this.activeScreenRoute} (${humanDesc})`);
                 }
                 break;
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   X,
   Send,
@@ -798,6 +798,7 @@ export function resolveWappyDestination(
 
 export default function TenshiChat() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, token } = useAuthContext();
   const agentsMap = useAgentsMapContext();
   const { data: agentsData } = useListAgentsQuery({ requiredPermission: 1, limit: 100 });
@@ -1162,6 +1163,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const sessionOptions = useMemo(
     () => ({
       mode: 'tenshi_voice',
+      route: `${location.pathname}${location.search}`,
       onAudioReceived: (audioData: string) => {
         handleAudioReceived(audioData);
       },
@@ -1533,10 +1535,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         conversationId: conversation?.conversationId,
         agentId: effectiveAgentId,
         agentName: activeAgent?.name || activeConsultationAgentNameRef.current || conversation?.title,
-        route: window.location.pathname,
+        route: `${location.pathname}${location.search}`,
       });
     }
-  }, [isVoiceActive, conversation?.conversationId, conversation?.agent_id, conversation?.title]);
+  }, [isVoiceActive, conversation?.conversationId, conversation?.agent_id, conversation?.title, location]);
 
   // Tenshi mantiene siempre el micrófono activo para escuchar al usuario sin bloqueos ni silenciamientos
   useEffect(() => {
