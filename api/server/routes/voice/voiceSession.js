@@ -3415,7 +3415,10 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             user: { id: this.userId, _id: this.userId },
             body: {
                 conversationId: uniqueCanvasId,
-                text: userPrompt
+                text: userPrompt,
+                userRequestText: userPrompt,
+                screenContext: this.activeScreenRoute || '',
+                agentContext: this.lastSpecialistResponse || this.activeScreenAgent?.name || '',
             }
         };
 
@@ -3423,6 +3426,11 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
         let failReason = '';
         let generatedContent = '';
         let finalTitle = args.title;
+
+        // Para documentos de texto ('text'), si no hay contenido explícito o es breve, usar userPrompt para enriquecimiento pesado
+        if (args.fileType === 'text' && (!args.content || !String(args.content).trim())) {
+            args.content = userPrompt || args.title || 'Informe Técnico SG-SST';
+        }
 
         // Validación previa de JSON para Excel / Presentación
         if ((args.fileType === 'excel' || args.fileType === 'presentation') && typeof args.content === 'string') {
@@ -3492,6 +3500,35 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
         }
 
         if (ok) {
+            // Guardar en el historial de mensajes de Tenshi antes de notificar al cliente
+            if (this.userId) {
+                try {
+                    const TenshiMessage = require('~/models/TenshiMessage');
+                    const fileTypeLabels = {
+                        text: 'Documento Word',
+                        excel: 'Hoja de Cálculo Excel',
+                        html: 'Aplicativo / Reporte HTML',
+                        presentation: 'Presentación de Diapositivas',
+                    };
+                    const label = fileTypeLabels[args.fileType] || 'Archivo SG-SST';
+                    await TenshiMessage.create({
+                        user: this.userId,
+                        role: 'assistant',
+                        content: `📁 **${label} generado**: *${finalTitle}*`,
+                        file: {
+                            title: finalTitle,
+                            fileType: args.fileType,
+                            content: generatedContent,
+                            canvasId: uniqueCanvasId,
+                        },
+                        htmlReport: args.fileType === 'html' ? generatedContent : undefined,
+                    });
+                    logger.info(`[VoiceSession] Persisted canvas file message "${finalTitle}" to TenshiMessage for user ${this.userId}`);
+                } catch (persistErr) {
+                    logger.error('[VoiceSession] Error persisting canvas file to TenshiMessage:', persistErr);
+                }
+            }
+
             this.sendToClient({
                 type: 'wappy_action',
                 data: {

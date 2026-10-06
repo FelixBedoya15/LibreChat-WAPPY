@@ -17,8 +17,8 @@ const XLSX = require('xlsx');
 // ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
 async function getActiveCompanyId(userId, subUserAssignedCompany = null) {
     if (subUserAssignedCompany) return subUserAssignedCompany;
-    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
-    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true }).select('_id').lean();
+    if (!active) active = await CompanyInfo.findOne({ user: userId }).select('_id').lean();
     return active ? active._id : null;
 }
 
@@ -1081,7 +1081,12 @@ router.get('/data', requireJwtAuth, async (req, res) => {
     const isSub = !!req.user.isSubUser;
     const targetUserId = (isSub && req.user.parentUser) ? req.user.parentUser : req.user.id;
     const companyId = await getActiveCompanyId(targetUserId, isSub ? req.user.assignedCompany : null);
-    const data = await PerfilSociodemograficoData.findOne({ user: targetUserId, companyId: companyId }).lean();
+    let data = companyId
+      ? await PerfilSociodemograficoData.findOne({ user: targetUserId, companyId: companyId }).lean()
+      : null;
+    if (!data) {
+      data = await PerfilSociodemograficoData.findOne({ user: targetUserId }).lean();
+    }
     if (data) {
       let finalWorkers = data.trabajadores || [];
 
@@ -1127,9 +1132,11 @@ router.get('/data', requireJwtAuth, async (req, res) => {
         const { SgsstCopasstComite } = require('~/models/SgsstCopasst');
         const { SgsstConvivenciaComite } = require('~/models/SgsstConvivencia');
 
-        const activeCopasst = await SgsstCopasstComite.findOne({ companyId, estado: 'activo' }).lean()
-          || await SgsstCopasstComite.findOne({ companyId }).sort({ createdAt: -1 }).lean();
-        const activeConvivencias = await SgsstConvivenciaComite.find({ companyId, estado: 'activo' }).lean();
+        const [activeCopasst, activeConvivencias] = await Promise.all([
+          SgsstCopasstComite.findOne({ companyId, estado: 'activo' }).lean()
+            .then(res => res || SgsstCopasstComite.findOne({ companyId }).sort({ createdAt: -1 }).lean()),
+          SgsstConvivenciaComite.find({ companyId, estado: 'activo' }).lean()
+        ]);
 
         const copasstCedulas = new Set();
         if (activeCopasst) {
@@ -2041,24 +2048,33 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
       }
     }
 
-    // Auto-integrate pending EstudioPuestoTrabajo (EPT) for workers
+    // Auto-integrate pending EstudioPuestoTrabajo (EPT) for workers (batch query)
     try {
       const EstudioPuestoTrabajo = mongoose.models.EstudioPuestoTrabajo || require('~/models/EstudioPuestoTrabajo');
       if (EstudioPuestoTrabajo && Array.isArray(workersToSave)) {
-        for (const w of workersToSave) {
-          if (!w.identificacion) continue;
-          const cleanDoc = String(w.identificacion).trim();
-          const previousStudies = await EstudioPuestoTrabajo.find({ companyId, workerId: cleanDoc }).sort({ createdAt: -1 });
-          if (previousStudies && previousStudies.length > 0) {
-            const latestEpt = previousStudies[0];
-            const dateStr = latestEpt.createdAt ? new Date(latestEpt.createdAt).toLocaleDateString('es-CO') : 'Reciente';
-            const eptSummary = `EPT Ergonómico Integrado (${dateStr}): ${latestEpt.cargo || w.cargo}. Riesgo: ${latestEpt.riskLevel || 'Evaluado'}. Nivel de Acción: ${latestEpt.actionLevel || '1'}.`;
-            if (!w.diagnosticoMedico || !w.diagnosticoMedico.includes('EPT Ergonómico')) {
-              w.diagnosticoMedico = w.diagnosticoMedico ? `${w.diagnosticoMedico} | ${eptSummary}` : eptSummary;
-              w.completedByAI = true;
+        const cleanDocs = workersToSave.map(w => w.identificacion ? String(w.identificacion).trim() : null).filter(Boolean);
+        if (cleanDocs.length > 0) {
+          const allStudies = await EstudioPuestoTrabajo.find({ companyId, workerId: { $in: cleanDocs } }).sort({ createdAt: -1 }).lean();
+          const studiesByWorker = new Map();
+          for (const s of allStudies) {
+            if (!studiesByWorker.has(s.workerId)) {
+              studiesByWorker.set(s.workerId, s);
             }
-            if (w.nombre && (!latestEpt.workerName || latestEpt.workerName === 'Trabajador Evaluado')) {
-              await EstudioPuestoTrabajo.updateMany({ companyId, workerId: cleanDoc }, { $set: { workerName: w.nombre } });
+          }
+          for (const w of workersToSave) {
+            if (!w.identificacion) continue;
+            const cleanDoc = String(w.identificacion).trim();
+            const latestEpt = studiesByWorker.get(cleanDoc);
+            if (latestEpt) {
+              const dateStr = latestEpt.createdAt ? new Date(latestEpt.createdAt).toLocaleDateString('es-CO') : 'Reciente';
+              const eptSummary = `EPT Ergonómico Integrado (${dateStr}): ${latestEpt.cargo || w.cargo}. Riesgo: ${latestEpt.riskLevel || 'Evaluado'}. Nivel de Acción: ${latestEpt.actionLevel || '1'}.`;
+              if (!w.diagnosticoMedico || !w.diagnosticoMedico.includes('EPT Ergonómico')) {
+                w.diagnosticoMedico = w.diagnosticoMedico ? `${w.diagnosticoMedico} | ${eptSummary}` : eptSummary;
+                w.completedByAI = true;
+              }
+              if (w.nombre && (!latestEpt.workerName || latestEpt.workerName === 'Trabajador Evaluado')) {
+                await EstudioPuestoTrabajo.updateMany({ companyId, workerId: cleanDoc }, { $set: { workerName: w.nombre } });
+              }
             }
           }
         }
@@ -2072,9 +2088,11 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
       const { SgsstCopasstComite } = require('~/models/SgsstCopasst');
       const { SgsstConvivenciaComite } = require('~/models/SgsstConvivencia');
 
-      const activeCopasst = await SgsstCopasstComite.findOne({ companyId, estado: 'activo' }).lean()
-        || await SgsstCopasstComite.findOne({ companyId }).sort({ createdAt: -1 }).lean();
-      const activeConvivencias = await SgsstConvivenciaComite.find({ companyId, estado: 'activo' }).lean();
+      const [activeCopasst, activeConvivencias] = await Promise.all([
+        SgsstCopasstComite.findOne({ companyId, estado: 'activo' }).lean()
+          .then(res => res || SgsstCopasstComite.findOne({ companyId }).sort({ createdAt: -1 }).lean()),
+        SgsstConvivenciaComite.find({ companyId, estado: 'activo' }).lean()
+      ]);
 
       const copasstCedulas = new Set();
       if (activeCopasst) {
@@ -2110,28 +2128,37 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
       { upsert: true, new: true }
     );
 
-    // Sync basic health data to master SgsstWorker profile
+    // Sync basic health data to master SgsstWorker profile (using bulkWrite for instant performance)
     const SgsstWorker = require('../../../models/SgsstWorker');
-    for (const w of updatedWithBio) {
-      if (!w.identificacion) continue;
-      const cleanDoc = String(w.identificacion).trim();
-      if (!cleanDoc) continue;
-      await SgsstWorker.updateOne(
-        { user: targetUserId, companyId, documento: cleanDoc },
-        {
-          $set: {
-            nombre: w.nombre || 'Colaborador',
-            cargo: w.cargo || '',
-            eps: w.eps || '',
-            afp: w.afp || '',
-            estadoPila: w.estadoPila || 'Pendiente de soporte PILA',
-            condicionesSalud: [w.enfermedades, w.diagnosticoMedico, w.limitacionesBiomecanicas].filter(Boolean).join('; ') || '',
-            fechaNacimiento: w.fechaNacimiento || null,
-            genero: w.genero || 'No especificado',
-            updatedAt: new Date(),
+    const workerBulkOps = updatedWithBio
+      .filter(w => w.identificacion && String(w.identificacion).trim())
+      .map(w => {
+        const cleanDoc = String(w.identificacion).trim();
+        return {
+          updateOne: {
+            filter: { user: targetUserId, companyId, documento: cleanDoc },
+            update: {
+              $set: {
+                nombre: w.nombre || 'Colaborador',
+                cargo: w.cargo || '',
+                eps: w.eps || '',
+                afp: w.afp || '',
+                estadoPila: w.estadoPila || 'Pendiente de soporte PILA',
+                condicionesSalud: [w.enfermedades, w.diagnosticoMedico, w.limitacionesBiomecanicas].filter(Boolean).join('; ') || '',
+                fechaNacimiento: w.fechaNacimiento || null,
+                genero: w.genero || 'No especificado',
+                estadoLaboral: w.estadoLaboral || 'Activo',
+                fechaRetiro: w.fechaRetiro || null,
+                motivoRetiro: w.motivoRetiro || '',
+                updatedAt: new Date(),
+              }
+            },
+            upsert: true
           }
-        }
-      );
+        };
+      });
+    if (workerBulkOps.length > 0) {
+      await SgsstWorker.bulkWrite(workerBulkOps, { ordered: false });
     }
 
     // ── IA Semantic Tagging (synchronous — awaited so frontend gets results) ──

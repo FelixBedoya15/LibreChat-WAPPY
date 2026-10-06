@@ -19,7 +19,10 @@ import {
     HeartPulse,
     User,
     QrCode,
-    Info
+    Info,
+    RotateCcw,
+    UserX,
+    Search
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
@@ -195,7 +198,16 @@ const CondicionesSalud = () => {
     const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
     const { showToast } = useToastContext();
 
-    const [trabajadores, setTrabajadores] = useState<WorkerEntry[]>([]);
+    const [trabajadores, setTrabajadores] = useState<WorkerEntry[]>(() => {
+        try {
+            const cached = sessionStorage.getItem('wappy_cached_workers');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch {}
+        return [];
+    });
     const [workerTabs, setWorkerTabs] = useState<Record<string, string>>({});
     const [activeSignatureWorkerId, setActiveSignatureWorkerId] = useState<string | null>(null);
 
@@ -208,7 +220,39 @@ const CondicionesSalud = () => {
     }, [user?.personalization?.geminiModels?.sstManagement]);
     const [expandedWorkers, setExpandedWorkers] = useState<Set<string>>(new Set());
     const [isSaving, setIsSaving] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState<boolean>(() => {
+        try {
+            const cached = sessionStorage.getItem('wappy_cached_workers');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0) return false;
+            }
+        } catch {}
+        return true;
+    });
+
+    // Estado Laboral Filter & Search State (Activo vs Retirado)
+    const [statusFilter, setStatusFilter] = useState<'all' | 'activo' | 'retirado'>('all');
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const activosCount = React.useMemo(() => trabajadores.filter(w => (w.estadoLaboral || 'Activo') !== 'Retirado').length, [trabajadores]);
+    const retiradosCount = React.useMemo(() => trabajadores.filter(w => (w.estadoLaboral || 'Activo') === 'Retirado').length, [trabajadores]);
+
+    const filteredTrabajadores = React.useMemo(() => {
+        return trabajadores.filter(w => {
+            const estado = w.estadoLaboral || 'Activo';
+            if (statusFilter === 'activo' && estado === 'Retirado') return false;
+            if (statusFilter === 'retirado' && estado !== 'Retirado') return false;
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase().trim();
+                const nom = (w.nombre || '').toLowerCase();
+                const id = (w.identificacion || '').toLowerCase();
+                const cargo = (w.cargo || '').toLowerCase();
+                return nom.includes(q) || id.includes(q) || cargo.includes(q);
+            }
+            return true;
+        });
+    }, [trabajadores, statusFilter, searchQuery]);
     const [isGeneratingFull, setIsGeneratingFull] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [companyInfo, setCompanyInfo] = useState<any>(null);
@@ -263,7 +307,9 @@ const CondicionesSalud = () => {
     useEffect(() => {
         const loadData = async () => {
             if (!token) return;
-            setIsLoading(true);
+            if (trabajadores.length === 0) {
+                setIsLoading(true);
+            }
             try {
                 const res = await fetch('/api/sgsst/perfil-sociodemografico/data', {
                     headers: { 'Authorization': `Bearer ${token}` },
@@ -272,7 +318,13 @@ const CondicionesSalud = () => {
                     const data = await res.json();
                     if (data.trabajadores?.length) {
                         setTrabajadores(data.trabajadores);
+                        try {
+                            sessionStorage.setItem('wappy_cached_workers', JSON.stringify(data.trabajadores));
+                        } catch {}
                         syncWorkersSignaturesToStorage(data.trabajadores);
+                    }
+                    if (data.actualizacionesPendientesSalud) {
+                        setInboxPerfil(data.actualizacionesPendientesSalud);
                     }
                 }
             } catch (err) {
@@ -320,8 +372,113 @@ const CondicionesSalud = () => {
         setExpandedWorkers(prev => new Set(prev).add(newWorker.id));
     };
 
-    const handleDeleteWorker = (workerId: string) => {
-        setTrabajadores(prev => prev.filter(w => w.id !== workerId));
+    const handleToggleEstadoLaboral = async (workerId: string) => {
+        const worker = trabajadores.find(w => w.id === workerId);
+        if (!worker) return;
+
+        const isRetirado = (worker.estadoLaboral || 'Activo') === 'Retirado';
+        const nuevoEstado = isRetirado ? 'Activo' : 'Retirado';
+        const today = new Date().toISOString().split('T')[0];
+
+        let motivo = worker.motivoRetiro || 'Terminación de contrato';
+        let fecha = worker.fechaRetiro || today;
+
+        if (!isRetirado) {
+            const inputMotivo = window.prompt(
+                `¿Deseas marcar como RETIRADO a "${worker.nombre || 'este colaborador'}"?\n\nIndica el motivo de retiro (ej: Terminación de contrato, Renuncia voluntaria, Mutuo acuerdo, Pensión):`,
+                worker.motivoRetiro || 'Terminación de contrato'
+            );
+            if (inputMotivo === null) return; // Usuario canceló
+            motivo = inputMotivo.trim() || 'Terminación de contrato';
+            fecha = today;
+        }
+
+        const updated = trabajadores.map(w => {
+            if (w.id !== workerId) return w;
+            return {
+                ...w,
+                estadoLaboral: nuevoEstado,
+                fechaRetiro: nuevoEstado === 'Retirado' ? fecha : '',
+                motivoRetiro: nuevoEstado === 'Activo' ? '' : motivo
+            };
+        });
+
+        setTrabajadores(updated);
+        try {
+            sessionStorage.setItem('wappy_cached_workers', JSON.stringify(updated));
+        } catch {}
+
+        // Auto-sincronización con la base de datos
+        if (token) {
+            try {
+                const trabajadoresConBio = updated.map(w => {
+                    const bio = calculateBiocentricFit(w);
+                    return {
+                        ...w,
+                        biocentricScore: (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : bio.score,
+                        biocentricAlerts: w.biocentricAlerts || bio.alerts,
+                        biocentricIsLethal: w.biocentricIsLethal !== undefined ? w.biocentricIsLethal : bio.isLethal
+                    };
+                });
+                await fetch('/api/sgsst/perfil-sociodemografico/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+                });
+                window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+            } catch (err) {
+                console.error('Error auto-guardando cambio de estado laboral:', err);
+            }
+        }
+
+        if (nuevoEstado === 'Retirado') {
+            showToast({
+                message: `${worker.nombre || 'Colaborador'} marcado como Retirado (${motivo}). Se conserva su trazabilidad en 'Retirados'.`,
+                severity: NotificationSeverity.INFO
+            });
+        } else {
+            showToast({
+                message: `${worker.nombre || 'Colaborador'} reactivado como Activo exitosamente.`,
+                severity: NotificationSeverity.SUCCESS
+            });
+        }
+    };
+
+    const handleDeleteWorker = async (workerId: string) => {
+        const worker = trabajadores.find(w => w.id === workerId);
+        if (!worker) return;
+        const confirmMsg = `¿Deseas ELIMINAR permanentemente a "${worker.nombre || 'este trabajador'}" de la base de datos?\n\nADVERTENCIA: Esta acción es irreversible.\n\nTip SG-SST: Si el trabajador se retiró de la empresa, te recomendamos usar el botón 'Retirar' para conservar su historial médico, sociodemográfico y trazabilidad legal sin borrarlo.`;
+        if (window.confirm(confirmMsg)) {
+            const updated = trabajadores.filter(w => w.id !== workerId);
+            setTrabajadores(updated);
+            try {
+                sessionStorage.setItem('wappy_cached_workers', JSON.stringify(updated));
+            } catch {}
+
+            // Auto-guardado en base de datos
+            if (token) {
+                try {
+                    const trabajadoresConBio = updated.map(w => {
+                        const bio = calculateBiocentricFit(w);
+                        return {
+                            ...w,
+                            biocentricScore: (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : bio.score,
+                            biocentricAlerts: w.biocentricAlerts || bio.alerts,
+                            biocentricIsLethal: w.biocentricIsLethal !== undefined ? w.biocentricIsLethal : bio.isLethal
+                        };
+                    });
+                    await fetch('/api/sgsst/perfil-sociodemografico/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+                    });
+                    window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+                } catch (err) {
+                    console.error('Error auto-guardando tras eliminar trabajador:', err);
+                }
+            }
+            showToast({ message: `${worker.nombre || 'Colaborador'} eliminado correctamente.`, severity: NotificationSeverity.INFO });
+        }
     };
 
     const updateWorkerField = (workerId: string, field: keyof WorkerEntry, value: any) => {
@@ -653,8 +810,11 @@ const CondicionesSalud = () => {
             });
             if (res.ok) {
                 const data = await res.json();
-                // Update workers with IA tags returned from backend
-                if (data.trabajadores?.length) setTrabajadores(data.trabajadores);
+                const finalWorkers = data.trabajadores?.length ? data.trabajadores : trabajadoresConBio;
+                setTrabajadores(finalWorkers);
+                try {
+                    sessionStorage.setItem('wappy_cached_workers', JSON.stringify(finalWorkers));
+                } catch {}
                 window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
                 showToast({ message: 'Perfil guardado ✔️ Análisis IA aplicado', severity: NotificationSeverity.SUCCESS });
             } else throw new Error('Error al guardar');
@@ -1020,8 +1180,6 @@ const CondicionesSalud = () => {
 
     // Auto-load y carga reactiva de la bandeja biomédica
     React.useEffect(() => {
-        handleLoadInbox(true); // silent fetch on mount
-
         // Opcional: Escuchar cuando una notificación en Head nos pida abrir
         const handleOpenInbox = (e: Event) => {
             const { module } = (e as CustomEvent).detail || {};
@@ -1335,13 +1493,88 @@ const CondicionesSalud = () => {
 
             {/* ═══ Workers List ═══ */}
             <div className="space-y-4">
+                {/* ═══ Search & Status Filter Bar ═══ */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-surface-secondary/70 border border-border-light backdrop-blur-sm shadow-xs">
+                    {/* Status Filter Tabs */}
+                    <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-surface-primary border border-border-light shadow-inner">
+                        <button
+                            type="button"
+                            onClick={() => setStatusFilter('all')}
+                            className={cn(
+                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                statusFilter === 'all'
+                                    ? "bg-teal-500 text-white shadow-sm"
+                                    : "text-text-secondary hover:text-text-primary"
+                            )}
+                        >
+                            Todos ({trabajadores.length})
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setStatusFilter('activo')}
+                            className={cn(
+                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
+                                statusFilter === 'activo'
+                                    ? "bg-teal-500 text-white shadow-sm"
+                                    : "text-text-secondary hover:text-text-primary"
+                            )}
+                        >
+                            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            Activos ({activosCount})
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setStatusFilter('retirado')}
+                            className={cn(
+                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
+                                statusFilter === 'retirado'
+                                    ? "bg-rose-500 text-white shadow-sm"
+                                    : "text-text-secondary hover:text-text-primary"
+                            )}
+                        >
+                            <span className="w-2 h-2 rounded-full bg-rose-400"></span>
+                            Retirados ({retiradosCount})
+                        </button>
+                    </div>
+
+                    {/* Search Input */}
+                    <div className="relative flex-1 max-w-xs">
+                        <Search className="w-4 h-4 text-text-secondary absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Buscar por nombre, cédula o cargo..."
+                            className="w-full pl-9 pr-8 py-1.5 text-xs rounded-xl border border-border-medium bg-surface-primary text-text-primary placeholder:text-text-secondary/60 focus:ring-2 focus:ring-teal-400 outline-none transition-all shadow-inner"
+                        />
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
+                </div>
+
                 {isLoading ? (
                     <div className="flex items-center justify-center py-12 text-text-secondary">
                         <Loader2 className="h-8 w-8 animate-spin mr-3 text-teal-500" /> Cargando base de datos...
                     </div>
+                ) : filteredTrabajadores.length === 0 ? (
+                    <div className="p-8 text-center rounded-2xl border border-dashed border-border-medium bg-surface-primary/40 space-y-2">
+                        <UserX className="w-10 h-10 mx-auto text-text-secondary/50" />
+                        <p className="text-sm font-bold text-text-primary">No se encontraron colaboradores</p>
+                        <p className="text-xs text-text-secondary">
+                            {searchQuery ? `No hay resultados para "${searchQuery}"` : statusFilter === 'retirado' ? 'No hay colaboradores retirados registrados.' : 'Agrega tu primer trabajador o importa una nómina.'}
+                        </p>
+                    </div>
                 ) : (
                     <>
-                        {trabajadores.map((w, wIdx) => {
+                        {filteredTrabajadores.map((w, wIdx) => {
+                            const isRetirado = (w.estadoLaboral || 'Activo') === 'Retirado';
                             const fitData = calculateBiocentricFit(w);
                             const effectiveScore = (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : fitData.score;
                             const scoreColor = effectiveScore >= 80 ? 'text-green-500' : effectiveScore >= 60 ? 'text-yellow-500' : 'text-red-500';
@@ -1350,28 +1583,69 @@ const CondicionesSalud = () => {
                             const initials = (w.nombre?.trim() || 'U')[0].toUpperCase();
                             
                             return (
-                            <div key={w.id} className={cn("rounded-2xl border border-border-medium bg-surface-secondary shadow-sm border-l-4 border-l-teal-500 transition-all", expandedWorkers.has(w.id) ? "overflow-visible" : "overflow-hidden")}>
+                            <div key={w.id} className={cn(
+                                "rounded-2xl border shadow-sm transition-all",
+                                isRetirado
+                                    ? "border-rose-300/80 dark:border-rose-900/50 bg-rose-50/20 dark:bg-rose-950/15 border-l-4 border-l-rose-500 opacity-90"
+                                    : "border-border-medium bg-surface-secondary border-l-4 border-l-teal-500",
+                                expandedWorkers.has(w.id) ? "overflow-visible" : "overflow-hidden"
+                            )}>
                                 {/* Worker Header */}
-                                <div className="flex items-center justify-between p-5 bg-surface-primary/50 cursor-pointer gap-4" onClick={() => toggleWorker(w.id)}>
+                                <div
+                                    className={cn(
+                                        "flex items-center justify-between p-5 cursor-pointer gap-4 transition-colors",
+                                        isRetirado
+                                            ? "bg-rose-100/50 dark:bg-rose-950/35 border-b border-rose-200/70 dark:border-rose-900/40"
+                                            : "bg-surface-primary/50"
+                                    )}
+                                    onClick={() => toggleWorker(w.id)}
+                                >
                                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                                        <div className="text-teal-500 shrink-0">
+                                        <div className={isRetirado ? "text-rose-500 shrink-0" : "text-teal-500 shrink-0"}>
                                             {expandedWorkers.has(w.id) ? <AnimatedIcon name="chevron-down" size={20} /> : <AnimatedIcon name="chevron-right" size={20} />}
                                         </div>
-                                        <div className={`w-14 h-14 rounded-2xl border-2 ${colors.ring} ${colors.bg} ${colors.text} flex items-center justify-center text-xl font-black shrink-0 shadow-sm`}>
+                                        <div className={cn(
+                                            "w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-xl font-black shrink-0 shadow-sm transition-colors",
+                                            isRetirado
+                                                ? "border-rose-300 dark:border-rose-800 bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-200"
+                                                : `${colors.ring} ${colors.bg} ${colors.text}`
+                                        )}>
                                             {initials}
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <h3 className="font-black text-text-primary text-base truncate flex items-center gap-2">
-                                                {wIdx + 1}. {w.nombre || 'Nuevo Trabajador'}
-                                            </h3>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <h3 className={cn(
+                                                    "font-black text-base truncate",
+                                                    isRetirado
+                                                        ? "text-rose-950 dark:text-rose-100 line-through opacity-85"
+                                                        : "text-text-primary"
+                                                )}>
+                                                    {wIdx + 1}. {w.nombre || 'Nuevo Trabajador'}
+                                                </h3>
+                                                {isRetirado && (
+                                                    <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-200 border border-rose-300 dark:border-rose-800 flex items-center gap-1 shadow-2xs">
+                                                        <UserX className="w-3 h-3" />
+                                                        Retirado {w.fechaRetiro ? `(${w.fechaRetiro})` : ''}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="hidden md:flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-secondary mt-1">
-                                                <span className="font-bold text-teal-600 dark:text-teal-400">{w.cargo || 'Sin cargo asignado'}</span>
+                                                <span className={cn(
+                                                    "font-bold",
+                                                    isRetirado ? "text-rose-600 dark:text-rose-400" : "text-teal-600 dark:text-teal-400"
+                                                )}>{w.cargo || 'Sin cargo asignado'}</span>
                                                 <span>•</span>
                                                 <span>CC: {w.identificacion || 'N/A'}</span>
                                                 <span className="hidden sm:inline">•</span>
                                                 <span className="hidden sm:inline">{w.genero || '—'}</span>
                                                 <span className="hidden sm:inline">•</span>
                                                 <span className="hidden sm:inline">{w.edad ? `${w.edad} años` : '—'}</span>
+                                                {isRetirado && w.motivoRetiro && (
+                                                    <>
+                                                        <span>•</span>
+                                                        <span className="text-rose-600 dark:text-rose-400 font-medium">Motivo: {w.motivoRetiro}</span>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -1385,8 +1659,41 @@ const CondicionesSalud = () => {
                                             className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors shadow-sm">
                                             <AnimatedIcon name="qrcode" size={18} />
                                         </button>
+
+                                        {/* Botón Retirar / Reactivar (WAPPY Micro-Button Design System) */}
+                                        {isRetirado ? (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleToggleEstadoLaboral(w.id);
+                                                }}
+                                                title="Reactivar colaborador en la empresa"
+                                                className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl transition-all duration-300 px-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200/80 dark:border-emerald-800 shadow-2xs active:scale-95"
+                                            >
+                                                <RotateCcw className="w-[18px] h-[18px]" />
+                                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                                                    <span className="text-[11px] font-bold">Reactivar</span>
+                                                </div>
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleToggleEstadoLaboral(w.id);
+                                                }}
+                                                title="Marcar como retirado (preserva trazabilidad histórica sin eliminar)"
+                                                className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl transition-all duration-300 px-2 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-300 border border-amber-200/80 dark:border-amber-800 shadow-2xs active:scale-95"
+                                            >
+                                                <UserX className="w-[18px] h-[18px]" />
+                                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                                                    <span className="text-[11px] font-bold">Retirar</span>
+                                                </div>
+                                            </button>
+                                        )}
+
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleDeleteWorker(w.id); }}
+                                            title="Eliminar definitivamente"
                                             className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors shadow-sm">
                                             <AnimatedIcon name="trash" size={18} />
                                         </button>

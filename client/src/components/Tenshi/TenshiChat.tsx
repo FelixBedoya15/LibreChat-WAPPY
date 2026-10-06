@@ -59,16 +59,91 @@ export interface TenshiChatMessage {
 
 function markdownToSimpleHtml(md: string): string {
   if (!md) return '';
-  const html = md
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-    .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-    .replace(/^\- (.*$)/gim, '<li>$1</li>')
-    .replace(/\n\n+/g, '</p><p>')
-    .replace(/\n/g, '<br/>');
-  return `<p>${html}</p>`;
+
+  // 1. Si ya es puramente HTML completo, retornarlo
+  if (md.trim().startsWith('<!DOCTYPE') || (md.trim().startsWith('<html') && md.includes('</html>'))) {
+    return md;
+  }
+
+  // 2. Extraer bloques HTML ya existentes para protegerlos (ej. membrete corporativo o tablas previas)
+  const parts = md.split(/(<div[\s\S]*?<\/div>|<table[\s\S]*?<\/table>|<style[\s\S]*?<\/style>)/i);
+
+  const parsedParts = parts.map((part) => {
+    if (part.trim().startsWith('<')) {
+      return part; // Preservar bloques HTML intactos
+    }
+
+    let parsed = part;
+
+    // 3. Parsear tablas Markdown (| col 1 | col 2 |)
+    const tableRegex =
+      /((?:^|\n)\|[^\n]+\|[^\n]*\n\|[ \t]*:?-+:?[ \t]*\|[^\n]*\n(?:\|[^\n]+\|[^\n]*(?:\n|$))+)/g;
+
+    parsed = parsed.replace(tableRegex, (match) => {
+      const lines = match
+        .trim()
+        .split('\n')
+        .map((l) => l.trim());
+      if (lines.length < 2) return match;
+
+      const headerCols = lines[0]
+        .split('|')
+        .map((c) => c.trim())
+        .filter((c, i, arr) => i > 0 && i < arr.length - 1);
+      const separatorCols = lines[1]
+        .split('|')
+        .map((c) => c.trim())
+        .filter((c, i, arr) => i > 0 && i < arr.length - 1);
+
+      const alignments = separatorCols.map((col) => {
+        if (col.startsWith(':') && col.endsWith(':')) return 'center';
+        if (col.endsWith(':')) return 'right';
+        if (col.startsWith(':')) return 'left';
+        return 'left';
+      });
+
+      const headersHtml = headerCols
+        .map((col, idx) => {
+          const align = alignments[idx] || 'left';
+          return `<th style="border: 1px solid #cbd5e1; padding: 8px 12px; background-color: #f1f5f9; font-weight: bold; text-align: ${align}; color: #0f172a;">${col}</th>`;
+        })
+        .join('');
+
+      const dataRowsHtml = lines
+        .slice(2)
+        .map((line) => {
+          const cols = line
+            .split('|')
+            .map((c) => c.trim())
+            .filter((c, i, arr) => i > 0 && i < arr.length - 1);
+          const cellsHtml = cols
+            .map((col, idx) => {
+              const align = alignments[idx] || 'left';
+              return `<td style="border: 1px solid #cbd5e1; padding: 8px 12px; text-align: ${align}; color: #334155;">${col}</td>`;
+            })
+            .join('');
+          return `<tr>${cellsHtml}</tr>`;
+        })
+        .join('');
+
+      return `\n<table style="border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 10pt;"><thead><tr>${headersHtml}</tr></thead><tbody>${dataRowsHtml}</tbody></table>\n`;
+    });
+
+    // 4. Encabezados y estilos de texto
+    parsed = parsed
+      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+      .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+      .replace(/^\- (.*$)/gim, '<li>$1</li>')
+      .replace(/\n\n+/g, '</p><p>')
+      .replace(/\n/g, '<br/>');
+
+    return `<p>${parsed}</p>`;
+  });
+
+  return parsedParts.join('\n');
 }
 
 const normalizeStr = (s: string) =>
@@ -2034,15 +2109,46 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   useEffect(() => {
     if (historyData) {
       if (historyData.length > 0) {
-        setMessages(historyData);
+        setMessages((prev) => {
+          // Extraer mensajes locales que contengan archivos (file o htmlReport)
+          const localFiles = prev.filter((m) => m.file || m.htmlReport);
+          if (localFiles.length === 0) {
+            return historyData;
+          }
+
+          // Identificadores y firmas de mensajes ya existentes en historyData
+          const historySignatures = new Set<string>();
+          historyData.forEach((h: any) => {
+            if (h._id) historySignatures.add(String(h._id));
+            const sig = `${(h.content || '').trim()}-${(h.file?.title || '').trim()}`;
+            if (sig !== '-') historySignatures.add(sig);
+          });
+
+          // Filtrar archivos locales que aún no hayan sido devueltos por el backend
+          const unpersistedFiles = localFiles.filter((lf: any) => {
+            if (lf._id && historySignatures.has(String(lf._id))) return false;
+            const sig = `${(lf.content || '').trim()}-${(lf.file?.title || '').trim()}`;
+            return !historySignatures.has(sig);
+          });
+
+          if (unpersistedFiles.length === 0) {
+            return historyData;
+          }
+
+          return [...historyData, ...unpersistedFiles];
+        });
       } else {
-        setMessages([
-          {
-            role: 'assistant',
-            content:
-              '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?',
-          },
-        ]);
+        setMessages((prev) => {
+          const localFiles = prev.filter((m) => m.file || m.htmlReport);
+          if (localFiles.length > 0) return localFiles;
+          return [
+            {
+              role: 'assistant',
+              content:
+                '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?',
+            },
+          ];
+        });
       }
     }
   }, [historyData]);

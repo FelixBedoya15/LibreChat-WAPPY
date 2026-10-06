@@ -268,6 +268,133 @@ ${stringContent ? `## ESPECIFICACIONES O BASE SUMINISTRADA:\n${stringContent}\n`
 }
 
 /**
+ * Camino B para Documentos de Texto (Word/Markdown): Enriquecimiento Pesado con gemini-3.6-flash.
+ * Cuando se solicita un informe, diagnóstico, política, plan, acta o documento técnico en Canvas (fileType='text'),
+ * si el contenido suministrado es escueto (< 3500 caracteres o carece de al menos 2 tablas técnicas completas),
+ * esta función delega la síntesis a gemini-3.6-flash con rotación completa de claves y circuit breaker.
+ * Garantiza la inclusión obligatoria de tablas técnicas de datos y fundamentación normativa colombiana (Decreto 1072/2015, Res. 0312/2019).
+ */
+async function processTextReportDocument(content, fileType, title, userId, req, existingContent) {
+  if (fileType !== 'text') {
+    return content;
+  }
+
+  let stringContent = typeof content === 'string' ? content.trim() : (content ? String(content) : '');
+
+  // Conteo de tablas (Markdown o HTML)
+  const markdownTableCount = (stringContent.match(/\|[\s-:]+\|/g) || []).length;
+  const htmlTableCount = (stringContent.match(/<table[\s>]/gi) || []).length;
+  const totalTables = markdownTableCount + htmlTableCount;
+
+  // Si ya es un documento exhaustivo (más de 3500 caracteres y al menos 2 tablas técnicas), preservarlo
+  const isAlreadyComprehensiveReport = stringContent.length >= 3500 && totalTables >= 2;
+  if (isAlreadyComprehensiveReport) {
+    return stringContent;
+  }
+
+  // Cargar información corporativa de la empresa
+  let companyInfo = null;
+  try {
+    companyInfo =
+      (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
+      (await CompanyInfo.findOne({ user: userId }));
+  } catch (err) {
+    logger.warn('[CanvasTool Camino B - Text] Error cargando CompanyInfo:', err.message);
+  }
+
+  // Extraer requerimiento del usuario y contexto
+  const userPrompt =
+    req?.body?.text ||
+    req?.body?.userRequestText ||
+    (Array.isArray(req?.body?.messages) && req.body.messages.length > 0
+      ? req.body.messages[req.body.messages.length - 1]?.text ||
+        req.body.messages[req.body.messages.length - 1]?.content ||
+        ''
+      : '');
+
+  let screenContext = req?.body?.screenContext || '';
+  let agentContext = req?.body?.agentContext || '';
+
+  // Extraer resultados de herramientas previas del turno si existen
+  let toolsContext = '';
+  if (Array.isArray(req?.contentParts)) {
+    for (const part of req.contentParts) {
+      if (part && part.type === 'tool_result' && part.output) {
+        toolsContext += `\n- Herramienta previa: ${typeof part.output === 'string' ? part.output : JSON.stringify(part.output)}`;
+      }
+    }
+  }
+
+  const companyContext = companyInfo
+    ? `Empresa: ${companyInfo.companyName || 'Empresa Activa'}\nNIT: ${companyInfo.nit || 'Sin NIT'}\nActividad Económica / Sector: ${companyInfo.economicSector || 'General'}\nClase de Riesgo ARL: ${companyInfo.riskLevel || 'Riesgo III'}\nNúmero de Colaboradores: ${companyInfo.numWorkers || companyInfo.employeeCount || 'No especificado'}\nCiudad / Sede: ${companyInfo.city || companyInfo.address || 'Colombia'}\nResponsable SG-SST: ${companyInfo.sstResponsible || 'Especialista SST'}`
+    : 'No hay información de empresa registrada en el perfil.';
+
+  const prompt = `Eres el Especialista Principal y Consultor Senior en Seguridad y Salud en el Trabajo (SG-SST) de WAPPY IA y Somos SST en Colombia.
+Tu tarea es REDACTAR UN INFORME O DOCUMENTO TÉCNICO EXHAUSTIVO, RIGUROSO Y FORMAL para el Sistema de Gestión de Seguridad y Salud en el Trabajo.
+
+## TÍTULO DEL DOCUMENTO:
+${title || 'Informe Técnico SG-SST'}
+
+## CONTEXTO CORPORATIVO DE LA EMPRESA:
+${companyContext}
+
+## REQUERIMIENTO DEL USUARIO / PROPÓSITO:
+${userPrompt || title || 'Informe Técnico Especializado en SG-SST'}
+
+${agentContext ? `## CONTEXTO DEL ESPECIALISTA / AGENTE:\n${agentContext}\n` : ''}
+${screenContext ? `## CONTEXTO DE PANTALLA ACTIVA:\n${screenContext}\n` : ''}
+${toolsContext ? `## DATOS DE HERRAMIENTAS PREVIAS:\n${toolsContext}\n` : ''}
+${stringContent ? `## BORRADOR O BASE INICIAL SUMINISTRADA:\n${stringContent}\n` : ''}
+
+## REGLAS TÉCNICAS OBLIGATORIAS (SG-SST COLOMBIA):
+1. EXTENSIÓN Y PROFUNDIDAD: El documento debe ser completo, profundo y detallado (mínimo 1,200 a 2,500 palabras de desarrollo técnico real). ESTÁ PROHIBIDO generar resúmenes telegráficos de 2 párrafos.
+2. MARCO LEGAL VIGENTE: Fundamenta con rigor en la legislación colombiana aplicable (Decreto Único Reglamentario 1072 de 2015 Libro 2 Parte 2 Título 4 Capítulo 6, Resolución 0312 de 2019 - Estándares Mínimos, Ley 1562 de 2012, y normas técnicas específicas como GTC 45, NTC o resoluciones sectoriales según el tema).
+3. INCLUSIÓN OBLIGATORIA DE TABLAS TÉCNICAS (MÍNIMO 2 A 3 TABLAS ESTRUCTURADAS EN FORMATO MARKDOWN):
+   - Cada tabla debe tener encabezados claros y al menos 4 a 6 filas de datos realistas y coherentes con la empresa y su actividad económica.
+   - TABLA 1: Diagnóstico Demográfico y Población Trabajadora Expuesta (Variables: Grupo de Edad, Género, Nivel de Escolaridad, Cargos Críticos, Sede, % Población, Horarios/Turnos).
+   - TABLA 2: Matriz de Hallazgos Ocupacionales, Factores de Peligro y Efectos en Salud (Variables: Proceso/Área, Factor de Riesgo identificado, Fuente generadora, Posibles efectos en la salud, Nivel de Deficiencia/Exposición/Riesgo, Prioridad).
+   - TABLA 3: Plan de Intervención Prioritaria con Jerarquía de Controles (Variables: Medida de intervención clasificada por Jerarquía [Eliminación, Sustitución, Ingeniería, Administrativo, EPP], Meta/Indicador, Responsable de Ejecución, Periodicidad/Fecha de Cumplimiento).
+4. ESTRUCTURA FORMAL DEL DOCUMENTO:
+   - 1. Introducción y Justificación Técnica.
+   - 2. Objetivos (General y Específicos del SG-SST).
+   - 3. Alcance y Población Objeto.
+   - 4. Marco Normativo y Legal Aplicable (citando artículos pertinentes).
+   - 5. Metodología de Evaluación y Recolección de Datos.
+   - 6. Diagnóstico y Resultados Detallados (incorporando las Tablas 1 y 2).
+   - 7. Plan de Acción y Jerarquía de Controles (incorporando la Tabla 3).
+   - 8. Indicadores de Gestión y Seguimiento (Estructura, Proceso y Resultado).
+   - 9. Conclusiones y Recomendaciones de la Consultoría Ocupacional.
+5. PROHIBICIÓN DE PLACEHOLDERS: NO uses textos como "[Insertar tabla aquí]", "[Completar]", "[Definir fecha]" o "N/A". Redacta datos técnicos creíbles y representativos para el sector de la empresa.
+6. FORMATO DE SALIDA: Entrega ÚNICAMENTE el texto en Markdown estructurado (con títulos #, ##, ###, viñetas, negritas y tablas markdown | ... |). NO incluyas bloques de código externos con triple comilla invertida (\`\`\`markdown ni \`\`\`), ni mensajes introductorios como "A continuación presento..." ni firmas al final (el sistema inyecta el membrete oficial y firmas automáticamente).`;
+
+  try {
+    const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
+    logger.info('[CanvasTool Camino B - Text] Delegando redacción técnica de informe a gemini-3.6-flash (Rotación completa)...');
+    const result = await generateWithKeyRotation('gemini-3.6-flash', userId, prompt);
+    const response = await result?.response;
+    let generatedReport = response?.text ? response.text() : '';
+
+    if (generatedReport) {
+      generatedReport = generatedReport
+        .replace(/^```(?:markdown|text)?\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+    }
+
+    if (generatedReport && generatedReport.length > 500) {
+      logger.info(
+        `[CanvasTool Camino B - Text] Informe enriquecido exitosamente por gemini-3.6-flash (${generatedReport.length} caracteres).`,
+      );
+      return generatedReport;
+    }
+  } catch (err) {
+    logger.error('[CanvasTool Camino B - Text] Error delegando redacción a gemini-3.6-flash, preservando contenido original:', err);
+  }
+
+  return stringContent;
+}
+
+/**
  * Canvas Tool
  * Permite al agente leer, crear y editar documentos, hojas de cálculo, diapositivas y código HTML
  * en tiempo real dentro del panel lateral de la conversación.
@@ -525,6 +652,14 @@ class CanvasTool extends Tool {
           }
 
           if (activeFileType === 'text') {
+            parsedContent = await processTextReportDocument(
+              parsedContent ?? session.content,
+              activeFileType,
+              activeTitle,
+              userId,
+              this.req,
+              session.content,
+            );
             parsedContent = await processTextDocument(
               parsedContent ?? session.content,
               activeFileType,
@@ -584,6 +719,14 @@ class CanvasTool extends Tool {
         } else {
           // Si no existe, crear de cero con versión 1
           if (fileType === 'text') {
+            parsedContent = await processTextReportDocument(
+              parsedContent,
+              fileType,
+              activeTitle,
+              userId,
+              this.req,
+              null,
+            );
             parsedContent = await processTextDocument(
               parsedContent,
               fileType,
@@ -646,6 +789,14 @@ class CanvasTool extends Tool {
           const activeFileType = fileType || 'text';
 
           if (activeFileType === 'text') {
+            parsedContent = await processTextReportDocument(
+              parsedContent,
+              activeFileType,
+              activeTitle,
+              userId,
+              this.req,
+              null,
+            );
             parsedContent = await processTextDocument(
               parsedContent,
               activeFileType,
@@ -717,6 +868,14 @@ class CanvasTool extends Tool {
           }
 
           if (activeFileType === 'text') {
+            parsedContent = await processTextReportDocument(
+              parsedContent ?? session.content,
+              activeFileType,
+              activeTitle,
+              userId,
+              this.req,
+              session.content,
+            );
             parsedContent = await processTextDocument(
               parsedContent ?? session.content,
               activeFileType,

@@ -239,7 +239,16 @@ const PerfilSociodemografico = () => {
     const { token, user } = useAuthContext();
     const { showToast } = useToastContext();
 
-    const [trabajadores, setTrabajadores] = useState<WorkerEntry[]>([]);
+    const [trabajadores, setTrabajadores] = useState<WorkerEntry[]>(() => {
+        try {
+            const cached = sessionStorage.getItem('wappy_cached_workers');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch {}
+        return [];
+    });
     const [workerTabs, setWorkerTabs] = useState<Record<string, string>>({});
     const [activeSignatureWorkerId, setActiveSignatureWorkerId] = useState<string | null>(null);
 
@@ -252,7 +261,16 @@ const PerfilSociodemografico = () => {
     }, [user?.personalization?.geminiModels?.sstManagement]);
     const [expandedWorkers, setExpandedWorkers] = useState<Set<string>>(new Set());
     const [isSaving, setIsSaving] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState<boolean>(() => {
+        try {
+            const cached = sessionStorage.getItem('wappy_cached_workers');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0) return false;
+            }
+        } catch {}
+        return true;
+    });
     const [isGeneratingFull, setIsGeneratingFull] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [companyInfo, setCompanyInfo] = useState<any>(null);
@@ -333,7 +351,9 @@ const PerfilSociodemografico = () => {
     useEffect(() => {
         const loadData = async () => {
             if (!token) return;
-            setIsLoading(true);
+            if (trabajadores.length === 0) {
+                setIsLoading(true);
+            }
             try {
                 const res = await fetch('/api/sgsst/perfil-sociodemografico/data', {
                     headers: { 'Authorization': `Bearer ${token}` },
@@ -342,7 +362,13 @@ const PerfilSociodemografico = () => {
                     const data = await res.json();
                     if (data.trabajadores?.length) {
                         setTrabajadores(data.trabajadores);
+                        try {
+                            sessionStorage.setItem('wappy_cached_workers', JSON.stringify(data.trabajadores));
+                        } catch {}
                         syncWorkersSignaturesToStorage(data.trabajadores);
+                    }
+                    if (data.actualizacionesPendientes) {
+                        setInboxPerfil(data.actualizacionesPendientes);
                     }
                 }
             } catch (err) {
@@ -352,6 +378,9 @@ const PerfilSociodemografico = () => {
             }
         };
         loadData();
+
+        window.addEventListener('wappy-reload-sgsst-data', loadData);
+        return () => window.removeEventListener('wappy-reload-sgsst-data', loadData);
     }, [token]);
 
     useEffect(() => {
@@ -415,6 +444,9 @@ const PerfilSociodemografico = () => {
         });
 
         setTrabajadores(updated);
+        try {
+            sessionStorage.setItem('wappy_cached_workers', JSON.stringify(updated));
+        } catch {}
 
         // Auto-sincronización con la base de datos
         if (token) {
@@ -433,6 +465,7 @@ const PerfilSociodemografico = () => {
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify({ trabajadores: trabajadoresConBio }),
                 });
+                window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
             } catch (err) {
                 console.error('Error auto-guardando cambio de estado laboral:', err);
             }
@@ -460,6 +493,9 @@ const PerfilSociodemografico = () => {
         if (window.confirm(confirmMsg)) {
             const updated = trabajadores.filter(w => w.id !== workerId);
             setTrabajadores(updated);
+            try {
+                sessionStorage.setItem('wappy_cached_workers', JSON.stringify(updated));
+            } catch {}
 
             // Auto-guardado en base de datos
             if (token) {
@@ -478,6 +514,7 @@ const PerfilSociodemografico = () => {
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                         body: JSON.stringify({ trabajadores: trabajadoresConBio }),
                     });
+                    window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
                 } catch (err) {
                     console.error('Error auto-guardando eliminación:', err);
                 }
@@ -813,8 +850,16 @@ const PerfilSociodemografico = () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ trabajadores: trabajadoresConBio }),
             });
-            if (res.ok) showToast({ message: 'Perfil sociodemográfico guardado', status: 'success', severity: 'success' });
-            else throw new Error('Error al guardar');
+            if (res.ok) {
+                const data = await res.json().catch(() => null);
+                const finalWorkers = data?.trabajadores?.length ? data.trabajadores : trabajadoresConBio;
+                setTrabajadores(finalWorkers);
+                try {
+                    sessionStorage.setItem('wappy_cached_workers', JSON.stringify(finalWorkers));
+                } catch {}
+                window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+                showToast({ message: 'Perfil sociodemográfico guardado', status: 'success', severity: 'success' });
+            } else throw new Error('Error al guardar');
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });
         } finally {
@@ -1055,9 +1100,7 @@ const PerfilSociodemografico = () => {
 
     // Auto-load y carga reactiva de la bandeja sociodemográfica
     React.useEffect(() => {
-        handleLoadInbox(true); // silent fetch on mount
-
-        // Opcional: Escuchar cuando una notificación en Head nos pida abrir
+        // Escuchar cuando una notificación en Head nos pida abrir
         const handleOpenInbox = (e: Event) => {
             const { module } = (e as CustomEvent).detail || {};
             if (module === 'perfil_sociodemografico') {
