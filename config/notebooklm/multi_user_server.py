@@ -157,8 +157,11 @@ async def get_client_for_request() -> NotebookLMClient:
             client, _ = _CLIENT_CACHE[selected_profile]
             return client
 
-        logger.info(f"Inicializando NotebookLMClient para perfil '{selected_profile}'...")
-        client_instance = await NotebookLMClient.from_storage(profile=selected_profile)
+        logger.info(f"Inicializando NotebookLMClient para perfil '{selected_profile}' desde '{storage_file}'...")
+        try:
+            client_instance = await NotebookLMClient.from_storage(path=str(storage_file))
+        except (TypeError, ValueError, AttributeError):
+            client_instance = await NotebookLMClient.from_storage(profile=selected_profile)
         ctx = await client_instance.__aenter__()
         _CLIENT_CACHE[selected_profile] = (client_instance, ctx)
         return client_instance
