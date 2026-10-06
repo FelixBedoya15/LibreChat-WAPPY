@@ -1052,28 +1052,20 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
       mongoose.models.PerfilSociodemograficoData ||
       require('~/models/PerfilSociodemograficoData');
 
-    let socioDoc = await PerfilSociodemograficoData.findOne({
-      $or: [{ user: userId, companyId }, { user: userId }],
-    });
-
+    const queryFilter = companyId ? { user: userId, companyId } : { user: userId };
+    let socioDoc = await PerfilSociodemograficoData.findOne(queryFilter).lean();
     if (!socioDoc) {
-      socioDoc = new PerfilSociodemograficoData({
-        user: userId,
-        companyId,
-        trabajadores: [],
-      });
+      socioDoc = await PerfilSociodemograficoData.findOne({ user: userId }).lean();
     }
 
-    if (!Array.isArray(socioDoc.trabajadores)) {
-      socioDoc.trabajadores = [];
-    }
+    let trabajadoresList = socioDoc && Array.isArray(socioDoc.trabajadores) ? [...socioDoc.trabajadores] : [];
 
-    const workerIndex = socioDoc.trabajadores.findIndex(
+    const workerIndex = trabajadoresList.findIndex(
       (w) => String(w.identificacion || w.documento || '').trim() === documento
     );
 
-    const workerId = workerIndex >= 0 && socioDoc.trabajadores[workerIndex].id
-      ? socioDoc.trabajadores[workerIndex].id
+    const workerId = workerIndex >= 0 && trabajadoresList[workerIndex].id
+      ? trabajadoresList[workerIndex].id
       : `worker_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
 
     const workerItem = {
@@ -1098,7 +1090,7 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
       municipioDomicilio: workerData.municipioDomicilio || workerData.municipio || '',
       barrio: workerData.barrio || '',
       fechaNacimiento: workerData.fechaNacimiento || '',
-      edad: workerData.edad || '',
+      edad: workerData.edad ? Number(workerData.edad) : undefined,
       genero: workerData.genero || 'No especificado',
       estadoCivil: workerData.estadoCivil || '',
       nivelEscolaridad: workerData.nivelEscolaridad || '',
@@ -1143,62 +1135,50 @@ router.post('/workers', requireApiKeyOrJwt, async (req, res) => {
     };
 
     if (workerIndex >= 0) {
-      socioDoc.trabajadores[workerIndex] = {
-        ...socioDoc.trabajadores[workerIndex],
+      trabajadoresList[workerIndex] = {
+        ...trabajadoresList[workerIndex],
         ...workerItem,
       };
     } else {
-      socioDoc.trabajadores.push(workerItem);
+      trabajadoresList.push(workerItem);
     }
 
-    socioDoc.markModified('trabajadores');
-    await socioDoc.save();
+    await PerfilSociodemograficoData.findOneAndUpdate(
+      queryFilter,
+      { $set: { user: userId, companyId, trabajadores: trabajadoresList, updatedAt: new Date() } },
+      { upsert: true, new: true }
+    );
 
     // 2. Sincronizar en SgsstWorker para consistencia integral
-    let worker = await SgsstWorker.findOne({
-      user: userId,
-      documento,
-    });
-
-    if (worker) {
-      worker.nombre = nombre;
-      worker.documento = documento;
-      worker.cargo = cargo;
-      worker.area = area;
-      worker.tipo_contrato = tipoContrato;
-      worker.salario = workerData.salario || worker.salario;
-      worker.eps = workerData.eps || worker.eps;
-      worker.afp = workerData.afp || worker.afp;
-      worker.estadoLaboral = workerData.estadoLaboral || worker.estadoLaboral;
-      await worker.save();
-    } else {
-      worker = new SgsstWorker({
-        user: userId,
-        companyId,
-        perfilId: workerId,
-        nombre,
-        documento,
-        cargo,
-        area,
-        tipo_contrato: tipoContrato,
-        salario: workerData.salario || '',
-        eps: workerData.eps || '',
-        afp: workerData.afp || '',
-        estadoLaboral: workerData.estadoLaboral || 'Activo',
-      });
-      await worker.save();
-    }
+    await SgsstWorker.findOneAndUpdate(
+      { user: userId, documento },
+      {
+        $set: {
+          user: userId,
+          companyId,
+          perfilId: workerId,
+          nombre,
+          documento,
+          cargo,
+          estadoLaboral: workerData.estadoLaboral || 'Activo',
+          eps: workerData.eps || '',
+          afp: workerData.afp || '',
+          updatedAt: new Date(),
+        },
+      },
+      { upsert: true, new: true }
+    );
 
     return res.status(201).json({
       exito: true,
       mensaje: `Trabajador ${nombre} registrado exitosamente en el Perfil Sociodemográfico (Hito 2).`,
       id: workerId,
-      totalTrabajadores: socioDoc.trabajadores.length,
+      totalTrabajadores: trabajadoresList.length,
       trabajador: workerItem,
     });
   } catch (error) {
     logger.error('[MCP Bridge] POST /workers error:', error);
-    return res.status(500).json({ error: 'Error al registrar trabajador.' });
+    return res.status(500).json({ error: error.message || 'Error al registrar trabajador.' });
   }
 });
 
