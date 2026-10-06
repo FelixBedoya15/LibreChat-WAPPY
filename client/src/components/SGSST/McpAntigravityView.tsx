@@ -182,7 +182,7 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
   const antigravityPrompt = `Configura mi conexión con WAPPY en tu archivo de servidores MCP (mcp_config.json) usando esta URL remota:
 URL: ${sseServerUrl}
 
-Es una conexión MCP directa en la nube mediante SSE (Server-Sent Events). No necesitas instalar Node.js, ni clonar repositorios de Git, ni descargar paquetes npm. Una vez agregues el servidor MCP 'wappy', hazme un diagnóstico 360° de mi empresa en WAPPY.`;
+Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MCP 'wappy', hazme un diagnóstico 360° de mi empresa en WAPPY.`;
 
   // Configuración JSON para mcp_config.json
   const antigravityJsonConfig = JSON.stringify(
@@ -585,15 +585,6 @@ Es una conexión MCP directa en la nube mediante SSE (Server-Sent Events). No ne
       {/* Tab: Configuración JSON */}
       {activeTab === 'config' && (
         <div className="flex flex-col gap-5">
-          {/* Banner Cero Instalación */}
-          <div className="flex items-start gap-3 p-4 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-900 dark:text-teal-200">
-            <Cloud className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
-            <div className="text-xs leading-relaxed">
-              <span className="font-bold">¡Conexión Remota Directa en la Nube! </span>
-              Ya <strong>NO necesitas instalar Node.js</strong>, ni descargar archivos locales, ni ejecutar comandos en la terminal. Tu asistente Antigravity se conecta por internet a WAPPY de inmediato usando el protocolo estándar SSE.
-            </div>
-          </div>
-
           {/* Método 1: Instrucción para el Chat de Antigravity (Recomendado) */}
           <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-orange-500/30 dark:border-orange-500/30 flex flex-col gap-3 shadow-sm">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
@@ -666,17 +657,17 @@ Es una conexión MCP directa en la nube mediante SSE (Server-Sent Events). No ne
                 <span>Genera tu Clave API</span>
               </div>
               <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
-                Haz clic arriba en <strong>"Generar Clave API"</strong>. Esta clave única garantiza que Antigravity solo acceda de manera segura a los datos de tu empresa.
+                Haz clic arriba en <strong>"Generar Clave API"</strong>. Esta clave única garantiza que Antigravity acceda de manera segura a los datos de tu empresa.
               </p>
             </div>
 
             <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col gap-2 shadow-2xs">
               <div className="flex items-center gap-2 text-xs font-bold text-teal-600 dark:text-teal-400">
                 <span className="w-6 h-6 rounded-full bg-teal-500/10 flex items-center justify-center text-xs font-black">2</span>
-                <span>Conecta a la Nube (Sin Node)</span>
+                <span>Conecta Antigravity</span>
               </div>
               <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
-                Pega la <strong>Instrucción en el chat</strong> o agrega la URL remota SSE en tu <code className="font-mono text-[10px] bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded">mcp_config.json</code>. Cero terminales y cero descargas locales.
+                Pega la <strong>Instrucción en el chat</strong> o agrega la URL remota en tu <code className="font-mono text-[10px] bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded">mcp_config.json</code> para sincronizar de inmediato.
               </p>
             </div>
 
@@ -686,7 +677,7 @@ Es una conexión MCP directa en la nube mediante SSE (Server-Sent Events). No ne
                 <span>Control Total Autónomo</span>
               </div>
               <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
-                Dile a Antigravity: <em>"Hazme un diagnóstico 360° de mi empresa, revisa los trabajadores y programa las capacitaciones del cronograma"</em>.
+                Dile a Antigravity: <em>"Hazme un diagnóstico 360° de mi empresa, revisa los trabajadores y programa las tareas del cronograma"</em>.
               </p>
             </div>
           </div>
@@ -698,14 +689,14 @@ Es una conexión MCP directa en la nube mediante SSE (Server-Sent Events). No ne
               className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 transition-colors"
             >
               {showAdvancedLocal ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              <span>Conexión Local Clásica por Stdio (Opcional para Desarrolladores)</span>
+              <span>Conexión Local Alternativa por Stdio (Opcional)</span>
             </button>
 
             {showAdvancedLocal && (
               <div className="mt-3 p-4 rounded-2xl bg-slate-100/60 dark:bg-zinc-900/40 border border-slate-200 dark:border-zinc-800 flex flex-col gap-2.5 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between">
                   <div className="text-[11px] text-slate-500 dark:text-zinc-400">
-                    Requiere Node.js instalado localmente y el repositorio clonado en tu máquina:
+                    Configuración local tradicional por Stdio:
                   </div>
                   <button
                     onClick={() => copyToClipboard(localStdioConfig, 'local')}
