@@ -2145,7 +2145,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       const touch = e.touches[0];
       const dx = touch.clientX - dragStartRef.current.mouseX;
       const dy = touch.clientY - dragStartRef.current.mouseY;
-      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      if (Math.abs(dx) > 16 || Math.abs(dy) > 16) {
         hasMovedRef.current = true;
       }
       let newX = dragStartRef.current.elemX + dx;
@@ -2253,6 +2253,31 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const tapTimestampsRef = useRef<number[]>([]);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const handleMaximizeMobile = useCallback((e?: React.SyntheticEvent) => {
+    if (e) {
+      try {
+        e.preventDefault();
+        e.stopPropagation();
+      } catch (_) {}
+    }
+    tenshiAudio.playPop();
+    try {
+      sessionStorage.removeItem('tenshi_mobile_hero_minimized');
+      sessionStorage.removeItem('tenshi_mobile_hero_exited');
+      sessionStorage.removeItem('tenshi_mobile_just_logged_in');
+    } catch (_) {}
+    setIsMobileHeroMode(true);
+    setIsHeroChatOpen(false);
+
+    const isChat =
+      location.pathname === '/' ||
+      location.pathname === '/c/new' ||
+      location.pathname.startsWith('/c/');
+    if (!isChat) {
+      navigate('/c/new');
+    }
+  }, [location.pathname, navigate]);
+
   const handleTenshiInteraction = (e: React.MouseEvent | React.TouchEvent) => {
     if (hasMovedRef.current) {
       e.preventDefault();
@@ -2274,13 +2299,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         clearTimeout(clickTimeoutRef.current);
         clickTimeoutRef.current = null;
       }
-      tenshiAudio.playPop();
-      try {
-        sessionStorage.removeItem('tenshi_mobile_hero_minimized');
-        sessionStorage.removeItem('tenshi_mobile_hero_exited');
-        sessionStorage.removeItem('tenshi_mobile_just_logged_in');
-      } catch (_) {}
-      setIsMobileHeroMode(true);
+      handleMaximizeMobile();
       return;
     }
 
@@ -3023,7 +3042,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       {isMobileHeroMode && isMobileScreen ? (
         <div
           id="tenshi-mobile-hero-container"
-          className="fixed inset-x-0 top-0 bottom-0 z-40 flex flex-col md:hidden bg-gradient-to-b from-slate-50 via-teal-50/20 to-slate-100 dark:bg-gradient-to-b dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden animate-in fade-in duration-200"
+          className="fixed inset-x-0 top-0 bottom-0 z-[49] flex flex-col md:hidden bg-gradient-to-b from-slate-50 via-teal-50/20 to-slate-100 dark:bg-gradient-to-b dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden animate-in fade-in duration-200"
           style={{
             paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 74px)',
           }}
@@ -3092,20 +3111,20 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   } catch (_) {}
                   navigate('/c/new');
                 }}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 shadow-2xs active:scale-95 transition-all"
-                title="Ir a chat tradicional de WAPPY"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 shadow-2xs active:scale-95 transition-all"
+                title="Ir a interfaz normal de WAPPY"
               >
-                <span>Ir a Chat</span>
-                <ArrowRight className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+                <span>Ir a Wappy</span>
+                <ArrowRight className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
               </button>
             </div>
           </div>
 
           {/* Área Central Hero: SOLO Tenshi Grande, su Saludo y su Botonera Cápsula Activa */}
-          <div className="flex-1 px-4 py-6 flex flex-col items-center justify-center -mt-6 select-none relative">
-            {/* 1. Avatar Grande de Tenshi (185px) */}
+          <div className="flex-1 px-4 py-4 flex flex-col items-center justify-center -mt-4 select-none relative">
+            {/* 1. Avatar Grande de Tenshi (265px) */}
             <div
-              className="relative flex flex-col items-center my-2 cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95"
+              className="relative flex flex-col items-center my-1 cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95"
               onClick={() => {
                 tenshiAudio.playPop();
                 if (!isVoiceActive) {
@@ -3117,7 +3136,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               title="Tócame para hablar"
             >
               <TenshiAvatar
-                size={185}
+                size={265}
                 isSpeaking={isTenshiSpeaking}
                 outputAmplitude={outputAmplitude}
                 isVoiceActive={isVoiceActive}
@@ -3797,16 +3816,16 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           position: 'fixed',
           left: `${position ? position.x : (typeof window !== 'undefined' ? window.innerWidth - 88 : 0)}px`,
           top: `${position ? position.y : (typeof window !== 'undefined' ? window.innerHeight - (isMobileScreen ? 185 : 110) : 0)}px`,
-          zIndex: 45,
+          zIndex: 48,
         }}
-        className="group relative cursor-grab active:cursor-grabbing select-none transition-transform duration-200 hover:scale-105 active:scale-95"
+        className="group relative cursor-grab active:cursor-grabbing select-none transition-transform duration-200 md:hover:scale-105 md:active:scale-95"
       >
         {/* Micro-dock flotante en Hover (Desktop) o Siempre Visible en Móvil */}
         <div
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           className={cn(
-            'absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-40 transition-all duration-200 select-none',
+            'absolute -top-12 sm:-top-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-40 transition-all duration-200 select-none',
             'bg-zinc-900/90 backdrop-blur-md px-2.5 py-1 rounded-full border border-emerald-500/30 shadow-xl',
             'before:absolute before:-bottom-3 before:inset-x-0 before:h-4 before:content-[""]',
             isMobileScreen || isHoveringTenshi
@@ -3818,6 +3837,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           <button
             type="button"
             onClick={(e) => {
+              e.stopPropagation();
+              tenshiAudio.playBlip();
+              setIsOpen((prev) => !prev);
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               tenshiAudio.playBlip();
               setIsOpen((prev) => !prev);
@@ -3844,6 +3869,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 startVoiceMode();
               }
             }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (isVoiceActive) {
+                tenshiAudio.playBlip();
+                stopVoiceMode();
+              } else {
+                tenshiAudio.playBlip();
+                startVoiceMode();
+              }
+            }}
             title={isVoiceActive ? 'Pausar modo voz' : 'Activar modo voz (Live)'}
             className={cn(
               'p-1.5 rounded-full transition-colors active:scale-90',
@@ -3860,6 +3896,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               e.stopPropagation();
               handleToggleSFX();
             }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleToggleSFX();
+            }}
             title={isSFXMuted ? 'Activar efectos de sonido' : 'Silenciar efectos de sonido'}
             className="p-1.5 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 transition-colors active:scale-90"
           >
@@ -3869,18 +3910,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           {/* Botón 4: Maximizar a Pantalla Completa (EXCLUSIVO PARA CELULAR) */}
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              tenshiAudio.playPop();
-              try {
-                sessionStorage.removeItem('tenshi_mobile_hero_minimized');
-                sessionStorage.removeItem('tenshi_mobile_hero_exited');
-                sessionStorage.removeItem('tenshi_mobile_just_logged_in');
-              } catch (_) {}
-              setIsMobileHeroMode(true);
-            }}
+            onClick={handleMaximizeMobile}
+            onTouchEnd={handleMaximizeMobile}
             title="Tenshi en Pantalla Completa"
-            className="flex md:hidden p-1.5 rounded-full text-teal-300 hover:text-teal-200 hover:bg-white/10 transition-colors active:scale-90"
+            className="flex md:hidden p-1.5 rounded-full text-teal-300 hover:text-teal-200 bg-teal-500/25 border border-teal-500/40 hover:bg-teal-500/40 transition-colors active:scale-90"
           >
             <Maximize2 className="h-3.5 w-3.5" />
           </button>
