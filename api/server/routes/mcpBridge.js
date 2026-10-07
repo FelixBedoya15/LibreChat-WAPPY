@@ -6419,35 +6419,144 @@ router.get('/quimicos/pubchem', requireApiKeyOrJwt, async (req, res) => {
 // ─── 42. API OPENSTREETMAP NOMINATIM: GEOCODIFICACIÓN Y EMERGENCIAS ─────────
 router.get('/emergencias/nominatim', requireApiKeyOrJwt, async (req, res) => {
   try {
-    const query = String(req.query.q || req.query.query || req.query.recurso || '').trim();
-    if (!query) {
+    const rawQuery = String(req.query.q || req.query.query || req.query.recurso || '').trim();
+    if (!rawQuery) {
       return res.status(400).json({ error: 'Debes proporcionar la dirección o recurso de emergencia a buscar (ej: hospital Chapinero Bogota, bomberos Medellin).' });
     }
 
-    const nomUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=3&addressdetails=0`;
-    const nomRes = await fetch(nomUrl, {
-      headers: { 'User-Agent': 'WappySSTAgent/1.0 (wappyinteractivo@gmail.com)' },
-    });
+    const lowerQuery = rawQuery.toLowerCase();
 
-    if (!nomRes.ok) {
-      return res.status(502).json({ error: 'Error al consultar el servicio de OpenStreetMap Nominatim.' });
+    // Detección del tipo de recurso
+    let tipoRecurso = 'clinica';
+    if (lowerQuery.includes('bomber')) tipoRecurso = 'bomberos';
+    else if (lowerQuery.includes('cruz roja') || lowerQuery.includes('ambulanc')) tipoRecurso = 'cruz roja';
+    else if (lowerQuery.includes('defensa civil')) tipoRecurso = 'defensa civil';
+    else if (lowerQuery.includes('hospital')) tipoRecurso = 'hospital';
+    else if (lowerQuery.includes('polic')) tipoRecurso = 'policia';
+
+    // Extracción de zona / ciudad en Colombia
+    let zonaCiudad = '';
+    if (lowerQuery.includes('poblado') || lowerQuery.includes('campestre') || lowerQuery.includes('aguacatala')) {
+      zonaCiudad = 'Poblado Medellin';
+    } else if (lowerQuery.includes('envigado')) {
+      zonaCiudad = 'Envigado';
+    } else if (lowerQuery.includes('medellin') || lowerQuery.includes('medellín')) {
+      zonaCiudad = 'Medellin';
+    } else if (lowerQuery.includes('itagui') || lowerQuery.includes('itagüí')) {
+      zonaCiudad = 'Itagui';
+    } else if (lowerQuery.includes('bello')) {
+      zonaCiudad = 'Bello Antioquia';
+    } else if (lowerQuery.includes('chapinero')) {
+      zonaCiudad = 'Chapinero Bogota';
+    } else if (lowerQuery.includes('usaquen') || lowerQuery.includes('usaquén')) {
+      zonaCiudad = 'Usaquen Bogota';
+    } else if (lowerQuery.includes('suba')) {
+      zonaCiudad = 'Suba Bogota';
+    } else if (lowerQuery.includes('bogota') || lowerQuery.includes('bogotá')) {
+      zonaCiudad = 'Bogota';
+    } else if (lowerQuery.includes('cali')) {
+      zonaCiudad = 'Cali';
+    } else if (lowerQuery.includes('barranquilla')) {
+      zonaCiudad = 'Barranquilla';
+    } else if (lowerQuery.includes('bucaramanga')) {
+      zonaCiudad = 'Bucaramanga';
+    } else if (lowerQuery.includes('cartagena')) {
+      zonaCiudad = 'Cartagena';
+    } else if (lowerQuery.includes('pereira')) {
+      zonaCiudad = 'Pereira';
+    } else if (lowerQuery.includes('manizales')) {
+      zonaCiudad = 'Manizales';
     }
 
-    const data = await nomRes.json();
-    const recursos = (data || []).map((item) => ({
-      nombre: item.display_name,
-      latitud: item.lat,
-      longitud: item.lon,
-      tipo: item.type,
-      clase: item.class,
-    }));
+    // Limpiar frase eliminando relleno conversacional
+    let cleanedQuery = rawQuery
+      .replace(/tengo un trabajador accidentado/gi, '')
+      .replace(/accidente de trabajo/gi, '')
+      .replace(/que clinica me queda mas cercana/gi, '')
+      .replace(/mas cercana/gi, '')
+      .replace(/donde queda/gi, '')
+      .replace(/para enviarlo/gi, '')
+      .replace(/ahi por la/gi, '')
+      .replace(/por la frontera entre/gi, '')
+      .replace(/frontera entre/gi, '')
+      .replace(/urgencias/gi, 'clinica')
+      .trim();
+
+    let searchQueries = [];
+    if (zonaCiudad) {
+      searchQueries.push(`${tipoRecurso} ${zonaCiudad}`);
+    }
+    if (cleanedQuery && cleanedQuery.length > 3 && cleanedQuery.split(/\s+/).length <= 5) {
+      searchQueries.push(cleanedQuery);
+    }
+    searchQueries.push(`${tipoRecurso} ${rawQuery.slice(0, 30)}`);
+
+    let rawData = [];
+    for (const q of searchQueries) {
+      try {
+        const nomUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=4&countrycodes=co&addressdetails=1`;
+        const nomRes = await fetch(nomUrl, {
+          headers: { 'User-Agent': 'WappySSTAgent/1.0 (wappyinteractivo@gmail.com)' },
+        });
+        if (nomRes.ok) {
+          const list = await nomRes.json();
+          if (Array.isArray(list) && list.length > 0) {
+            rawData = list;
+            break;
+          }
+        }
+      } catch (_e) {}
+    }
+
+    // Fallback inteligente para frontera Medellín - Envigado / El Poblado
+    if (rawData.length === 0 && (lowerQuery.includes('poblado') || (lowerQuery.includes('medellin') && lowerQuery.includes('envigado')))) {
+      try {
+        const fallbackRes = await fetch('https://nominatim.openstreetmap.org/search?q=clinica+Poblado+Medellin&format=json&limit=3&countrycodes=co', {
+          headers: { 'User-Agent': 'WappySSTAgent/1.0 (wappyinteractivo@gmail.com)' },
+        });
+        if (fallbackRes.ok) {
+          rawData = await fallbackRes.json();
+        }
+      } catch (_fb) {}
+    }
+
+    const recursos = (rawData || []).map((item) => {
+      const addr = item.address || {};
+      const street = addr.road || addr.street || addr.pedestrian || '';
+      const houseNumber = addr.house_number || '';
+      const suburb = addr.suburb || addr.neighbourhood || addr.quarter || '';
+      const city = addr.city || addr.town || addr.municipality || 'Colombia';
+      const addressStr = [street, houseNumber, suburb, city].filter(Boolean).join(', ') || item.display_name;
+
+      return {
+        nombre: item.name || item.display_name?.split(',')?.[0] || 'Centro Asistencial',
+        direccionExacta: addressStr,
+        nombreCompleto: item.display_name,
+        barrioSector: suburb || 'Sector Urbano',
+        ciudad: city,
+        latitud: item.lat,
+        longitud: item.lon,
+        tipo: item.type,
+        clase: item.class,
+      };
+    });
+
+    // Construir síntesis ejecutiva para que Tenshi hable con precisión quirúrgica
+    let resumenVoz = '';
+    if (recursos.length > 0) {
+      const topOpciones = recursos.slice(0, 3).map((r, i) => `${i + 1}. ${r.nombre} (ubicada en ${r.direccionExacta})`).join('. ');
+      resumenVoz = `Para la zona indicada, las opciones de atención médica y urgencias más cercanas son: ${topOpciones}. Recuerda activar de inmediato el reporte de presunto Accidente de Trabajo ante la ARL conforme al Decreto 1072 de 2015.`;
+    } else {
+      resumenVoz = `No se localizaron centros asistenciales específicos con la búsqueda "${rawQuery}". Te recomiendo dirigir al trabajador a la IPS o clínica de urgencias de alta complejidad más cercana de su red ARL o llamar a la línea 123 de emergencias médicas.`;
+    }
 
     return res.json({
       exito: true,
-      terminoBuscado: query,
+      terminoBuscado: rawQuery,
       totalEncontrados: recursos.length,
       recursos,
-      directivaPlanEmergencias: 'Recursos asistenciales verificados para anexar a la Red Externa de Respuesta ante Emergencias y Rutas de Traslado de Lesionados del SG-SST (Decreto 1072/2015).',
+      resumenVoz,
+      directivaPlanEmergencias: 'Recursos asistenciales verificados para anexar a la Red Externa de Respuesta ante Emergencias y Rutas de Traslado de Lesionados del SG-SST (Decreto 1072 de 2015).',
     });
   } catch (error) {
     logger.error('[MCP Bridge] Error en Nominatim API:', error);
@@ -6456,10 +6565,59 @@ router.get('/emergencias/nominatim', requireApiKeyOrJwt, async (req, res) => {
 });
 
 // ─── 43. API OPEN-METEO: PREDICCIÓN DE CLIMA, VIENTO Y RIESGO EN ALTURAS ────
+const COLOMBIAN_CITIES_COORDS = {
+  medellin: { lat: 6.2442, lon: -75.5812, name: 'Medellín' },
+  envigado: { lat: 6.1672, lon: -75.5828, name: 'Envigado' },
+  itagui: { lat: 6.1846, lon: -75.5991, name: 'Itagüí' },
+  sabaneta: { lat: 6.1513, lon: -75.6156, name: 'Sabaneta' },
+  bello: { lat: 6.3373, lon: -75.5579, name: 'Bello' },
+  bogota: { lat: 4.6097, lon: -74.0817, name: 'Bogotá' },
+  cali: { lat: 3.4516, lon: -76.5320, name: 'Cali' },
+  barranquilla: { lat: 10.9685, lon: -74.7813, name: 'Barranquilla' },
+  cartagena: { lat: 10.3910, lon: -75.4794, name: 'Cartagena' },
+  bucaramanga: { lat: 7.1254, lon: -73.1198, name: 'Bucaramanga' },
+  pereira: { lat: 4.8133, lon: -75.6961, name: 'Pereira' },
+  manizales: { lat: 5.0689, lon: -75.5174, name: 'Manizales' },
+  ibague: { lat: 4.4389, lon: -75.2322, name: 'Ibagué' },
+  cucuta: { lat: 7.8939, lon: -72.5078, name: 'Cúcuta' },
+  villavicencio: { lat: 4.1420, lon: -73.6266, name: 'Villavicencio' },
+  santamarta: { lat: 11.2408, lon: -74.1990, name: 'Santa Marta' },
+  armenia: { lat: 4.5339, lon: -75.6811, name: 'Armenia' },
+  pasto: { lat: 1.2136, lon: -77.2811, name: 'Pasto' },
+  monteria: { lat: 8.7479, lon: -75.8814, name: 'Montería' },
+  neiva: { lat: 2.9273, lon: -75.2819, name: 'Neiva' },
+  popayan: { lat: 2.4448, lon: -76.6147, name: 'Popayán' },
+  valledupar: { lat: 10.4631, lon: -73.2532, name: 'Valledupar' },
+  sincelejo: { lat: 9.3047, lon: -75.3978, name: 'Sincelejo' },
+  riohacha: { lat: 11.5444, lon: -72.9072, name: 'Riohacha' },
+  tunja: { lat: 5.5353, lon: -73.3678, name: 'Tunja' },
+  quibdo: { lat: 5.6947, lon: -76.6611, name: 'Quibdó' },
+  florencia: { lat: 1.6144, lon: -75.6062, name: 'Florencia' },
+  yopal: { lat: 5.3377, lon: -72.3958, name: 'Yopal' },
+};
+
 router.get('/clima/pronostico', requireApiKeyOrJwt, async (req, res) => {
   try {
-    const lat = parseFloat(req.query.latitude || req.query.lat) || 4.6097;
-    const lon = parseFloat(req.query.longitude || req.query.lon) || -74.0817;
+    let lat = parseFloat(req.query.latitude || req.query.lat);
+    let lon = parseFloat(req.query.longitude || req.query.lon);
+    const rawCity = String(req.query.ciudad || req.query.city || req.query.lugar || req.query.q || '').toLowerCase().trim();
+
+    let detectedCityName = 'Ubicación de Consulta';
+
+    if (rawCity && (!lat || !lon)) {
+      const matchCityKey = Object.keys(COLOMBIAN_CITIES_COORDS).find((k) => rawCity.includes(k));
+      if (matchCityKey) {
+        lat = COLOMBIAN_CITIES_COORDS[matchCityKey].lat;
+        lon = COLOMBIAN_CITIES_COORDS[matchCityKey].lon;
+        detectedCityName = COLOMBIAN_CITIES_COORDS[matchCityKey].name;
+      }
+    }
+
+    if (!lat || !lon) {
+      lat = 4.6097;
+      lon = -74.0817;
+      detectedCityName = 'Bogotá D.C.';
+    }
 
     const currentVars = 'temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code';
     const dailyVars = 'wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,temperature_2m_max,temperature_2m_min,weather_code';
@@ -6490,7 +6648,7 @@ router.get('/clima/pronostico', requireApiKeyOrJwt, async (req, res) => {
     } else if (windSpeed > 20 || windGusts > 30) {
       nivelRiesgoViento = 'PRECAUCIÓN / MONITOREO CONTINUO';
       autorizadoAlturas = true;
-      motivoRestriccion = `Vientos moderados (${windSpeed} km/h). Se requiere uso estricto de anemómetro y restricción de cargas voluminosas con efecto vela.`;
+      motivoRestriccion = `Vientos moderados (${windSpeed} km/h con ráfagas de ${windGusts} km/h). Se requiere uso estricto de anemómetro y restricción de cargas voluminosas con efecto vela.`;
     }
 
     if (weatherCode >= 51) {
@@ -6498,8 +6656,14 @@ router.get('/clima/pronostico', requireApiKeyOrJwt, async (req, res) => {
       motivoRestriccion = (motivoRestriccion ? motivoRestriccion + ' ' : '') + 'Precipitaciones o tormenta activa en la zona. Suspender actividades a la intemperie por riesgo de caídas y descarga eléctrica.';
     }
 
+    const dictamenOperativo = motivoRestriccion || 'Condiciones climáticas favorables. Proceder con diligenciamiento del Permiso de Trabajo Seguro en Alturas (TSA) y listas de verificación.';
+    const resumenVoz = autorizadoAlturas
+      ? `En ${detectedCityName}, las condiciones son favorables: viento de ${windSpeed} km/h, temperatura de ${temp}°C. Trabajo en alturas AUTORIZADO según la Resolución 4272 de 2021 con diligenciamiento del permiso TSA.`
+      : `¡ALERTA DE SEGURIDAD! En ${detectedCityName}, el trabajo en alturas queda SUSPENDIDO de inmediato: ${dictamenOperativo}`;
+
     return res.json({
       exito: true,
+      ciudad: detectedCityName,
       coordenadas: { latitud: lat, longitud: lon },
       condicionesActuales: {
         temperaturaC: temp,
@@ -6517,9 +6681,10 @@ router.get('/clima/pronostico', requireApiKeyOrJwt, async (req, res) => {
       evaluacionSeguridadSST: {
         nivelRiesgo: nivelRiesgoViento,
         aprobadoParaTrabajoEnAlturas: autorizadoAlturas,
-        dictamenOperativo: motivoRestriccion || 'Condiciones climáticas favorables. Proceder con diligenciamiento del Permiso de Trabajo Seguro en Alturas (TSA) y listas de verificación.',
+        dictamenOperativo,
         normativaAplicable: 'Resolución 4272 de 2021 (Trabajo Seguro en Alturas) y Decreto 1072 de 2015.',
       },
+      resumenVoz,
     });
   } catch (error) {
     logger.error('[MCP Bridge] Error en Open-Meteo API:', error);
@@ -6678,7 +6843,178 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
 
       autoResult.resumen = `Antigravity ha completado el Informe de Condiciones de Salud Ocupacional para ${companyName}. Censo evaluado: ${totalActivos} colaboradores (${masculinos} hombres, ${femeninos} mujeres). Edad promedio: ${promedioEdad} años, IMC promedio: ${promedioImc} kg/m². Hallazgos: ${sobrepesoCount} colaboradores con sobrepeso leve (${pctSobrepeso}%) y ${restricciones.length} casos con recomendaciones o restricciones osteomusculares para levantamiento de cargas. Plan de acción activo en pausas activas dirigidas, ergonomía y vigilancia biomecánica.`;
 
-      autoResult.contenido = `# INFORME DE DIAGNÓSTICO DE CONDICIONES DE SALUD OCUPACIONAL
+      // ── Rama HTML con gráficas Chart.js ──────────────────────────────────────
+      const wantsHtml =
+        finalOutputType === 'html' ||
+        finalDesc.toLowerCase().includes('html') ||
+        finalDesc.toLowerCase().includes('grafic') ||
+        finalDesc.toLowerCase().includes('gráfic') ||
+        finalDesc.toLowerCase().includes('dashboard') ||
+        finalDesc.toLowerCase().includes('chart') ||
+        finalDesc.toLowerCase().includes('visual') ||
+        finalDesc.toLowerCase().includes('interactiv');
+
+      if (wantsHtml) {
+        const saludables = totalActivos - sobrepesoCount;
+        const sinRestriccion = totalActivos - restricciones.length;
+        const pctMasc = totalActivos > 0 ? ((masculinos / totalActivos) * 100).toFixed(1) : 0;
+        const pctFem = totalActivos > 0 ? ((femeninos / totalActivos) * 100).toFixed(1) : 0;
+        const fechaEmision = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        autoResult.contenido = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Salud Ocupacional — ${companyName}</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f4f8; color: #1e293b; }
+  .header { background: linear-gradient(135deg, #0d9488, #0f766e); color: white; padding: 28px 32px; }
+  .header h1 { font-size: 1.5rem; font-weight: 700; }
+  .header p { font-size: 0.85rem; opacity: 0.85; margin-top: 4px; }
+  .badge { display: inline-block; background: rgba(255,255,255,0.2); border-radius: 20px; padding: 2px 12px; font-size: 0.75rem; margin-top: 8px; }
+  .stats-row { display: flex; gap: 16px; padding: 24px 32px; flex-wrap: wrap; }
+  .stat-card { flex: 1; min-width: 150px; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-left: 4px solid #0d9488; }
+  .stat-card.alert { border-left-color: #f59e0b; }
+  .stat-card.danger { border-left-color: #ef4444; }
+  .stat-num { font-size: 2rem; font-weight: 800; color: #0d9488; }
+  .stat-card.alert .stat-num { color: #f59e0b; }
+  .stat-card.danger .stat-num { color: #ef4444; }
+  .stat-label { font-size: 0.78rem; color: #64748b; margin-top: 4px; }
+  .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; padding: 0 32px 32px; }
+  .chart-card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .chart-card h3 { font-size: 0.9rem; font-weight: 600; color: #374151; margin-bottom: 16px; }
+  .plan-section { margin: 0 32px 32px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .plan-section h3 { font-size: 0.95rem; font-weight: 700; color: #0d9488; margin-bottom: 16px; }
+  .plan-item { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+  .plan-num { background: #0d9488; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
+  .plan-text { font-size: 0.85rem; color: #374151; line-height: 1.5; }
+  .footer { text-align: center; padding: 16px; font-size: 0.75rem; color: #94a3b8; }
+  canvas { max-height: 220px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🏥 Dashboard de Salud Ocupacional</h1>
+  <p>${companyName} | Normativa: Res. 2346/2007 — Dec. 1072/2015</p>
+  <span class="badge">Elaborado por Motor Autónomo Antigravity · ${fechaEmision}</span>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-num">${totalActivos}</div>
+    <div class="stat-label">Total colaboradores evaluados</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">${promedioEdad}</div>
+    <div class="stat-label">Edad promedio (años)</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">${promedioImc}</div>
+    <div class="stat-label">IMC promedio (kg/m²)</div>
+  </div>
+  <div class="stat-card alert">
+    <div class="stat-num">${sobrepesoCount}</div>
+    <div class="stat-label">Colaboradores con sobrepeso (${pctSobrepeso}%)</div>
+  </div>
+  <div class="stat-card danger">
+    <div class="stat-num">${restricciones.length}</div>
+    <div class="stat-label">Restricciones osteomusculares</div>
+  </div>
+</div>
+
+<div class="charts-grid">
+  <div class="chart-card">
+    <h3>📊 Distribución por Género</h3>
+    <canvas id="generoChart"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>⚖️ Estado Nutricional (IMC)</h3>
+    <canvas id="imcChart"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>🦴 Estado Osteomuscular</h3>
+    <canvas id="oseoChart"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>📈 Indicadores Clave de Salud</h3>
+    <canvas id="indicadoresChart"></canvas>
+  </div>
+</div>
+
+<div class="plan-section">
+  <h3>🎯 Plan de Acción SG-SST — Intervenciones Prioritarias</h3>
+  <div class="plan-item"><div class="plan-num">1</div><div class="plan-text"><strong>SVE Biomecánico:</strong> Pausas activas dirigidas obligatorias dos veces por jornada. Inspección y adecuación ergonómica de puestos con colaboradores que presenten restricciones.</div></div>
+  <div class="plan-item"><div class="plan-num">2</div><div class="plan-text"><strong>Control de Restricciones:</strong> Verificar que los ${restricciones.length} colaboradores con restricciones osteomusculares activas no superen los límites de carga manual (>12.5 kg según GTC 45).</div></div>
+  <div class="plan-item"><div class="plan-num">3</div><div class="plan-text"><strong>Programa de Estilos de Vida Saludable:</strong> Jornadas de asesoría nutricional para los ${sobrepesoCount} colaboradores con IMC ≥ 25.0. Seguimiento bimestral de peso y perímetro abdominal.</div></div>
+  <div class="plan-item"><div class="plan-num">4</div><div class="plan-text"><strong>Vigilancia Epidemiológica:</strong> Actualización semestral de exámenes periódicos según Resolución 2346/2007. Correlación con ausentismo y accidentalidad (Dec. 1072/2015, Art. 2.2.4.6.28).</div></div>
+</div>
+
+<div class="footer">Motor Autónomo Antigravity · WAPPY SG-SST · Datos reales de la plataforma al ${fechaEmision}</div>
+
+<script>
+const tealPalette = ['#0d9488','#14b8a6','#5eead4','#ccfbf1'];
+const warnPalette = ['#f59e0b','#fcd34d'];
+const dangerPalette = ['#ef4444','#fca5a5'];
+
+// Gráfica 1: Género
+new Chart(document.getElementById('generoChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Masculino', 'Femenino'],
+    datasets: [{ data: [${masculinos}, ${femeninos}], backgroundColor: ['#0d9488','#5eead4'], borderWidth: 2 }]
+  },
+  options: { plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }, cutout: '65%' }
+});
+
+// Gráfica 2: IMC
+new Chart(document.getElementById('imcChart'), {
+  type: 'pie',
+  data: {
+    labels: ['IMC Normal (<25)', 'Sobrepeso (≥25)'],
+    datasets: [{ data: [${saludables}, ${sobrepesoCount}], backgroundColor: ['#0d9488','#f59e0b'], borderWidth: 2 }]
+  },
+  options: { plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+});
+
+// Gráfica 3: Osteomuscular
+new Chart(document.getElementById('oseoChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Sin Restricción', 'Con Restricción'],
+    datasets: [{ data: [${sinRestriccion}, ${restricciones.length}], backgroundColor: ['#14b8a6','#ef4444'], borderWidth: 2 }]
+  },
+  options: { plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }, cutout: '60%' }
+});
+
+// Gráfica 4: Indicadores barra
+new Chart(document.getElementById('indicadoresChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Total', 'Masculinos', 'Femeninas', 'Sobrepeso', 'Restricción'],
+    datasets: [{
+      label: 'Colaboradores',
+      data: [${totalActivos}, ${masculinos}, ${femeninos}, ${sobrepesoCount}, ${restricciones.length}],
+      backgroundColor: ['#0d9488','#14b8a6','#5eead4','#f59e0b','#ef4444'],
+      borderRadius: 8, borderSkipped: false
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } }
+  }
+});
+</script>
+</body>
+</html>`;
+
+        autoResult.titulo = `Dashboard Interactivo — Condiciones de Salud Ocupacional`;
+        autoResult.formato = 'html';
+      } else {
+        // ── Rama Markdown (por defecto) ─────────────────────────────────────────
+        autoResult.contenido = `# INFORME DE DIAGNÓSTICO DE CONDICIONES DE SALUD OCUPACIONAL
 **Empresa:** ${companyName} | **Normativa:** Resolución 2346 de 2007 - Decreto 1072 de 2015
 **Fecha de Emisión:** ${new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}
 **Elaborado por:** Motor Autónomo Antigravity para Tenshi (WAPPY IA)
@@ -6711,6 +7047,7 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
    - Verificar no sobrepasar límites de carga en colaboradores con restricciones activas.
 3. **Estilos de Vida Saludable:**
    - Jornadas de asesoría nutricional y seguimiento bimestral de peso y perímetro abdominal.`;
+      }
     } else {
       autoResult.resumen = `Antigravity procesó y completó la investigación técnica sobre "${finalTitle}" para ${companyName}. Se aplicaron los lineamientos del Decreto 1072 de 2015 y la Resolución 0312 de 2019, generando las directrices y plan de acción correspondientes.`;
       autoResult.contenido = `# INFORME TÉCNICO DE GESTIÓN SG-SST
