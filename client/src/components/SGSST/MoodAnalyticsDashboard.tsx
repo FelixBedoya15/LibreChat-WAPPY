@@ -52,7 +52,7 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
   const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   // AI Report & LiveEditor state
-  const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.6-flash');
+  const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.8-flash');
   const [generatedReport, setGeneratedReport] = useState<string | null>(null);
   const editorContentRef = useRef<string>('');
   const liveEditorRef = useRef<LiveEditorHandle>(null);

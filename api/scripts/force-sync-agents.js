@@ -141,7 +141,7 @@ async function main() {
       tools.push('canvas');
     }
 
-    const defaultModel = 'gemini-3.6-flash';
+    const defaultModel = 'gemini-3.8-flash';
 
     // Buscar si ya existe
     let agent = await Agent.findOne({ name: dbName });

@@ -141,9 +141,9 @@ async function ensureAgentExists(dbName, fileBasename, mdContent, authorId) {
   tools = [...new Set(tools)];
 
   const timestamp = new Date();
-  let defaultModel = (process.env.GOOGLE_MODELS || 'gemini-3.6-flash').split(',')[0].trim();
-  if (defaultModel === 'gemini-3.8-flash' || defaultModel === 'gemini-3.7-flash') {
-    defaultModel = 'gemini-3.6-flash';
+  let defaultModel = (process.env.GOOGLE_MODELS || 'gemini-3.8-flash').split(',')[0].trim();
+  if (defaultModel === 'gemini-3.6-flash' || defaultModel === 'gemini-3.7-flash') {
+    defaultModel = 'gemini-3.8-flash';
   }
   const targetCategory = AGENT_CATEGORY_MAP[fileBasename] || 'general';
   const agentData = {
@@ -1041,7 +1041,7 @@ router.get('/migrate-names-public', async (req, res) => {
         modified = true;
       }
       
-      const targetModel = (process.env.GOOGLE_MODELS || 'gemini-3.6-flash').split(',')[0].trim();
+      const targetModel = (process.env.GOOGLE_MODELS || 'gemini-3.8-flash').split(',')[0].trim();
       if (agent.model !== targetModel && agent.provider === 'google') {
         agent.model = targetModel;
         modified = true;
@@ -1157,7 +1157,7 @@ router.get('/migrate-names-public', async (req, res) => {
         modified = true;
       }
       
-      const targetModel = (process.env.GOOGLE_MODELS || 'gemini-3.6-flash').split(',')[0].trim();
+      const targetModel = (process.env.GOOGLE_MODELS || 'gemini-3.8-flash').split(',')[0].trim();
       if (agent.model !== targetModel && agent.provider === 'google') {
         agent.model = targetModel;
         modified = true;

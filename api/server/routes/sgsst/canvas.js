@@ -758,7 +758,7 @@ Genera el código HTML interactivo autocontenido. Puedes usar Tailwind CSS (clas
 Genera ÚNICAMENTE el código HTML del componente, sin bloques de código de markdown de tres comillas.`;
     }
 
-    const preferredModel = (typeof model === 'string' && model.trim() && model !== 'gemini-3.7-flash' && model !== 'gemini-3.8-flash') ? model.trim() : 'gemini-3.6-flash';
+    const preferredModel = (typeof model === 'string' && model.trim() && model !== 'gemini-3.7-flash') ? model.trim() : 'gemini-3.8-flash';
     const result = await generateWithKeyRotation(preferredModel, req.user.id, promptText);
     const response = await result.response;
     const outputText = response.text();
@@ -784,11 +784,11 @@ router.post('/ai-chat', requireJwtAuth, handleAiGeneration);
 router.get('/models', requireJwtAuth, (req, res) => {
   res.json({
     models: [
-      { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', badge: 'Recomendado' },
+      { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', badge: 'Recomendado' },
       { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', badge: 'Equilibrado' },
       { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite', badge: 'Ultra Rápido' },
     ],
-    default: 'gemini-3.6-flash',
+    default: 'gemini-3.8-flash',
   });
 });
 

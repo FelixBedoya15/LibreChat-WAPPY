@@ -7,7 +7,7 @@ import { EModelEndpoint } from 'librechat-data-provider';
 
 // Modern official Gemini Flash model lineup
 export const AI_MODELS = [
-  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash (Recomendado)' },
+  { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash (Recomendado)' },
   { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
   { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite' },
 ];
@@ -44,11 +44,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
           const id = typeof m === 'string' ? m : m?.id || m?.value || '';
           return id.replace('models/', '').trim();
         })
-        .filter((id: string) => id && !id.includes('live') && !id.includes('native-audio') && !id.includes('preview') && !id.includes('3.1') && !id.includes('3.7') && !id.includes('3.8'));
+        .filter((id: string) => id && !id.includes('live') && !id.includes('native-audio') && !id.includes('preview') && !id.includes('3.1') && !id.includes('3.7') && !id.includes('3.6'));
 
       if (filtered.length > 0) {
         const formatName = (id: string) => {
-          if (id === 'gemini-3.6-flash') return 'Gemini 3.6 Flash';
+          if (id === 'gemini-3.8-flash') return 'Gemini 3.8 Flash';
           if (id === 'gemini-3.5-flash') return 'Gemini 3.5 Flash';
           if (id === 'gemini-3.5-flash-lite') return 'Gemini 3.5 Flash Lite';
           return id.split('-').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
@@ -62,7 +62,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
 
   const currentModelName =
     availableModels.find((m) => m.id === selectedModel)?.name ||
-    (selectedModel === 'gemini-3.6-flash' ? 'Gemini 3.6 Flash' :
+    (selectedModel === 'gemini-3.8-flash' ? 'Gemini 3.8 Flash' :
      selectedModel === 'gemini-3.5-flash' ? 'Gemini 3.5 Flash' :
      selectedModel === 'gemini-3.5-flash-lite' ? 'Gemini 3.5 Flash Lite' :
      availableModels[0]?.name || selectedModel);
@@ -71,7 +71,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   useEffect(() => {
     if (availableModels.length > 0 && selectedModel) {
       const isPresent = availableModels.some((m) => m.id === selectedModel);
-      if (!isPresent && (selectedModel.includes('3.7') || selectedModel.includes('3.8') || selectedModel.includes('3.1') || selectedModel.includes('2.5') || selectedModel.includes('2.0') || selectedModel.includes('1.5'))) {
+      if (!isPresent && (selectedModel.includes('3.6') || selectedModel.includes('3.7') || selectedModel.includes('3.1') || selectedModel.includes('2.5') || selectedModel.includes('2.0') || selectedModel.includes('1.5'))) {
         onSelectModel(availableModels[0].id);
       }
     }

@@ -342,7 +342,7 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [reportConversationId, setReportConversationId] = useState<string | null>(null);
   const [reportMessageId, setReportMessageId] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.6-flash');
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.8-flash');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const liveEditorRef = useRef<LiveEditorHandle>(null);
   const reportContentRef = useRef<string>('');

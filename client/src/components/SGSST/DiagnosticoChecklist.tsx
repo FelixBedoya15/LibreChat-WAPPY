@@ -197,7 +197,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
   const [selectedModel, setSelectedModel] = useState<string>(() => {
     return (
       user?.personalization?.geminiModels?.sstManagement ||
-      (process.env.GOOGLE_MODELS || 'gemini-3.6-flash').split(',')[0].trim()
+      (process.env.GOOGLE_MODELS || 'gemini-3.8-flash').split(',')[0].trim()
     );
   });
 

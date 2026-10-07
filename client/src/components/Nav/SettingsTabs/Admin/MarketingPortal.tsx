@@ -20,7 +20,7 @@ export default function MarketingPortal() {
 
   const [activeSubTab, setActiveSubTab] = useState<'edit' | 'preview'>('edit');
   const [prompt, setPrompt] = useState('');
-  const [model, setModel] = useState('gemini-3.6-flash');
+  const [model, setModel] = useState('gemini-3.8-flash');
   const [subject, setSubject] = useState('');
   const [bodyHtml, setBodyHtml] = useState('');
   const [buttonText, setButtonText] = useState('Mejorar Plan');
@@ -380,7 +380,7 @@ export default function MarketingPortal() {
                 onChange={(e) => setModel(e.target.value)}
                 className="rounded-md border border-gray-300 bg-surface-primary px-2 py-1 text-xs text-text-primary focus:outline-none dark:border-gray-600"
               >
-                <option value="gemini-3.6-flash">Gemini 3.6 Flash (Recomendado)</option>
+                <option value="gemini-3.8-flash">Gemini 3.8 Flash (Recomendado)</option>
                 <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
                 <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite</option>
               </select>

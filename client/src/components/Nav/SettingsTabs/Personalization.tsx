@@ -69,22 +69,22 @@ export default function Personalization({
   useEffect(() => {
     if (user?.personalization?.geminiModels) {
       setGeminiModels({
-        generalChat: user.personalization.geminiModels.generalChat || 'gemini-3.6-flash',
-        agents: user.personalization.geminiModels.agents || 'gemini-3.6-flash',
-        sstManagement: user.personalization.geminiModels.sstManagement || 'gemini-3.6-flash',
+        generalChat: user.personalization.geminiModels.generalChat || 'gemini-3.8-flash',
+        agents: user.personalization.geminiModels.agents || 'gemini-3.8-flash',
+        sstManagement: user.personalization.geminiModels.sstManagement || 'gemini-3.8-flash',
         liveAnalysis: user.personalization.geminiModels.liveAnalysis || 'gemini-3.1-flash-live-preview',
-        textCorrection: user.personalization.geminiModels.textCorrection || 'gemini-3.6-flash',
-        reportGeneration: user.personalization.geminiModels.reportGeneration || 'gemini-3.6-flash',
+        textCorrection: user.personalization.geminiModels.textCorrection || 'gemini-3.8-flash',
+        reportGeneration: user.personalization.geminiModels.reportGeneration || 'gemini-3.8-flash',
       });
     } else {
       // Set defaults if no data exists
       setGeminiModels({
-        generalChat: 'gemini-3.6-flash',
-        agents: 'gemini-3.6-flash',
-        sstManagement: 'gemini-3.6-flash',
+        generalChat: 'gemini-3.8-flash',
+        agents: 'gemini-3.8-flash',
+        sstManagement: 'gemini-3.8-flash',
         liveAnalysis: 'gemini-3.1-flash-live-preview',
-        textCorrection: 'gemini-3.6-flash',
-        reportGeneration: 'gemini-3.6-flash',
+        textCorrection: 'gemini-3.8-flash',
+        reportGeneration: 'gemini-3.8-flash',
       });
     }
   }, [user?.personalization?.geminiModels]);
@@ -107,21 +107,21 @@ export default function Personalization({
     // Fallback to explicitly defined GOOGLE_MODELS if backend omits them
     if (googleModels.length === 0) {
       googleModels = [
-        'gemini-3.6-flash',
+        'gemini-3.8-flash',
         'gemini-3.5-flash',
         'gemini-3.5-flash-lite',
       ];
     }
 
     const options = [
-      { value: '', label: 'Predeterminado del sistema (Gemini 3.6 Flash)' },
+      { value: '', label: 'Predeterminado del sistema (Gemini 3.8 Flash)' },
     ];
 
     googleModels.forEach((model) => {
       const modelId = typeof model === 'string' ? model : (model as any).id || (model as any).value;
       let modelLabel = typeof model === 'string' ? model : (model as any).name || (model as any).label || modelId;
       if (modelId && !modelId.includes('live') && !modelId.includes('native-audio') && !modelId.includes('3.1') && !modelId.includes('3.7') && !modelId.includes('3.8')) {
-        if (modelId === 'gemini-3.6-flash') modelLabel = 'Gemini 3.6 Flash';
+        if (modelId === 'gemini-3.8-flash') modelLabel = 'Gemini 3.8 Flash';
         else if (modelId === 'gemini-3.5-flash') modelLabel = 'Gemini 3.5 Flash';
         else if (modelId === 'gemini-3.5-flash-lite') modelLabel = 'Gemini 3.5 Flash Lite';
         options.push({ value: modelId, label: modelLabel });

@@ -504,7 +504,7 @@ router.post('/admin/generate', requireJwtAuth, checkAdminOrProRole, async (req, 
         }
 
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.6-flash' });
+        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.8-flash' });
 
         let systemPrompt = "";
         if (type === 'course') {

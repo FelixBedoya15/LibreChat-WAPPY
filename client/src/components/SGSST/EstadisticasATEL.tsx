@@ -218,7 +218,7 @@ const EstadisticasATEL = () => {
         return initial;
     });
 
-    const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.6-flash');
+    const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.8-flash');
     
     useEffect(() => {
         if (user?.personalization?.geminiModels?.sstManagement) {

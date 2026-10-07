@@ -110,7 +110,7 @@ const generateMarketingEmail = async (req, res) => {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const chosenModel = model || 'gemini-3.6-flash';
+    const chosenModel = model || 'gemini-3.8-flash';
     const modelInstance = genAI.getGenerativeModel({
       model: chosenModel,
       systemInstruction: `Eres un redactor de marketing profesional experto. Generarás correos persuasivos, limpios y muy bonitos.

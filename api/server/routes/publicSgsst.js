@@ -1844,7 +1844,7 @@ router.post('/estudio-puesto/session/:companyId', async (req, res) => {
           user: userId,
           endpoint: 'agents',
           agent_id: resolvedAgentId,
-          model: 'gemini-3.6-flash',
+          model: 'gemini-3.8-flash',
           title,
           tags: ['sgsst-ept', 'sgsst-live-analysis', 'biomecanica', `company-${company._id}`],
         });
@@ -1870,7 +1870,7 @@ router.post('/estudio-puesto/session/:companyId', async (req, res) => {
       token,
       agentId: resolvedAgentId,
       agentName: agent?.name || 'Fisioterapeuta Laboral',
-      agentModel: 'gemini-3.6-flash',
+      agentModel: 'gemini-3.8-flash',
       conversationId,
       companyName: company.companyName,
     });
@@ -2018,7 +2018,7 @@ REGLAS DE FORMATO Y SALIDA:
         let userIdForAi = company.user ? String(company.user) : null;
         const aiResponse = await generateWithKeyRotation({
           userId: userIdForAi,
-          model: 'gemini-3.6-flash',
+          model: 'gemini-3.8-flash',
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           systemInstruction: 'Eres el Fisioterapeuta Laboral experto en Ergonomía, RULA, REBA e ISO 11226 de WAPPY IA.',
         });
@@ -2079,7 +2079,7 @@ REGLAS DE FORMATO Y SALIDA:
       reportHtml: finalReportHtml,
       notes: notes || '',
       status: 'completado',
-      modelUsed: 'gemini-3.6-flash',
+      modelUsed: 'gemini-3.8-flash',
     });
 
     await newStudy.save();
@@ -2106,7 +2106,7 @@ REGLAS DE FORMATO Y SALIDA:
             user: targetUserId,
             sender: 'User',
             isCreatedByUser: true,
-            model: 'gemini-3.6-flash',
+            model: 'gemini-3.8-flash',
           },
           { context: 'PublicEPT - User' }
         );
@@ -2125,7 +2125,7 @@ REGLAS DE FORMATO Y SALIDA:
             content: [{ type: 'text', text: aiMessageText }],
             isCreatedByUser: false,
             isHtmlReport: true,
-            model: 'gemini-3.6-flash',
+            model: 'gemini-3.8-flash',
             createdAt: new Date(),
             updatedAt: new Date(),
           },
@@ -2138,7 +2138,7 @@ REGLAS DE FORMATO Y SALIDA:
             conversationId,
             endpoint: 'agents',
             agent_id: 'fisioterapeuta_laboral',
-            model: 'gemini-3.6-flash',
+            model: 'gemini-3.8-flash',
             title: `Auto-evaluación EPT - ${cleanName} (${cleanCargo})`,
             tags: ['sgsst-ept', 'biomecanica', `company-${company._id}`],
           },

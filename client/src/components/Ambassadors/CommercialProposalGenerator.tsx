@@ -139,7 +139,7 @@ export default function CommercialProposalGenerator({
   // Proposal State
   const { user } = useAuthContext();
   const [selectedModel, setSelectedModel] = useState<string>(
-    () => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.6-flash',
+    () => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.8-flash',
   );
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);

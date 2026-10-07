@@ -50,7 +50,7 @@ export default function RutaExamEditorModal({ isOpen, onClose, onSave, initialEx
 
     const { showToast } = useToastContext();
     const [isGeneratingExam, setIsGeneratingExam] = useState(false);
-    const [examAIModel, setExamAIModel] = useState('gemini-3.6-flash');
+    const [examAIModel, setExamAIModel] = useState('gemini-3.8-flash');
 
     if (!isOpen) return null;
 
