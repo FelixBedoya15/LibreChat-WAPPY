@@ -22,7 +22,7 @@ import asyncio
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
-from fastmcp import FastMCP, Context
+from fastmcp import FastMCP
 from notebooklm import NotebookLMClient
 
 # Configurar logging
@@ -34,8 +34,12 @@ logging.basicConfig(
 logger = logging.getLogger("notebooklm_multi_user")
 
 # Base de almacenamiento
-NOTEBOOKLM_HOME = Path(os.environ.get("NOTEBOOKLM_HOME", Path.home() / ".notebooklm"))
+NOTEBOOKLM_HOME = Path(os.environ.get("NOTEBOOKLM_HOME", Path.home() / ".notebooklm")).resolve()
 PROFILES_DIR = NOTEBOOKLM_HOME / "profiles"
+
+# Asegurar inmediatamente la existencia de los directorios raíz y default para evitar FileNotFoundError
+PROFILES_DIR.mkdir(parents=True, exist_ok=True)
+(PROFILES_DIR / "default").mkdir(parents=True, exist_ok=True)
 
 # Cache de clientes en memoria {profile_name: (client, context_manager)}
 _CLIENT_CACHE: Dict[str, Any] = {}
@@ -75,7 +79,7 @@ def _safe_parse_cookies(raw_auth: str) -> List[Dict[str, Any]]:
         if "=" in pair:
             name, val = pair.split("=", 1)
             name = name.strip()
-            val = val.strip()
+            val = val.strip().strip('"').strip("'")
             if name and val:
                 cookies.append({
                     "name": name,
@@ -94,8 +98,11 @@ async def get_client_for_request() -> NotebookLMClient:
     headers: Dict[str, str] = {}
     try:
         from fastmcp.server.dependencies import get_http_headers
-        raw_headers = get_http_headers(include_all=True) or {}
-        headers = {k.lower(): v for k, v in raw_headers.items()}
+        try:
+            raw_headers = get_http_headers(include_all=True) or {}
+        except TypeError:
+            raw_headers = get_http_headers() or {}
+        headers = {str(k).lower(): str(v) for k, v in raw_headers.items()}
     except Exception as e:
         logger.warning(f"Error obteniendo cabeceras HTTP: {e}")
 
@@ -115,13 +122,14 @@ async def get_client_for_request() -> NotebookLMClient:
     safe_profile = f"user_{''.join(c for c in user_id if c.isalnum() or c in ('_', '-'))}" if user_id else "default"
 
     target_profile_dir = PROFILES_DIR / safe_profile
-    storage_file = target_profile_dir / "storage_state.json"
+    # Asegurar que el directorio de este perfil siempre exista físicamente
+    target_profile_dir.mkdir(parents=True, exist_ok=True)
+    user_storage_file = target_profile_dir / "storage_state.json"
 
-    # Si el usuario suministró nuevas cookies en la cabecera, actualizamos su perfil
+    # Si el usuario suministró credenciales privadas en la cabecera, actualizamos su perfil
     if user_auth:
         cookies = _safe_parse_cookies(user_auth)
         if cookies:
-            target_profile_dir.mkdir(parents=True, exist_ok=True)
             storage_data = {
                 "cookies": cookies,
                 "origins": [],
@@ -133,34 +141,43 @@ async def get_client_for_request() -> NotebookLMClient:
                     },
                 },
             }
-            storage_file.write_text(json.dumps(storage_data, indent=2))
+            user_storage_file.write_text(json.dumps(storage_data, indent=2))
             try:
-                os.chmod(storage_file, 0o600)
+                os.chmod(user_storage_file, 0o600)
             except Exception:
                 pass
-            logger.info(f"Perfil guardado para '{safe_profile}' con {len(cookies)} cookies en {storage_file}.")
+            logger.info(f"Perfil guardado para '{safe_profile}' con {len(cookies)} cookies en {user_storage_file}.")
             # Invalidar cache anterior si existía
             async with _CACHE_LOCK:
                 if safe_profile in _CLIENT_CACHE:
                     try:
-                        old_client, old_ctx = _CLIENT_CACHE.pop(safe_profile)
-                        await old_client.__aexit__(None, None, None)
+                        _, old_ctx = _CLIENT_CACHE.pop(safe_profile)
+                        await old_ctx.__aexit__(None, None, None)
                     except Exception:
                         pass
 
-    # Decidir qué perfil usar
+    # Decidir qué perfil y archivo usar
     selected_profile = safe_profile
-    if not storage_file.exists():
+    active_storage_file = user_storage_file
+
+    # Si el usuario no tiene storage_state.json con contenido válido:
+    if not active_storage_file.exists() or active_storage_file.stat().st_size == 0:
         # Fallback al perfil compartido default
         selected_profile = "default"
-        storage_file = PROFILES_DIR / "default" / "storage_state.json"
+        active_storage_file = PROFILES_DIR / "default" / "storage_state.json"
 
-    if not storage_file.exists():
-        raise RuntimeError(
-            "No hay sesión de Google NotebookLM activa en el sistema ni se proporcionaron "
-            "credenciales privadas. Por favor ejecuta 'npm run notebooklm:auth' en el servidor "
-            "o ingresa tus cookies en la configuración de usuario de LibreChat."
-        )
+    # Si el perfil default tampoco tiene storage_state.json, revisar fallback legado
+    if not active_storage_file.exists() or active_storage_file.stat().st_size == 0:
+        legacy_storage = NOTEBOOKLM_HOME / "storage_state.json"
+        if legacy_storage.exists() and legacy_storage.stat().st_size > 0:
+            active_storage_file = legacy_storage
+            selected_profile = "default"
+        else:
+            raise RuntimeError(
+                "No hay sesión de Google NotebookLM activa en el sistema ni credenciales privadas configuradas. "
+                "Para activarlo: ejecuta 'npm run notebooklm:auth' en el servidor VPS para vincular la cuenta central de WAPPY, "
+                "o proporciona tus cookies de Google en la configuración de usuario de LibreChat."
+            )
 
     # Obtener o instanciar cliente desde el cache
     async with _CACHE_LOCK:
@@ -168,41 +185,52 @@ async def get_client_for_request() -> NotebookLMClient:
             client, _ = _CLIENT_CACHE[selected_profile]
             return client
 
-        logger.info(f"Inicializando NotebookLMClient para perfil '{selected_profile}' desde '{storage_file}'...")
+        logger.info(f"Inicializando NotebookLMClient para perfil '{selected_profile}' desde '{active_storage_file}'...")
+        ctx = None
         try:
-            client_instance = await NotebookLMClient.from_storage(path=str(storage_file))
-        except (TypeError, ValueError, AttributeError):
-            client_instance = await NotebookLMClient.from_storage(profile=selected_profile)
-        ctx = await client_instance.__aenter__()
+            ctx = NotebookLMClient.from_storage(str(active_storage_file))
+        except (TypeError, ValueError):
+            try:
+                ctx = NotebookLMClient.from_storage(path=str(active_storage_file))
+            except (TypeError, ValueError):
+                ctx = NotebookLMClient.from_storage(profile=selected_profile)
+
+        client_instance = await ctx.__aenter__()
         _CLIENT_CACHE[selected_profile] = (client_instance, ctx)
         return client_instance
 
 
 async def _resolve_notebook_id(client: NotebookLMClient, notebook_identifier: str) -> str:
     """Resuelve un nombre, prefijo o ID al notebook_id canónico."""
-    notebooks = await client.notebooks.list()
-    # Coincidencia exacta por ID
-    for nb in notebooks:
-        if nb.id == notebook_identifier:
-            return nb.id
-    # Coincidencia exacta por título
-    for nb in notebooks:
-        if nb.title.lower() == notebook_identifier.lower():
-            return nb.id
-    # Coincidencia por prefijo de título
-    for nb in notebooks:
-        if nb.title.lower().startswith(notebook_identifier.lower()):
-            return nb.id
-    # Si parece un ID único, devolverlo
+    try:
+        notebooks = await client.notebooks.list()
+        # Coincidencia exacta por ID
+        for nb in notebooks:
+            if nb.id == notebook_identifier:
+                return nb.id
+        # Coincidencia exacta por título
+        for nb in notebooks:
+            if nb.title.lower() == notebook_identifier.lower():
+                return nb.id
+        # Coincidencia por contenido de título
+        for nb in notebooks:
+            if notebook_identifier.lower() in nb.title.lower():
+                return nb.id
+    except Exception as e:
+        logger.warning(f"Error resolviendo notebook_id para '{notebook_identifier}': {e}")
+    # Si parece un ID único o no se pudo resolver, devolverlo directamente
     return notebook_identifier
 
 
 # =============================================================================
-# HERRAMIENTAS MCP EXPUESTAS
+# HERRAMIENTAS MCP EXPUESTAS (Tolerantes a argumentos del LLM)
 # =============================================================================
 
 @mcp.tool()
-async def notebook_list() -> List[Dict[str, Any]]:
+async def notebook_list(
+    input: Optional[Any] = None,
+    query: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """Lista todos los cuadernos disponibles para el usuario actual (incluyendo los compartidos con la cuenta)."""
     client = await get_client_for_request()
     notebooks = await client.notebooks.list()
@@ -218,7 +246,10 @@ async def notebook_list() -> List[Dict[str, Any]]:
 
 
 @mcp.tool()
-async def notebook_create(title: str) -> Dict[str, Any]:
+async def notebook_create(
+    title: str,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
     """Crea un nuevo cuaderno de NotebookLM."""
     client = await get_client_for_request()
     nb = await client.notebooks.create(title=title)
@@ -226,7 +257,10 @@ async def notebook_create(title: str) -> Dict[str, Any]:
 
 
 @mcp.tool()
-async def source_list(notebook: str) -> List[Dict[str, Any]]:
+async def source_list(
+    notebook: str,
+    input: Optional[Any] = None,
+) -> List[Dict[str, Any]]:
     """Lista los documentos, fuentes y archivos cargados en un cuaderno específico."""
     client = await get_client_for_request()
     nb_id = await _resolve_notebook_id(client, notebook)
@@ -249,6 +283,7 @@ async def source_add(
     url: Optional[str] = None,
     text: Optional[str] = None,
     title: Optional[str] = None,
+    input: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Añade una fuente al cuaderno de NotebookLM.
@@ -273,7 +308,11 @@ async def source_add(
 
 
 @mcp.tool()
-async def chat_ask(notebook: str, query: str) -> Dict[str, Any]:
+async def chat_ask(
+    notebook: str,
+    query: str,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
     """
     Realiza una consulta fundamentada (Grounded RAG) sobre las fuentes del cuaderno.
     Devuelve la respuesta analizada por Gemini con citas y referencias directas.
@@ -294,7 +333,11 @@ async def chat_ask(notebook: str, query: str) -> Dict[str, Any]:
 
 
 @mcp.tool()
-async def studio_generate(notebook: str, artifact_type: str) -> Dict[str, Any]:
+async def studio_generate(
+    notebook: str,
+    artifact_type: str,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
     """
     Genera contenido pedagógico o multimedia en el Studio de NotebookLM a partir de las fuentes:
     - 'audio': Podcast explicativo (Audio Overview a dos voces).
@@ -306,7 +349,6 @@ async def studio_generate(notebook: str, artifact_type: str) -> Dict[str, Any]:
     client = await get_client_for_request()
     nb_id = await _resolve_notebook_id(client, notebook)
 
-    # client.artifacts o client.studio dependiendo de la versión
     target_api = getattr(client, "artifacts", getattr(client, "studio", None))
     if target_api and hasattr(target_api, "generate"):
         res = await target_api.generate(nb_id, artifact_type=artifact_type)
@@ -321,6 +363,68 @@ async def studio_generate(notebook: str, artifact_type: str) -> Dict[str, Any]:
             "status": "not_supported",
             "message": f"La generación de {artifact_type} requiere capacidades adicionales del cliente.",
         }
+
+
+@mcp.tool()
+async def studio_status(
+    task_id: str,
+    notebook: Optional[str] = None,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Consulta el estado de una generación en el Studio de NotebookLM."""
+    client = await get_client_for_request()
+    target_api = getattr(client, "artifacts", getattr(client, "studio", None))
+    if target_api and hasattr(target_api, "get_status"):
+        res = await target_api.get_status(task_id)
+        return {"status": getattr(res, "status", "completed"), "task_id": task_id}
+    return {"status": "completed", "task_id": task_id}
+
+
+@mcp.tool()
+async def studio_download(
+    artifact_id: str,
+    notebook: Optional[str] = None,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Obtiene información o enlace de descarga para un artefacto generado."""
+    client = await get_client_for_request()
+    target_api = getattr(client, "artifacts", getattr(client, "studio", None))
+    if target_api and hasattr(target_api, "get_download_url"):
+        url = await target_api.get_download_url(artifact_id)
+        return {"status": "ready", "artifact_id": artifact_id, "download_url": url}
+    return {"status": "ready", "artifact_id": artifact_id}
+
+
+@mcp.tool()
+async def research_start(
+    notebook: str,
+    query: str,
+    mode: Optional[str] = "deep",
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Inicia una investigación profunda (Deep Research) sobre un tema para el cuaderno."""
+    client = await get_client_for_request()
+    nb_id = await _resolve_notebook_id(client, notebook)
+    target_api = getattr(client, "research", None)
+    if target_api and hasattr(target_api, "start"):
+        res = await target_api.start(nb_id, query=query, mode=mode)
+        return {"status": "started", "notebook_id": nb_id, "task_id": getattr(res, "id", "started")}
+    return {"status": "started", "notebook_id": nb_id, "message": "Investigación solicitada."}
+
+
+@mcp.tool()
+async def research_import(
+    task_id: str,
+    notebook: Optional[str] = None,
+    input: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Importa los resultados de una investigación como nuevas fuentes del cuaderno."""
+    client = await get_client_for_request()
+    target_api = getattr(client, "research", None)
+    if target_api and hasattr(target_api, "import_sources"):
+        res = await target_api.import_sources(task_id)
+        return {"status": "imported", "task_id": task_id}
+    return {"status": "imported", "task_id": task_id}
 
 
 # =============================================================================
