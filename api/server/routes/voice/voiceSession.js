@@ -1345,6 +1345,51 @@ class VoiceSession {
                                 type: "object",
                                 properties: {}
                             }
+                        },
+                        {
+                            name: "wappy_consultar_quimico_pubchem",
+                            description: "Consulta la API oficial de PubChem (NIH) para obtener el CID, clasificación oficial GHS / SGA, pictogramas de seguridad, palabras de advertencia (Peligro/Atención) y frases de peligro H y consejos P de cualquier sustancia o producto químico conforme al Decreto 1496 de 2018.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    nombre: {
+                                        type: "string",
+                                        description: "Nombre de la sustancia química en español o inglés (ej: benceno, xileno, cloro, acetona, acido sulfurico, thinner)."
+                                    }
+                                },
+                                required: ["nombre"]
+                            }
+                        },
+                        {
+                            name: "wappy_geocodificar_emergencias",
+                            description: "Consulta la API de OpenStreetMap Nominatim para geolocalizar direcciones de sedes de la empresa y ubicar recursos externos de emergencia cercanos (hospitales, clínicas, estaciones de bomberos, defensa civil, centros de urgencias) para el Plan de Prevención y Preparación ante Emergencias.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    query: {
+                                        type: "string",
+                                        description: "Término de búsqueda o recurso a geolocalizar (ej: 'hospital Chapinero Bogota', 'bomberos cerca de Calle 100 Bogota', 'clinica Medellin')."
+                                    }
+                                },
+                                required: ["query"]
+                            }
+                        },
+                        {
+                            name: "wappy_consultar_clima_viento",
+                            description: "Consulta la API de Open-Meteo para obtener en tiempo real la velocidad del viento, ráfagas, temperatura y pronóstico diario meteorológico para evaluar riesgos climáticos en trabajos en alturas (Resolución 4272 de 2021), espacios confinados y operaciones en campo.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    latitude: {
+                                        type: "number",
+                                        description: "Latitud geográfica de la sede o frente de obra (ej: 4.6097 para Bogotá, 6.2442 para Medellín)."
+                                    },
+                                    longitude: {
+                                        type: "number",
+                                        description: "Longitud geográfica de la sede (ej: -74.0817 para Bogotá, -75.5812 para Medellín)."
+                                    }
+                                }
+                            }
                         }
                     ]
                 }
@@ -1455,11 +1500,13 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
      * Agenda eventos, inspecciones de seguridad, capacitaciones, comités COPASST, auditorías o citas médicas laborales en Google Calendar y en el cronograma de WAPPY. Puedes también listar la agenda de eventos próximos.
    - GOOGLE DRIVE ('google_drive'):
      * Conéctate a Google Drive para buscar archivos ('list_files_and_folders'), leer matrices y reglamentos ('read_document_content') o guardar informes generados ('write_file').
-   - AUTONOMÍA TOTAL Y RESPUESTA DIRECTA (NO CONECTARSE INNECESARIAMENTE):
-     * TENSHI POSEE TODO EL CONOCIMIENTO Y SKILLS DE TODOS LOS AGENTES ESPECIALISTAS (Médico Laboral, Abogado Laboral, Psicólogo SST, Higienista, Auditor, etc.).
-     * Si el usuario dice "conéctate a un agente", "pásame al especialista", "quiero preguntarle a un agente" o hace una consulta técnica, TENSHI DEBE TOMAR LA DECISIÓN DE RESPONDER ÉL SOLO DIRECTAMENTE con su propia base de conocimiento y normatividad colombiana, sin necesidad de conectarse ni desviar la conversación.
-     * Solo si el usuario insiste explícitamente en "obtener el concepto del especialista X", Tenshi invoca 'consultar_agente_especializado' internamente en segundo plano. Recibirá su dictamen y se lo explicarás tú misma al usuario en voz y en el chat de Tenshi sin abrir nuevos chats ni alterar la pantalla.
-     * APERTURA DE NUEVOS CHATS ('wappy_abrir_chat_agente'): ESTÁ TERMINANTEMENTE PROHIBIDO abrir un chat nuevo a menos que el usuario lo ordene explícita y literalmente diciendo: "abre un chat con X agente" o "quiero un nuevo chat con X".
+   - AUTONOMÍA TOTAL CON ROL DE AGENTE EXPERTO VS LLAMADO DE AGENTES:
+     * SI EL USUARIO SOLO HACE LA PREGUNTA O CONSULTA TÉCNICA (ej: dolor lumbar, cómo calificar un accidente, qué hacer con el benceno, qué vientos son seguros para alturas, etc.): TENSHI ACTIVA DE INMEDIATO SU SKILL CON EL ROL DE AGENTE EXPERTO CORRESPONDIENTE (Médico Laboral, Abogado Laboral, Ingeniero Químico SST, Especialista en Alturas y Clima, etc.) y responde él mismo de forma integral, técnica y fundamentada usando sus herramientas y base de datos, sin desviar al usuario ni abrir un chat innecesario.
+     * SI EL USUARIO PIDE EXPLÍCITAMENTE CONECTARSE O LLAMAR A UN AGENTE (ej: "conéctame con el médico", "llama al abogado", "pásame al especialista", "quiero el dictamen del médico laboral"): Tenshi tiene restaurada al 100% su capacidad para invocar 'consultar_agente_especializado' (para obtener su dictamen técnico en segundo plano y explicarlo en el chat de Tenshi) o invocar 'wappy_abrir_chat_agente' si el usuario pide ver el chat dedicado o nuevo chat en pantalla ("abre un chat con X").
+   - NUEVAS APIS EXTERNAS ESPECIALIZADAS DE AGENTES:
+     * 'wappy_consultar_quimico_pubchem': Invocación de la API de PubChem (NIH) para buscar compuestos químicos por nombre, obtener su CID y extraer la clasificación oficial GHS/SGA con pictogramas, señal (Peligro/Atención), frases de peligro H y consejos de prudencia P según el Decreto 1496 de 2018.
+     * 'wappy_geocodificar_emergencias': Invocación de OpenStreetMap Nominatim para geolocalizar sedes y ubicar recursos asistenciales cercanos (hospitales, clínicas de trauma, estaciones de bomberos, defensa civil) para el Plan de Preparación y Respuesta ante Emergencias (Decreto 1072 de 2015).
+     * 'wappy_consultar_clima_viento': Invocación de Open-Meteo para obtener en vivo la velocidad del viento, ráfagas, código de clima y temperatura. Evalúa restricciones críticas de trabajo en alturas según la Resolución 4272 de 2021 (vientos > 30 km/h o ráfagas > 40 km/h suspenden trabajos en alturas).
    - CÓDIGOS QR PARA COLABORADORES ('wappy_generar_qr'):
      * Si el usuario te pide: "deseo hacer un reporte de actos y condiciones inseguras", "mándame el QR de actos", "quiero hacer el termómetro psicosocial", "mándame el QR para el trabajador", "mándame el QR de inspección vehicular", "mándame el QR del colaborador":
      * INVOCA DE INMEDIATO 'wappy_generar_qr' con tipo: 'actos_condiciones' o 'termometro_psicosocial' (o el módulo correspondiente).

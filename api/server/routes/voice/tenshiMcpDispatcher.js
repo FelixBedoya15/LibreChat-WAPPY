@@ -182,6 +182,50 @@ const TOOL_ROUTES = {
   consultar_analitica_psicosocial: { method: 'GET', path: '/analitica/psicosocial' },
   wappy_consultar_analitica_actos_condiciones: { method: 'GET', path: '/analitica/actos-condiciones' },
   consultar_analitica_actos_condiciones: { method: 'GET', path: '/analitica/actos-condiciones' },
+
+  // 11. APIs Especializadas de Agentes (PubChem, Nominatim, Open-Meteo)
+  wappy_consultar_quimico_pubchem: {
+    method: 'GET',
+    path: (args) => `/quimicos/pubchem?nombre=${encodeURIComponent(args.nombre || args.name || args.q || '')}`,
+  },
+  consultar_quimico_pubchem: {
+    method: 'GET',
+    path: (args) => `/quimicos/pubchem?nombre=${encodeURIComponent(args.nombre || args.name || args.q || '')}`,
+  },
+  getChemicalCid: {
+    method: 'GET',
+    path: (args) => `/quimicos/pubchem?nombre=${encodeURIComponent(args.nombre || args.name || args.q || '')}`,
+  },
+  getGhsClassification: {
+    method: 'GET',
+    path: (args) => `/quimicos/pubchem?nombre=${encodeURIComponent(args.nombre || args.name || args.q || '')}`,
+  },
+
+  wappy_geocodificar_emergencias: {
+    method: 'GET',
+    path: (args) => `/emergencias/nominatim?q=${encodeURIComponent(args.query || args.q || args.recurso || '')}`,
+  },
+  geocodificar_emergencias: {
+    method: 'GET',
+    path: (args) => `/emergencias/nominatim?q=${encodeURIComponent(args.query || args.q || args.recurso || '')}`,
+  },
+  searchLocationOrResource: {
+    method: 'GET',
+    path: (args) => `/emergencias/nominatim?q=${encodeURIComponent(args.query || args.q || args.recurso || '')}`,
+  },
+
+  wappy_consultar_clima_viento: {
+    method: 'GET',
+    path: (args) => `/clima/pronostico?latitude=${args.latitude || args.lat || 4.6097}&longitude=${args.longitude || args.lon || -74.0817}`,
+  },
+  consultar_clima_viento: {
+    method: 'GET',
+    path: (args) => `/clima/pronostico?latitude=${args.latitude || args.lat || 4.6097}&longitude=${args.longitude || args.lon || -74.0817}`,
+  },
+  obtenerPronosticoClimaViento: {
+    method: 'GET',
+    path: (args) => `/clima/pronostico?latitude=${args.latitude || args.lat || 4.6097}&longitude=${args.longitude || args.lon || -74.0817}`,
+  },
 };
 
 async function executeTenshiMcpTool(toolName, args = {}, userId) {

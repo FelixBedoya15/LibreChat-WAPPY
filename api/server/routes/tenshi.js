@@ -435,12 +435,14 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
 
 ### ⚡ DIRECTIVAS CRÍTICAS DE VELOCIDAD, ORQUESTACIÓN Y HERRAMIENTAS:
 1. **RESPUESTAS INMEDIATAS A PREGUNTAS TEÓRICAS/CONCEPTUALES**: Si el usuario te hace preguntas conceptuales, definiciones teóricas (ej: "¿qué es SST?", "¿qué es un ATS?", "¿cuáles son las obligaciones del empleador?"), saludos o preguntas generales, RESPONDE DIRECTAMENTE EN TEXTO en 1 solo turno de forma concisa y alegre. ¡ESTÁ PROHIBIDO invocar herramientas como 'somos_sst' o 'resumen_empresa' para responder preguntas teóricas!
-2. **ORQUESTACIÓN TOTAL Y AUTONOMÍA DESDE TENSHI (SIN ABRIR CHATS EXTERNOS)**:
-   - Eres la Directora de Orquesta Central de WAPPY. Tienes TERMINANTEMENTE PROHIBIDO abrir nuevos chats (/c/new) o decirle al usuario que vaya a hablar con otro agente.
-   - AUTONOMÍA TOTAL: Tenshi posee en su núcleo todo el conocimiento y habilidades de todos los 26 agentes especialistas (Médico Laboral, Abogado Laboral, Psicólogo SST, Auditor, etc.).
-   - Si el usuario dice "conéctate a un agente", "pásame al especialista", "quiero preguntarle a un agente" o hace una consulta técnica, TENSHI TOMA LA DECISIÓN DE RESPONDER ÉL SOLO DIRECTAMENTE con sus propias habilidades y normatividad, sin necesidad de conectarse ni desviar la conversación.
-   - Solo si el usuario insiste en "obtener el concepto del especialista X", Tenshi invoca 'consultar_agente_especializado' internamente en segundo plano y entrega el dictamen directamente en este chat.
-   - APERTURA DE NUEVOS CHATS ('wappy_abrir_chat_agente'): ÚNICAMENTE permitida si el usuario dice literalmente: "abre un chat con X agente" o "quiero un chat nuevo con X".
+2. **ORQUESTACIÓN TOTAL Y AUTONOMÍA CON ROL DE AGENTE EXPERTO VS LLAMADO DE AGENTES**:
+   - Eres la Directora de Orquesta Central de WAPPY.
+   - SI EL USUARIO SOLO HACE LA PREGUNTA O CONSULTA TÉCNICA (ej: dolor lumbar, cómo calificar un accidente, qué hacer con el benceno, qué vientos son seguros para alturas, etc.): TENSHI ACTIVA DE INMEDIATO SU SKILL CON EL ROL DE AGENTE EXPERTO CORRESPONDIENTE (Médico Laboral, Abogado Laboral, Ingeniero Químico SST, Especialista en Alturas y Clima, etc.) y responde él mismo de forma integral, técnica y fundamentada usando sus herramientas y base de datos, sin desviar al usuario ni abrir un chat innecesario.
+   - SI EL USUARIO PIDE EXPLÍCITAMENTE CONECTARSE O LLAMAR A UN AGENTE (ej: "conéctame con el médico", "llama al abogado", "pásame al especialista", "quiero el dictamen del médico laboral"): Tenshi tiene restaurada al 100% su capacidad para invocar 'consultar_agente_especializado' (para obtener su dictamen técnico en segundo plano y explicarlo en el chat de Tenshi) o invocar 'wappy_abrir_chat_agente' si el usuario pide ver el chat dedicado o nuevo chat en pantalla ("abre un chat con X").
+   - NUEVAS APIS ESPECIALIZADAS DE AGENTES:
+     * 'wappy_consultar_quimico_pubchem': Consulta oficial a PubChem (NIH) para CID, pictogramas SGA, palabra de advertencia (Peligro/Atención) y frases de peligro H y consejos P (Decreto 1496 de 2018).
+     * 'wappy_geocodificar_emergencias': Consulta a OpenStreetMap Nominatim para geolocalizar direcciones y ubicar recursos asistenciales cercanos (hospitales, clínicas, bomberos, defensa civil) para el Plan de Emergencias.
+     * 'wappy_consultar_clima_viento': Consulta a Open-Meteo para pronóstico de clima, viento y ráfagas para evaluación de trabajo en alturas (Res. 4272/2021).
 3. **GENERACIÓN Y ENTREGA DE INFORMES EN EL CHAT DE TENSHI ('wappy_crear_informe' y 'canvas_tool')**:
    - Cuando el usuario te pida crear, redactar o entregar un informe técnico, INVOCA 'wappy_crear_informe' o 'canvas_tool' con formato HTML, Word o Excel y contenido técnico formal (citando Decreto 1072 de 2015, Res. 0312 de 2019, hallazgos y plan de mejora).
    - El informe se entrega directamente en el chat de Tenshi con visualizador y botones de descarga.
@@ -1462,6 +1464,54 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyConsultarQuimicoPubchemDeclaration = {
+                name: 'wappy_consultar_quimico_pubchem',
+                description: 'Consulta la API oficial de PubChem (NIH) para obtener el CID, clasificación oficial GHS / SGA, pictogramas de seguridad, palabras de advertencia (Peligro/Atención) y frases de peligro H y consejos P de cualquier sustancia o producto químico conforme al Decreto 1496 de 2018.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        nombre: {
+                            type: 'STRING',
+                            description: 'Nombre de la sustancia química en español o inglés (ej: benceno, xileno, cloro, acetona, acido sulfurico, thinner).'
+                        }
+                    },
+                    required: ['nombre']
+                }
+            };
+
+            const wappyGeocodificarEmergenciasDeclaration = {
+                name: 'wappy_geocodificar_emergencias',
+                description: 'Consulta la API de OpenStreetMap Nominatim para geolocalizar direcciones de sedes de la empresa y ubicar recursos externos de emergencia cercanos (hospitales, clínicas, estaciones de bomberos, defensa civil, centros de urgencias) para el Plan de Prevención y Preparación ante Emergencias.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        query: {
+                            type: 'STRING',
+                            description: 'Término de búsqueda o recurso a geolocalizar (ej: hospital Chapinero Bogota, bomberos Medellin).'
+                        }
+                    },
+                    required: ['query']
+                }
+            };
+
+            const wappyConsultarClimaVientoDeclaration = {
+                name: 'wappy_consultar_clima_viento',
+                description: 'Consulta la API de Open-Meteo para obtener en tiempo real la velocidad del viento, ráfagas, temperatura y pronóstico diario meteorológico para evaluar riesgos climáticos en trabajos en alturas (Resolución 4272 de 2021), espacios confinados y operaciones en campo.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        latitude: {
+                            type: 'NUMBER',
+                            description: 'Latitud geográfica (ej: 4.6097 para Bogotá).'
+                        },
+                        longitude: {
+                            type: 'NUMBER',
+                            description: 'Longitud geográfica (ej: -74.0817 para Bogotá).'
+                        }
+                    }
+                }
+            };
+
             // Assemble base tools and dynamically triggered tools (strictly excluding Group 7)
             const baseFunctionDeclarations = [
                 wappyNavegarDeclaration,
@@ -1470,6 +1520,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyGenerarQrDeclaration,
                 wappyAnaliticaPsicosocialDeclaration,
                 wappyAnaliticaActosDeclaration,
+                wappyConsultarQuimicoPubchemDeclaration,
+                wappyGeocodificarEmergenciasDeclaration,
+                wappyConsultarClimaVientoDeclaration,
                 wappyEnviarCorreoDeclaration,
                 wappyGestionarAgendaDeclaration,
                 googleCalendarDeclaration,
