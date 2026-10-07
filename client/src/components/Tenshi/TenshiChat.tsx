@@ -1975,15 +1975,15 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
         const elapsed = Math.floor((Date.now() - lastActivityRef.current) / 1000);
         setInactivitySeconds(elapsed);
-        if (elapsed >= 60) {
-          console.log('[Tenshi Voice] 60s inactividad alcanzada. Auto-desactivando modo voz.');
+        if (elapsed >= 300) {
+          console.log('[Tenshi Voice] 300s (5m) inactividad alcanzada. Auto-desactivando modo voz.');
           stopVoiceMode();
           setMessages((prev) => [
             ...prev,
             {
               role: 'assistant',
               content:
-                'ℹ️ Modo voz pausado automáticamente tras 1 minuto sin actividad para ahorrar batería y recursos. Cuando quieras volver a hablarme, solo vuelve a encender el interruptor. 😊',
+                'ℹ️ Modo voz pausado automáticamente tras 5 minutos sin actividad para ahorrar batería y recursos. Cuando quieras volver a hablarme, solo pulsa el micrófono. 😊',
             },
           ]);
         }
@@ -2002,6 +2002,23 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       }
     };
   }, [isVoiceActive, isWaitingConsultation, stopVoiceMode, sendTextMessage, extractSpecialistAnswer, handleCompleteConsultation]);
+
+  // 👆 Mantener viva la sesión de voz ante cualquier interacción táctil, clic o teclado
+  useEffect(() => {
+    if (!isVoiceActive) return;
+    const handleUserTouch = () => {
+      lastActivityRef.current = Date.now();
+      setInactivitySeconds(0);
+    };
+    window.addEventListener('touchstart', handleUserTouch, { passive: true });
+    window.addEventListener('click', handleUserTouch, { passive: true });
+    window.addEventListener('keydown', handleUserTouch, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', handleUserTouch);
+      window.removeEventListener('click', handleUserTouch);
+      window.removeEventListener('keydown', handleUserTouch);
+    };
+  }, [isVoiceActive]);
 
   // 🧠 Escuchar y procesar la respuesta del especialista para que Tenshi aprenda y hable al usuario
   useEffect(() => {
@@ -3122,7 +3139,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
           {/* Área Central Hero: SOLO Tenshi Grande, su Saludo y su Botonera Cápsula Activa */}
           <div className="flex-1 px-4 py-4 flex flex-col items-center justify-center -mt-4 select-none relative">
-            {/* 1. Avatar Grande de Tenshi (265px) */}
+            {/* 1. Avatar Grande de Tenshi (315px) */}
             <div
               className="relative flex flex-col items-center my-1 cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95"
               onClick={() => {
@@ -3136,7 +3153,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               title="Tócame para hablar"
             >
               <TenshiAvatar
-                size={265}
+                size={315}
                 isSpeaking={isTenshiSpeaking}
                 outputAmplitude={outputAmplitude}
                 isVoiceActive={isVoiceActive}
@@ -3148,7 +3165,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             </div>
 
             {/* 2. Saludo & Subtítulo */}
-            <div className="text-center max-w-xs mt-3 mb-5">
+            <div className="text-center max-w-xs mt-2 mb-4">
               <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                 ¡Hola, {user?.name?.split(' ')[0] || user?.username || 'Especialista'}!
               </h2>
@@ -3787,10 +3804,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     ) : (
                       <div
                         className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium"
-                        title="Se desactiva automáticamente tras 1 minuto sin usar"
+                        title="Se desactiva automáticamente tras 5 minutos sin usar"
                       >
                         <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
-                        <span>Auto-pausa: {Math.max(0, 60 - inactivitySeconds)}s</span>
+                        <span>Auto-pausa: {Math.floor(Math.max(0, 300 - inactivitySeconds) / 60)}m {String(Math.max(0, 300 - inactivitySeconds) % 60).padStart(2, '0')}s</span>
                       </div>
                     )
                   ) : (
