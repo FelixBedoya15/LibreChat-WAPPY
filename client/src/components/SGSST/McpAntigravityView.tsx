@@ -38,6 +38,7 @@ import {
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
+import ExpandingButton from './ExpandingButton';
 
 interface ApiKeyItem {
   id: string;
@@ -559,14 +560,15 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
           </div>
         </div>
 
-        <button
+        <ExpandingButton
           onClick={handleCreateKey}
           disabled={creating}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shrink-0 disabled:opacity-50"
-        >
-          <Plus className="w-4 h-4" />
-          {creating ? 'Generando...' : 'Generar Clave API'}
-        </button>
+          isLoading={creating}
+          icon={Plus}
+          label={creating ? 'Generando...' : 'Generar Clave API'}
+          variant="orange"
+          title="Generar nueva Clave API para Antigravity"
+        />
       </div>
 
       {/* Alerta de Clave Recién Generada */}
@@ -578,13 +580,14 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
           </div>
           <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-amber-500/40 rounded-xl p-2.5 font-mono text-xs text-amber-600 dark:text-amber-300 select-all break-all">
             <span className="flex-1">{newKeyGenerated}</span>
-            <button
+            <ExpandingButton
               onClick={() => copyToClipboard(newKeyGenerated, 'key')}
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shrink-0"
-            >
-              {copiedKey ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              {copiedKey ? 'Copiada' : 'Copiar Clave'}
-            </button>
+              icon={copiedKey ? Check : Copy}
+              label={copiedKey ? 'Copiada' : 'Copiar Clave'}
+              variant="orange"
+              size="sm"
+              title="Copiar Clave API al portapapeles"
+            />
           </div>
         </div>
       )}
@@ -654,13 +657,13 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
                 </div>
               </div>
 
-              <button
+              <ExpandingButton
                 onClick={() => copyToClipboard(antigravityPrompt, 'prompt')}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shrink-0"
-              >
-                {copiedPrompt ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copiedPrompt ? '¡Instrucción Copiada!' : 'Copiar Instrucción para Antigravity'}
-              </button>
+                icon={copiedPrompt ? Check : Copy}
+                label={copiedPrompt ? '¡Instrucción Copiada!' : 'Copiar Instrucción para Antigravity'}
+                variant="orange"
+                title="Copiar instrucción para el chat de Antigravity"
+              />
             </div>
 
             <div className="p-3.5 rounded-xl bg-orange-50/50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-200 font-mono text-xs border border-orange-200/60 dark:border-zinc-800 leading-relaxed whitespace-pre-wrap select-all">
@@ -682,13 +685,13 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
                   </p>
                 </div>
               </div>
-              <button
+              <ExpandingButton
                 onClick={() => copyToClipboard(antigravityJsonConfig, 'config')}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shrink-0"
-              >
-                {copiedConfig ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copiedConfig ? '¡Copiado!' : 'Copiar Configuración JSON'}
-              </button>
+                icon={copiedConfig ? Check : Copy}
+                label={copiedConfig ? '¡Copiado!' : 'Copiar Configuración JSON'}
+                variant="teal"
+                title="Copiar configuración en formato JSON"
+              />
             </div>
 
             <pre className="p-4 rounded-xl bg-slate-950 text-slate-100 font-mono text-xs overflow-x-auto border border-slate-800 leading-relaxed select-all">
@@ -745,13 +748,14 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
                   <div className="text-[11px] text-slate-500 dark:text-zinc-400">
                     Configuración local tradicional por Stdio:
                   </div>
-                  <button
+                  <ExpandingButton
                     onClick={() => copyToClipboard(localStdioConfig, 'local')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shrink-0"
-                  >
-                    {copiedLocal ? <Check className="w-3.5 h-3.5 text-teal-500" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copiedLocal ? 'Copiado' : 'Copiar Stdio'}
-                  </button>
+                    icon={copiedLocal ? Check : Copy}
+                    label={copiedLocal ? 'Copiado' : 'Copiar Stdio'}
+                    variant="secondary"
+                    size="sm"
+                    title="Copiar configuración local Stdio"
+                  />
                 </div>
                 <pre className="p-3 rounded-xl bg-slate-950 text-slate-200 font-mono text-[11px] overflow-x-auto border border-slate-800 leading-relaxed select-all">
                   {localStdioConfig}

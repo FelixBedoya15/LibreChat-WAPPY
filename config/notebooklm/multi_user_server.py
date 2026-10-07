@@ -251,7 +251,7 @@ def _handle_tool_error(tool_name: str, e: Exception) -> None:
             "Error de autenticación con Google NotebookLM (token CSRF no encontrado o sesión expirada). "
             "Las cookies de Google han caducado o están incompletas. "
             "Para solucionarlo: abre https://notebooklm.google.com en Chrome, exporta las cookies como JSON con la extensión Cookie-Editor "
-            "y actualízalas en el servidor con 'npm run notebooklm:auth' o pégalas en LibreChat dentro de 'Sesión Privada de NotebookLM'."
+            "y actualízalas en el servidor con 'npm run notebooklm:auth'."
         ) from e
     raise e
 
@@ -353,59 +353,149 @@ async def source_add(
 @mcp.tool()
 async def chat_ask(
     notebook: str,
-    query: str,
+    query: Optional[str] = None,
+    question: Optional[str] = None,
     input: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Realiza una consulta fundamentada (Grounded RAG) sobre las fuentes del cuaderno.
     Devuelve la respuesta analizada por Gemini con citas y referencias directas.
+    Parámetros:
+      - notebook: Nombre o ID del cuaderno.
+      - query / question: Pregunta o instrucción para consultar los documentos.
     """
     client = await get_client_for_request()
     nb_id = await _resolve_notebook_id(client, notebook)
-    res = await client.chat.ask(nb_id, query=query)
 
-    answer_text = getattr(res, "answer", str(res))
-    citations = getattr(res, "citations", [])
+    # Extraer la consulta de forma tolerante a nombres de parámetros del agente
+    user_query = question or query or ""
+    if not user_query and input:
+        if isinstance(input, dict):
+            user_query = input.get("question") or input.get("query") or input.get("input") or ""
+        elif isinstance(input, str):
+            user_query = input
+    if not user_query:
+        raise ValueError("El parámetro 'query' o 'question' es obligatorio para chat_ask")
 
-    return {
-        "notebook_id": nb_id,
-        "query": query,
-        "answer": answer_text,
-        "citations": [str(c) for c in citations] if citations else [],
-    }
+    try:
+        res = await client.chat.ask(nb_id, question=user_query)
+
+        answer_text = getattr(res, "answer", str(res))
+        references = getattr(res, "references", None) or []
+
+        citations = []
+        for ref in references:
+            citations.append({
+                "citation": getattr(ref, "citation_number", None),
+                "source_id": getattr(ref, "source_id", ""),
+                "cited_text": getattr(ref, "cited_text", ""),
+                "score": getattr(ref, "score", None),
+            })
+
+        return {
+            "notebook_id": nb_id,
+            "query": user_query,
+            "answer": answer_text,
+            "citations": citations,
+            "conversation_id": getattr(res, "conversation_id", None),
+        }
+    except Exception as e:
+        _handle_tool_error("chat_ask", e)
 
 
 @mcp.tool()
 async def studio_generate(
     notebook: str,
     artifact_type: str,
+    instructions: Optional[str] = None,
+    language: Optional[str] = "es",
     input: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Genera contenido pedagógico o multimedia en el Studio de NotebookLM a partir de las fuentes:
-    - 'audio': Podcast explicativo (Audio Overview a dos voces).
-    - 'quiz': Cuestionario de evaluación y preguntas.
-    - 'flashcards': Tarjetas de estudio.
-    - 'mind_map': Mapa conceptual / resumen esquemático.
-    - 'report': Informe detallado o resumen ejecutivo.
+    - 'audio' / 'podcast': Podcast explicativo (Audio Overview a dos voces).
+    - 'quiz' / 'cuestionario': Cuestionario de evaluación y preguntas.
+    - 'report' / 'informe': Informe detallado o resumen ejecutivo (briefing doc).
+    - 'flashcards' / 'fichas': Tarjetas de estudio.
+    - 'mind_map' / 'mapa_conceptual': Mapa conceptual / resumen esquemático.
+    - 'study_guide' / 'guia_estudio': Guía de estudio integral.
     """
     client = await get_client_for_request()
     nb_id = await _resolve_notebook_id(client, notebook)
 
-    target_api = getattr(client, "artifacts", getattr(client, "studio", None))
-    if target_api and hasattr(target_api, "generate"):
-        res = await target_api.generate(nb_id, artifact_type=artifact_type)
+    if isinstance(input, dict):
+        artifact_type = input.get("artifact_type") or artifact_type
+        instructions = input.get("instructions") or instructions
+        language = input.get("language") or language
+
+    t = (artifact_type or "").lower().strip()
+
+    try:
+        if t in ("audio", "podcast", "audio_overview"):
+            res = await client.artifacts.generate_audio(
+                nb_id,
+                language=language or "es",
+                instructions=instructions,
+            )
+        elif t in ("quiz", "cuestionario", "evaluacion", "evaluación"):
+            res = await client.artifacts.generate_quiz(
+                nb_id,
+                instructions=instructions,
+            )
+        elif t in ("report", "informe", "resumen", "briefing_doc"):
+            res = await client.artifacts.generate_report(
+                nb_id,
+                language=language or "es",
+                custom_prompt=instructions,
+            )
+        elif t in ("flashcards", "flashcard", "fichas"):
+            res = await client.artifacts.generate_flashcards(
+                nb_id,
+                instructions=instructions,
+            )
+        elif t in ("mind_map", "mindmap", "mapa_conceptual", "mapa"):
+            res = await client.artifacts.generate_mind_map(
+                nb_id,
+                language=language or "es",
+                instructions=instructions,
+            )
+            return {
+                "status": "completed",
+                "notebook_id": nb_id,
+                "artifact_type": artifact_type,
+                "result": str(res),
+            }
+        elif t in ("study_guide", "guia", "guia_estudio", "guía"):
+            res = await client.artifacts.generate_study_guide(
+                nb_id,
+                language=language or "es",
+                extra_instructions=instructions,
+            )
+        elif t in ("slide_deck", "slides", "presentacion", "presentación"):
+            res = await client.artifacts.generate_slide_deck(nb_id)
+        elif t in ("video", "cinematic_video"):
+            if hasattr(client.artifacts, "generate_cinematic_video"):
+                res = await client.artifacts.generate_cinematic_video(nb_id, instructions=instructions)
+            else:
+                res = await client.artifacts.generate_video(nb_id)
+        else:
+            raise ValueError(
+                f"Tipo de artefacto no reconocido: '{artifact_type}'. "
+                "Opciones válidas: audio, quiz, report, flashcards, mind_map, study_guide."
+            )
+
+        task_id = getattr(res, "task_id", getattr(res, "id", str(res)))
         return {
-            "status": "generation_started",
+            "status": getattr(res, "status", "in_progress"),
+            "task_id": task_id,
             "notebook_id": nb_id,
             "artifact_type": artifact_type,
-            "task_id": getattr(res, "id", str(res)),
+            "url": getattr(res, "url", None),
+            "is_complete": getattr(res, "is_complete", False),
+            "message": f"Generación de '{artifact_type}' iniciada exitosamente en NotebookLM. Consulta el avance con studio_status(task_id='{task_id}').",
         }
-    else:
-        return {
-            "status": "not_supported",
-            "message": f"La generación de {artifact_type} requiere capacidades adicionales del cliente.",
-        }
+    except Exception as e:
+        _handle_tool_error("studio_generate", e)
 
 
 @mcp.tool()
@@ -416,58 +506,196 @@ async def studio_status(
 ) -> Dict[str, Any]:
     """Consulta el estado de una generación en el Studio de NotebookLM."""
     client = await get_client_for_request()
-    target_api = getattr(client, "artifacts", getattr(client, "studio", None))
-    if target_api and hasattr(target_api, "get_status"):
-        res = await target_api.get_status(task_id)
-        return {"status": getattr(res, "status", "completed"), "task_id": task_id}
-    return {"status": "completed", "task_id": task_id}
+
+    if isinstance(input, dict):
+        task_id = input.get("task_id") or task_id
+        notebook = input.get("notebook") or notebook
+
+    target_nb_id = None
+    if notebook:
+        target_nb_id = await _resolve_notebook_id(client, notebook)
+
+    # Si se especificó el cuaderno, consultar directamente
+    if target_nb_id:
+        try:
+            res = await client.artifacts.poll_status(target_nb_id, task_id)
+            url = getattr(res, "url", None)
+            if not url and getattr(res, "is_complete", False):
+                try:
+                    audios = await client.artifacts.list_audio(target_nb_id)
+                    for a in audios:
+                        if a.id == task_id and getattr(a, "url", None):
+                            url = a.url
+                            break
+                except Exception:
+                    pass
+            return {
+                "status": getattr(res, "status", "unknown"),
+                "task_id": task_id,
+                "notebook_id": target_nb_id,
+                "url": url,
+                "is_complete": getattr(res, "is_complete", False),
+                "error": getattr(res, "error", None),
+            }
+        except Exception as e:
+            logger.warning(f"Error consultando poll_status en '{target_nb_id}': {e}")
+
+    # Si no se pasó notebook o falló, buscar en todos los cuadernos del usuario
+    try:
+        notebooks = await client.notebooks.list()
+        for nb in notebooks:
+            try:
+                res = await client.artifacts.poll_status(nb.id, task_id)
+                if res and getattr(res, "status", "") not in ("not_found", ""):
+                    url = getattr(res, "url", None)
+                    if not url and getattr(res, "is_complete", False):
+                        try:
+                            audios = await client.artifacts.list_audio(nb.id)
+                            for a in audios:
+                                if a.id == task_id and getattr(a, "url", None):
+                                    url = a.url
+                                    break
+                        except Exception:
+                            pass
+                    return {
+                        "status": getattr(res, "status", "completed"),
+                        "task_id": task_id,
+                        "notebook_id": nb.id,
+                        "url": url,
+                        "is_complete": getattr(res, "is_complete", False),
+                        "error": getattr(res, "error", None),
+                    }
+            except Exception:
+                continue
+    except Exception as e:
+        _handle_tool_error("studio_status", e)
+
+    return {"status": "not_found", "task_id": task_id, "message": "No se encontró la tarea especificada."}
 
 
 @mcp.tool()
 async def studio_download(
     artifact_id: str,
     notebook: Optional[str] = None,
+    output_path: Optional[str] = None,
     input: Optional[Any] = None,
 ) -> Dict[str, Any]:
-    """Obtiene información o enlace de descarga para un artefacto generado."""
+    """
+    Obtiene información o enlace de descarga para un artefacto generado (audio, quiz, reporte).
+    Si se proporciona output_path, descarga el archivo localmente en esa ruta.
+    """
     client = await get_client_for_request()
-    target_api = getattr(client, "artifacts", getattr(client, "studio", None))
-    if target_api and hasattr(target_api, "get_download_url"):
-        url = await target_api.get_download_url(artifact_id)
-        return {"status": "ready", "artifact_id": artifact_id, "download_url": url}
-    return {"status": "ready", "artifact_id": artifact_id}
+
+    if isinstance(input, dict):
+        artifact_id = input.get("artifact_id") or artifact_id
+        notebook = input.get("notebook") or notebook
+        output_path = input.get("output_path") or output_path
+
+    target_nb_id = None
+    if notebook:
+        target_nb_id = await _resolve_notebook_id(client, notebook)
+
+    try:
+        candidate_nbs = [target_nb_id] if target_nb_id else [nb.id for nb in await client.notebooks.list()]
+        for nb_id in candidate_nbs:
+            try:
+                art = await client.artifacts.get(nb_id, artifact_id)
+                if art:
+                    download_url = getattr(art, "url", None)
+                    saved_to = None
+                    if output_path:
+                        if getattr(art, "is_quiz", False):
+                            saved_to = await client.artifacts.download_quiz(nb_id, output_path, artifact_id=artifact_id)
+                        elif getattr(art, "kind", None) == "audio" or "audio" in str(getattr(art, "title", "")).lower() or download_url:
+                            saved_to = await client.artifacts.download_audio(nb_id, output_path, artifact_id=artifact_id)
+                        else:
+                            saved_to = await client.artifacts.download_report(nb_id, output_path, artifact_id=artifact_id)
+
+                    return {
+                        "status": "ready",
+                        "artifact_id": artifact_id,
+                        "notebook_id": nb_id,
+                        "title": getattr(art, "title", ""),
+                        "download_url": download_url,
+                        "saved_to": saved_to,
+                    }
+            except Exception:
+                continue
+    except Exception as e:
+        _handle_tool_error("studio_download", e)
+
+    return {"status": "not_found", "artifact_id": artifact_id}
+
+
+@mcp.tool()
+async def studio_list(
+    notebook: str,
+    input: Optional[Any] = None,
+) -> List[Dict[str, Any]]:
+    """Lista todos los artefactos creados en el Studio del cuaderno (podcasts, quizzes, informes, etc.)."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        artifacts = await client.artifacts.list(nb_id)
+        result = []
+        for a in artifacts:
+            result.append({
+                "id": a.id,
+                "title": getattr(a, "title", ""),
+                "status": getattr(a, "status_str", str(getattr(a, "status", ""))),
+                "url": getattr(a, "url", None),
+                "created_at": str(getattr(a, "created_at", "")),
+            })
+        return result
+    except Exception as e:
+        _handle_tool_error("studio_list", e)
 
 
 @mcp.tool()
 async def research_start(
     notebook: str,
     query: str,
-    mode: Optional[str] = "deep",
+    mode: Optional[str] = "fast",
     input: Optional[Any] = None,
 ) -> Dict[str, Any]:
-    """Inicia una investigación profunda (Deep Research) sobre un tema para el cuaderno."""
-    client = await get_client_for_request()
-    nb_id = await _resolve_notebook_id(client, notebook)
-    target_api = getattr(client, "research", None)
-    if target_api and hasattr(target_api, "start"):
-        res = await target_api.start(nb_id, query=query, mode=mode)
-        return {"status": "started", "notebook_id": nb_id, "task_id": getattr(res, "id", "started")}
-    return {"status": "started", "notebook_id": nb_id, "message": "Investigación solicitada."}
+    """Inicia una investigación web profunda (Deep Research) para agregar fuentes al cuaderno."""
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            query = input.get("query") or query
+            mode = input.get("mode") or mode
+
+        res = await client.research.start(nb_id, query=query, source="web", mode=mode or "fast")
+        task_id = getattr(res, "task_id", getattr(res, "id", str(res)))
+        return {
+            "status": "started",
+            "notebook_id": nb_id,
+            "task_id": task_id,
+            "message": "Investigación web iniciada para el cuaderno.",
+        }
+    except Exception as e:
+        _handle_tool_error("research_start", e)
 
 
 @mcp.tool()
 async def research_import(
+    notebook: str,
     task_id: str,
-    notebook: Optional[str] = None,
     input: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """Importa los resultados de una investigación como nuevas fuentes del cuaderno."""
-    client = await get_client_for_request()
-    target_api = getattr(client, "research", None)
-    if target_api and hasattr(target_api, "import_sources"):
-        res = await target_api.import_sources(task_id)
-        return {"status": "imported", "task_id": task_id}
-    return {"status": "imported", "task_id": task_id}
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        if isinstance(input, dict):
+            task_id = input.get("task_id") or task_id
+            notebook = input.get("notebook") or notebook
+
+        res = await client.research.import_sources(nb_id, task_id=task_id, sources=[])
+        return {"status": "imported", "notebook_id": nb_id, "task_id": task_id, "result": res}
+    except Exception as e:
+        _handle_tool_error("research_import", e)
 
 
 # =============================================================================

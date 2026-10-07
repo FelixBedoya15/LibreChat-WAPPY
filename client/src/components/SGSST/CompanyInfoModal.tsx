@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -16,6 +16,7 @@ import SignaturePad from './SignaturePad';
 import McpAntigravityModal from './McpAntigravityModal';
 import { PenTool } from 'lucide-react';
 import SingleSelect from './SingleSelect';
+import ExpandingButton from './ExpandingButton';
 
 export interface SedeData {
     nombre: string;
@@ -123,6 +124,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     const [saving, setSaving] = useState(false);
     const [showMcpModal, setShowMcpModal] = useState(false);
     const [activeSignatureField, setActiveSignatureField] = useState<'legalRepSignature' | 'sstRespSignature' | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [companyLimit, setCompanyLimit] = useState<number>(1);
     const [userPlanName, setUserPlanName] = useState<string>('free');
@@ -540,18 +542,16 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button
-                                type="button"
+                            <ExpandingButton
                                 onClick={() => setShowMcpModal(true)}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shrink-0"
+                                icon={Cpu}
+                                label="Conectar Antigravity (MCP)"
+                                variant="orange"
                                 title="Conectar este perfil de empresa con Antigravity vía MCP"
-                            >
-                                <Cpu className="h-4 w-4" />
-                                <span className="hidden sm:inline">Conectar Antigravity (MCP)</span>
-                            </button>
+                            />
                             <button 
                                 onClick={onClose} 
-                                className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-2xs active:scale-95"
+                                className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-2xs active:scale-95"
                                 title="Cerrar"
                             >
                                 <X className="h-4 w-4" />
@@ -628,12 +628,13 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                             <p className="text-xs opacity-90">Debes activarla para que el sistema y los agentes de IA comiencen a trabajar con su Matriz IPEVR, Hitos y Documentos.</p>
                                         </div>
                                     </div>
-                                    <button 
+                                    <ExpandingButton 
                                         onClick={() => handleActivateCompany(data._id!)}
-                                        className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white whitespace-nowrap"
-                                    >
-                                        Activar esta Empresa
-                                    </button>
+                                        icon={Shield}
+                                        label="Activar esta Empresa"
+                                        variant="orange"
+                                        title="Activar esta empresa como la activa"
+                                    />
                                 </div>
                             )}
 
@@ -663,27 +664,33 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                                     <Building2 className="h-6 w-6 text-text-secondary/60" />
                                                 </div>
                                             )}
-                                            <div className="flex-1 text-center md:text-left space-y-1">
-                                                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shrink-0">
-                                                    <ImageIcon className="h-4 w-4" />
-                                                    <span>SELECCIONAR IMAGEN</span>
-                                                    <input 
-                                                        type="file" 
-                                                        accept="image/*" 
-                                                        onChange={(e) => {
-                                                            const file = e.target.files?.[0];
-                                                            if (file) {
-                                                                const reader = new FileReader();
-                                                                reader.onload = (readerEvent) => {
-                                                                    handleChange('logoBase64', readerEvent.target?.result as string);
-                                                                };
-                                                                reader.readAsDataURL(file);
-                                                            }
-                                                            e.target.value = '';
-                                                        }} 
-                                                        className="hidden" 
+                                            <div className="flex-1 text-center md:text-left space-y-2">
+                                                <input 
+                                                    ref={fileInputRef}
+                                                    type="file" 
+                                                    accept="image/*" 
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            const reader = new FileReader();
+                                                            reader.onload = (readerEvent) => {
+                                                                handleChange('logoBase64', readerEvent.target?.result as string);
+                                                            };
+                                                            reader.readAsDataURL(file);
+                                                        }
+                                                        e.target.value = '';
+                                                    }} 
+                                                    className="hidden" 
+                                                />
+                                                <div>
+                                                    <ExpandingButton
+                                                        icon={ImageIcon}
+                                                        label={data.logoBase64 ? "Cambiar Imagen" : "Seleccionar Imagen"}
+                                                        variant="teal"
+                                                        onClick={() => fileInputRef.current?.click()}
+                                                        title="Seleccionar logotipo de la empresa"
                                                     />
-                                                </label>
+                                                </div>
                                                 <p className="text-[10.5px] text-text-secondary font-medium">Recomendado: imagen cuadrada o rectangular horizontal, formato PNG/JPG, peso menor a 1MB. Se utilizará para estampar tu marca en los portales QR y reportes.</p>
                                             </div>
                                         </div>
@@ -911,12 +918,14 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     <h3 className="flex items-center gap-2 text-sm font-semibold text-text-primary">
                                         <Building2 className="h-4 w-4" /> Sedes Adicionales
                                     </h3>
-                                    <button
+                                    <ExpandingButton
                                         onClick={handleAddSede}
-                                        className="flex items-center gap-1.5 rounded-lg bg-teal-500/10 px-3 py-1.5 text-xs font-semibold text-teal-600 transition-colors hover:bg-teal-500/20"
-                                    >
-                                        <Plus className="h-3 w-3" /> Agregar Sede
-                                    </button>
+                                        icon={Plus}
+                                        label="Agregar Sede"
+                                        variant="outline-teal"
+                                        size="sm"
+                                        title="Agregar Sede"
+                                    />
                                 </div>
                                 
                                 {(!data.sedes || data.sedes.length === 0) ? (
@@ -929,10 +938,13 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                             <div key={idx} className="relative rounded-xl border border-border-medium bg-surface-primary p-4 shadow-sm">
                                                 <button
                                                     onClick={() => handleRemoveSede(idx)}
-                                                    className="absolute right-3 top-3 rounded-full bg-red-50 p-1.5 text-red-500 hover:bg-red-100 transition-colors"
+                                                    className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 absolute right-3 top-3"
                                                     title="Eliminar Sede"
                                                 >
-                                                    <Trash2 className="h-4 w-4" />
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                                                        <span className="text-[10px] font-bold">Eliminar</span>
+                                                    </div>
                                                 </button>
                                                 
                                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2 mt-2">
@@ -1000,25 +1012,26 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                         )}
                     </div>
                     <div className="flex items-center gap-3">
-                        <button
+                        <ExpandingButton
                             onClick={() => {
                                 const draftKey = `wappy_company_draft_${data._id || 'new'}`;
                                 localStorage.removeItem(draftKey);
                                 onClose();
                             }}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700"
-                        >
-                            {t('com_ui_cancel', 'Cancelar')}
-                        </button>
-                        <button
+                            icon={X}
+                            label={t('com_ui_cancel', 'Cancelar')}
+                            variant="secondary"
+                            title={t('com_ui_cancel', 'Cancelar')}
+                        />
+                        <ExpandingButton
                             onClick={() => handleSave()}
                             disabled={saving || !isFormValid}
-                            title={!isFormValid ? `Faltan: ${missingFields.map(f => FIELD_LABELS[f] || f).join(', ')}` : ''}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <Save className="h-4 w-4" />
-                            {saving ? t('com_ui_saving', 'Guardando...') : t('com_ui_save', 'Guardar Empresa')}
-                        </button>
+                            isLoading={saving}
+                            icon={Save}
+                            label={saving ? t('com_ui_saving', 'Guardando...') : t('com_ui_save', 'Guardar Empresa')}
+                            variant="save"
+                            title={!isFormValid ? `Faltan: ${missingFields.map(f => FIELD_LABELS[f] || f).join(', ')}` : t('com_ui_save', 'Guardar Empresa')}
+                        />
                     </div>
                 </div>
             </div>

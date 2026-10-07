@@ -83,18 +83,14 @@ El servidor MCP expone un catálogo de herramientas estandarizadas:
 
 ---
 
-## 5. Guía de Conexión para Usuarios Finales (Multi-Usuario)
+## 5. Acceso a Cuadernos del Usuario (Cuenta Central de WAPPY)
 
-Cuando un usuario pregunte cómo conectar su propio NotebookLM o pregunte por qué el agente no ve sus cuadernos personales, explícale las dos alternativas disponibles:
+Para que los agentes de WAPPY puedan consultar cuadernos de los usuarios sin pedirles contraseñas ni cookies:
 
-* **Método 1: Compartir por Google (Recomendado y más fácil):**
+* **Compartir Cuaderno en Google NotebookLM:**
   1. Entra a [notebooklm.google.com](https://notebooklm.google.com).
-  2. Abre tu cuaderno y haz clic en el botón azul **"Compartir"**.
-  3. Agrega el correo de WAPPY (`agentes@grupowappy.com`) como **Lector**.
-  4. Vuelve al chat y dile al agente el título o enlace de tu cuaderno. ¡Listo, sin necesidad de contraseñas!
-
-* **Método 2: Sesión Privada Exclusiva (Opcional):**
-  1. En LibreChat, ve a los ajustes del chat o la tuerca de configuración del agente.
-  2. En el campo **"Sesión Privada de NotebookLM"**, pega tus cookies o JSON exportado de Google.
-  3. Tus consultas se enrutarán exclusivamente a través de tu cuenta privada de forma 100% aislada.
+  2. Abre tu cuaderno y haz clic en el botón **"Compartir"** (esquina superior derecha).
+  3. Comparte el cuaderno con el correo central del sistema: `wappyinteractivo@gmail.com` con permisos de **Lector** (o Editor).
+  4. En LibreChat, dile al agente el nombre de tu cuaderno (ej: *"Consulta mi cuaderno Normatividad SST"*).
+  5. ¡Listo! El agente lo detectará inmediatamente a través de la conexión central de WAPPY.
 
