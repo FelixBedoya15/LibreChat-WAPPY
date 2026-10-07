@@ -99,6 +99,7 @@ services:
     restart: always
     volumes:
       - ./config/notebooklm/profiles:/root/.notebooklm/profiles
+      - ./config/notebooklm/multi_user_server.py:/app/multi_user_server.py
     environment:
       - NOTEBOOKLM_HOME=/root/.notebooklm
       - NOTEBOOKLM_MCP_HOST=0.0.0.0

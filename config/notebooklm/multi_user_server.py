@@ -94,24 +94,31 @@ async def get_client_for_request() -> NotebookLMClient:
     headers: Dict[str, str] = {}
     try:
         from fastmcp.server.dependencies import get_http_headers
-        headers = get_http_headers() or {}
-    except Exception:
-        pass
+        raw_headers = get_http_headers(include_all=True) or {}
+        headers = {k.lower(): v for k, v in raw_headers.items()}
+    except Exception as e:
+        logger.warning(f"Error obteniendo cabeceras HTTP: {e}")
 
-    user_id = headers.get("x-user-id") or headers.get("x_user_id") or "default"
+    logger.info(f"[NotebookLM MCP] Cabeceras HTTP recibidas: {list(headers.keys())}")
+
+    user_id = headers.get("x-user-id") or headers.get("x_user_id") or ""
+    if user_id.startswith("{{"):
+        user_id = ""
     user_email = headers.get("x-user-email") or headers.get("x_user_email") or ""
+    if user_email.startswith("{{"):
+        user_email = ""
     user_auth = headers.get("x-notebooklm-auth") or headers.get("x_notebooklm_auth") or ""
+    if user_auth.startswith("{{"):
+        user_auth = ""
 
     # Limpiar user_id para usarlo como nombre de carpeta seguro
-    safe_profile = "default"
-    if user_id and user_id != "default":
-        safe_profile = f"user_{''.join(c for c in user_id if c.isalnum() or c in ('_', '-'))}"
+    safe_profile = f"user_{''.join(c for c in user_id if c.isalnum() or c in ('_', '-'))}" if user_id else "default"
 
     target_profile_dir = PROFILES_DIR / safe_profile
     storage_file = target_profile_dir / "storage_state.json"
 
     # Si el usuario suministró nuevas cookies en la cabecera, actualizamos su perfil
-    if user_auth and not user_auth.startswith("{{") and safe_profile != "default":
+    if user_auth:
         cookies = _safe_parse_cookies(user_auth)
         if cookies:
             target_profile_dir.mkdir(parents=True, exist_ok=True)
@@ -122,12 +129,16 @@ async def get_client_for_request() -> NotebookLMClient:
                     "version": 1,
                     "account": {
                         "authuser": 0,
-                        "email": user_email or f"{user_id}@wappy.internal",
+                        "email": user_email or (f"{user_id}@wappy.internal" if user_id else "default@wappy.internal"),
                     },
                 },
             }
             storage_file.write_text(json.dumps(storage_data, indent=2))
-            logger.info(f"Perfil actualizado para usuario {safe_profile} con {len(cookies)} cookies.")
+            try:
+                os.chmod(storage_file, 0o600)
+            except Exception:
+                pass
+            logger.info(f"Perfil guardado para '{safe_profile}' con {len(cookies)} cookies en {storage_file}.")
             # Invalidar cache anterior si existía
             async with _CACHE_LOCK:
                 if safe_profile in _CLIENT_CACHE:
