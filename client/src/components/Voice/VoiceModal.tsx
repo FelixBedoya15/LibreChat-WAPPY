@@ -476,15 +476,23 @@ const VoiceModal: FC<VoiceModalProps> = ({
                 if (!ctx || ctx.state === 'closed') {
                     ctx = (window as any).sharedAudioContext24k;
                     if (!ctx || ctx.state === 'closed') {
-                        ctx = new AudioCtxClass({ sampleRate: 24000 });
-                        console.log('[VoiceModal] AudioContext 24kHz creado en gesto de usuario:', ctx.state);
+                        try {
+                            ctx = new AudioCtxClass();
+                        } catch (_) {
+                            try {
+                                ctx = new AudioCtxClass({ sampleRate: 24000 });
+                            } catch (e) {
+                                console.warn('[VoiceModal] No se pudo crear AudioContext:', e);
+                            }
+                        }
+                        console.log('[VoiceModal] AudioContext creado en gesto de usuario:', ctx?.state);
                     }
                     audioContextRef.current = ctx;
                     (window as any).sharedAudioContext24k = ctx;
                 }
-                if (ctx.state === 'suspended') {
+                if (ctx && ctx.state === 'suspended') {
                     ctx.resume().then(() => {
-                        console.log('[VoiceModal] AudioContext 24kHz reanudado en gesto de usuario:', ctx?.state);
+                        console.log('[VoiceModal] AudioContext reanudado en gesto de usuario:', ctx?.state);
                     }).catch(console.error);
                 }
             }

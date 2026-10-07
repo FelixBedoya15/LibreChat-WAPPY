@@ -84,6 +84,13 @@ class TenshiAudioEngine {
   }
 
   /**
+   * Alias de compatibilidad para playBlip
+   */
+  public playPop() {
+    this.playBlip();
+  }
+
+  /**
    * Campanitas dobles al empezar a pensar/procesar
    */
   public playThink() {

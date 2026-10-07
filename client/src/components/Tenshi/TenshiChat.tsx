@@ -1084,17 +1084,55 @@ export default function TenshiChat() {
     // Silenciado completamente a petición del usuario
   }, []);
 
+  const getOrCreatePlaybackContext = useCallback((): AudioContext | null => {
+    if (typeof window === 'undefined') return null;
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return null;
+
+    let ctx = audioContextRef.current || (window as any).sharedAudioContext24k;
+    if (!ctx || ctx.state === 'closed') {
+      try {
+        ctx = new AudioContextClass();
+      } catch (_) {
+        try {
+          ctx = new AudioContextClass({ sampleRate: 24000 });
+        } catch (e) {
+          console.warn('[Tenshi Voice] Error creando AudioContext:', e);
+          return null;
+        }
+      }
+      audioContextRef.current = ctx;
+      (window as any).sharedAudioContext24k = ctx;
+    }
+    return ctx;
+  }, []);
+
+  const unlockAudio = useCallback(() => {
+    try {
+      // Audio mudo en elemento HTML para forzar a iOS Safari a categoría 'Playback'
+      // Permite que Tenshi suene por altavoz incluso si el switch físico del iPhone está en silencio
+      const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==');
+      silentAudio.play().catch(() => {});
+    } catch (_) {}
+
+    const ctx = getOrCreatePlaybackContext();
+    if (ctx) {
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(console.warn);
+      }
+      try {
+        const silentBuf = ctx.createBuffer(1, 1, ctx.sampleRate || 44100);
+        const src = ctx.createBufferSource();
+        src.buffer = silentBuf;
+        src.connect(ctx.destination);
+        src.start(0);
+      } catch (_) {}
+    }
+  }, [getOrCreatePlaybackContext]);
+
   const handleAudioReceived = useCallback((audioData: string) => {
     try {
-      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        const existing = (window as any).sharedAudioContext24k;
-        audioContextRef.current = (existing && existing.state !== 'closed')
-          ? existing
-          : new AudioContextClass({ sampleRate: 24000 });
-        (window as any).sharedAudioContext24k = audioContextRef.current;
-      }
-      const ctx = audioContextRef.current;
+      const ctx = getOrCreatePlaybackContext();
       if (!ctx) return;
       if (ctx.state === 'suspended') {
         ctx.resume().catch(console.error);
@@ -1116,8 +1154,30 @@ export default function TenshiChat() {
         float32Data[i] = int16 / 32768.0;
       }
 
-      const audioBuffer = ctx.createBuffer(1, numSamples, 24000);
-      audioBuffer.getChannelData(0).set(float32Data);
+      // Re-muestreo adaptativo seguro a la tasa del AudioContext (Safari iOS / Android / PC)
+      // Gemini Live envía audio PCM int16 a 24000 Hz. Si el hardware del dispositivo opera a 44100 Hz o 48000 Hz,
+      // resampleamos con interpolación lineal precisa para que createBuffer use siempre ctx.sampleRate.
+      const targetRate = ctx.sampleRate || 24000;
+      let audioBuffer: AudioBuffer;
+
+      if (targetRate === 24000) {
+        audioBuffer = ctx.createBuffer(1, numSamples, 24000);
+        audioBuffer.getChannelData(0).set(float32Data);
+      } else {
+        const ratio = 24000 / targetRate;
+        const targetLen = Math.max(1, Math.round(numSamples / ratio));
+        const resampled = new Float32Array(targetLen);
+        for (let i = 0; i < targetLen; i++) {
+          const srcPos = i * ratio;
+          const idx = Math.floor(srcPos);
+          const frac = srcPos - idx;
+          const s0 = float32Data[idx] || 0;
+          const s1 = (idx + 1 < numSamples) ? float32Data[idx + 1] : s0;
+          resampled[i] = s0 + frac * (s1 - s0);
+        }
+        audioBuffer = ctx.createBuffer(1, targetLen, targetRate);
+        audioBuffer.getChannelData(0).set(resampled);
+      }
 
       // Cancelar cualquier apagado pendiente del audio: la IA sigue transmitiendo voz continua
       if (playbackEndTimeoutRef.current) {
@@ -1780,36 +1840,13 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       consultationTimerRef.current = null;
     }
 
-    // Desbloquear AudioContext en Safari de forma silenciosa e instantánea (sin pitidos)
-    try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContextClass) {
-        const existing = (window as any).sharedAudioContext24k;
-        const ctx = (existing && existing.state !== 'closed')
-          ? existing
-          : new AudioContextClass({ sampleRate: 24000 });
-        audioContextRef.current = ctx;
-        (window as any).sharedAudioContext24k = ctx;
-
-        if (ctx.state === 'suspended') {
-          ctx.resume().catch(console.warn);
-        }
-
-        // Buffer silencioso de 1 sample para desbloquear el motor de Safari
-        const silentBuffer = ctx.createBuffer(1, 1, 24000);
-        const silentSource = ctx.createBufferSource();
-        silentSource.buffer = silentBuffer;
-        silentSource.connect(ctx.destination);
-        silentSource.start(0);
-      }
-    } catch (e) {
-      console.warn('[Tenshi Voice] Error desbloqueando AudioContext:', e);
-    }
+    // Desbloquear AudioContext y sesión de sonido en iOS/móvil
+    unlockAudio();
 
     lastActivityRef.current = Date.now();
     setVoiceStatusText('Conectando con Tenshi...');
     connectVoice();
-  }, [connectVoice]);
+  }, [connectVoice, unlockAudio]);
 
   const toggleVoiceMode = useCallback(() => {
     if (isVoiceActive) {
@@ -2290,7 +2327,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         e.stopPropagation();
       } catch (_) {}
     }
-    tenshiAudio.playPop();
+    try {
+      tenshiAudio.playBlip();
+    } catch (_) {}
     try {
       sessionStorage.removeItem('tenshi_mobile_hero_minimized');
       sessionStorage.removeItem('tenshi_mobile_hero_exited');
@@ -2299,6 +2338,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     } catch (_) {}
     setIsMobileHeroMode(true);
     setIsHeroChatOpen(false);
+    setIsOpen(false);
     window.dispatchEvent(new CustomEvent('tenshi-enter-mobile-hero'));
 
     const isChat =
@@ -2315,6 +2355,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     if (target && target.closest('button')) {
       return;
     }
+
+    // Desbloquear AudioContext y sesión de sonido en iOS/móvil inmediatamente en el toque del usuario
+    unlockAudio();
 
     if (hasMovedRef.current) {
       e.preventDefault();
@@ -3164,7 +3207,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             <div
               className="relative flex flex-col items-center my-1 cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95"
               onClick={() => {
-                tenshiAudio.playPop();
+                tenshiAudio.playBlip();
                 if (!isVoiceActive) {
                   startVoiceMode();
                 } else {
@@ -3882,12 +3925,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              unlockAudio();
               tenshiAudio.playBlip();
               setIsOpen((prev) => !prev);
             }}
             onTouchEnd={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              unlockAudio();
               tenshiAudio.playBlip();
               setIsOpen((prev) => !prev);
             }}
@@ -3905,6 +3950,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              unlockAudio();
               if (isVoiceActive) {
                 tenshiAudio.playBlip();
                 stopVoiceMode();
@@ -3916,6 +3962,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             onTouchEnd={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              unlockAudio();
               if (isVoiceActive) {
                 tenshiAudio.playBlip();
                 stopVoiceMode();
@@ -3970,7 +4017,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               handleMaximizeMobile(e);
             }}
             title="Tenshi en Pantalla Completa"
-            className="flex md:hidden w-8 h-8 min-w-[32px] min-h-[32px] items-center justify-center p-1.5 rounded-full text-teal-300 hover:text-teal-200 bg-teal-500/30 border border-teal-400/50 hover:bg-teal-500/50 shadow-sm transition-all active:scale-90 touch-manipulation cursor-pointer z-50 pointer-events-auto"
+            className="flex md:hidden w-8 h-8 min-w-[32px] min-h-[32px] items-center justify-center p-1.5 rounded-full text-teal-300 hover:text-teal-100 bg-teal-500/40 border border-teal-400/60 hover:bg-teal-500/60 shadow-md transition-all active:scale-90 touch-manipulation cursor-pointer z-50 pointer-events-auto"
           >
             <Maximize2 className="h-4 w-4 pointer-events-none" />
           </button>

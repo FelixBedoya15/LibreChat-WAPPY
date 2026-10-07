@@ -115,8 +115,13 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     audioContext = sharedCtx;
                     workletAlreadyLoaded = !!(window as any).sharedAudioWorkletLoaded;
                 } else {
-                    console.log('[VoiceSession] Creando nuevo AudioContext (16kHz)');
-                    audioContext = new AudioContextClass({ sampleRate: 16000 });
+                    console.log('[VoiceSession] Creando nuevo AudioContext (16kHz o nativo)');
+                    try {
+                        audioContext = new AudioContextClass({ sampleRate: 16000 });
+                    } catch (e) {
+                        console.log('[VoiceSession] sampleRate 16000 no admitido directamente en este navegador, usando tasa nativa del dispositivo');
+                        audioContext = new AudioContextClass();
+                    }
                     (window as any).sharedAudioWorkletLoaded = false;
                 }
                 audioContextRef.current = audioContext;
@@ -341,7 +346,11 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     sendPCMChunk(new Float32Array(inputData));
                 };
                 analyser.connect(scriptProcessor);
-                scriptProcessor.connect(audioContext.destination);
+                // Silenciar salida para evitar cualquier retorno o eco de micrófono a bocinas
+                const silentGain = audioContext.createGain();
+                silentGain.gain.value = 0;
+                scriptProcessor.connect(silentGain);
+                silentGain.connect(audioContext.destination);
                 // Guardar en workletNodeRef para poder desconectarlo después
                 (workletNodeRef as any).current = scriptProcessor;
             }
