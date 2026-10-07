@@ -683,11 +683,8 @@ const PerfilSociodemografico = () => {
         const validRows = mappedRows.filter(r => (r.nombre && String(r.nombre).trim()) || (r.identificacion && String(r.identificacion).trim()));
         const rowsToImport = validRows.length > 0 ? validRows : mappedRows;
 
-        let actualizados = 0;
-        let nuevos = 0;
-
-        setTrabajadores(prev => {
-            const list = [...prev];
+        const updatedList = (() => {
+            const list = [...trabajadores];
             rowsToImport.forEach((t: any) => {
                 const incomingId = String(t.identificacion || '').trim();
                 const incomingNombre = String(t.nombre || '').trim().toLowerCase();
@@ -722,7 +719,33 @@ const PerfilSociodemografico = () => {
                 }
             });
             return list;
-        });
+        })();
+
+        setTrabajadores(updatedList);
+        try {
+            sessionStorage.setItem('wappy_cached_workers', JSON.stringify(updatedList));
+        } catch {}
+
+        if (token) {
+            const trabajadoresConBio = updatedList.map(w => {
+                const bio = calculateBiocentricFit(w);
+                return {
+                    ...w,
+                    biocentricScore: (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : bio.score,
+                    biocentricAlerts: w.biocentricAlerts || bio.alerts,
+                    biocentricIsLethal: w.biocentricIsLethal !== undefined ? w.biocentricIsLethal : bio.isLethal
+                };
+            });
+            fetch('/api/sgsst/perfil-sociodemografico/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+            })
+            .then(() => {
+                window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+            })
+            .catch(err => console.error('Error auto-guardando importación de perfil:', err));
+        }
 
         setIsColumnMapperOpen(false);
         setColumnMapperBuffer(null);
@@ -879,7 +902,32 @@ const PerfilSociodemografico = () => {
                     completedByAI: true
                 }));
 
-                setTrabajadores(prev => [...prev, ...nuevosTrabajadores]);
+                const updatedList = [...trabajadores, ...nuevosTrabajadores];
+                setTrabajadores(updatedList);
+                try {
+                    sessionStorage.setItem('wappy_cached_workers', JSON.stringify(updatedList));
+                } catch {}
+
+                if (token) {
+                    const trabajadoresConBio = updatedList.map(w => {
+                        const bio = calculateBiocentricFit(w);
+                        return {
+                            ...w,
+                            biocentricScore: (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : bio.score,
+                            biocentricAlerts: w.biocentricAlerts || bio.alerts,
+                            biocentricIsLethal: w.biocentricIsLethal !== undefined ? w.biocentricIsLethal : bio.isLethal
+                        };
+                    });
+                    fetch('/api/sgsst/perfil-sociodemografico/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+                    })
+                    .then(() => {
+                        window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+                    })
+                    .catch(err => console.error('Error auto-guardando importación IA:', err));
+                }
 
                 showToast({
                     message: `Se han extraído ${nuevosTrabajadores.length} trabajadores con IA exitosamente.`,
