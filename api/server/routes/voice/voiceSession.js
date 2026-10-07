@@ -1644,27 +1644,27 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             let success = false;
             let lastError = null;
 
-            const rawPreferredLiveModel = this.liveConfig.model || process.env.GEMINI_LIVE_MODEL || 'gemini-3.8-live';
+            const rawPreferredLiveModel = this.liveConfig.model || process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview';
             
             const mapModelToRealGoogleModel = (modelName) => {
-                if (!modelName) return 'gemini-3.8-live';
+                if (!modelName) return 'gemini-3.1-flash-live-preview';
                 const name = modelName.toLowerCase().trim();
-                if (name === 'gemini-3.8-live' || name === 'gemini-3.1-flash-live-preview' || name === 'gemini-2.5-flash-native-audio-preview-12-2025') {
+                if (name === 'gemini-3.1-flash-live-preview' || name === 'gemini-3.8-live' || name === 'gemini-2.5-flash-native-audio-preview-12-2025') {
                     return name;
-                }
-                if (name.includes('3.8')) {
-                    return 'gemini-3.8-live';
                 }
                 if (name.includes('3.1')) {
                     return 'gemini-3.1-flash-live-preview';
+                }
+                if (name.includes('3.8')) {
+                    return 'gemini-3.8-live';
                 }
                 if (name.includes('2.5') || name.includes('12-2025') || name.includes('09-2025') || name.includes('native-audio')) {
                     return 'gemini-2.5-flash-native-audio-preview-12-2025';
                 }
                 if (name.includes('live')) {
-                    return 'gemini-3.8-live';
+                    return 'gemini-3.1-flash-live-preview';
                 }
-                return 'gemini-3.8-live';
+                return 'gemini-3.1-flash-live-preview';
             };
 
             const preferredLiveModel = mapModelToRealGoogleModel(rawPreferredLiveModel);

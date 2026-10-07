@@ -274,8 +274,8 @@ ${cleanContent}
       { $set: { model: 'gemini-3.6-flash' } }
     );
     await db.collection('users').updateMany(
-      { 'personalization.geminiModels.liveAnalysis': 'gemini-2.5-flash-native-audio-preview-09-2025' },
-      { $set: { 'personalization.geminiModels.liveAnalysis': 'gemini-3.8-live' } }
+      { 'personalization.geminiModels.liveAnalysis': { $in: ['gemini-2.5-flash-native-audio-preview-09-2025', 'gemini-3.8-live'] } },
+      { $set: { 'personalization.geminiModels.liveAnalysis': 'gemini-3.1-flash-live-preview' } }
     );
     if (agentRes.modifiedCount > 0 || presetRes.modifiedCount > 0 || convRes.modifiedCount > 0) {
       console.log(`  🚀 Migrados modelos 3.8/3.7 a gemini-3.6-flash en MongoDB: Agentes (${agentRes.modifiedCount}), Presets (${presetRes.modifiedCount}), Conversaciones (${convRes.modifiedCount})`);

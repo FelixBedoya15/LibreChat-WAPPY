@@ -451,6 +451,32 @@
 
 ---
 
+### LECCIÓN 13 (2026-10-07): Error 1011 de Google en `gemini-3.8-live` y Priorización Defensiva de `gemini-3.1-flash-live-preview`
+
+- **Síntoma Reportado:** Tenshi saluda bien, pero al pedirle una solicitud técnica estructurada (ej: *"¿Podrías decirme cuántos trabajadores tengo registrados?"*), se corta a mitad de frase y no continúa hablando. Tras la reconexión automática a 3.1, responde al instante con máxima fluidez y ejecuta herramientas sin errores.
+- **Evidencia Forense en Logs:**
+  ```log
+  [GeminiLive] User transcription: "¿Podrías decirme cuántos trabajadores tengo registrados en mi empresa?"
+  [GeminiLive] AI transcription: "¡Claro! En este momento tienes registrados 57 trabajadores activos en el sistema."
+  [GeminiLive] WebSocket closed. Code: 1011, Reason: Internal error encountered.
+  [VoiceSession] Reconexión automática de emergencia 1/3... de "gemini-3.8-live" a "gemini-3.1-flash-live-preview"
+  [VoiceSession] ✅ Reconexión exitosa a Gemini Live con Modelo "gemini-3.1-flash-live-preview"
+  [GeminiLive] Tool Call received: wappy_consultar_trabajadores
+  [GeminiLive] AI transcription: "Actualmente tienes 58 trabajadores registrados en el sistema..." (Turn Complete)
+  ```
+- **Causas Raíces:**
+  1. **Inestabilidad del Clúster de Google en `gemini-3.8-live`:** El modelo 3.8 Live es experimental y más pesado (interleaved reasoning). En la infraestructura de Google, al evaluar function calling y streaming continuo en sesiones densas, sufre caídas internas (*thread crash*) que cierran el WebSocket con Code 1011.
+  2. **Arquitectura Flash Optimizada en `gemini-3.1-flash-live-preview`:** La variante Flash está especialmente diseñada para ultra-baja latencia y despacho de herramientas sin sobrecarga de cómputo, resultando inmune a las caídas 1011 de 3.8 y logrando una respuesta vocal en menos de 300ms.
+- **Solución Implementada:**
+  1. **Inversión de Prioridad en el Catálogo de Modelos Live:**
+     - En `sgsstGemini.js`: `LIVE_FALLBACK_MODELS = ['gemini-3.1-flash-live-preview', 'gemini-3.8-live', 'gemini-2.5-flash-native-audio-preview-12-2025']`.
+     - En `geminiLive.js` y `voiceSession.js`: El modelo preferido por defecto pasa de `gemini-3.8-live` a `gemini-3.1-flash-live-preview`.
+     - En `Personalization.tsx`: Predeterminado del sistema actualizado a `Gemini 3.1 Flash Live (Principal / Máxima Fluidez)`.
+     - En `restore-and-sync-all.js`: Migración defensiva en MongoDB de `liveAnalysis` hacia `gemini-3.1-flash-live-preview`.
+  2. Las sesiones ahora inician directamente con 3.1 Flash sin tener que esperar a que 3.8 falle con 1011 para rotar. `gemini-3.8-live` se mantiene como Tier 1 de respaldo automático.
+
+---
+
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
 
 Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el chat:

@@ -72,7 +72,7 @@ export default function Personalization({
         generalChat: user.personalization.geminiModels.generalChat || 'gemini-3.6-flash',
         agents: user.personalization.geminiModels.agents || 'gemini-3.6-flash',
         sstManagement: user.personalization.geminiModels.sstManagement || 'gemini-3.6-flash',
-        liveAnalysis: user.personalization.geminiModels.liveAnalysis || 'gemini-3.8-live',
+        liveAnalysis: user.personalization.geminiModels.liveAnalysis || 'gemini-3.1-flash-live-preview',
         textCorrection: user.personalization.geminiModels.textCorrection || 'gemini-3.6-flash',
         reportGeneration: user.personalization.geminiModels.reportGeneration || 'gemini-3.6-flash',
       });
@@ -82,7 +82,7 @@ export default function Personalization({
         generalChat: 'gemini-3.6-flash',
         agents: 'gemini-3.6-flash',
         sstManagement: 'gemini-3.6-flash',
-        liveAnalysis: 'gemini-3.8-live',
+        liveAnalysis: 'gemini-3.1-flash-live-preview',
         textCorrection: 'gemini-3.6-flash',
         reportGeneration: 'gemini-3.6-flash',
       });
@@ -132,9 +132,9 @@ export default function Personalization({
   }, [endpointsConfig]);
 
   const liveModelOptions = useMemo(() => [
-    { value: '', label: 'Predeterminado del sistema (Gemini 3.8 Live)' },
-    { value: 'gemini-3.8-live', label: 'Gemini 3.8 Live (Principal / Baja Latencia)' },
-    { value: 'gemini-3.1-flash-live-preview', label: 'Gemini 3.1 Flash Live (Respaldo Tier 1)' },
+    { value: '', label: 'Predeterminado del sistema (Gemini 3.1 Flash Live)' },
+    { value: 'gemini-3.1-flash-live-preview', label: 'Gemini 3.1 Flash Live (Principal / Máxima Fluidez)' },
+    { value: 'gemini-3.8-live', label: 'Gemini 3.8 Live (Respaldo Tier 1)' },
     { value: 'gemini-2.5-flash-native-audio-preview-12-2025', label: 'Gemini 2.5 Audio (Respaldo Tier 2)' },
   ], []);
 
