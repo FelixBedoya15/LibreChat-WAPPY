@@ -515,7 +515,7 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
         <button
           onClick={handleCreateKey}
           disabled={creating}
-          className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 shrink-0 disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shrink-0 disabled:opacity-50"
         >
           <Plus className="w-4 h-4" />
           {creating ? 'Generando...' : 'Generar Clave API'}
@@ -533,7 +533,7 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
             <span className="flex-1">{newKeyGenerated}</span>
             <button
               onClick={() => copyToClipboard(newKeyGenerated, 'key')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-white font-bold text-xs hover:bg-amber-600 transition-all shrink-0 active:scale-95"
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shrink-0"
             >
               {copiedKey ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               {copiedKey ? 'Copiada' : 'Copiar Clave'}
@@ -542,15 +542,15 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
         </div>
       )}
 
-      {/* Selector de Pestañas */}
-      <div className="inline-flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700/60 w-fit">
+      {/* Selector de Pestañas (Toolbar Cápsula WAPPY) */}
+      <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-lg shadow-slate-200/40 dark:shadow-none w-fit">
         <button
           onClick={() => setActiveTab('config')}
           className={cn(
-            'flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all',
+            'flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs transition-all active:scale-95',
             activeTab === 'config'
-              ? 'bg-white dark:bg-zinc-900 text-orange-600 dark:text-orange-400 shadow-sm'
-              : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'
+              ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 font-bold shadow-2xs'
+              : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 border border-transparent'
           )}
         >
           <Terminal className="w-3.5 h-3.5" />
@@ -559,10 +559,10 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
         <button
           onClick={() => setActiveTab('tools')}
           className={cn(
-            'flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all',
+            'flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs transition-all active:scale-95',
             activeTab === 'tools'
-              ? 'bg-white dark:bg-zinc-900 text-teal-600 dark:text-teal-400 shadow-sm'
-              : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'
+              ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 font-bold shadow-2xs'
+              : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 border border-transparent'
           )}
         >
           <Layers className="w-3.5 h-3.5" />
@@ -571,10 +571,10 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
         <button
           onClick={() => setActiveTab('keys')}
           className={cn(
-            'flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all',
+            'flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs transition-all active:scale-95',
             activeTab === 'keys'
-              ? 'bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 shadow-sm'
-              : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'
+              ? 'bg-teal-50 dark:bg-teal-950/50 border border-teal-500 text-teal-600 dark:text-teal-300 font-bold shadow-2xs'
+              : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 border border-transparent'
           )}
         >
           <Key className="w-3.5 h-3.5" />
@@ -609,7 +609,7 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
 
               <button
                 onClick={() => copyToClipboard(antigravityPrompt, 'prompt')}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 shrink-0"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shrink-0"
               >
                 {copiedPrompt ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 {copiedPrompt ? '¡Instrucción Copiada!' : 'Copiar Instrucción para Antigravity'}
@@ -637,7 +637,7 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
               </div>
               <button
                 onClick={() => copyToClipboard(antigravityJsonConfig, 'config')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-bold text-xs shadow-sm transition-all active:scale-95 shrink-0"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shrink-0"
               >
                 {copiedConfig ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 {copiedConfig ? '¡Copiado!' : 'Copiar Configuración JSON'}
@@ -700,9 +700,9 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
                   </div>
                   <button
                     onClick={() => copyToClipboard(localStdioConfig, 'local')}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 hover:bg-slate-50 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 text-xs font-medium shadow-2xs"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shrink-0"
                   >
-                    {copiedLocal ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                    {copiedLocal ? <Check className="w-3.5 h-3.5 text-teal-500" /> : <Copy className="w-3.5 h-3.5" />}
                     {copiedLocal ? 'Copiado' : 'Copiar Stdio'}
                   </button>
                 </div>
@@ -784,10 +784,13 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
                         <button
                           onClick={() => handleDeleteKey(k.id)}
                           disabled={deletingId === k.id}
-                          className="text-slate-400 hover:text-red-600 transition-colors p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40"
+                          className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 px-1.5 shadow-sm active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 ml-auto"
                           title="Revocar clave"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
+                          <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                            <span className="text-[10px] font-bold">Revocar</span>
+                          </div>
                         </button>
                       </td>
                     </tr>

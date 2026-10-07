@@ -101,11 +101,16 @@ const sendEmailViaSMTP = async ({ transporterOptions, mailOptions }) => {
  *
  * @throws Will throw an error if the email sending process fails and throwError is `true`.
  */
-const sendEmail = async ({ email, subject, payload, template, from, throwError = true, attachments }) => {
+const sendEmail = async ({ email, subject, payload = {}, template, html: directHtml, from, throwError = true, attachments }) => {
   try {
-    const { content: source } = await readFileAsString(path.join(__dirname, 'emails', template));
-    const compiledTemplate = handlebars.compile(source);
-    const html = compiledTemplate(payload);
+    let html = directHtml;
+    if (!html && template) {
+      const { content: source } = await readFileAsString(path.join(__dirname, 'emails', template));
+      const compiledTemplate = handlebars.compile(source);
+      html = compiledTemplate(payload);
+    } else if (!html) {
+      html = `<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333;">${payload?.message || payload?.body || subject || ''}</div>`;
+    }
 
     // Prepare common email data
     const notificationsEmail = process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club';

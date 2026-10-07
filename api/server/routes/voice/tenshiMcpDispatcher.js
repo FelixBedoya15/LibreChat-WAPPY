@@ -146,10 +146,29 @@ const TOOL_ROUTES = {
   wappy_consultar_mensajes_conversacion: { method: 'GET', path: '/messages' },
   wappy_consultar_archivos: { method: 'GET', path: '/files' },
 
-  // 6. Lectura Universal de Informes de Aplicativos
+  // 6. Lectura y Generación de Informes de Aplicativos
   wappy_leer_informe_aplicativo: { method: 'GET', path: '/informe' },
+  wappy_crear_informe: { method: 'POST', path: '/reports/generate' },
+  wappy_generar_informe: { method: 'POST', path: '/reports/generate' },
 
-  // 7. Herramientas Especializadas de Agentes
+  // 7. Comunicaciones & Correo Electrónico
+  wappy_enviar_correo: { method: 'POST', path: '/email/send' },
+  enviar_correo: { method: 'POST', path: '/email/send' },
+
+  // 8. Agendas, Citas y Calendario
+  wappy_gestionar_agenda: {
+    method: (args) => (args.accion === 'eliminar' || args.action === 'delete') ? 'DELETE' : ((args.accion === 'listar' || args.action === 'list') ? 'GET' : 'POST'),
+    path: (args) => {
+      if (args.accion === 'eliminar' || args.action === 'delete') {
+        const id = args.id || args.id_evento || args.eventId || '';
+        return `/agenda/events/${encodeURIComponent(String(id).trim())}`;
+      }
+      return '/agenda/events';
+    },
+  },
+  wappy_listar_agenda: { method: 'GET', path: '/agenda/events' },
+
+  // 9. Herramientas Especializadas de Agentes
   wappy_activar_herramienta_agente: { method: 'POST', path: '/activar-herramienta' },
   matriz_ipevar: { method: 'GET', path: '/gtc45' },
   matriz_pesv: { method: 'GET', path: '/pesv' },
@@ -179,7 +198,7 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
 
   let pathStr = typeof routeConfig.path === 'function' ? routeConfig.path(args) : routeConfig.path;
   let url = `${baseUrl}${pathStr}`;
-  const method = routeConfig.method;
+  const method = typeof routeConfig.method === 'function' ? routeConfig.method(args) : routeConfig.method;
 
   const headers = {
     'Content-Type': 'application/json',

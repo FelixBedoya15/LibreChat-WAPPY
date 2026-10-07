@@ -543,14 +543,18 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                             <button
                                 type="button"
                                 onClick={() => setShowMcpModal(true)}
-                                className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95"
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shrink-0"
                                 title="Conectar este perfil de empresa con Antigravity vía MCP"
                             >
                                 <Cpu className="h-4 w-4" />
                                 <span className="hidden sm:inline">Conectar Antigravity (MCP)</span>
                             </button>
-                            <button onClick={onClose} className="rounded-xl p-1.5 text-text-secondary hover:bg-surface-hover">
-                                <X className="h-5 w-5" />
+                            <button 
+                                onClick={onClose} 
+                                className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-2xs active:scale-95"
+                                title="Cerrar"
+                            >
+                                <X className="h-4 w-4" />
                             </button>
                         </div>
                     </div>
@@ -626,7 +630,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     </div>
                                     <button 
                                         onClick={() => handleActivateCompany(data._id!)}
-                                        className="bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold py-2 px-4 rounded-lg shadow-sm transition-colors whitespace-nowrap"
+                                        className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white whitespace-nowrap"
                                     >
                                         Activar esta Empresa
                                     </button>
@@ -660,7 +664,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                                 </div>
                                             )}
                                             <div className="flex-1 text-center md:text-left space-y-1">
-                                                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg active:scale-95 shrink-0">
+                                                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shrink-0">
                                                     <ImageIcon className="h-4 w-4" />
                                                     <span>SELECCIONAR IMAGEN</span>
                                                     <input 
@@ -995,14 +999,14 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                             </div>
                         )}
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex items-center gap-3">
                         <button
                             onClick={() => {
                                 const draftKey = `wappy_company_draft_${data._id || 'new'}`;
                                 localStorage.removeItem(draftKey);
                                 onClose();
                             }}
-                            className="rounded-xl border border-border-medium px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-hover"
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700"
                         >
                             {t('com_ui_cancel', 'Cancelar')}
                         </button>
@@ -1010,7 +1014,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                             onClick={() => handleSave()}
                             disabled={saving || !isFormValid}
                             title={!isFormValid ? `Faltan: ${missingFields.map(f => FIELD_LABELS[f] || f).join(', ')}` : ''}
-                            className="flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <Save className="h-4 w-4" />
                             {saving ? t('com_ui_saving', 'Guardando...') : t('com_ui_save', 'Guardar Empresa')}

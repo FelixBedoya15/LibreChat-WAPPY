@@ -31,9 +31,10 @@ export const McpAntigravityModal: React.FC<McpAntigravityModalProps> = ({ isOpen
           </div>
           <button
             onClick={onClose}
-            className="rounded-xl p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-2xs active:scale-95"
+            title="Cerrar"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -46,7 +47,7 @@ export const McpAntigravityModal: React.FC<McpAntigravityModalProps> = ({ isOpen
         <div className="flex items-center justify-end border-t border-slate-200/80 dark:border-zinc-800/80 px-6 py-3 bg-slate-50/50 dark:bg-zinc-900/50">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700"
           >
             Cerrar
           </button>
