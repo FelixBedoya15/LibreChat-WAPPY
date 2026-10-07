@@ -1,13 +1,14 @@
 ---
 name: skill-investigacion-accidentes
 description: Skill extraída del agente asistente_inv_at para soporte técnico.
-scope: agents
+scope: all
 triggers:
   - accidente de trabajo
   - furat
   - arbol de causas
   - investigar accidente
 ---
+
 
 🧠 ASISTENTE DE INVESTIGACIÓN DE ACCIDENTES DE TRABAJO 
 

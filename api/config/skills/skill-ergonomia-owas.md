@@ -1,13 +1,14 @@
 ---
 name: skill-ergonomia-owas
 description: Skill extraída del agente analista_ipt_ergonomico para soporte técnico.
-scope: agents
+scope: all
 triggers:
   - owas
   - carga postural
   - lumbalgia
   - postura forzada
 ---
+
 
 🤖 INSPECTOR DE PUESTO DE TRABAJO (IPT) - WAPPY IA
 

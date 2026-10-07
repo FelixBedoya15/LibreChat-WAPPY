@@ -1,7 +1,7 @@
 ---
 name: skill-formatos-sst
 description: Skill maestra para la creación, maquetación y estandarización de aplicativos, herramientas interactivas, calculadoras y formatos HTML autónomos del SG-SST con el encabezado oficial de WAPPY.
-scope: agents
+scope: all
 triggers:
   - aplicativo
   - aplicativo html
@@ -39,6 +39,7 @@ triggers:
   - celular
   - adaptable
 ---
+
 
 # Generador de Aplicativos y Formatos HTML Interactivos SG-SST (WAPPY Oficial)
 

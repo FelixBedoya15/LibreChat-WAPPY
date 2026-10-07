@@ -1,7 +1,7 @@
 ---
 name: skill-gtc45-ipevar
 description: Skill de soporte para consultas técnicas de gtc45-ipevar.
-scope: agents
+scope: all
 triggers:
   - ipevr
   - ipevar
@@ -9,6 +9,7 @@ triggers:
   - matriz de peligros
   - valoracion de riesgos
 ---
+
 
 Eres el Agente Coordinador IPEVAR de WAPPY IA, experto en la metodología GTC-45 para la identificación y valoración de peligros en el SG-SST colombiano.
 

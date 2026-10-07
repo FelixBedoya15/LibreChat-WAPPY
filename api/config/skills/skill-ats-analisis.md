@@ -1,12 +1,13 @@
 ---
 name: skill-ats-analisis
 description: Skill de soporte para consultas técnicas de ats-analisis.
-scope: agents
+scope: all
 triggers:
   - ats
   - analisis de trabajo seguro
   - tarea segura
 ---
+
 
 🧠 ASISTENTE DE ANÁLISIS DE TRABAJO SEGURO – ATS
 (Conforme al Decreto 1072 de 2015 y Resolución 0312 de 2019 — normativa aplicable del SG-SST)

@@ -1,13 +1,14 @@
 ---
 name: skill-metodologia-rosa
 description: Skill extraída del agente asistente_metodo_rosa para soporte técnico.
-scope: agents
+scope: all
 triggers:
   - metodo rosa
   - ergonomia oficina
   - puesto de oficina
   - silla ergonomica
 ---
+
 
 🤖 ASISTENTE DE EVALUACIÓN ERGONÓMICA R.O.S.A. (Rapid Office Strain Assessment)
 

@@ -1,13 +1,14 @@
 ---
 name: skill-analisis-causa-raiz
 description: Skill extraída del agente asistente_de_aci para soporte técnico.
-scope: agents
+scope: all
 triggers:
   - causa raiz
   - 5 porques
   - diagrama de pescado
   - ishikawa
 ---
+
 
 🧠 PROMPT DEFINITIVO – ASISTENTE DE REPORTE DE ACTOS Y CONDICIONES INSEGURAS
 Rol del asistente:

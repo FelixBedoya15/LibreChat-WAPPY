@@ -23,6 +23,22 @@ const DEFAULT_SKILL_TOOLS_MAP = {
   'skill-riesgo-psicosocial': ['consultar_analitica_psicosocial'],
   'skill-analitica-actos-condiciones': ['consultar_analitica_actos_condiciones'],
   'skill-informes-estadisticas': ['consultar_analitica_actos_condiciones'],
+  'skill-abogado-laboral': ['editor_rit', 'matriz_ipevar'],
+  'skill-medico-laboral': ['matriz_ipevar'],
+  'skill-profesional-sst': ['matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones'],
+  'skill-fisioterapeuta-laboral': ['matriz_ipevar'],
+  'skill-psicologo-sst': ['consultar_analitica_psicosocial', 'matriz_ipevar'],
+  'skill-auditor-sg-sst': ['matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones'],
+  'skill-coordinador-tareas-criticas': ['matriz_ipevar'],
+  'skill-coordinador-seguridad-vial': ['matriz_pesv', 'matriz_ipevar'],
+  'skill-ingeniero-quimico-sst': ['matriz_compatibilidad', 'matriz_ipevar'],
+  'skill-coordinador-emergencias': ['matriz_ipevar'],
+  'skill-ingeniero-electricista-sst': ['matriz_ipevar'],
+  'skill-especialista-bioseguridad': ['matriz_ipevar'],
+  'skill-ingeniero-minas-sst': ['matriz_ipevar'],
+  'skill-ingeniero-ambiental': ['matriz_ipevar', 'matriz_compatibilidad', 'consultar_analitica_actos_condiciones'],
+  'skill-especialista-riesgo-climatico': ['matriz_ipevar', 'consultar_analitica_actos_condiciones'],
+  'skill-redactor-creativo': ['blog_editor'],
 };
 
 /**
@@ -88,21 +104,24 @@ function getActiveSkillsData(lastUserMessageText, agentSkills) {
       const cleanText = lastUserMessageText.trim();
       if (!cleanText) continue;
 
+      const normClean = cleanText.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
       const matchesTrigger = triggers.some((trigger) => {
         if (!trigger || typeof trigger !== 'string') return false;
         const cleanTrigger = trigger.trim();
         if (!cleanTrigger) return false;
 
-        const escaped = cleanTrigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const normTrigger = cleanTrigger.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
         // Para triggers cortos (<= 4 caracteres) exigir coincidencia de palabra completa (\b)
         // para evitar falsos positivos como 'rit' dentro de 'escrita' o 'rag' dentro de 'estragos'.
         if (cleanTrigger.length <= 4) {
-          const regex = new RegExp(`\\b${escaped}\\b`, 'i');
-          return regex.test(cleanText);
+          const escapedNorm = normTrigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`\\b${escapedNorm}\\b`, 'i');
+          return regex.test(normClean);
         }
 
-        return cleanText.toLowerCase().includes(cleanTrigger.toLowerCase());
+        return normClean.includes(normTrigger);
       });
 
       if (matchesTrigger) {
