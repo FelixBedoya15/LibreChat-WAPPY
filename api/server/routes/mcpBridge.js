@@ -6355,6 +6355,145 @@ router.get('/clima/pronostico', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+// ─── 44. PUENTE BIDIRECCIONAL TENSHI <-> ANTIGRAVITY ───────────────────────
+// Permite que Tenshi (por voz o texto) envíe órdenes de trabajo e investigaciones
+// a Antigravity (en la máquina o entorno de trabajo del usuario), y que Antigravity
+// entregue los documentos generados (Word, Excel, PDF, Presentaciones, HTML)
+// de vuelta a Tenshi para reflejarlos en el chat.
+
+router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const company = await getActiveCompany(targetUserId);
+    const companyId = company ? String(company._id) : null;
+    const {
+      instruccion,
+      instruction,
+      tarea,
+      task,
+      carpeta_o_recurso,
+      folderPath,
+      tipo_entregable,
+      outputType,
+      titulo,
+      title,
+      prioridad,
+    } = req.body;
+
+    const finalTitle = titulo || title || `Orden Antigravity: ${(tarea || instruccion || 'Investigación / Procesamiento de Archivos').slice(0, 60)}`;
+    const finalDesc = instruccion || instruction || tarea || task || 'Procesar requerimiento delegado desde Tenshi.';
+    const finalResource = carpeta_o_recurso || folderPath || 'Google Drive / Entorno Local';
+    const finalOutputType = tipo_entregable || outputType || 'documento';
+
+    const kanbanTask = await KanbanTask.create({
+      user: targetUserId,
+      title: finalTitle,
+      description: `[DELEGADO POR TENSHI A ANTIGRAVITY]\nInstrucción: ${finalDesc}\nRecurso/Carpeta: ${finalResource}\nFormato esperado: ${finalOutputType}`,
+      status: 'todo',
+      dueDate: new Date(Date.now() + 2 * 3600 * 1000),
+      type: 'antigravity_delegation',
+      priority: prioridad || 'high',
+    });
+
+    logger.info(`[MCP Bridge] Orden para Antigravity creada (ID: ${kanbanTask._id}) para usuario ${targetUserId}`);
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: `Orden delegada con éxito a Antigravity. ID de seguimiento: ${kanbanTask._id}.`,
+      ordenId: kanbanTask._id.toString(),
+      detalles: {
+        titulo: finalTitle,
+        instruccion: finalDesc,
+        recursoObjetivo: finalResource,
+        formatoEntregable: finalOutputType,
+        estado: 'pendiente_en_cola_antigravity',
+        empresa: company?.companyName || 'Empresa Activa',
+      },
+      instruccionAntigravity: `Antigravity procesará "${finalTitle}" en tu equipo local / nube y entregará el archivo ${finalOutputType.toUpperCase()} a WAPPY para reflejarlo en este chat de Tenshi.`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error delegando orden a Antigravity:', error);
+    return res.status(500).json({ error: `Error delegando a Antigravity: ${error.message}` });
+  }
+});
+
+router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const { estado, status, limit } = req.query;
+
+    const query = {
+      user: targetUserId,
+      type: 'antigravity_delegation',
+    };
+
+    if (estado || status) {
+      query.status = estado || status;
+    }
+
+    const tasks = await KanbanTask.find(query)
+      .sort({ createdAt: -1 })
+      .limit(Number(limit) || 10)
+      .lean();
+
+    return res.json({
+      exito: true,
+      totalOrdenes: tasks.length,
+      ordenes: tasks.map(t => ({
+        id: t._id.toString(),
+        titulo: t.title,
+        descripcion: t.description,
+        estado: t.status,
+        prioridad: t.priority,
+        fechaCreacion: t.createdAt,
+      })),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error consultando órdenes de Antigravity:', error);
+    return res.status(500).json({ error: 'Error consultando órdenes de Antigravity.' });
+  }
+});
+
+router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const { ordenId, id, resultado, result, contenido, content, formato, fileType, urlDescarga, fileUrl } = req.body;
+
+    const targetId = ordenId || id;
+    if (!targetId) {
+      return res.status(400).json({ error: 'Debes proporcionar el ordenId a completar.' });
+    }
+
+    const task = await KanbanTask.findOne({ _id: targetId, user: targetUserId });
+    if (!task) {
+      return res.status(404).json({ error: 'Orden no encontrada.' });
+    }
+
+    task.status = 'done';
+    const completionNotes = resultado || result || contenido || content || 'Tarea completada por Antigravity.';
+    task.description += `\n\n[RESULTADO DE ANTIGRAVITY - ${new Date().toISOString()}]\n${completionNotes}`;
+    await task.save();
+
+    return res.json({
+      exito: true,
+      mensaje: `Orden ${targetId} completada exitosamente por Antigravity.`,
+      orden: {
+        id: task._id.toString(),
+        titulo: task.title,
+        status: task.status,
+      },
+      entregable: {
+        formato: formato || fileType || 'documento',
+        contenido: contenido || content || resultado || result,
+        urlDescarga: urlDescarga || fileUrl || null,
+      },
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error completando orden de Antigravity:', error);
+    return res.status(500).json({ error: `Error completando orden: ${error.message}` });
+  }
+});
+
 module.exports = router;
 
 

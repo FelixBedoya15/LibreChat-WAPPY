@@ -2364,6 +2364,49 @@ server.tool(
   }
 );
 
+// ─── 35. PUENTE DE DELEGACIÓN TENSHI <-> ANTIGRAVITY ───────────────────────
+server.tool(
+  'wappy_consultar_ordenes_delegadas_tenshi',
+  {
+    estado: z.string().optional().describe('Filtrar por estado: todo, in_progress, done'),
+    limit: z.number().optional().describe('Cantidad máxima de órdenes a retornar'),
+  },
+  async ({ estado, limit }) => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (estado) queryParams.set('estado', estado);
+      if (limit) queryParams.set('limit', String(limit));
+      const qs = queryParams.toString() ? `?${queryParams.toString()}` : '';
+      const data = await wappyRequest(`/antigravity/ordenes${qs}`, { method: 'GET' });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
+server.tool(
+  'wappy_completar_orden_delegada_tenshi',
+  {
+    ordenId: z.string().describe('ID de la orden delegada que Antigravity completó'),
+    resultado: z.string().describe('Resumen técnico del resultado de la investigación o desarrollo'),
+    contenido: z.string().optional().describe('Contenido del informe o documento generado (HTML, Word, texto, Markdown)'),
+    formato: z.string().optional().describe('Formato del entregable: word, excel, pdf, html, presentacion'),
+    urlDescarga: z.string().optional().describe('URL o enlace de descarga del archivo si fue subido a la nube o Drive'),
+  },
+  async ({ ordenId, resultado, contenido, formato, urlDescarga }) => {
+    try {
+      const data = await wappyRequest('/antigravity/completar', {
+        method: 'POST',
+        body: JSON.stringify({ ordenId, resultado, contenido, formato, urlDescarga }),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
   return server;
 }
 

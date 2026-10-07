@@ -1390,6 +1390,32 @@ class VoiceSession {
                                     }
                                 }
                             }
+                        },
+                        {
+                            name: "wappy_delegar_orden_antigravity",
+                            description: "Delega una orden de trabajo, investigación profunda o análisis de archivos locales a Google Antigravity en la computadora del usuario. Se utiliza cuando el usuario pide por voz a Tenshi que Antigravity investigue, revise carpetas locales de su computador o desarrolle entregables (Word, Excel, PDF, presentaciones, HTML) para luego reflejarlos en este chat de Tenshi.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    instruccion: {
+                                        type: "string",
+                                        description: "Instrucción o tarea detallada que Antigravity debe realizar."
+                                    },
+                                    carpeta_o_recurso: {
+                                        type: "string",
+                                        description: "Ruta de la carpeta local en el computador del usuario o Google Drive que Antigravity debe inspeccionar."
+                                    },
+                                    tipo_entregable: {
+                                        type: "string",
+                                        description: "Tipo de documento o entregable esperado: word, excel, pdf, presentacion, html o informe."
+                                    },
+                                    titulo: {
+                                        type: "string",
+                                        description: "Título descriptivo de la orden de trabajo."
+                                    }
+                                },
+                                required: ["instruccion"]
+                            }
                         }
                     ]
                 }

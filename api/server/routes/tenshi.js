@@ -491,7 +491,12 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
    - 'wappy_consultar_blog': Lista todos los artículos publicados en el blog, títulos, etiquetas y resúmenes.
    - 'wappy_leer_articulo_blog': Lee el texto íntegro y exhaustivo de cualquier artículo del blog para responder y enseñar a fondo.
 11. **ACTIVACIÓN TOTAL DE HERRAMIENTAS DE AGENTES ('wappy_activar_herramienta_agente')**:
-   - TIENES FACULTAD TOTAL para activar y ejecutar directamente cualquiera de las herramientas especializadas de los agentes ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario te pida abrir, activar o ejecutar la herramienta de un agente.`;
+   - TIENES FACULTAD TOTAL para activar y ejecutar directamente cualquiera de las herramientas especializadas de los agentes ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario te pida abrir, activar o ejecutar la herramienta de un agente.
+12. **DELEGACIÓN Y CONEXIÓN BIDIRECCIONAL CON ANTIGRAVITY ('wappy_delegar_orden_antigravity')**:
+   - Si el usuario te pide: "conéctate con Antigravity", "mira tal carpeta en mi computador", "hazme una investigación con Antigravity", "que Antigravity cree un documento (Word, Excel, PDF, presentación, HTML) y me lo mande al chat":
+   - SI LA TAREA INVOLUCRA GOOGLE DRIVE O BÚSQUEDA WEB: ¡Tú mismo puedes resolverla directamente con 'google_drive' y 'web_search'!
+   - PARA TAREAS QUE REQUIERAN ACCEDER A CARPETAS DEL COMPUTADOR PERSONAL DEL USUARIO O PROCESAMIENTO PESADO LOCAL: Invoca de inmediato 'wappy_delegar_orden_antigravity' con la instrucción, carpeta/recurso y formato de entregable deseado (word, excel, pdf, presentacion, html).
+   - Explícale al usuario con entusiasmo que la orden quedó registrada en la cola de Antigravity con su ID de seguimiento, y que en cuanto Antigravity lo procese en la máquina, el entregable se reflejará directamente en este chat.`;
 
         if (skillInstructions) {
             systemMessage += `\n\n${skillInstructions}`;
@@ -1512,6 +1517,33 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyDelegarOrdenAntigravityDeclaration = {
+                name: 'wappy_delegar_orden_antigravity',
+                description: 'Delega una orden de trabajo, investigación profunda o análisis de archivos locales a Google Antigravity en la computadora o entorno de trabajo del usuario. Se utiliza cuando el usuario pide a Tenshi que Antigravity investigue, revise carpetas locales de su computador o desarrolle entregables (Word, Excel, PDF, presentaciones, HTML) para luego reflejarlos en este chat de Tenshi.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        instruccion: {
+                            type: 'STRING',
+                            description: 'Instrucción o tarea detallada que Antigravity debe realizar (ej: "Analizar los informes de inspección de la carpeta X y redactar el balance consolidado").'
+                        },
+                        carpeta_o_recurso: {
+                            type: 'STRING',
+                            description: 'Ruta o nombre de la carpeta local en el computador del usuario o Google Drive que Antigravity debe inspeccionar (ej: "/Users/usuario/Inspecciones", "Carpeta SST").'
+                        },
+                        tipo_entregable: {
+                            type: 'STRING',
+                            description: 'Tipo de documento o entregable que Antigravity debe generar: word, excel, pdf, presentacion, html o informe.'
+                        },
+                        titulo: {
+                            type: 'STRING',
+                            description: 'Título descriptivo de la orden de trabajo.'
+                        }
+                    },
+                    required: ['instruccion']
+                }
+            };
+
             // Assemble base tools and dynamically triggered tools (strictly excluding Group 7)
             const baseFunctionDeclarations = [
                 wappyNavegarDeclaration,
@@ -1523,6 +1555,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyConsultarQuimicoPubchemDeclaration,
                 wappyGeocodificarEmergenciasDeclaration,
                 wappyConsultarClimaVientoDeclaration,
+                wappyDelegarOrdenAntigravityDeclaration,
                 wappyEnviarCorreoDeclaration,
                 wappyGestionarAgendaDeclaration,
                 googleCalendarDeclaration,

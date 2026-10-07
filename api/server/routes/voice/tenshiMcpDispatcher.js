@@ -226,6 +226,12 @@ const TOOL_ROUTES = {
     method: 'GET',
     path: (args) => `/clima/pronostico?latitude=${args.latitude || args.lat || 4.6097}&longitude=${args.longitude || args.lon || -74.0817}`,
   },
+
+  // 12. Puente de Delegación Tenshi <-> Antigravity
+  wappy_delegar_orden_antigravity: { method: 'POST', path: '/antigravity/delegar' },
+  delegar_orden_antigravity: { method: 'POST', path: '/antigravity/delegar' },
+  wappy_consultar_ordenes_antigravity: { method: 'GET', path: '/antigravity/ordenes' },
+  wappy_completar_orden_antigravity: { method: 'POST', path: '/antigravity/completar' },
 };
 
 async function executeTenshiMcpTool(toolName, args = {}, userId) {
