@@ -6557,14 +6557,19 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
     const finalResource = carpeta_o_recurso || folderPath || 'Google Drive / Entorno Local';
     const finalOutputType = tipo_entregable || outputType || 'documento';
 
+    const rawPriority = String(prioridad || 'alta').toLowerCase();
+    const finalPriority = (rawPriority === 'high' || rawPriority === 'alta') ? 'alta' : (rawPriority === 'low' || rawPriority === 'baja') ? 'baja' : 'media';
+
     const kanbanTask = await KanbanTask.create({
       user: targetUserId,
+      companyId: companyId,
       title: finalTitle,
       description: `[DELEGADO POR TENSHI A ANTIGRAVITY]\nInstrucción: ${finalDesc}\nRecurso/Carpeta: ${finalResource}\nFormato esperado: ${finalOutputType}`,
       status: 'todo',
       dueDate: new Date(Date.now() + 2 * 3600 * 1000),
       type: 'antigravity_delegation',
-      priority: prioridad || 'high',
+      priority: finalPriority,
+      sourceModule: 'tenshi_voice',
     });
 
     logger.info(`[MCP Bridge] Orden para Antigravity creada (ID: ${kanbanTask._id}) para usuario ${targetUserId}`);

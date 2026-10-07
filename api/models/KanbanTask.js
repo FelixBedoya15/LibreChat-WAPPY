@@ -52,13 +52,14 @@ const kanbanTaskSchema = new mongoose.Schema(
         'heights_inspection_finding',
         'copasst_finding',
         'convivencia_finding',
+        'antigravity_delegation',
         'other',
       ],
       default: 'manual',
     },
     priority: {
       type: String,
-      enum: ['alta', 'media', 'baja'],
+      enum: ['alta', 'media', 'baja', 'high', 'medium', 'low'],
       default: 'media',
     },
     actionType: {
