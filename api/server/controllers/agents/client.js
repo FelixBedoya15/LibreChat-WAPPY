@@ -482,7 +482,7 @@ SIEMPRE que crees, diseñes o modifiques un aplicativo interactivo, calculadora,
 - Si el usuario solicita que el aplicativo esté conectado a la IA, tenga asistente virtual, copilot, chat inteligente o interactúe con la información del aplicativo:
   1. Inyecta el botón flotante lanzador (\`#wappy-ai-toggle-btn\` en la esquina inferior derecha con badge y botón circular gradiente) y el drawer lateral/inferior responsive (\`#wappy-ai-chat-container\`, clase \`w-full sm:w-[420px] fixed bottom-0 right-0 sm:bottom-6 sm:right-6\`).
   2. Incluye el selector de modelos (\`#wappy-ai-model-select\`) con los modelos oficiales de WAPPY:
-     - \`gemini-3.6-flash\` (Predeterminado - Potente y Equilibrado SST)
+     - \`gemini-3.8-flash\` (Predeterminado - Potente y Equilibrado SST)
      - \`gemini-3.5-flash\` (Alta Velocidad)
      - \`gemini-3.5-flash-lite\` (Ultra Ligero)
   3. Contexto Dinámico (\`getAppCurrentContext()\`): El aplicativo debe recolectar en tiempo real los datos en pantalla (Razón Social, NIT, indicadores visibles de \`.metric-card\` o \`[data-metric]\`, filas de la tabla de datos o Google Sheets, filtros activos) y enviarlos en el payload como \`context\`.
@@ -1569,14 +1569,16 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         } catch (_e) {}
       }
 
-      let keys = [...userKeys];
+      let keys = [...userKeys]
+        .map((k) => geminiPoolManager.extractCleanApiKey(k))
+        .filter((k) => k && k !== 'user_provided');
 
       // If and ONLY IF user has no personal/company key, fall back to system environment keys or platform Super Admin key
       if (keys.length === 0) {
         const envKeys = [process.env.GOOGLE_KEY, process.env.GEMINI_API_KEY, process.env.GOOGLE_API_KEY]
           .filter(Boolean)
           .flatMap((k) => k.split(','))
-          .map((k) => k.trim())
+          .map((k) => geminiPoolManager.extractCleanApiKey(k))
           .filter((k) => k.length > 0 && k !== 'user_provided');
 
         for (const ek of envKeys) {
@@ -1589,8 +1591,9 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
           try {
             const { getSystemGoogleKey } = require('~/server/controllers/AdminMarketingController');
             const sysKey = await getSystemGoogleKey();
-            if (sysKey && !keys.includes(sysKey)) {
-              keys.push(sysKey);
+            const cleanSysKey = geminiPoolManager.extractCleanApiKey(sysKey);
+            if (cleanSysKey && !keys.includes(cleanSysKey)) {
+              keys.push(cleanSysKey);
             }
           } catch (_err) {
             logger.debug('[AgentClient] Fallback system key error:', _err?.message);
@@ -1605,7 +1608,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       // Build model fallback list from GOOGLE_MODELS env for quota/overload rotation
       // Exclude audio/live-only models: they return 404 for streamGenerateContent
       const isPublicChat = this.options.req?.body?.isPublicChat === true;
-      let defaultModels = 'gemini-3.5-flash-lite,gemini-3.5-flash,gemini-3.6-flash';
+      let defaultModels = 'gemini-3.5-flash-lite,gemini-3.5-flash,gemini-3.8-flash';
 
       if (isPublicChat) {
         defaultModels = 'gemini-3.5-flash-lite,gemini-3.5-flash';
@@ -1615,7 +1618,7 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean)
-        .filter((m) => !m.includes('native-audio') && !m.includes('live') && !m.includes('transcribe') && !m.includes('gemini-2.5') && !m.includes('gemini-3.7') && !m.includes('gemini-3.8'));
+        .filter((m) => !m.includes('native-audio') && !m.includes('live') && !m.includes('transcribe') && !m.includes('gemini-2.5') && !m.includes('gemini-3.7'));
       
       // WAPPY Brain Router: Caracterización y selección táctica de modelo según complejidad de herramientas y tarea
       let userQuery = (this.options.req?.body?.text || '').toLowerCase();
@@ -1680,29 +1683,29 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
         primaryAgentModel = 'gemini-3.5-flash-lite';
         rawFallbacks = ['gemini-3.5-flash-lite', 'gemini-3.5-flash'];
       } else if (userExplicitModel && userExplicitModel !== 'default' && userExplicitModel !== '') {
-        primaryAgentModel = (userExplicitModel === 'gemini-3.7-flash' || userExplicitModel === 'gemini-3.8-flash') ? 'gemini-3.6-flash' : userExplicitModel;
+        primaryAgentModel = (userExplicitModel === 'gemini-3.7-flash') ? 'gemini-3.8-flash' : userExplicitModel;
         rawFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
         logger.info(`[WAPPY Brain Router] Modelo explícito del usuario: "${primaryAgentModel}"`);
       } else if (isCanvasTask) {
         // Arquitectura de Dos Modelos: Agente orquestador rápido + CanvasTool potente
-        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash'];
+        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash'];
         primaryAgentModel = 'gemini-3.5-flash-lite';
         rawFallbacks = operationalModels;
         logger.info(`[WAPPY Brain Router] [DOS MODELOS] Tarea de Aplicativo/Canvas detectada. Orquestador: "${primaryAgentModel}" (500 RPD, baja latencia). CanvasTool delegará la síntesis de código.`);
       } else if (isComplexTask) {
         // Matrices Especializadas (IPEVAR, PESV, Química) y Redacción Documental:
         // Priorizar gemini-3.5-flash-lite por su consistencia sin sobrecargas 503, seguido de gemini-3.5-flash
-        const matrixModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash'];
-        if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe') || primaryAgentModel.includes('gemini-2.5') || primaryAgentModel.includes('gemini-3.7') || primaryAgentModel.includes('gemini-3.8')) {
-          primaryAgentModel = 'gemini-3.6-flash';
+        const matrixModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash'];
+        if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe') || primaryAgentModel.includes('gemini-2.5') || primaryAgentModel.includes('gemini-3.7')) {
+          primaryAgentModel = 'gemini-3.8-flash';
         }
         rawFallbacks = [primaryAgentModel, ...matrixModels.filter((m) => m !== primaryAgentModel)];
         logger.info(`[WAPPY Brain Router] [MATRIZ / DOCS] Tarea estructurada detectada. Modelo prioritario: "${primaryAgentModel}"`);
       } else {
         // Tarea Operativa / Rápida:
         // Herramientas: Google Sheets (CRUD), Docs, Slides, Gmail, Calendar, Drive, Automatizaciones, Analíticas, Consultas Normativas, Chat General.
-        // Prioridad: gemini-3.5-flash-lite (500 RPD por llave, ultra rápido) -> gemini-3.5-flash -> 3.6
-        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash'];
+        // Prioridad: gemini-3.5-flash-lite (500 RPD por llave, ultra rápido) -> gemini-3.5-flash -> 3.8
+        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash'];
         primaryAgentModel = 'gemini-3.5-flash-lite';
         rawFallbacks = operationalModels;
         logger.info(`[WAPPY Brain Router] [OPERATIVA / RÁPIDA] Tarea Sheets/Docs/Consultas detectada. Modelo prioritario: "${primaryAgentModel}" (500 RPD, baja latencia)`);

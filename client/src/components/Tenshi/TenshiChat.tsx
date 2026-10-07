@@ -1812,6 +1812,42 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               setIsOpen(true);
             }
             resultMsg = `Código QR para "${qrData.titulo || 'Formulario'}" entregado en el chat.`;
+          } else if (action.name === 'wappy_delegar_orden_antigravity' || action.name === 'delegar_orden_antigravity') {
+            const res = (action as any).result || {};
+            const entregable = res.entregable || {};
+            const titulo = entregable.titulo || action.args?.titulo || 'Informe Antigravity';
+            const contenido = entregable.contenido || res.resultado || '';
+            const formato = entregable.formato || action.args?.tipo_entregable || 'text';
+
+            if (contenido) {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: 'assistant',
+                  content: `⚡ **${titulo}**\n\n${contenido}`,
+                  file: {
+                    title: titulo,
+                    fileType: formato === 'word' || formato === 'documento' ? 'text' : formato,
+                    content: contenido,
+                    canvasId: `antigravity-report-${Date.now()}`,
+                  },
+                },
+              ]);
+              setIsOpen(true);
+
+              if (window.location.pathname.startsWith('/c/')) {
+                setStreamingCanvas({
+                  id: `antigravity-${Date.now()}`,
+                  title: titulo,
+                  fileType: formato === 'word' || formato === 'documento' ? 'text' : formato,
+                  content: contenido,
+                  messageId: '',
+                  isStreaming: false,
+                });
+                setIsCanvasActive(true);
+              }
+            }
+            resultMsg = `Entregable de Antigravity "${titulo}" completado y presentado en el chat de Tenshi.`;
           }
         } catch (e: any) {
           resultMsg = `Error ejecutando acción: ${e.message}`;

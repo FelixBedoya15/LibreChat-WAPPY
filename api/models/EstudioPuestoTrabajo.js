@@ -64,7 +64,7 @@ const estudioPuestoTrabajoSchema = new mongoose.Schema(
     },
     modelUsed: {
       type: String,
-      default: 'gemini-3.6-flash',
+      default: 'gemini-3.8-flash',
     },
     // Biomechanical telemetry & scores
     telemetry: {

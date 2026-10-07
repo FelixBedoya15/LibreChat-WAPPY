@@ -346,6 +346,24 @@ const VoiceModal: FC<VoiceModalProps> = ({
                         setCurrentPhaseIndex(targetIdx);
                     }
                 }
+            } else if (action.name === 'wappy_delegar_orden_antigravity' || action.name === 'delegar_orden_antigravity') {
+                const res = (action as any).result || {};
+                const entregable = res.entregable || {};
+                const titulo = entregable.titulo || action.args?.titulo || 'Informe Técnico Antigravity';
+                const contenido = entregable.contenido || res.resultado || '';
+                const formato = entregable.formato || action.args?.tipo_entregable || 'text';
+
+                if (contenido && contenido.length > 20) {
+                    setStreamingCanvas({
+                        id: `antigravity-${Date.now()}`,
+                        title: titulo,
+                        fileType: formato === 'word' || formato === 'documento' ? 'text' : formato,
+                        content: contenido,
+                        messageId: '',
+                        isStreaming: false,
+                    });
+                    setIsCanvasActive(true);
+                }
             }
         },
 

@@ -89,7 +89,11 @@ mcp = FastMCP(
     instructions=(
         "Drive Google NotebookLM / Gemini Notebook. Ground answers in source documents "
         "with verifiable citations, generate educational studio artifacts (podcasts, quizzes, "
-        "flashcards, mind maps, reports), and manage notebooks and sources."
+        "flashcards, mind maps, reports), and manage notebooks and sources.\n\n"
+        "REGLA OBLIGATORIA PARA AGENTES:\n"
+        "Al ejecutar 'chat_ask', NUNCA respondas diciendo simplemente 'he procesado tu consulta' "
+        "o confirmaciones vacías. DEBES entregar de inmediato y en su totalidad la respuesta ('answer') "
+        "y sus citas ('citations') al usuario en ese mismo mensaje, con formato claro y estructurado."
     )
 )
 
@@ -430,11 +434,22 @@ async def chat_ask(
                 "score": getattr(ref, "score", None),
             })
 
+        # Construir respuesta formateada completa con fuentes al pie
+        formatted_answer = answer_text.strip()
+        if citations:
+            formatted_answer += "\n\n### 📚 Fuentes y Citas Normativas Consultadas:\n"
+            for ref in citations:
+                c_num = ref.get("citation")
+                c_text = ref.get("cited_text")
+                if c_num and c_text:
+                    formatted_answer += f"- **[{c_num}]**: _{c_text.strip()}_\n"
+
         return {
             "notebook_id": nb_id,
             "query": user_query,
-            "answer": answer_text,
+            "answer": formatted_answer,
             "citations": citations,
+            "result_markdown": formatted_answer,
             "conversation_id": getattr(res, "conversation_id", None),
         }
     except Exception as e:

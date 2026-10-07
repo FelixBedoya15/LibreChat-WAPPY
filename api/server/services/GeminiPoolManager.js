@@ -22,8 +22,8 @@ class GeminiPoolManager {
     /** @type {Map<string, number>} `${apiKey}_${model}` -> timestampExpiresAt (midnight Pacific) */
     this.dailyExhausted = new Map();
 
-    /** @type {Set<string>} Claves API inválidas o revocadas (400) en cuarentena permanente */
-    this.invalidKeys = new Set();
+    /** @type {Map<string, number>} apiKey -> timestampExpiresAt para claves con 400 temporal */
+    this.invalidKeys = new Map();
   }
 
   /**
@@ -60,14 +60,47 @@ class GeminiPoolManager {
   }
 
   /**
+   * Extrae la clave limpia en caso de venir embebida en JSON o con comillas
+   * @param {string} rawKey
+   * @returns {string}
+   */
+  extractCleanApiKey(rawKey) {
+    if (!rawKey || typeof rawKey !== 'string') return '';
+    let str = rawKey.trim();
+    if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+      str = str.slice(1, -1).trim();
+    }
+    if (str.startsWith('{') || str.startsWith('[')) {
+      try {
+        const obj = JSON.parse(str);
+        if (typeof obj === 'object' && obj !== null) {
+          str = (
+            obj.apiKey ||
+            obj.GOOGLE_API_KEY ||
+            obj.GOOGLE_KEY ||
+            obj.GEMINI_API_KEY ||
+            obj.googleKey ||
+            obj.key ||
+            Object.values(obj).find((v) => typeof v === 'string' && (v.startsWith('AIza') || v.length > 20)) ||
+            Object.values(obj)[0] ||
+            ''
+          );
+        }
+      } catch (_) {}
+    }
+    return typeof str === 'string' ? str.trim() : '';
+  }
+
+  /**
    * Enmascara una clave API para logs seguros (ej. "AIza...4b1f")
    * @param {string} key
    * @returns {string}
    */
   maskKey(key) {
     if (!key || typeof key !== 'string') return 'null';
-    if (key.length <= 8) return '****';
-    return `${key.slice(0, 4)}...${key.slice(-4)}`;
+    const clean = this.extractCleanApiKey(key);
+    if (clean.length <= 8) return '****';
+    return `${clean.slice(0, 4)}...${clean.slice(-4)}`;
   }
 
   /**
@@ -82,7 +115,7 @@ class GeminiPoolManager {
    * 4. Retorna `[...readyRotadas, ...cooling, ...exhausted]`.
    *
    * @param {Array<string>} keys - Lista cruda de API Keys del usuario/entorno
-   * @param {string} model - Nombre del modelo a consultar (ej. "gemini-3.6-flash")
+   * @param {string} model - Nombre del modelo a consultar (ej. "gemini-3.8-flash")
    * @param {string} [userId='global'] - Identificador del usuario para Round-Robin por sesión
    * @returns {Array<string>} Lista reordenada de claves API
    */
@@ -91,23 +124,14 @@ class GeminiPoolManager {
       return [];
     }
 
-    const cleanKeys = keys.filter((k) => typeof k === 'string' && k.trim().length > 0);
-    // Filtrar llaves que hayan arrojado 400 Bad Request (API_KEY_INVALID), salvo que todas lo sean
-    const validKeys = cleanKeys.filter((k) => !this.invalidKeys.has(k));
-    const candidateKeys = validKeys.length > 0 ? validKeys : cleanKeys;
-
-    if (candidateKeys.length <= 1) {
-      return candidateKeys;
-    }
-
     const now = Date.now();
-    const cleanUserId = (typeof userId === 'object' && userId !== null)
-      ? (userId.id || userId._id || userId.userId || 'global')
-      : (typeof userId === 'string' ? userId : 'global');
-
-    const cleanModel = (model || '').toLowerCase().trim();
 
     // 1. Limpieza de expirados
+    for (const [key, expiresAt] of this.invalidKeys.entries()) {
+      if (expiresAt <= now) {
+        this.invalidKeys.delete(key);
+      }
+    }
     for (const [key, expiresAt] of this.keyCooldowns.entries()) {
       if (expiresAt <= now) {
         this.keyCooldowns.delete(key);
@@ -118,6 +142,24 @@ class GeminiPoolManager {
         this.dailyExhausted.delete(keyModel);
       }
     }
+
+    const cleanKeys = keys
+      .map((k) => this.extractCleanApiKey(k))
+      .filter((k) => typeof k === 'string' && k.length > 0 && k !== 'user_provided');
+
+    // Filtrar llaves que hayan arrojado 400 Bad Request recientemente, salvo que todas lo sean
+    const validKeys = cleanKeys.filter((k) => !this.invalidKeys.has(k) || this.invalidKeys.get(k) <= now);
+    const candidateKeys = validKeys.length > 0 ? validKeys : cleanKeys;
+
+    if (candidateKeys.length <= 1) {
+      return candidateKeys;
+    }
+
+    const cleanUserId = (typeof userId === 'object' && userId !== null)
+      ? (userId.id || userId._id || userId.userId || 'global')
+      : (typeof userId === 'string' ? userId : 'global');
+
+    const cleanModel = (model || '').toLowerCase().trim();
 
     // 2. Clasificación de llaves
     const readyKeys = [];
@@ -193,21 +235,23 @@ class GeminiPoolManager {
     if (!key || typeof key !== 'string') return;
 
     const { status, message = '', retryDelayMs, isDailyLimit } = info;
+    const cleanKey = this.extractCleanApiKey(key);
     const cleanModel = (model || '').toLowerCase().trim();
-    const masked = this.maskKey(key);
+    const masked = this.maskKey(cleanKey || key);
     const msg = message.toLowerCase();
 
-    // 0. Detección de Clave Inválida o Revocada (400 Bad Request / API_KEY_INVALID)
-    const isInvalidKey = status === 400 ||
+    // 0. Detección de Clave Inválida o Revocada (SOLO si Google especifica error de clave API)
+    const isInvalidKey =
       msg.includes('api_key_invalid') ||
       msg.includes('api key not valid') ||
       msg.includes('invalid api key') ||
       msg.includes('api_key_expired');
 
     if (isInvalidKey) {
-      this.invalidKeys.add(key);
+      // Cooldown de 5 minutos en lugar de baneo permanente
+      this.invalidKeys.set(cleanKey, Date.now() + 5 * 60 * 1000);
       logger.error(
-        `[GeminiPoolManager] [CircuitBreaker] Llave ${masked} INVÁLIDA O REVOCADA (400). Aislada en cuarentena para no retrasar futuras peticiones.`
+        `[GeminiPoolManager] [CircuitBreaker] Llave ${masked} en pausa temporal de 5m por error de clave (400).`
       );
       return;
     }
