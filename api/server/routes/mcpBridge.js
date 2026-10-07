@@ -5739,6 +5739,259 @@ El presente informe consolida el dictamen técnico y estado del módulo **${targ
   }
 });
 
+// ─── 38. GENERACIÓN DE CÓDIGOS QR PARA COLABORADORES ──────────────────────────
+router.post(['/qr/generate', '/qr'], requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const company = await getActiveCompany(targetUserId);
+    if (!company) {
+      return res.status(404).json({ error: 'No se encontró la empresa activa para generar el QR.' });
+    }
+
+    const { tipo, type, modulo, module: modParam, cedula } = req.body || {};
+    const rawTipo = String(tipo || type || modulo || modParam || 'actos_condiciones').toLowerCase().trim();
+
+    // Determinar origen público de la aplicación
+    const reqOrigin = req.get('origin') || req.get('referer');
+    let baseUrl = process.env.DOMAIN_CLIENT || process.env.APP_URL;
+    if (!baseUrl && reqOrigin) {
+      try {
+        const parsed = new URL(reqOrigin);
+        baseUrl = parsed.origin;
+      } catch (_) {}
+    }
+    if (!baseUrl) {
+      baseUrl = 'https://wappy.com.co';
+    }
+    baseUrl = baseUrl.replace(/\/+$/, '');
+
+    const companyId = company._id.toString();
+
+    let path = `/sgsst-public/reportar/${companyId}`;
+    let titulo = 'Reporte de Actos y Condiciones Inseguras';
+    let descripcion = 'Permite a los trabajadores reportar peligros, actos inseguros y condiciones de riesgo en tiempo real desde el celular.';
+
+    if (rawTipo.includes('animo') || rawTipo.includes('psicosocial') || rawTipo.includes('termometro') || rawTipo.includes('clima') || rawTipo.includes('mental')) {
+      path = `/sgsst-public/animo/${companyId}`;
+      titulo = 'Termómetro Psicosocial & Clima Laboral';
+      descripcion = 'Check-in anónimo y confidencial para medir el bienestar emocional, estrés y salud mental de los colaboradores.';
+    } else if (rawTipo.includes('estudio') || rawTipo.includes('puesto')) {
+      path = `/sgsst-public/estudio-puesto/${companyId}`;
+      titulo = 'Auto-Reporte para Estudio de Puesto de Trabajo';
+      descripcion = 'Recolección de datos ergonómicos y molestias musculoesqueléticas por puesto de trabajo.';
+    } else if (rawTipo.includes('ipevar') || rawTipo.includes('gtc45') || rawTipo.includes('peligro')) {
+      path = `/sgsst-public/ipevar/${companyId}`;
+      titulo = 'Participación de Colaboradores en Matriz IPEVR (GTC-45)';
+      descripcion = 'Consulta y reporte de peligros directamente en la identificación y valoración de riesgos.';
+    } else if (rawTipo.includes('perfil') || rawTipo.includes('salud') || rawTipo.includes('sociodemo')) {
+      path = `/sgsst-public/perfil-update/${companyId}`;
+      titulo = 'Actualización de Perfil Sociodemográfico & Condiciones de Salud';
+      descripcion = 'Encuesta de condiciones de salud y variables sociodemográficas obligatoria para el SG-SST.';
+    } else if (rawTipo.includes('atel') || rawTipo.includes('testimonio') || rawTipo.includes('accidente')) {
+      path = `/sgsst-public/atel-testimonio/${companyId}`;
+      titulo = 'Testimonios y Evidencias para Investigación ATEL';
+      descripcion = 'Recepción de declaraciones y fotos de testigos en accidentes de trabajo o incidentes.';
+    } else if (rawTipo.includes('colaborador') || rawTipo.includes('portal') || rawTipo.includes('hub')) {
+      path = `/sgsst-public/colaborador/${companyId}${cedula ? `/${encodeURIComponent(cedula)}` : ''}`;
+      titulo = 'Portal Integral del Colaborador WAPPY';
+      descripcion = 'Acceso unificado para el trabajador a todas sus gestiones de seguridad, EPP, inducción y reportes.';
+    } else if (rawTipo.includes('vehi') || rawTipo.includes('pesv') || rawTipo.includes('inspeccion_veh')) {
+      path = `/sgsst-public/inspeccion-vehicular/${companyId}`;
+      titulo = 'Inspección Prequirúrgica Vehicular (PESV)';
+      descripcion = 'Checklist diario preoperacional para conductores y vehículos según el PESV.';
+    } else if (rawTipo.includes('epp')) {
+      path = `/sgsst-public/solicitud-epp/${companyId}`;
+      titulo = 'Solicitud y Reposición de EPP';
+      descripcion = 'Formulario público para solicitud inmediata de elementos de protección personal.';
+    } else if (rawTipo.includes('copasst') || rawTipo.includes('comite') || rawTipo.includes('brigad')) {
+      path = `/sgsst-public/comites/${companyId}`;
+      titulo = 'Gestión Pública de Comités & Brigadas';
+      descripcion = 'Acceso para miembros del COPASST, Convivencia y Brigada de Emergencia.';
+    } else if (rawTipo.includes('votacion') || rawTipo.includes('eleccion')) {
+      path = `/sgsst-public/votaciones/${companyId}`;
+      titulo = 'Votaciones Electrónicas COPASST / Convivencia';
+      descripcion = 'Papeleta virtual de votación transparente para representantes de los trabajadores.';
+    } else if (rawTipo.includes('lms') || rawTipo.includes('curso') || rawTipo.includes('aprendizaje') || rawTipo.includes('capacita')) {
+      path = `/sgsst-public/ruta-aprendizaje/${companyId}`;
+      titulo = 'Ruta de Aprendizaje y Capacitaciones Virtuales';
+      descripcion = 'Acceso a cursos virtuales y micro-aprendizajes de SST con certificación automática.';
+    }
+
+    const publicUrl = `${baseUrl}${path}`;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(publicUrl)}`;
+
+    return res.json({
+      exito: true,
+      tipo: rawTipo,
+      titulo,
+      descripcion,
+      url: publicUrl,
+      qrImageUrl,
+      empresa: company.companyName || 'Empresa Activa',
+      nit: company.nit || 'N/A',
+      instrucciones: `Escanea este código QR con la cámara de tu celular o ingresa directamente al enlace para acceder a "${titulo}".`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error generando código QR:', error);
+    return res.status(500).json({ error: `Error generando código QR: ${error.message}` });
+  }
+});
+
+// ─── 39. ANALÍTICA DE TELEMETRÍA PSICOSOCIAL Y ÁNIMO ─────────────────────────
+router.get(['/analitica/psicosocial', '/analitica/animo'], requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const company = await getActiveCompany(targetUserId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada.' });
+    }
+
+    const MoodTelemetry = require('~/models/MoodTelemetry');
+    const records = await MoodTelemetry.find({ companyId: company._id }).sort({ createdAt: -1 }).lean();
+
+    const total = records.length;
+    let happy = 0;
+    let neutral = 0;
+    let sad = 0;
+    const stressorsMap = {};
+    const departmentMap = {};
+
+    records.forEach((r) => {
+      if (r.mood === 'happy') happy++;
+      else if (r.mood === 'neutral') neutral++;
+      else if (r.mood === 'sad') sad++;
+
+      if (Array.isArray(r.stressors)) {
+        r.stressors.forEach((s) => {
+          stressorsMap[s] = (stressorsMap[s] || 0) + 1;
+        });
+      }
+
+      const dep = (r.department || 'Sin especificar').trim();
+      departmentMap[dep] = (departmentMap[dep] || 0) + 1;
+    });
+
+    const stressorLabels = {
+      sobrecarga: 'Sobrecarga de trabajo',
+      liderazgo: 'Clima laboral / Liderazgo',
+      entorno: 'Entorno físico y herramientas',
+      personal: 'Asuntos personales / familiares',
+      funciones: 'Falta de claridad en rol',
+      fatiga: 'Fatiga física y agotamiento',
+    };
+
+    const estresoresRanking = Object.entries(stressorsMap)
+      .map(([key, count]) => ({ factor: stressorLabels[key] || key, count, porcentaje: total > 0 ? Math.round((count / total) * 100) : 0 }))
+      .sort((a, b) => b.count - a.count);
+
+    const departamentosRanking = Object.entries(departmentMap)
+      .map(([depto, count]) => ({ depto, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const happyPct = total > 0 ? Math.round((happy / total) * 100) : 0;
+    const neutralPct = total > 0 ? Math.round((neutral / total) * 100) : 0;
+    const sadPct = total > 0 ? Math.round((sad / total) * 100) : 0;
+
+    let nivelRiesgo = 'Bajo';
+    if (sadPct > 30) nivelRiesgo = 'Crítico / Muy Alto';
+    else if (sadPct > 15) nivelRiesgo = 'Medio / En Alerta';
+
+    return res.json({
+      exito: true,
+      empresa: company.companyName,
+      totalCheckins: total,
+      nivelRiesgoGlobal: nivelRiesgo,
+      distribucion: {
+        feliz: { total: happy, porcentaje: happyPct },
+        neutral: { total: neutral, porcentaje: neutralPct },
+        estresado_triste: { total: sad, porcentaje: sadPct },
+      },
+      estresoresPrincipales: estresoresRanking.slice(0, 5),
+      distribucionPorArea: departamentosRanking.slice(0, 5),
+      ultimosCasos: records.slice(0, 5).map((r) => ({
+        fecha: r.createdAt,
+        mood: r.mood,
+        department: r.department || 'General',
+        resumen: r.details || 'Check-in registrado',
+      })),
+      dictamenTecnicoSST: `Evaluación de clima y salud mental con base en ${total} check-ins. Nivel de riesgo global: ${nivelRiesgo}. Se recomienda enfocar intervenciones en pausas activas y balance de carga laboral.`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error consultando analítica psicosocial:', error);
+    return res.status(500).json({ error: `Error consultando analítica: ${error.message}` });
+  }
+});
+
+// ─── 40. ANALÍTICA DE REPORTES DE ACTOS Y CONDICIONES INSEGURAS ──────────────
+router.get('/analitica/actos-condiciones', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const company = await getActiveCompany(targetUserId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada.' });
+    }
+
+    const doc = await ReporteActosData.findOne({ $or: [{ companyId: company._id }, { user: targetUserId }] }).lean();
+    const reportes = doc?.inboxPublico || [];
+    const total = reportes.length;
+
+    let actos = 0;
+    let condiciones = 0;
+    let riesgoAlto = 0;
+    let riesgoMedio = 0;
+    let riesgoBajo = 0;
+    const sedesMap = {};
+    const areasMap = {};
+
+    reportes.forEach((r) => {
+      const data = r.data || {};
+      const tipo = (data.tipo || '').toLowerCase();
+      if (tipo.includes('acto')) actos++;
+      else condiciones++;
+
+      const nivel = (data.nivelRiesgo || '').toLowerCase();
+      if (nivel.includes('alto') || nivel.includes('crit')) riesgoAlto++;
+      else if (nivel.includes('bajo')) riesgoBajo++;
+      else riesgoMedio++;
+
+      const sede = (data.sede || 'Principal').trim();
+      const area = (data.area || 'Operativa').trim();
+      sedesMap[sede] = (sedesMap[sede] || 0) + 1;
+      areasMap[area] = (areasMap[area] || 0) + 1;
+    });
+
+    return res.json({
+      exito: true,
+      empresa: company.companyName,
+      totalReportes: total,
+      desgloseTipo: {
+        actosInseguros: { total: actos, porcentaje: total > 0 ? Math.round((actos / total) * 100) : 0 },
+        condicionesInseguras: { total: condiciones, porcentaje: total > 0 ? Math.round((condiciones / total) * 100) : 0 },
+      },
+      desgloseNivelRiesgo: {
+        alto: riesgoAlto,
+        medio: riesgoMedio,
+        bajo: riesgoBajo,
+      },
+      sedesFrecuentes: Object.entries(sedesMap).map(([sede, count]) => ({ sede, count })).sort((a, b) => b.count - a.count),
+      areasFrecuentes: Object.entries(areasMap).map(([area, count]) => ({ area, count })).sort((a, b) => b.count - a.count),
+      ultimosReportes: reportes.slice(-5).reverse().map((r) => ({
+        id: r.id || r._id,
+        trabajador: r.trabajador?.nombre || 'Anónimo',
+        tipo: r.data?.tipo,
+        descripcion: r.data?.descripcion,
+        riesgo: r.data?.nivelRiesgo,
+        fecha: r.data?.fecha || r.createdAt,
+      })),
+      recomendacionSST: `Total de reportes recibidos: ${total}. Priorizar inspecciones en áreas con condición de riesgo alto y retroalimentar a los trabajadores en conductas seguras.`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error consultando analítica de actos y condiciones:', error);
+    return res.status(500).json({ error: `Error consultando analítica: ${error.message}` });
+  }
+});
+
 module.exports = router;
+
 
 

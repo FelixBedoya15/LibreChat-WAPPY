@@ -137,6 +137,7 @@ router.get('/history', requireJwtAuth, async (req, res) => {
             content: m.content,
             htmlReport: m.htmlReport,
             file: m.file,
+            qrCode: m.qrCode,
             createdAt: m.createdAt,
         })));
     } catch (error) {
@@ -147,7 +148,7 @@ router.get('/history', requireJwtAuth, async (req, res) => {
 
 router.post('/message', requireJwtAuth, async (req, res) => {
     try {
-        const { role = 'assistant', content, htmlReport, file } = req.body;
+        const { role = 'assistant', content, htmlReport, file, qrCode } = req.body;
         if (!content || !content.trim()) {
             return res.status(400).json({ error: 'Content is required' });
         }
@@ -157,6 +158,7 @@ router.post('/message', requireJwtAuth, async (req, res) => {
             content: content.trim(),
             htmlReport,
             file,
+            qrCode,
         });
         res.json(newMsg);
     } catch (error) {
@@ -234,6 +236,8 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         }
 
         let capturedHtmlReport = null;
+        let capturedQrCode = null;
+        let capturedFile = null;
         let requestedGuiAction = null;
         let requestedGuiActions = null;
 
@@ -431,20 +435,34 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
 
 ### ⚡ DIRECTIVAS CRÍTICAS DE VELOCIDAD, ORQUESTACIÓN Y HERRAMIENTAS:
 1. **RESPUESTAS INMEDIATAS A PREGUNTAS TEÓRICAS/CONCEPTUALES**: Si el usuario te hace preguntas conceptuales, definiciones teóricas (ej: "¿qué es SST?", "¿qué es un ATS?", "¿cuáles son las obligaciones del empleador?"), saludos o preguntas generales, RESPONDE DIRECTAMENTE EN TEXTO en 1 solo turno de forma concisa y alegre. ¡ESTÁ PROHIBIDO invocar herramientas como 'somos_sst' o 'resumen_empresa' para responder preguntas teóricas!
-2. **ORQUESTACIÓN TOTAL DESDE TENSHI (SIN ABRIR CHATS EXTERNOS)**:
+2. **ORQUESTACIÓN TOTAL Y AUTONOMÍA DESDE TENSHI (SIN ABRIR CHATS EXTERNOS)**:
    - Eres la Directora de Orquesta Central de WAPPY. Tienes TERMINANTEMENTE PROHIBIDO abrir nuevos chats (/c/new) o decirle al usuario que vaya a hablar con otro agente.
-   - Cuando el usuario te pida un informe o dictamen técnico (médico, legal, auditoría, PESV, etc.), TÚ MISMA lo generas y lo entregas DIRECTAMENTE en el chat de Tenshi.
-   - Si requieres consultar a un especialista en segundo plano para fundamentar tu respuesta, invoca 'consultar_agente_especializado' internamente.
+   - AUTONOMÍA TOTAL: Tenshi posee en su núcleo todo el conocimiento y habilidades de todos los 26 agentes especialistas (Médico Laboral, Abogado Laboral, Psicólogo SST, Auditor, etc.).
+   - Si el usuario dice "conéctate a un agente", "pásame al especialista", "quiero preguntarle a un agente" o hace una consulta técnica, TENSHI TOMA LA DECISIÓN DE RESPONDER ÉL SOLO DIRECTAMENTE con sus propias habilidades y normatividad, sin necesidad de conectarse ni desviar la conversación.
+   - Solo si el usuario insiste en "obtener el concepto del especialista X", Tenshi invoca 'consultar_agente_especializado' internamente en segundo plano y entrega el dictamen directamente en este chat.
+   - APERTURA DE NUEVOS CHATS ('wappy_abrir_chat_agente'): ÚNICAMENTE permitida si el usuario dice literalmente: "abre un chat con X agente" o "quiero un chat nuevo con X".
 3. **GENERACIÓN Y ENTREGA DE INFORMES EN EL CHAT DE TENSHI ('wappy_crear_informe' y 'canvas_tool')**:
    - Cuando el usuario te pida crear, redactar o entregar un informe técnico, INVOCA 'wappy_crear_informe' o 'canvas_tool' con formato HTML, Word o Excel y contenido técnico formal (citando Decreto 1072 de 2015, Res. 0312 de 2019, hallazgos y plan de mejora).
    - El informe se entrega directamente en el chat de Tenshi con visualizador y botones de descarga.
-4. **ENVÍO DE CORREOS ELECTRÓNICOS ('wappy_enviar_correo')**:
+4. **DOCUMENTOS EN WORD Y APLICATIVOS INTERACTIVOS EN CANVAS ('canvas_tool')**:
+   - Si el usuario te pide: "créame un documento en Word", "hazme un documento en Word", INVOCA 'canvas_tool' con fileType: 'text' redactando el documento formal completo en el lienzo.
+   - Si el usuario te pide: "créame un aplicativo", "hazme un aplicativo", "crea una calculadora interactiva", "crea un simulador", INVOCA 'canvas_tool' con fileType: 'html' redactando el aplicativo interactivo HTML5 con Tailwind CSS completo en una sola página.
+   - Todo se procesa por detrás y se entrega directamente en el panel y en el chat de Tenshi con botones de descarga y visualización, SIN ABRIR NINGÚN CHAT NUEVO.
+5. **CÓDIGOS QR PARA COLABORADORES ('wappy_generar_qr')**:
+   - Si el usuario te pide: "deseo hacer un reporte de actos y condiciones inseguras", "mándame el QR de actos", "quiero hacer el termómetro psicosocial", "mándame el QR para el trabajador", "mándame el QR de inspección vehicular", "mándame el QR del colaborador":
+   - INVOCA DE INMEDIATO 'wappy_generar_qr' con tipo: 'actos_condiciones', 'termometro_psicosocial' o el módulo correspondiente.
+   - El sistema entregará la tarjeta interactiva con la imagen del código QR y su enlace directo en el chat de Tenshi. Confírmale al usuario con entusiasmo que ya se lo dejaste en el chat listo para escanear o compartir por WhatsApp con sus trabajadores.
+6. **LECTURA DE ANALÍTICA DE RESULTADOS ('wappy_consultar_analitica_psicosocial' y 'wappy_consultar_analitica_actos_condiciones')**:
+   - Cuando el usuario te pida: "lee la analítica de los resultados", "cómo van los resultados del termómetro psicosocial", "cuántos actos y condiciones hay", "qué dicen las estadísticas de seguridad":
+   - INVOCA DE INMEDIATO la herramienta de analítica correspondiente.
+   - Analiza las métricas reales (porcentajes de satisfacción/estrés, estresores principales, nivel de riesgo global o proporción de actos vs condiciones) y explícale con rigor profesional los resultados y recomendaciones de intervención SST.
+7. **ENVÍO DE CORREOS ELECTRÓNICOS ('wappy_enviar_correo')**:
    - Envía correos formales a cualquier destinatario o al correo del usuario ('mi correo') con mensajes, actas o el informe técnico generado, vía Gmail o servidor de WAPPY.
-5. **GESTIÓN INTEGRAL DE AGENDAS Y CALENDARIO ('wappy_gestionar_agenda' y 'google_calendar')**:
+8. **GESTIÓN INTEGRAL DE AGENDAS Y CALENDARIO ('wappy_gestionar_agenda' y 'google_calendar')**:
    - Agenda eventos, capacitaciones, inspecciones, comités COPASST o citas médicas en Google Calendar y en el cronograma de WAPPY, y consulta la lista de eventos próximos.
-6. **GOOGLE DRIVE Y COBERTURA TOTAL DE SOMOS SST ('google_drive')**:
+9. **GOOGLE DRIVE Y COBERTURA TOTAL DE SOMOS SST ('google_drive')**:
    - Conéctate a Google Drive para explorar carpetas, leer documentos (RUT, planillas, matrices GTC45, FDS químicas) o guardar archivos con 'write_file'.
-7. **GESTIÓN DIRECTA DE COLABORADORES, CENSO Y EMPRESAS (HUELLA BIOCÉNTRICA)**:
+10. **GESTIÓN DIRECTA DE COLABORADORES, CENSO Y EMPRESAS (HUELLA BIOCÉNTRICA)**:
    - TIENES HERRAMIENTAS DIRECTAS PARA CONTROL TOTAL DE COLABORADORES Y EMPRESAS:
      * 'wappy_consultar_trabajadores': Para buscar trabajadores o consultar nómina (activos o retirados). Retorna 'totalRegistrados' (censo global absoluto), 'totalActivos' y 'totalRetirados'.
      * DIFERENCIACIÓN OBLIGATORIA DE CENSO: NUNCA confundas el total registrado con los activos. Si la respuesta dice 58 registrados, 57 activos y 1 retirado, DI CLARAMENTE: "Tienes un total de 58 trabajadores registrados: 57 activos y 1 retirado". ESTÁ TERMINANTEMENTE PROHIBIDO decir "58 activos y 1 retirado". Sigue con fidelidad el 'resumenCenso' devuelto.
@@ -1411,11 +1429,47 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyGenerarQrDeclaration = {
+                name: 'wappy_generar_qr',
+                description: 'Genera códigos QR y enlaces interactivos para colaboradores (Reporte de Actos y Condiciones Inseguras, Termómetro Psicosocial / Ánimo, Estudio de Puesto, Matriz IPEVR, Inspección Vehicular PESV, Solicitud de EPP, etc.). Muestra el QR y enlace en el chat.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        tipo: {
+                            type: 'STRING',
+                            description: 'actos_condiciones, termometro_psicosocial, estudio_puesto, ipevar, perfil_salud, atel_testimonio, colaborador_hub, inspeccion_vehicular, solicitud_epp, copasst_inspecciones, votaciones, ruta_aprendizaje.'
+                        }
+                    },
+                    required: ['tipo']
+                }
+            };
+
+            const wappyAnaliticaPsicosocialDeclaration = {
+                name: 'wappy_consultar_analitica_psicosocial',
+                description: 'Consulta métricas y estadísticas de bienestar emocional y estrés de los colaboradores en el Termómetro Psicosocial (distribución de ánimo, principales factores de sobrecarga y recomendaciones SST).',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {}
+                }
+            };
+
+            const wappyAnaliticaActosDeclaration = {
+                name: 'wappy_consultar_analitica_actos_condiciones',
+                description: 'Consulta métricas y estadísticas del buzón de seguridad (desglose de actos vs condiciones inseguras, niveles de riesgo, sedes y áreas con mayor recurrencia).',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {}
+                }
+            };
+
             // Assemble base tools and dynamically triggered tools (strictly excluding Group 7)
             const baseFunctionDeclarations = [
                 wappyNavegarDeclaration,
                 somosSSTDeclaration,
                 wappyCrearInformeDeclaration,
+                wappyGenerarQrDeclaration,
+                wappyAnaliticaPsicosocialDeclaration,
+                wappyAnaliticaActosDeclaration,
                 wappyEnviarCorreoDeclaration,
                 wappyGestionarAgendaDeclaration,
                 googleCalendarDeclaration,
@@ -1529,6 +1583,23 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 } else if (call.name === 'canvas_tool' || call.name === 'canvas') {
                                     const toolInstance = new CanvasTool({ req });
                                     toolOutput = await toolInstance._call(call.args);
+                                    try {
+                                        const parsed = typeof toolOutput === 'string' ? JSON.parse(toolOutput) : toolOutput;
+                                        if (parsed?.success) {
+                                            const fileType = call.args?.fileType || 'html';
+                                            const title = call.args?.title || 'Documento SG-SST';
+                                            const content = call.args?.content || '';
+                                            capturedFile = {
+                                                title,
+                                                fileType,
+                                                content,
+                                                canvasId: `tenshi-canvas-${targetUserId}-${Date.now()}`
+                                            };
+                                            if (fileType === 'html' || content.includes('<html') || content.includes('<!DOCTYPE')) {
+                                                capturedHtmlReport = content;
+                                            }
+                                        }
+                                    } catch (_) {}
                                 } else if (call.name === 'matriz_ipevar') {
                                     const MatrizIPEVAR = require('../../app/clients/tools/structured/MatrizIPEVAR');
                                     toolOutput = await new MatrizIPEVAR({ req })._call(call.args);
@@ -1565,12 +1636,12 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 } else if (call.name === 'editor_rit') {
                                     const EditorRIT = require('../../app/clients/tools/structured/EditorRIT');
                                     toolOutput = await new EditorRIT({ req })._call(call.args);
-                                } else if (call.name === 'consultar_analitica_psicosocial') {
-                                    const ConsultarAnaliticaPsicosocial = require('../../app/clients/tools/structured/ConsultarAnaliticaPsicosocial');
-                                    toolOutput = await new ConsultarAnaliticaPsicosocial({ req })._call(call.args);
-                                } else if (call.name === 'consultar_analitica_actos_condiciones') {
-                                    const ConsultarAnaliticaActosCondiciones = require('../../app/clients/tools/structured/ConsultarAnaliticaActosCondiciones');
-                                    toolOutput = await new ConsultarAnaliticaActosCondiciones({ req })._call(call.args);
+                                } else if (call.name === 'consultar_analitica_psicosocial' || call.name === 'wappy_consultar_analitica_psicosocial') {
+                                    const res = await executeTenshiMcpTool('wappy_consultar_analitica_psicosocial', call.args || {}, targetUserId);
+                                    toolOutput = JSON.stringify(res);
+                                } else if (call.name === 'consultar_analitica_actos_condiciones' || call.name === 'wappy_consultar_analitica_actos_condiciones') {
+                                    const res = await executeTenshiMcpTool('wappy_consultar_analitica_actos_condiciones', call.args || {}, targetUserId);
+                                    toolOutput = JSON.stringify(res);
                                 } else if (call.name === 'wappy_crear_informe' || call.name === 'wappy_generar_informe') {
                                     const res = await executeTenshiMcpTool('wappy_crear_informe', call.args || {}, targetUserId);
                                     toolOutput = JSON.stringify(res);
@@ -1578,6 +1649,12 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         if (res.informe.formato === 'html' || res.informe.contenido.includes('<html') || res.informe.contenido.includes('<!DOCTYPE')) {
                                             capturedHtmlReport = res.informe.contenido;
                                         }
+                                    }
+                                } else if (call.name === 'wappy_generar_qr' || call.name === 'generar_qr') {
+                                    const res = await executeTenshiMcpTool('wappy_generar_qr', call.args || {}, targetUserId);
+                                    toolOutput = JSON.stringify(res);
+                                    if (res && res.exito) {
+                                        capturedQrCode = res;
                                     }
                                 } else if (call.name === 'wappy_enviar_correo' || call.name === 'enviar_correo') {
                                     const res = await executeTenshiMcpTool('wappy_enviar_correo', call.args || {}, targetUserId);
@@ -1827,11 +1904,20 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 user: req.user.id,
                 role: 'assistant',
                 content: responseText,
-                htmlReport: capturedHtmlReport || undefined
+                htmlReport: capturedHtmlReport || undefined,
+                qrCode: capturedQrCode || undefined,
+                file: capturedFile || undefined,
             }).catch(e => console.error('Error saving assistant TenshiMessage:', e));
         }
 
-        res.json({ response: responseText, htmlReport: capturedHtmlReport, guiAction: requestedGuiAction, guiActions: requestedGuiActions });
+        res.json({
+            response: responseText,
+            htmlReport: capturedHtmlReport,
+            qrCode: capturedQrCode,
+            file: capturedFile,
+            guiAction: requestedGuiAction,
+            guiActions: requestedGuiActions
+        });
     } catch (error) {
         console.error('CRITICAL Error in Tenshi chat route:', error);
         if (error.response) {

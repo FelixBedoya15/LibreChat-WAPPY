@@ -26,6 +26,20 @@ const tenshiMessageSchema = mongoose.Schema(
             content: { type: String },
             canvasId: { type: String },
         },
+        qrCode: {
+            tipo: { type: String },
+            titulo: { type: String },
+            descripcion: { type: String },
+            url: { type: String },
+            qrImageUrl: { type: String },
+            instrucciones: { type: String },
+        },
+        report: {
+            titulo: { type: String },
+            aplicativo: { type: String },
+            formato: { type: String },
+            contenido: { type: String },
+        },
     },
     { timestamps: true }
 );

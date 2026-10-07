@@ -168,14 +168,20 @@ const TOOL_ROUTES = {
   },
   wappy_listar_agenda: { method: 'GET', path: '/agenda/events' },
 
-  // 9. Herramientas Especializadas de Agentes
+  // 9. Códigos QR para Trabajadores
+  wappy_generar_qr: { method: 'POST', path: '/qr/generate' },
+  generar_qr: { method: 'POST', path: '/qr/generate' },
+
+  // 10. Herramientas Especializadas de Agentes & Analítica
   wappy_activar_herramienta_agente: { method: 'POST', path: '/activar-herramienta' },
   matriz_ipevar: { method: 'GET', path: '/gtc45' },
   matriz_pesv: { method: 'GET', path: '/pesv' },
   matriz_compatibilidad: { method: 'GET', path: '/quimicos' },
   gestor_automatizaciones: { method: 'GET', path: '/agentes-automatizaciones' },
-  consultar_analitica_psicosocial: { method: 'GET', path: '/resumen-360' },
-  consultar_analitica_actos_condiciones: { method: 'GET', path: '/actos-condiciones' },
+  wappy_consultar_analitica_psicosocial: { method: 'GET', path: '/analitica/psicosocial' },
+  consultar_analitica_psicosocial: { method: 'GET', path: '/analitica/psicosocial' },
+  wappy_consultar_analitica_actos_condiciones: { method: 'GET', path: '/analitica/actos-condiciones' },
+  consultar_analitica_actos_condiciones: { method: 'GET', path: '/analitica/actos-condiciones' },
 };
 
 async function executeTenshiMcpTool(toolName, args = {}, userId) {

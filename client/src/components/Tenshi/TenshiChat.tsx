@@ -26,6 +26,9 @@ import {
   Presentation,
   Code2,
   ArrowRight,
+  ExternalLink,
+  Copy,
+  Share2,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
@@ -49,6 +52,16 @@ export interface TenshiFileAttachment {
   canvasId?: string;
 }
 
+export interface TenshiQrAttachment {
+  tipo: string;
+  titulo: string;
+  descripcion: string;
+  url: string;
+  qrImageUrl: string;
+  instrucciones?: string;
+  empresa?: string;
+}
+
 export interface TenshiChatMessage {
   _id?: string;
   role: string;
@@ -56,6 +69,7 @@ export interface TenshiChatMessage {
   htmlReport?: string;
   isLiveVoice?: boolean;
   file?: TenshiFileAttachment;
+  qrCode?: TenshiQrAttachment;
 }
 
 function markdownToSimpleHtml(md: string): string {
@@ -1784,6 +1798,20 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               },
             ]);
             resultMsg = msg;
+          } else if (action.name === 'wappy_generar_qr' || (action as any).qr) {
+            const qrData = (action as any).qr || (action as any).result || action.args || {};
+            if (qrData.url && qrData.titulo) {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: 'assistant',
+                  content: `📱 **Código QR y Enlace**: [${qrData.titulo}](${qrData.url})\n\n${qrData.descripcion || ''}\n\n*${qrData.instrucciones || 'Escanea el código QR o comparte el enlace directo.'}*`,
+                  qrCode: qrData,
+                },
+              ]);
+              setIsOpen(true);
+            }
+            resultMsg = `Código QR para "${qrData.titulo || 'Formulario'}" entregado en el chat.`;
           }
         } catch (e: any) {
           resultMsg = `Error ejecutando acción: ${e.message}`;
@@ -2766,6 +2794,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         role: 'assistant',
         content: responseData.response,
         htmlReport: responseData.htmlReport,
+        qrCode: responseData.qrCode,
+        file: responseData.file,
         isIntermediate: !!responseData.guiAction || (responseData.guiActions && responseData.guiActions.length > 0),
       };
       setMessages((prev) => [...prev, assistantMsg]);
@@ -3711,6 +3741,65 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                                 <FileText className="h-3.5 w-3.5" />
                                 <span>Ver Informe Oficial</span>
                               </button>
+                            )}
+                            {msg.qrCode && (
+                              <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 p-3.5 shadow-md backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/95 max-w-sm">
+                                <div className="flex items-start gap-3">
+                                  <div className="relative shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xs dark:border-zinc-700">
+                                    <img
+                                      src={msg.qrCode.qrImageUrl}
+                                      alt={msg.qrCode.titulo}
+                                      className="h-24 w-24 object-contain"
+                                      loading="lazy"
+                                    />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-1.5 py-0.5 text-[9px] font-bold text-teal-700 dark:bg-teal-950/50 dark:text-teal-300">
+                                      Código QR Oficial
+                                    </span>
+                                    <h4 className="mt-1 text-xs font-bold text-slate-800 dark:text-zinc-100 leading-tight">
+                                      {msg.qrCode.titulo}
+                                    </h4>
+                                    <p className="mt-1 text-[10px] text-slate-500 dark:text-zinc-400 line-clamp-2">
+                                      {msg.qrCode.descripcion}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2.5 dark:border-zinc-800/80">
+                                  <a
+                                    href={msg.qrCode.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 px-3 py-1.5 text-xs font-bold text-white shadow-md transition-all active:scale-95 hover:from-teal-500 hover:to-teal-600"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                    <span>Abrir Enlace</span>
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (navigator.clipboard) {
+                                        navigator.clipboard.writeText(msg.qrCode!.url);
+                                      }
+                                    }}
+                                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition-all active:scale-95 hover:bg-slate-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                                    title="Copiar enlace"
+                                  >
+                                    <Copy className="h-3.5 w-3.5" />
+                                    <span>Copiar</span>
+                                  </button>
+                                  <a
+                                    href={`https://wa.me/?text=${encodeURIComponent(`Hola, por favor ingresa al siguiente enlace para tu gestión en SG-SST (${msg.qrCode.titulo}): ${msg.qrCode.url}`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 rounded-xl bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 transition-all active:scale-95"
+                                    title="Compartir por WhatsApp"
+                                  >
+                                    <Share2 className="h-3.5 w-3.5" />
+                                    <span className="hidden sm:inline">WhatsApp</span>
+                                  </a>
+                                </div>
+                              </div>
                             )}
                           </>
                         )}

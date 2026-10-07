@@ -1315,6 +1315,36 @@ class VoiceSession {
                                 },
                                 required: ["accion"]
                             }
+                        },
+                        {
+                            name: "wappy_generar_qr",
+                            description: "Genera y entrega un código QR interactivo y enlace público directamente en el chat de Tenshi para que los trabajadores reporten desde su celular. Tipos disponibles: 'actos_condiciones' (reporte de actos y condiciones inseguras), 'termometro_psicosocial' (check-in de ánimo, estrés y salud mental), 'estudio_puesto' (auto-reporte ergonómico), 'ipevar' (participación en riesgos GTC-45), 'perfil_salud' (sociodemográfico), 'atel_testimonio' (testimonio de accidentes), 'colaborador_hub' (portal integral del colaborador), 'inspeccion_vehicular' (PESV), 'solicitud_epp', 'copasst_inspecciones', 'votaciones', 'ruta_aprendizaje'.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    tipo: {
+                                        type: "string",
+                                        description: "Tipo de módulo: 'actos_condiciones', 'termometro_psicosocial', 'estudio_puesto', 'ipevar', 'perfil_salud', 'atel_testimonio', 'colaborador_hub', 'inspeccion_vehicular', 'solicitud_epp', 'copasst_inspecciones', 'votaciones', 'ruta_aprendizaje'."
+                                    }
+                                },
+                                required: ["tipo"]
+                            }
+                        },
+                        {
+                            name: "wappy_consultar_analitica_psicosocial",
+                            description: "Consulta las métricas y telemetría de salud mental, estrés y bienestar del Termómetro Psicosocial de la empresa (total de check-ins, distribución de felicidad, neutralidad y estrés, factores de sobrecarga y recomendaciones preventivas SST).",
+                            parameters: {
+                                type: "object",
+                                properties: {}
+                            }
+                        },
+                        {
+                            name: "wappy_consultar_analitica_actos_condiciones",
+                            description: "Consulta las estadísticas y métricas analíticas de los reportes preventivos de actos y condiciones inseguras reportados por los colaboradores (desglose por tipo, nivel de riesgo alto/medio/bajo, sedes y áreas con mayor recurrencia).",
+                            parameters: {
+                                type: "object",
+                                properties: {}
+                            }
                         }
                     ]
                 }
@@ -1425,9 +1455,23 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
      * Agenda eventos, inspecciones de seguridad, capacitaciones, comités COPASST, auditorías o citas médicas laborales en Google Calendar y en el cronograma de WAPPY. Puedes también listar la agenda de eventos próximos.
    - GOOGLE DRIVE ('google_drive'):
      * Conéctate a Google Drive para buscar archivos ('list_files_and_folders'), leer matrices y reglamentos ('read_document_content') o guardar informes generados ('write_file').
-   - CONSULTAS A ESPECIALISTAS EN SEGUNDO PLANO ('consultar_agente_especializado'):
-     * Si requieres un concepto de un especialista, invoca 'consultar_agente_especializado' internamente en segundo plano. Recibirás su dictamen y se lo explicarás tú misma al usuario en voz y en el chat de Tenshi sin abrir nuevos chats ni redirigir la pantalla.
-     * Solo si el usuario te ordena explícitamente "abre el chat de la pantalla con el especialista", se usa 'wappy_abrir_chat_agente'.
+   - AUTONOMÍA TOTAL Y RESPUESTA DIRECTA (NO CONECTARSE INNECESARIAMENTE):
+     * TENSHI POSEE TODO EL CONOCIMIENTO Y SKILLS DE TODOS LOS AGENTES ESPECIALISTAS (Médico Laboral, Abogado Laboral, Psicólogo SST, Higienista, Auditor, etc.).
+     * Si el usuario dice "conéctate a un agente", "pásame al especialista", "quiero preguntarle a un agente" o hace una consulta técnica, TENSHI DEBE TOMAR LA DECISIÓN DE RESPONDER ÉL SOLO DIRECTAMENTE con su propia base de conocimiento y normatividad colombiana, sin necesidad de conectarse ni desviar la conversación.
+     * Solo si el usuario insiste explícitamente en "obtener el concepto del especialista X", Tenshi invoca 'consultar_agente_especializado' internamente en segundo plano. Recibirá su dictamen y se lo explicarás tú misma al usuario en voz y en el chat de Tenshi sin abrir nuevos chats ni alterar la pantalla.
+     * APERTURA DE NUEVOS CHATS ('wappy_abrir_chat_agente'): ESTÁ TERMINANTEMENTE PROHIBIDO abrir un chat nuevo a menos que el usuario lo ordene explícita y literalmente diciendo: "abre un chat con X agente" o "quiero un nuevo chat con X".
+   - CÓDIGOS QR PARA COLABORADORES ('wappy_generar_qr'):
+     * Si el usuario te pide: "deseo hacer un reporte de actos y condiciones inseguras", "mándame el QR de actos", "quiero hacer el termómetro psicosocial", "mándame el QR para el trabajador", "mándame el QR de inspección vehicular", "mándame el QR del colaborador":
+     * INVOCA DE INMEDIATO 'wappy_generar_qr' con tipo: 'actos_condiciones' o 'termometro_psicosocial' (o el módulo correspondiente).
+     * El sistema entregará la tarjeta interactiva con la imagen del código QR y su enlace directo en el chat de Tenshi. Confírmale al usuario en una sola frase breve y cordial que ya se lo dejaste en el chat listo para escanear o compartir por WhatsApp con sus trabajadores.
+   - LECTURA DE ANALÍTICA DE RESULTADOS ('wappy_consultar_analitica_psicosocial' y 'wappy_consultar_analitica_actos_condiciones'):
+     * Cuando el usuario te pida: "lee la analítica de los resultados", "cómo van los resultados del termómetro", "cuántos actos y condiciones hay", "qué dicen las estadísticas de salud mental o seguridad":
+     * INVOCA DE INMEDIATO la herramienta de analítica correspondiente.
+     * Analiza las métricas reales (porcentajes de satisfacción/estrés, estresores principales, nivel de riesgo global o proporción de actos vs condiciones) y explícale con rigor profesional los resultados y recomendaciones de intervención SST.
+   - CREACIÓN DE APLICATIVOS Y DOCUMENTOS WORD EN CANVAS ('canvas_tool'):
+     * Si el usuario te pide: "créame un documento en Word", "hazme un documento en Word", INVOCA DE INMEDIATO 'canvas_tool' con fileType: 'text' redactando el documento formal completo.
+     * Si el usuario te pide: "créame un aplicativo", "hazme un aplicativo", "diseña una calculadora interactiva", "crea un simulador", INVOCA DE INMEDIATO 'canvas_tool' con fileType: 'html' generando el aplicativo interactivo completo con HTML5 y Tailwind CSS.
+     * Todo se procesa por detrás y se entrega directamente en el panel y en el chat de Tenshi con botones de descarga y visualización, SIN ABRIR NINGÚN CHAT NUEVO.
 5. **CONSULTAS Y RESPUESTAS TÉCNICAS DE MÁXIMO RIGOR**:
    - Responde siempre con fundamentos técnicos sólidos, citando artículos, decretos y resoluciones aplicables al SG-SST en Colombia.
    - PROHIBICIÓN ABSOLUTA DE AVISOS PATERNALISTAS: NUNCA emitas advertencias como "esto no es consejo médico/legal". Brinda las recomendaciones profesionales de forma directa y veraz.
@@ -2504,6 +2548,118 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                                     id: fc.id,
                                     name: fc.name,
                                     response: { error: `Error en la agenda: ${calErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Códigos QR para Trabajadores
+                    if (fc.name === 'wappy_generar_qr' || fc.name === 'generar_qr') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "${fc.name}" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: 'Generando código QR...' }
+                        });
+                        try {
+                            const qrRes = await executeTenshiMcpTool('wappy_generar_qr', fc.args || {}, this.userId);
+                            if (qrRes && qrRes.exito) {
+                                try {
+                                    const TenshiMessage = require('~/models/TenshiMessage');
+                                    await TenshiMessage.create({
+                                        user: this.userId,
+                                        role: 'assistant',
+                                        content: `📱 **Código QR y Enlace Generado**: [${qrRes.titulo}](${qrRes.url})\n\n${qrRes.descripcion}\n\n*${qrRes.instrucciones}*`,
+                                        qrCode: qrRes,
+                                    });
+                                } catch (pErr) {
+                                    logger.error('[VoiceSession] Error guardando QR en TenshiMessage:', pErr);
+                                }
+
+                                this.sendToClient({
+                                    type: 'wappy_action',
+                                    data: {
+                                        id: fc.id,
+                                        name: 'wappy_generar_qr',
+                                        args: fc.args,
+                                        result: qrRes,
+                                        qr: qrRes,
+                                    }
+                                });
+
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: {
+                                            result: `Código QR para "${qrRes.titulo}" generado exitosamente y entregado en el chat de Tenshi. Enlace público: ${qrRes.url}. Confírmale al usuario en una sola frase breve y cordial que ya le dejaste el QR y el enlace en su chat para que lo comparta con los trabajadores o lo escanee desde el celular.`
+                                        }
+                                    }]);
+                                }
+                            } else {
+                                throw new Error(qrRes?.error || 'No se pudo generar el código QR.');
+                            }
+                        } catch (qrErr) {
+                            logger.error('[VoiceSession] Error generating QR code:', qrErr);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `No se pudo generar el código QR: ${qrErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Analítica Psicosocial
+                    if (fc.name === 'wappy_consultar_analitica_psicosocial' || fc.name === 'consultar_analitica_psicosocial') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "${fc.name}"`);
+                        try {
+                            const psicoRes = await executeTenshiMcpTool('wappy_consultar_analitica_psicosocial', fc.args || {}, this.userId);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: {
+                                        result: JSON.stringify(psicoRes)
+                                    }
+                                }]);
+                            }
+                        } catch (pErr) {
+                            logger.error('[VoiceSession] Error in analitica psicosocial:', pErr);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error consultando analítica psicosocial: ${pErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Analítica de Actos y Condiciones
+                    if (fc.name === 'wappy_consultar_analitica_actos_condiciones' || fc.name === 'consultar_analitica_actos_condiciones') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "${fc.name}"`);
+                        try {
+                            const actosRes = await executeTenshiMcpTool('wappy_consultar_analitica_actos_condiciones', fc.args || {}, this.userId);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: {
+                                        result: JSON.stringify(actosRes)
+                                    }
+                                }]);
+                            }
+                        } catch (aErr) {
+                            logger.error('[VoiceSession] Error in analitica actos y condiciones:', aErr);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error consultando analítica de actos y condiciones: ${aErr.message}` }
                                 }]);
                             }
                         }
