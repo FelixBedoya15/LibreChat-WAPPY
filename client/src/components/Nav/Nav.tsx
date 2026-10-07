@@ -263,9 +263,9 @@ const Nav = memo(
                       isCollapsedState ? 'px-2 items-center' : 'px-2 md:px-3'
                     )}
                   >
-                    {/* Collapsed: icon-only column */}
+                    {/* Main nav content: collapsed icons column or expanded chat history */}
                     {isCollapsedState ? (
-                      <div className="flex flex-col gap-1.5 pt-2 w-full items-center">
+                      <div className="flex flex-col gap-1.5 pt-2 w-full items-center flex-1 min-h-0 overflow-y-auto no-scrollbar">
                         {/* New Chat icon */}
                         {hasAccessToChat && (
                           <TooltipAnchor
@@ -335,15 +335,10 @@ const Nav = memo(
                             <AmbassadorsButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           )}
                         </Suspense>
-                        <div className="mt-auto">
-                          <Suspense fallback={null}>
-                            <AccountSettings isCollapsed={true} />
-                          </Suspense>
-                        </div>
                       </div>
                     ) : (
                       /* Expanded: full width with chat history */
-                      <div className="flex flex-1 flex-col" ref={outerContainerRef}>
+                      <div className="flex flex-1 flex-col min-h-0" ref={outerContainerRef}>
                         <Conversations
                           conversations={hasAccessToChat ? conversations : []}
                           moveToTop={moveToTop}
@@ -415,11 +410,14 @@ const Nav = memo(
                             </>
                           }
                         />
-                        <Suspense fallback={null}>
-                          <AccountSettings isCollapsed={false} />
-                        </Suspense>
                       </div>
                     )}
+                    {/* Persistent AccountSettings: stays mounted on collapse/expand so modals/popups never close */}
+                    <div className="mt-auto w-full pt-1 shrink-0">
+                      <Suspense fallback={null}>
+                        <AccountSettings isCollapsed={isCollapsedState} />
+                      </Suspense>
+                    </div>
                   </nav>
                 </div>
               </div>

@@ -319,7 +319,7 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
 
   return (
     <Transition appear show={open}>
-      <Dialog as="div" className="relative z-50" onClose={onOpenChange}>
+      <Dialog as="div" className="relative z-[100000]" onClose={onOpenChange}>
         <TransitionChild
           enter="ease-out duration-200"
           enterFrom="opacity-0"

@@ -254,7 +254,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }: 
 
     return (
         <Transition appear show={isOpen} as={React.Fragment}>
-            <Dialog as="div" className="relative z-50" onClose={onClose}>
+            <Dialog as="div" className="relative z-[100050]" onClose={onClose}>
                 <TransitionChild
                     as={React.Fragment}
                     enter="ease-out duration-300"

@@ -267,7 +267,7 @@ const PWAInstaller = () => {
 
       {/* Modal de instrucciones de descarga/instalación */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm transition-opacity">
+        <div className="fixed inset-0 z-[100050] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm transition-opacity">
           <div className="relative flex w-full max-w-xl flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 dark:border-gray-700 dark:bg-gray-800 text-text-primary">
             {/* Cabecera */}
             <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-700">
