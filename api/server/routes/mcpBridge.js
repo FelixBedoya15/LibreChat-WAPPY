@@ -279,16 +279,14 @@ router.get('/sse', async (req, res) => {
 router.post('/messages', async (req, res) => {
   try {
     const sessionId = req.query.sessionId;
-    if (!sessionId) {
-      return res.status(400).send('Falta sessionId');
+    if (sessionId && sseTransports.has(sessionId)) {
+      const transport = sseTransports.get(sessionId);
+      await transport.handlePostMessage(req, res, req.body);
+      return;
     }
 
-    const transport = sseTransports.get(sessionId);
-    if (!transport) {
-      return res.status(404).send('Sesión SSE no encontrada o expirada.');
-    }
-
-    await transport.handlePostMessage(req, res, req.body);
+    // Fallback directo si no hay sesión SSE activa
+    return handleDirectMcpJsonRpc(req, res);
   } catch (error) {
     logger.error('[MCP Bridge] Error en POST /messages:', error);
     if (!res.headersSent) {
@@ -296,6 +294,178 @@ router.post('/messages', async (req, res) => {
     }
   }
 });
+
+async function processSingleJsonRpc(body, rawApiKey) {
+  if (!body || typeof body !== 'object') {
+    return {
+      jsonrpc: '2.0',
+      id: null,
+      error: { code: -32700, message: 'Parse error' },
+    };
+  }
+
+  const { jsonrpc, id, method, params } = body;
+  const requestId = id !== undefined ? id : 1;
+
+  // 1. Manejo de server/discover (MCP Stateless 2026 / Capability Negotiation)
+  if (method === 'server/discover') {
+    return {
+      jsonrpc: '2.0',
+      id: requestId,
+      result: {
+        resultType: 'complete',
+        supportedVersions: ['2026-07-28', '2024-11-05'],
+        capabilities: {
+          tools: { listChanged: true },
+          resources: {},
+          prompts: {},
+          events: {},
+        },
+        serverInfo: {
+          name: 'wappy-bridge',
+          version: '2.0.0',
+        },
+      },
+    };
+  }
+
+  // 2. Notificaciones (no esperan respuesta con contenido)
+  if (method === 'notifications/initialized' || (!id && method?.startsWith('notifications/'))) {
+    return null;
+  }
+
+  // 3. Ping
+  if (method === 'ping') {
+    return {
+      jsonrpc: '2.0',
+      id: requestId,
+      result: {},
+    };
+  }
+
+  // 4. Autenticación de clave para operaciones funcionales
+  if (!rawApiKey) {
+    return {
+      jsonrpc: '2.0',
+      id: requestId,
+      error: { code: -32000, message: 'Se requiere clave API de WAPPY válida.' },
+    };
+  }
+
+  const auth = await authenticateApiKey(rawApiKey);
+  if (!auth) {
+    return {
+      jsonrpc: '2.0',
+      id: requestId,
+      error: { code: -32000, message: 'Clave API de WAPPY inválida o revocada.' },
+    };
+  }
+
+  if (method === 'initialize') {
+    return {
+      jsonrpc: '2.0',
+      id: requestId,
+      result: {
+        protocolVersion: params?.protocolVersion || '2024-11-05',
+        capabilities: {
+          tools: { listChanged: true },
+          resources: {},
+          prompts: {},
+        },
+        serverInfo: {
+          name: 'wappy-bridge',
+          version: '2.0.0',
+        },
+      },
+    };
+  }
+
+  if (!createWappyMcpServer) {
+    return {
+      jsonrpc: '2.0',
+      id: requestId,
+      error: { code: -32000, message: 'Servidor WAPPY MCP temporalmente no disponible.' },
+    };
+  }
+
+  const baseUrl = `http://127.0.0.1:${process.env.PORT || 3080}`;
+  const mcpServer = createWappyMcpServer({
+    apiKey: rawApiKey,
+    wappyUrl: baseUrl,
+  });
+
+  const handler = mcpServer.server._requestHandlers.get(method);
+  if (handler) {
+    try {
+      const result = await handler({ method, params }, {});
+      return {
+        jsonrpc: '2.0',
+        id: requestId,
+        result,
+      };
+    } catch (err) {
+      return {
+        jsonrpc: '2.0',
+        id: requestId,
+        error: {
+          code: -32603,
+          message: err.message || 'Error interno ejecutando método MCP',
+        },
+      };
+    }
+  }
+
+  return {
+    jsonrpc: '2.0',
+    id: requestId,
+    error: {
+      code: -32601,
+      message: `Método ${method} no encontrado`,
+    },
+  };
+}
+
+async function handleDirectMcpJsonRpc(req, res) {
+  try {
+    const authHeader = req.headers.authorization || '';
+    const bearerKey = authHeader.toLowerCase().startsWith('bearer ')
+      ? authHeader.slice(7).trim()
+      : null;
+    const rawApiKey =
+      req.query.apiKey ||
+      req.headers['x-api-key'] ||
+      bearerKey;
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
+    if (Array.isArray(req.body)) {
+      const responses = await Promise.all(
+        req.body.map((item) => processSingleJsonRpc(item, rawApiKey))
+      );
+      const filtered = responses.filter(Boolean);
+      return res.status(200).json(filtered.length > 0 ? filtered : { jsonrpc: '2.0' });
+    }
+
+    const response = await processSingleJsonRpc(req.body, rawApiKey);
+    if (!response) {
+      return res.status(200).json({ jsonrpc: '2.0' });
+    }
+    return res.status(200).json(response);
+  } catch (error) {
+    logger.error('[MCP Bridge] Error en handleDirectMcpJsonRpc:', error);
+    if (!res.headersSent) {
+      return res.status(500).json({
+        jsonrpc: '2.0',
+        id: req.body?.id || null,
+        error: { code: -32603, message: 'Error interno en el servidor MCP de WAPPY' },
+      });
+    }
+  }
+}
+
+router.post('/sse', handleDirectMcpJsonRpc);
+router.post('/', handleDirectMcpJsonRpc);
 
 // ─── 1. PERFIL DE EMPRESA ───────────────────────────────────────────────────
 
