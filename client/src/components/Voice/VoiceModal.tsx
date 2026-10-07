@@ -1273,21 +1273,31 @@ const VoiceModal: FC<VoiceModalProps> = ({
 
     function handleAudioReceived(audioData: string) {
         try {
-            // Obtener o crear el AudioContext de reproducción (24kHz)
+            // Obtener o crear el AudioContext de reproducción
             if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
                 const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
                 const existing = (window as any).sharedAudioContext24k;
-                audioContextRef.current = (existing && existing.state !== 'closed')
-                    ? existing
-                    : new AudioContextClass({ sampleRate: 24000 });
-                (window as any).sharedAudioContext24k = audioContextRef.current;
+                let ctx = existing && existing.state !== 'closed' ? existing : null;
+                if (!ctx) {
+                    try {
+                        ctx = new AudioContextClass();
+                    } catch (_) {
+                        try {
+                            ctx = new AudioContextClass({ sampleRate: 24000 });
+                        } catch (e) {
+                            console.warn('[VoiceModal] No se pudo crear AudioContext:', e);
+                        }
+                    }
+                }
+                audioContextRef.current = ctx;
+                (window as any).sharedAudioContext24k = ctx;
             }
 
             // Guardia de null explícita antes de usar ctx
             const ctx = audioContextRef.current;
             if (!ctx) return;
 
-            console.log('[VoiceModal] AudioContext 24kHz estado al recibir audio:', ctx.state);
+            console.log('[VoiceModal] AudioContext estado al recibir audio:', ctx.state);
 
             // Decodificar audio (PCM 16-bit → Float32)
             const binaryString = atob(audioData);
@@ -1301,8 +1311,28 @@ const VoiceModal: FC<VoiceModalProps> = ({
                 float32Data[i] = int16 / 32768.0;
             }
 
-            const audioBuffer = ctx.createBuffer(1, float32Data.length, 24000);
-            audioBuffer.getChannelData(0).set(float32Data);
+            // Re-muestreo seguro a la tasa del AudioContext
+            const targetRate = ctx.sampleRate || 24000;
+            let audioBuffer: AudioBuffer;
+
+            if (targetRate === 24000) {
+                audioBuffer = ctx.createBuffer(1, float32Data.length, 24000);
+                audioBuffer.getChannelData(0).set(float32Data);
+            } else {
+                const ratio = 24000 / targetRate;
+                const targetLen = Math.max(1, Math.round(float32Data.length / ratio));
+                const resampled = new Float32Array(targetLen);
+                for (let i = 0; i < targetLen; i++) {
+                    const srcPos = i * ratio;
+                    const idx = Math.floor(srcPos);
+                    const frac = srcPos - idx;
+                    const s0 = float32Data[idx] || 0;
+                    const s1 = (idx + 1 < float32Data.length) ? float32Data[idx + 1] : s0;
+                    resampled[i] = s0 + frac * (s1 - s0);
+                }
+                audioBuffer = ctx.createBuffer(1, targetLen, targetRate);
+                audioBuffer.getChannelData(0).set(resampled);
+            }
 
             if (ctx.state === 'suspended') {
                 console.warn('[VoiceModal] AudioContext suspendido al recibir audio — intentando reanudar y encolando buffer...');
