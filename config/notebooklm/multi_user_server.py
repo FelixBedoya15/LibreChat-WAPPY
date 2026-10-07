@@ -241,11 +241,21 @@ async def get_client_for_request() -> NotebookLMClient:
                 "Para activarlo: ejecuta 'npm run notebooklm:auth' en el servidor VPS para vincular la cuenta central de WAPPY."
             )
 
-    # Obtener o instanciar cliente desde el cache
+    # Obtener o instanciar cliente desde el cache (con verificación de mtime)
+    current_mtime = active_storage_file.stat().st_mtime if active_storage_file.exists() else 0
+
     async with _CACHE_LOCK:
         if selected_profile in _CLIENT_CACHE:
-            client, _ = _CLIENT_CACHE[selected_profile]
-            return client
+            client, old_ctx, cached_mtime = _CLIENT_CACHE[selected_profile]
+            if current_mtime == cached_mtime:
+                return client
+            # Archivo actualizado en disco: invalidar sesión previa
+            logger.info(f"Perfil '{selected_profile}' actualizado en disco. Reinicializando cliente...")
+            try:
+                await old_ctx.__aexit__(None, None, None)
+            except Exception:
+                pass
+            _CLIENT_CACHE.pop(selected_profile, None)
 
         logger.info(f"Inicializando NotebookLMClient para perfil '{selected_profile}' desde '{active_storage_file}'...")
         ctx = None
@@ -258,7 +268,7 @@ async def get_client_for_request() -> NotebookLMClient:
                 ctx = NotebookLMClient.from_storage(profile=selected_profile)
 
         client_instance = await ctx.__aenter__()
-        _CLIENT_CACHE[selected_profile] = (client_instance, ctx)
+        _CLIENT_CACHE[selected_profile] = (client_instance, ctx, current_mtime)
         return client_instance
 
 

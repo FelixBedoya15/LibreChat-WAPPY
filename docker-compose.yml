@@ -35,6 +35,7 @@ services:
       - librechat_logs:/app/logs
       - librechat_images:/app/client/public/images
       - librechat_whatsapp_sessions:/app/.wappy_whatsapp_sessions
+      - ./config/notebooklm/profiles:/app/config/notebooklm/profiles
 
     networks:
       - dokploy-network

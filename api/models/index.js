@@ -156,5 +156,6 @@ module.exports = {
   Automation: require('./Automation'),
   AutomationLog: require('./AutomationLog'),
   UserApiKey: require('./UserApiKey'),
+  NotebookSession: require('./NotebookSession'),
 };
 

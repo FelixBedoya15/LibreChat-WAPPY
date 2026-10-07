@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WAPPY Connect</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --teal-primary: #0d9488;
+      --teal-hover: #0f766e;
+      --teal-light: rgba(13, 148, 136, 0.15);
+      --orange-accent: #f97316;
+      --emerald-accent: #10b981;
+      --red-accent: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      width: 360px;
+      background-color: var(--bg);
+      color: var(--text-main);
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.4;
+      user-select: none;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .logo-badge {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #0d9488, #059669);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(13, 148, 136, 0.3);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .logo-badge img {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+    }
+
+    .title-box h1 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.2px;
+    }
+
+    .title-box p {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 20px;
+    }
+
+    .status-badge.connected {
+      background-color: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .status-badge.disconnected {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .status-badge.checking {
+      background-color: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: currentColor;
+    }
+
+    .cookie-info {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .cookie-tag {
+      display: inline-block;
+      font-family: monospace;
+      font-size: 10px;
+      background: rgba(0,0,0,0.3);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: #e2e8f0;
+    }
+
+    .server-config {
+      margin-top: 8px;
+    }
+
+    .input-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .server-input {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 11px;
+      color: #ffffff;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .server-input:focus {
+      border-color: var(--teal-primary);
+    }
+
+    .quick-urls {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .quick-url-btn {
+      background: transparent;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .quick-url-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #ffffff;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0d9488, #0f766e);
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.35);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, #14b8a6, #0d9488);
+      box-shadow: 0 4px 16px rgba(13, 148, 136, 0.5);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: #e2e8f0;
+      border: 1px solid var(--card-border);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .row-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .alert {
+      margin-top: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      display: none;
+      align-items: flex-start;
+      gap: 6px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .alert.success {
+      display: flex;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+    }
+
+    .alert.warning {
+      display: flex;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #fcd34d;
+    }
+
+    .alert.error {
+      display: flex;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+
+    .footer {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--card-border);
+      padding-top: 8px;
+    }
+
+    .footer a {
+      color: #38bdf8;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #ffffff;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo-badge">
+      <img src="icons/icon-48.png" alt="WAPPY Logo">
+    </div>
+    <div class="title-box">
+      <h1>WAPPY Connect</h1>
+      <p>Google NotebookLM Sync</p>
+    </div>
+  </div>
+
+  <!-- Estado de Google -->
+  <div class="card">
+    <div class="card-title">
+      <span>Google NotebookLM</span>
+      <span id="google-status" class="status-badge checking">
+        <span class="dot"></span> Comprobando...
+      </span>
+    </div>
+    <div id="google-details" class="cookie-info">
+      <span>Verificando cookies de sesión de Google...</span>
+    </div>
+    <div id="login-cta" style="display: none; margin-top: 8px;">
+      <button id="btn-open-notebook" class="btn btn-secondary" style="padding: 6px 10px; font-size: 11px;">
+        🌐 Abrir NotebookLM para Iniciar Sesión
+      </button>
+    </div>
+  </div>
+
+  <!-- Configuración de Destino -->
+  <div class="card">
+    <div class="card-title">
+      <span>Servidor WAPPY</span>
+    </div>
+    <div class="server-config">
+      <label class="input-label" for="wappy-url">URL de tu instancia WAPPY:</label>
+      <input type="text" id="wappy-url" class="server-input" value="https://wappy.club" placeholder="https://wappy.club">
+      <div class="quick-urls">
+        <button id="url-prod" type="button" class="quick-url-btn">wappy.club</button>
+        <button id="url-local" type="button" class="quick-url-btn">localhost:3080</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mensajes de Estado / Alertas -->
+  <div id="alert-box" class="alert">
+    <span id="alert-icon">ℹ️</span>
+    <span id="alert-text">Mensaje</span>
+  </div>
+
+  <!-- Botones de Acción -->
+  <div class="btn-group">
+    <button id="btn-sync" class="btn btn-primary" disabled>
+      <span id="btn-sync-icon">🚀</span>
+      <span id="btn-sync-text">Vincular con WAPPY en 1 Clic</span>
+    </button>
+
+    <div class="row-buttons">
+      <button id="btn-copy" class="btn btn-secondary" disabled>
+        <span>📋</span>
+        <span>Copiar Clave JSON</span>
+      </button>
+      <button id="btn-test" class="btn btn-secondary" disabled>
+        <span>🔍</span>
+        <span>Probar Sesión</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>WAPPY IA &bull; v1.0.0</span>
+    <a href="https://wappy.club" target="_blank" rel="noopener">Ir a WAPPY</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

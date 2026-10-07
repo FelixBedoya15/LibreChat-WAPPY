@@ -53,6 +53,7 @@ const events = require('./events');
 const marketplace = require('./marketplace');
 const userApiKeys = require('./userApiKeys');
 const mcpBridge = require('./mcpBridge');
+const notebooklm = require('./notebooklm');
 
 module.exports = {
   auth,
@@ -111,5 +112,6 @@ module.exports = {
   marketplace,
   userApiKeys,
   mcpBridge,
+  notebooklm,
 };
 
