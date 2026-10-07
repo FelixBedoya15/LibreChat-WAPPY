@@ -141,6 +141,22 @@ const SidePanel = ({
       {(!isCollapsed || minSize > 0) && !isSmallScreen && !fullCollapse && (
         <ResizableHandleAlt withHandle className="bg-transparent text-text-primary" />
       )}
+      {isSmallScreen && !isCollapsed && (
+        <div
+          id="mobile-sidepanel-backdrop"
+          aria-label="Cerrar panel de herramientas"
+          className="fixed inset-0 z-[1090] bg-black/40 backdrop-blur-xs transition-opacity duration-200 md:hidden cursor-pointer"
+          onClick={() => {
+            setIsCollapsed(true);
+            setFullCollapse(true);
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            setIsCollapsed(true);
+            setFullCollapse(true);
+          }}
+        />
+      )}
       <ResizablePanel
         tagName="nav"
         id="controls-nav"

@@ -1154,6 +1154,9 @@ class VoiceSession {
 - DISTINCIÓN ESTRICTA ENTRE GOOGLE DRIVE Y CANVAS: Si el usuario te pide buscar en su Google Drive o te pregunta por qué no encontraste un archivo, o insiste en que sí tiene una política, matriz o documento guardado en su empresa o Drive ("¿Buscaste bien?"), NUNCA digas que creaste o compartiste un documento. En su lugar, INVOCA 'google_drive' con action: 'list_files_and_folders' y términos de búsqueda amplios o palabras clave raíz (ej: query: "politica", query: "sst", query: "matriz", o query: "" para listar los archivos recientes). ESTÁ ESTRICTAMENTE PROHIBIDO inventar que creaste un documento cuando el usuario está preguntando por sus archivos en Google Drive.
 - CONTINUIDAD CON EL ESPECIALISTA EN PANTALLA: Si ya estás con un especialista en pantalla (ej. Médico Laboral) y el usuario dice "dile que...", "pregúntale qué...", "continúa...", formula la nueva consulta al especialista con 'wappy_abrir_chat_agente'.
 - SI EL USUARIO DICE QUE NO VE NADA O QUE LA PANTALLA TIENE OTRO CONTENIDO: ESTÁ PROHIBIDO insistir ("le aseguro que está en su pantalla"); en su lugar, invoca DE INMEDIATO 'leer_pantalla' para verificar la realidad antes de contestar.
+- PROHIBICIÓN TOTAL DE ASUMIR O INVENTAR DATOS NUMÉRICOS DE LA EMPRESA:
+  * Si el usuario te pregunta cuántos trabajadores tiene registrados, cuántos activos o retirados hay, cuántos accidentes, incapacidades, riesgos o datos cuantitativos de su SG-SST: ESTÁ TERMINANTEMENTE PROHIBIDO adivinar, aproximar o usar cifras de memoria sin verificar.
+  * DEBES INVOCAR DE INMEDIATO 'wappy_consultar_trabajadores' o 'wappy_resumen_general_360' o 'leer_pantalla' para obtener las cifras exactas y verídicas de la base de datos o de la pantalla antes de dar tu respuesta. Si el usuario te pregunta por lo que está en pantalla (ej: "¿cuántos trabajadores ves?", "¿qué dice la pantalla?"), invoca 'leer_pantalla' de inmediato y lee fielmente las métricas, contadores y registros visibles.
 - AGILIDAD POR DEFECTO: En saludos, confirmaciones de acciones y navegación ordinaria, habla de forma concisa y directa (1 a 2 oraciones).
 - EXCEPCIÓN OBLIGATORIA (LECTURA Y EXPLICACIÓN DE RESPUESTAS TÉCNICAS E INFORMES):
   * Cuando recibas una notificación de que el especialista emitió su dictamen ("[SISTEMA INTERNO WAPPY - RESPUESTA TÉCNICA EMITIDA]: ..."):
@@ -2786,7 +2789,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                                     }]);
                                 }
                             }
-                        }, 2500);
+                        }, 4000);
                         this.pendingToolCalls.set(fc.id, { timeoutId, name: fc.name });
                         continue;
                     }

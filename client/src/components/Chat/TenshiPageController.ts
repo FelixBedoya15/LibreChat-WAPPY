@@ -317,6 +317,46 @@ export function getVisibleScreenContent(section?: string): string {
       lines.push('');
     }
 
+    // 2.1 Extraer Filtros de Estado y Botones de Conteo (ej: "Todos (58)", "Activos (57)", "Retirados (1)")
+    const metricButtons = Array.from(rootScope.querySelectorAll<HTMLElement>(
+      'button, [role="tab"], [role="button"], [class*="badge"], [class*="pill"], [class*="chip"]'
+    )).filter(b => isElementVisible(b) && !b.closest('.tenshi-widget-container'));
+
+    const counterTexts = metricButtons
+      .map(b => b.innerText?.trim())
+      .filter(t => t && (/\(\d+\)/.test(t) || /\b\d+\s+(trabajador|colaborador|activo|retirado|registro|caso|riesgo|informe|evaluacion|empleado)/i.test(t)));
+
+    if (counterTexts.length > 0) {
+      lines.push('FILTROS Y CONTEOS DE ESTADO EN PANTALLA:');
+      const uniqueCounters = Array.from(new Set(counterTexts));
+      lines.push(uniqueCounters.slice(0, 10).join(' | '));
+      lines.push('');
+    }
+
+    // 2.2 Extraer Tarjetas de KPIs y Cifras Resumen Clave
+    const kpiElements = Array.from(rootScope.querySelectorAll<HTMLElement>(
+      '[class*="grid"] > div, [class*="card"], [class*="stat"], [class*="kpi"], [class*="summary"]'
+    )).filter(c => isElementVisible(c) && !c.closest('.tenshi-widget-container'));
+
+    const kpiLines: string[] = [];
+    kpiElements.forEach(c => {
+      const numEl = c.querySelector<HTMLElement>('.text-2xl, .text-3xl, .text-xl, .text-4xl, .font-black, [class*="font-black"]');
+      const labelEl = c.querySelector<HTMLElement>('.text-xs, .text-sm, [class*="text-text-secondary"], [class*="text-gray"]');
+      if (numEl && labelEl && isElementVisible(numEl)) {
+        const num = numEl.innerText?.trim();
+        const label = labelEl.innerText?.trim();
+        if (num && label && /^\d+[\w%]*$/.test(num) && label.length > 2 && label.length < 40) {
+          kpiLines.push(`- ${label}: ${num}`);
+        }
+      }
+    });
+
+    if (kpiLines.length > 0) {
+      lines.push('INDICADORES Y CIFRAS RESUMEN EN PANTALLA:');
+      lines.push(Array.from(new Set(kpiLines)).slice(0, 8).join('\n'));
+      lines.push('');
+    }
+
     // 3. Extraer Tablas de datos visibles (registros de informes, trabajadores, mediciones)
     const tables = Array.from(rootScope.querySelectorAll<HTMLTableElement>('table'));
     const visibleTables = tables.filter(t => isElementVisible(t) && !t.closest('.tenshi-widget-container'));

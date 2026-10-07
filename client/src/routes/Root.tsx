@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import type { ContextType } from '~/common';
 import {
@@ -22,8 +22,9 @@ import { Nav, MobileBottomNav } from '~/components/Nav';
 import { useHealthCheck } from '~/data-provider';
 import { Banner } from '~/components/Banners';
 import InactiveAccount from '~/components/Auth/InactiveAccount';
-import TenshiChat from '~/components/Tenshi/TenshiChat';
 import { hasActivePlan } from '~/utils/planAccess';
+
+const TenshiChat = lazy(() => import('~/components/Tenshi/TenshiChat'));
 
 const playStartupSound = () => {
   try {
@@ -227,7 +228,9 @@ export default function Root() {
               <RequiredInfoModal />
             ) : null;
           })()}
-          <TenshiChat />
+          <Suspense fallback={null}>
+            <TenshiChat />
+          </Suspense>
           </AgentsMapContext.Provider>
         </AssistantsMapContext.Provider>
       </FileMapContext.Provider>

@@ -153,10 +153,10 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
     <div
       id="wappy-mobile-bottom-nav-wrapper"
       className={cn(
-        'fixed bottom-0 inset-x-0 md:hidden flex-shrink-0 w-full z-[60] px-3 transition-all duration-200 ease-out pointer-events-auto',
+        'fixed bottom-0 inset-x-0 md:hidden flex-shrink-0 w-full z-[60] px-3 transition-all duration-200 ease-out pointer-events-none',
         isKeyboardOpen
           ? 'max-h-0 opacity-0 pointer-events-none overflow-hidden pb-0'
-          : 'max-h-24 opacity-100 pointer-events-auto overflow-visible',
+          : 'max-h-24 opacity-100 overflow-visible',
       )}
       style={{
         paddingBottom: isKeyboardOpen
@@ -167,7 +167,7 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
       <nav
         aria-label="Navegación principal móvil"
         className={cn(
-          'relative flex items-center justify-between px-2 py-1 max-w-md mx-auto',
+          'relative flex items-center justify-between px-2 py-1 max-w-md mx-auto pointer-events-auto',
           'bg-surface-primary/90 dark:bg-surface-primary/95 text-text-primary backdrop-blur-2xl',
           'rounded-2xl border border-border-medium/50',
           'shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)]',

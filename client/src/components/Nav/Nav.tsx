@@ -49,8 +49,12 @@ const NavMask = memo(
       id="mobile-nav-mask-toggle"
       role="button"
       tabIndex={0}
-      className={`nav-mask transition-opacity duration-200 ease-in-out ${navVisible ? 'active opacity-100' : 'opacity-0'}`}
+      className={`nav-mask transition-opacity duration-200 ease-in-out ${navVisible ? 'active opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
       onClick={toggleNavVisible}
+      onTouchEnd={(e) => {
+        e.preventDefault();
+        toggleNavVisible();
+      }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           toggleNavVisible();
@@ -447,7 +451,9 @@ const Nav = memo(
             />
           </div>
         )}
-        {isSmallScreen && <NavMask navVisible={navVisible} toggleNavVisible={() => setNavVisible(false)} />}
+        {isSmallScreen && navVisible && (
+          <NavMask navVisible={navVisible} toggleNavVisible={() => setNavVisible(false)} />
+        )}
         <Suspense fallback={null}>
           <WelcomePromoPopup />
         </Suspense>
