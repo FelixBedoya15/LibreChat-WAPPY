@@ -1087,9 +1087,121 @@ router.get('/data', requireJwtAuth, async (req, res) => {
     if (!data) {
       data = await PerfilSociodemograficoData.findOne({ user: targetUserId }).lean();
     }
-    if (data) {
-      let finalWorkers = data.trabajadores || [];
+    let finalWorkers = data?.trabajadores ? [...data.trabajadores] : [];
 
+    // ─── SELF-HEALING RECONCILIATION: SgsstWorker & PerfilesCargo Master Sync ───
+    try {
+      const SgsstWorker = require('../../../models/SgsstWorker');
+      const PerfilesCargo = mongoose.models.PerfilCargoData;
+
+      // 1. Resolve cargo profiles map (perfilId -> cargo name)
+      const cargosById = new Map();
+      let perfilesList = [];
+      try {
+        const cargoDoc = PerfilesCargo ? (
+          await PerfilesCargo.findOne({ user: targetUserId, ...(companyId ? { companyId } : {}) }).lean()
+          || await PerfilesCargo.findOne({ user: targetUserId }).lean()
+        ) : null;
+        perfilesList = cargoDoc?.perfilesList || [];
+        for (const p of perfilesList) {
+          if (p.id && p.nombreCargo) cargosById.set(String(p.id), p.nombreCargo);
+          if (p._id && p.nombreCargo) cargosById.set(String(p._id), p.nombreCargo);
+        }
+      } catch (e) {
+        logger.debug('[PerfilSociodemografico GET /data] Error resolving cargo profiles:', e.message);
+      }
+
+      // 2. Query individual workers from SgsstWorker
+      const sgsstWorkers = await SgsstWorker.find({
+        user: targetUserId,
+        ...(companyId ? { $or: [{ companyId }, { companyId: null }] } : {})
+      }).lean();
+
+      // 3. Query any other documents in PerfilSociodemograficoData for this user
+      const otherSocioDocs = await PerfilSociodemograficoData.find({
+        user: targetUserId,
+        ...(data?._id ? { _id: { $ne: data._id } } : {})
+      }).lean();
+
+      let selfHealModified = false;
+
+      // Reconcile from other documents if any workers exist there
+      for (const oDoc of otherSocioDocs) {
+        for (const ow of (oDoc.trabajadores || [])) {
+          const owKey = String(ow.identificacion || ow.id || '').trim();
+          if (!owKey) continue;
+          const existingIdx = finalWorkers.findIndex(w => 
+            (w.identificacion && String(w.identificacion).trim() === owKey) ||
+            (w.id && String(w.id).trim() === owKey)
+          );
+          if (existingIdx === -1) {
+            finalWorkers.push(ow);
+            selfHealModified = true;
+          } else {
+            if ((!finalWorkers[existingIdx].cargo || !finalWorkers[existingIdx].cargo.trim()) && ow.cargo) {
+              finalWorkers[existingIdx].cargo = ow.cargo;
+              selfHealModified = true;
+            }
+          }
+        }
+      }
+
+      // Reconcile from SgsstWorker
+      for (const sw of sgsstWorkers) {
+        const swDoc = String(sw.documento || '').trim();
+        if (!swDoc) continue;
+
+        const resolvedCargo = sw.cargo || (sw.perfilId ? cargosById.get(String(sw.perfilId)) : '') || '';
+
+        const existingIdx = finalWorkers.findIndex(w => 
+          (w.identificacion && String(w.identificacion).trim() === swDoc) ||
+          (w.id && sw._id && String(w.id) === String(sw._id))
+        );
+
+        if (existingIdx === -1) {
+          finalWorkers.push({
+            id: sw._id ? sw._id.toString() : new mongoose.Types.ObjectId().toString(),
+            nombre: sw.nombre || 'Colaborador',
+            identificacion: swDoc,
+            cargo: resolvedCargo,
+            genero: sw.genero || '',
+            fechaNacimiento: sw.fechaNacimiento ? new Date(sw.fechaNacimiento).toISOString().split('T')[0] : '',
+            enfermedades: sw.condicionesSalud || '',
+            observaciones: sw.observaciones || '',
+            estadoLaboral: 'Activo',
+            biocentricScore: sw.fitScore || 100,
+            biocentricAlerts: sw.fitAlerts || [],
+            biocentricIsLethal: false,
+            completedByAI: false,
+            consentimientoFirmaDigital: 'No',
+            firmaDigital: null
+          });
+          selfHealModified = true;
+        } else {
+          if ((!finalWorkers[existingIdx].cargo || !finalWorkers[existingIdx].cargo.trim()) && resolvedCargo) {
+            finalWorkers[existingIdx].cargo = resolvedCargo;
+            selfHealModified = true;
+          }
+          if ((!finalWorkers[existingIdx].nombre || finalWorkers[existingIdx].nombre === 'Colaborador') && sw.nombre) {
+            finalWorkers[existingIdx].nombre = sw.nombre;
+            selfHealModified = true;
+          }
+        }
+      }
+
+      // Persist self-healing changes back to MongoDB
+      if (selfHealModified && !isSub) {
+        await PerfilSociodemograficoData.findOneAndUpdate(
+          { user: targetUserId, ...(companyId ? { companyId } : {}) },
+          { $set: { trabajadores: finalWorkers, updatedAt: new Date() } },
+          { upsert: true }
+        );
+      }
+    } catch (reconErr) {
+      logger.error('[PerfilSociodemografico GET /data] Self-healing reconciliation error:', reconErr);
+    }
+
+    if (finalWorkers.length > 0) {
       // Check if any worker is missing biocentricScore (legacy records)
       const hasMissingScores = finalWorkers.some(w => w.biocentricScore === undefined || w.biocentricScore === null);
 
@@ -1171,8 +1283,8 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 
       return res.json({
         trabajadores: finalWorkers,
-        actualizacionesPendientes: isSub ? [] : (data.actualizacionesPendientes || []),
-        actualizacionesPendientesSalud: isSub ? [] : (data.actualizacionesPendientesSalud || [])
+        actualizacionesPendientes: isSub ? [] : (data?.actualizacionesPendientes || []),
+        actualizacionesPendientesSalud: isSub ? [] : (data?.actualizacionesPendientesSalud || [])
       });
     } else {
       res.json({ trabajadores: [], actualizacionesPendientes: [], actualizacionesPendientesSalud: [] });
@@ -2006,7 +2118,7 @@ router.post('/worker/:workerId/dictamen', express.json({ limit: '10mb' }), requi
 // ─── POST /save — Save worker data + run IA tagging synchronously ──────────
 router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (req, res) => {
   try {
-    const { trabajadores } = req.body;
+    const { trabajadores, mode } = req.body;
     if (!trabajadores) {
       return res.status(400).json({ error: 'Datos requeridos' });
     }
@@ -2015,7 +2127,91 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
     const targetUserId = (isSub && req.user.parentUser) ? req.user.parentUser : req.user.id;
     const companyId = await getActiveCompanyId(targetUserId, isSub ? req.user.assignedCompany : null);
 
-    let workersToSave = trabajadores;
+    // Fetch existing document to prevent ANY loss of workers or cargos
+    let existingDoc = await PerfilSociodemograficoData.findOne({ user: targetUserId, ...(companyId ? { companyId } : {}) }).lean();
+    if (!existingDoc && !companyId) {
+      existingDoc = await PerfilSociodemograficoData.findOne({ user: targetUserId }).lean();
+    }
+    const existingWorkers = existingDoc?.trabajadores || [];
+
+    let workersToSave = [];
+
+    if (mode === 'health_patch') {
+      // ─── HEALTH PATCH MODE (Condiciones de Salud) ───
+      // Master roster is PRESERVED. Only clinical and evaluation fields are patched!
+      // NEVER drop any existing worker from Perfiles del Cargo / Perfil Sociodemográfico!
+      const existingMap = new Map();
+      existingWorkers.forEach(w => {
+        const key = String(w.identificacion || w.id || '').trim();
+        if (key) existingMap.set(key, { ...w });
+      });
+
+      for (const inc of (trabajadores || [])) {
+        const key = String(inc.identificacion || inc.id || '').trim();
+        if (!key) continue;
+
+        if (existingMap.has(key)) {
+          const cur = existingMap.get(key);
+          existingMap.set(key, {
+            ...cur,
+            fechaExamenMedico: inc.fechaExamenMedico !== undefined ? inc.fechaExamenMedico : cur.fechaExamenMedico,
+            diagnosticoMedico: inc.diagnosticoMedico !== undefined ? inc.diagnosticoMedico : cur.diagnosticoMedico,
+            recomendacionesMedicas: inc.recomendacionesMedicas !== undefined ? inc.recomendacionesMedicas : cur.recomendacionesMedicas,
+            fechaSeguimiento: inc.fechaSeguimiento !== undefined ? inc.fechaSeguimiento : cur.fechaSeguimiento,
+            enfermedades: inc.enfermedades !== undefined ? inc.enfermedades : cur.enfermedades,
+            medicamentos: inc.medicamentos !== undefined ? inc.medicamentos : cur.medicamentos,
+            fuma: inc.fuma !== undefined ? inc.fuma : cur.fuma,
+            alcohol: inc.alcohol !== undefined ? inc.alcohol : cur.alcohol,
+            terapiaPsicologica: inc.terapiaPsicologica !== undefined ? inc.terapiaPsicologica : cur.terapiaPsicologica,
+            deporte: inc.deporte !== undefined ? inc.deporte : cur.deporte,
+            alimentacion: inc.alimentacion !== undefined ? inc.alimentacion : cur.alimentacion,
+            riesgoCardiovascular: inc.riesgoCardiovascular !== undefined ? inc.riesgoCardiovascular : cur.riesgoCardiovascular,
+            peso: inc.peso !== undefined ? inc.peso : cur.peso,
+            talla: inc.talla !== undefined ? inc.talla : cur.talla,
+            imc: inc.imc !== undefined ? inc.imc : cur.imc,
+            presionArterial: inc.presionArterial !== undefined ? inc.presionArterial : cur.presionArterial,
+            frecuenciaCardiaca: inc.frecuenciaCardiaca !== undefined ? inc.frecuenciaCardiaca : cur.frecuenciaCardiaca,
+            limitacionesBiomecanicas: inc.limitacionesBiomecanicas !== undefined ? inc.limitacionesBiomecanicas : cur.limitacionesBiomecanicas,
+            alergiasQuimicas: inc.alergiasQuimicas !== undefined ? inc.alergiasQuimicas : cur.alergiasQuimicas,
+            biocentricScore: inc.biocentricScore !== undefined ? inc.biocentricScore : cur.biocentricScore,
+            biocentricAlerts: inc.biocentricAlerts !== undefined ? inc.biocentricAlerts : cur.biocentricAlerts,
+            biocentricIsLethal: inc.biocentricIsLethal !== undefined ? inc.biocentricIsLethal : cur.biocentricIsLethal,
+            dictamenPredictivoH1: inc.dictamenPredictivoH1 !== undefined ? inc.dictamenPredictivoH1 : cur.dictamenPredictivoH1,
+            bioScoreIAVersion: inc.bioScoreIAVersion !== undefined ? inc.bioScoreIAVersion : cur.bioScoreIAVersion,
+            bioScoreIAReason: inc.bioScoreIAReason !== undefined ? inc.bioScoreIAReason : cur.bioScoreIAReason,
+            bioScoreIADate: inc.bioScoreIADate !== undefined ? inc.bioScoreIADate : cur.bioScoreIADate,
+            bioTagsIA: inc.bioTagsIA !== undefined ? inc.bioTagsIA : cur.bioTagsIA,
+            bioScoreIAAptitud: inc.bioScoreIAAptitud !== undefined ? inc.bioScoreIAAptitud : cur.bioScoreIAAptitud,
+            firmaDigital: inc.firmaDigital !== undefined ? inc.firmaDigital : cur.firmaDigital,
+            consentimientoFirmaDigital: inc.consentimientoFirmaDigital !== undefined ? inc.consentimientoFirmaDigital : cur.consentimientoFirmaDigital,
+            estadoLaboral: inc.estadoLaboral !== undefined ? inc.estadoLaboral : cur.estadoLaboral,
+            fechaRetiro: inc.fechaRetiro !== undefined ? inc.fechaRetiro : cur.fechaRetiro,
+            motivoRetiro: inc.motivoRetiro !== undefined ? inc.motivoRetiro : cur.motivoRetiro,
+            // Cargo is conditioned to Perfiles del Cargo: only update if incoming explicitly set a non-empty cargo
+            cargo: (inc.cargo && String(inc.cargo).trim()) ? String(inc.cargo).trim() : cur.cargo,
+          });
+        } else {
+          existingMap.set(key, inc);
+        }
+      }
+      workersToSave = Array.from(existingMap.values());
+    } else {
+      // ─── MASTER SAVE MODE (Perfil Sociodemográfico) ───
+      // Protect against accidental loss of cargos
+      workersToSave = (trabajadores || []).map(w => {
+        const key = String(w.identificacion || w.id || '').trim();
+        const prev = existingWorkers.find(ew => 
+          (ew.identificacion && String(ew.identificacion).trim() === key) ||
+          (ew.id && String(ew.id).trim() === key)
+        );
+        if (prev) {
+          if ((!w.cargo || !String(w.cargo).trim()) && prev.cargo) {
+            return { ...w, cargo: prev.cargo };
+          }
+        }
+        return w;
+      });
+    }
 
     // Sub-user permission checks
     if (isSub) {
@@ -2029,10 +2225,9 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
 
       // If only self-edit is granted, merge into the full company list
       if (!hasAll && hasSelf && req.user.workerDocument) {
-        const existingDoc = await PerfilSociodemograficoData.findOne({ user: targetUserId, companyId }).lean();
-        const currentList = existingDoc?.trabajadores || [];
+        const currentList = [...existingWorkers];
         const myDoc = String(req.user.workerDocument).trim();
-        const incomingMyWorker = trabajadores.find(w => String(w.identificacion).trim() === myDoc) || trabajadores[0];
+        const incomingMyWorker = workersToSave.find(w => String(w.identificacion).trim() === myDoc) || workersToSave[0];
 
         if (incomingMyWorker) {
           const index = currentList.findIndex(w => String(w.identificacion).trim() === myDoc);
@@ -2147,26 +2342,28 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
       .filter(w => w.identificacion && String(w.identificacion).trim())
       .map(w => {
         const cleanDoc = String(w.identificacion).trim();
+        const updateFields = {
+          nombre: w.nombre || 'Colaborador',
+          eps: w.eps || '',
+          afp: w.afp || '',
+          estadoPila: w.estadoPila || 'Pendiente de soporte PILA',
+          condicionesSalud: [w.enfermedades, w.diagnosticoMedico, w.limitacionesBiomecanicas].filter(Boolean).join('; ') || '',
+          fechaNacimiento: w.fechaNacimiento || null,
+          genero: w.genero || 'No especificado',
+          estadoLaboral: w.estadoLaboral || 'Activo',
+          fechaRetiro: w.fechaRetiro || null,
+          motivoRetiro: w.motivoRetiro || '',
+          updatedAt: new Date(),
+        };
+        // ONLY update cargo if explicitly provided and non-empty! Never erase cargo!
+        if (w.cargo && String(w.cargo).trim()) {
+          updateFields.cargo = String(w.cargo).trim();
+        }
         return {
           updateOne: {
-            filter: { user: targetUserId, companyId, documento: cleanDoc },
-            update: {
-              $set: {
-                nombre: w.nombre || 'Colaborador',
-                cargo: w.cargo || '',
-                eps: w.eps || '',
-                afp: w.afp || '',
-                estadoPila: w.estadoPila || 'Pendiente de soporte PILA',
-                condicionesSalud: [w.enfermedades, w.diagnosticoMedico, w.limitacionesBiomecanicas].filter(Boolean).join('; ') || '',
-                fechaNacimiento: w.fechaNacimiento || null,
-                genero: w.genero || 'No especificado',
-                estadoLaboral: w.estadoLaboral || 'Activo',
-                fechaRetiro: w.fechaRetiro || null,
-                motivoRetiro: w.motivoRetiro || '',
-                updatedAt: new Date(),
-              }
-            },
-            upsert: true
+            filter: { user: targetUserId, ...(companyId ? { companyId } : {}), documento: cleanDoc },
+            update: { $set: updateFields },
+            upsert: false
           }
         };
       });

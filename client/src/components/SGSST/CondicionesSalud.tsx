@@ -304,61 +304,6 @@ const CondicionesSalud = () => {
         }
     };
 
-    // ─── Auto-sync sessionStorage ──────────────────────────────
-    useEffect(() => {
-        if (trabajadores.length > 0) {
-            try {
-                sessionStorage.setItem('wappy_cached_workers', JSON.stringify(trabajadores));
-            } catch {}
-        }
-    }, [trabajadores]);
-
-    // ─── Debounced Auto-save to Database ────────────────────────
-    const isInitialLoadRef = useRef(true);
-    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    useEffect(() => {
-        if (isInitialLoadRef.current) {
-            if (trabajadores.length > 0) {
-                isInitialLoadRef.current = false;
-            }
-            return;
-        }
-
-        if (saveTimeoutRef.current) {
-            clearTimeout(saveTimeoutRef.current);
-        }
-
-        saveTimeoutRef.current = setTimeout(async () => {
-            if (!token || trabajadores.length === 0) return;
-            try {
-                const trabajadoresConBio = trabajadores.map(w => {
-                    const bio = calculateBiocentricFit(w);
-                    return {
-                        ...w,
-                        biocentricScore: (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : bio.score,
-                        biocentricAlerts: w.biocentricAlerts || bio.alerts,
-                        biocentricIsLethal: w.biocentricIsLethal !== undefined ? w.biocentricIsLethal : bio.isLethal
-                    };
-                });
-                await fetch('/api/sgsst/perfil-sociodemografico/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ trabajadores: trabajadoresConBio }),
-                });
-                window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
-            } catch (err) {
-                console.error('Error auto-guardando condiciones de salud:', err);
-            }
-        }, 1500);
-
-        return () => {
-            if (saveTimeoutRef.current) {
-                clearTimeout(saveTimeoutRef.current);
-            }
-        };
-    }, [trabajadores, token]);
-
     // ─── Load Data ──────────────────────────────────────────────
     useEffect(() => {
         const loadData = async () => {
@@ -373,26 +318,8 @@ const CondicionesSalud = () => {
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data.trabajadores)) {
-                        const serverWorkers: WorkerEntry[] = data.trabajadores;
-                        let combined = [...serverWorkers];
-                        try {
-                            const cachedStr = sessionStorage.getItem('wappy_cached_workers');
-                            if (cachedStr) {
-                                const cachedWorkers: WorkerEntry[] = JSON.parse(cachedStr);
-                                if (Array.isArray(cachedWorkers)) {
-                                    for (const cw of cachedWorkers) {
-                                        if (cw.id && !combined.some(sw => sw.id === cw.id || (sw.identificacion && cw.identificacion && String(sw.identificacion).trim() === String(cw.identificacion).trim()))) {
-                                            combined.push(cw);
-                                        }
-                                    }
-                                }
-                            }
-                        } catch {}
-                        setTrabajadores(combined);
-                        try {
-                            sessionStorage.setItem('wappy_cached_workers', JSON.stringify(combined));
-                        } catch {}
-                        syncWorkersSignaturesToStorage(combined);
+                        setTrabajadores(data.trabajadores);
+                        syncWorkersSignaturesToStorage(data.trabajadores);
                     }
                     if (data.actualizacionesPendientesSalud) {
                         setInboxPerfil(data.actualizacionesPendientesSalud);
@@ -442,9 +369,6 @@ const CondicionesSalud = () => {
         const updated = [...trabajadores, newWorker];
         setTrabajadores(updated);
         setExpandedWorkers(prev => new Set(prev).add(newWorker.id));
-        try {
-            sessionStorage.setItem('wappy_cached_workers', JSON.stringify(updated));
-        } catch {}
 
         if (token) {
             const trabajadoresConBio = updated.map(w => {
@@ -459,7 +383,7 @@ const CondicionesSalud = () => {
             fetch('/api/sgsst/perfil-sociodemografico/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+                body: JSON.stringify({ trabajadores: trabajadoresConBio, mode: 'health_patch' }),
             })
             .then(() => {
                 window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
@@ -500,9 +424,6 @@ const CondicionesSalud = () => {
         });
 
         setTrabajadores(updated);
-        try {
-            sessionStorage.setItem('wappy_cached_workers', JSON.stringify(updated));
-        } catch {}
 
         // Auto-sincronización con la base de datos
         if (token) {
@@ -519,7 +440,7 @@ const CondicionesSalud = () => {
                 await fetch('/api/sgsst/perfil-sociodemografico/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+                    body: JSON.stringify({ trabajadores: trabajadoresConBio, mode: 'health_patch' }),
                 });
                 window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
             } catch (err) {
@@ -547,9 +468,6 @@ const CondicionesSalud = () => {
         if (window.confirm(confirmMsg)) {
             const updated = trabajadores.filter(w => w.id !== workerId);
             setTrabajadores(updated);
-            try {
-                sessionStorage.setItem('wappy_cached_workers', JSON.stringify(updated));
-            } catch {}
 
             // Auto-guardado en base de datos
             if (token) {
@@ -566,7 +484,7 @@ const CondicionesSalud = () => {
                     await fetch('/api/sgsst/perfil-sociodemografico/save', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+                        body: JSON.stringify({ trabajadores: trabajadoresConBio, mode: 'health_patch' }),
                     });
                     window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
                 } catch (err) {
@@ -693,9 +611,6 @@ const CondicionesSalud = () => {
         })();
 
         setTrabajadores(updatedList);
-        try {
-            sessionStorage.setItem('wappy_cached_workers', JSON.stringify(updatedList));
-        } catch {}
 
         if (token) {
             const trabajadoresConBio = updatedList.map(w => {
@@ -710,7 +625,7 @@ const CondicionesSalud = () => {
             fetch('/api/sgsst/perfil-sociodemografico/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+                body: JSON.stringify({ trabajadores: trabajadoresConBio, mode: 'health_patch' }),
             })
             .then(() => {
                 window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
@@ -925,17 +840,14 @@ const CondicionesSalud = () => {
             const res = await fetch('/api/sgsst/perfil-sociodemografico/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+                body: JSON.stringify({ trabajadores: trabajadoresConBio, mode: 'health_patch' }),
             });
             if (res.ok) {
                 const data = await res.json();
                 const finalWorkers = data.trabajadores?.length ? data.trabajadores : trabajadoresConBio;
                 setTrabajadores(finalWorkers);
-                try {
-                    sessionStorage.setItem('wappy_cached_workers', JSON.stringify(finalWorkers));
-                } catch {}
                 window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
-                showToast({ message: 'Perfil guardado ✔️ Análisis IA aplicado', severity: NotificationSeverity.SUCCESS });
+                showToast({ message: 'Condiciones de Salud guardadas ✔️ Análisis IA aplicado', severity: NotificationSeverity.SUCCESS });
             } else throw new Error('Error al guardar');
         } catch (err: any) {
             showToast({ message: err.message, severity: NotificationSeverity.ERROR });
