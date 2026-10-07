@@ -868,12 +868,14 @@ export default function TenshiChat() {
       window.innerWidth < 768 ||
       window.matchMedia('(max-width: 767px)').matches ||
       (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && window.innerWidth < 1024);
+    if (!isMobile) return false;
+    if (sessionStorage.getItem('tenshi_mobile_hero_forced') === 'true') return true;
     const isChatRoute =
       window.location.pathname === '/' ||
       window.location.pathname === '/c/new' ||
       window.location.pathname.startsWith('/c/');
     const alreadyMinimized = sessionStorage.getItem('tenshi_mobile_hero_minimized') === 'true';
-    return isMobile && isChatRoute && !alreadyMinimized;
+    return isChatRoute && !alreadyMinimized;
   });
 
   useEffect(() => {
@@ -896,12 +898,14 @@ export default function TenshiChat() {
       setIsHeroChatOpen(false);
       try {
         sessionStorage.setItem('tenshi_mobile_hero_minimized', 'true');
+        sessionStorage.removeItem('tenshi_mobile_hero_forced');
       } catch (_) {}
     };
     const handleEnterHero = () => {
       try {
         sessionStorage.removeItem('tenshi_mobile_hero_minimized');
         sessionStorage.removeItem('tenshi_mobile_hero_exited');
+        sessionStorage.setItem('tenshi_mobile_hero_forced', 'true');
       } catch (_) {}
       setIsMobileHeroMode(true);
       setIsHeroChatOpen(false);
@@ -2291,6 +2295,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       sessionStorage.removeItem('tenshi_mobile_hero_minimized');
       sessionStorage.removeItem('tenshi_mobile_hero_exited');
       sessionStorage.removeItem('tenshi_mobile_just_logged_in');
+      sessionStorage.setItem('tenshi_mobile_hero_forced', 'true');
     } catch (_) {}
     setIsMobileHeroMode(true);
     setIsHeroChatOpen(false);
@@ -2306,6 +2311,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   }, [location.pathname, navigate]);
 
   const handleTenshiInteraction = (e: React.MouseEvent | React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (target && target.closest('button')) {
+      return;
+    }
+
     if (hasMovedRef.current) {
       e.preventDefault();
       e.stopPropagation();
@@ -3069,7 +3079,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       {isMobileHeroMode ? (
         <div
           id="tenshi-mobile-hero-container"
-          className="fixed inset-x-0 top-0 bottom-0 z-[49] flex flex-col md:hidden bg-gradient-to-b from-slate-50 via-teal-50/20 to-slate-100 dark:bg-gradient-to-b dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden animate-in fade-in duration-200"
+          className="fixed inset-x-0 top-0 bottom-0 z-[50] flex flex-col md:hidden bg-gradient-to-b from-slate-50 via-teal-50/20 to-slate-100 dark:bg-gradient-to-b dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden animate-in fade-in duration-200"
           style={{
             paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 74px)',
           }}
@@ -3135,6 +3145,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   try {
                     sessionStorage.setItem('tenshi_mobile_hero_minimized', 'true');
                     sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
+                    sessionStorage.removeItem('tenshi_mobile_hero_forced');
                   } catch (_) {}
                   navigate('/c/new');
                 }}
@@ -3943,7 +3954,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           {/* Botón 4: Maximizar a Pantalla Completa (EXCLUSIVO PARA CELULAR) */}
           <button
             type="button"
+            id="tenshi-mobile-maximize-btn"
+            data-testid="tenshi-mobile-maximize-btn"
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               handleMaximizeMobile(e);
             }}
@@ -3956,9 +3970,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               handleMaximizeMobile(e);
             }}
             title="Tenshi en Pantalla Completa"
-            className="flex md:hidden w-8 h-8 min-w-[32px] min-h-[32px] items-center justify-center p-1.5 rounded-full text-teal-300 hover:text-teal-200 bg-teal-500/30 border border-teal-400/50 hover:bg-teal-500/50 shadow-sm transition-all active:scale-90 touch-manipulation cursor-pointer"
+            className="flex md:hidden w-8 h-8 min-w-[32px] min-h-[32px] items-center justify-center p-1.5 rounded-full text-teal-300 hover:text-teal-200 bg-teal-500/30 border border-teal-400/50 hover:bg-teal-500/50 shadow-sm transition-all active:scale-90 touch-manipulation cursor-pointer z-50 pointer-events-auto"
           >
-            <Maximize2 className="h-4 w-4" />
+            <Maximize2 className="h-4 w-4 pointer-events-none" />
           </button>
         </div>
 

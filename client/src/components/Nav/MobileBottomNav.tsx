@@ -127,6 +127,7 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
     try {
       sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
       sessionStorage.setItem('tenshi_mobile_hero_minimized', 'true');
+      sessionStorage.removeItem('tenshi_mobile_hero_forced');
     } catch (_) {}
     if (location.pathname !== '/c/new') {
       navigate('/c/new');
@@ -143,6 +144,7 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
     try {
       sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
       sessionStorage.setItem('tenshi_mobile_hero_minimized', 'true');
+      sessionStorage.removeItem('tenshi_mobile_hero_forced');
     } catch (_) {}
     navigate(path);
   };
@@ -151,7 +153,7 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
     <div
       id="wappy-mobile-bottom-nav-wrapper"
       className={cn(
-        'fixed bottom-0 inset-x-0 md:hidden flex-shrink-0 w-full z-50 px-3 transition-all duration-200 ease-out pointer-events-auto',
+        'fixed bottom-0 inset-x-0 md:hidden flex-shrink-0 w-full z-[60] px-3 transition-all duration-200 ease-out pointer-events-auto',
         isKeyboardOpen
           ? 'max-h-0 opacity-0 pointer-events-none overflow-hidden pb-0'
           : 'max-h-24 opacity-100 pointer-events-auto overflow-visible',
@@ -178,6 +180,8 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
             window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
             try {
               sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
+              sessionStorage.setItem('tenshi_mobile_hero_minimized', 'true');
+              sessionStorage.removeItem('tenshi_mobile_hero_forced');
             } catch (_) {}
             toggleLeftPanel();
           }}
@@ -276,6 +280,8 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
             window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
             try {
               sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
+              sessionStorage.setItem('tenshi_mobile_hero_minimized', 'true');
+              sessionStorage.removeItem('tenshi_mobile_hero_forced');
             } catch (_) {}
             toggleRightPanel();
           }}

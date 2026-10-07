@@ -22,6 +22,7 @@
 Cuando el usuario solicite desplegar o actualizar cambios en el servidor VPS de producción (`srv999875`):
 ```bash
 cd /root/LibreChat-WAPPY && git pull
+docker cp /root/LibreChat-WAPPY/client/dist/. LibreChat:/app/client/dist/
 docker exec -it LibreChat node scripts/restore-and-sync-all.js
 ```
 
