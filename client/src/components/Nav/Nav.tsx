@@ -51,10 +51,7 @@ const NavMask = memo(
       tabIndex={0}
       className={`nav-mask transition-opacity duration-200 ease-in-out ${navVisible ? 'active opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
       onClick={toggleNavVisible}
-      onTouchEnd={(e) => {
-        e.preventDefault();
-        toggleNavVisible();
-      }}
+      onPointerDown={toggleNavVisible}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           toggleNavVisible();

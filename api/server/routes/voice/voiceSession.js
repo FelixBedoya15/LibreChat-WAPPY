@@ -380,6 +380,16 @@ class VoiceSession {
                             }
                         },
                         {
+                            name: "wappy_consultar_empresas",
+                            description: "Consulta y lista todas las empresas que el usuario tiene registradas en WAPPY (hasta 3 empresas). Retorna el total de empresas registradas, el nombre de cada una, su NIT, número de trabajadores, cuál es la empresa activa actualmente y un resumen en texto. Invócala siempre que el usuario pregunte cuántas empresas tiene, cuáles son o pida ver sus empresas.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    dummy: { type: "string", description: "Parámetro opcional" }
+                                }
+                            }
+                        },
+                        {
                             name: "wappy_seleccionar_empresa",
                             description: "Activa o selecciona una empresa específica en el sistema por su nombre o identificación para trabajar sobre sus datos.",
                             parameters: {
@@ -1177,15 +1187,22 @@ class VoiceSession {
 [ROL]:
 Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes control en tiempo real para abrir cualquier agente, navegar a cualquier sección, entrar a Google Drive, generar archivos Canvas y diligenciar formularios en pantalla. Además, cuentas con acceso directo a la SUITE TOTAL DE 41 OPERACIONES MCP DEL SG-SST (diagnóstico 360° total, empresa, colaboradores, matrices GTC-45 / PESV / Legal, estándares 0312, comités, inventario químico, vehículos, EPP, actos y condiciones, perfiles de cargo, casos ATEL, cronograma y capacitaciones). Invoca 'wappy_resumen_general_360' o 'wappy_mcp_sst' con la herramienta adecuada para consultar o gestionar los datos del usuario de forma inmediata y profesional.
 
-[GESTIÓN DE TRABAJADORES Y COLABORADORES]:
-- TIENES CONTROL TOTAL para gestionar colaboradores en el SG-SST (Huella Biocéntrica):
+[GESTIÓN DE TRABAJADORES, CENSO Y EMPRESAS]:
+- TIENES CONTROL TOTAL para gestionar colaboradores y empresas en el SG-SST (Huella Biocéntrica):
+  * 'wappy_consultar_trabajadores': Para buscar trabajadores o consultar nómina (activos o retirados). Retorna 'totalRegistrados' (el total general de colaboradores en la base de datos), 'totalActivos' (los trabajadores actualmente activos) y 'totalRetirados' (los que han salido).
+  * DIFERENCIACIÓN OBLIGATORIA DE CENSO: NUNCA confundas el total registrado con los activos. Si la respuesta dice 58 registrados, 57 activos y 1 retirado, DI CLARAMENTE: "Tienes un total de 58 trabajadores registrados: 57 activos y 1 retirado". ESTÁ TERMINANTEMENTE PROHIBIDO decir "58 activos y 1 retirado". Sigue siempre con exactitud el 'resumenCenso' devuelto.
+  * 'wappy_consultar_empresas': Cuando el usuario te pregunte cuántas empresas tiene registradas, cuáles son o si tiene más de una, INVOCA DE INMEDIATO 'wappy_consultar_empresas'. WAPPY permite hasta 3 empresas por usuario. Reporta el total de empresas registradas, sus nombres, NIT, trabajadores y destaca cuál es la empresa activa actualmente según el 'resumenTexto'.
   * 'wappy_reintegrar_trabajador': Cuando el usuario te pida reintegrar, reactivar, volver a contratar, reincorporar o pasar a estado activo a un trabajador previamente retirado (ej: "reintegrar al trabajador Jorge Enrique Pineda" o "reactivar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_reintegrar_trabajador' con su nombre o cédula. El sistema restaurará su estado laboral a 'Activo' en la base de datos y refrescará la plataforma.
   * ESTÁ TERMINANTEMENTE PROHIBIDO afirmar verbalmente que has reintegrado a un trabajador sin invocar 'wappy_reintegrar_trabajador'.
   * 'wappy_retirar_trabajador': Cuando el usuario te pida retirar, desvincular, dar de baja o sacar a un trabajador (ej: "dejar como retirado a Jorge Ricky Pineda" o "retirar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_retirar_trabajador'. El sistema conservará su historial y lo pasará a la pestaña 'Retirados'.
   * ESTÁ TERMINANTEMENTE PROHIBIDO decir que no tienes una función para cambiar el estado de un colaborador a 'retirado'. ¡TIENES la función 'wappy_retirar_trabajador'!
   * 'wappy_actualizar_trabajador': Para editar cargos, salarios o información del empleado.
-  * 'wappy_consultar_trabajadores': Para buscar trabajadores o consultar nómina (activos o retirados).
   * 'wappy_registrar_trabajador': Para registrar nuevos trabajadores.
+
+[CREACIÓN DE INFORMES Y DOCUMENTOS ('canvas_tool')]:
+- TIENES LA HERRAMIENTA 'canvas_tool' para crear archivos descargables nuevos e independientes (Word/text, Excel, HTML interactivo).
+- Si el usuario te pide: "realiza un informe sobre ello y me lo pases por acá por el chat", "hazme un informe", "redacta un informe", "crea un documento", "pásame un reporte" o similar, INVOCA DE INMEDIATO 'canvas_tool' con accion='crear', fileType='text' (para documentos/informes Word) y title con el nombre del tema.
+- ESTÁ TERMINANTEMENTE PROHIBIDO decir que no puedes crear o enviar el archivo del informe en este momento. ¡TIENES 'canvas_tool' precisamente para eso! Invócala de inmediato y confirma con alegría que se lo acabas de generar en su chat.
 
 [INTERACCIÓN, GENERACIÓN IA Y CLICS EN BOTONES EN PANTALLA ('operar_interfaz_visual')]:
 - ACCIÓN REAL ANTE ÓRDENES DE CLIC / GENERAR ANÁLISIS:
@@ -3787,10 +3804,12 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
         const userPrompt = userRequestText || args.content || args.title;
         const toolReq = {
             user: { id: this.userId, _id: this.userId },
+            isVoiceSession: true,
             body: {
                 conversationId: uniqueCanvasId,
                 text: userPrompt,
                 userRequestText: userPrompt,
+                isVoiceSession: true,
                 screenContext: this.activeScreenRoute || '',
                 agentContext: this.lastSpecialistResponse || this.activeScreenAgent?.name || '',
             }

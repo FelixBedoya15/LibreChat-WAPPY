@@ -10,6 +10,16 @@ const TOOL_ROUTES = {
   wappy_resumen_general_360: { method: 'GET', path: '/resumen-360' },
   wappy_consultar_perfil_empresa: { method: 'GET', path: '/profile' },
   wappy_actualizar_perfil_empresa: { method: 'POST', path: '/profile' },
+  wappy_consultar_empresas: { method: 'GET', path: '/companies' },
+  wappy_listar_empresas: { method: 'GET', path: '/companies' },
+  wappy_activar_empresa: {
+    method: 'POST',
+    path: (args) => `/companies/${encodeURIComponent(args.id || args.companyId || '')}/activate`,
+  },
+  wappy_seleccionar_empresa: {
+    method: 'POST',
+    path: (args) => `/companies/${encodeURIComponent(args.id || args.companyId || '')}/activate`,
+  },
 
   // 2. Matrices de Riesgo & Cumplimiento
   wappy_consultar_matriz_gtc45: { method: 'GET', path: '/gtc45' },

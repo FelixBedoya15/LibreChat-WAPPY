@@ -329,6 +329,65 @@ router.get('/profile', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+// ─── 1.1 TODAS LAS EMPRESAS REGISTRADAS DEL USUARIO ───────────────────────────
+
+router.get('/companies', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
+    const companies = await CompanyInfo.find({ user: targetUserId }).sort({ createdAt: 1 }).lean();
+
+    const totalEmpresas = companies.length;
+    const empresaActiva = companies.find((c) => c.isActive) || companies[0] || null;
+
+    const lista = companies.map((c) => ({
+      id: c._id.toString(),
+      nombre: c.companyName || 'Sin nombre',
+      companyName: c.companyName || 'Sin nombre',
+      tipo: c.companyType || 'Persona Jurídica',
+      companyType: c.companyType || 'Persona Jurídica',
+      nit: c.nit || 'N/A',
+      activa: Boolean(c.isActive),
+      isActive: Boolean(c.isActive),
+      trabajadores: c.workerCount || 0,
+      workerCount: c.workerCount || 0,
+      arl: c.arl || 'N/A',
+      nivelRiesgo: c.riskLevel || 'N/A',
+      riskLevel: c.riskLevel || 'N/A',
+      ciudad: c.city || 'N/A',
+      city: c.city || 'N/A',
+      departamento: c.departamento || '',
+      phone: c.phone || '',
+      email: c.email || '',
+      responsibleSST: c.responsibleSST || '',
+      actividadEconomica: c.economicActivity || 'N/A',
+      createdAt: c.createdAt,
+    }));
+
+    const lineasEmpresas = lista
+      .map(
+        (c, idx) =>
+          `${idx + 1}. ${c.nombre} (NIT: ${c.nit}) - ${c.trabajadores} trabajadores - [${c.activa ? 'EMPRESA ACTIVA ACTUALMENTE' : 'Inactiva'}]`
+      )
+      .join('\n');
+
+    return res.json({
+      total: totalEmpresas,
+      totalEmpresas,
+      empresaActivaNombre: empresaActiva?.companyName || 'Ninguna',
+      empresaActivaId: empresaActiva?._id?.toString() || null,
+      resumenTexto:
+        totalEmpresas > 0
+          ? `Tienes un total de ${totalEmpresas} empresa(s) registrada(s) en WAPPY:\n${lineasEmpresas}\nLa empresa activa seleccionada actualmente es "${empresaActiva?.companyName || 'N/A'}".`
+          : 'No tienes empresas registradas en tu cuenta de WAPPY.',
+      empresas: lista,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /companies error:', error);
+    return res.status(500).json({ error: 'Error al consultar las empresas del usuario.' });
+  }
+});
+
 router.post('/profile', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -965,6 +1024,12 @@ router.get('/workers', requireApiKeyOrJwt, async (req, res) => {
       }
     }
 
+    // Censo global antes de filtros
+    const totalRegistrados = deduplicated.length;
+    const totalActivos = deduplicated.filter((t) => (t.estadoLaboral || 'Activo') !== 'Retirado').length;
+    const totalRetirados = deduplicated.filter((t) => t.estadoLaboral === 'Retirado').length;
+    const resumenCenso = `Censo oficial de colaboradores: ${totalRegistrados} trabajadores registrados en total (${totalActivos} activos y ${totalRetirados} retirados).`;
+
     const filterEstado = String(filtro || estado || '').toLowerCase().trim();
     if (filterEstado) {
       if (filterEstado.includes('retirad')) {
@@ -993,6 +1058,11 @@ router.get('/workers', requireApiKeyOrJwt, async (req, res) => {
 
     return res.json({
       total: deduplicated.length,
+      totalRegistrados,
+      totalActivos,
+      totalRetirados,
+      resumenCenso,
+      filtroAplicado: filtro || estado || (busqueda ? 'búsqueda' : 'todos'),
       trabajadores: deduplicated.map((t) => ({
         id: t.id || t._id?.toString(),
         nombre_completo: t.nombre || 'Colaborador',
@@ -3398,36 +3468,6 @@ router.get('/archivos', requireApiKeyOrJwt, async (req, res) => {
 
 // ─── 21. GESTIÓN MULTI-EMPRESAS ─────────────────────────────────────────────
 
-router.get('/companies', requireApiKeyOrJwt, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const companies = await CompanyInfo.find({ user: userId }).sort({ createdAt: 1 }).lean();
-
-    return res.json({
-      total: companies.length,
-      empresas: companies.map((c) => ({
-        id: c._id.toString(),
-        companyName: c.companyName || '',
-        nit: c.nit || '',
-        companyType: c.companyType || 'Persona Jurídica',
-        workerCount: c.workerCount || 0,
-        arl: c.arl || '',
-        riskLevel: c.riskLevel || '',
-        city: c.city || '',
-        departamento: c.departamento || '',
-        phone: c.phone || '',
-        email: c.email || '',
-        responsibleSST: c.responsibleSST || '',
-        isActive: !!c.isActive,
-        createdAt: c.createdAt,
-      })),
-    });
-  } catch (error) {
-    logger.error('[MCP Bridge] GET /companies error:', error);
-    return res.status(500).json({ error: 'Error al consultar empresas.' });
-  }
-});
-
 router.post('/companies', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -3540,7 +3580,7 @@ router.put('/companies/:id', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
-router.post('/companies/:id/activate', requireApiKeyOrJwt, async (req, res) => {
+router.post(['/companies/:id/activate', '/companies/:id/select'], requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
     const targetId = req.params.id;

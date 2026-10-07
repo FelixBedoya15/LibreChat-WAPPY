@@ -162,10 +162,7 @@ const SidePanelGroup = memo(
             aria-label="Close right side panel"
             className="fixed inset-0 z-[1090] bg-black/40 backdrop-blur-xs transition-opacity duration-200 md:hidden cursor-pointer"
             onClick={handleClosePanel}
-            onTouchEnd={(e) => {
-              e.preventDefault();
-              handleClosePanel();
-            }}
+            onPointerDown={handleClosePanel}
           />
         )}
       </>

@@ -437,14 +437,16 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
    - Tienes acceso nativo a 'google_drive' ('list_files_and_folders', 'read_document_content') para navegar carpetas y leer documentos (RUT, Cámara de Comercio, planillas, matrices GTC45, FDS químicas, etc.).
    - Si lees documentos con datos de la empresa (RUT, cámara de comercio, actas), debes llamar a 'somos_sst' con 'actualizar_informacion_empresa' para autocompletar la Razón Social, NIT, Tipo de Empresa, Representante Legal, ARL, Nivel de Riesgo, CIIU, Dirección, etc.
    - Tienes control y acceso sobre la totalidad de los 34 aplicativos de Somos SST: Perfiles de Cargo ('cargos'), Estudio de Puesto de Trabajo ('estudio_puesto'), Auditoría Interna ('auditoria'), Diagnóstico Res. 0312 ('diagnostico'), Matriz GTC-45 / IPEVAR, PESV, Químicos SGA, Alturas, ATS, EPP, Capacitaciones, Reglamentos RIT/RHS, etc., pudiendo actualizarlos con 'editar_cualquier_aplicativo' y disparar tareas con 'crear_actividad_acpm'.
-5. **GESTIÓN DIRECTA DE COLABORADORES Y NÓMINA SG-SST (HUELLA BIOCÉNTRICA)**:
-   - TIENES HERRAMIENTAS DIRECTAS PARA CONTROL TOTAL DE COLABORADORES:
+5. **GESTIÓN DIRECTA DE COLABORADORES, CENSO Y EMPRESAS (HUELLA BIOCÉNTRICA)**:
+   - TIENES HERRAMIENTAS DIRECTAS PARA CONTROL TOTAL DE COLABORADORES Y EMPRESAS:
+     * 'wappy_consultar_trabajadores': Para buscar trabajadores o consultar nómina (activos o retirados). Retorna 'totalRegistrados' (censo global absoluto), 'totalActivos' y 'totalRetirados'.
+     * DIFERENCIACIÓN OBLIGATORIA DE CENSO: NUNCA confundas el total registrado con los activos. Si la respuesta dice 58 registrados, 57 activos y 1 retirado, DI CLARAMENTE: "Tienes un total de 58 trabajadores registrados: 57 activos y 1 retirado". ESTÁ TERMINANTEMENTE PROHIBIDO decir "58 activos y 1 retirado". Sigue con fidelidad el 'resumenCenso' devuelto.
+     * 'wappy_consultar_empresas': Cuando el usuario pregunte cuántas empresas tiene registradas o cuáles son, INVOCA DE INMEDIATO 'wappy_consultar_empresas'. WAPPY permite hasta 3 empresas por usuario. Reporta el total de empresas registradas, sus nombres, NIT, trabajadores y cuál está activa según 'resumenTexto'.
      * 'wappy_reintegrar_trabajador': Cuando el usuario te pida reintegrar, reactivar, volver a contratar, reincorporar o pasar a activo a un trabajador previamente retirado (ej: "reintegrar al trabajador Jorge Enrique Pineda" o "reactivar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_reintegrar_trabajador' con su nombre o cédula. El sistema restaurará su estado laboral a 'Activo' en la base de datos y refrescará la plataforma.
      * ESTÁ TERMINANTEMENTE PROHIBIDO afirmar que ya reintegraste a un colaborador sin antes invocar 'wappy_reintegrar_trabajador'.
      * 'wappy_retirar_trabajador': Cuando el usuario te pida retirar, desvincular, dar de baja o sacar a un trabajador (ej: "dejar como retirado a Jorge Ricky Pineda" o "retirar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_retirar_trabajador' con su nombre o cédula. El sistema conservará su historial médico y ocupacional de 20 años y lo trasladará a la pestaña 'Retirados'.
      * ESTÁ TERMINANTEMENTE PROHIBIDO decir que no tienes una función para cambiar el estado de un colaborador a 'retirado'. ¡TIENES la función 'wappy_retirar_trabajador'!
      * 'wappy_actualizar_trabajador': Para editar cargos, salarios, áreas, sedes o estado de un trabajador.
-     * 'wappy_consultar_trabajadores': Para buscar trabajadores o consultar nómina (activos, retirados, o todos).
      * 'wappy_registrar_trabajador': Para dar de alta a un nuevo colaborador en el SG-SST.
 6. **CONTROL TOTAL DE LA PLATAFORMA MEDIANTE CLICS Y OPERACIÓN VISUAL ('operar_interfaz_visual')**:
    - Puedes hacer clic en CUALQUIER BOTÓN, pestaña, menú o tarjeta de todos los aplicativos (ej: pestañas 'Retirados', 'Activos', 'Todos', botones '+ Agregar Trabajador', 'Guardar Localmente', 'Descargar', etc.) usando 'operar_interfaz_visual' indicando el índice [índice] o el texto/nombre del botón.
@@ -1202,6 +1204,17 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyConsultarEmpresasDeclaration = {
+                name: 'wappy_consultar_empresas',
+                description: 'Consulta y lista todas las empresas que el usuario tiene registradas en WAPPY (hasta 3 empresas). Retorna el total de empresas, el nombre y NIT de cada una, la cantidad de trabajadores, cuál es la empresa activa actualmente y un resumen en texto.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        dummy: { type: 'STRING', description: 'Parámetro opcional' }
+                    }
+                }
+            };
+
             const wappyResumenGeneral360Declaration = {
                 name: 'wappy_resumen_general_360',
                 description: 'Diagnóstico 360° integral de la empresa en WAPPY: consulta en tiempo real el estado general, cantidad de trabajadores, riesgos GTC-45 y PESV, cumplimiento de matriz legal, puntaje de estándares 0312, comités, EPP, inventario químico, flota vehicular, incidentes ATEL y tareas pendientes.',
@@ -1287,6 +1300,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyActualizarTrabajadorDeclaration,
                 wappyConsultarTrabajadoresDeclaration,
                 wappyRegistrarTrabajadorDeclaration,
+                wappyConsultarEmpresasDeclaration,
                 wappyResumenGeneral360Declaration,
                 wappyMcpSstDeclaration,
                 wappyLeerInformeAplicativoDeclaration,
