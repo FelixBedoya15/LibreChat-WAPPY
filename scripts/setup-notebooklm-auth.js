@@ -154,13 +154,17 @@ async function runManualCookieImport() {
   console.log('    (Tip: Si tienes la extensión "Cookie-Editor", puedes exportar todas las cookies en JSON y pegarlas directo).\n');
 
   console.log('¿Cómo prefieres ingresar tus credenciales?');
-  console.log(' [1] Pegar los valores individuales (__Secure-1PSIDTS y SID)');
-  console.log(' [2] Pegar el JSON completo de cookies (exportado con Cookie-Editor)');
-  const subOption = (await ask('Selecciona una opción (1 o 2): ')).trim();
+  console.log(' [1] Pegar el JSON completo de cookies (Recomendado - 1 clic con Cookie-Editor en Chrome)');
+  console.log(' [2] Pegar cookies individuales (__Secure-1PSID, __Secure-1PSIDTS, SID, HSID, SSID)');
+  const subOption = (await ask('Selecciona una opción [1/2]: ')).trim() || '1';
 
   let cookiesList = [];
 
-  if (subOption === '2') {
+  if (subOption === '1') {
+    console.log('\n--- Instrucciones con Cookie-Editor (Chrome / Edge / Firefox) ---');
+    console.log(' 1. En tu navegador, ve a https://notebooklm.google.com (asegúrate de haber iniciado sesión).');
+    console.log(' 2. Haz clic en el ícono de la extensión "Cookie-Editor".');
+    console.log(' 3. En la parte inferior, haz clic en "Export" y luego en "Export as JSON".');
     console.log('\nPega a continuación el JSON completo de cookies y presiona ENTER dos veces:');
     let rawJson = '';
     const lines = [];
@@ -174,46 +178,54 @@ async function runManualCookieImport() {
     try {
       const parsed = JSON.parse(rawJson);
       cookiesList = Array.isArray(parsed) ? parsed : (parsed.cookies || []);
-      if (cookiesList.length === 0) throw new Error('El JSON no contiene un arreglo de cookies válido.');
+      if (cookiesList.length === 0) throw new Error('El JSON no contiene un arreglo de cookies.');
     } catch (err) {
       console.log('\x1b[31m%s\x1b[0m', `Error al interpretar el JSON: ${err.message}`);
       return;
     }
   } else {
-    const sidts = (await ask('\n1. Pega el valor de "__Secure-1PSIDTS": ')).trim();
-    const sid = (await ask('2. Pega el valor de "SID": ')).trim();
-    const email = (await ask('3. Correo de Google asociado (ej. usuario@gmail.com): ')).trim();
+    console.log('\nIntroduce las cookies de sesión de Google (disponibles en DevTools -> Application -> Cookies -> google.com):');
+    const psid = (await ask('1. Pega el valor de "__Secure-1PSID" (Obligatorio): ')).trim();
+    const psidts = (await ask('2. Pega el valor de "__Secure-1PSIDTS" (Obligatorio): ')).trim();
+    const sid = (await ask('3. Pega el valor de "SID" (Obligatorio): ')).trim();
+    const hsid = (await ask('4. Pega el valor de "HSID" (Recomendado): ')).trim();
+    const ssid = (await ask('5. Pega el valor de "SSID" (Recomendado): ')).trim();
+    const email = (await ask('6. Correo de Google asociado (ej. usuario@gmail.com): ')).trim();
 
-    if (!sidts || !sid) {
-      console.log('\x1b[31m%s\x1b[0m', 'x Tanto __Secure-1PSIDTS como SID son obligatorios.');
+    if (!psid || !psidts || !sid) {
+      console.log('\x1b[31m%s\x1b[0m', 'x __Secure-1PSID, __Secure-1PSIDTS y SID son indispensables para que Google no rechace la sesión.');
       return;
     }
 
-    cookiesList = [
-      {
-        name: '__Secure-1PSIDTS',
-        value: sidts,
-        domain: '.google.com',
-        path: '/',
-        secure: true,
-        httpOnly: true,
-        sameSite: 'Lax',
-      },
-      {
-        name: 'SID',
-        value: sid,
-        domain: '.google.com',
-        path: '/',
-        secure: true,
-        httpOnly: true,
-        sameSite: 'Lax',
-      },
+    const rawCookies = [
+      { name: '__Secure-1PSID', value: psid },
+      { name: '__Secure-1PSIDTS', value: psidts },
+      { name: 'SID', value: sid },
     ];
+    if (hsid) rawCookies.push({ name: 'HSID', value: hsid });
+    if (ssid) rawCookies.push({ name: 'SSID', value: ssid });
 
-    if (email) {
-      accountMetadata = { authuser: 0, email };
-    }
+    cookiesList = rawCookies.map((c) => ({
+      name: c.name,
+      value: c.value,
+      domain: '.google.com',
+      path: '/',
+      secure: true,
+      httpOnly: true,
+      sameSite: 'Lax',
+    }));
   }
+
+  // Normalizar cookies
+  cookiesList = cookiesList.map((c) => ({
+    name: String(c.name || '').trim(),
+    value: String(c.value || '').trim(),
+    domain: String(c.domain || '.google.com'),
+    path: String(c.path || '/'),
+    secure: Boolean(c.secure ?? true),
+    httpOnly: Boolean(c.httpOnly ?? true),
+    sameSite: String(c.sameSite || 'Lax').toLowerCase() === 'none' ? 'None' : 'Lax',
+  })).filter((c) => c.name && c.value);
 
   // Validar cookies contra Google
   console.log('\nComprobando validez de la sesión contra Google NotebookLM...');
@@ -223,7 +235,12 @@ async function runManualCookieImport() {
     console.log('\x1b[32m%s\x1b[0m', '✓ ¡Validación exitosa! Google respondió correctamente con la sesión proporcionada.');
   } else {
     console.log('\x1b[33m%s\x1b[0m', `! Advertencia en la prueba: ${check.reason}`);
-    console.log('Se guardará de todas formas para probar en el contenedor MCP.');
+    console.log('Nota: Si Google redirige a login, las herramientas fallarán con error de token CSRF.');
+    const confirm = (await ask('¿Deseas guardar estas credenciales de todas formas? [s/N]: ')).trim().toLowerCase();
+    if (confirm !== 's' && confirm !== 'si' && confirm !== 'y') {
+      console.log('Operación cancelada. Por favor obtén un JSON actualizado con Cookie-Editor mientras tengas la sesión abierta.');
+      return;
+    }
   }
 
   const storageData = {

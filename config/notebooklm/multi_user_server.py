@@ -55,6 +55,23 @@ mcp = FastMCP(
 )
 
 
+def _normalize_cookie(c: Dict[str, Any]) -> Dict[str, Any]:
+    same_site = str(c.get("sameSite", "Lax")).capitalize()
+    if same_site in ("No_restriction", "Unspecified"):
+        same_site = "Lax"
+    elif same_site not in ("Strict", "Lax", "None"):
+        same_site = "Lax"
+    return {
+        "name": str(c.get("name", "")).strip(),
+        "value": str(c.get("value", "")).strip(),
+        "domain": str(c.get("domain", ".google.com")),
+        "path": str(c.get("path", "/")),
+        "secure": bool(c.get("secure", True)),
+        "httpOnly": bool(c.get("httpOnly", True)),
+        "sameSite": same_site,
+    }
+
+
 def _safe_parse_cookies(raw_auth: str) -> List[Dict[str, Any]]:
     """Convierte una cadena de texto o JSON de cookies en la lista requerida por storage_state.json."""
     raw_auth = raw_auth.strip()
@@ -65,10 +82,13 @@ def _safe_parse_cookies(raw_auth: str) -> List[Dict[str, Any]]:
     if raw_auth.startswith("{") or raw_auth.startswith("["):
         try:
             parsed = json.loads(raw_auth)
+            raw_list = []
             if isinstance(parsed, list):
-                return parsed
-            if isinstance(parsed, dict) and "cookies" in parsed:
-                return parsed["cookies"]
+                raw_list = parsed
+            elif isinstance(parsed, dict) and "cookies" in parsed:
+                raw_list = parsed["cookies"]
+            if raw_list:
+                return [_normalize_cookie(c) for c in raw_list if isinstance(c, dict) and c.get("name") and c.get("value")]
         except Exception as e:
             logger.warning(f"Error parseando JSON de cookies: {e}")
 
@@ -222,6 +242,20 @@ async def _resolve_notebook_id(client: NotebookLMClient, notebook_identifier: st
     return notebook_identifier
 
 
+def _handle_tool_error(tool_name: str, e: Exception) -> None:
+    """Registra y enriquece errores de autenticación con Google NotebookLM."""
+    logger.error(f"[{tool_name}] Error: {e}", exc_info=True)
+    msg = str(e)
+    if any(term in msg.lower() for term in ("csrf", "snlm0e", "auth", "401", "403", "cookie", "login", "signin", "redirect")):
+        raise RuntimeError(
+            "Error de autenticación con Google NotebookLM (token CSRF no encontrado o sesión expirada). "
+            "Las cookies de Google han caducado o están incompletas. "
+            "Para solucionarlo: abre https://notebooklm.google.com en Chrome, exporta las cookies como JSON con la extensión Cookie-Editor "
+            "y actualízalas en el servidor con 'npm run notebooklm:auth' o pégalas en LibreChat dentro de 'Sesión Privada de NotebookLM'."
+        ) from e
+    raise e
+
+
 # =============================================================================
 # HERRAMIENTAS MCP EXPUESTAS (Tolerantes a argumentos del LLM)
 # =============================================================================
@@ -232,17 +266,20 @@ async def notebook_list(
     query: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Lista todos los cuadernos disponibles para el usuario actual (incluyendo los compartidos con la cuenta)."""
-    client = await get_client_for_request()
-    notebooks = await client.notebooks.list()
-    return [
-        {
-            "id": nb.id,
-            "title": nb.title,
-            "sources_count": getattr(nb, "sources_count", 0),
-            "updated_at": str(getattr(nb, "updated_at", "")),
-        }
-        for nb in notebooks
-    ]
+    try:
+        client = await get_client_for_request()
+        notebooks = await client.notebooks.list()
+        return [
+            {
+                "id": nb.id,
+                "title": nb.title,
+                "sources_count": getattr(nb, "sources_count", 0),
+                "updated_at": str(getattr(nb, "updated_at", "")),
+            }
+            for nb in notebooks
+        ]
+    except Exception as e:
+        _handle_tool_error("notebook_list", e)
 
 
 @mcp.tool()
@@ -251,9 +288,12 @@ async def notebook_create(
     input: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """Crea un nuevo cuaderno de NotebookLM."""
-    client = await get_client_for_request()
-    nb = await client.notebooks.create(title=title)
-    return {"status": "created", "id": nb.id, "title": nb.title}
+    try:
+        client = await get_client_for_request()
+        nb = await client.notebooks.create(title=title)
+        return {"status": "created", "id": nb.id, "title": nb.title}
+    except Exception as e:
+        _handle_tool_error("notebook_create", e)
 
 
 @mcp.tool()
@@ -262,18 +302,21 @@ async def source_list(
     input: Optional[Any] = None,
 ) -> List[Dict[str, Any]]:
     """Lista los documentos, fuentes y archivos cargados en un cuaderno específico."""
-    client = await get_client_for_request()
-    nb_id = await _resolve_notebook_id(client, notebook)
-    sources = await client.sources.list(nb_id)
-    return [
-        {
-            "id": s.id,
-            "title": s.title,
-            "type": getattr(s, "type", "document"),
-            "status": str(getattr(s, "status", "ready")),
-        }
-        for s in sources
-    ]
+    try:
+        client = await get_client_for_request()
+        nb_id = await _resolve_notebook_id(client, notebook)
+        sources = await client.sources.list(nb_id)
+        return [
+            {
+                "id": s.id,
+                "title": s.title,
+                "type": getattr(s, "type", "document"),
+                "status": str(getattr(s, "status", "ready")),
+            }
+            for s in sources
+        ]
+    except Exception as e:
+        _handle_tool_error("source_list", e)
 
 
 @mcp.tool()
