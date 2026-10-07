@@ -404,6 +404,34 @@ class VoiceSession {
                             }
                         },
                         {
+                            name: "wappy_activar_empresa",
+                            description: "Activa o cambia a una empresa específica registrada en WAPPY por su nombre, NIT o ID para trabajar sobre sus datos y actualizar el contexto activo.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    empresa: {
+                                        type: "string",
+                                        description: "Nombre, NIT o ID de la empresa a activar."
+                                    }
+                                },
+                                required: ["empresa"]
+                            }
+                        },
+                        {
+                            name: "wappy_consultar_detalle_empresa",
+                            description: "Consulta el perfil y detalle completo de cualquier empresa registrada del usuario (activa o inactiva) por su nombre, NIT o ID. Retorna razón social, NIT, tipo de empresa, representante legal, cédula, responsable SST, licencia, vigencia, sedes, ciudad, nivel de riesgo y ARL.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    empresa: {
+                                        type: "string",
+                                        description: "Nombre, NIT o ID de la empresa a consultar."
+                                    }
+                                },
+                                required: ["empresa"]
+                            }
+                        },
+                        {
                             name: "wappy_retirar_trabajador",
                             description: "Marca a un colaborador como RETIRADO en el SG-SST (Huella Biocéntrica) conservando todo su historial ocupacional y trasladándolo a la pestaña 'Retirados'. Invócala de inmediato cuando el usuario te pida retirar, dar de baja o desvincular a un empleado.",
                             parameters: {
@@ -1104,13 +1132,13 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_leer_informe_aplicativo",
-                            description: "Lee e inspecciona el informe técnico oficial de cualquier aplicativo del SG-SST (Perfiles de Cargo, Matriz IPEVAR / GTC-45, Diagnóstico Res. 0312, Investigación ATEL, PESV, Químicos SGA, Auditoría Anual). Si se trata de perfiles de cargo, consulta el catálogo completo de todos los cargos de la empresa y el informe del cargo seleccionado o solicitado.",
+                            description: "Lee e inspecciona el informe técnico oficial de cualquiera de los 20 aplicativos del SG-SST (Perfiles de Cargo, Matriz IPEVAR / GTC-45, Diagnóstico Res. 0312, Sociodemográfico y Salud, Vulnerabilidad y Emergencias, Ergonomía OWAS, Estudio de Puesto de Trabajo, ATS, Alturas, Matriz Legal, Comités COPASST, Capacitaciones, EPP, Investigación ATEL, PESV, Químicos SGA, Actos y Condiciones, Vehículos, Cronograma, Auditoría Anual). Si se trata de perfiles de cargo, consulta el catálogo completo de todos los cargos de la empresa y el informe del cargo seleccionado o solicitado.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     aplicativo: {
                                         type: "string",
-                                        description: "Nombre del aplicativo o módulo: 'perfil_cargo', 'matriz_ipevar', 'gtc45', 'diagnostico_0312', 'investigacion_atel', 'pesv', 'quimicos', 'sga', 'auditoria'."
+                                        description: "Nombre o clave del aplicativo: 'perfil_cargo', 'gtc45', 'diagnostico_0312', 'investigacion_atel', 'pesv', 'quimicos', 'auditoria', 'perfil_socio', 'vulnerabilidad', 'owas', 'estudio_puesto', 'ats', 'alturas', 'legal', 'comites', 'capacitaciones', 'epp', 'actos_condiciones', 'vehiculos', 'cronograma'."
                                     },
                                     cargo: {
                                         type: "string",
@@ -1122,6 +1150,60 @@ class VoiceSession {
                                     }
                                 },
                                 required: ["aplicativo"]
+                            }
+                        },
+                        {
+                            name: "wappy_consultar_cursos",
+                            description: "Consulta y lista todos los cursos formativos disponibles en WAPPY Academia / LMS. Retorna los títulos, cantidad de lecciones de cada uno y descripción temática. Invócala cuando el usuario pregunte por los cursos de la academia.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    busqueda: {
+                                        type: "string",
+                                        description: "Término de búsqueda opcional por tema o palabra clave."
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            name: "wappy_leer_curso",
+                            description: "Lee e inspecciona el contenido detallado de un curso de WAPPY Academia por su ID o título. Retorna todas sus lecciones con sus contenidos formativos, temario, recursos y exámenes.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    curso: {
+                                        type: "string",
+                                        description: "Título o ID del curso a leer e inspeccionar."
+                                    }
+                                },
+                                required: ["curso"]
+                            }
+                        },
+                        {
+                            name: "wappy_consultar_blog",
+                            description: "Consulta el catálogo de artículos y publicaciones técnicas en el Blog de WAPPY. Retorna el listado de publicaciones, títulos, etiquetas temáticas y resúmenes.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    busqueda: {
+                                        type: "string",
+                                        description: "Término de búsqueda opcional para filtrar artículos del blog."
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            name: "wappy_leer_articulo_blog",
+                            description: "Lee el contenido íntegro y exhaustivo de cualquier artículo del Blog de WAPPY por su ID o título. Retorna todo el texto, análisis técnico y recomendaciones del artículo.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    articulo: {
+                                        type: "string",
+                                        description: "Título o ID del artículo del blog a leer."
+                                    }
+                                },
+                                required: ["articulo"]
                             }
                         },
                         {
@@ -1192,6 +1274,8 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
   * 'wappy_consultar_trabajadores': Para buscar trabajadores o consultar nómina (activos o retirados). Retorna 'totalRegistrados' (el total general de colaboradores en la base de datos), 'totalActivos' (los trabajadores actualmente activos) y 'totalRetirados' (los que han salido).
   * DIFERENCIACIÓN OBLIGATORIA DE CENSO: NUNCA confundas el total registrado con los activos. Si la respuesta dice 58 registrados, 57 activos y 1 retirado, DI CLARAMENTE: "Tienes un total de 58 trabajadores registrados: 57 activos y 1 retirado". ESTÁ TERMINANTEMENTE PROHIBIDO decir "58 activos y 1 retirado". Sigue siempre con exactitud el 'resumenCenso' devuelto.
   * 'wappy_consultar_empresas': Cuando el usuario te pregunte cuántas empresas tiene registradas, cuáles son o si tiene más de una, INVOCA DE INMEDIATO 'wappy_consultar_empresas'. WAPPY permite hasta 3 empresas por usuario. Reporta el total de empresas registradas, sus nombres, NIT, trabajadores y destaca cuál es la empresa activa actualmente según el 'resumenTexto'.
+  * 'wappy_consultar_detalle_empresa': Cuando el usuario te pida ver los datos o el contenido de cualquiera de sus empresas registradas (sea la activa o una inactiva), INVOCA 'wappy_consultar_detalle_empresa' indicando el nombre o NIT de la empresa. Reporta su razón social, NIT, representante legal, cédula, responsable SST, licencia, vigencia, sedes, ciudad y nivel de riesgo.
+  * 'wappy_activar_empresa' / 'wappy_seleccionar_empresa': Cuando el usuario te pida activar, seleccionar o cambiar a otra empresa registrada (ej: "activa WAPPY LTDA", "cambia a SERVICONSTRUCCIONES JM", "selecciona la empresa X"), INVOCA DE INMEDIATO 'wappy_activar_empresa' o 'wappy_seleccionar_empresa' con el nombre de la empresa. El sistema cambiará la empresa activa en la base de datos y en la interfaz.
   * 'wappy_reintegrar_trabajador': Cuando el usuario te pida reintegrar, reactivar, volver a contratar, reincorporar o pasar a estado activo a un trabajador previamente retirado (ej: "reintegrar al trabajador Jorge Enrique Pineda" o "reactivar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_reintegrar_trabajador' con su nombre o cédula. El sistema restaurará su estado laboral a 'Activo' en la base de datos y refrescará la plataforma.
   * ESTÁ TERMINANTEMENTE PROHIBIDO afirmar verbalmente que has reintegrado a un trabajador sin invocar 'wappy_reintegrar_trabajador'.
   * 'wappy_retirar_trabajador': Cuando el usuario te pida retirar, desvincular, dar de baja o sacar a un trabajador (ej: "dejar como retirado a Jorge Ricky Pineda" o "retirar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_retirar_trabajador'. El sistema conservará su historial y lo pasará a la pestaña 'Retirados'.
@@ -1304,9 +1388,36 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
 14. **ANALÍTICAS**:
    - 'consultar_analitica_psicosocial': Métricas agregadas de ánimo, estrés y clima laboral.
    - 'consultar_analitica_actos_condiciones': Estadísticas y buzón de reportes de seguridad.
-15. **wappy_leer_informe_aplicativo (Lectura Universal de Informes de Aplicativos)**:
-   - Permite consultar y leer el informe oficial de cualquier aplicativo (Perfiles de Cargo, Matriz IPEVAR GTC-45, Diagnóstico Res. 0312, Investigación ATEL, PESV, Químicos SGA, Auditoría Anual).
-16. **wappy_activar_herramienta_agente (Activación Total de Herramientas de Agentes)**:
+15. **wappy_leer_informe_aplicativo (Lectura Universal de los 20 Aplicativos SG-SST)**:
+   - Permite consultar y leer el informe oficial completo de cualquiera de los 20 aplicativos de WAPPY:
+     * Perfiles de Cargo ('perfil_cargo')
+     * Matriz IPEVAR / GTC-45 ('gtc45')
+     * Diagnóstico Estándares Mínimos Res. 0312 ('diagnostico_0312')
+     * Perfil Sociodemográfico y Condiciones de Salud ('perfil_socio')
+     * Análisis de Vulnerabilidad y Emergencias ('vulnerabilidad')
+     * Evaluación Ergonómica Método OWAS ('owas')
+     * Estudio de Puesto de Trabajo ('estudio_puesto')
+     * Análisis de Trabajo Seguro ('ats')
+     * Equipos y Trabajo en Alturas ('alturas')
+     * Matriz Legal ('legal')
+     * Comités COPASST y Convivencia ('comites')
+     * Programa Anual de Capacitaciones ('capacitaciones')
+     * Matriz de EPP ('epp')
+     * Buzón de Actos y Condiciones Inseguras ('actos_condiciones')
+     * Investigación de Accidentes ATEL ('investigacion_atel')
+     * Plan Estratégico de Seguridad Vial ('pesv')
+     * Matriz de Almacenamiento Químico SGA ('quimicos')
+     * Parque Automotor y Vehículos ('vehiculos')
+     * Cronograma y Tareas Kanban ('cronograma')
+     * Auditoría Anual del SG-SST ('auditoria')
+   - INVÓCALA SIEMPRE que te pidan leer el informe o consultar el estado de cualquier aplicativo. ESTÁ ESTRICTAMENTE PROHIBIDO inventar datos o decir que no tienes acceso.
+16. **wappy_consultar_cursos y wappy_leer_curso (Academia WAPPY LMS)**:
+   - 'wappy_consultar_cursos': Lista todos los cursos formativos de la academia, su cantidad de lecciones y descripción temática.
+   - 'wappy_leer_curso': Lee un curso completo con todas sus lecciones, temario, contenidos formativos y evaluaciones por su título o ID.
+17. **wappy_consultar_blog y wappy_leer_articulo_blog (Blog de WAPPY)**:
+   - 'wappy_consultar_blog': Lista todos los artículos publicados en el blog, títulos, etiquetas y resúmenes.
+   - 'wappy_leer_articulo_blog': Lee el texto íntegro y exhaustivo de cualquier artículo del blog para responder y enseñar a fondo.
+18. **wappy_activar_herramienta_agente (Activación Total de Herramientas de Agentes)**:
    - TIENES FACULTAD TOTAL para activar y ejecutar directamente cualquiera de las herramientas especializadas de los agentes ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario te pida abrir, activar o ejecutar la herramienta de un agente.
 
 [DOMINIO INTEGRAL DE METODOLOGÍAS Y SKILLS DE WAPPY IA]:
@@ -2054,9 +2165,9 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     }
 
                     // Manejo directo de selección y activación de empresa en modo voz
-                    if (fc.name === 'wappy_seleccionar_empresa') {
-                        const term = fc.args?.nombre_o_id;
-                        logger.info(`[VoiceSession] Gemini Live invoked tool "wappy_seleccionar_empresa" with term: "${term}"`);
+                    if (fc.name === 'wappy_seleccionar_empresa' || fc.name === 'wappy_activar_empresa') {
+                        const term = fc.args?.nombre_o_id || fc.args?.empresa || fc.args?.nombre || fc.args?.id || fc.args?.companyId || fc.args?.target;
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "${fc.name}" with term: "${term}"`);
                         try {
                             let targetUserId = this.userId;
                             try {

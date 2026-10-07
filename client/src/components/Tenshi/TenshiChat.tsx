@@ -1606,8 +1606,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             }
 
             resultMsg = `Archivo "${title}" (${fileType}) entregado en el chat de Tenshi con botones de descarga y visualización.`;
-          } else if (action.name === 'wappy_seleccionar_empresa') {
-            const companyName = action.args?.nombre_o_id;
+          } else if (action.name === 'wappy_seleccionar_empresa' || action.name === 'wappy_activar_empresa') {
+            const companyName = action.args?.nombre_o_id || action.args?.empresa || action.args?.nombre || action.args?.id || action.result?.companyName;
             resultMsg = `Empresa "${companyName}" seleccionada y activa en el sistema`;
             window.dispatchEvent(
               new CustomEvent('wappy-empresa-cambiada', { detail: { empresa: companyName } })

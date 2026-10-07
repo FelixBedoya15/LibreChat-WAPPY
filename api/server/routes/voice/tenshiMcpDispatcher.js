@@ -9,16 +9,29 @@ const TOOL_ROUTES = {
   // 1. Diagnóstico & Estrategia
   wappy_resumen_general_360: { method: 'GET', path: '/resumen-360' },
   wappy_consultar_perfil_empresa: { method: 'GET', path: '/profile' },
+  wappy_consultar_detalle_empresa: {
+    method: 'GET',
+    path: (args) => {
+      const target = args.id || args.companyId || args.empresa || args.nombre || args.nombre_o_id || '';
+      return target ? `/companies/${encodeURIComponent(String(target).trim())}` : '/profile';
+    },
+  },
   wappy_actualizar_perfil_empresa: { method: 'POST', path: '/profile' },
   wappy_consultar_empresas: { method: 'GET', path: '/companies' },
   wappy_listar_empresas: { method: 'GET', path: '/companies' },
   wappy_activar_empresa: {
     method: 'POST',
-    path: (args) => `/companies/${encodeURIComponent(args.id || args.companyId || '')}/activate`,
+    path: (args) => {
+      const target = args.id || args.companyId || args.nombre_o_id || args.empresa || args.nombre || args.target || '';
+      return `/companies/${encodeURIComponent(String(target).trim())}/activate`;
+    },
   },
   wappy_seleccionar_empresa: {
     method: 'POST',
-    path: (args) => `/companies/${encodeURIComponent(args.id || args.companyId || '')}/activate`,
+    path: (args) => {
+      const target = args.id || args.companyId || args.nombre_o_id || args.empresa || args.nombre || args.target || '';
+      return `/companies/${encodeURIComponent(String(target).trim())}/activate`;
+    },
   },
 
   // 2. Matrices de Riesgo & Cumplimiento
@@ -103,7 +116,17 @@ const TOOL_ROUTES = {
   wappy_actualizar_caso_atel: { method: 'PUT', path: (args) => `/atel/${encodeURIComponent(args.id || '')}` },
   wappy_eliminar_caso_atel: { method: 'DELETE', path: (args) => `/atel/${encodeURIComponent(args.id || '')}` },
 
-  // 5. Cronograma, LMS & Agentes Autónomos
+  // 5. Cronograma, LMS, Blog & Agentes Autónomos
+  wappy_consultar_cursos: { method: 'GET', path: '/courses' },
+  wappy_leer_curso: {
+    method: 'GET',
+    path: (args) => `/courses/${encodeURIComponent(args.id || args.courseId || args.titulo || args.title || args.curso || '')}`,
+  },
+  wappy_consultar_blog: { method: 'GET', path: '/blog' },
+  wappy_leer_articulo_blog: {
+    method: 'GET',
+    path: (args) => `/blog/${encodeURIComponent(args.id || args.slug || args.titulo || args.title || args.articulo || '')}`,
+  },
   wappy_consultar_cronograma_sst: { method: 'GET', path: '/tasks' },
   wappy_crear_actividad_cronograma: { method: 'POST', path: '/tasks' },
   wappy_actualizar_estado_tarea: { method: 'PUT', path: (args) => `/tasks/${encodeURIComponent(args.id || args.taskId || '')}` },

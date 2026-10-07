@@ -442,6 +442,8 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
      * 'wappy_consultar_trabajadores': Para buscar trabajadores o consultar nómina (activos o retirados). Retorna 'totalRegistrados' (censo global absoluto), 'totalActivos' y 'totalRetirados'.
      * DIFERENCIACIÓN OBLIGATORIA DE CENSO: NUNCA confundas el total registrado con los activos. Si la respuesta dice 58 registrados, 57 activos y 1 retirado, DI CLARAMENTE: "Tienes un total de 58 trabajadores registrados: 57 activos y 1 retirado". ESTÁ TERMINANTEMENTE PROHIBIDO decir "58 activos y 1 retirado". Sigue con fidelidad el 'resumenCenso' devuelto.
      * 'wappy_consultar_empresas': Cuando el usuario pregunte cuántas empresas tiene registradas o cuáles son, INVOCA DE INMEDIATO 'wappy_consultar_empresas'. WAPPY permite hasta 3 empresas por usuario. Reporta el total de empresas registradas, sus nombres, NIT, trabajadores y cuál está activa según 'resumenTexto'.
+     * 'wappy_consultar_detalle_empresa': Cuando el usuario pida ver los datos o contenido de cualquiera de sus empresas (activa o inactiva), INVOCA 'wappy_consultar_detalle_empresa' indicando su nombre o NIT.
+     * 'wappy_activar_empresa' / 'seleccionar_empresa': Cuando el usuario te pida activar, seleccionar o cambiar a otra de sus empresas registradas, INVOCA DE INMEDIATO 'wappy_activar_empresa' o 'seleccionar_empresa' con el nombre de la empresa.
      * 'wappy_reintegrar_trabajador': Cuando el usuario te pida reintegrar, reactivar, volver a contratar, reincorporar o pasar a activo a un trabajador previamente retirado (ej: "reintegrar al trabajador Jorge Enrique Pineda" o "reactivar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_reintegrar_trabajador' con su nombre o cédula. El sistema restaurará su estado laboral a 'Activo' en la base de datos y refrescará la plataforma.
      * ESTÁ TERMINANTEMENTE PROHIBIDO afirmar que ya reintegraste a un colaborador sin antes invocar 'wappy_reintegrar_trabajador'.
      * 'wappy_retirar_trabajador': Cuando el usuario te pida retirar, desvincular, dar de baja o sacar a un trabajador (ej: "dejar como retirado a Jorge Ricky Pineda" o "retirar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_retirar_trabajador' con su nombre o cédula. El sistema conservará su historial médico y ocupacional de 20 años y lo trasladará a la pestaña 'Retirados'.
@@ -452,10 +454,16 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
    - Puedes hacer clic en CUALQUIER BOTÓN, pestaña, menú o tarjeta de todos los aplicativos (ej: pestañas 'Retirados', 'Activos', 'Todos', botones '+ Agregar Trabajador', 'Guardar Localmente', 'Descargar', etc.) usando 'operar_interfaz_visual' indicando el índice [índice] o el texto/nombre del botón.
 7. **SUITE COMPLETA DE 41 OPERACIONES MCP DEL SG-SST ('wappy_mcp_sst' y 'wappy_resumen_general_360')**:
    - Cuentas con acceso integral a las 41 operaciones MCP para consultar y alimentar: Diagnóstico 360°, Empresa, Matriz GTC-45, Matriz PESV, Matriz Legal, Estándares 0312, Comités (COPASST, Convivencia, Brigadas), Químicos SGA, Vehículos, EPP, Reportes de Actos y Condiciones, Perfiles de Cargo, Casos ATEL, Cronograma y Tareas, Capacitaciones, Auditorías y Automatizaciones.
-8. **PERFILES DE CARGO COMPLETOS Y LECTURA UNIVERSAL DE INFORMES ('wappy_leer_informe_aplicativo')**:
-   - PERFILES DE CARGO COMPLETOS: En Perfiles de Cargo, ESTÁ TERMINANTEMENTE PROHIBIDO limitarte a leer únicamente el cargo seleccionado en pantalla. DEBES reportar el catálogo completo de todos los cargos de la empresa (cuántos hay, cuáles son sus nombres y áreas) y señalar cuál está seleccionado actualmente. Si te piden el informe o perfil de un cargo puntual, consúltalo con 'wappy_leer_informe_aplicativo' pasando aplicativo: 'perfil_cargo' y cargo: '<nombre del cargo>'.
-   - LECTURA UNIVERSAL DE INFORMES DE APLICATIVOS: Si te ordenan leer el informe de cualquier aplicativo (Perfiles de Cargo, Matriz IPEVAR / GTC-45, Diagnóstico Res. 0312, Investigación ATEL, PESV, Químicos SGA, Auditoría Anual, etc.), INVOCA DE INMEDIATO 'wappy_leer_informe_aplicativo' con el nombre del aplicativo (y cargo si aplica) y reporta el contenido técnico sustancial y conclusiones con fidelidad.
-9. **ACTIVACIÓN TOTAL DE HERRAMIENTAS DE AGENTES ('wappy_activar_herramienta_agente')**:
+8. **LECTURA UNIVERSAL DE INFORMES DE LOS 20 APLICATIVOS ('wappy_leer_informe_aplicativo')**:
+   - Tienes acceso total para consultar y leer el informe oficial completo de cualquiera de los 20 aplicativos de WAPPY: Perfiles de Cargo ('perfil_cargo'), Matriz IPEVAR / GTC-45 ('gtc45'), Diagnóstico Res. 0312 ('diagnostico_0312'), Sociodemográfico y Salud ('perfil_socio'), Vulnerabilidad y Emergencias ('vulnerabilidad'), Ergonomía OWAS ('owas'), Estudio de Puesto ('estudio_puesto'), ATS ('ats'), Alturas ('alturas'), Matriz Legal ('legal'), Comités COPASST ('comites'), Capacitaciones ('capacitaciones'), EPP ('epp'), Actos y Condiciones ('actos_condiciones'), Investigación ATEL ('investigacion_atel'), PESV ('pesv'), Químicos SGA ('quimicos'), Vehículos ('vehiculos'), Cronograma ('cronograma'), Auditoría Anual ('auditoria').
+   - PERFILES DE CARGO COMPLETOS: En Perfiles de Cargo, reporta el catálogo completo de todos los cargos de la empresa y si te piden un cargo puntual consúltalo pasando cargo: '<nombre del cargo>'.
+9. **ACADEMIA WAPPY LMS ('wappy_consultar_cursos' y 'wappy_leer_curso')**:
+   - 'wappy_consultar_cursos': Consulta y lista todos los cursos formativos de la academia, sus lecciones y descripción.
+   - 'wappy_leer_curso': Lee un curso completo con todas sus lecciones, contenidos formativos y evaluaciones por su título o ID.
+10. **BLOG DE WAPPY ('wappy_consultar_blog' y 'wappy_leer_articulo_blog')**:
+   - 'wappy_consultar_blog': Lista todos los artículos publicados en el blog, títulos, etiquetas y resúmenes.
+   - 'wappy_leer_articulo_blog': Lee el texto íntegro y exhaustivo de cualquier artículo del blog para responder y enseñar a fondo.
+11. **ACTIVACIÓN TOTAL DE HERRAMIENTAS DE AGENTES ('wappy_activar_herramienta_agente')**:
    - TIENES FACULTAD TOTAL para activar y ejecutar directamente cualquiera de las herramientas especializadas de los agentes ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario te pida abrir, activar o ejecutar la herramienta de un agente.`;
 
         if (skillInstructions) {
@@ -1245,15 +1253,73 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyConsultarDetalleEmpresaDeclaration = {
+                name: 'wappy_consultar_detalle_empresa',
+                description: 'Consulta el perfil y detalle completo de cualquier empresa registrada del usuario (activa o inactiva) por su nombre, NIT o ID. Retorna razón social, NIT, tipo de empresa, representante legal, cédula, responsable SST, licencia, vigencia, sedes, ciudad, nivel de riesgo y ARL.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        empresa: { type: 'STRING', description: 'Nombre, NIT o ID de la empresa a consultar.' }
+                    },
+                    required: ['empresa']
+                }
+            };
+
+            const wappyConsultarCursosDeclaration = {
+                name: 'wappy_consultar_cursos',
+                description: 'Consulta y lista todos los cursos formativos disponibles en WAPPY Academia / LMS. Retorna los títulos, cantidad de lecciones de cada uno y descripción temática.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        busqueda: { type: 'STRING', description: 'Término de búsqueda opcional por tema o palabra clave.' }
+                    }
+                }
+            };
+
+            const wappyLeerCursoDeclaration = {
+                name: 'wappy_leer_curso',
+                description: 'Lee e inspecciona el contenido detallado de un curso de WAPPY Academia por su ID o título. Retorna todas sus lecciones con sus contenidos formativos, temario, recursos y exámenes.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        curso: { type: 'STRING', description: 'Título o ID del curso a leer e inspeccionar.' }
+                    },
+                    required: ['curso']
+                }
+            };
+
+            const wappyConsultarBlogDeclaration = {
+                name: 'wappy_consultar_blog',
+                description: 'Consulta el catálogo de artículos y publicaciones técnicas en el Blog de WAPPY. Retorna el listado de publicaciones, títulos, etiquetas temáticas y resúmenes.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        busqueda: { type: 'STRING', description: 'Término de búsqueda opcional para filtrar artículos del blog.' }
+                    }
+                }
+            };
+
+            const wappyLeerArticuloBlogDeclaration = {
+                name: 'wappy_leer_articulo_blog',
+                description: 'Lee el contenido íntegro y exhaustivo de cualquier artículo del Blog de WAPPY por su ID o título. Retorna todo el texto, análisis técnico y recomendaciones del artículo.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        articulo: { type: 'STRING', description: 'Título o ID del artículo del blog a leer.' }
+                    },
+                    required: ['articulo']
+                }
+            };
+
             const wappyLeerInformeAplicativoDeclaration = {
                 name: 'wappy_leer_informe_aplicativo',
-                description: 'Lee e inspecciona el informe técnico oficial de cualquier aplicativo del SG-SST (Perfiles de Cargo, Matriz IPEVAR / GTC-45, Diagnóstico Res. 0312, Investigación ATEL, PESV, Químicos SGA, Auditoría Anual). Si se trata de perfiles de cargo, consulta el catálogo completo de todos los cargos de la empresa y el informe del cargo seleccionado o solicitado.',
+                description: 'Lee e inspecciona el informe técnico oficial de cualquiera de los 20 aplicativos del SG-SST (Perfiles de Cargo, Matriz IPEVAR / GTC-45, Diagnóstico Res. 0312, Sociodemográfico y Salud, Vulnerabilidad y Emergencias, Ergonomía OWAS, Estudio de Puesto, ATS, Alturas, Matriz Legal, Comités COPASST, Capacitaciones, EPP, Actos y Condiciones, Investigación ATEL, PESV, Químicos SGA, Vehículos, Cronograma, Auditoría Anual). Si se trata de perfiles de cargo, consulta el catálogo completo de todos los cargos de la empresa y el informe del cargo seleccionado o solicitado.',
                 parameters: {
                     type: 'OBJECT',
                     properties: {
                         aplicativo: {
                             type: 'STRING',
-                            description: "Nombre del aplicativo o módulo: 'perfil_cargo', 'matriz_ipevar', 'gtc45', 'diagnostico_0312', 'investigacion_atel', 'pesv', 'quimicos', 'sga', 'auditoria'."
+                            description: "Nombre o clave del aplicativo: 'perfil_cargo', 'gtc45', 'diagnostico_0312', 'investigacion_atel', 'pesv', 'quimicos', 'auditoria', 'perfil_socio', 'vulnerabilidad', 'owas', 'estudio_puesto', 'ats', 'alturas', 'legal', 'comites', 'capacitaciones', 'epp', 'actos_condiciones', 'vehiculos', 'cronograma'."
                         },
                         cargo: {
                             type: 'STRING',
@@ -1301,6 +1367,11 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyConsultarTrabajadoresDeclaration,
                 wappyRegistrarTrabajadorDeclaration,
                 wappyConsultarEmpresasDeclaration,
+                wappyConsultarDetalleEmpresaDeclaration,
+                wappyConsultarCursosDeclaration,
+                wappyLeerCursoDeclaration,
+                wappyConsultarBlogDeclaration,
+                wappyLeerArticuloBlogDeclaration,
                 wappyResumenGeneral360Declaration,
                 wappyMcpSstDeclaration,
                 wappyLeerInformeAplicativoDeclaration,
@@ -1437,8 +1508,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 } else if (call.name === 'consultar_analitica_actos_condiciones') {
                                     const ConsultarAnaliticaActosCondiciones = require('../../app/clients/tools/structured/ConsultarAnaliticaActosCondiciones');
                                     toolOutput = await new ConsultarAnaliticaActosCondiciones({ req })._call(call.args);
-                                } else if (call.name === 'seleccionar_empresa' || call.name === 'wappy_seleccionar_empresa') {
-                                    const term = call.args?.nombre_o_id;
+                                } else if (call.name === 'seleccionar_empresa' || call.name === 'wappy_seleccionar_empresa' || call.name === 'wappy_activar_empresa') {
+                                    const term = call.args?.nombre_o_id || call.args?.empresa || call.args?.nombre || call.args?.id || call.args?.companyId || call.args?.target;
                                     let query = { user: targetUserId };
                                     if (mongoose.isValidObjectId(term)) {
                                         query._id = term;
@@ -1544,7 +1615,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 } else if (call.name === 'wappy_resumen_general_360') {
                                     const res = await executeTenshiMcpTool('wappy_resumen_general_360', call.args || {}, targetUserId);
                                     toolOutput = JSON.stringify(res);
-                                } else if (call.name === 'wappy_mcp_sst' || call.name in TOOL_ROUTES || (call.name.startsWith('wappy_') && !['wappy_navegar', 'wappy_diligenciar_formulario', 'wappy_seleccionar_empresa'].includes(call.name))) {
+                                } else if (call.name === 'wappy_mcp_sst' || call.name in TOOL_ROUTES || (call.name.startsWith('wappy_') && !['wappy_navegar', 'wappy_diligenciar_formulario', 'wappy_seleccionar_empresa', 'wappy_activar_empresa'].includes(call.name))) {
                                     const targetTool = call.name === 'wappy_mcp_sst' ? (call.args?.herramienta || call.args?.tool || 'wappy_resumen_general_360') : call.name;
                                     const targetArgs = call.name === 'wappy_mcp_sst' ? (call.args?.parametros || call.args?.args || call.args || {}) : (call.args || {});
                                     const res = await executeTenshiMcpTool(targetTool, targetArgs, targetUserId);

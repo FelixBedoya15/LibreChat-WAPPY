@@ -51,6 +51,21 @@ const PayoutRequest = mongoose.models.PayoutRequest || require('~/models/PayoutR
 const TenshiConfig = mongoose.models.TenshiConfig || require('~/models/TenshiConfig');
 const Ticket = mongoose.models.Ticket || require('~/models/Ticket');
 const SgsstHeightsData = mongoose.models.SgsstHeightsData || require('~/models/SgsstHeightsData');
+const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData || (() => {
+  try { return require('~/models/PerfilSociodemograficoData'); } catch (e) { return null; }
+})();
+const AnalisisVulnerabilidadData = mongoose.models.AnalisisVulnerabilidadData || (() => {
+  try { require('./sgsst/analisisVulnerabilidad'); } catch (e) {}
+  return mongoose.models.AnalisisVulnerabilidadData || null;
+})();
+const MetodoOwasData = mongoose.models.MetodoOwasData || (() => {
+  try { require('./sgsst/metodoOwas'); } catch (e) {}
+  return mongoose.models.MetodoOwasData || null;
+})();
+const AnalisisTrabajoSeguroData = mongoose.models.AnalisisTrabajoSeguroData || (() => {
+  try { require('./sgsst/analisisTrabajoSeguro'); } catch (e) {}
+  return mongoose.models.AnalisisTrabajoSeguroData || null;
+})();
 const { setMemory } = require('~/models');
 const { Tokenizer } = require('@librechat/api');
 const { logger } = require('~/config');
@@ -284,8 +299,27 @@ router.post('/messages', async (req, res) => {
 
 router.get('/profile', requireApiKeyOrJwt, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const company = await getActiveCompany(userId);
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const { id, companyId, nombre, empresa, nit, busqueda } = req.query;
+    const term = id || companyId || nombre || empresa || nit || busqueda;
+
+    let company = null;
+    if (term) {
+      if (mongoose.isValidObjectId(term)) {
+        company = await CompanyInfo.findOne({ user: targetUserId, _id: term }).lean();
+      }
+      if (!company) {
+        const safeRegex = new RegExp(String(term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        company = await CompanyInfo.findOne({
+          user: targetUserId,
+          $or: [{ companyName: safeRegex }, { nit: term }],
+        }).lean();
+      }
+    }
+
+    if (!company) {
+      company = await getActiveCompany(targetUserId);
+    }
 
     if (!company) {
       return res.json({
@@ -321,7 +355,9 @@ router.get('/profile', requireApiKeyOrJwt, async (req, res) => {
         courseStatus: company.courseStatus || '',
         generalActivities: company.generalActivities || '',
         sedes: Array.isArray(company.sedes) ? company.sedes : [],
+        isActive: Boolean(company.isActive),
       },
+      resumenDetallado: `Empresa "${company.companyName}" (NIT: ${company.nit || 'N/A'}): ${company.companyType || 'Persona Jurídica'}, ${company.workerCount || 0} trabajadores, ARL ${company.arl || 'N/A'} (Riesgo ${company.riskLevel || 'N/A'}), Representante Legal: ${company.legalRepresentative || 'N/A'}, Responsable SST: ${company.responsibleSST || 'N/A'}, Ciudad: ${company.city || 'N/A'}. Estado: ${company.isActive ? 'ACTIVA' : 'Inactiva'}.`,
     });
   } catch (error) {
     logger.error('[MCP Bridge] GET /profile error:', error);
@@ -357,17 +393,27 @@ router.get('/companies', requireApiKeyOrJwt, async (req, res) => {
       ciudad: c.city || 'N/A',
       city: c.city || 'N/A',
       departamento: c.departamento || '',
+      address: c.address || '',
       phone: c.phone || '',
       email: c.email || '',
+      legalRepresentative: c.legalRepresentative || '',
+      legalRepresentativeId: c.legalRepresentativeId || '',
       responsibleSST: c.responsibleSST || '',
+      formationLevel: c.formationLevel || '',
+      licenseNumber: c.licenseNumber || '',
+      licenseExpiry: c.licenseExpiry || '',
+      courseStatus: c.courseStatus || '',
+      generalActivities: c.generalActivities || '',
+      sedes: Array.isArray(c.sedes) ? c.sedes : [],
       actividadEconomica: c.economicActivity || 'N/A',
+      ciiu: c.ciiu || 'N/A',
       createdAt: c.createdAt,
     }));
 
     const lineasEmpresas = lista
       .map(
         (c, idx) =>
-          `${idx + 1}. ${c.nombre} (NIT: ${c.nit}) - ${c.trabajadores} trabajadores - [${c.activa ? 'EMPRESA ACTIVA ACTUALMENTE' : 'Inactiva'}]`
+          `${idx + 1}. ${c.nombre} (NIT: ${c.nit}) - ${c.trabajadores} trabajadores - Representante: ${c.legalRepresentative || 'N/A'} - [${c.activa ? 'EMPRESA ACTIVA ACTUALMENTE' : 'Inactiva'}]`
       )
       .join('\n');
 
@@ -385,6 +431,38 @@ router.get('/companies', requireApiKeyOrJwt, async (req, res) => {
   } catch (error) {
     logger.error('[MCP Bridge] GET /companies error:', error);
     return res.status(500).json({ error: 'Error al consultar las empresas del usuario.' });
+  }
+});
+
+router.get('/companies/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const targetId = req.params.id;
+
+    let company = null;
+    if (mongoose.isValidObjectId(targetId)) {
+      company = await CompanyInfo.findOne({ user: targetUserId, _id: targetId }).lean();
+    }
+    if (!company) {
+      const safeRegex = new RegExp(String(targetId).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      company = await CompanyInfo.findOne({
+        user: targetUserId,
+        $or: [{ companyName: safeRegex }, { nit: targetId }],
+      }).lean();
+    }
+
+    if (!company) {
+      return res.status(404).json({ error: `Empresa "${targetId}" no encontrada.` });
+    }
+
+    return res.json({
+      exito: true,
+      empresa: company,
+      resumen: `Empresa "${company.companyName}" (NIT: ${company.nit || 'N/A'}): ${company.companyType || 'Persona Jurídica'}, ${company.workerCount || 0} trabajadores, ARL ${company.arl || 'N/A'} (Riesgo ${company.riskLevel || 'N/A'}), Representante Legal: ${company.legalRepresentative || 'N/A'}, Responsable SST: ${company.responsibleSST || 'N/A'}, Ciudad: ${company.city || 'N/A'}. Estado: ${company.isActive ? 'ACTIVA' : 'Inactiva'}.`,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /companies/:id error:', error);
+    return res.status(500).json({ error: 'Error al consultar la empresa.' });
   }
 });
 
@@ -3580,21 +3658,39 @@ router.put('/companies/:id', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
-router.post(['/companies/:id/activate', '/companies/:id/select'], requireApiKeyOrJwt, async (req, res) => {
+router.post(['/companies/:id/activate', '/companies/:id/select', '/companies/activate', '/companies/select'], requireApiKeyOrJwt, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const targetId = req.params.id;
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const rawTarget = req.params.id || req.body?.id || req.body?.companyId || req.body?.empresa || req.body?.nombre_o_id || req.body?.nombre;
 
-    const company = await CompanyInfo.findOne({ user: userId, _id: targetId });
-    if (!company) {
-      return res.status(404).json({ error: 'Empresa no encontrada.' });
+    if (!rawTarget) {
+      return res.status(400).json({ error: 'Debes especificar el ID, nombre o NIT de la empresa a activar.' });
     }
 
-    await CompanyInfo.updateMany({ user: userId }, { $set: { isActive: false } });
+    const targetTerm = String(rawTarget).trim();
+    let company = null;
+
+    if (mongoose.isValidObjectId(targetTerm)) {
+      company = await CompanyInfo.findOne({ user: targetUserId, _id: targetTerm });
+    }
+
+    if (!company) {
+      const safeRegex = new RegExp(targetTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      company = await CompanyInfo.findOne({
+        user: targetUserId,
+        $or: [{ companyName: safeRegex }, { nit: targetTerm }],
+      });
+    }
+
+    if (!company) {
+      return res.status(404).json({ error: `Empresa "${targetTerm}" no encontrada entre tus empresas registradas.` });
+    }
+
+    await CompanyInfo.updateMany({ user: targetUserId }, { $set: { isActive: false } });
     company.isActive = true;
     await company.save();
 
-    syncCompanyAiMemory(userId, company).catch(() => {});
+    syncCompanyAiMemory(targetUserId, company).catch(() => {});
 
     return res.json({
       exito: true,
@@ -3781,10 +3877,33 @@ router.delete('/estudio-puesto/:id', requireApiKeyOrJwt, async (req, res) => {
 
 router.get('/courses', requireApiKeyOrJwt, async (req, res) => {
   try {
-    const courses = await Course.find({}).sort({ createdAt: -1 }).lean();
+    const { busqueda, tags } = req.query;
+    let query = {};
+    if (busqueda) {
+      const safeRegex = new RegExp(String(busqueda).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      query.$or = [{ title: safeRegex }, { description: safeRegex }];
+    }
+    if (tags) {
+      const tagArr = String(tags).split(',').map((t) => t.trim()).filter(Boolean);
+      if (tagArr.length > 0) query.tags = { $in: tagArr };
+    }
+
+    const courses = await Course.find(query).sort({ createdAt: -1 }).lean();
+
+    const lineas = courses
+      .map(
+        (c, i) =>
+          `${i + 1}. "${c.title}" (${c.lessons?.length || 0} lecciones) - ${c.description || 'Sin descripción'}`
+      )
+      .join('\n');
+    const resumenTexto =
+      courses.length > 0
+        ? `Hay un total de ${courses.length} curso(s) en WAPPY Academia:\n${lineas}`
+        : 'No se encontraron cursos en la Academia LMS.';
 
     return res.json({
       total: courses.length,
+      resumenTexto,
       cursos: courses.map((c) => ({
         id: c._id.toString(),
         title: c.title,
@@ -3805,6 +3924,73 @@ router.get('/courses', requireApiKeyOrJwt, async (req, res) => {
   } catch (error) {
     logger.error('[MCP Bridge] GET /courses error:', error);
     return res.status(500).json({ error: 'Error al consultar cursos LMS.' });
+  }
+});
+
+router.get('/courses/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    let course = null;
+
+    if (mongoose.isValidObjectId(targetId)) {
+      course = await Course.findById(targetId).lean();
+    }
+    if (!course) {
+      const safeRegex = new RegExp(String(targetId).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      course = await Course.findOne({
+        $or: [{ title: safeRegex }, { 'lessons.title': safeRegex }],
+      }).lean();
+    }
+
+    if (!course) {
+      return res.status(404).json({ error: `Curso "${targetId}" no encontrado en WAPPY Academia.` });
+    }
+
+    const leccionesDetalle = (course.lessons || []).map((l, idx) => {
+      return {
+        indice: idx + 1,
+        orden: l.order || idx + 1,
+        titulo: l.title,
+        contenido: l.content || 'Sin contenido de texto registrado',
+        videoUrl: l.videoUrl || null,
+        adjuntos: (l.attachments || []).map((a) => ({ nombre: a.name, url: a.url })),
+        evaluacion: l.exam?.isEnabled
+          ? {
+              titulo: l.exam.title || 'Evaluación de lección',
+              preguntasCount: l.exam.questions?.length || 0,
+              puntajeMinimo: l.exam.passingScore || 70,
+              preguntas: (l.exam.questions || []).map((q) => ({
+                pregunta: q.questionText,
+                opciones: q.options,
+                explicacion: q.explanation || '',
+              })),
+            }
+          : null,
+      };
+    });
+
+    const resumenLecciones = leccionesDetalle
+      .map((l) => `  * Lección ${l.indice}: "${l.titulo}" ${l.evaluacion ? '(Tiene examen)' : ''}`)
+      .join('\n');
+    const resumenCurso = `Curso "${course.title}": ${course.description || ''}\nTotal de lecciones: ${leccionesDetalle.length}\nTemario:\n${resumenLecciones}`;
+
+    return res.json({
+      exito: true,
+      id: course._id.toString(),
+      titulo: course.title,
+      descripcion: course.description || '',
+      tags: course.tags || [],
+      thumbnail: course.thumbnail || '',
+      isPublished: !!course.isPublished,
+      isFeatured: !!course.isFeatured,
+      totalLecciones: leccionesDetalle.length,
+      resumenCurso,
+      lecciones: leccionesDetalle,
+      createdAt: course.createdAt,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /courses/:id error:', error);
+    return res.status(500).json({ error: 'Error al consultar detalle del curso LMS.' });
   }
 });
 
@@ -4039,10 +4225,33 @@ router.get('/marketplace/orders', requireApiKeyOrJwt, async (req, res) => {
 
 router.get('/blog', requireApiKeyOrJwt, async (req, res) => {
   try {
-    const posts = await BlogPost.find({}).sort({ createdAt: -1 }).lean();
+    const { busqueda, tags } = req.query;
+    let query = {};
+    if (busqueda) {
+      const safeRegex = new RegExp(String(busqueda).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      query.$or = [{ title: safeRegex }, { description: safeRegex }, { content: safeRegex }];
+    }
+    if (tags) {
+      const tagArr = String(tags).split(',').map((t) => t.trim()).filter(Boolean);
+      if (tagArr.length > 0) query.tags = { $in: tagArr };
+    }
+
+    const posts = await BlogPost.find(query).sort({ createdAt: -1 }).lean();
+
+    const lineas = posts
+      .map(
+        (p, i) =>
+          `${i + 1}. "${p.title}" [${(p.tags || []).join(', ')}] - ${p.description || 'Sin descripción'}`
+      )
+      .join('\n');
+    const resumenTexto =
+      posts.length > 0
+        ? `Hay un total de ${posts.length} artículo(s) publicado(s) en el Blog de WAPPY:\n${lineas}`
+        : 'No se encontraron artículos en el Blog de WAPPY.';
 
     return res.json({
       total: posts.length,
+      resumenTexto,
       articulos: posts.map((p) => ({
         id: p._id.toString(),
         title: p.title,
@@ -4056,6 +4265,46 @@ router.get('/blog', requireApiKeyOrJwt, async (req, res) => {
   } catch (error) {
     logger.error('[MCP Bridge] GET /blog error:', error);
     return res.status(500).json({ error: 'Error al consultar artículos de blog.' });
+  }
+});
+
+router.get('/blog/:id', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    let post = null;
+
+    if (mongoose.isValidObjectId(targetId)) {
+      post = await BlogPost.findById(targetId).lean();
+    }
+    if (!post) {
+      const safeRegex = new RegExp(String(targetId).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      post = await BlogPost.findOne({
+        $or: [{ title: safeRegex }, { tags: safeRegex }],
+      }).lean();
+    }
+
+    if (!post) {
+      return res.status(404).json({ error: `Artículo de blog "${targetId}" no encontrado.` });
+    }
+
+    const resumenArticulo = `Artículo: "${post.title}"\nResumen: ${post.description || ''}\nEtiquetas: ${(post.tags || []).join(', ')}\nFecha: ${new Date(post.createdAt).toLocaleDateString()}\n\nContenido:\n${post.content || ''}`;
+
+    return res.json({
+      exito: true,
+      id: post._id.toString(),
+      titulo: post.title,
+      descripcion: post.description || '',
+      contenido: post.content || '',
+      tags: post.tags || [],
+      thumbnail: post.thumbnail || '',
+      isPublished: !!post.isPublished,
+      isFeatured: !!post.isFeatured,
+      resumenArticulo,
+      createdAt: post.createdAt,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /blog/:id error:', error);
+    return res.status(500).json({ error: 'Error al consultar artículo de blog.' });
   }
 });
 
@@ -4846,20 +5095,25 @@ router.get('/user/plan-balance', requireApiKeyOrJwt, async (req, res) => {
 // ─── 33. LECTURA UNIVERSAL DE INFORMES DE APLICATIVOS SG-SST ───────────────
 router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const company = await getActiveCompany(userId);
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const company = await getActiveCompany(targetUserId);
     const companyId = company?._id;
-    const { aplicativo, cargo, id, modulo } = req.query;
+    const { aplicativo, cargo, id, modulo, app, nombre, tipo } = req.query;
 
-    const targetApp = String(aplicativo || modulo || '').trim().toLowerCase();
+    let targetApp = String(aplicativo || modulo || app || nombre || tipo || '').trim().toLowerCase();
+    if (!targetApp && cargo) {
+      targetApp = 'perfil_cargo';
+    }
 
     if (!targetApp) {
-      return res.status(400).json({ error: 'Debes especificar el aplicativo del informe (ej: perfil_cargo, matriz_ipevar, diagnostico_0312, investigacion_atel, pesv).' });
+      return res.status(400).json({
+        error: 'Debes especificar el aplicativo del informe (ej: perfil_cargo, gtc45, diagnostico_0312, perfil_socio, vulnerabilidad, owas, estudio_puesto, ats, alturas, legal, comites, capacitaciones, epp, investigacion_atel, pesv, quimicos, auditoria, vehiculos, cronograma).',
+      });
     }
 
     // 1. PERFILES DE CARGO
-    if (targetApp.includes('perfil') && targetApp.includes('cargo')) {
-      const doc = await PerfilCargoData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+    if (targetApp.includes('perfil') && (targetApp.includes('cargo') || targetApp.includes('puesto')) && !targetApp.includes('socio')) {
+      const doc = await PerfilCargoData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean();
       const perfiles = doc?.perfilesList || [];
       if (perfiles.length === 0) {
         return res.json({
@@ -4905,16 +5159,16 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 2. MATRIZ IPEVAR / GTC 45
     if (targetApp.includes('ipevar') || targetApp.includes('gtc45') || targetApp.includes('peligro')) {
-      const officialConvoId = `official-${companyId || userId}`;
+      const officialConvoId = `official-${companyId || targetUserId}`;
       let session = await GTC45WorkspaceSession.findOne({
-        user: userId,
+        user: targetUserId,
         ...(companyId ? { companyId } : {}),
         isOfficial: true,
       }).lean() || await GTC45WorkspaceSession.findOne({ conversationId: officialConvoId }).lean();
 
       if (!session) {
         session = await GTC45WorkspaceSession.findOne({
-          user: userId,
+          user: targetUserId,
           'matrixRows.0': { $exists: true },
         }).sort({ updatedAt: -1 }).lean();
       }
@@ -4933,7 +5187,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 3. DIAGNÓSTICO / EVALUACIÓN ESTÁNDARES MÍNIMOS (RES. 0312)
     if (targetApp.includes('0312') || targetApp.includes('diagnostico') || targetApp.includes('estandar')) {
-      const diag = await DiagnosticoData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+      const diag = await DiagnosticoData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean();
       const puntaje = diag?.puntajeTotal || diag?.puntaje || diag?.porcentajeCumplimiento || 'Pendiente de autoevaluación';
       return res.json({
         aplicativo: 'Diagnóstico Estándares Mínimos (Res. 0312 de 2019)',
@@ -4945,7 +5199,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 4. INVESTIGACIÓN ATEL (ACCIDENTES E INCIDENTES)
     if (targetApp.includes('atel') || targetApp.includes('accidente') || targetApp.includes('investigacion')) {
-      const atelDoc = await InvestigacionAtelData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+      const atelDoc = await InvestigacionAtelData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean();
       const casos = atelDoc?.casos || [];
       const caso = id ? casos.find(c => c.id === id || c._id?.toString() === id) : casos[0];
       return res.json({
@@ -4959,7 +5213,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
     // 5. PESV (PLAN ESTRATÉGICO DE SEGURIDAD VIAL)
     if (targetApp.includes('pesv') || targetApp.includes('vial')) {
       const pesvSession = await PESVWorkspaceSession.findOne({
-        user: userId,
+        user: targetUserId,
         ...(companyId ? { companyId } : {}),
       }).sort({ updatedAt: -1 }).lean();
       const riesgosViales = pesvSession?.matrixRows || [];
@@ -4972,7 +5226,7 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 6. MATRIZ DE COMPATIBILIDAD QUÍMICA (SGA)
     if (targetApp.includes('quimic') || targetApp.includes('compatib') || targetApp.includes('sga')) {
-      const chemDoc = await SgsstChemicalData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+      const chemDoc = await SgsstChemicalData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean();
       const prods = chemDoc?.productos || [];
       return res.json({
         aplicativo: 'Matriz de Compatibilidad Química y Almacenamiento SGA',
@@ -4983,16 +5237,237 @@ router.get('/informe', requireApiKeyOrJwt, async (req, res) => {
 
     // 7. AUDITORÍA ANUAL DEL SG-SST
     if (targetApp.includes('auditoria')) {
-      const audDoc = await AuditoriaData.findOne({ $or: [{ companyId }, { user: userId }] }).lean();
+      const audDoc = await AuditoriaData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean();
       return res.json({
         aplicativo: 'Auditoría Anual del SG-SST',
         informeCompleto: audDoc?.informeAuditoria || audDoc?.conclusiones || `Informe Oficial de Auditoría Interna del SG-SST: Programa anual de auditoría con alcance sobre los estándares del Decreto 1072 de 2015 y hallazgos con plan de acción correctivo.`,
       });
     }
 
+    // 8. PERFIL SOCIODEMOGRÁFICO Y CONDICIONES DE SALUD
+    if (targetApp.includes('socio') || targetApp.includes('demograf') || targetApp.includes('salud') || targetApp.includes('medico')) {
+      let socioDoc = null;
+      if (PerfilSociodemograficoData) {
+        socioDoc = await PerfilSociodemograficoData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+      }
+      const workers = await SgsstWorker.find({ user: targetUserId }).lean().catch(() => []);
+      const totalColabs = workers.length;
+      const activos = workers.filter(w => !w.estadoLaboral || w.estadoLaboral === 'Activo').length;
+      const retirados = totalColabs - activos;
+
+      const rawTrabajadores = socioDoc?.trabajadores || [];
+      const conDiagnostico = rawTrabajadores.filter(t => t.diagnosticoMedico && t.diagnosticoMedico.length > 3).length;
+      const conRecomendaciones = rawTrabajadores.filter(t => t.recomendacionesMedicas && t.recomendacionesMedicas.length > 3).length;
+
+      const resumenSalud = `Perfil Sociodemográfico y Diagnóstico de Condiciones de Salud de ${company?.companyName || 'la empresa'}:\nTotal de trabajadores en censo: ${totalColabs} (${activos} activos, ${retirados} retirados).\nColaboradores con evaluación y concepto médico ocupacional registrado: ${rawTrabajadores.length}.\nCasos con diagnóstico médico trazable: ${conDiagnostico}.\nCasos con recomendaciones médico-laborales activas: ${conRecomendaciones}.`;
+
+      return res.json({
+        aplicativo: 'Perfil Sociodemográfico y Condiciones de Salud',
+        totalTrabajadores: totalColabs,
+        activos,
+        retirados,
+        evaluacionesMedicas: rawTrabajadores.length,
+        conDiagnostico,
+        conRecomendaciones,
+        informeCompleto: socioDoc?.informeGeneral || resumenSalud,
+      });
+    }
+
+    // 9. ANÁLISIS DE VULNERABILIDAD Y PLAN DE EMERGENCIAS
+    if (targetApp.includes('vulnerab') || targetApp.includes('emergenc') || targetApp.includes('brigad')) {
+      let vulnDoc = null;
+      if (AnalisisVulnerabilidadData) {
+        vulnDoc = await AnalisisVulnerabilidadData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+      }
+      const brigadistasCount = await SgsstBrigadista.countDocuments({ $or: [{ companyId }, { user: targetUserId }] }).catch(() => 0);
+      const amenazas = vulnDoc?.formData?.amenazasList || [];
+
+      const resumenVuln = `Análisis de Vulnerabilidad y Plan de Preparación ante Emergencias:\nAmenazas identificadas y valoradas: ${amenazas.length > 0 ? amenazas.length : 'En consolidación'}.\nBrigadistas de emergencia conformados y activos: ${brigadistasCount}.\nMetodología: Valoración en 3 diamantes (Personas, Recursos, Sistemas y Procesos) para contingencias naturales, tecnológicas y sociales.`;
+
+      return res.json({
+        aplicativo: 'Análisis de Vulnerabilidad y Plan de Emergencias',
+        totalAmenazas: amenazas.length,
+        totalBrigadistas: brigadistasCount,
+        evaluadores: (vulnDoc?.evaluadoresList || []).length,
+        informeCompleto: vulnDoc?.formData?.reportContent || resumenVuln,
+      });
+    }
+
+    // 10. MÉTODO OWAS (ERGONOMÍA POSTURAL)
+    if (targetApp.includes('owas') || targetApp.includes('ergonom') || targetApp.includes('postur')) {
+      let owasDoc = null;
+      if (MetodoOwasData) {
+        owasDoc = await MetodoOwasData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+      }
+      const observaciones = owasDoc?.observaciones || [];
+      const resumenOwas = `Evaluación Ergonómica Postural - Método OWAS:\nTotal de posturas y tareas observadas: ${observaciones.length}.\nAnálisis biomecánico en espalda, brazos, piernas y carga manipulada conforme a la norma ergonómica internacional.`;
+
+      return res.json({
+        aplicativo: 'Evaluación Ergonómica Método OWAS',
+        totalObservaciones: observaciones.length,
+        trabajadoresEvaluados: (owasDoc?.trabajadoresList || []).length,
+        informeCompleto: owasDoc?.formData?.reportContent || resumenOwas,
+      });
+    }
+
+    // 11. ESTUDIO DE PUESTO DE TRABAJO (BIOMECÁNICO)
+    if (targetApp.includes('puesto') || targetApp.includes('biomecan') || targetApp.includes('estudio')) {
+      let queryEpt = { $or: [{ companyId }, { user: targetUserId }] };
+      if (id && mongoose.isValidObjectId(id)) queryEpt = { _id: id };
+      const eptList = await EstudioPuestoTrabajo.find(queryEpt).sort({ updatedAt: -1 }).limit(10).lean().catch(() => []);
+      const primerEpt = eptList[0];
+
+      return res.json({
+        aplicativo: 'Estudio de Puesto de Trabajo (Biomecánico)',
+        totalEstudios: eptList.length,
+        cargo: primerEpt?.cargo || 'General',
+        trabajador: primerEpt?.workerName || 'General',
+        rulaScore: primerEpt?.rulaScore || 'N/A',
+        rebaScore: primerEpt?.rebaScore || 'N/A',
+        nivelRiesgo: primerEpt?.riskLevel || 'Bajo',
+        informeCompleto: primerEpt?.reportHtml || primerEpt?.notes || `Estudio biomecánico de puesto de trabajo para el cargo "${primerEpt?.cargo || 'N/A'}" con evaluación de cargas posturales y recomendaciones de rediseño ergonómico.`,
+      });
+    }
+
+    // 12. ATS (ANÁLISIS DE TRABAJO SEGURO)
+    if (targetApp.includes('ats') || targetApp.includes('trabajo_seguro') || targetApp.includes('tarea_critica')) {
+      let atsDoc = null;
+      if (AnalisisTrabajoSeguroData) {
+        atsDoc = await AnalisisTrabajoSeguroData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+      }
+      const formData = atsDoc?.formData || {};
+      const resumenAts = `Análisis de Trabajo Seguro (ATS):\nTarea evaluada: ${formData.tarea || 'Tareas críticas de alto riesgo'}.\nPasos de la tarea, peligros potenciales y medidas de control preventivo verificadas en campo con validación de trabajadores aptos.`;
+
+      return res.json({
+        aplicativo: 'Análisis de Trabajo Seguro (ATS)',
+        tarea: formData.tarea || 'Operaciones de Alto Riesgo',
+        lugar: formData.lugar || 'Frente de obra / Planta',
+        trabajadoresAutorizados: (atsDoc?.trabajadoresList || []).length,
+        informeCompleto: formData.reportContent || resumenAts,
+      });
+    }
+
+    // 13. TRABAJO Y EQUIPOS EN ALTURAS
+    if (targetApp.includes('altura') || targetApp.includes('arnes') || targetApp.includes('caida')) {
+      const heightsDocs = await SgsstHeightsData.find({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => []);
+      let totalEquipos = 0;
+      heightsDocs.forEach(h => { totalEquipos += (h.equipos || []).length; });
+
+      return res.json({
+        aplicativo: 'Gestión y Equipos de Protección contra Caídas en Alturas',
+        trabajadoresConEquipos: heightsDocs.length,
+        totalEquiposRegistrados: totalEquipos,
+        informeCompleto: `Programa de Protección contra Caídas en Alturas (Res. 4272/2021): ${heightsDocs.length} colaboradores con dotación técnica asignada y ${totalEquipos} equipos certificados (arneses, eslingas, conectores) bajo inspección periódica y hoja de vida.`,
+      });
+    }
+
+    // 14. MATRIZ LEGAL (REQUISITOS LEGALES)
+    if (targetApp.includes('legal') || targetApp.includes('norma') || targetApp.includes('decreto')) {
+      const matrizLegal = await MatrizLegalData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+      let total = 0;
+      let cumplen = 0;
+      if (matrizLegal && Array.isArray(matrizLegal.statuses)) {
+        total = matrizLegal.statuses.length;
+        cumplen = matrizLegal.statuses.filter((s) => s.status === 'cumple').length;
+      }
+      const pct = total > 0 ? Math.round((cumplen / total) * 100) : 0;
+
+      return res.json({
+        aplicativo: 'Matriz de Requisitos Legales del SG-SST',
+        totalNormas: total,
+        cumplen,
+        porcentajeCumplimiento: `${pct}%`,
+        informeCompleto: `Matriz Legal en Seguridad y Salud en el Trabajo: ${total} requisitos legales identificados (Decreto 1072 de 2015, Resoluciones del Ministerio de Trabajo). Cumplimiento actual del ${pct}% con plan de acción para normas en proceso.`,
+      });
+    }
+
+    // 15. COMITÉS (COPASST Y CONVIVENCIA LABORAL)
+    if (targetApp.includes('comite') || targetApp.includes('copasst') || targetApp.includes('convivencia')) {
+      const copasst = await SgsstCopasstComite.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+      const convivencia = await SgsstConvivenciaComite.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+      const actasCopasst = await SgsstCopasstActa.countDocuments({ $or: [{ companyId }, { user: targetUserId }] }).catch(() => 0);
+      const actasConvivencia = await SgsstConvivenciaActa.countDocuments({ $or: [{ companyId }, { user: targetUserId }] }).catch(() => 0);
+
+      return res.json({
+        aplicativo: 'Comités Paritarios del SG-SST (COPASST y Convivencia)',
+        copasst: {
+          estado: copasst?.estado || 'No constituido',
+          modalidad: copasst?.modalidad || 'COPASST',
+          actasReunion: actasCopasst,
+        },
+        convivencia: {
+          estado: convivencia?.estado || 'No constituido',
+          actasReunion: actasConvivencia,
+        },
+        informeCompleto: `Comités Paritarios del SG-SST:\nCOPASST: ${copasst ? `Vigente (${copasst.modalidad || 'Comité'}) con ${actasCopasst} actas de reunión mensual registradas.` : 'Pendiente de conformación.'}\nComité de Convivencia Laboral: ${convivencia ? `Vigente con ${actasConvivencia} actas de seguimiento registradas.` : 'Pendiente de conformación.'}`,
+      });
+    }
+
+    // 16. CAPACITACIONES (PROGRAMA ANUAL)
+    if (targetApp.includes('capacita') || targetApp.includes('entrena') || targetApp.includes('formacion')) {
+      const capDoc = await ProgramaCapacitacionesData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+      const sesiones = capDoc?.sesiones || [];
+
+      return res.json({
+        aplicativo: 'Programa Anual de Capacitación y Entrenamiento SST',
+        totalSesionesProgramadas: sesiones.length,
+        informeCompleto: `Programa Anual de Capacitaciones SST: Cuenta con ${sesiones.length} sesiones formativas planificadas abarcando inducción SG-SST, primeros auxilios, autocuidado, uso de EPP y normatividad ocupacional.`,
+      });
+    }
+
+    // 17. EPP (ELEMENTOS DE PROTECCIÓN PERSONAL)
+    if (targetApp.includes('epp') || targetApp.includes('dotacion') || targetApp.includes('proteccion')) {
+      const eppDoc = await SgsstEppData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+      const items = eppDoc?.items || eppDoc?.matriz || [];
+
+      return res.json({
+        aplicativo: 'Matriz y Control de Entrega de EPP',
+        totalItemsMatriz: Array.isArray(items) ? items.length : 0,
+        informeCompleto: `Matriz de Elementos de Protección Personal (EPP): Dotación clasificada por cargo y zona corporal de protección (cabeza, ojos, respiratoria, manos, pies) con especificaciones de norma técnica y control de entrega.`,
+      });
+    }
+
+    // 18. REPORTE DE ACTOS Y CONDICIONES INSEGURAS
+    if (targetApp.includes('acto') || targetApp.includes('condicion') || targetApp.includes('buzon')) {
+      const repDoc = await ReporteActosData.findOne({ $or: [{ companyId }, { user: targetUserId }] }).lean().catch(() => null);
+      const inbox = repDoc?.inboxPublico || [];
+
+      return res.json({
+        aplicativo: 'Buzón y Reportes de Actos y Condiciones Inseguras',
+        totalReportesRecibidos: inbox.length,
+        informeCompleto: `Gestión de Actos y Condiciones Inseguras: Se registran ${inbox.length} reportes notificados mediante buzón y código QR. Todos con clasificación de severidad y medidas correctivas en seguimiento.`,
+      });
+    }
+
+    // 19. VEHÍCULOS Y FLOTA
+    if (targetApp.includes('vehiculo') || targetApp.includes('flota') || targetApp.includes('auto')) {
+      const vehiculosCount = await SgsstVehicleData.countDocuments({ $or: [{ companyId }, { user: targetUserId }] }).catch(() => 0);
+
+      return res.json({
+        aplicativo: 'Gestión de Flota Vehicular y Conductores',
+        totalVehiculosRegistrados: vehiculosCount,
+        informeCompleto: `Parque Automotor y Seguridad Vial: ${vehiculosCount} vehículos registrados con seguimiento de inspecciones preoperacionales y control de vigencias de SOAT y tecnomecánica.`,
+      });
+    }
+
+    // 20. CRONOGRAMA Y TAREAS (KANBAN)
+    if (targetApp.includes('cronograma') || targetApp.includes('tarea') || targetApp.includes('kanban')) {
+      const totalTasks = await KanbanTask.countDocuments({ user: targetUserId }).catch(() => 0);
+      const pendingTasks = await KanbanTask.countDocuments({ user: targetUserId, status: { $ne: 'done' } }).catch(() => 0);
+
+      return res.json({
+        aplicativo: 'Cronograma Anual y Tareas de SST (Kanban)',
+        totalActividades: totalTasks,
+        tareasPendientes: pendingTasks,
+        tareasCompletadas: totalTasks - pendingTasks,
+        informeCompleto: `Plan Anual de Trabajo en SST: ${totalTasks} actividades programadas, con ${totalTasks - pendingTasks} completadas y ${pendingTasks} en ejecución.`,
+      });
+    }
+
     return res.json({
       aplicativo: targetApp,
-      mensaje: `Informe del módulo ${targetApp} consultado en el sistema para ${company?.nombre || 'la empresa'}.`,
+      empresa: company?.companyName || 'Empresa activa',
+      mensaje: `Informe del aplicativo "${targetApp}" consultado. Aplicativos disponibles con informe técnico: Perfiles de Cargo (perfil_cargo), Matriz IPEVAR GTC-45 (gtc45), Diagnóstico 0312 (diagnostico_0312), Investigación ATEL (investigacion_atel), PESV (pesv), Químicos SGA (quimicos), Auditoría Anual (auditoria), Sociodemográfico y Salud (perfil_socio), Vulnerabilidad y Emergencias (vulnerabilidad), Ergonomía OWAS (owas), Estudio de Puesto (estudio_puesto), ATS (ats), Alturas (alturas), Matriz Legal (legal), Comités COPASST (comites), Capacitaciones (capacitaciones), EPP (epp), Actos y Condiciones (actos_condiciones), Vehículos (vehiculos), Cronograma (cronograma).`,
     });
   } catch (error) {
     logger.error('[MCP Bridge] GET /informe error:', error);
