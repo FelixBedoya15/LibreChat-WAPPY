@@ -41,6 +41,45 @@ PROFILES_DIR = NOTEBOOKLM_HOME / "profiles"
 PROFILES_DIR.mkdir(parents=True, exist_ok=True)
 (PROFILES_DIR / "default").mkdir(parents=True, exist_ok=True)
 
+
+def _ensure_default_storage() -> Path:
+    """Garantiza que el perfil default tenga siempre un storage_state.json funcional."""
+    default_storage = PROFILES_DIR / "default" / "storage_state.json"
+    if default_storage.exists() and default_storage.stat().st_size > 0:
+        return default_storage
+
+    # Buscar en candidatos de respaldo
+    current_dir = Path(__file__).resolve().parent
+    candidates = [
+        current_dir / "profiles" / "default" / "storage_state.json",
+        current_dir / "default_storage.json",
+        Path("/app/profiles/default/storage_state.json"),
+        Path("/app/default_storage.json"),
+        Path("/root/LibreChat-WAPPY/config/notebooklm/profiles/default/storage_state.json"),
+        Path("/root/LibreChat-WAPPY/config/notebooklm/default_storage.json"),
+        NOTEBOOKLM_HOME / "storage_state.json",
+        Path.home() / ".notebooklm" / "profiles" / "default" / "storage_state.json",
+    ]
+    for cand in candidates:
+        if cand.exists() and cand.stat().st_size > 0:
+            try:
+                default_storage.parent.mkdir(parents=True, exist_ok=True)
+                default_storage.write_bytes(cand.read_bytes())
+                try:
+                    os.chmod(default_storage, 0o600)
+                except Exception:
+                    pass
+                logger.info(f"Sesión default auto-restaurada desde '{cand}' hacia '{default_storage}'.")
+                return default_storage
+            except Exception as e:
+                logger.warning(f"Error auto-restaurando sesión default desde '{cand}': {e}")
+
+    return default_storage
+
+
+# Auto-inicializar perfil default al cargar el módulo
+_ensure_default_storage()
+
 # Cache de clientes en memoria {profile_name: (client, context_manager)}
 _CLIENT_CACHE: Dict[str, Any] = {}
 _CACHE_LOCK = asyncio.Lock()
@@ -184,7 +223,7 @@ async def get_client_for_request() -> NotebookLMClient:
     if not active_storage_file.exists() or active_storage_file.stat().st_size == 0:
         # Fallback al perfil compartido default
         selected_profile = "default"
-        active_storage_file = PROFILES_DIR / "default" / "storage_state.json"
+        active_storage_file = _ensure_default_storage()
 
     # Si el perfil default tampoco tiene storage_state.json, revisar fallback legado
     if not active_storage_file.exists() or active_storage_file.stat().st_size == 0:
@@ -194,9 +233,8 @@ async def get_client_for_request() -> NotebookLMClient:
             selected_profile = "default"
         else:
             raise RuntimeError(
-                "No hay sesión de Google NotebookLM activa en el sistema ni credenciales privadas configuradas. "
-                "Para activarlo: ejecuta 'npm run notebooklm:auth' en el servidor VPS para vincular la cuenta central de WAPPY, "
-                "o proporciona tus cookies de Google en la configuración de usuario de LibreChat."
+                "No hay sesión de Google NotebookLM activa en el sistema ni credenciales configuradas. "
+                "Para activarlo: ejecuta 'npm run notebooklm:auth' en el servidor VPS para vincular la cuenta central de WAPPY."
             )
 
     # Obtener o instanciar cliente desde el cache
