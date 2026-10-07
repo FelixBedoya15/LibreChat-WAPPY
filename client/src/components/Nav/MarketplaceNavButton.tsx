@@ -18,7 +18,7 @@ const MarketplaceNavButton = ({
 }: Props) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const isActive = location.pathname.startsWith('/marketplace');
+  const isActive = location.pathname.startsWith('/marketplace') || location.pathname.startsWith('/tienda');
 
   const [hasVisited, setHasVisited] = React.useState<boolean>(() => {
     try {
