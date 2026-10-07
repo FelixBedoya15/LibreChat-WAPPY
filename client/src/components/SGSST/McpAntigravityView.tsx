@@ -95,8 +95,8 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
   }, [loadKeys]);
 
   // Generar nueva clave
-  const handleCreateKey = async () => {
-    if (!token) return;
+  const handleCreateKey = async (): Promise<string | null> => {
+    if (!token) return null;
     setCreating(true);
     try {
       const res = await fetch('/api/user-api-keys', {
@@ -112,21 +112,24 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
         const data = await res.json();
         setNewKeyGenerated(data.apiKey);
         showToast({
-          message: 'Clave API generada. Copia la clave ahora.',
+          message: '¡Nueva Clave API generada exitosamente!',
           status: 'success',
         });
         loadKeys();
+        return data.apiKey;
       } else {
         showToast({
           message: 'Error al generar la clave API.',
           status: 'error',
         });
+        return null;
       }
     } catch (err) {
       showToast({
         message: 'Error de conexión al generar clave.',
         status: 'error',
       });
+      return null;
     } finally {
       setCreating(false);
     }
@@ -156,24 +159,6 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
     }
   };
 
-  const copyToClipboard = (text: string, type: 'key' | 'config' | 'prompt' | 'local') => {
-    navigator.clipboard.writeText(text);
-    if (type === 'key') {
-      setCopiedKey(true);
-      setTimeout(() => setCopiedKey(false), 2000);
-    } else if (type === 'config') {
-      setCopiedConfig(true);
-      setTimeout(() => setCopiedConfig(false), 2000);
-    } else if (type === 'prompt') {
-      setCopiedPrompt(true);
-      setTimeout(() => setCopiedPrompt(false), 2000);
-    } else if (type === 'local') {
-      setCopiedLocal(true);
-      setTimeout(() => setCopiedLocal(false), 2000);
-    }
-    showToast({ message: 'Copiado al portapapeles', status: 'success' });
-  };
-
   const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://wappy.club';
   const effectiveKey = newKeyGenerated || (keys.length > 0 ? `${keys[0].keyPrefix}` : 'PEGA_TU_CLAVE_AQUI');
   const sseServerUrl = `${originUrl}/api/mcp-bridge/sse?apiKey=${effectiveKey}`;
@@ -196,6 +181,68 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
     null,
     2
   );
+
+  const copyToClipboard = async (text: string, type: 'key' | 'config' | 'prompt' | 'local') => {
+    let keyToUse = newKeyGenerated;
+    if (!keyToUse && (type === 'config' || type === 'prompt' || type === 'local')) {
+      keyToUse = await handleCreateKey();
+    }
+
+    let textToCopy = text;
+    if (keyToUse) {
+      const liveSseUrl = `${originUrl}/api/mcp-bridge/sse?apiKey=${keyToUse}`;
+      if (type === 'key') {
+        textToCopy = keyToUse;
+      } else if (type === 'prompt') {
+        textToCopy = `Configura mi conexión con WAPPY en tu archivo de servidores MCP (mcp_config.json) usando esta URL remota:\nURL: ${liveSseUrl}\n\nEs una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MCP 'wappy', hazme un diagnóstico 360° de mi empresa en WAPPY.`;
+      } else if (type === 'config') {
+        textToCopy = JSON.stringify(
+          {
+            mcpServers: {
+              wappy: {
+                serverUrl: liveSseUrl,
+              },
+            },
+          },
+          null,
+          2
+        );
+      } else if (type === 'local') {
+        textToCopy = JSON.stringify(
+          {
+            mcpServers: {
+              wappy: {
+                command: 'node',
+                args: ['bin/wappy-mcp.js'],
+                env: {
+                  WAPPY_URL: originUrl,
+                  WAPPY_API_KEY: keyToUse,
+                },
+              },
+            },
+          },
+          null,
+          2
+        );
+      }
+    }
+
+    navigator.clipboard.writeText(textToCopy);
+    if (type === 'key') {
+      setCopiedKey(true);
+      setTimeout(() => setCopiedKey(false), 2000);
+    } else if (type === 'config') {
+      setCopiedConfig(true);
+      setTimeout(() => setCopiedConfig(false), 2000);
+    } else if (type === 'prompt') {
+      setCopiedPrompt(true);
+      setTimeout(() => setCopiedPrompt(false), 2000);
+    } else if (type === 'local') {
+      setCopiedLocal(true);
+      setTimeout(() => setCopiedLocal(false), 2000);
+    }
+    showToast({ message: 'Copiado al portapapeles con tu clave activa', status: 'success' });
+  };
 
   // Configuración opcional Stdio para desarrolladores
   const localStdioConfig = JSON.stringify(

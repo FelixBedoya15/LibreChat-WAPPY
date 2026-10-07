@@ -347,6 +347,61 @@ const PerfilSociodemografico = () => {
         }
     };
 
+    // ─── Auto-sync sessionStorage ──────────────────────────────
+    useEffect(() => {
+        if (trabajadores.length > 0) {
+            try {
+                sessionStorage.setItem('wappy_cached_workers', JSON.stringify(trabajadores));
+            } catch {}
+        }
+    }, [trabajadores]);
+
+    // ─── Debounced Auto-save to Database ────────────────────────
+    const isInitialLoadRef = useRef(true);
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        if (isInitialLoadRef.current) {
+            if (trabajadores.length > 0) {
+                isInitialLoadRef.current = false;
+            }
+            return;
+        }
+
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+        }
+
+        saveTimeoutRef.current = setTimeout(async () => {
+            if (!token || trabajadores.length === 0) return;
+            try {
+                const trabajadoresConBio = trabajadores.map(w => {
+                    const bio = calculateBiocentricFit(w);
+                    return {
+                        ...w,
+                        biocentricScore: (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : bio.score,
+                        biocentricAlerts: w.biocentricAlerts || bio.alerts,
+                        biocentricIsLethal: w.biocentricIsLethal !== undefined ? w.biocentricIsLethal : bio.isLethal
+                    };
+                });
+                await fetch('/api/sgsst/perfil-sociodemografico/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+                });
+                window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+            } catch (err) {
+                console.error('Error auto-guardando perfil sociodemográfico:', err);
+            }
+        }, 1500);
+
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+        };
+    }, [trabajadores, token]);
+
     // ─── Load Data ──────────────────────────────────────────────
     useEffect(() => {
         const loadData = async () => {
@@ -360,12 +415,27 @@ const PerfilSociodemografico = () => {
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.trabajadores?.length) {
-                        setTrabajadores(data.trabajadores);
+                    if (Array.isArray(data.trabajadores)) {
+                        const serverWorkers: WorkerEntry[] = data.trabajadores;
+                        let combined = [...serverWorkers];
                         try {
-                            sessionStorage.setItem('wappy_cached_workers', JSON.stringify(data.trabajadores));
+                            const cachedStr = sessionStorage.getItem('wappy_cached_workers');
+                            if (cachedStr) {
+                                const cachedWorkers: WorkerEntry[] = JSON.parse(cachedStr);
+                                if (Array.isArray(cachedWorkers)) {
+                                    for (const cw of cachedWorkers) {
+                                        if (cw.id && !combined.some(sw => sw.id === cw.id || (sw.identificacion && cw.identificacion && String(sw.identificacion).trim() === String(cw.identificacion).trim()))) {
+                                            combined.push(cw);
+                                        }
+                                    }
+                                }
+                            }
                         } catch {}
-                        syncWorkersSignaturesToStorage(data.trabajadores);
+                        setTrabajadores(combined);
+                        try {
+                            sessionStorage.setItem('wappy_cached_workers', JSON.stringify(combined));
+                        } catch {}
+                        syncWorkersSignaturesToStorage(combined);
                     }
                     if (data.actualizacionesPendientes) {
                         setInboxPerfil(data.actualizacionesPendientes);
@@ -408,8 +478,33 @@ const PerfilSociodemografico = () => {
     // ─── Handlers ───────────────────────────────────────────────
     const handleAddWorker = () => {
         const newWorker: WorkerEntry = { id: crypto.randomUUID(), ...EMPTY_WORKER };
-        setTrabajadores(prev => [...prev, newWorker]);
+        const updated = [...trabajadores, newWorker];
+        setTrabajadores(updated);
         setExpandedWorkers(prev => new Set(prev).add(newWorker.id));
+        try {
+            sessionStorage.setItem('wappy_cached_workers', JSON.stringify(updated));
+        } catch {}
+
+        if (token) {
+            const trabajadoresConBio = updated.map(w => {
+                const bio = calculateBiocentricFit(w);
+                return {
+                    ...w,
+                    biocentricScore: (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : bio.score,
+                    biocentricAlerts: w.biocentricAlerts || bio.alerts,
+                    biocentricIsLethal: w.biocentricIsLethal !== undefined ? w.biocentricIsLethal : bio.isLethal
+                };
+            });
+            fetch('/api/sgsst/perfil-sociodemografico/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+            })
+            .then(() => {
+                window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+            })
+            .catch(err => console.error('Error auto-guardando nuevo trabajador:', err));
+        }
     };
 
     const handleToggleEstadoLaboral = async (workerId: string) => {

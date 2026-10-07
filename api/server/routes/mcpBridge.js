@@ -226,12 +226,14 @@ function matchWorker(w, target) {
 
 router.get('/sse', async (req, res) => {
   try {
+    const authHeader = req.headers.authorization || '';
+    const bearerKey = authHeader.toLowerCase().startsWith('bearer ')
+      ? authHeader.slice(7).trim()
+      : null;
     const rawApiKey =
       req.query.apiKey ||
       req.headers['x-api-key'] ||
-      (req.headers.authorization?.startsWith('Bearer wpy_live_')
-        ? req.headers.authorization.slice(7).trim()
-        : null);
+      bearerKey;
 
     if (!rawApiKey) {
       return res.status(401).send('Se requiere parámetro ?apiKey=wpy_live_... o encabezado x-api-key válido.');
@@ -286,7 +288,7 @@ router.post('/messages', async (req, res) => {
       return res.status(404).send('Sesión SSE no encontrada o expirada.');
     }
 
-    await transport.handlePostMessage(req, res);
+    await transport.handlePostMessage(req, res, req.body);
   } catch (error) {
     logger.error('[MCP Bridge] Error en POST /messages:', error);
     if (!res.headersSent) {
