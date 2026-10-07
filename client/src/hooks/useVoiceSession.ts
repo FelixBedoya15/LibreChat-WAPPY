@@ -63,6 +63,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const noiseFloorRef = useRef<number>(0.003);
     const lastVoiceTimeRef = useRef<number>(0);
     const preRollChunksRef = useRef<Float32Array[]>([]);
+    // true mientras el noise gate está transmitiendo una locución; al cerrarse se emite speech_end una sola vez
+    const isTransmittingSpeechRef = useRef(false);
     const statusRef = useRef(status);
     useEffect(() => {
         statusRef.current = status;
@@ -195,7 +197,11 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 // Grace period: descartar primeros 200ms de captura para abrir el canal de audio con silencio limpio sin pops
                 if (listeningStartTimeRef.current && (Date.now() - listeningStartTimeRef.current < 200)) return;
                 // Silenciar envío mientras la IA reproduce voz para evitar eco acústico del altavoz y tartamudeo
-                if (isHardwareMutedRef.current || isPlayingAudioRef.current || isAutoMutedRef.current) return;
+                if (isHardwareMutedRef.current || isPlayingAudioRef.current || isAutoMutedRef.current) {
+                    // La IA tomó el turno: la locución del usuario ya terminó, no se emite speech_end
+                    isTransmittingSpeechRef.current = false;
+                    return;
+                }
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
                 // ── Voice Activity Detection (VAD) / Supresor de Ruido Inteligente ──
@@ -207,26 +213,49 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 }
                 const rms = Math.sqrt(sumSquare / float32Array.length);
 
-                // Adaptación continua del piso de ruido ambiental (fondo)
-                if (rms < noiseFloorRef.current * 1.5 || rms < 0.008) {
-                    noiseFloorRef.current = noiseFloorRef.current * 0.96 + rms * 0.04;
-                }
                 // Umbral de activación vocal dinámico (garantiza superar el piso de ruido)
                 const voiceThreshold = Math.max(0.010, noiseFloorRef.current * 2.2);
-
-                const now = Date.now();
                 const isSpeechNow = rms >= voiceThreshold;
 
+                // Adaptación asimétrica del piso de ruido (Lección 12):
+                // la fórmula anterior solo adaptaba si rms < 0.008 o < 1.5×piso, por lo que un ruido
+                // ambiente/AGC estable algo mayor nunca se aprendía y la compuerta quedaba abierta,
+                // bombeando audio continuo a Google (que entonces nunca cerraba el turno).
+                if (rms < noiseFloorRef.current) {
+                    // Baja rápido hacia el silencio real
+                    noiseFloorRef.current = noiseFloorRef.current * 0.85 + rms * 0.15;
+                } else if (!isSpeechNow) {
+                    // Ruido de fondo por debajo del umbral: sube moderadamente
+                    noiseFloorRef.current = noiseFloorRef.current * 0.97 + rms * 0.03;
+                } else {
+                    // Durante "voz": sube muy lento (~13s) para absorber zumbidos constantes sin cortar al hablante
+                    noiseFloorRef.current = noiseFloorRef.current * 0.99 + rms * 0.01;
+                }
+                noiseFloorRef.current = Math.min(0.05, Math.max(0.001, noiseFloorRef.current));
+
+                const now = Date.now();
                 if (isSpeechNow) {
                     lastVoiceTimeRef.current = now;
                 }
 
-                // Hangover de 450ms: mantiene el canal abierto durante pausas breves entre palabras
-                const isInHangover = (now - lastVoiceTimeRef.current) < 450;
+                // Hangover de 700ms: mantiene el canal abierto durante pausas naturales entre palabras.
+                // Al expirar se emite speech_end → audioStreamEnd, que cierra el turno de inmediato,
+                // por lo que no debe ser tan corto que parta frases a la mitad.
+                const isInHangover = (now - lastVoiceTimeRef.current) < 700;
                 const shouldTransmit = isSpeechNow || isInHangover;
 
                 // Si NO hay voz activa ni hangover (silencio / ventilador / ruido ambiental), guardar en pre-roll y NO enviar
                 if (!shouldTransmit) {
+                    // Fin de locución: avisar al backend UNA sola vez para que Google cierre el turno ya
+                    if (isTransmittingSpeechRef.current) {
+                        isTransmittingSpeechRef.current = false;
+                        try {
+                            wsRef.current.send(JSON.stringify({ type: 'speech_end' }));
+                            console.log('[VoiceSession] Fin de voz detectado → speech_end enviado');
+                        } catch (e) {
+                            console.warn('[VoiceSession] No se pudo enviar speech_end:', e);
+                        }
+                    }
                     // Mantener pre-roll buffer circular de los últimos 2 chunks (~120ms) para no cortar inicios de palabras
                     preRollChunksRef.current.push(new Float32Array(float32Array));
                     if (preRollChunksRef.current.length > 2) {
@@ -234,6 +263,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     }
                     return;
                 }
+
+                isTransmittingSpeechRef.current = true;
 
                 // Si acabamos de detectar voz tras silencio, vaciar primero el pre-roll buffer
                 if (preRollChunksRef.current.length > 0) {
@@ -402,6 +433,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         listeningStartTimeRef.current = 0;
         lastVoiceTimeRef.current = 0;
         preRollChunksRef.current = [];
+        isTransmittingSpeechRef.current = false;
         noiseFloorRef.current = 0.003;
         // Detener tracks del micrófono
         if (streamRef.current) {

@@ -431,6 +431,26 @@
 
 ---
 
+### LECCIÓN 12 (2026-10-07): Latencia de 10-14 s antes de que Tenshi responda ("dura eternidades para contestar")
+
+- **Síntoma reportado (recurrente):** Tras decir "Hola, Tenshi", la respuesta tardaba 11-13 s. En el segundo turno a veces nunca llegaba.
+- **Evidencia en logs:** `AUDIO recibido (chunk #1)` a las 11:03:30.158 → transcripción del usuario a las 11:03:41.548 (**11,4 s después**) → primera palabra de la IA **6 ms después** y frase completa en 312 ms. Google no era lento generando: tardaba en **decidir que el usuario había terminado**.
+- **Causas raíz:**
+  1. **El noise gate de la Lección 11-E dejó al VAD de Google sin silencio.** El cliente deja de enviar audio cuando hay silencio. El VAD del servidor de Google necesita *recibir* el silencio final para cerrar el turno; como no le llegaba nada, retenía la respuesta hasta que entraba más audio o vencía un timeout interno.
+  2. **Nunca se enviaba `realtimeInput.audioStreamEnd`.** Según la spec oficial (`ai.google.dev/api/live`), cuando el stream de audio se pausa (micrófono apagado / compuerta cerrada) el cliente debe enviar `audioStreamEnd: true` para vaciar el audio en caché. Solo es válido con detección automática habilitada (default).
+  3. **El piso de ruido del cliente podía quedar bloqueado.** La fórmula solo se adaptaba si `rms < 0.008` o `rms < 1.5×piso`; con ruido/AGC estable un poco más alto, la compuerta nunca se cerraba y se enviaba audio continuo.
+- **Solución implementada:**
+  1. `useVoiceSession.ts`: adaptación asimétrica del piso de ruido (baja rápido, sube moderado bajo el umbral y muy lento durante "voz", limitado a 0.001–0.05). Hangover de 700 ms. Cuando la compuerta se cierra después de una locución, se envía **una sola vez** `{ type: 'speech_end' }`. Si la IA toma el turno mientras se transmite, se descarta la señal.
+  2. `voiceSession.js`: `case 'speech_end'` → `geminiClient.sendAudioStreamEnd()` (ignorado si la sesión no está lista o si la IA está hablando).
+  3. `geminiLive.js`: nuevo `sendAudioStreamEnd()` → `{ realtimeInput: { audioStreamEnd: true } }`, y en el setup `realtimeInputConfig.automaticActivityDetection = { endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH', silenceDurationMs: 600, prefixPaddingMs: 100 }` como respaldo.
+- **Reglas obligatorias:**
+  1. **Todo noise gate o VAD en el cliente DEBE ir acompañado de `audioStreamEnd`** al cerrarse. Prohibido cortar el audio hacia Google sin avisarle.
+  2. **No usar `clientContent.turnComplete` para cerrar turnos de voz**: ese campo es para turnos de texto y mezclarlo con `realtimeInput` puede interrumpir la generación.
+  3. **No poner `automaticActivityDetection.disabled: true`**: `audioStreamEnd` requiere la detección automática. Si algún día se desactiva, hay que migrar a `activityStart`/`activityEnd`.
+  4. No bajar el hangover de 600 ms: `audioStreamEnd` cierra el turno de inmediato y partiría frases con pausas naturales.
+
+---
+
 ## 2. Checklist Obligatorio Pre-Commit / Pre-Despliegue
 
 Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el chat:

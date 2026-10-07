@@ -3113,6 +3113,20 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                 }
                 break;
 
+            case 'speech_end':
+                // El cliente detectó fin de voz (noise gate cerrado tras hablar). Sin esta señal,
+                // Google no recibe silencio y retiene la respuesta 10-14s (ver Lección 12).
+                if (!this.isActive || !this.geminiClient || !this.geminiClient.setupCompleted) {
+                    break;
+                }
+                if (this.isAiSpeaking) {
+                    break;
+                }
+                if (typeof this.geminiClient.sendAudioStreamEnd === 'function') {
+                    this.geminiClient.sendAudioStreamEnd();
+                }
+                break;
+
             case 'video':
                 // Forward video frame to Gemini
                 if (data && data.image) {

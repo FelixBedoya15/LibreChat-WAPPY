@@ -298,6 +298,16 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
                 // Transcripciones de audio según especificación oficial de Google Multimodal Live API
                 inputAudioTranscription: {},
                 outputAudioTranscription: {},
+                // VAD del servidor (spec oficial RealtimeInputConfig.AutomaticActivityDetection):
+                // cerrar el turno tras ~600ms de silencio real en vez del default conservador.
+                // NO desactivar (disabled:true) porque audioStreamEnd exige detección automática.
+                realtimeInputConfig: {
+                    automaticActivityDetection: {
+                        endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH',
+                        silenceDurationMs: 600,
+                        prefixPaddingMs: 100,
+                    },
+                },
                 // Standard Tools support
                 tools: this.config.tools || [{ googleSearch: {} }],
             },
@@ -322,6 +332,21 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
         };
         logger.debug('[GeminiLive] Sending audio chunk with transcription and tools request');
         this.send(message);
+    }
+
+    /**
+     * Señal oficial de fin de stream de audio (Live API: realtimeInput.audioStreamEnd).
+     * El noise gate del cliente deja de enviar audio en silencio, por lo que el VAD de Google
+     * nunca recibe el silencio final y retiene la respuesta 10-14s. audioStreamEnd vacía el
+     * audio en caché y permite cerrar el turno de inmediato. Solo válido con detección
+     * automática de actividad habilitada (default). El stream se reabre al enviar más audio.
+     */
+    sendAudioStreamEnd() {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.setupCompleted) {
+            return;
+        }
+        logger.info('[GeminiLive] Sending audioStreamEnd (fin de voz del usuario detectado por el cliente)');
+        this.send({ realtimeInput: { audioStreamEnd: true } });
     }
 
     /**
