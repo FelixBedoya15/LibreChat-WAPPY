@@ -1227,6 +1227,94 @@ class VoiceSession {
                                 },
                                 required: ["herramienta"]
                             }
+                        },
+                        {
+                            name: "wappy_crear_informe",
+                            description: "Crea y genera un informe técnico oficial del SG-SST (para cualquiera de los 20 módulos o general) y lo entrega de inmediato en el chat de Tenshi con visualizador y botones de descarga (Word, Excel o HTML interactivo). INVÓCALA SIEMPRE que el usuario te pida crear, generar, redactar o entregar un informe, reporte o dictamen técnico para que lo reciba directamente en su chat sin abrir otros chats.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    titulo: {
+                                        type: "string",
+                                        description: "Título formal del informe (ej: 'Informe Técnico de Investigación ATEL', 'Informe Diagnóstico Res. 0312', 'Informe de Análisis Ergonómico OWAS')."
+                                    },
+                                    aplicativo: {
+                                        type: "string",
+                                        description: "Módulo o aplicativo del SG-SST: 'investigacion_atel', 'gtc45', 'diagnostico_0312', 'perfil_cargo', 'perfil_socio', 'vulnerabilidad', 'owas', 'estudio_puesto', 'ats', 'alturas', 'legal', 'comites', 'capacitaciones', 'epp', 'actos_condiciones', 'pesv', 'quimicos', 'vehiculos', 'cronograma', 'auditoria' o 'general'."
+                                    },
+                                    formato: {
+                                        type: "string",
+                                        enum: ["html", "text", "excel"],
+                                        description: "Formato del informe: 'html' (reporte corporativo interactivo), 'text' (documento Word / Markdown), 'excel' (hoja de cálculo)."
+                                    },
+                                    contenido: {
+                                        type: "string",
+                                        description: "Contenido técnico exhaustivo del informe en Markdown o HTML, estructurado con introducción, marco legal colombiano (Decreto 1072, Resoluciones), hallazgos, indicadores, plan de mejora y firmas."
+                                    }
+                                },
+                                required: ["titulo", "aplicativo"]
+                            }
+                        },
+                        {
+                            name: "wappy_enviar_correo",
+                            description: "Redacta y envía un correo electrónico formal a cualquier destinatario (colaborador, gerencia, ARL o al usuario) utilizando Google Gmail (si está conectado) o el servidor oficial de WAPPY. Puedes enviar mensajes, recordatorios o adjuntar/enviar el informe técnico recién creado.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    destinatario: {
+                                        type: "string",
+                                        description: "Dirección de correo electrónico del destinatario (ej: 'gerencia@empresa.com' o 'mi correo' para enviar al usuario)."
+                                    },
+                                    asunto: {
+                                        type: "string",
+                                        description: "Asunto del correo electrónico."
+                                    },
+                                    mensaje: {
+                                        type: "string",
+                                        description: "Cuerpo del mensaje o informe a enviar (soporta texto plano o HTML profesional)."
+                                    }
+                                },
+                                required: ["destinatario", "asunto", "mensaje"]
+                            }
+                        },
+                        {
+                            name: "wappy_gestionar_agenda",
+                            description: "Gestiona la agenda, calendario y compromisos del SG-SST en Google Calendar y en el cronograma de WAPPY. Permite agendar inspecciones, capacitaciones, auditorías, comités COPASST o citas médicas laborales, así como listar eventos próximos y cancelar compromisos.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    accion: {
+                                        type: "string",
+                                        enum: ["agendar_evento", "listar_agenda", "eliminar_evento"],
+                                        description: "Acción a realizar: 'agendar_evento' para programar, 'listar_agenda' para ver compromisos próximos, 'eliminar_evento' para cancelar."
+                                    },
+                                    titulo: {
+                                        type: "string",
+                                        description: "Título o motivo del evento (ej: 'Inspección de Extintores', 'Capacitación Primeros Auxilios', 'Reunión COPASST')."
+                                    },
+                                    fecha_inicio: {
+                                        type: "string",
+                                        description: "Fecha y hora de inicio en formato ISO o YYYY-MM-DD HH:mm (ej: '2026-10-15T09:00:00')."
+                                    },
+                                    fecha_fin: {
+                                        type: "string",
+                                        description: "Fecha y hora de finalización en formato ISO (opcional)."
+                                    },
+                                    descripcion: {
+                                        type: "string",
+                                        description: "Descripción detallada del evento o cita."
+                                    },
+                                    tipo: {
+                                        type: "string",
+                                        description: "Tipo de actividad: 'manual', 'training', 'medical_exam', 'audit_finding', 'copasst_finding', 'other'."
+                                    },
+                                    id_evento: {
+                                        type: "string",
+                                        description: "ID del evento para eliminar o consultar."
+                                    }
+                                },
+                                required: ["accion"]
+                            }
                         }
                     ]
                 }
@@ -1323,36 +1411,30 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
    - Aplicativos y Dashboards: 'academia' (/academia?tab=cursos), 'training_admin', 'rutas' (/academia?tab=rutas), 'ruta_admin', 'events_meet', 'events_meet_admin', 'blog', 'blog_admin', 'marketplace' (/marketplace tienda productos SST), 'marketplace_admin', 'agents' (/agents catálogo especialistas IA), 'control' (Centro de Control / Kanban), 'animo_dashboard' (/sgsst/animo), 'planes', 'auditoria' (/auditoria), 'live' (/c/new), 'chat_sst', 'roadmap' (/hoja-de-ruta), 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy', 'terms', 'about'.
    - Portales públicos del trabajador: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'.
    - INVÓCALA DE INMEDIATO siempre que el usuario mencione ir, abrir, consultar o ver cualquier hito, módulo o sección.
-4. **wappy_abrir_chat_agente** / **consultar_agente_especializado**: Abre un chat o continúa la conversación con uno de los agentes especialistas de WAPPY (Abogado Laboral, Médico Laboral, Fisioterapeuta Laboral, Ingeniero Químico SST, Coordinador PESV, Psicólogo SST, etc.) y le transmite la consulta técnica del usuario.
-   - REGLA CRÍTICA DE CONTEXTO OBLIGATORIO: Solo debes invocar esta herramienta cuando el usuario YA haya dicho qué desea consultar. Si el usuario únicamente te dice "abre un chat con el médico", "pásame al abogado" o "abramos un nuevo chat con el abogado" sin dar su consulta, NO abras el chat todavía; pregúntale primero con calidez: "¿Qué quieres que le consulte al [especialista]?" y espera a que te dé su duda antes de invocar la herramienta.
-   - REGLA DE CAMBIO DE ESPECIALISTA / NUEVO CHAT VS CONTINUIDAD:
-     * Si el usuario pide un NUEVO CHAT ("abre otro chat", "un nuevo chat", "nueva conversación", "desde cero", "cambia de tema", "otro especialista") o nombra a un especialista diferente al actual: pasa 'nuevo_chat': true en los argumentos.
-     * Si el usuario hace una PREGUNTA DE SEGUIMIENTO sobre el mismo tema o con el mismo especialista (ej: "¿y a los 150 días?", "¿qué otras enfermedades?", "continúa...", "explica más"): pasa 'nuevo_chat': false para que continúe en la misma conversación activa sin recargar la pantalla.
-   - ESTRUCTURACIÓN PROFESIONAL OBLIGATORIA DEL PROMPT (PARÁMETRO 'pregunta'):
-     ESTÁ ESTRICTAMENTE PROHIBIDO enviar frases telegráficas cortas o en crudo (ej: NO pongas "Qué es medicina laboral" ni "Resolución 0312").
-     Debes formular en el parámetro 'pregunta' una consulta técnica profesional completa y enriquecida para que el especialista brinde una respuesta de máximo nivel:
-     1. Planteamiento claro de la duda central o temática ocupacional del usuario.
-     2. Solicitud de fundamentación normativa colombiana aplicable (ej. Decretos como Decreto 1072 de 2015, Resoluciones ministeriales, leyes aplicables).
-     3. Implicaciones prácticas y recomendaciones de aplicación para el Sistema de Gestión SG-SST de la empresa.
-     * Ejemplo con Médico Laboral: "¿Qué es la medicina laboral y cuáles son sus objetivos y alcance en el entorno ocupacional? Solicito concepto médico ocupacional detallado sobre su aplicación en Colombia, marco normativo aplicable en el SG-SST y principales responsabilidades para el empleador y los trabajadores."
-     * Ejemplo con Abogado Laboral: "¿De qué trata la Resolución 0312 de 2019 en Colombia? Solicito análisis jurídico de los Estándares Mínimos del SG-SST, clasificación según tamaño y nivel de riesgo de la empresa, y consecuencias o sanciones por incumplimiento."
-   - EXCEPCIÓN DE OBEDIENCIA DIRECTA ("RESPÓNDEME TÚ"): Si el usuario te indica expresamente "respóndeme tú", "hazlo tú", "no abras chat", "no le preguntes al especialista", "contéstame directamente" o muestra rechazo a la delegación: TIENES OBLIGACIÓN TOTAL Y ABSOLUTA DE RESPONDERLE TÚ MISMA de inmediato con tu base de conocimientos de SG-SST en Colombia (citando normatividad como Decreto 1072 de 2015 o las resoluciones aplicables). Está TERMINANTEMENTE PROHIBIDO negarte, decir que debes esperar al especialista o insistir en delegar cuando el usuario te ordenó responder tú.
-   - RESPUESTA TRAS INVOCAR: Confirma en una sola frase breve que ya abriste el chat o transmitiste la consulta al especialista en pantalla. Ejemplo: "¡De una! Ya le pasé tu consulta al especialista en pantalla. Esperemos un momento a que responda." NUNCA inventes lo que va a responder ni des diagnósticos anticipados.
-5. **CONSULTAS Y RESPUESTAS DE ESPECIALISTAS**:
-   - Cuando el especialista responda o recibas una notificación "[SISTEMA INTERNO WAPPY - RESPUESTA TÉCNICA EMITIDA]: ...", explica verbalmente de forma clara las conclusiones técnicas que dictaminó el especialista de forma fiel y veraz, sin añadir advertencias ni disclaimers. ESTÁ TERMINANTEMENTE PROHIBIDO limitarte a decir "ya respondió" o mandar al usuario a revisar la pantalla.
-   - Si el usuario te pide que leas la respuesta o dice "léelo", "léemelo", "qué dice exactamente", "no lo resumas": léele el dictamen real citando sus artículos, decretos (ej. Decreto 1072 de 2015) y argumentos sin comprimirlo a una sola frase genérica.
-   - PROHIBICIÓN ESTRICTA DE INVENTAR O ALUCINAR: NUNCA inventes lo que dice un especialista ni asumas hechos que no estén en pantalla. Si aún no recibes la notificación oficial, dile con honestidad al usuario que el especialista está analizando y redactando en pantalla. Si el usuario te insiste o te dice que ya respondió o que revises, INVOCA DE INMEDIATO 'leer_pantalla' para extraer el texto real del chat y léelo fielmente.
+4. **ORQUESTACIÓN TOTAL DESDE TENSHI (INFORMES, CORREOS, AGENDAS Y ESPECIALISTAS)**:
+   - TÚ ERES LA DIRECTORA DE ORQUESTA CENTRAL DE WAPPY.
+   - ESTÁ TERMINANTEMENTE PROHIBIDO abrir nuevos chats (/c/new) o delegar sacando al usuario de tu conversación cuando te pida conceptos técnicos o informes de especialistas (Médico, Abogado, Auditor, Ergónomo, etc.).
+   - CREACIÓN Y ENTREGA DE INFORMES EN EL CHAT DE TENSHI ('wappy_crear_informe' y 'canvas_tool'):
+     * Cuando el usuario te pida crear, generar, redactar o entregar un informe o dictamen técnico oficial:
+     * INVOCA DE INMEDIATO 'wappy_crear_informe' o 'canvas_tool' redactando el informe completo con fundamentación legal colombiana (Decreto 1072 de 2015, Resolución 0312 de 2019), hallazgos, indicadores y recomendaciones.
+     * El informe se entrega DIRECTAMENTE en el chat de Tenshi con visor interactivo y botones de descarga en Word, Excel o HTML.
+     * Explica verbalmente los puntos clave y confírmale al usuario que ya se lo entregaste en su chat.
+   - CORREO ELECTRÓNICO ('wappy_enviar_correo'):
+     * Redacta y envía correos electrónicos formales a cualquier destinatario (o a 'mi correo') utilizando Google Gmail o el servidor de WAPPY. Puedes enviar informes, citaciones o recordatorios.
+   - GESTIÓN DE AGENDAS Y CALENDARIO ('wappy_gestionar_agenda' y 'google_calendar'):
+     * Agenda eventos, inspecciones de seguridad, capacitaciones, comités COPASST, auditorías o citas médicas laborales en Google Calendar y en el cronograma de WAPPY. Puedes también listar la agenda de eventos próximos.
+   - GOOGLE DRIVE ('google_drive'):
+     * Conéctate a Google Drive para buscar archivos ('list_files_and_folders'), leer matrices y reglamentos ('read_document_content') o guardar informes generados ('write_file').
+   - CONSULTAS A ESPECIALISTAS EN SEGUNDO PLANO ('consultar_agente_especializado'):
+     * Si requieres un concepto de un especialista, invoca 'consultar_agente_especializado' internamente en segundo plano. Recibirás su dictamen y se lo explicarás tú misma al usuario en voz y en el chat de Tenshi sin abrir nuevos chats ni redirigir la pantalla.
+     * Solo si el usuario te ordena explícitamente "abre el chat de la pantalla con el especialista", se usa 'wappy_abrir_chat_agente'.
+5. **CONSULTAS Y RESPUESTAS TÉCNICAS DE MÁXIMO RIGOR**:
+   - Responde siempre con fundamentos técnicos sólidos, citando artículos, decretos y resoluciones aplicables al SG-SST en Colombia.
+   - PROHIBICIÓN ABSOLUTA DE AVISOS PATERNALISTAS: NUNCA emitas advertencias como "esto no es consejo médico/legal". Brinda las recomendaciones profesionales de forma directa y veraz.
 6. **LEER LA PANTALLA O INFORMES VISIBLES ('leer_pantalla' y 'wappy_leer_informe_aplicativo')**:
-   - Tienes la herramienta 'leer_pantalla' para inspeccionar lo visible en el DOM, y 'wappy_leer_informe_aplicativo' para extraer el informe técnico oficial estructurado desde la base de datos de cualquier aplicativo.
-   - PERFILES DE CARGO COMPLETOS (REGLA ESTRICTA):
-     * Cuando el usuario te pregunte por los perfiles de cargo, te pida verlos o te encuentres en el módulo de Perfiles de Cargo:
-     * ESTÁ TERMINANTEMENTE PROHIBIDO limitarte a leer únicamente el perfil de cargo que está seleccionado en pantalla.
-     * DEBES reportar el CATÁLOGO COMPLETO de TODOS los cargos existentes en la empresa (ej: "La empresa cuenta con 5 cargos registrados: Conductor, Operario de Producción, Auxiliar Administrativo, Coordinador SST y Gerente General") e indicar con claridad cuál de ellos está seleccionado actualmente en pantalla.
-     * Si el usuario te pide el perfil o informe de cualquier cargo puntual (esté o no seleccionado en pantalla), invoca 'wappy_leer_informe_aplicativo' con aplicativo: 'perfil_cargo' y cargo: '<nombre del cargo>'.
-   - LECTURA UNIVERSAL DE INFORMES DE CUALQUIER APLICATIVO:
-     * Cuando el usuario te dé la orden de leer el informe de cualquier aplicativo (Perfiles de Cargo, Matriz IPEVAR / GTC-45, Diagnóstico Res. 0312, Investigación ATEL, PESV, Matriz de Compatibilidad Química SGA, Auditoría Anual, etc.):
-     * INVOCA DE INMEDIATO 'wappy_leer_informe_aplicativo' con el nombre del aplicativo (y cargo si aplica), o 'leer_pantalla' si el usuario pide leer lo que está en pantalla.
-     * Léele el contenido técnico sustancial del informe con fidelidad, citando conclusiones, nivel de cumplimiento, requisitos y recomendaciones.
+   - Tienes la herramienta 'leer_pantalla' para inspeccionar lo visible en el DOM, y 'wappy_leer_informe_aplicativo' para extraer el informe técnico oficial estructurado desde la base de datos de cualquiera de los 20 aplicativos de WAPPY.
+   - PERFILES DE CARGO COMPLETOS: En Perfiles de Cargo, reporta el catálogo completo de todos los cargos de la empresa y consulta el cargo puntual con aplicativo: 'perfil_cargo' y cargo: '<nombre del cargo>'.
+   - LECTURA UNIVERSAL DE INFORMES DE CUALQUIER APLICATIVO: Invoca 'wappy_leer_informe_aplicativo' con el nombre del aplicativo (o 'leer_pantalla') y explica las conclusiones con fidelidad.
    - Siempre que el usuario te diga "revisa la pantalla", "léeme lo que hay", "qué dice ahí", "mira el chat", "léelo" o pregunte por lo que está visible:
      1. Invoca 'leer_pantalla' o 'wappy_leer_informe_aplicativo' de inmediato para extraer el contenido real.
      2. Léele o explícale el contenido real extraído con fidelidad, sin inventar y sin omitir datos clave.
@@ -2296,6 +2378,138 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         continue;
                     }
 
+                    // Manejo directo de Creación y Entrega de Informes en el chat de Tenshi
+                    if (fc.name === 'wappy_crear_informe' || fc.name === 'wappy_generar_informe') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "${fc.name}" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: `Generando ${fc.args?.titulo || 'informe técnico'}...` }
+                        });
+                        try {
+                            const repRes = await executeTenshiMcpTool('wappy_crear_informe', fc.args || {}, this.userId);
+                            const repInfo = repRes?.informe || {};
+                            const title = repInfo.titulo || fc.args?.titulo || 'Informe Técnico SG-SST';
+                            const fileType = repInfo.formato || fc.args?.formato || 'html';
+                            const content = repInfo.contenido || fc.args?.contenido || 'Informe técnico oficial generado.';
+
+                            // Entregar archivo en el chat de Tenshi con botones de descarga
+                            await this.executeCanvasTool({
+                                accion: 'crear',
+                                fileType,
+                                title,
+                                content
+                            }, title, fc.id);
+
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: {
+                                    id: fc.id,
+                                    name: 'wappy_crear_informe',
+                                    args: fc.args,
+                                    result: repRes
+                                }
+                            });
+
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: {
+                                        result: `Informe "${title}" generado exitosamente y entregado en el chat de Tenshi con botones para descargar en ${fileType.toUpperCase()} y visor interactivo. Dile al usuario en una sola frase cordial que ya se lo entregaste en su chat para descargarlo o leerlo, y resúmele sus conclusiones principales.`
+                                    }
+                                }]);
+                            }
+                        } catch (repErr) {
+                            logger.error('[VoiceSession] Error generating report:', repErr);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error generando informe: ${repErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Envío de Correos Electrónicos
+                    if (fc.name === 'wappy_enviar_correo' || fc.name === 'enviar_correo') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "${fc.name}" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: `Enviando correo a ${fc.args?.destinatario || ''}...` }
+                        });
+                        try {
+                            const mailRes = await executeTenshiMcpTool('wappy_enviar_correo', fc.args || {}, this.userId);
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: {
+                                    id: fc.id,
+                                    name: 'wappy_enviar_correo',
+                                    args: fc.args,
+                                    result: mailRes
+                                }
+                            });
+
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: {
+                                        result: mailRes?.mensaje || `Correo electrónico enviado con éxito a ${fc.args?.destinatario}.`
+                                    }
+                                }]);
+                            }
+                        } catch (mailErr) {
+                            logger.error('[VoiceSession] Error sending email:', mailErr);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `No se pudo enviar el correo: ${mailErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de Gestión de Agendas y Calendario
+                    if (fc.name === 'wappy_gestionar_agenda' || fc.name === 'wappy_listar_agenda') {
+                        logger.info(`[VoiceSession] Gemini Live invoked tool "${fc.name}" with args:`, JSON.stringify(fc.args));
+                        try {
+                            const agendaRes = await executeTenshiMcpTool('wappy_gestionar_agenda', fc.args || {}, this.userId);
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: {
+                                    id: fc.id,
+                                    name: 'wappy_gestionar_agenda',
+                                    args: fc.args,
+                                    result: agendaRes
+                                }
+                            });
+
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: {
+                                        result: agendaRes?.mensaje || (agendaRes?.eventos ? `Agenda consultada: ${agendaRes.eventos.length} eventos encontrados.` : JSON.stringify(agendaRes))
+                                    }
+                                }]);
+                            }
+                        } catch (calErr) {
+                            logger.error('[VoiceSession] Error in wappy_gestionar_agenda:', calErr);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `Error en la agenda: ${calErr.message}` }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
                     // Manejo directo de SOMOS SST (Bio Motor y Ecosistema)
                     if (fc.name === 'somos_sst') {
                         logger.info(`[VoiceSession] Gemini Live invoked tool "somos_sst" with args:`, JSON.stringify(fc.args));
@@ -2922,15 +3136,86 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         continue;
                     }
 
-                    // Delegación de Consulta a Especialista hacia la interfaz del cliente (wappy_abrir_chat_agente / consultar_agente_especializado)
-                    if (fc.name === 'wappy_abrir_chat_agente' || fc.name === 'consultar_agente_especializado') {
+                    // Orquestación interna de Consulta a Especialistas (Tenshi como Directora de Orquesta)
+                    if (fc.name === 'consultar_agente_especializado') {
+                        const agente = fc.args?.nombre_especialista || fc.args?.agente || 'Especialista SG-SST';
+                        const rawPregunta = (fc.args?.consulta_completa || fc.args?.pregunta || '').trim();
+
+                        if (!rawPregunta || rawPregunta.length < 4) {
+                            logger.warn(`[VoiceSession] Gemini invoked "consultar_agente_especializado" for "${agente}" without concrete question.`);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: {
+                                        result: `Falta la consulta técnica concreta para ${agente}. Pregúntale al usuario qué tema o duda puntual desea plantear antes de consultar.`
+                                    }
+                                }]);
+                            }
+                            continue;
+                        }
+
+                        const pregunta = enrichTechnicalPrompt(rawPregunta, agente);
+                        logger.info(`[VoiceSession] Orquestando internamente consulta a ${agente}: "${pregunta.substring(0, 60)}..."`);
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: `Consultando internamente con ${agente}...` }
+                        });
+
+                        try {
+                            const ConsultarAgenteEspecializado = require('~/app/clients/tools/structured/ConsultarAgenteEspecializado');
+                            const agentTool = new ConsultarAgenteEspecializado({ req: toolReq });
+                            const specResponse = await agentTool._call({
+                                nombre_especialista: agente,
+                                consulta_completa: pregunta
+                            });
+
+                            logger.info(`[VoiceSession] Dictamen recibido de ${agente} (longitud: ${specResponse?.length || 0})`);
+
+                            // Entregar la respuesta técnica en el chat de Tenshi
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: {
+                                    id: fc.id,
+                                    name: 'wappy_dictamen_especialista',
+                                    args: { agente, pregunta },
+                                    result: { respuesta: specResponse }
+                                }
+                            });
+
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: {
+                                        result: `[DICTAMEN TÉCNICO DE ${agente}]:\n${specResponse}\n\n[INSTRUCCIÓN CRÍTICA]: Explica verbalmente de forma clara las conclusiones técnicas que dictaminó ${agente} de forma fiel, sin añadir sermones paternalistas ni disclaimers. Confirma al usuario que ya le dejaste el dictamen completo registrado en el chat de Tenshi.`
+                                    }
+                                }]);
+                            }
+                        } catch (specErr) {
+                            logger.error(`[VoiceSession] Error orquestando consulta a ${agente}:`, specErr);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: {
+                                        result: `No se pudo conectar en segundo plano con ${agente}: ${specErr.message}. Responde tú misma directamente con tu base de conocimientos en SG-SST (Decreto 1072 de 2015).`
+                                    }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Apertura explícita de chat en pantalla solo si el usuario pide ver la pestaña/chat
+                    if (fc.name === 'wappy_abrir_chat_agente') {
                         const agente = fc.args?.agente || fc.args?.nombre_especialista;
                         const rawPregunta = (fc.args?.pregunta || fc.args?.consulta_completa || '').trim();
 
                         if (!rawPregunta || rawPregunta.length < 4) {
                             logger.warn(`[VoiceSession] Gemini invoked "${fc.name}" for agent "${agente}" without concrete question. Asking user for context.`);
                             if (this.geminiClient) {
-                                this.geminiClient.sendToolResponse([{
+                                this.sendGeminiToolResponse([{
                                     id: fc.id,
                                     name: fc.name,
                                     response: {
@@ -2960,14 +3245,12 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                             }
                         });
 
-                        // Responder de inmediato a Gemini Live sin esperar round-trip del WebSocket
-                        // para que Tenshi confirme de inmediato de forma verbal al usuario mientras el chat abre
                         if (this.geminiClient) {
-                            this.geminiClient.sendToolResponse([{
+                            this.sendGeminiToolResponse([{
                                 id: fc.id,
                                 name: fc.name,
                                 response: {
-                                    result: `Chat con ${agente} abierto en pantalla y consulta enviada con éxito. [INSTRUCCIÓN CRÍTICA OBLIGATORIA]: Limítate a confirmar verbalmente al usuario en UNA SOLA frase breve y cordial que ya le transmitiste la consulta al especialista en pantalla y que espere un momento a que responda. TÚ NO TIENES EL DICTAMEN TÉCNICO AÚN. ESTÁ TERMINANTEMENTE PROHIBIDO responder por tu cuenta o dar recomendaciones técnicas ahora. Mantente en silencio esperando la respuesta del especialista o la orden del usuario.`
+                                    result: `Chat con ${agente} abierto en pantalla y consulta enviada con éxito. Confirma en una sola frase breve que ya abriste el chat con ${agente} en pantalla.`
                                 }
                             }]);
                         }

@@ -1721,6 +1721,69 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               new CustomEvent('wappy-herramienta-activada', { detail: { herramienta: tool, parametros: params } })
             );
             resultMsg = `Herramienta de agente "${tool}" activada con éxito en la plataforma.`;
+          } else if (action.name === 'wappy_crear_informe') {
+            const res = (action as any).result || {};
+            const info = res.informe || action.args || {};
+            const title = info.titulo || action.args?.titulo || 'Informe Técnico SG-SST';
+            const content = info.contenido || action.args?.contenido || '';
+            const format = info.formato || action.args?.formato || 'html';
+
+            if (content) {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: 'assistant',
+                  content: `📑 **${title}**\n\n${content}`,
+                  file: {
+                    title,
+                    fileType: format,
+                    content,
+                    canvasId: `tenshi-report-${Date.now()}`,
+                  },
+                  htmlReport: format === 'html' ? content : undefined,
+                },
+              ]);
+              setIsOpen(true);
+            }
+            resultMsg = `Informe "${title}" entregado exitosamente en el chat de Tenshi.`;
+          } else if (action.name === 'wappy_dictamen_especialista') {
+            const res = (action as any).result || {};
+            const agente = action.args?.agente || 'Especialista';
+            const dictamen = res.respuesta || action.args?.respuesta || '';
+            if (dictamen) {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: 'assistant',
+                  content: `🩺 **Dictamen Técnico Especializado - ${agente}**:\n\n${dictamen}`,
+                },
+              ]);
+              setIsOpen(true);
+            }
+            resultMsg = `Dictamen de ${agente} entregado en el chat de Tenshi.`;
+          } else if (action.name === 'wappy_enviar_correo') {
+            const res = (action as any).result || {};
+            const dest = action.args?.destinatario || res.destinatario || '';
+            const asunto = action.args?.asunto || res.asunto || '';
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content: `📧 **Correo Enviado Exitosamente**\n- **Destinatario:** ${dest}\n- **Asunto:** ${asunto}\n- **Canal:** ${res.canal || 'Servidor WAPPY'}\n- **Estado:** Entregado al servidor de mensajería.`,
+              },
+            ]);
+            resultMsg = `Correo enviado exitosamente a ${dest}.`;
+          } else if (action.name === 'wappy_gestionar_agenda') {
+            const res = (action as any).result || {};
+            const msg = res.mensaje || (res.eventos ? `Agenda consultada: ${res.eventos.length} actividades próximas.` : 'Agenda actualizada.');
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content: `📅 **Agenda y Cronograma SG-SST**\n\n${msg}`,
+              },
+            ]);
+            resultMsg = msg;
           }
         } catch (e: any) {
           resultMsg = `Error ejecutando acción: ${e.message}`;

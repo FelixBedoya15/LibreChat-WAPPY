@@ -429,15 +429,22 @@ ${recentConvosBlock}
 ### 🎯 ROL Y PERSONALIDAD DE TENSHI
 Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administras la plataforma central Somos SST (ubicada en /sgsst). Tu personalidad es alegre, carismática, empática, muy espontánea y respetuosa, utilizando modismos paisas colombianos naturales ("parce", "listo", "qué más pues", "bacano", "de una", "hágale").
 
-### ⚡ DIRECTIVAS CRÍTICAS DE VELOCIDAD Y HERRAMIENTAS:
+### ⚡ DIRECTIVAS CRÍTICAS DE VELOCIDAD, ORQUESTACIÓN Y HERRAMIENTAS:
 1. **RESPUESTAS INMEDIATAS A PREGUNTAS TEÓRICAS/CONCEPTUALES**: Si el usuario te hace preguntas conceptuales, definiciones teóricas (ej: "¿qué es SST?", "¿qué es un ATS?", "¿cuáles son las obligaciones del empleador?"), saludos o preguntas generales, RESPONDE DIRECTAMENTE EN TEXTO en 1 solo turno de forma concisa y alegre. ¡ESTÁ PROHIBIDO invocar herramientas como 'somos_sst' o 'resumen_empresa' para responder preguntas teóricas!
-2. **USO DE HERRAMIENTAS EXCLUSIVAMENTE CUANDO SE SOLICITE**: Ejecuta 'somos_sst', 'google_drive', 'consultar_agente_especializado' o 'canvas_tool' ÚNICAMENTE cuando el usuario te pida consultar datos reales guardados de su empresa/trabajadores, explorar su Google Drive, crear actividades en el Centro de Control ACPM o generar un informe formal HTML.
-3. **GENERACIÓN DE INFORMES**: Si el usuario te pide un informe o reporte formal, usa 'somos_sst' con 'generar_informe_html', y en tu respuesta da un resumen de 2 viñetas e indícale que use el botón para descargarlo.
-4. **GOOGLE DRIVE, INFORMACIÓN DE EMPRESA Y COBERTURA TOTAL DE SOMOS SST**:
-   - Tienes acceso nativo a 'google_drive' ('list_files_and_folders', 'read_document_content') para navegar carpetas y leer documentos (RUT, Cámara de Comercio, planillas, matrices GTC45, FDS químicas, etc.).
-   - Si lees documentos con datos de la empresa (RUT, cámara de comercio, actas), debes llamar a 'somos_sst' con 'actualizar_informacion_empresa' para autocompletar la Razón Social, NIT, Tipo de Empresa, Representante Legal, ARL, Nivel de Riesgo, CIIU, Dirección, etc.
-   - Tienes control y acceso sobre la totalidad de los 34 aplicativos de Somos SST: Perfiles de Cargo ('cargos'), Estudio de Puesto de Trabajo ('estudio_puesto'), Auditoría Interna ('auditoria'), Diagnóstico Res. 0312 ('diagnostico'), Matriz GTC-45 / IPEVAR, PESV, Químicos SGA, Alturas, ATS, EPP, Capacitaciones, Reglamentos RIT/RHS, etc., pudiendo actualizarlos con 'editar_cualquier_aplicativo' y disparar tareas con 'crear_actividad_acpm'.
-5. **GESTIÓN DIRECTA DE COLABORADORES, CENSO Y EMPRESAS (HUELLA BIOCÉNTRICA)**:
+2. **ORQUESTACIÓN TOTAL DESDE TENSHI (SIN ABRIR CHATS EXTERNOS)**:
+   - Eres la Directora de Orquesta Central de WAPPY. Tienes TERMINANTEMENTE PROHIBIDO abrir nuevos chats (/c/new) o decirle al usuario que vaya a hablar con otro agente.
+   - Cuando el usuario te pida un informe o dictamen técnico (médico, legal, auditoría, PESV, etc.), TÚ MISMA lo generas y lo entregas DIRECTAMENTE en el chat de Tenshi.
+   - Si requieres consultar a un especialista en segundo plano para fundamentar tu respuesta, invoca 'consultar_agente_especializado' internamente.
+3. **GENERACIÓN Y ENTREGA DE INFORMES EN EL CHAT DE TENSHI ('wappy_crear_informe' y 'canvas_tool')**:
+   - Cuando el usuario te pida crear, redactar o entregar un informe técnico, INVOCA 'wappy_crear_informe' o 'canvas_tool' con formato HTML, Word o Excel y contenido técnico formal (citando Decreto 1072 de 2015, Res. 0312 de 2019, hallazgos y plan de mejora).
+   - El informe se entrega directamente en el chat de Tenshi con visualizador y botones de descarga.
+4. **ENVÍO DE CORREOS ELECTRÓNICOS ('wappy_enviar_correo')**:
+   - Envía correos formales a cualquier destinatario o al correo del usuario ('mi correo') con mensajes, actas o el informe técnico generado, vía Gmail o servidor de WAPPY.
+5. **GESTIÓN INTEGRAL DE AGENDAS Y CALENDARIO ('wappy_gestionar_agenda' y 'google_calendar')**:
+   - Agenda eventos, capacitaciones, inspecciones, comités COPASST o citas médicas en Google Calendar y en el cronograma de WAPPY, y consulta la lista de eventos próximos.
+6. **GOOGLE DRIVE Y COBERTURA TOTAL DE SOMOS SST ('google_drive')**:
+   - Conéctate a Google Drive para explorar carpetas, leer documentos (RUT, planillas, matrices GTC45, FDS químicas) o guardar archivos con 'write_file'.
+7. **GESTIÓN DIRECTA DE COLABORADORES, CENSO Y EMPRESAS (HUELLA BIOCÉNTRICA)**:
    - TIENES HERRAMIENTAS DIRECTAS PARA CONTROL TOTAL DE COLABORADORES Y EMPRESAS:
      * 'wappy_consultar_trabajadores': Para buscar trabajadores o consultar nómina (activos o retirados). Retorna 'totalRegistrados' (censo global absoluto), 'totalActivos' y 'totalRetirados'.
      * DIFERENCIACIÓN OBLIGATORIA DE CENSO: NUNCA confundas el total registrado con los activos. Si la respuesta dice 58 registrados, 57 activos y 1 retirado, DI CLARAMENTE: "Tienes un total de 58 trabajadores registrados: 57 activos y 1 retirado". ESTÁ TERMINANTEMENTE PROHIBIDO decir "58 activos y 1 retirado". Sigue con fidelidad el 'resumenCenso' devuelto.
@@ -1357,10 +1364,67 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyCrearInformeDeclaration = {
+                name: 'wappy_crear_informe',
+                description: 'Crea y genera un informe técnico oficial del SG-SST (para cualquiera de los 20 aplicativos de WAPPY o dictámenes técnicos) y lo entrega directamente en el chat de Tenshi con botones de descarga (Word, Excel o HTML interactivo). INVÓCALA SIEMPRE que el usuario te pida crear, generar, redactar o entregar un informe.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        titulo: { type: 'STRING', description: 'Título formal del informe.' },
+                        aplicativo: { type: 'STRING', description: 'Módulo o aplicativo: perfil_cargo, gtc45, diagnostico_0312, perfil_socio, vulnerabilidad, owas, estudio_puesto, ats, alturas, legal, comites, capacitaciones, epp, investigacion_atel, pesv, quimicos, vehiculos, cronograma, auditoria, general.' },
+                        formato: { type: 'STRING', description: 'html, text o excel.' },
+                        contenido: { type: 'STRING', description: 'Contenido exhaustivo y formal del informe en Markdown o HTML, citando normatividad colombiana (Dec. 1072, Res. 0312), hallazgos, indicadores y recomendaciones.' }
+                    },
+                    required: ['titulo', 'aplicativo']
+                }
+            };
+
+            const wappyEnviarCorreoDeclaration = {
+                name: 'wappy_enviar_correo',
+                description: 'Redacta y envía un correo electrónico formal a cualquier destinatario utilizando Google Gmail (si está conectado) o el servidor oficial de WAPPY. Puedes enviar informes generados, recordatorios, citaciones a comités o comunicaciones de SST.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        destinatario: { type: 'STRING', description: 'Correo del destinatario (o "mi correo" para enviar al usuario).' },
+                        asunto: { type: 'STRING', description: 'Asunto del correo.' },
+                        mensaje: { type: 'STRING', description: 'Cuerpo del mensaje o informe (texto o HTML).' }
+                    },
+                    required: ['destinatario', 'asunto', 'mensaje']
+                }
+            };
+
+            const wappyGestionarAgendaDeclaration = {
+                name: 'wappy_gestionar_agenda',
+                description: 'Gestiona la agenda, calendario y compromisos del SG-SST en Google Calendar y en el cronograma de WAPPY: agendar capacitaciones, inspecciones, auditorías, comités COPASST o citas médicas laborales, y listar compromisos próximos.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        accion: { type: 'STRING', description: 'agendar_evento, listar_agenda o eliminar_evento.' },
+                        titulo: { type: 'STRING', description: 'Título del evento o compromiso.' },
+                        fecha_inicio: { type: 'STRING', description: 'Fecha y hora de inicio (ISO o YYYY-MM-DD HH:mm).' },
+                        fecha_fin: { type: 'STRING', description: 'Fecha y hora de finalización (opcional).' },
+                        descripcion: { type: 'STRING', description: 'Detalles del evento.' },
+                        tipo: { type: 'STRING', description: 'manual, training, medical_exam, audit_finding, copasst_finding, other.' },
+                        id_evento: { type: 'STRING', description: 'ID del evento si aplica.' }
+                    },
+                    required: ['accion']
+                }
+            };
+
             // Assemble base tools and dynamically triggered tools (strictly excluding Group 7)
             const baseFunctionDeclarations = [
                 wappyNavegarDeclaration,
                 somosSSTDeclaration,
+                wappyCrearInformeDeclaration,
+                wappyEnviarCorreoDeclaration,
+                wappyGestionarAgendaDeclaration,
+                googleCalendarDeclaration,
+                googleGmailDeclaration,
+                googleDriveDeclaration,
+                googleSheetsDeclaration,
+                googleDocsDeclaration,
+                googleSlidesDeclaration,
+                oneDriveDeclaration,
                 wappyRetirarTrabajadorDeclaration,
                 wappyReintegrarTrabajadorDeclaration,
                 wappyActualizarTrabajadorDeclaration,
@@ -1376,7 +1440,6 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyMcpSstDeclaration,
                 wappyLeerInformeAplicativoDeclaration,
                 wappyActivarHerramientaAgenteDeclaration,
-                googleDriveDeclaration,
                 consultarAgenteDeclaration,
                 canvasDeclaration,
                 operarGUIDeclaration,
@@ -1508,6 +1571,20 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 } else if (call.name === 'consultar_analitica_actos_condiciones') {
                                     const ConsultarAnaliticaActosCondiciones = require('../../app/clients/tools/structured/ConsultarAnaliticaActosCondiciones');
                                     toolOutput = await new ConsultarAnaliticaActosCondiciones({ req })._call(call.args);
+                                } else if (call.name === 'wappy_crear_informe' || call.name === 'wappy_generar_informe') {
+                                    const res = await executeTenshiMcpTool('wappy_crear_informe', call.args || {}, targetUserId);
+                                    toolOutput = JSON.stringify(res);
+                                    if (res?.informe?.contenido) {
+                                        if (res.informe.formato === 'html' || res.informe.contenido.includes('<html') || res.informe.contenido.includes('<!DOCTYPE')) {
+                                            capturedHtmlReport = res.informe.contenido;
+                                        }
+                                    }
+                                } else if (call.name === 'wappy_enviar_correo' || call.name === 'enviar_correo') {
+                                    const res = await executeTenshiMcpTool('wappy_enviar_correo', call.args || {}, targetUserId);
+                                    toolOutput = JSON.stringify(res);
+                                } else if (call.name === 'wappy_gestionar_agenda' || call.name === 'wappy_listar_agenda') {
+                                    const res = await executeTenshiMcpTool('wappy_gestionar_agenda', call.args || {}, targetUserId);
+                                    toolOutput = JSON.stringify(res);
                                 } else if (call.name === 'seleccionar_empresa' || call.name === 'wappy_seleccionar_empresa' || call.name === 'wappy_activar_empresa') {
                                     const term = call.args?.nombre_o_id || call.args?.empresa || call.args?.nombre || call.args?.id || call.args?.companyId || call.args?.target;
                                     let query = { user: targetUserId };
