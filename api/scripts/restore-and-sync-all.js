@@ -750,6 +750,9 @@ Formato (texto plano, 3 viñetas):
 
   // Sincronizar perfiles y sesiones de Google NotebookLM desde MongoDB a disco
   try {
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(MONGO_URI);
+    }
     const NotebookSessionSchema = new mongoose.Schema({
       user: mongoose.Schema.Types.ObjectId,
       email: String,
