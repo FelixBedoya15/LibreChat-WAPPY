@@ -10,6 +10,13 @@ import { resolveInspectionProtocol, INSPECTION_PROTOCOLS, ERGONOMIC_PHASES, type
 import { useLiveAnalysisSession } from '~/hooks/useLiveAnalysisSession';
 import { useLocalize, useAuthContext } from '~/hooks';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
+import {
+    loadTasksVision,
+    loadClassicPoseScripts,
+    initPoseLandmarker,
+    drawBiomechanicSkeleton,
+    calculateBiomechanicAngles,
+} from '~/utils/biomechanics3D';
 
 declare global {
     interface Window {
@@ -17,6 +24,7 @@ declare global {
         drawConnectors: any;
         drawLandmarks: any;
         POSE_CONNECTIONS: any;
+        MediaPipeTasksVision?: any;
     }
 }
 
@@ -55,9 +63,11 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const [kneeAngle, setKneeAngle] = useState<number | null>(null);
     const [isMediaPipeLoaded, setIsMediaPipeLoaded] = useState(false);
     const [isPoseActive, setIsPoseActive] = useState(false);
+    const [is3DTelemetry, setIs3DTelemetry] = useState(false);
 
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const poseRef = useRef<any>(null);
+    const landmarkerRef = useRef<any>(null);
     const badPostureStartRef = useRef<number | null>(null);
     const lastSnapshotTimeRef = useRef<number>(0);
     const anglesRef = useRef<{
@@ -741,232 +751,38 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // Clear canvas
+        // Normalizar formato de resultados: Tasks-Vision (landmarks, worldLandmarks) vs Pose clásico (poseLandmarks, poseWorldLandmarks)
+        const landmarks = results?.landmarks ? results.landmarks[0] : (results?.poseLandmarks || null);
+        const worldLandmarks = results?.worldLandmarks ? results.worldLandmarks[0] : (results?.poseWorldLandmarks || null);
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!landmarks) return;
 
-        if (!results.poseLandmarks) return;
+        // 1. Dibujar esqueleto neón HUD
+        drawBiomechanicSkeleton(ctx, landmarks);
 
-        // 1. Draw glowing neon HUD skeleton
-        ctx.save();
-        
-        // Neon cyan connections glow
-        ctx.shadowColor = '#06b6d4';
-        ctx.shadowBlur = 10;
-        if (window.drawConnectors && window.POSE_CONNECTIONS) {
-            const bodyConnections = window.POSE_CONNECTIONS.filter(([p1, p2]: [number, number]) => p1 >= 11 && p2 >= 11);
-            window.drawConnectors(ctx, results.poseLandmarks, bodyConnections, {
-                color: '#06b6d4',
-                lineWidth: 3
-            });
-        }
-
-        // Neon emerald joints glow (only body joints, slicing index 11 onwards)
-        ctx.shadowColor = '#10b981';
-        if (window.drawLandmarks) {
-            window.drawLandmarks(ctx, results.poseLandmarks.slice(11), {
-                color: '#10b981',
-                fillColor: '#06b6d4',
-                lineWidth: 2,
-                radius: 4
-            });
-        }
-        ctx.restore();
-
-        // 2. Ergo calculations (cervical and trunk angles)
-        const landmarks = results.poseLandmarks;
-        const leftEar = landmarks[7];
-        const rightEar = landmarks[8];
-        const leftShoulder = landmarks[11];
-        const rightShoulder = landmarks[12];
-        const leftHip = landmarks[23];
-        const rightHip = landmarks[24];
-        const leftElbow = landmarks[13];
-        const rightElbow = landmarks[14];
-        const leftWrist = landmarks[15];
-        const rightWrist = landmarks[16];
-        const leftKnee = landmarks[25];
-        const rightKnee = landmarks[26];
-        const leftAnkle = landmarks[27];
-        const rightAnkle = landmarks[28];
-
-        // Side visibility check
-        const leftVisible = (leftEar?.visibility ?? 0) > 0.5 && (leftShoulder?.visibility ?? 0) > 0.5 && (leftHip?.visibility ?? 0) > 0.5;
-        const rightVisible = (rightEar?.visibility ?? 0) > 0.5 && (rightShoulder?.visibility ?? 0) > 0.5 && (rightHip?.visibility ?? 0) > 0.5;
-
-        let activeEar: any = null;
-        let activeShoulder: any = null;
-        let activeHip: any = null;
-        let activeElbow: any = null;
-        let activeWrist: any = null;
-        let activeKnee: any = null;
-        let activeAnkle: any = null;
-
-        if (leftVisible && (!rightVisible || (leftShoulder.visibility ?? 0) > (rightShoulder.visibility ?? 0))) {
-            activeEar = leftEar;
-            activeShoulder = leftShoulder;
-            activeHip = leftHip;
-            activeElbow = leftElbow;
-            activeWrist = leftWrist;
-            activeKnee = leftKnee;
-            activeAnkle = leftAnkle;
-        } else if (rightVisible) {
-            activeEar = rightEar;
-            activeShoulder = rightShoulder;
-            activeHip = rightHip;
-            activeElbow = rightElbow;
-            activeWrist = rightWrist;
-            activeKnee = rightKnee;
-            activeAnkle = rightAnkle;
-        } else {
-            activeEar = leftEar || rightEar;
-            activeShoulder = leftShoulder || rightShoulder;
-            activeHip = leftHip || rightHip;
-            activeElbow = leftElbow || rightElbow;
-            activeWrist = leftWrist || rightWrist;
-            activeKnee = leftKnee || rightKnee;
-            activeAnkle = leftAnkle || rightAnkle;
-        }
-
-        let neckDeg: number | null = null;
-        let trunkDeg: number | null = null;
-        let armDeg: number | null = null;
-        let elbowDegVal: number | null = null;
-        let kneeFlexVal: number | null = null;
-
-        // Cervical angle (flexion/tilt) calculation
-        const nose = landmarks[0];
-        const noseVisible = nose && (nose.visibility ?? 0) > 0.5;
-        const leftEarVisible = leftEar && (leftEar.visibility ?? 0) > 0.5;
-        const rightEarVisible = rightEar && (rightEar.visibility ?? 0) > 0.5;
-        const leftShoulderVisible = leftShoulder && (leftShoulder.visibility ?? 0) > 0.5;
-        const rightShoulderVisible = rightShoulder && (rightShoulder.visibility ?? 0) > 0.5;
-
-        // Determine if we are in frontal view or side view
-        // In frontal view, both shoulders are visible and separated horizontally
-        const isFrontalView = leftShoulderVisible && rightShoulderVisible && 
-                              Math.abs(leftShoulder.x - rightShoulder.x) > 0.12;
-
-        if (isFrontalView) {
-            // Frontal view: use midpoints or nose to estimate head center
-            let headCenterX: number | null = null;
-            let headCenterY: number | null = null;
-
-            if (noseVisible) {
-                // Nose is the most stable center point in frontal view
-                headCenterX = nose.x;
-                headCenterY = nose.y;
-            } else if (leftEarVisible && rightEarVisible) {
-                // Fallback to ears midpoint
-                headCenterX = (leftEar.x + rightEar.x) / 2;
-                headCenterY = (leftEar.y + rightEar.y) / 2;
-            }
-
-            const shoulderCenterX = (leftShoulder.x + rightShoulder.x) / 2;
-            const shoulderCenterY = (leftShoulder.y + rightShoulder.y) / 2;
-
-            if (headCenterX !== null && headCenterY !== null) {
-                const neckDx = shoulderCenterX - headCenterX;
-                const neckDy = shoulderCenterY - headCenterY;
-                if (neckDy > 0) {
-                    const neckRad = Math.atan2(Math.abs(neckDx), neckDy);
-                    neckDeg = Math.round(neckRad * (180 / Math.PI));
-                }
-            }
-        } else {
-            // Side view: use the visible side's ear and shoulder
-            let activeEar: any = null;
-            let activeShoulder: any = null;
-
-            if (leftEarVisible && leftShoulderVisible) {
-                activeEar = leftEar;
-                activeShoulder = leftShoulder;
-            } else if (rightEarVisible && rightShoulderVisible) {
-                activeEar = rightEar;
-                activeShoulder = rightShoulder;
-            } else {
-                // Fallback to whatever is available
-                activeEar = leftEarVisible ? leftEar : (rightEarVisible ? rightEar : null);
-                activeShoulder = leftShoulderVisible ? leftShoulder : (rightShoulderVisible ? rightShoulder : null);
-            }
-
-            if (activeEar && activeShoulder) {
-                const neckDx = activeShoulder.x - activeEar.x;
-                const neckDy = activeShoulder.y - activeEar.y;
-                if (Math.abs(neckDy) > 0) {
-                    const neckRad = Math.atan2(Math.abs(neckDx), Math.abs(neckDy));
-                    neckDeg = Math.round(neckRad * (180 / Math.PI));
-                }
-            }
-        }
-
-        // Trunk angle (flexion from vertical)
-        if (activeShoulder && activeHip && (activeShoulder.visibility ?? 0) > 0.5 && (activeHip.visibility ?? 0) > 0.5) {
-            const trunkDx = activeShoulder.x - activeHip.x;
-            const trunkDy = activeHip.y - activeShoulder.y;
-            const trunkRad = Math.atan2(Math.abs(trunkDx), Math.abs(trunkDy));
-            trunkDeg = Math.round(trunkRad * (180 / Math.PI));
-        }
-
-        // Arm angle (abduction from spine)
-        if (activeHip && activeShoulder && activeElbow && (activeHip.visibility ?? 0) > 0.5 && (activeShoulder.visibility ?? 0) > 0.5 && (activeElbow.visibility ?? 0) > 0.5) {
-            const v1 = { x: activeHip.x - activeShoulder.x, y: activeHip.y - activeShoulder.y };
-            const v2 = { x: activeElbow.x - activeShoulder.x, y: activeElbow.y - activeShoulder.y };
-            const dot = v1.x * v2.x + v1.y * v2.y;
-            const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
-            const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
-            if (mag1 * mag2 > 0) {
-                const cosAngle = dot / (mag1 * mag2);
-                armDeg = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
-            }
-        }
-
-        // Elbow flexion angle (relative angle at elbow joint)
-        if (activeShoulder && activeElbow && activeWrist && (activeShoulder.visibility ?? 0) > 0.5 && (activeElbow.visibility ?? 0) > 0.5 && (activeWrist.visibility ?? 0) > 0.5) {
-            const v1 = { x: activeShoulder.x - activeElbow.x, y: activeShoulder.y - activeElbow.y };
-            const v2 = { x: activeWrist.x - activeElbow.x, y: activeWrist.y - activeElbow.y };
-            const dot = v1.x * v2.x + v1.y * v2.y;
-            const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
-            const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
-            if (mag1 * mag2 > 0) {
-                const cosAngle = dot / (mag1 * mag2);
-                elbowDegVal = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
-            }
-        }
-
-        // Knee flexion angle (deviation from 180 degrees)
-        if (activeHip && activeKnee && activeAnkle && (activeHip.visibility ?? 0) > 0.5 && (activeKnee.visibility ?? 0) > 0.5 && (activeAnkle.visibility ?? 0) > 0.5) {
-            const v1 = { x: activeHip.x - activeKnee.x, y: activeHip.y - activeKnee.y };
-            const v2 = { x: activeAnkle.x - activeKnee.x, y: activeAnkle.y - activeKnee.y };
-            const dot = v1.x * v2.x + v1.y * v2.y;
-            const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
-            const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
-            if (mag1 * mag2 > 0) {
-                const cosAngle = dot / (mag1 * mag2);
-                const kneeRawDeg = Math.round(Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI));
-                kneeFlexVal = Math.max(0, 180 - kneeRawDeg);
-            }
-        }
+        // 2. Cálculos ergonómicos en 3D libre de distorsión de perspectiva con fallback a 2D
+        const { neck, trunk, arm, elbow, knee, is3D } = calculateBiomechanicAngles(landmarks, worldLandmarks);
 
         anglesRef.current = {
-            neck: neckDeg,
-            trunk: trunkDeg,
-            arm: armDeg,
-            elbow: elbowDegVal,
-            knee: kneeFlexVal,
+            neck,
+            trunk,
+            arm,
+            elbow,
+            knee,
         };
 
-        // Throttle React state updates to at most once every 350ms (prevents 75 re-renders/sec)
+        // Throttle React state updates to at most once every 350ms
         const now = Date.now();
         if (now - lastStateUpdateRef.current >= 350) {
             lastStateUpdateRef.current = now;
-            setNeckAngle(neckDeg);
-            setTrunkAngle(trunkDeg);
-            setArmAngle(armDeg);
-            setElbowAngle(elbowDegVal);
-            setKneeAngle(kneeFlexVal);
+            setNeckAngle(neck);
+            setTrunkAngle(trunk);
+            setArmAngle(arm);
+            setElbowAngle(elbow);
+            setKneeAngle(knee);
+            setIs3DTelemetry(is3D);
         }
-
-        // Posture status is updated dynamically for manual capture.
     }, []);
 
     // ==================== CONTROLLER HELPER FUNCTIONS ====================
@@ -1141,8 +957,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
         let telemetryText = '';
         if (selectedTemplate === 'biomecanico_mediapipe' || proto.id === 'biomecanico') {
+            const modeLabel = is3DTelemetry ? 'Goniometría 3D (Google AI Edge)' : 'Telemetría articular';
             telemetryText = telemetryParts.length > 0 
-                ? `[Captura de Evidencia Biomecánica • ${phase.name} • Perspectiva: ${perspective}] Registro de telemetría articular en el momento de la captura: ${telemetryParts.join(', ')}.`
+                ? `[Captura de Evidencia Biomecánica • ${phase.name} • Perspectiva: ${perspective}] ${modeLabel} en el momento de la captura: ${telemetryParts.join(', ')}.`
                 : `[Captura de Evidencia Biomecánica • ${phase.name} • Perspectiva: ${perspective}] Captura de evidencia sin telemetría articular activa en el momento.`;
         } else {
             telemetryText = `[Captura de Evidencia Técnica • ${proto.title} • ${phase.name} • Perspectiva: ${perspective} • Enfoque: ${phase.focus}] Evidencia fotográfica registrada en el ciclo de inspección.`;
@@ -1151,6 +968,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         const metadata = {
             phaseIndex: currentPhaseIndexRef.current,
             phaseName: phase.name,
+            is3D: is3DTelemetry,
             telemetry: {
                 neck: nAngle,
                 trunk: tAngle,
@@ -1177,7 +995,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         elbowAngle, 
         elbowInfo.status, 
         kneeAngle, 
-        kneeInfo.status
+        kneeInfo.status,
+        is3DTelemetry
     ]);
 
     const handleClose = () => {
@@ -1210,26 +1029,33 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         }
     }, []);
 
-    // Load MediaPipe scripts on demand when 'biomecanico_mediapipe' is selected
+    // Cargar Google MediaPipe Tasks-Vision (o scripts clásicos de respaldo)
     useEffect(() => {
         if (!isOpen || selectedTemplate !== 'biomecanico_mediapipe') return;
 
         let active = true;
-        console.log('[LiveAnalysisModal] selectedTemplate is biomecanico_mediapipe. Loading Vision AI...');
+        console.log('[LiveAnalysisModal] selectedTemplate is biomecanico_mediapipe. Loading Google AI Edge Vision...');
         setStatusText('Cargando Visión Artificial...');
 
         const loadAll = async () => {
             try {
-                await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
-                await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js');
-                
+                const tasksVision = await loadTasksVision();
+                if (tasksVision && active) {
+                    console.log('[LiveAnalysisModal] Google Tasks-Vision module loaded!');
+                    setIsMediaPipeLoaded(true);
+                    setStatusText('Visión IA 3D Preparada');
+                    return;
+                }
+
+                // Fallback a scripts clásicos si Tasks-Vision no está disponible
+                await loadClassicPoseScripts();
                 if (active) {
-                    console.log('[LiveAnalysisModal] Vision AI successfully loaded!');
+                    console.log('[LiveAnalysisModal] Classic Vision AI scripts loaded (fallback)!');
                     setIsMediaPipeLoaded(true);
                     setStatusText('Visión IA Preparada');
                 }
             } catch (err) {
-                console.error('[LiveAnalysisModal] Error loading Vision AI scripts:', err);
+                console.error('[LiveAnalysisModal] Error loading Vision AI:', err);
                 if (active) {
                     setStatusText('Error de Visión IA');
                 }
@@ -1243,14 +1069,22 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         };
     }, [isOpen, selectedTemplate]);
 
-    // Initialize and handle MediaPipe Pose instance
+    // Inicializar instancia de visión (PoseLandmarker de Tasks-Vision con fallback a window.Pose)
     useEffect(() => {
         if (!isMediaPipeLoaded || !isCameraOn || selectedTemplate !== 'biomecanico_mediapipe') {
+            if (landmarkerRef.current) {
+                try {
+                    landmarkerRef.current.close();
+                } catch (e) {
+                    console.error('Error closing landmarkerRef in LiveAnalysisModal:', e);
+                }
+                landmarkerRef.current = null;
+            }
             if (poseRef.current) {
                 try {
                     poseRef.current.close();
                 } catch (e) {
-                    console.error('Error closing poseRef:', e);
+                    console.error('Error closing poseRef in LiveAnalysisModal:', e);
                 }
                 poseRef.current = null;
             }
@@ -1258,37 +1092,71 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             return;
         }
 
-        console.log('[LiveAnalysisModal] Initializing MediaPipe Pose instance...');
-        
-        try {
-            const pose = new window.Pose({
-                locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-            });
+        let isSubscribed = true;
 
-            pose.setOptions({
-                modelComplexity: 0, // Lite (Ultra-fast, saves 70% CPU/GPU and prevents Main Thread freezing)
-                smoothLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
+        const initEngine = async () => {
+            console.log('[LiveAnalysisModal] Initializing Vision Engine...');
 
-            pose.onResults((results: any) => {
-                onPoseResults(results);
-            });
+            // 1. Intentar Tasks-Vision PoseLandmarker
+            const tasksVision = (window as any).MediaPipeTasksVision;
+            if (tasksVision) {
+                try {
+                    const landmarker = await initPoseLandmarker(tasksVision);
+                    if (landmarker && isSubscribed) {
+                        landmarkerRef.current = landmarker;
+                        setIsPoseActive(true);
+                        console.log('[LiveAnalysisModal] Google Tasks-Vision PoseLandmarker active!');
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('[LiveAnalysisModal] Fallback to classic Pose from Tasks-Vision:', e);
+                }
+            }
 
-            poseRef.current = pose;
-            setIsPoseActive(true);
-            console.log('[LiveAnalysisModal] Pose instance ready!');
-        } catch (e) {
-            console.error('Error creating Pose instance:', e);
-        }
+            // 2. Fallback a Pose clásico
+            if (typeof window !== 'undefined' && window.Pose && isSubscribed) {
+                try {
+                    const pose = new window.Pose({
+                        locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+                    });
+
+                    pose.setOptions({
+                        modelComplexity: 0,
+                        smoothLandmarks: true,
+                        minDetectionConfidence: 0.5,
+                        minTrackingConfidence: 0.5
+                    });
+
+                    pose.onResults((results: any) => {
+                        onPoseResults(results);
+                    });
+
+                    poseRef.current = pose;
+                    setIsPoseActive(true);
+                    console.log('[LiveAnalysisModal] Classic Pose instance ready!');
+                } catch (e) {
+                    console.error('Error creating Pose instance in LiveAnalysisModal:', e);
+                }
+            }
+        };
+
+        initEngine();
 
         return () => {
+            isSubscribed = false;
+            if (landmarkerRef.current) {
+                try {
+                    landmarkerRef.current.close();
+                } catch (e) {
+                    console.error('Error closing landmarkerRef on cleanup in LiveAnalysisModal:', e);
+                }
+                landmarkerRef.current = null;
+            }
             if (poseRef.current) {
                 try {
                     poseRef.current.close();
                 } catch (e) {
-                    console.error('Error closing poseRef on cleanup:', e);
+                    console.error('Error closing poseRef on cleanup in LiveAnalysisModal:', e);
                 }
                 poseRef.current = null;
             }
@@ -1296,13 +1164,13 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         };
     }, [isMediaPipeLoaded, isCameraOn, selectedTemplate, onPoseResults]);
 
-    // Process frames at 10 FPS (optimal for real-time ergonomics without freezing the main thread)
+    // Procesar frames a 10 FPS (óptimo para telemetría continua sin saturar CPU ni el hilo principal)
     useEffect(() => {
         if (!isPoseActive || !videoRef.current) return;
 
         let active = true;
         let lastFrameTime = 0;
-        const fpsInterval = 1000 / 10; // Limit to 10 FPS
+        const fpsInterval = 1000 / 10; // 10 FPS
 
         const poseLoop = async () => {
             if (!active) return;
@@ -1314,17 +1182,26 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 lastFrameTime = now - (elapsed % fpsInterval);
 
                 const video = videoRef.current;
-                if (video && video.readyState >= 2 && poseRef.current) {
+                if (video && video.readyState >= 2) {
                     const canvas = canvasRef.current;
                     if (canvas && (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight)) {
                         canvas.width = video.videoWidth;
                         canvas.height = video.videoHeight;
                     }
 
-                    try {
-                        await poseRef.current.send({ image: video });
-                    } catch (e) {
-                        console.error('[LiveAnalysisModal] Pose send error:', e);
+                    if (landmarkerRef.current) {
+                        try {
+                            const results = landmarkerRef.current.detectForVideo(video, performance.now());
+                            onPoseResults(results);
+                        } catch (e) {
+                            console.error('[LiveAnalysisModal] Tasks-Vision detect error:', e);
+                        }
+                    } else if (poseRef.current) {
+                        try {
+                            await poseRef.current.send({ image: video });
+                        } catch (e) {
+                            console.error('[LiveAnalysisModal] Pose send error:', e);
+                        }
                     }
                 }
             }
@@ -1337,7 +1214,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         return () => {
             active = false;
         };
-    }, [isPoseActive]);
+    }, [isPoseActive, onPoseResults]);
 
     // Amplitude meter updating audioAmplitude
     useEffect(() => {
@@ -1702,6 +1579,11 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                 <div className="flex items-center gap-2">
                                     <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.6)]"></span>
                                     <h3 className="font-mono text-xs font-bold uppercase tracking-wider">Telemetría de Pose</h3>
+                                    {is3DTelemetry && (
+                                        <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-400/50 text-cyan-300 font-bold uppercase tracking-wide">
+                                            3D
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <span className="text-[9px] font-mono text-white/40 uppercase">GTC 45 / RULA</span>

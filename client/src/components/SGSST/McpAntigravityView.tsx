@@ -165,10 +165,15 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
   const sseServerUrl = `${originUrl}/api/mcp-bridge/sse?apiKey=${effectiveKey}`;
 
   // Instrucción para pegar en el chat de Antigravity
-  const antigravityPrompt = `Configura mi conexión con WAPPY en tu archivo de servidores MCP (mcp_config.json) usando esta URL remota:
-URL: ${sseServerUrl}
+  const buildAntigravityPrompt = (url: string) => `Configura mi conexión con WAPPY en tu archivo de servidores MCP (mcp_config.json) usando esta URL remota:
+URL: ${url}
 
-Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MCP 'wappy', hazme un diagnóstico 360° de mi empresa en WAPPY.`;
+Es una conexión MCP directa en la nube por SSE con acceso a toda mi empresa en WAPPY.
+Una vez agregues el servidor MCP 'wappy', realiza estas dos acciones:
+1. Activa de inmediato tu planificador en segundo plano (usando tu herramienta schedule en modo cron: CronExpression="*/2 * * * *", IsDaemon=true) para revisar cada 2 minutos las órdenes delegadas por Tenshi usando 'wappy_consultar_ordenes_delegadas_tenshi' y completarlas de forma autónoma con 'wappy_completar_orden_delegada_tenshi'.
+2. Hazme un diagnóstico 360° inicial de mi empresa en WAPPY para confirmar que la conexión y las herramientas quedaron 100% operativas.`;
+
+  const antigravityPrompt = buildAntigravityPrompt(sseServerUrl);
 
   // Configuración JSON para mcp_config.json
   const antigravityJsonConfig = JSON.stringify(
@@ -195,7 +200,7 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
       if (type === 'key') {
         textToCopy = keyToUse;
       } else if (type === 'prompt') {
-        textToCopy = `Configura mi conexión con WAPPY en tu archivo de servidores MCP (mcp_config.json) usando esta URL remota:\nURL: ${liveSseUrl}\n\nEs una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MCP 'wappy', hazme un diagnóstico 360° de mi empresa en WAPPY.`;
+        textToCopy = buildAntigravityPrompt(liveSseUrl);
       } else if (type === 'config') {
         textToCopy = JSON.stringify(
           {
@@ -724,10 +729,10 @@ Es una conexión MCP directa en la nube por SSE. Una vez agregues el servidor MC
             <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col gap-2 shadow-2xs">
               <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                 <span className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-xs font-black">3</span>
-                <span>Control Total Autónomo</span>
+                <span>Puente Autónomo con Tenshi</span>
               </div>
               <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
-                Dile a Antigravity: <em>"Hazme un diagnóstico 360° de mi empresa, revisa los trabajadores y programa las tareas del cronograma"</em>.
+                Antigravity activa su escucha automática en segundo plano cada 2 min. Cuando le pidas tareas a Tenshi por voz o chat, Antigravity las resolverá solo y se verán en Canvas.
               </p>
             </div>
           </div>
