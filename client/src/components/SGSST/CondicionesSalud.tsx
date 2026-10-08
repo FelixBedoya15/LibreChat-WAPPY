@@ -197,18 +197,7 @@ const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
 const CondicionesSalud = () => {
     const { token, user } = useAuthContext();
     const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
-    const { showToast } = useToastContext();
-
-    const [trabajadores, setTrabajadores] = useState<WorkerEntry[]>(() => {
-        try {
-            const cached = sessionStorage.getItem('wappy_cached_workers');
-            if (cached) {
-                const parsed = JSON.parse(cached);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            }
-        } catch {}
-        return [];
-    });
+    const [trabajadores, setTrabajadores] = useState<WorkerEntry[]>([]);
     const [workerTabs, setWorkerTabs] = useState<Record<string, string>>({});
     const [activeSignatureWorkerId, setActiveSignatureWorkerId] = useState<string | null>(null);
 
@@ -219,18 +208,17 @@ const CondicionesSalud = () => {
             setSelectedModel(user.personalization.geminiModels.sstManagement);
         }
     }, [user?.personalization?.geminiModels?.sstManagement]);
+
+    // Purgar inmediatamente cualquier caché sucio previo en sessionStorage
+    useEffect(() => {
+        try {
+            sessionStorage.removeItem('wappy_cached_workers');
+        } catch {}
+    }, []);
+
     const [expandedWorkers, setExpandedWorkers] = useState<Set<string>>(new Set());
     const [isSaving, setIsSaving] = useState(false);
-    const [isLoading, setIsLoading] = useState<boolean>(() => {
-        try {
-            const cached = sessionStorage.getItem('wappy_cached_workers');
-            if (cached) {
-                const parsed = JSON.parse(cached);
-                if (Array.isArray(parsed) && parsed.length > 0) return false;
-            }
-        } catch {}
-        return true;
-    });
+    const [isLoading, setIsLoading] = useState<boolean>(true);
 
     // Estado Laboral Filter & Search State (Activo vs Retirado)
     const [statusFilter, setStatusFilter] = useState<'all' | 'activo' | 'retirado'>('all');

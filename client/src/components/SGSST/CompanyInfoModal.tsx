@@ -418,6 +418,9 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             });
             if (res.ok) {
                 showToast({ message: 'Empresa activada correctamente. Recargando el sistema...', status: 'success' });
+                try {
+                    sessionStorage.clear();
+                } catch {}
                 setTimeout(() => {
                     window.location.reload();
                 }, 1000);
