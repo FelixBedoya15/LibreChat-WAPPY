@@ -2752,7 +2752,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     },
     {
       enabled: isAuthenticated,
-      staleTime: 10 * 1000,
+      staleTime: 3 * 1000,
+      refetchInterval: (isOpen || isHeroChatOpen) ? 3500 : 15000,
     },
   );
 

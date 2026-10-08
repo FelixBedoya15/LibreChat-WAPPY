@@ -6839,18 +6839,83 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
       resumen: finalSummary,
       titulo: task.title,
     };
-    const completionNotes = resultado || result || contenido || content || 'Tarea completada por Antigravity.';
-    task.description += `\n\n[RESULTADO DE ANTIGRAVITY - ${new Date().toISOString()}]\n${typeof completionNotes === 'string' ? completionNotes.slice(0, 3000) : JSON.stringify(completionNotes)}`;
+    const completionNotes = resultado || result || contenido || content || 'Tarea completada exitosamente por Antigravity.';
+    const completionNotesStr = typeof completionNotes === 'string' ? completionNotes : JSON.stringify(completionNotes);
+    task.description += `\n\n[RESULTADO DE ANTIGRAVITY - ${new Date().toISOString()}]\n${completionNotesStr.slice(0, 3000)}`;
     await task.save();
+
+    // ── INYECCIÓN AUTOMÁTICA EN EL CHAT DE TENSHI (TenshiMessage) ───────────────
+    let createdTenshiMsg = null;
+    try {
+      const TenshiMessage = mongoose.models.TenshiMessage || require('../../models/TenshiMessage');
+      const isHtml = finalFormat === 'html' || completionNotesStr.includes('<html') || completionNotesStr.includes('<!DOCTYPE');
+      const normalizedFileType = (finalFormat === 'word' || finalFormat === 'doc' || finalFormat === 'docx') ? 'text' : finalFormat;
+
+      const filePayload = finalContent ? {
+        title: task.title,
+        fileType: normalizedFileType,
+        content: finalContent,
+        canvasId: `antigravity-${task._id}`,
+      } : undefined;
+
+      const tenshiBubbleContent = `✨ **¡Entregable de Google Antigravity Recibido!**\n\nHe procesado el resultado de la tarea técnica delegada:\n**${task.title}**\n\n${finalSummary || completionNotesStr.slice(0, 800)}\n\n📄 **Formato generado:** \`${finalFormat.toUpperCase()}\`${finalUrl ? `\n🔗 **Enlace de descarga:** [Descargar Archivo](${finalUrl})` : ''}`;
+
+      createdTenshiMsg = await TenshiMessage.create({
+        user: targetUserId,
+        role: 'assistant',
+        content: tenshiBubbleContent,
+        htmlReport: isHtml ? finalContent : undefined,
+        file: filePayload,
+        report: {
+          titulo: task.title,
+          aplicativo: 'antigravity_delegation',
+          formato: finalFormat,
+          contenido: finalContent ? finalContent.slice(0, 10000) : '',
+        },
+      });
+
+      logger.info(`[MCP Bridge] Mensaje de Tenshi inyectado exitosamente (ID: ${createdTenshiMsg._id}) para orden ${task._id}`);
+    } catch (msgErr) {
+      logger.error('[MCP Bridge] Error inyectando TenshiMessage al completar orden:', msgErr);
+    }
+
+    // ── NOTIFICACIÓN EN TIEMPO REAL A SESIÓN DE TENSHI VOICE / LIVE ───────────
+    try {
+      const { activeSessions } = require('./voice/voiceSession');
+      if (activeSessions) {
+        const userSession = activeSessions.get(String(targetUserId));
+        if (userSession && typeof userSession.sendToClient === 'function') {
+          userSession.sendToClient({
+            type: 'tenshi_report_delivered',
+            data: {
+              title: task.title,
+              html: (finalFormat === 'html') ? finalContent : undefined,
+              file: {
+                title: task.title,
+                fileType: finalFormat,
+                content: finalContent,
+                canvasId: `antigravity-${task._id}`,
+              },
+              messageId: createdTenshiMsg?._id ? createdTenshiMsg._id.toString() : `antigravity-${Date.now()}`,
+              summary: finalSummary,
+            },
+          });
+          logger.info(`[MCP Bridge] Evento en tiempo real emitido a la sesión de voz de Tenshi para usuario ${targetUserId}`);
+        }
+      }
+    } catch (wsErr) {
+      logger.warn('[MCP Bridge] No se pudo emitir evento a sesión de voz (sesión inactiva):', wsErr.message);
+    }
 
     return res.json({
       exito: true,
-      mensaje: `Orden ${targetId} completada exitosamente por Antigravity.`,
+      mensaje: `Orden ${targetId} completada exitosamente por Antigravity e inyectada en el chat de Tenshi.`,
       orden: {
         id: task._id.toString(),
         titulo: task.title,
         status: task.status,
       },
+      tenshiMensajeId: createdTenshiMsg?._id ? createdTenshiMsg._id.toString() : null,
       entregable: {
         formato: finalFormat,
         contenido: finalContent,
