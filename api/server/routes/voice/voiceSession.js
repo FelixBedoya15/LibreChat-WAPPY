@@ -1416,6 +1416,56 @@ class VoiceSession {
                                 },
                                 required: ["instruccion"]
                             }
+                        },
+                        {
+                            name: "notebooklm_listar_cuadernos",
+                            description: "Consulta y lista todos los cuadernos vinculados en Google NotebookLM / Gemini Notebook del usuario. Úsala siempre que el usuario te pregunte qué cuadernos tiene, cuáles están en su NotebookLM o pida ver sus fuentes bibliográficas.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    dummy: { type: "string", description: "Parámetro opcional de búsqueda o filtro" }
+                                }
+                            }
+                        },
+                        {
+                            name: "notebooklm_consultar",
+                            description: "Realiza una consulta documental fundamentada (Grounded RAG) sobre los cuadernos y fuentes de Google NotebookLM / Gemini Notebook del usuario. Extrae respuestas directas con citas bibliográficas normativas verificables. Úsala de inmediato cuando el usuario pregunte por sus apuntes, normatividad cargada en NotebookLM o pida resolver dudas con base en sus documentos.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    cuaderno: {
+                                        type: "string",
+                                        description: "Nombre, título o ID del cuaderno a consultar en NotebookLM."
+                                    },
+                                    pregunta: {
+                                        type: "string",
+                                        description: "Pregunta o consulta técnica detallada que se contrastará contra los documentos del cuaderno."
+                                    }
+                                },
+                                required: ["cuaderno", "pregunta"]
+                            }
+                        },
+                        {
+                            name: "notebooklm_generar_studio",
+                            description: "Genera artefactos de estudio o multimedia en el Studio de Google NotebookLM a partir de las fuentes del cuaderno: podcast ('audio'), cuestionario ('quiz'), informe ejecutivo ('report'), fichas ('flashcards') o mapa conceptual ('mind_map').",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    cuaderno: {
+                                        type: "string",
+                                        description: "Nombre o ID del cuaderno en NotebookLM."
+                                    },
+                                    tipo_artefacto: {
+                                        type: "string",
+                                        description: "Tipo de contenido a generar: 'audio' (podcast), 'quiz' (cuestionario), 'report' (informe), 'flashcards' (fichas) o 'mind_map' (mapa conceptual)."
+                                    },
+                                    instrucciones: {
+                                        type: "string",
+                                        description: "Instrucciones de enfoque o temas prioritarios para la generación."
+                                    }
+                                },
+                                required: ["cuaderno", "tipo_artefacto"]
+                            }
                         }
                     ]
                 }
@@ -1632,6 +1682,15 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
    - 'wappy_leer_articulo_blog': Lee el texto íntegro y exhaustivo de cualquier artículo del blog para responder y enseñar a fondo.
 18. **wappy_activar_herramienta_agente (Activación Total de Herramientas de Agentes)**:
    - TIENES FACULTAD TOTAL para activar y ejecutar directamente cualquiera de las herramientas especializadas de los agentes ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario te pida abrir, activar o ejecutar la herramienta de un agente.
+19. **GOOGLE NOTEBOOKLM Y GEMINI NOTEBOOK ('notebooklm_consultar', 'notebooklm_listar_cuadernos' y 'notebooklm_generar_studio')**:
+   - Tenshi cuenta con conexión permanente y directa a los cuadernos y fuentes documentales de Google NotebookLM / Gemini Notebook del usuario.
+   - Si el usuario pregunta: "¿qué cuadernos tengo?", "revisa mis cuadernos", "qué hay en mi NotebookLM":
+     -> INVOCA DE INMEDIATO 'notebooklm_listar_cuadernos'.
+   - Si el usuario te hace preguntas técnicas contrastando sus documentos o normativas cargadas:
+     -> INVOCA DE INMEDIATO 'notebooklm_consultar' con el cuaderno y la pregunta detallada.
+     -> Explica la respuesta con solidez verbal y cita las fuentes y autores específicos devueltos por el cuaderno.
+   - Si pide generar contenido pedagógico:
+     -> INVOCA DE INMEDIATO 'notebooklm_generar_studio' ('audio' para podcast explicativo, 'quiz' para cuestionario, 'report' para informe o 'mind_map' para mapa conceptual).
 
 [DOMINIO INTEGRAL DE METODOLOGÍAS Y SKILLS DE WAPPY IA]:
 1. **Investigación de Accidentes e Incidentes (Resolución 1401 de 2007)**:
@@ -2292,6 +2351,51 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                             this.generateReport(this.config.conversationContext).finally(() => {
                                 this.isGeneratingReport = false;
                             });
+                        }
+                        continue;
+                    }
+
+                    // Manejo directo de herramientas de Google NotebookLM / Gemini Notebook en modo voz
+                    if (fc.name === 'notebooklm_listar_cuadernos' || fc.name === 'notebooklm_consultar' || fc.name === 'notebooklm_generar_studio') {
+                        logger.info(`[VoiceSession] Gemini Live invoked NotebookLM tool "${fc.name}" with args:`, JSON.stringify(fc.args));
+                        const statusMsg = fc.name === 'notebooklm_listar_cuadernos' ? 'Consultando cuadernos en NotebookLM...' :
+                            (fc.name === 'notebooklm_generar_studio' ? 'Generando en Studio de NotebookLM...' : `Consultando fuentes en NotebookLM (${fc.args?.cuaderno || 'cuaderno'})...`);
+                        this.sendToClient({
+                            type: 'status',
+                            data: { status: 'loading', message: statusMsg }
+                        });
+                        try {
+                            let mappedTool = 'notebook_list';
+                            let mappedArgs = {};
+                            if (fc.name === 'notebooklm_consultar') {
+                                mappedTool = 'chat_ask';
+                                mappedArgs = { notebook: fc.args?.cuaderno || fc.args?.notebook || '', query: fc.args?.pregunta || fc.args?.query || '' };
+                            } else if (fc.name === 'notebooklm_generar_studio') {
+                                mappedTool = 'studio_generate';
+                                mappedArgs = { notebook: fc.args?.cuaderno || '', artifact_type: fc.args?.tipo_artefacto || fc.args?.artifact_type || 'audio', instructions: fc.args?.instrucciones || '' };
+                            }
+                            const nbResult = await executeTenshiMcpTool(mappedTool, mappedArgs, this.userId);
+                            logger.info(`[VoiceSession] NotebookLM tool "${fc.name}" executed successfully.`);
+                            this.sendToClient({
+                                type: 'wappy_action',
+                                data: { id: fc.id, name: fc.name, args: fc.args, result: nbResult }
+                            });
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: typeof nbResult === 'string' ? nbResult : JSON.stringify(nbResult) }
+                                }]);
+                            }
+                        } catch (nbErr) {
+                            logger.error(`[VoiceSession] Error executing NotebookLM tool "${fc.name}":`, nbErr);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: `No se pudo consultar Google NotebookLM: ${nbErr.message}` }
+                                }]);
+                            }
                         }
                         continue;
                     }

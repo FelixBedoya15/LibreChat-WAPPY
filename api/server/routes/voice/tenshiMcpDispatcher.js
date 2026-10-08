@@ -232,6 +232,34 @@ const TOOL_ROUTES = {
   delegar_orden_antigravity: { method: 'POST', path: '/antigravity/delegar' },
   wappy_consultar_ordenes_antigravity: { method: 'GET', path: '/antigravity/ordenes' },
   wappy_completar_orden_antigravity: { method: 'POST', path: '/antigravity/completar' },
+
+  // 13. Google NotebookLM / Gemini Notebook
+  notebook_list: { isNotebookLM: true, tool: 'notebook_list' },
+  notebook_list_mcp_notebooklm: { isNotebookLM: true, tool: 'notebook_list' },
+  wappy_notebooklm_listar: { isNotebookLM: true, tool: 'notebook_list' },
+  wappy_consultar_cuadernos: { isNotebookLM: true, tool: 'notebook_list' },
+  chat_ask: { isNotebookLM: true, tool: 'chat_ask' },
+  chat_ask_mcp_notebooklm: { isNotebookLM: true, tool: 'chat_ask' },
+  wappy_notebooklm_consultar: { isNotebookLM: true, tool: 'chat_ask' },
+  wappy_consultar_cuaderno: { isNotebookLM: true, tool: 'chat_ask' },
+  source_list: { isNotebookLM: true, tool: 'source_list' },
+  source_list_mcp_notebooklm: { isNotebookLM: true, tool: 'source_list' },
+  source_add: { isNotebookLM: true, tool: 'source_add' },
+  source_add_mcp_notebooklm: { isNotebookLM: true, tool: 'source_add' },
+  notebook_create: { isNotebookLM: true, tool: 'notebook_create' },
+  notebook_create_mcp_notebooklm: { isNotebookLM: true, tool: 'notebook_create' },
+  studio_generate: { isNotebookLM: true, tool: 'studio_generate' },
+  studio_generate_mcp_notebooklm: { isNotebookLM: true, tool: 'studio_generate' },
+  studio_status: { isNotebookLM: true, tool: 'studio_status' },
+  studio_status_mcp_notebooklm: { isNotebookLM: true, tool: 'studio_status' },
+  studio_download: { isNotebookLM: true, tool: 'studio_download' },
+  studio_download_mcp_notebooklm: { isNotebookLM: true, tool: 'studio_download' },
+  studio_list: { isNotebookLM: true, tool: 'studio_list' },
+  studio_list_mcp_notebooklm: { isNotebookLM: true, tool: 'studio_list' },
+  research_start: { isNotebookLM: true, tool: 'research_start' },
+  research_start_mcp_notebooklm: { isNotebookLM: true, tool: 'research_start' },
+  research_import: { isNotebookLM: true, tool: 'research_import' },
+  research_import_mcp_notebooklm: { isNotebookLM: true, tool: 'research_import' },
 };
 
 async function executeTenshiMcpTool(toolName, args = {}, userId) {
@@ -246,6 +274,39 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
   if (!routeConfig) {
     logger.warn(`[Tenshi MCP] Herramienta "${normalizedTool}" no reconocida en el catálogo.`);
     return { error: `La herramienta "${normalizedTool}" no está registrada en el catálogo de WAPPY MCP.` };
+  }
+
+  // Si es una herramienta de Google NotebookLM, despachar directamente al contenedor notebooklm-mcp
+  if (routeConfig.isNotebookLM) {
+    const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
+    const targetTool = routeConfig.tool || normalizedTool;
+    logger.info(`[Tenshi MCP] Despachando llamada NotebookLM "${targetTool}" para usuario ${userId}`);
+
+    try {
+      const response = await fetch(`${notebooklmUrl}/api/direct-tool`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': String(userId || ''),
+        },
+        body: JSON.stringify({
+          name: targetTool,
+          arguments: args,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const errMsg = data?.error || `Error HTTP ${response.status}: ${response.statusText}`;
+        logger.error(`[Tenshi MCP] Error en NotebookLM "${targetTool}": ${errMsg}`);
+        return { error: errMsg };
+      }
+
+      return data.result !== undefined ? data.result : data;
+    } catch (nbErr) {
+      logger.error(`[Tenshi MCP] Error conectando con NotebookLM para "${targetTool}":`, nbErr);
+      return { error: `No se pudo conectar con el servidor de NotebookLM: ${nbErr.message}` };
+    }
   }
 
   const port = process.env.PORT || 3080;

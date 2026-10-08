@@ -1544,6 +1544,44 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const notebooklmListarCuadernosDeclaration = {
+                name: "notebooklm_listar_cuadernos",
+                description: "Consulta y lista todos los cuadernos vinculados en Google NotebookLM / Gemini Notebook del usuario. Úsala cuando el usuario pregunte qué cuadernos tiene o pida ver sus fuentes bibliográficas.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        dummy: { type: "STRING", description: "Filtro opcional" }
+                    }
+                }
+            };
+
+            const notebooklmConsultarDeclaration = {
+                name: "notebooklm_consultar",
+                description: "Realiza una consulta documental fundamentada (Grounded RAG) sobre los cuadernos y fuentes de Google NotebookLM del usuario. Devuelve respuestas directas fundamentadas en sus documentos y citas normativas.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        cuaderno: { type: "STRING", description: "Nombre o ID del cuaderno a consultar." },
+                        pregunta: { type: "STRING", description: "Pregunta o consulta técnica detallada." }
+                    },
+                    required: ["cuaderno", "pregunta"]
+                }
+            };
+
+            const notebooklmGenerarStudioDeclaration = {
+                name: "notebooklm_generar_studio",
+                description: "Genera artefactos de estudio en Google NotebookLM: podcast ('audio'), cuestionario ('quiz'), informe ('report'), fichas ('flashcards') o mapa conceptual ('mind_map').",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        cuaderno: { type: "STRING", description: "Nombre o ID del cuaderno." },
+                        tipo_artefacto: { type: "STRING", description: "Tipo de contenido: audio, quiz, report, flashcards o mind_map." },
+                        instrucciones: { type: "STRING", description: "Instrucciones de enfoque o temas prioritarios." }
+                    },
+                    required: ["cuaderno", "tipo_artefacto"]
+                }
+            };
+
             // Assemble base tools and dynamically triggered tools (strictly excluding Group 7)
             const baseFunctionDeclarations = [
                 wappyNavegarDeclaration,
@@ -1556,6 +1594,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyGeocodificarEmergenciasDeclaration,
                 wappyConsultarClimaVientoDeclaration,
                 wappyDelegarOrdenAntigravityDeclaration,
+                notebooklmListarCuadernosDeclaration,
+                notebooklmConsultarDeclaration,
+                notebooklmGenerarStudioDeclaration,
                 wappyEnviarCorreoDeclaration,
                 wappyGestionarAgendaDeclaration,
                 googleCalendarDeclaration,
@@ -1855,7 +1896,19 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 } else if (call.name === 'wappy_resumen_general_360') {
                                     const res = await executeTenshiMcpTool('wappy_resumen_general_360', call.args || {}, targetUserId);
                                     toolOutput = JSON.stringify(res);
-                                } else if (call.name === 'wappy_mcp_sst' || call.name in TOOL_ROUTES || (call.name.startsWith('wappy_') && !['wappy_navegar', 'wappy_diligenciar_formulario', 'wappy_seleccionar_empresa', 'wappy_activar_empresa'].includes(call.name))) {
+                                } else if (call.name === 'notebooklm_listar_cuadernos' || call.name === 'notebooklm_consultar' || call.name === 'notebooklm_generar_studio') {
+                                     let mappedTool = 'notebook_list';
+                                     let mappedArgs = {};
+                                     if (call.name === 'notebooklm_consultar') {
+                                         mappedTool = 'chat_ask';
+                                         mappedArgs = { notebook: call.args?.cuaderno || call.args?.notebook || '', query: call.args?.pregunta || call.args?.query || '' };
+                                     } else if (call.name === 'notebooklm_generar_studio') {
+                                         mappedTool = 'studio_generate';
+                                         mappedArgs = { notebook: call.args?.cuaderno || '', artifact_type: call.args?.tipo_artefacto || call.args?.artifact_type || 'audio', instructions: call.args?.instrucciones || '' };
+                                     }
+                                     const res = await executeTenshiMcpTool(mappedTool, mappedArgs, targetUserId);
+                                     toolOutput = typeof res === 'string' ? res : JSON.stringify(res);
+                                 } else if (call.name === 'wappy_mcp_sst' || call.name in TOOL_ROUTES || (call.name.startsWith('wappy_') && !['wappy_navegar', 'wappy_diligenciar_formulario', 'wappy_seleccionar_empresa', 'wappy_activar_empresa'].includes(call.name))) {
                                     const targetTool = call.name === 'wappy_mcp_sst' ? (call.args?.herramienta || call.args?.tool || 'wappy_resumen_general_360') : call.name;
                                     const targetArgs = call.name === 'wappy_mcp_sst' ? (call.args?.parametros || call.args?.args || call.args || {}) : (call.args || {});
                                     const res = await executeTenshiMcpTool(targetTool, targetArgs, targetUserId);

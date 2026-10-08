@@ -818,6 +818,55 @@ async def research_import(
 
 
 # =============================================================================
+# ENDPOINT HTTP DIRECTO PARA TENSHI / SERVICIOS INTERNOS
+# =============================================================================
+
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+@mcp.custom_route("/api/direct-tool", methods=["POST"])
+async def direct_tool_handler(request: Request) -> JSONResponse:
+    """
+    Permite a Tenshi (Voz y Asistente WAPPY) y llamadas internas ejecutar
+    herramientas de NotebookLM directamente por HTTP POST sin necesidad
+    del ciclo de vida completo de SSE/Streamable-HTTP de MCP.
+    """
+    try:
+        body = await request.json()
+        tool_name = body.get("name") or body.get("tool") or ""
+        tool_args = body.get("arguments") or body.get("args") or {}
+
+        # Mapeo de herramientas disponibles
+        tools_map = {
+            "notebook_list": notebook_list,
+            "notebook_create": notebook_create,
+            "source_list": source_list,
+            "source_add": source_add,
+            "chat_ask": chat_ask,
+            "studio_generate": studio_generate,
+            "studio_status": studio_status,
+            "studio_download": studio_download,
+            "studio_list": studio_list,
+            "research_start": research_start,
+            "research_import": research_import,
+        }
+
+        func = tools_map.get(tool_name)
+        if not func:
+            return JSONResponse(
+                {"error": f"Herramienta '{tool_name}' no soportada en endpoint directo."},
+                status_code=400,
+            )
+
+        # Invocamos la función directamente
+        result = await func(**tool_args)
+        return JSONResponse({"success": True, "result": result})
+    except Exception as e:
+        logger.error(f"[Direct Tool] Error ejecutando '{tool_name}': {e}", exc_info=True)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# =============================================================================
 # INICIALIZACIÓN Y SERVICIO
 # =============================================================================
 
@@ -826,3 +875,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("NOTEBOOKLM_MCP_PORT", "9420"))
     logger.info(f"Iniciando WAPPY NotebookLM FastMCP Server en http://{host}:{port}/mcp ...")
     mcp.run(transport="http", host=host, port=port)
+
