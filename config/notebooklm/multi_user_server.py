@@ -19,11 +19,36 @@ import sys
 import json
 import logging
 import asyncio
+import contextvars
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
 from fastmcp import FastMCP
 from notebooklm import NotebookLMClient
+
+# ContextVar para propagar cabeceras o usuario en llamadas directas HTTP
+_CURRENT_USER_CONTEXT: contextvars.ContextVar[Dict[str, str]] = contextvars.ContextVar("_CURRENT_USER_CONTEXT", default={})
+
+# Parche de compatibilidad con la actualización reciente de Google NotebookLM:
+# Google migró el campo del token CSRF en WIZ_global_data de 'SNlM0e' a 'WZsZ1e'.
+try:
+    from notebooklm._auth import extraction
+    from notebooklm._web.transport import session_auth
+
+    _orig_extract_wiz = extraction.extract_wiz_field
+
+    def _patched_extract_wiz_field(html: str, key: str, strict: bool = True):
+        val = _orig_extract_wiz(html, key, strict=False)
+        if val is None and key == "SNlM0e":
+            val = _orig_extract_wiz(html, "WZsZ1e", strict=False)
+        if val is None and strict:
+            raise extraction.AuthExtractionError(key, html)
+        return val
+
+    extraction.extract_wiz_field = _patched_extract_wiz_field
+    session_auth.extract_wiz_field = _patched_extract_wiz_field
+except Exception as _patch_err:
+    pass
 
 # Configurar logging
 logging.basicConfig(
@@ -169,7 +194,13 @@ async def get_client_for_request() -> NotebookLMClient:
     except Exception as e:
         logger.warning(f"Error obteniendo cabeceras HTTP: {e}")
 
-    logger.info(f"[NotebookLM MCP] Cabeceras HTTP recibidas: {list(headers.keys())}")
+    # Combinar con cabeceras inyectadas por contexto (direct tool calls)
+    ctx_headers = _CURRENT_USER_CONTEXT.get() or {}
+    for ck, cv in ctx_headers.items():
+        if cv and ck.lower() not in headers:
+            headers[ck.lower()] = cv
+
+    logger.info(f"[NotebookLM MCP] Cabeceras HTTP activas: {list(headers.keys())}")
 
     user_id = headers.get("x-user-id") or headers.get("x_user_id") or ""
     if user_id.startswith("{{"):
@@ -858,9 +889,22 @@ async def direct_tool_handler(request: Request) -> JSONResponse:
                 status_code=400,
             )
 
-        # Invocamos la función directamente
-        result = await func(**tool_args)
-        return JSONResponse({"success": True, "result": result})
+        # Propagar cabeceras y user_id mediante ContextVar para get_client_for_request()
+        ctx_dict = {}
+        for k, v in request.headers.items():
+            ctx_dict[k.lower()] = v
+        if body.get("user_id"):
+            ctx_dict["x-user-id"] = str(body["user_id"])
+        if body.get("user_email"):
+            ctx_dict["x-user-email"] = str(body["user_email"])
+
+        token = _CURRENT_USER_CONTEXT.set(ctx_dict)
+        try:
+            # Invocamos la función directamente
+            result = await func(**tool_args)
+            return JSONResponse({"success": True, "result": result})
+        finally:
+            _CURRENT_USER_CONTEXT.reset(token)
     except Exception as e:
         logger.error(f"[Direct Tool] Error ejecutando '{tool_name}': {e}", exc_info=True)
         return JSONResponse({"error": str(e)}, status_code=500)

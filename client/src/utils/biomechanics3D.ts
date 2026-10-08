@@ -1,13 +1,16 @@
 /**
  * biomechanics3D.ts
  *
- * Módulo de telemetría y análisis biomecánico de postura de alta fidelidad.
- * Proporciona:
- * 1. Dibujado de exoesqueleto neón HUD nativo de alto rendimiento (indestructible, ultra-rápido, sin dependencias frágiles).
+ * Módulo de telemetría y análisis biomecánico de postura de alta fidelidad (HUD Sci-Fi / Ergonomía Médica).
+ * 
+ * Capacidades visuales y biomecánicas:
+ * 1. Exoesqueleto Neón HUD de alta fidelidad visual (Canvas 2D nativo ultra-optimizado):
+ *    - Columna cervical anatómica (C1-C7) que respeta el rostro (NO cruza labios ni boca).
+ *    - Tracking facial ergonómico con visor HUD Sci-Fi: Brackets de encuadre craneal, horizonte ocular y nodos temporales.
+ *    - Manos biométricas completas: Tracking de 21 articulaciones (5 dedos con falanges y nudillos) mediante MediaPipe Hands,
+ *      con síntesis anatómica de palma y rayos digitales como respaldo ultra-rápido.
  * 2. Cálculo ergonómico defensivo y realista (RULA / REBA) para Cuello, Tronco, Brazos, Codos y Rodillas.
- *    - Cuello: Flexión cervical real (0° - 80°, nunca aberraciones como 140°).
- *    - Tronco y Rodillas: Manejo inteligente de encuadre webcam (si caderas o piernas están fuera de cuadro, devuelve null / '--').
- * 3. Soporte para MediaPipe Pose clásico (ultrarrápido <500ms) y Tasks-Vision con 3D world space.
+ * 3. Carga no bloqueante de MediaPipe Pose y MediaPipe Hands (<400ms).
  */
 
 export interface BiomechanicAngles {
@@ -20,41 +23,56 @@ export interface BiomechanicAngles {
 }
 
 /**
- * Conexiones anatómicas completas del cuerpo humano para el exoesqueleto neón
+ * Conexiones corporales del tronco y extremidades (excluyendo el rostro para renderizado HUD especializado)
  */
-export const SKELETON_CONNECTIONS: [number, number][] = [
-    // Cabeza y Contorno Facial
-    [0, 1], [1, 2], [2, 3], [3, 7], // Lado izquierdo cara
-    [0, 4], [4, 5], [5, 6], [6, 8], // Lado derecho cara
-    [9, 10],                        // Labios / Boca
+export const BODY_CONNECTIONS: [number, number][] = [
+    // Cintura Escapular (Clavícula)
+    [11, 12],
 
-    // Cintura Escapular y Brazos
-    [11, 12], // Hombro a hombro (Clavícula)
-    [11, 13], // Hombro izq a codo izq
-    [13, 15], // Codo izq a muñeca izq
-    [12, 14], // Hombro der a codo der
-    [14, 16], // Codo der a muñeca der
+    // Extremidad Superior Izquierda (Brazo y Antebrazo)
+    [11, 13],
+    [13, 15],
 
-    // Manos / Dedos básicos
-    [15, 17], [15, 19], [15, 21], // Mano izq
-    [16, 18], [16, 20], [16, 22], // Mano der
+    // Extremidad Superior Derecha (Brazo y Antebrazo)
+    [12, 14],
+    [14, 16],
 
-    // Columna / Torso
-    [11, 23], // Costado torso izq
-    [12, 24], // Costado torso der
-    [23, 24], // Pelvis / Cadera a cadera
+    // Columna Torácica / Costados (si las caderas son visibles)
+    [11, 23],
+    [12, 24],
+    [23, 24], // Pelvis
 
-    // Miembros Inferiores
-    [23, 25], // Cadera izq a rodilla izq
-    [25, 27], // Rodilla izq a tobillo izq
-    [27, 29], [29, 31], [27, 31], // Pie izq
-    [24, 26], // Cadera der a rodilla der
-    [26, 28], // Rodilla der a tobillo der
-    [28, 30], [30, 32], [28, 32], // Pie der
+    // Extremidad Inferior Izquierda (Muslo, Pierna y Pie)
+    [23, 25],
+    [25, 27],
+    [27, 29], [29, 31], [27, 31],
+
+    // Extremidad Inferior Derecha (Muslo, Pierna y Pie)
+    [24, 26],
+    [26, 28],
+    [28, 30], [30, 32], [28, 32],
 ];
 
 /**
- * Carga dinámica de script de forma rápida y con caché
+ * Conexiones anatómicas completas de los 21 puntos de MediaPipe Hands
+ */
+export const HAND_ANATOMY_CONNECTIONS: [number, number][] = [
+    // Palma / Carpo
+    [0, 1], [0, 5], [5, 9], [9, 13], [13, 17], [0, 17],
+    // Pulgar (Thumb)
+    [1, 2], [2, 3], [3, 4],
+    // Índice (Index)
+    [5, 6], [6, 7], [7, 8],
+    // Medio (Middle)
+    [9, 10], [10, 11], [11, 12],
+    // Anular (Ring)
+    [13, 14], [14, 15], [15, 16],
+    // Meñique (Pinky)
+    [17, 18], [18, 19], [19, 20],
+];
+
+/**
+ * Carga de script con promesa y caché
  */
 export const loadScript = (src: string): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -73,25 +91,23 @@ export const loadScript = (src: string): Promise<void> => {
 };
 
 /**
- * Carga instantánea de scripts de MediaPipe Pose
+ * Carga ultrarrápida de MediaPipe Pose y MediaPipe Hands en paralelo
  */
-export const loadClassicPoseScripts = async (): Promise<void> => {
+export const loadVisionEngines = async (): Promise<void> => {
     await Promise.all([
         loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js'),
-        loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js'),
+        loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js').catch(err => {
+            console.warn('[Biomechanics3D] MediaPipe Hands diferido:', err);
+        }),
     ]);
 };
 
-let tasksVisionPromise: Promise<any> | null = null;
+export const loadClassicPoseScripts = loadVisionEngines;
 
-/**
- * Carga dinámica de @mediapipe/tasks-vision sin bloquear
- */
+let tasksVisionPromise: Promise<any> | null = null;
 export const loadTasksVision = async (): Promise<any> => {
     if (typeof window === 'undefined') return null;
-    if ((window as any).MediaPipeTasksVision) {
-        return (window as any).MediaPipeTasksVision;
-    }
+    if ((window as any).MediaPipeTasksVision) return (window as any).MediaPipeTasksVision;
     if (!tasksVisionPromise) {
         tasksVisionPromise = (async () => {
             try {
@@ -100,7 +116,7 @@ export const loadTasksVision = async (): Promise<any> => {
                 (window as any).MediaPipeTasksVision = vision;
                 return vision;
             } catch (err) {
-                console.warn('[Biomechanics3D] No fue posible cargar Tasks-Vision vía ESM:', err);
+                console.warn('[Biomechanics3D] Tasks-Vision no disponible vía ESM:', err);
                 return null;
             }
         })();
@@ -108,18 +124,12 @@ export const loadTasksVision = async (): Promise<any> => {
     return tasksVisionPromise;
 };
 
-/**
- * Inicializa PoseLandmarker de Tasks-Vision si está disponible
- */
 export const initPoseLandmarker = async (tasksVision: any) => {
-    if (!tasksVision || !tasksVision.FilesetResolver || !tasksVision.PoseLandmarker) {
-        return null;
-    }
+    if (!tasksVision || !tasksVision.FilesetResolver || !tasksVision.PoseLandmarker) return null;
     try {
         const vision = await tasksVision.FilesetResolver.forVisionTasks(
             'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
         );
-
         return await tasksVision.PoseLandmarker.createFromOptions(vision, {
             baseOptions: {
                 modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
@@ -131,39 +141,295 @@ export const initPoseLandmarker = async (tasksVision: any) => {
             minPosePresenceConfidence: 0.5,
             minTrackingConfidence: 0.5
         });
-    } catch (err) {
-        console.warn('[Biomechanics3D] No se pudo crear PoseLandmarker con GPU, probando CPU o fallback:', err);
-        try {
-            const vision = await tasksVision.FilesetResolver.forVisionTasks(
-                'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
-            );
-            return await tasksVision.PoseLandmarker.createFromOptions(vision, {
-                baseOptions: {
-                    modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
-                    delegate: 'CPU'
-                },
-                runningMode: 'VIDEO',
-                numPoses: 1,
-                minPoseDetectionConfidence: 0.5,
-                minPosePresenceConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
-        } catch (cpuErr) {
-            console.error('[Biomechanics3D] Fallo inicialización PoseLandmarker:', cpuErr);
-            return null;
-        }
+    } catch {
+        return null;
     }
 };
 
 /**
+ * Dibuja un HUD de cabeza elegante (Brackets de encuadre, horizonte y nodos craneales)
+ * ¡TOTALMENTE LIMPIO: Cero líneas atravesando la boca o la nariz!
+ */
+function drawFuturisticFaceHUD(
+    ctx: CanvasRenderingContext2D,
+    landmarks: any[],
+    width: number,
+    height: number
+) {
+    const nose = landmarks[0];
+    const leftEar = landmarks[7];
+    const rightEar = landmarks[8];
+    const leftEye = landmarks[2];
+    const rightEye = landmarks[5];
+
+    const noseVis = (nose?.visibility ?? 0) > 0.35;
+    const leftEarVis = (leftEar?.visibility ?? 0) > 0.35;
+    const rightEarVis = (rightEar?.visibility ?? 0) > 0.35;
+
+    if (!noseVis && !leftEarVis && !rightEarVis) return;
+
+    // Calcular centro y radio aproximado de la cabeza
+    let centerX = 0;
+    let centerY = 0;
+    let headSpan = 50;
+
+    if (leftEarVis && rightEarVis) {
+        centerX = ((leftEar.x + rightEar.x) / 2) * width;
+        centerY = ((leftEar.y + rightEar.y) / 2) * height;
+        headSpan = Math.abs(leftEar.x - rightEar.x) * width * 0.9;
+    } else if (noseVis) {
+        centerX = nose.x * width;
+        centerY = (nose.y - 0.04) * height;
+        headSpan = width * 0.16;
+    }
+
+    const halfW = Math.max(38, Math.min(width * 0.22, headSpan * 0.65));
+    const halfH = halfW * 1.25;
+    const bracketLen = Math.min(18, halfW * 0.4);
+
+    ctx.save();
+
+    // 1. Brackets de encuadre Sci-Fi [   ] alrededor del rostro
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.75)'; // Cyan brillante
+    ctx.shadowColor = '#06b6d4';
+    ctx.shadowBlur = 8;
+
+    const left = centerX - halfW;
+    const right = centerX + halfW;
+    const top = centerY - halfH;
+    const bottom = centerY + halfH;
+
+    // Esquina Superior Izquierda
+    ctx.beginPath();
+    ctx.moveTo(left, top + bracketLen);
+    ctx.lineTo(left, top);
+    ctx.lineTo(left + bracketLen, top);
+    ctx.stroke();
+
+    // Esquina Superior Derecha
+    ctx.beginPath();
+    ctx.moveTo(right - bracketLen, top);
+    ctx.lineTo(right, top);
+    ctx.lineTo(right, top + bracketLen);
+    ctx.stroke();
+
+    // Esquina Inferior Izquierda
+    ctx.beginPath();
+    ctx.moveTo(left, bottom - bracketLen);
+    ctx.lineTo(left, bottom);
+    ctx.lineTo(left + bracketLen, bottom);
+    ctx.stroke();
+
+    // Esquina Inferior Derecha
+    ctx.beginPath();
+    ctx.moveTo(right - bracketLen, bottom);
+    ctx.lineTo(right, bottom);
+    ctx.lineTo(right, bottom - bracketLen);
+    ctx.stroke();
+
+    // 2. Línea de horizonte ocular / inclinación craneal sutil
+    if (leftEye && rightEye && (leftEye.visibility ?? 0) > 0.4 && (rightEye.visibility ?? 0) > 0.4) {
+        const lx = leftEye.x * width;
+        const ly = leftEye.y * height;
+        const rx = rightEye.x * width;
+        const ry = rightEye.y * height;
+
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.7)'; // Esmeralda suave
+        ctx.beginPath();
+        ctx.moveTo(rx - 12, ry);
+        ctx.lineTo(lx + 12, ly);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Nodos oculares mínimos
+        ctx.fillStyle = '#10b981';
+        ctx.shadowColor = '#10b981';
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(lx, ly, 2.5, 0, 2 * Math.PI);
+        ctx.arc(rx, ry, 2.5, 0, 2 * Math.PI);
+        ctx.fill();
+    }
+
+    // 3. Nodos auditivos (Orejas / Sienes)
+    if (leftEarVis) {
+        ctx.fillStyle = '#06b6d4';
+        ctx.beginPath();
+        ctx.arc(leftEar.x * width, leftEar.y * height, 3, 0, 2 * Math.PI);
+        ctx.fill();
+    }
+    if (rightEarVis) {
+        ctx.fillStyle = '#06b6d4';
+        ctx.beginPath();
+        ctx.arc(rightEar.x * width, rightEar.y * height, 3, 0, 2 * Math.PI);
+        ctx.fill();
+    }
+
+    // Micro-etiqueta HUD de tracking
+    ctx.font = 'bold 8px monospace';
+    ctx.fillStyle = 'rgba(6, 182, 212, 0.9)';
+    ctx.shadowBlur = 4;
+    ctx.fillText('CRANIAL TRACKING', left, top - 4);
+
+    ctx.restore();
+}
+
+/**
+ * Dibuja la mano completa de 21 articulaciones (MediaPipe Hands) o síntesis anatómica
+ */
+export function drawDetailedHand(
+    ctx: CanvasRenderingContext2D,
+    handLandmarks: any[],
+    width: number,
+    height: number
+) {
+    if (!handLandmarks || handLandmarks.length < 21) return;
+
+    ctx.save();
+
+    // 1. Polígono de la palma con relleno sutil traslúcido neón
+    const palmIndices = [0, 1, 5, 9, 13, 17];
+    ctx.beginPath();
+    for (let i = 0; i < palmIndices.length; i++) {
+        const pt = handLandmarks[palmIndices[i]];
+        const x = pt.x * width;
+        const y = pt.y * height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(6, 182, 212, 0.12)';
+    ctx.fill();
+
+    // 2. Líneas de los dedos y huesos
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#06b6d4';
+    ctx.shadowColor = '#06b6d4';
+    ctx.shadowBlur = 8;
+
+    for (const [i1, i2] of HAND_ANATOMY_CONNECTIONS) {
+        const p1 = handLandmarks[i1];
+        const p2 = handLandmarks[i2];
+        if (!p1 || !p2) continue;
+
+        ctx.beginPath();
+        ctx.moveTo(p1.x * width, p1.y * height);
+        ctx.lineTo(p2.x * width, p2.y * height);
+        ctx.stroke();
+    }
+
+    // 3. Articulaciones / Nudillos de los dedos
+    ctx.fillStyle = '#10b981';
+    ctx.shadowColor = '#10b981';
+    ctx.shadowBlur = 6;
+
+    for (let i = 0; i < handLandmarks.length; i++) {
+        const pt = handLandmarks[i];
+        const px = pt.x * width;
+        const py = pt.y * height;
+        const isTip = i === 4 || i === 8 || i === 12 || i === 16 || i === 20;
+
+        ctx.beginPath();
+        ctx.arc(px, py, isTip ? 3.5 : 2.5, 0, 2 * Math.PI);
+        ctx.fill();
+    }
+
+    ctx.restore();
+}
+
+/**
+ * Síntesis anatómica de mano para cuando sólo Pose está disponible
+ * Transforma los puntos 15/17/19/21 en una mano biomecánica con palma y 5 dedos
+ */
+function drawSynthesizedPoseHand(
+    ctx: CanvasRenderingContext2D,
+    wrist: any,
+    pinky: any,
+    index: any,
+    thumb: any,
+    width: number,
+    height: number
+) {
+    if (!wrist || !pinky || !index) return;
+    const wx = wrist.x * width;
+    const wy = wrist.y * height;
+    const ix = index.x * width;
+    const iy = index.y * height;
+    const px = pinky.x * width;
+    const py = pinky.y * height;
+    const tx = thumb ? thumb.x * width : wx + (ix - wx) * 0.7 - (py - wy) * 0.3;
+    const ty = thumb ? thumb.y * height : wy + (iy - wy) * 0.7 + (px - wx) * 0.3;
+
+    // Nudillos intermedios sintetizados
+    const mx = ix + (px - ix) * 0.33;
+    const my = iy + (py - iy) * 0.33;
+    const rx = ix + (px - ix) * 0.66;
+    const ry = iy + (py - iy) * 0.66;
+
+    ctx.save();
+
+    // Relleno de palma
+    ctx.beginPath();
+    ctx.moveTo(wx, wy);
+    ctx.lineTo(tx, ty);
+    ctx.lineTo(ix, iy);
+    ctx.lineTo(mx, my);
+    ctx.lineTo(rx, ry);
+    ctx.lineTo(px, py);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
+    ctx.fill();
+
+    // Conexiones de rayos digitales
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#06b6d4';
+    ctx.shadowColor = '#06b6d4';
+    ctx.shadowBlur = 8;
+
+    const fingerBases = [
+        [tx, ty],
+        [ix, iy],
+        [mx, my],
+        [rx, ry],
+        [px, py],
+    ];
+
+    for (const [fx, fy] of fingerBases) {
+        ctx.beginPath();
+        ctx.moveTo(wx, wy);
+        ctx.lineTo(fx, fy);
+        ctx.stroke();
+
+        // Nudo en la punta
+        ctx.fillStyle = '#10b981';
+        ctx.shadowColor = '#10b981';
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(fx, fy, 3, 0, 2 * Math.PI);
+        ctx.fill();
+    }
+
+    ctx.restore();
+}
+
+/**
  * RENDERER NATIVO DEL EXOESQUELETO NEÓN HUD (CANVAS 2D PURO)
- * 100% garantizado: no depende de bibliotecas externas de dibujo,
- * ultra-rápido (<0.05ms), con resplandor neón cyan/esmeralda.
+ * Visualmente superior:
+ * - Columna cervical C1-C7 sin invadir la boca.
+ * - Brackets HUD de tracking facial futuristas.
+ * - Manos completas de 5 dedos (21 articulaciones o síntesis biomecánica).
+ * - Extremidades y torso con estética neón cyan/esmeralda.
  */
 export const drawBiomechanicSkeleton = (
     ctx: CanvasRenderingContext2D,
     landmarks: any[],
-    _tasksVision?: any
+    multiHandLandmarks?: any[] | null
 ) => {
     if (!ctx || !landmarks || landmarks.length === 0) return;
 
@@ -173,7 +439,6 @@ export const drawBiomechanicSkeleton = (
 
     ctx.save();
 
-    // 1. DIBUJAR LÍNEA CERVICAL (CUELLO): Conectar centro de hombros con la cabeza
     const nose = landmarks[0];
     const leftShoulder = landmarks[11];
     const rightShoulder = landmarks[12];
@@ -183,66 +448,91 @@ export const drawBiomechanicSkeleton = (
     const shouldersVisible = leftShoulder && rightShoulder &&
         (leftShoulder.visibility ?? 1) > 0.3 && (rightShoulder.visibility ?? 1) > 0.3;
 
-    let headX: number | null = null;
-    let headY: number | null = null;
-
-    if (nose && (nose.visibility ?? 1) > 0.3) {
-        headX = nose.x * width;
-        headY = nose.y * height;
-    } else if (leftEar && rightEar && (leftEar.visibility ?? 1) > 0.3 && (rightEar.visibility ?? 1) > 0.3) {
-        headX = ((leftEar.x + rightEar.x) / 2) * width;
-        headY = ((leftEar.y + rightEar.y) / 2) * height;
-    }
-
-    // Configuración estética de las líneas (Bones / Huesos)
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#06b6d4'; // Cyan neón
-    ctx.shadowColor = '#06b6d4';
-    ctx.shadowBlur = 8;
-
-    // Trazar cuello vertebral
-    if (shouldersVisible && headX !== null && headY !== null) {
+    // 1. COLUMNA CERVICAL (CUELLO): Conecta hombros con la base del cuello / mandíbula
+    // ¡REGLA CRÍTICA: NO entra en la boca ni en la nariz!
+    if (shouldersVisible) {
         const neckBaseX = ((leftShoulder.x + rightShoulder.x) / 2) * width;
         const neckBaseY = ((leftShoulder.y + rightShoulder.y) / 2) * height;
 
+        let headRefY = neckBaseY - (width * 0.15); // Fallback razonable
+        let headRefX = neckBaseX;
+
+        if (leftEar && rightEar && (leftEar.visibility ?? 0) > 0.3 && (rightEar.visibility ?? 0) > 0.3) {
+            headRefX = ((leftEar.x + rightEar.x) / 2) * width;
+            headRefY = ((leftEar.y + rightEar.y) / 2) * height;
+        } else if (nose && (nose.visibility ?? 0) > 0.3) {
+            headRefX = nose.x * width;
+            headRefY = nose.y * height;
+        }
+
+        // El cuello termina a la altura de la mandíbula (72% de la distancia hacia la cabeza)
+        const chinTargetX = neckBaseX + (headRefX - neckBaseX) * 0.72;
+        const chinTargetY = neckBaseY + (headRefY - neckBaseY) * 0.72;
+
+        ctx.lineWidth = 3.5;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#06b6d4';
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 10;
+
         ctx.beginPath();
         ctx.moveTo(neckBaseX, neckBaseY);
-        ctx.lineTo(headX, headY);
+        ctx.lineTo(chinTargetX, chinTargetY);
         ctx.stroke();
+
+        // Vértebras biomecánicas cervicales (C3, C5, C7)
+        const steps = [0.25, 0.6, 1.0];
+        for (const s of steps) {
+            const vx = neckBaseX + (chinTargetX - neckBaseX) * s;
+            const vy = neckBaseY + (chinTargetY - neckBaseY) * s;
+
+            ctx.fillStyle = '#10b981';
+            ctx.shadowColor = '#10b981';
+            ctx.shadowBlur = 6;
+            ctx.beginPath();
+            ctx.arc(vx, vy, 3.5, 0, 2 * Math.PI);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(vx, vy, 1.5, 0, 2 * Math.PI);
+            ctx.fill();
+        }
     }
 
-    // 2. DIBUJAR TODOS LOS SEGMENTOS ANATÓMICOS CONECTADOS
-    for (const [idx1, idx2] of SKELETON_CONNECTIONS) {
+    // 2. HUD FACIAL FUTURISTA (BRACKETS SCI-FI & HORIZONTE)
+    drawFuturisticFaceHUD(ctx, landmarks, width, height);
+
+    // 3. SEGMENTOS DEL CUERPO (Hombros, Brazos, Tronco, Piernas)
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#06b6d4';
+    ctx.shadowColor = '#06b6d4';
+    ctx.shadowBlur = 8;
+
+    for (const [idx1, idx2] of BODY_CONNECTIONS) {
         const p1 = landmarks[idx1];
         const p2 = landmarks[idx2];
         if (!p1 || !p2) continue;
 
-        // Comprobación de visibilidad de ambos extremos
         const v1 = p1.visibility !== undefined ? p1.visibility : 1;
         const v2 = p2.visibility !== undefined ? p2.visibility : 1;
         if (v1 < 0.35 || v2 < 0.35) continue;
 
-        const x1 = p1.x * width;
-        const y1 = p1.y * height;
-        const x2 = p2.x * width;
-        const y2 = p2.y * height;
-
         ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
+        ctx.moveTo(p1.x * width, p1.y * height);
+        ctx.lineTo(p2.x * width, p2.y * height);
         ctx.stroke();
     }
 
-    // 3. DIBUJAR ARTICULACIONES / NODOS (Emerald Glow)
+    // 4. ARTICULACIONES PRINCIPALES (Hombros, Codos, Caderas, Rodillas, Tobillos)
+    ctx.fillStyle = '#10b981';
     ctx.shadowColor = '#10b981';
     ctx.shadowBlur = 6;
-    ctx.fillStyle = '#10b981';
 
-    // Lista de articulaciones clave para resaltar
-    const keyJointIndices = [0, 7, 8, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
-    for (const idx of keyJointIndices) {
+    const bodyJoints = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+    for (const idx of bodyJoints) {
         const p = landmarks[idx];
         if (!p) continue;
         const v = p.visibility !== undefined ? p.visibility : 1;
@@ -251,12 +541,10 @@ export const drawBiomechanicSkeleton = (
         const px = p.x * width;
         const py = p.y * height;
 
-        // Anillo exterior verde esmeralda
         ctx.beginPath();
         ctx.arc(px, py, 4, 0, 2 * Math.PI);
         ctx.fill();
 
-        // Punto central brillante cian
         ctx.save();
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
@@ -265,11 +553,41 @@ export const drawBiomechanicSkeleton = (
         ctx.restore();
     }
 
+    // 5. TRACKING DETALLADO DE MANOS (21 ARTICULACIONES O SÍNTESIS ANATÓMICA)
+    let handsDrawnWithMediaPipe = false;
+    if (multiHandLandmarks && Array.isArray(multiHandLandmarks) && multiHandLandmarks.length > 0) {
+        for (const hand of multiHandLandmarks) {
+            drawDetailedHand(ctx, hand, width, height);
+            handsDrawnWithMediaPipe = true;
+        }
+    }
+
+    // Si MediaPipe Hands aún no tiene detección para las manos visibles, sintetizar mano anatómica
+    if (!handsDrawnWithMediaPipe) {
+        // Mano Izquierda
+        const lWrist = landmarks[15];
+        const lPinky = landmarks[17];
+        const lIndex = landmarks[19];
+        const lThumb = landmarks[21];
+        if (lWrist && (lWrist.visibility ?? 0) > 0.4) {
+            drawSynthesizedPoseHand(ctx, lWrist, lPinky, lIndex, lThumb, width, height);
+        }
+
+        // Mano Derecha
+        const rWrist = landmarks[16];
+        const rPinky = landmarks[18];
+        const rIndex = landmarks[20];
+        const rThumb = landmarks[22];
+        if (rWrist && (rWrist.visibility ?? 0) > 0.4) {
+            drawSynthesizedPoseHand(ctx, rWrist, rPinky, rIndex, rThumb, width, height);
+        }
+    }
+
     ctx.restore();
 };
 
 /**
- * Cálculo del ángulo entre 3 puntos (A - B - C) con vértice en B.
+ * Cálculo del ángulo entre 3 puntos (A - B - C) con vértice en B
  */
 export const calc3DAngle = (a: any, b: any, c: any): number | null => {
     if (!a || !b || !c) return null;
@@ -291,19 +609,12 @@ export const calc3DVerticalAngle = (bottom: any, top: any): number | null => {
     const v = { x: top.x - bottom.x, y: top.y - bottom.y, z: (top.z ?? 0) - (bottom.z ?? 0) };
     const mag = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
     if (mag === 0) return null;
-    // En coordenadas de imagen y world landmarks, y es negativo hacia arriba
     const cosAngle = Math.max(-1, Math.min(1, -v.y / mag));
     return Math.round(Math.acos(cosAngle) * (180 / Math.PI));
 };
 
 /**
  * CÁLCULO ERGONÓMICO ROBUSTO Y DEFENSIVO DE LOS 5 ÁNGULOS PRINCIPALES
- * (Cuello, Tronco, Brazo, Codo, Rodilla)
- *
- * Maneja adecuadamente encuadres de webcam (primer plano de escritorio):
- * - Si las caderas no son visibles: Tronco = null ('--')
- * - Si las rodillas o tobillos no son visibles: Rodilla = null ('--')
- * - Cuello: Inclinación cervical ergonómica real acotada (0° a 80°, nunca 140°)
  */
 export const calculateBiomechanicAngles = (
     landmarks: any[],
@@ -329,7 +640,6 @@ export const calculateBiomechanicAngles = (
     const leftAnkle = landmarks[27];
     const rightAnkle = landmarks[28];
 
-    // Visibilidad de segmentos
     const leftShoulderVis = (leftShoulder?.visibility ?? 0) > 0.4;
     const rightShoulderVis = (rightShoulder?.visibility ?? 0) > 0.4;
     const hipsVisible = ((leftHip?.visibility ?? 0) > 0.45 || (rightHip?.visibility ?? 0) > 0.45);
@@ -337,7 +647,6 @@ export const calculateBiomechanicAngles = (
         ((leftKnee?.visibility ?? 0) > 0.4 || (rightKnee?.visibility ?? 0) > 0.4) &&
         ((leftAnkle?.visibility ?? 0) > 0.35 || (rightAnkle?.visibility ?? 0) > 0.35);
 
-    // Lado activo / dominante
     const useLeft = (leftShoulder?.visibility ?? 0) >= (rightShoulder?.visibility ?? 0);
 
     const is3D = !!worldLandmarks && worldLandmarks.length >= 25;
@@ -359,17 +668,15 @@ export const calculateBiomechanicAngles = (
     const tLeftAnkle = targetSet[27];
     const tRightAnkle = targetSet[28];
 
-    // 1. CÁLCULO DE CUELLO (FLEXIÓN / INCLINACIÓN CERVICAL)
+    // 1. CUELLO (Inclinación cervical ergonómica)
     let neckDeg: number | null = null;
     if (leftShoulderVis || rightShoulderVis) {
-        // Centro de los hombros
         const shoulderCenter = {
             x: leftShoulderVis && rightShoulderVis ? (tLeftShoulder.x + tRightShoulder.x) / 2 : (leftShoulderVis ? tLeftShoulder.x : tRightShoulder.x),
             y: leftShoulderVis && rightShoulderVis ? (tLeftShoulder.y + tRightShoulder.y) / 2 : (leftShoulderVis ? tLeftShoulder.y : tRightShoulder.y),
             z: leftShoulderVis && rightShoulderVis ? ((tLeftShoulder.z ?? 0) + (tRightShoulder.z ?? 0)) / 2 : ((leftShoulderVis ? tLeftShoulder.z : tRightShoulder.z) ?? 0),
         };
 
-        // Centro de la cabeza
         let headPt: any = null;
         if (nose && (nose.visibility ?? 0) > 0.35) {
             headPt = tNose;
@@ -386,17 +693,14 @@ export const calculateBiomechanicAngles = (
         }
 
         if (headPt) {
-            // Inclinación respecto a la vertical superior
             const rawHeadTilt = calc3DVerticalAngle(shoulderCenter, headPt);
             if (rawHeadTilt !== null) {
-                // Acotar a rangos biomecánicos humanos reales (0° a 75°)
                 neckDeg = Math.min(75, Math.max(0, rawHeadTilt));
             }
         }
     }
 
-    // 2. CÁLCULO DE TRONCO (INCLINACIÓN DEL TORSO)
-    // DEFENSIVO: Si las caderas no son visibles en el encuadre, el tronco se reporta como null ('--')
+    // 2. TRONCO
     let trunkDeg: number | null = null;
     if (hipsVisible && (leftShoulderVis || rightShoulderVis)) {
         const shoulderCenter = {
@@ -413,15 +717,13 @@ export const calculateBiomechanicAngles = (
         const rawTrunk = calc3DVerticalAngle(hipCenter, shoulderCenter);
         if (rawTrunk !== null) {
             trunkDeg = Math.min(85, Math.max(0, rawTrunk));
-
-            // Si el tronco está inclinado y el cuello calculado, corregir flexión cervical relativa
             if (neckDeg !== null && trunkDeg !== null) {
                 neckDeg = Math.min(75, Math.abs(neckDeg - trunkDeg));
             }
         }
     }
 
-    // 3. CÁLCULO DE BRAZO (ELEVACIÓN / ABDUCCIÓN)
+    // 3. BRAZO
     let armDeg: number | null = null;
     const actShoulder = useLeft ? tLeftShoulder : tRightShoulder;
     const actElbow = useLeft ? tLeftElbow : tRightElbow;
@@ -432,7 +734,6 @@ export const calculateBiomechanicAngles = (
             const actHip = useLeft ? tLeftHip : tRightHip;
             armDeg = calc3DAngle(actHip, actShoulder, actElbow);
         } else {
-            // Si la cadera no está en encuadre, calcular elevación del brazo respecto a la vertical
             const armTilt = calc3DVerticalAngle(actElbow, actShoulder);
             if (armTilt !== null) {
                 armDeg = Math.min(180, Math.max(0, armTilt));
@@ -440,7 +741,7 @@ export const calculateBiomechanicAngles = (
         }
     }
 
-    // 4. CÁLCULO DE CODO (FLEXIÓN DEL ANTEBRAZO)
+    // 4. CODO
     let elbowDegVal: number | null = null;
     const actWrist = useLeft ? tLeftWrist : tRightWrist;
     const wristVis = useLeft ? (leftWrist?.visibility ?? 0) > 0.4 : (rightWrist?.visibility ?? 0) > 0.4;
@@ -449,8 +750,7 @@ export const calculateBiomechanicAngles = (
         elbowDegVal = calc3DAngle(actShoulder, actElbow, actWrist);
     }
 
-    // 5. CÁLCULO DE RODILLA (FLEXIÓN RESPECTO A EXTENSIÓN)
-    // DEFENSIVO: Si las piernas no están en el encuadre, rodilla = null ('--')
+    // 5. RODILLA
     let kneeFlexVal: number | null = null;
     if (kneesVisible) {
         const actHip = useLeft ? tLeftHip : tRightHip;

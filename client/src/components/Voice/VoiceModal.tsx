@@ -237,6 +237,8 @@ const VoiceModal: FC<VoiceModalProps> = ({
 
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const poseRef = useRef<any>(null);
+    const handsRef = useRef<any>(null);
+    const handsResultsRef = useRef<any>(null);
     const landmarkerRef = useRef<any>(null);
     const badPostureStartRef = useRef<number | null>(null);
     const lastSnapshotTimeRef = useRef<number>(0);
@@ -822,9 +824,9 @@ const VoiceModal: FC<VoiceModalProps> = ({
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (!landmarks) return;
 
-        // 1. Dibujar esqueleto neón HUD nativo (indestructible, ultra-rápido)
+        // 1. Dibujar esqueleto neón HUD nativo con rostro limpio y manos completas
         try {
-            drawBiomechanicSkeleton(ctx, landmarks);
+            drawBiomechanicSkeleton(ctx, landmarks, handsResultsRef.current);
         } catch (drawErr) {
             console.error('[VoiceModal] Error drawing skeleton:', drawErr);
         }
@@ -967,6 +969,31 @@ const VoiceModal: FC<VoiceModalProps> = ({
                     console.error('Error creating Pose instance in VoiceModal:', e);
                 }
             }
+
+            // 3. Inicializar MediaPipe Hands para tracking detallado de dedos
+            if (typeof window !== 'undefined' && (window as any).Hands && isSubscribed) {
+                try {
+                    const hands = new (window as any).Hands({
+                        locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                    });
+
+                    hands.setOptions({
+                        maxNumHands: 2,
+                        modelComplexity: 0,
+                        minDetectionConfidence: 0.5,
+                        minTrackingConfidence: 0.5
+                    });
+
+                    hands.onResults((hResults: any) => {
+                        handsResultsRef.current = hResults?.multiHandLandmarks || null;
+                    });
+
+                    handsRef.current = hands;
+                    console.log('[VoiceModal] MediaPipe Hands instance ready!');
+                } catch (hErr) {
+                    console.warn('[VoiceModal] Hands instance creation warning:', hErr);
+                }
+            }
         };
 
         initEngine();
@@ -989,6 +1016,13 @@ const VoiceModal: FC<VoiceModalProps> = ({
                 }
                 poseRef.current = null;
             }
+            if (handsRef.current) {
+                try {
+                    handsRef.current.close();
+                } catch (_) {}
+                handsRef.current = null;
+            }
+            handsResultsRef.current = null;
             setIsPoseActive(false);
         };
     }, [isMediaPipeLoaded, isCameraOn, isBiomechanicsAgent, onPoseResults]);
@@ -1028,6 +1062,9 @@ const VoiceModal: FC<VoiceModalProps> = ({
                     } else if (poseRef.current) {
                         try {
                             await poseRef.current.send({ image: video });
+                            if (handsRef.current) {
+                                await handsRef.current.send({ image: video }).catch(() => {});
+                            }
                         } catch (e) {
                             console.error('[VoiceModal] Pose send error:', e);
                         }
