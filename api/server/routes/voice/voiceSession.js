@@ -357,7 +357,7 @@ class VoiceSession {
 
         // Modo Tenshi: Asistente oficial con control de plataforma por voz
         if (this.config.mode === 'tenshi_voice') {
-            this.liveConfig.voice = this.config.voice || 'Aoede';
+            this.liveConfig.voice = 'Puck';
             this.liveConfig.tools = [
                 {
                     functionDeclarations: [

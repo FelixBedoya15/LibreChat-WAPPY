@@ -1492,6 +1492,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const sessionOptions = useMemo(
     () => ({
       mode: 'tenshi_voice',
+      voice: 'Puck',
       route: `${location.pathname}${location.search}`,
       onAudioReceived: (audioData: string) => {
         handleAudioReceived(audioData);
