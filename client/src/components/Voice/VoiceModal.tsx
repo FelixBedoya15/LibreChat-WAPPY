@@ -822,58 +822,67 @@ const VoiceModal: FC<VoiceModalProps> = ({
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (!landmarks) return;
 
-        // 1. Dibujar esqueleto neón HUD
-        drawBiomechanicSkeleton(ctx, landmarks);
+        // 1. Dibujar esqueleto neón HUD nativo (indestructible, ultra-rápido)
+        try {
+            drawBiomechanicSkeleton(ctx, landmarks);
+        } catch (drawErr) {
+            console.error('[VoiceModal] Error drawing skeleton:', drawErr);
+        }
 
-        // 2. Cálculo ergonómico de los 5 ángulos (3D world space o fallback 2D)
-        const { neck, trunk, arm, elbow, knee, is3D } = calculateBiomechanicAngles(landmarks, worldLandmarks);
+        // 2. Cálculo ergonómico de los 5 ángulos
+        try {
+            const { neck, trunk, arm, elbow, knee, is3D } = calculateBiomechanicAngles(landmarks, worldLandmarks);
 
-        anglesRef.current = {
-            neck,
-            trunk,
-            arm,
-            elbow,
-            knee,
-        };
+            anglesRef.current = {
+                neck,
+                trunk,
+                arm,
+                elbow,
+                knee,
+            };
 
-        // Throttle React state updates to at most once every 350ms (evita sobrecarga de re-renders)
-        const now = Date.now();
-        if (now - lastStateUpdateRef.current >= 350) {
-            lastStateUpdateRef.current = now;
-            setNeckAngle(neck);
-            setTrunkAngle(trunk);
-            setArmAngle(arm);
-            setElbowAngle(elbow);
-            setKneeAngle(knee);
-            setIs3DTelemetry(is3D);
+            // Actualización suave de telemetría en HUD
+            const now = Date.now();
+            if (now - lastStateUpdateRef.current >= 250) {
+                lastStateUpdateRef.current = now;
+                setNeckAngle(neck);
+                setTrunkAngle(trunk);
+                setArmAngle(arm);
+                setElbowAngle(elbow);
+                setKneeAngle(knee);
+                setIs3DTelemetry(is3D);
+            }
+        } catch (calcErr) {
+            console.error('[VoiceModal] Error calculating angles:', calcErr);
         }
     }, []);
 
-    // Cargar Google MediaPipe Tasks-Vision (o scripts clásicos de respaldo)
+    // Cargar Google MediaPipe para Visión IA (arranque instantáneo)
     useEffect(() => {
         if (!isOpen || !isBiomechanicsAgent) return;
 
         let active = true;
-        console.log('[VoiceModal] Biomechanics agent detected. Loading Google AI Edge Vision...');
+        console.log('[VoiceModal] Biomechanics agent detected. Loading Vision AI...');
         setStatusText('Cargando Visión Artificial...');
 
         const loadAll = async () => {
             try {
+                // Cargar scripts clásicos inmediatamente en paralelo (<400ms)
+                const classicLoadPromise = loadClassicPoseScripts().then(() => {
+                    if (active) {
+                        setIsMediaPipeLoaded(true);
+                        setStatusText('Visión IA Preparada');
+                    }
+                }).catch(e => console.warn('[VoiceModal] Classic load warning:', e));
+
+                // Paralelamente consultar Tasks-Vision
                 const tasksVision = await loadTasksVision();
                 if (tasksVision && active) {
-                    console.log('[VoiceModal] Google Tasks-Vision module loaded!');
                     setIsMediaPipeLoaded(true);
                     setStatusText('Visión IA 3D Preparada');
                     return;
                 }
-
-                // Fallback a Pose clásico si Tasks-Vision no está disponible
-                await loadClassicPoseScripts();
-                if (active) {
-                    console.log('[VoiceModal] Classic Vision AI scripts loaded (fallback)!');
-                    setIsMediaPipeLoaded(true);
-                    setStatusText('Visión IA Preparada');
-                }
+                await classicLoadPromise;
             } catch (err) {
                 console.error('[VoiceModal] Error loading Vision AI:', err);
                 if (active) {

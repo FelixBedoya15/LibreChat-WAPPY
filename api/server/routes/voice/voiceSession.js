@@ -2214,32 +2214,25 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             let success = false;
             let lastError = null;
 
-            const rawPreferredLiveModel = this.liveConfig.model || process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview';
+            // Modelo Live estricto: Primario 3.1 (gemini-3.1-flash-live-preview) y Respaldo 3.8 (gemini-3.8-live)
+            const rawPreferredLiveModel = this.liveConfig.liveModel || this.liveConfig.preferredLiveModel || process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview';
             
             const mapModelToRealGoogleModel = (modelName) => {
                 if (!modelName) return 'gemini-3.1-flash-live-preview';
                 const name = modelName.toLowerCase().trim();
-                if (name === 'gemini-3.1-flash-live-preview' || name === 'gemini-3.8-live' || name === 'gemini-2.5-flash-native-audio-preview-12-2025') {
-                    return name;
-                }
-                if (name.includes('3.1')) {
-                    return 'gemini-3.1-flash-live-preview';
-                }
-                if (name.includes('3.8')) {
+                if (name === 'gemini-3.8-live' || name.includes('3.8-live') || name.includes('3.8_live')) {
                     return 'gemini-3.8-live';
                 }
-                if (name.includes('2.5') || name.includes('12-2025') || name.includes('09-2025') || name.includes('native-audio')) {
+                if (name === 'gemini-2.5-flash-native-audio-preview-12-2025' || name.includes('native-audio')) {
                     return 'gemini-2.5-flash-native-audio-preview-12-2025';
-                }
-                if (name.includes('live')) {
-                    return 'gemini-3.1-flash-live-preview';
                 }
                 return 'gemini-3.1-flash-live-preview';
             };
 
             const preferredLiveModel = mapModelToRealGoogleModel(rawPreferredLiveModel);
-            const liveFallbacks = LIVE_FALLBACK_MODELS.map(m => mapModelToRealGoogleModel(m)).filter(m => m !== preferredLiveModel);
-            const liveModelsToTry = [...new Set([preferredLiveModel, ...liveFallbacks])];
+            const liveModelsToTry = preferredLiveModel === 'gemini-3.8-live'
+                ? ['gemini-3.8-live', 'gemini-3.1-flash-live-preview', 'gemini-2.5-flash-native-audio-preview-12-2025']
+                : ['gemini-3.1-flash-live-preview', 'gemini-3.8-live', 'gemini-2.5-flash-native-audio-preview-12-2025'];
 
             logger.info(`[VoiceSession] Modelos Live a intentar en la sesión: ${liveModelsToTry.join(', ')}`);
             this.liveModelsToTry = liveModelsToTry;
