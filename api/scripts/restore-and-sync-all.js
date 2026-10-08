@@ -513,17 +513,6 @@ ${cleanContent}
     console.log(`   🌐 Vinculados los 22 agentes al proyecto Global.`);
   }
 
-  // Pull deactivated tools from all agents in the database
-  try {
-    const pullRes = await Agent.updateMany({}, {
-      $pull: {
-        tools: { $in: ['matriz_pesv', 'matriz_compatibilidad', 'editor_live'] }
-      }
-    });
-    console.log(`   🗑️ Removidas herramientas desactivadas (matriz_pesv, matriz_compatibilidad, editor_live) de todos los agentes en la BD: ${pullRes.modifiedCount} modificados.`);
-  } catch (err) {
-    console.error('⚠️ Error eliminando herramientas desactivadas:', err);
-  }
 
   // 6. Ocultar y aislar de la bandeja de entrada chats anónimos previos del Terapeuta en Salud Mental
   try {

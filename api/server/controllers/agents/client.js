@@ -2157,9 +2157,17 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
 
         let fallbackMsg = '';
         if (hasWriteActivity) {
-          fallbackMsg = isMatrixReq
-            ? 'He procesado tu solicitud y registrado exitosamente los peligros en tu Matriz IPEVAR en vivo. Ya puedes visualizarlos y gestionarlos en el panel lateral.'
-            : 'He procesado tu solicitud y registrado exitosamente la información en el sistema. Puedes visualizar los datos actualizados en el panel lateral.';
+          const hasCanvasTool = this.contentParts.some((p) => {
+            const name = p?.name || p?.tool_call?.name || '';
+            return name === 'canvas';
+          });
+          if (hasCanvasTool) {
+            fallbackMsg = 'He procesado tu solicitud y generado el contenido interactivo en Canvas. Ya puedes visualizarlo y utilizarlo en el panel lateral derecho.';
+          } else if (isMatrixReq) {
+            fallbackMsg = 'He procesado tu solicitud y registrado exitosamente los peligros en tu Matriz IPEVAR en vivo. Ya puedes visualizarlos y gestionarlos en el panel lateral.';
+          } else {
+            fallbackMsg = 'He procesado tu solicitud y registrado exitosamente la información en el sistema. Puedes visualizar los datos actualizados en el panel lateral.';
+          }
         } else if (hasToolActivity) {
           fallbackMsg = isMatrixReq
             ? 'He consultado la información y analizado los procesos de tu empresa. ¿Deseas que proceda a registrar los peligros evaluados en tu Matriz IPEVAR en vivo?'
@@ -2198,7 +2206,7 @@ Aquí tienes la explicación detallada de las características y fórmulas ofici
           if (hasSheets) {
             fallbackMsg = 'He analizado tu solicitud para la integración con Google Sheets. La estructura de datos y fórmulas están listas. ¿Deseas que proceda a crear la hoja o registrar un nuevo reporte?';
           } else if (hasCanvas) {
-            fallbackMsg = 'He verificado la estructura del aplicativo interactivo. ¿Deseas visualizar el componente o que apliquemos alguna configuración en las métricas?';
+            fallbackMsg = 'He preparado la propuesta de diseño para el aplicativo. Si deseas que lo plasme en Canvas, indícamelo y lo generamos de inmediato.';
           } else if (!isEnglish) {
             const paragraphs = thoughtParts.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
             const lastParagraph = paragraphs[paragraphs.length - 1];

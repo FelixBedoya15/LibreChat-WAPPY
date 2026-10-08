@@ -209,20 +209,8 @@ async function main() {
 
   // Asegurar herramientas específicas de post-sincronización
   await Agent.updateOne({ name: 'Psicólogo SST' }, { $addToSet: { tools: { $each: ['consultar_analitica_psicosocial', 'canvas'] } } });
-  await Agent.updateOne({ name: 'Coordinador de Seguridad Vial' }, { $addToSet: { tools: { $each: ['canvas', 'context'] } } });
-  await Agent.updateOne({ name: 'Ingeniero Químico SST' }, { $addToSet: { tools: 'canvas' } });
-
-  // Pull deactivated tools from all agents in the database
-  try {
-    const pullRes = await Agent.updateMany({}, {
-      $pull: {
-        tools: { $in: ['matriz_pesv', 'matriz_compatibilidad', 'editor_live'] }
-      }
-    });
-    console.log(`🧹 Removidas herramientas desactivadas (matriz_pesv, matriz_compatibilidad, editor_live) de todos los agentes en la BD: ${pullRes.modifiedCount} modificados.`);
-  } catch (err) {
-    console.error('⚠️ Error eliminando herramientas desactivadas:', err);
-  }
+  await Agent.updateOne({ name: 'Coordinador de Seguridad Vial' }, { $addToSet: { tools: { $each: ['matriz_pesv', 'canvas', 'context'] } } });
+  await Agent.updateOne({ name: 'Ingeniero Químico SST' }, { $addToSet: { tools: { $each: ['matriz_compatibilidad', 'canvas'] } } });
 
   console.log('\n✅ Sincronización de agentes forzada correctamente.');
   await mongoose.disconnect();

@@ -575,32 +575,11 @@ class CanvasTool extends Tool {
       }
 
       // ── CREAR / ACTUALIZAR ──────────────────────────────────────────────────
-      // Validación preventiva anti-ejecución espuria de Canvas:
-      // Canvas solo se puede crear si el usuario solicita explícitamente un archivo, lienzo o descargable.
       if (accion === 'crear') {
-        const isVoiceCall = Boolean(this.req?.isVoiceSession || this.req?.body?.isVoiceSession);
-
-        if (!isVoiceCall) {
-          const rawUserPrompt =
-            this.req?.body?.text ||
-            this.req?.body?.userRequestText ||
-            (Array.isArray(this.req?.body?.messages) && this.req.body.messages.length > 0
-              ? this.req.body.messages[this.req.body.messages.length - 1]?.text ||
-                this.req.body.messages[this.req.body.messages.length - 1]?.content ||
-                ''
-              : '');
-          const userPromptLower = (typeof rawUserPrompt === 'string' ? rawUserPrompt : '').toLowerCase().trim();
-
-          const hasCanvasCreationIntent =
-            /\b(canvas|lienzo|informe|reporte|documento|formato|gu[ií]a|protocolo|ficha|pol[ií]tica|matriz|en\s+word|archivo\s+en\s+word|documento\s+en\s+word|descargable|en\s+excel|hoja\s+de\s+c[aá]lculo|archivo\s+en\s+excel|grilla|diapositiva|diapositivas|presentaci[oó]n|slides|powerpoint|aplicativo|calculadora\s+interactiva|simulador|c[oó]digo\s+html|prototipo|crea(r)?\s+(un\s+)?(archivo|documento|informe|reporte|lienzo)|realiza(r)?\s+(un\s+)?(informe|documento|reporte)|p[aá]sa(me)?\s+(un\s+)?(informe|documento|reporte)|haz(me)?\s+(un\s+)?(informe|documento|reporte)|genera(r)?\s+(un\s+)?(archivo|informe|documento)|[aá]breme\s+(un\s+)?(canvas|lienzo))\b/i.test(userPromptLower);
-
-          // Si la petición no tiene ninguna intención explícita de archivo/lienzo/informe, rechazar de inmediato
-          if (!hasCanvasCreationIntent && userPromptLower.length > 0) {
-            logger.warn(`[CanvasTool] Rechazo preventivo de 'crear' Canvas: El usuario no solicitó crear un archivo ni lienzo. Consulta: "${userPromptLower.substring(0, 100)}..."`);
-            return JSON.stringify({
-              error: 'CANVAS NO AUTORIZADO: El usuario formuló una consulta o concepto técnico en el chat sin solicitar explícitamente un archivo descargable ni un lienzo en Canvas. Responde DIRECTAMENTE en el cuerpo del chat en formato Markdown estructurado, profesional y conciso, sin utilizar la herramienta Canvas.',
-            });
-          }
+        if (!content || (typeof content === 'string' && !content.trim())) {
+          return JSON.stringify({
+            error: 'No se puede crear un Canvas vacío. Debes proporcionar el contenido del archivo o aplicativo.',
+          });
         }
       }
 

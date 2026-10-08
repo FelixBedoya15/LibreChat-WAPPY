@@ -377,17 +377,6 @@ router.post('/sync', requireJwtAuth, async (req, res) => {
       logger.error('[SyncAgents] Error updating tools for Ingeniero Químico SST:', err);
     }
 
-    // Pull deactivated tools from all agents
-    try {
-      await Agent.updateMany({}, {
-        $pull: {
-          tools: { $in: ['matriz_pesv', 'matriz_compatibilidad', 'editor_live'] }
-        }
-      });
-      logger.info('[SyncAgents] Successfully removed deactivated tools (matriz_pesv, matriz_compatibilidad, editor_live) from all agents in database');
-    } catch (err) {
-      logger.error('[SyncAgents] Error pulling deactivated tools:', err);
-    }
 
     return res.json({
       success: true,
@@ -553,38 +542,26 @@ router.post('/cleanup-and-sync', requireJwtAuth, async (req, res) => {
       logger.error('[CleanupSync] Error adding actos_condiciones tool to agent:', err);
     }
 
-    // Ensure the Road Safety agent has canvas and context tools
+    // Ensure the Road Safety agent has matriz_pesv, canvas and context tools
     try {
       await Agent.findOneAndUpdate(
-        { name: 'Especialista en Riesgo Vial' },
-        { $addToSet: { tools: { $each: ['canvas', 'context'] } } }
+        { name: { $in: ['Coordinador de Seguridad Vial', 'Especialista en Riesgo Vial'] } },
+        { $addToSet: { tools: { $each: ['matriz_pesv', 'canvas', 'context'] } } }
       );
-      logger.info('[CleanupSync] Added canvas and context tools to Especialista en Riesgo Vial');
+      logger.info('[CleanupSync] Added matriz_pesv, canvas and context tools to Coordinador de Seguridad Vial');
     } catch (err) {
       logger.error('[CleanupSync] Error adding road safety tools to agent:', err);
     }
 
-    // Ensure the Chemical Risk agent has canvas
+    // Ensure the Chemical Risk agent has matriz_compatibilidad and canvas
     try {
       await Agent.findOneAndUpdate(
-        { name: 'Especialista en Riesgo Químico' },
-        { $addToSet: { tools: 'canvas' } }
+        { name: { $in: ['Ingeniero Químico SST', 'Especialista en Riesgo Químico'] } },
+        { $addToSet: { tools: { $each: ['matriz_compatibilidad', 'canvas'] } } }
       );
-      logger.info('[CleanupSync] Updated tools to include canvas for Especialista en Riesgo Químico');
+      logger.info('[CleanupSync] Updated tools to include matriz_compatibilidad and canvas for Ingeniero Químico SST');
     } catch (err) {
-      logger.error('[CleanupSync] Error updating tools for Especialista en Riesgo Químico:', err);
-    }
-
-    // Pull deactivated tools from all agents
-    try {
-      await Agent.updateMany({}, {
-        $pull: {
-          tools: { $in: ['matriz_pesv', 'matriz_compatibilidad', 'editor_live'] }
-        }
-      });
-      logger.info('[CleanupSync] Successfully removed deactivated tools (matriz_pesv, matriz_compatibilidad, editor_live) from all agents in database');
-    } catch (err) {
-      logger.error('[CleanupSync] Error pulling deactivated tools:', err);
+      logger.error('[CleanupSync] Error updating tools for Ingeniero Químico SST:', err);
     }
 
     return res.json({

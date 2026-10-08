@@ -230,9 +230,6 @@ const loadAgent = async ({ req, spec, agent_id, endpoint, model_parameters }) =>
       if (!agent.tools.includes('canvas')) {
         agent.tools.push('canvas');
       }
-      if (!agent.tools.includes('editor_live')) {
-        agent.tools.push('editor_live');
-      }
     }
 
     const gmailKeywords = ['enviar correo', 'envia correo', 'envía correo', 'enviar email', 'envia email', 'envía email', 'manda un correo', 'mandar correo', 'manda correo', 'notificar por correo', 'enviar por correo', 'gmail'];

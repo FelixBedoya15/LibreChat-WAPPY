@@ -1067,16 +1067,16 @@ const startServer = async () => {
       const { Agent } = require('../db/models');
       if (Agent) {
         await Agent.findOneAndUpdate(
-          { name: 'Especialista en Riesgo Vial' },
-          { $addToSet: { tools: { $each: ['canvas', 'context'] } } }
+          { name: { $in: ['Coordinador de Seguridad Vial', 'Especialista en Riesgo Vial'] } },
+          { $addToSet: { tools: { $each: ['matriz_pesv', 'canvas', 'context'] } } }
         );
-        logger.info('[Startup] Automatically updated tools for Especialista en Riesgo Vial');
+        logger.info('[Startup] Automatically updated tools for Coordinador de Seguridad Vial');
 
         await Agent.findOneAndUpdate(
-          { name: 'Especialista en Riesgo Químico' },
-          { $addToSet: { tools: { $each: ['canvas'] } } }
+          { name: { $in: ['Ingeniero Químico SST', 'Especialista en Riesgo Químico'] } },
+          { $addToSet: { tools: { $each: ['matriz_compatibilidad', 'canvas'] } } }
         );
-        logger.info('[Startup] Automatically updated tools for Especialista en Riesgo Químico');
+        logger.info('[Startup] Automatically updated tools for Ingeniero Químico SST');
 
         // Add NotebookLM MCP tools to ALL agents (format: <toolName>_mcp_<serverName>)
         const notebooklmTools = [
@@ -1097,14 +1097,6 @@ const startServer = async () => {
           { $addToSet: { tools: { $each: notebooklmTools } } }
         );
         logger.info(`[Startup] Added NotebookLM MCP tools to ${notebooklmResult.modifiedCount} agents`);
-
-        // Pull deactivated tools from all agents
-        await Agent.updateMany({}, {
-          $pull: {
-            tools: { $in: ['matriz_pesv', 'matriz_compatibilidad', 'editor_live'] }
-          }
-        });
-        logger.info('[Startup] Successfully removed deactivated tools (matriz_pesv, matriz_compatibilidad, editor_live) from all agents');
       }
     } catch (err) {
       logger.error('[Startup] Failed to automatically update agent tools:', err);

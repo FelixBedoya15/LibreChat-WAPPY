@@ -248,7 +248,7 @@ function ChatView({ index = 0 }: { index?: number }) {
                       <MatrizCompatibilidadTable conversationId={conversation?.conversationId ?? null} />
                     </div>
                   )}
-                  {isEditorLiveActive && !isIPEVARActive && (
+                  {isEditorLiveActive && !isIPEVARActive && !isCanvasActive && (
                     <div className={cn(
                       'h-full flex-shrink-0 border-l border-border-medium shadow-l bg-surface-primary',
                       isMobileScreen()
@@ -267,7 +267,7 @@ function ChatView({ index = 0 }: { index?: number }) {
                       />
                     </div>
                   )}
-                  {isCanvasActive && !isIPEVARActive && !isEditorLiveActive && (
+                  {isCanvasActive && !isIPEVARActive && (
                     <div className={cn(
                       'h-full flex-shrink-0 border-l border-border-medium shadow-l bg-surface-primary',
                       isMobileScreen()
