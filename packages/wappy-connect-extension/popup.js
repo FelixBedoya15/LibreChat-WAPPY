@@ -69,37 +69,60 @@ async function fetchGoogleCookies() {
     googleStatusEl.className = 'status-badge checking';
     googleStatusEl.innerHTML = '<span class="dot"></span> Verificando...';
 
-    // Consultar cookies de .google.com y notebooklm.google.com
-    const [domainCookies, urlCookies] = await Promise.all([
+    // Consultar cookies de .google.com, notebooklm.google.com y notebook.google.com
+    const [domainGoogle, domainNblm, domainNb, urlNblm, urlNb] = await Promise.all([
       chrome.cookies.getAll({ domain: 'google.com' }),
+      chrome.cookies.getAll({ domain: 'notebooklm.google.com' }),
+      chrome.cookies.getAll({ domain: 'notebook.google.com' }),
       chrome.cookies.getAll({ url: 'https://notebooklm.google.com' }),
+      chrome.cookies.getAll({ url: 'https://notebook.google.com' }),
     ]);
 
-    const allRaw = [...(domainCookies || []), ...(urlCookies || [])];
+    const allRaw = [
+      ...(domainGoogle || []),
+      ...(domainNblm || []),
+      ...(domainNb || []),
+      ...(urlNblm || []),
+      ...(urlNb || []),
+    ];
     const cookieMap = new Map();
 
-    // Filtro de cookies esenciales para autenticación de Google
+    // Filtro amplio de cookies esenciales y de origen para autenticación de Google NotebookLM
     const targetNames = new Set([
+      'OSID',
+      '__Secure-OSID',
       '__Secure-1PSID',
       '__Secure-1PSIDTS',
+      '__Secure-1PSIDCC',
       '__Secure-3PSID',
       '__Secure-3PSIDTS',
+      '__Secure-3PSIDCC',
+      '__Secure-1PAPISID',
+      '__Secure-3PAPISID',
       'SID',
+      'SIDCC',
       'HSID',
       'SSID',
       'APISID',
       'SAPISID',
       'NID',
       'SNID',
+      'AEC',
+      'SOCS',
+      'S',
     ]);
 
     for (const c of allRaw) {
+      if (!c || !c.name || !c.value) continue;
       if (targetNames.has(c.name)) {
         let sameSite = c.sameSite || 'Lax';
         if (sameSite === 'no_restriction' || sameSite === 'unspecified') {
           sameSite = 'Lax';
         }
-        cookieMap.set(c.name, {
+
+        // Clave compuesta por nombre, dominio y ruta para no pisar cookies entre dominios
+        const mapKey = `${c.name}::${c.domain || '.google.com'}::${c.path || '/'}`;
+        cookieMap.set(mapKey, {
           name: c.name,
           value: c.value,
           domain: c.domain || '.google.com',
@@ -114,9 +137,10 @@ async function fetchGoogleCookies() {
     const filtered = Array.from(cookieMap.values());
     detectedCookies = filtered;
 
-    const hasPsid = cookieMap.has('__Secure-1PSID');
-    const hasSid = cookieMap.has('SID');
-    const hasPsidts = cookieMap.has('__Secure-1PSIDTS');
+    const hasPsid = filtered.some((c) => c.name === '__Secure-1PSID');
+    const hasSid = filtered.some((c) => c.name === 'SID');
+    const hasPsidts = filtered.some((c) => c.name === '__Secure-1PSIDTS');
+    const hasOsid = filtered.some((c) => c.name === 'OSID' || c.name === '__Secure-OSID');
 
     if ((hasPsid || hasPsidts) && hasSid) {
       googleStatusEl.className = 'status-badge connected';
@@ -124,11 +148,13 @@ async function fetchGoogleCookies() {
 
       googleDetailsEl.innerHTML = `
         <span>✓ <strong>${filtered.length} cookies</strong> listas para sincronizar.</span>
-        <div>
+        <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px;">
           <span class="cookie-tag">SID</span>
           <span class="cookie-tag">__Secure-1PSID</span>
+          ${hasOsid ? '<span class="cookie-tag" style="background: rgba(13, 148, 136, 0.4); color: #2dd4bf;">OSID ✓</span>' : '<span class="cookie-tag" style="background: rgba(245, 158, 11, 0.3); color: #fcd34d;">Sin OSID</span>'}
           ${hasPsidts ? '<span class="cookie-tag">1PSIDTS</span>' : ''}
         </div>
+        ${!hasOsid ? '<p style="font-size: 10px; color: #fcd34d; margin-top: 5px;">⚠️ Abre una pestaña en <a href="https://notebooklm.google.com" target="_blank" style="color: #38bdf8;">notebooklm.google.com</a> para capturar el token de origen (OSID).</p>' : ''}
       `;
 
       loginCtaEl.style.display = 'none';
