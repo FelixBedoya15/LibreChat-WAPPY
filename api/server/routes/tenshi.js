@@ -439,6 +439,10 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
    - Eres la Directora de Orquesta Central de WAPPY.
    - SI EL USUARIO SOLO HACE LA PREGUNTA O CONSULTA TÉCNICA (ej: dolor lumbar, cómo calificar un accidente, qué hacer con el benceno, qué vientos son seguros para alturas, etc.): TENSHI ACTIVA DE INMEDIATO SU SKILL CON EL ROL DE AGENTE EXPERTO CORRESPONDIENTE (Médico Laboral, Abogado Laboral, Ingeniero Químico SST, Especialista en Alturas y Clima, etc.) y responde él mismo de forma integral, técnica y fundamentada usando sus herramientas y base de datos, sin desviar al usuario ni abrir un chat innecesario.
    - SI EL USUARIO PIDE EXPLÍCITAMENTE CONECTARSE O LLAMAR A UN AGENTE (ej: "conéctame con el médico", "llama al abogado", "pásame al especialista", "quiero el dictamen del médico laboral"): Tenshi tiene restaurada al 100% su capacidad para invocar 'consultar_agente_especializado' (para obtener su dictamen técnico en segundo plano y explicarlo en el chat de Tenshi) o invocar 'wappy_abrir_chat_agente' si el usuario pide ver el chat dedicado o nuevo chat en pantalla ("abre un chat con X").
+   - ESTUDIO DE PUESTO DE TRABAJO ERGONÓMICO EN VIVO CON LA FISIOTERAPEUTA ('wappy_iniciar_estudio_ergonomico_vivo'):
+     * SIEMPRE que el usuario te diga: "necesito realizar un estudio de puesto de trabajo ergonómico", "quiero hacer un estudio de puesto de trabajo", "hagamos una evaluación ergonómica", "análisis ergonómico en vivo", "llévame al estudio ergonómico con la fisio":
+     * INVOCA DE INMEDIATO 'wappy_iniciar_estudio_ergonomico_vivo'.
+     * Esta herramienta abrirá automáticamente el Análisis en Vivo por Cámara y Voz con la Fisioterapeuta Laboral (con exoesqueleto 3D MediaPipe, protocolo de 3 fases, matriz CIE-11 y 12 ejercicios de pausas activas), y al finalizar dejará el informe oficial tanto en el chat principal como en tu propio chat de Tenshi listo para ver en pantalla o descargar.
    - NUEVAS APIS ESPECIALIZADAS DE AGENTES:
      * 'wappy_consultar_quimico_pubchem': Consulta oficial a PubChem (NIH) para CID, pictogramas SGA, palabra de advertencia (Peligro/Atención) y frases de peligro H y consejos P (Decreto 1496 de 2018).
      * 'wappy_geocodificar_emergencias': Consulta a OpenStreetMap Nominatim para geolocalizar direcciones y ubicar recursos asistenciales cercanos (hospitales, clínicas, bomberos, defensa civil) para el Plan de Emergencias.
@@ -1582,9 +1586,28 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyIniciarEstudioErgonomicoVivoDeclaration = {
+                name: 'wappy_iniciar_estudio_ergonomico_vivo',
+                description: 'Inicia y abre de inmediato el Análisis Biomecánico y Estudio de Puesto de Trabajo Ergonómico EN VIVO por cámara y voz con la Fisioterapeuta Laboral (con exoesqueleto MediaPipe 3D, protocolo de 3 fases, matriz CIE-11 y 12 ejercicios de pausas activas ExerciseDB). INVÓCALA SIEMPRE que el usuario diga que necesita, quiere o desea realizar un estudio de puesto de trabajo ergonómico o evaluación ergonómica.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        trabajador: {
+                            type: 'STRING',
+                            description: 'Nombre del trabajador a evaluar si el usuario lo mencionó (opcional).'
+                        },
+                        cargo: {
+                            type: 'STRING',
+                            description: 'Cargo o puesto de trabajo a evaluar si el usuario lo mencionó (opcional).'
+                        }
+                    }
+                }
+            };
+
             // Assemble base tools and dynamically triggered tools (strictly excluding Group 7)
             const baseFunctionDeclarations = [
                 wappyNavegarDeclaration,
+                wappyIniciarEstudioErgonomicoVivoDeclaration,
                 somosSSTDeclaration,
                 wappyCrearInformeDeclaration,
                 wappyGenerarQrDeclaration,
@@ -1850,6 +1873,13 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         args: call.args
                                     };
                                     break;
+                                } else if (call.name === 'wappy_iniciar_estudio_ergonomico_vivo') {
+                                    requestedGuiAction = {
+                                        name: 'wappy_iniciar_estudio_ergonomico_vivo',
+                                        accion: 'iniciar_estudio_ergonomico_vivo',
+                                        args: call.args || {}
+                                    };
+                                    break;
                                 } else if (call.name === 'operar_interfaz_visual') {
                                     const guiCalls = calls.filter(c => c.name === 'operar_interfaz_visual');
                                     requestedGuiActions = guiCalls.map(c => ({
@@ -2038,7 +2068,27 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             responseText = oaiRes.data.choices[0].message.content;
         }
 
-        if (responseText && !requestedGuiAction && (!requestedGuiActions || requestedGuiActions.length === 0)) {
+        const lastUserText = (messages[messages.length - 1]?.content || '').trim();
+        const lastUserLower = lastUserText.toLowerCase();
+        if (
+            !requestedGuiAction &&
+            (!requestedGuiActions || requestedGuiActions.length === 0) &&
+            !lastUserText.startsWith('[RESULTADO_GUI]') &&
+            /\b(estudio\s+de\s+puesto|evaluaci[oó]n\s+ergon[oó]mica|an[aá]lisis\s+ergon[oó]mico|an[aá]lisis\s+biomec[aá]nico|estudio\s+ergon[oó]mico|inspecci[oó]n\s+ergon[oó]mica|puesto\s+de\s+trabajo\s+ergon[oó]mico)/i.test(lastUserLower) &&
+            /\b(necesito|quiero|deseo|hacer|realizar|iniciar|empezar|hazme|hagamos|ll[eé]vame|abrir|abre|en\s+vivo|con\s+la\s+fisio)/i.test(lastUserLower)
+        ) {
+            requestedGuiAction = {
+                name: 'wappy_iniciar_estudio_ergonomico_vivo',
+                accion: 'iniciar_estudio_ergonomico_vivo',
+                args: {}
+            };
+        }
+
+        if (requestedGuiAction?.name === 'wappy_iniciar_estudio_ergonomico_vivo') {
+            responseText = '¡De una! Te llevo en este instante al **Análisis Biomecánico y Estudio de Puesto de Trabajo Ergonómico en Vivo** con nuestra **Fisioterapeuta Laboral** (con cámara, exoesqueleto MediaPipe 3D y protocolo de 3 fases). Al finalizar la evaluación, el informe técnico oficial quedará tanto en el chat principal como aquí mismo en tu chat de Tenshi listo para ver en pantalla o descargar.';
+        }
+
+        if (responseText && (!requestedGuiAction || requestedGuiAction.name === 'wappy_iniciar_estudio_ergonomico_vivo') && (!requestedGuiActions || requestedGuiActions.length === 0)) {
             await TenshiMessage.create({
                 user: req.user.id,
                 role: 'assistant',

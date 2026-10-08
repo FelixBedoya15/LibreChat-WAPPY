@@ -691,6 +691,23 @@ class VoiceSession {
                             }
                         },
                         {
+                            name: "wappy_iniciar_estudio_ergonomico_vivo",
+                            description: "Inicia y abre de inmediato el Análisis Biomecánico y Estudio de Puesto de Trabajo Ergonómico EN VIVO por cámara y voz con la Fisioterapeuta Laboral (con exoesqueleto MediaPipe 3D, protocolo de 3 fases, matriz CIE-11 y 12 ejercicios de pausas activas ExerciseDB). INVÓCALA SIEMPRE que el usuario te diga que necesita, quiere o desea realizar/hacer un estudio de puesto de trabajo ergonómico, evaluación ergonómica en vivo o análisis biomecánico.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    trabajador: {
+                                        type: "string",
+                                        description: "Nombre del trabajador a evaluar si el usuario lo mencionó (opcional)."
+                                    },
+                                    cargo: {
+                                        type: "string",
+                                        description: "Cargo o puesto de trabajo a evaluar si el usuario lo mencionó (opcional)."
+                                    }
+                                }
+                            }
+                        },
+                        {
                             name: "google_drive",
                             description: "Permite interactuar directamente con el Google Drive del usuario: buscar y listar archivos y carpetas (matrices GTC45, reglamentos, actas, inspecciones, etc.) o leer el contenido de documentos (Excel .xlsx/.xls, Word .docx, PDFs, Google Docs, Google Sheets). INVÓCALA SIEMPRE que el usuario te pida entrar, revisar, ver, buscar o consultar archivos de su Google Drive.",
                             parameters: {
@@ -1753,6 +1770,10 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
    - AUTONOMÍA TOTAL CON ROL DE AGENTE EXPERTO VS LLAMADO DE AGENTES:
      * SI EL USUARIO SOLO HACE LA PREGUNTA O CONSULTA TÉCNICA (ej: dolor lumbar, cómo calificar un accidente, qué hacer con el benceno, qué vientos son seguros para alturas, etc.): TENSHI ACTIVA DE INMEDIATO SU SKILL CON EL ROL DE AGENTE EXPERTO CORRESPONDIENTE (Médico Laboral, Abogado Laboral, Ingeniero Químico SST, Especialista en Alturas y Clima, etc.) y responde él mismo de forma integral, técnica y fundamentada usando sus herramientas y base de datos, sin desviar al usuario ni abrir un chat innecesario.
      * SI EL USUARIO PIDE EXPLÍCITAMENTE CONECTARSE O LLAMAR A UN AGENTE (ej: "conéctame con el médico", "llama al abogado", "pásame al especialista", "quiero el dictamen del médico laboral"): Tenshi tiene restaurada al 100% su capacidad para invocar 'consultar_agente_especializado' (para obtener su dictamen técnico en segundo plano y explicarlo en el chat de Tenshi) o invocar 'wappy_abrir_chat_agente' si el usuario pide ver el chat dedicado o nuevo chat en pantalla ("abre un chat con X").
+     * ESTUDIO DE PUESTO DE TRABAJO ERGONÓMICO EN VIVO CON LA FISIOTERAPEUTA ('wappy_iniciar_estudio_ergonomico_vivo'):
+       - SIEMPRE que el usuario te diga: "necesito realizar un estudio de puesto de trabajo ergonómico", "quiero hacer un estudio de puesto de trabajo", "hagamos una evaluación ergonómica", "análisis ergonómico en vivo", "llévame al estudio ergonómico con la fisio":
+       - INVOCA DE INMEDIATO 'wappy_iniciar_estudio_ergonomico_vivo'.
+       - Esta herramienta abrirá automáticamente el Análisis en Vivo por Cámara y Voz con la Fisioterapeuta Laboral (con exoesqueleto 3D MediaPipe, protocolo de 3 fases, matriz CIE-11 y 12 ejercicios de pausas activas), y al finalizar dejará el informe oficial tanto en el chat principal como en tu propio chat de Tenshi listo para ver en pantalla o descargar.
    - NUEVAS APIS EXTERNAS ESPECIALIZADAS DE AGENTES:
      * 'wappy_consultar_quimico_pubchem': Invocación de la API de PubChem (NIH) para buscar compuestos químicos por nombre, obtener su CID y extraer la clasificación oficial GHS/SGA con pictogramas, señal (Peligro/Atención), frases de peligro H y consejos de prudencia P según el Decreto 1496 de 2018.
      * 'wappy_geocodificar_emergencias': Invocación de OpenStreetMap Nominatim para geolocalizar sedes y ubicar recursos asistenciales cercanos (hospitales, clínicas de trauma, estaciones de bomberos, defensa civil) para el Plan de Preparación y Respuesta ante Emergencias (Decreto 1072 de 2015).
@@ -3530,7 +3551,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         fc.name === 'wappy_mcp_sst' ||
                         fc.name in TOOL_ROUTES ||
                         (fc.name.startsWith('wappy_') &&
-                            !['wappy_navegar', 'wappy_seleccionar_empresa', 'wappy_diligenciar_formulario', 'wappy_abrir_chat_agente'].includes(fc.name));
+                            !['wappy_navegar', 'wappy_seleccionar_empresa', 'wappy_diligenciar_formulario', 'wappy_abrir_chat_agente', 'wappy_iniciar_estudio_ergonomico_vivo'].includes(fc.name));
 
                     if (isMcpCall) {
                         const targetTool = fc.name === 'wappy_mcp_sst' ? (fc.args?.herramienta || fc.args?.tool) : fc.name;
@@ -3734,6 +3755,29 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                                     }
                                 }]);
                             }
+                        }
+                        continue;
+                    }
+
+                    // Iniciar Estudio de Puesto de Trabajo Ergonómico en Vivo con la Fisioterapeuta Laboral
+                    if (fc.name === 'wappy_iniciar_estudio_ergonomico_vivo') {
+                        logger.info(`[VoiceSession] Gemini Live invoked "wappy_iniciar_estudio_ergonomico_vivo" with args:`, JSON.stringify(fc.args));
+                        this.sendToClient({
+                            type: 'wappy_action',
+                            data: {
+                                id: fc.id,
+                                name: 'wappy_iniciar_estudio_ergonomico_vivo',
+                                args: fc.args || {}
+                            }
+                        });
+                        if (this.geminiClient) {
+                            this.sendGeminiToolResponse([{
+                                id: fc.id,
+                                name: fc.name,
+                                response: {
+                                    result: `Análisis en Vivo de Estudio de Puesto de Trabajo Ergonómico con la Fisioterapeuta Laboral abierto en pantalla. Confirma al usuario en 1 sola frase entusiasta que ya estás abriendo la cámara en vivo con la Fisioterapeuta Laboral y que al finalizar le dejarás el informe tanto en el chat principal como en tu chat de Tenshi.`
+                                }
+                            }]);
                         }
                         continue;
                     }
@@ -6146,6 +6190,32 @@ ${workerSubHeaderHtml}
 
                     this.reportGenerated = true;
 
+                    // ALSO persist the official report in Tenshi's own chat (TenshiMessage) so the user can view or download it directly from Tenshi's chat
+                    if (this.userId && reportHtml && reportHtml.length > 50) {
+                        try {
+                            const TenshiMessage = require('~/models/TenshiMessage');
+                            const workerNameForTenshi = (this.extractedWorkerMeta && this.extractedWorkerMeta.workerName) || this.user?.name || 'Colaborador';
+                            const tenshiReportTitle = this.isBiomechanics
+                                ? `Informe de Estudio de Puesto de Trabajo Ergonómico — ${workerNameForTenshi}`
+                                : `Informe Técnico Oficial SST — ${workerNameForTenshi}`;
+                            await TenshiMessage.create({
+                                user: this.userId,
+                                role: 'assistant',
+                                content: `🩺 **${tenshiReportTitle}**\n\nHe registrado el informe oficial de tu **Estudio de Puesto de Trabajo Ergonómico en Vivo** realizado con la Fisioterapeuta Laboral (con las 3 fases posturales, telemetría MediaPipe 3D, matriz diagnóstica CIE-11 y 12 ejercicios de pausas activas ExerciseDB). Puedes **verlo en pantalla** o **descargarlo** directamente desde aquí:`,
+                                htmlReport: reportHtml,
+                                file: {
+                                    title: tenshiReportTitle,
+                                    fileType: 'html',
+                                    content: reportHtml,
+                                    canvasId: `tenshi-ept-report-${Date.now()}`,
+                                },
+                            });
+                            logger.info(`[VoiceSession] Report also persisted in TenshiMessage for user: ${this.userId}`);
+                        } catch (tenshiSaveErr) {
+                            logger.warn('[VoiceSession] Could not persist report in TenshiMessage:', tenshiSaveErr.message);
+                        }
+                    }
+
                     // CRITICAL: Notify client to invalidate queries so the report appears immediately in the chat!
                     this.sendToClient({
                         type: 'conversationUpdated',
@@ -6156,7 +6226,7 @@ ${workerSubHeaderHtml}
                     if (this.geminiClient && this.isActive) {
                         logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
                         try {
-                            this.geminiClient.sendText('INSTRUCCIÓN: El informe técnico ergonómico oficial acaba de ser generado y ya está cargado en el editor de la pantalla del usuario. Avisa al usuario verbalmente en 1 sola frase breve y entusiasta: "Listo, tu informe técnico ha sido generado con éxito y ya está disponible en tu pantalla. Puedes revisarlo ahora mismo." PROHIBIDO LEER O INVENTAR EL CONTENIDO DEL INFORME.');
+                            this.geminiClient.sendText('INSTRUCCIÓN: El informe técnico ergonómico oficial acaba de ser generado y ya está cargado en el editor de la pantalla del usuario y también guardado en el chat de Tenshi. Avisa al usuario verbalmente en 1 sola frase breve y entusiasta: "Listo, tu informe técnico ha sido generado con éxito y ya está disponible tanto en tu pantalla como en el chat de Tenshi para verlo o descargarlo." PROHIBIDO LEER O INVENTAR EL CONTENIDO DEL INFORME.');
                         } catch (announceErr) {
                             logger.warn('[VoiceSession] Could not send report announcement to Gemini:', announceErr.message);
                         }
@@ -6243,6 +6313,23 @@ ${workerSubHeaderHtml}
         const isConversationalCheck = /^(¿?\s*(me\s+escuchas?|me\s+o[yi]es?|est[aá]s\s+ah[ií]|qu[eé]\s+dijo|qu[eé]\s+respondi[oó]|ya\s+respondi[oó]|hola|buenas|gracias|ok|listo|entendido)\s*\??)$/i.test(userLower);
         if (isConversationalCheck) {
             logger.debug(`[VoiceSession] [Tenshi Voice Failsafe] Ignorando frase puramente conversacional: "${userLower}"`);
+            return;
+        }
+
+        // 0.5. Failsafe prioritario para iniciar Estudio de Puesto de Trabajo Ergonómico en Vivo con la Fisioterapeuta
+        const liveEptMatch =
+            /\b(estudio\s+de\s+puesto|evaluaci[oó]n\s+ergon[oó]mica|an[aá]lisis\s+ergon[oó]mico|an[aá]lisis\s+biomec[aá]nico|estudio\s+ergon[oó]mico|inspecci[oó]n\s+ergon[oó]mica|puesto\s+de\s+trabajo\s+ergon[oó]mico)/i.test(userLower) &&
+            /\b(necesito|quiero|deseo|hacer|realizar|iniciar|empezar|hazme|hagamos|ll[eé]vame|abrir|abre|en\s+vivo|con\s+la\s+fisio)/i.test(userLower);
+        if (liveEptMatch) {
+            logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Disparando wappy_iniciar_estudio_ergonomico_vivo para: "${userText}"`);
+            this.sendToClient({
+                type: 'wappy_action',
+                data: {
+                    id: `failsafe-live-ept-${Date.now()}`,
+                    name: 'wappy_iniciar_estudio_ergonomico_vivo',
+                    args: {}
+                }
+            });
             return;
         }
 

@@ -408,17 +408,28 @@ const VoiceModal: FC<VoiceModalProps> = ({
             manualPhotosCountRef.current = 0;
             setManualCapturedPhotos([]);
             if (html && html.length > 30 && !html.includes('⚠️ Error de Generación')) {
+                const reportTitle = isBiomechanicsAgent 
+                    ? 'Informe Técnico de Ergonomía y Biomecánica' 
+                    : 'Informe Técnico de Evaluación SST';
                 setStreamingCanvas({
                     id: messageId || `report-${Date.now()}`,
-                    title: isBiomechanicsAgent 
-                        ? 'Informe Técnico de Ergonomía y Biomecánica' 
-                        : 'Informe Técnico de Evaluación SST',
+                    title: reportTitle,
                     fileType: 'text',
                     content: html,
                     messageId: messageId || '',
                     isStreaming: false,
                 });
                 setIsCanvasActive(true);
+                window.dispatchEvent(
+                    new CustomEvent('tenshi-report-delivered', {
+                        detail: {
+                            title: reportTitle,
+                            html,
+                            messageId: messageId || `report-${Date.now()}`,
+                            isBiomechanics: isBiomechanicsAgent,
+                        },
+                    }),
+                );
             }
             if (onReportGenerated && html && html.length > 30) {
                 onReportGenerated(html, messageId);

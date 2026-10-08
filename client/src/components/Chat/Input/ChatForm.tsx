@@ -387,6 +387,63 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     };
   }, [triggerTenshiSend]);
 
+  // Listener para iniciar Estudio de Puesto de Trabajo Ergonómico en Vivo con la Fisioterapeuta desde Tenshi
+  useEffect(() => {
+    const launchLiveEptModal = async (targetAgentId?: string) => {
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          if (!(window as any).sharedAudioContext24k) {
+            (window as any).sharedAudioContext24k = new AudioContextClass({ sampleRate: 24000 });
+          }
+          if ((window as any).sharedAudioContext24k.state === 'suspended') {
+            (window as any).sharedAudioContext24k.resume().catch(() => {});
+          }
+          if (!(window as any).sharedAudioContext16k) {
+            (window as any).sharedAudioContext16k = new AudioContextClass({ sampleRate: 16000 });
+          }
+          if ((window as any).sharedAudioContext16k.state === 'suspended') {
+            (window as any).sharedAudioContext16k.resume().catch(() => {});
+          }
+        }
+      } catch (_) {}
+
+      if (targetAgentId && conversation?.agent_id !== targetAgentId) {
+        try {
+          await onSelectAgent(targetAgentId);
+        } catch (err) {
+          console.warn('[ChatForm] Error seleccionando Fisioterapeuta para Live EPT:', err);
+        }
+      }
+      setShowVoiceModal(true);
+    };
+
+    const handleStartLiveEpt = (e: any) => {
+      const targetAgentId = e.detail?.agentId;
+      console.log('[ChatForm] wappy-start-live-ept recibido:', { targetAgentId });
+      launchLiveEptModal(targetAgentId);
+    };
+
+    // Verificar también si la URL trae live_ept=true al montar o cambiar de ruta
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('live_ept') === 'true') {
+      const urlAgentId = searchParams.get('agent_id') || undefined;
+      searchParams.delete('live_ept');
+      const cleanSearch = searchParams.toString();
+      window.history.replaceState(
+        {},
+        '',
+        `${window.location.pathname}${cleanSearch ? `?${cleanSearch}` : ''}`,
+      );
+      setTimeout(() => launchLiveEptModal(urlAgentId), 150);
+    }
+
+    window.addEventListener('wappy-start-live-ept', handleStartLiveEpt);
+    return () => {
+      window.removeEventListener('wappy-start-live-ept', handleStartLiveEpt);
+    };
+  }, [onSelectAgent, conversation?.agent_id, setShowVoiceModal]);
+
   const isMoreThanThreeRows = visualRowCount > 3;
 
   const baseClasses = useMemo(

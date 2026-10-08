@@ -1560,6 +1560,43 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             }, 450);
 
             resultMsg = `Navegación exitosa a ${targetRoute}`;
+          } else if (action.name === 'wappy_iniciar_estudio_ergonomico_vivo') {
+            const fisioAgent = findMatchingAgent('fisioterapeuta_laboral', agentsRef.current);
+            const targetAgentId = fisioAgent?.id;
+
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content:
+                  '🩺 **Iniciando Estudio de Puesto de Trabajo Ergonómico en Vivo**\n\nTe estoy conectando en vivo por cámara y voz con nuestra **Fisioterapeuta Laboral** (con exoesqueleto MediaPipe 3D y protocolo de 3 fases). Al finalizar la evaluación, te dejaré el informe técnico oficial tanto en el chat principal como aquí mismo en tu chat de Tenshi para verlo en pantalla o descargarlo.',
+              },
+            ]);
+
+            setTimeout(() => {
+              // Pausar micrófono de Tenshi para que VoiceModal de la Fisioterapeuta tome la cámara y micrófono sin colisión
+              stopVoiceMode();
+              if (checkIsMobile()) {
+                window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
+              }
+              const params = new URLSearchParams();
+              if (targetAgentId) {
+                params.set('agent_id', targetAgentId);
+              }
+              params.set('endpoint', EModelEndpoint.agents);
+              params.set('live_ept', 'true');
+              navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
+
+              setTimeout(() => {
+                window.dispatchEvent(
+                  new CustomEvent('wappy-start-live-ept', {
+                    detail: { agentId: targetAgentId },
+                  }),
+                );
+              }, 250);
+            }, 600);
+
+            resultMsg = 'Análisis en Vivo de Estudio de Puesto de Trabajo Ergonómico iniciado con la Fisioterapeuta Laboral.';
           } else if (action.name === 'wappy_abrir_chat_agente') {
             const rawAgente = (action.args?.agente || '').trim();
             const rawPregunta = (action.args?.pregunta || '').trim();
@@ -2892,6 +2929,32 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     return () => window.removeEventListener('open-tenshi-chat', handleOpen);
   }, [startVoiceMode]);
 
+  // Escuchar entrega de informes generados desde sesiones en vivo (ej. Estudio de Puesto de Trabajo con la Fisioterapeuta)
+  useEffect(() => {
+    const handleReportDelivered = (e: any) => {
+      const { title, html, messageId } = e.detail || {};
+      if (!html || html.length < 30) return;
+      const reportTitle = title || 'Informe de Estudio de Puesto de Trabajo Ergonómico';
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `🩺 **${reportTitle}**\n\nHe registrado el informe oficial de tu **Estudio de Puesto de Trabajo Ergonómico en Vivo** realizado con la Fisioterapeuta Laboral (con las 3 fases posturales, telemetría MediaPipe 3D, matriz diagnóstica CIE-11 y 12 ejercicios de pausas activas ExerciseDB). Puedes **verlo en pantalla** o **descargarlo** directamente desde aquí:`,
+          htmlReport: html,
+          file: {
+            title: reportTitle,
+            fileType: 'html',
+            content: html,
+            canvasId: messageId || `tenshi-ept-report-${Date.now()}`,
+          },
+        },
+      ]);
+      refetchHistoryRef.current?.();
+    };
+    window.addEventListener('tenshi-report-delivered', handleReportDelivered);
+    return () => window.removeEventListener('tenshi-report-delivered', handleReportDelivered);
+  }, []);
+
   useEffect(() => {
     if ((isOpen || isHeroChatOpen) && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -2971,13 +3034,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       const responseData = response.data;
       console.log('[Tenshi Frontend] Received response:', responseData);
 
+      const isLiveEptGui =
+        responseData.guiAction?.name === 'wappy_iniciar_estudio_ergonomico_vivo' ||
+        responseData.guiAction?.accion === 'iniciar_estudio_ergonomico_vivo';
+
       const assistantMsg = {
         role: 'assistant',
         content: responseData.response,
         htmlReport: responseData.htmlReport,
         qrCode: responseData.qrCode,
         file: responseData.file,
-        isIntermediate: !!responseData.guiAction || (responseData.guiActions && responseData.guiActions.length > 0),
+        isIntermediate:
+          !isLiveEptGui &&
+          (!!responseData.guiAction || (responseData.guiActions && responseData.guiActions.length > 0)),
       };
       setMessages((prev) => [...prev, assistantMsg]);
 
@@ -2990,6 +3059,38 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         let index = 0;
 
         for (const action of actions) {
+          if (
+            action.name === 'wappy_iniciar_estudio_ergonomico_vivo' ||
+            action.accion === 'iniciar_estudio_ergonomico_vivo'
+          ) {
+            const fisioAgent = findMatchingAgent('fisioterapeuta_laboral', agentsRef.current);
+            const targetAgentId = fisioAgent?.id;
+
+            stopVoiceMode();
+            if (checkIsMobile()) {
+              window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
+            }
+            const params = new URLSearchParams();
+            if (targetAgentId) {
+              params.set('agent_id', targetAgentId);
+            }
+            params.set('endpoint', EModelEndpoint.agents);
+            params.set('live_ept', 'true');
+            navigate(`/c/new?${params.toString()}`, { replace: true, state: { focusChat: true } });
+
+            setTimeout(() => {
+              window.dispatchEvent(
+                new CustomEvent('wappy-start-live-ept', {
+                  detail: { agentId: targetAgentId },
+                }),
+              );
+            }, 250);
+
+            setTenshiStatus('');
+            setIsTyping(false);
+            return;
+          }
+
           if (action.name === 'wappy_navegar' || action.accion === 'navegar') {
             const rawModulo = action.modulo || action.args?.modulo;
             const rawRuta = action.ruta || action.args?.ruta;
