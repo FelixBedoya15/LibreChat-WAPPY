@@ -178,7 +178,7 @@ export default function SkillSelectDialog({
         setSearchValue('');
         setIsEditing(false);
       }}
-      className="relative z-[102]"
+      className="relative z-[100050]"
     >
       {/* Backdrop */}
       <div className="fixed inset-0 bg-surface-primary opacity-60 transition-opacity dark:opacity-80" />

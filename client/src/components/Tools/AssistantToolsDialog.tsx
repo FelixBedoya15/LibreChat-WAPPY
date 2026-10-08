@@ -146,7 +146,7 @@ function AssistantToolsDialog({
         setCurrentPage(1);
         setSearchValue('');
       }}
-      className="relative z-[102]"
+      className="relative z-[100050]"
     >
       {/* The backdrop, rendered as a fixed sibling to the panel container */}
       <div className="fixed inset-0 bg-surface-primary opacity-60 transition-opacity dark:opacity-80" />
