@@ -37,7 +37,8 @@ import {
   Edit3,
   Trash2,
   Check,
-  RefreshCw
+  RefreshCw,
+  Activity
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -45,6 +46,7 @@ import { cn } from '~/utils';
 import AmbassadorContactModal, { TargetFollowUpUser, formatPlanBadge } from './AmbassadorContactModal';
 import CommercialProposalGenerator from './CommercialProposalGenerator';
 import AmbassadorKanbanBoard, { KanbanUser, CRM_STAGES } from './AmbassadorKanbanBoard';
+import UsersActivityMetricsTab from './UsersActivityMetricsTab';
 
 interface ReferredUser {
   id: string;
@@ -141,7 +143,7 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
     return true;
   });
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'commissions' | 'network' | 'proposals'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'activity' | 'commissions' | 'network' | 'proposals'>('overview');
 
   // Data states
   const [kpis, setKpis] = useState<DashboardKpis | null>(null);
@@ -1029,6 +1031,18 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
           </button>
 
           <button
+            onClick={() => setActiveTab('activity')}
+            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
+              activeTab === 'activity'
+                ? 'bg-teal-500/15 text-teal-700 dark:text-teal-400 border border-teal-500/30'
+                : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-500 shrink-0" />
+            <span>Métricas de Uso & Hitos SST</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('commissions')}
             className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
               activeTab === 'commissions'
@@ -1483,7 +1497,16 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
           </div>
         )}
 
-        {/* Tab 3: Commissions */}
+        {/* Tab 3: Users Activity & SST Milestones */}
+        {activeTab === 'activity' && (
+          <UsersActivityMetricsTab
+            isAdmin={isAdmin}
+            onOpenContactModal={(targetUser) => setContactUser(targetUser)}
+            selectedAmbassadorFilter={selectedAmbassadorFilter}
+          />
+        )}
+
+        {/* Tab 4: Commissions */}
         {activeTab === 'commissions' && (
           <div className="space-y-4 sm:space-y-6">
             <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm">

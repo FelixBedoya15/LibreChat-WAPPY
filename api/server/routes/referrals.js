@@ -1033,6 +1033,415 @@ router.get('/dashboard', async (req, res) => {
 });
 
 /**
+ * GET /api/referrals/users-activity-metrics
+ * Detailed tracking of all active users, their AI chat engagement, and SST milestones usage
+ */
+router.get('/users-activity-metrics', async (req, res) => {
+    try {
+        const userId = req.user.id || req.user._id;
+        const User = mongoose.model('User');
+        const userDoc = await User.findById(userId).lean();
+        const isAdmin = checkIsAdmin(req.user) || checkIsAdmin(userDoc);
+
+        const Partner = mongoose.model('Partner');
+        const ReferralRecord = mongoose.model('ReferralRecord');
+        const UserPlan = mongoose.model('UserPlan');
+
+        let partner = await Partner.findOne({ userId }).lean();
+        if (!partner && (userDoc?.username || req.user.username)) {
+            const uname = (userDoc?.username || req.user.username).toLowerCase();
+            partner = await Partner.findOne({ slug: uname }).lean();
+        }
+        const userRole = (userDoc?.role || req.user.role || '').toUpperCase();
+        const isEmbajador = !!partner || userRole === 'EMBAJADOR' || userRole === 'EMBAJADOR_LIDER';
+
+        if (!isAdmin && !isEmbajador) {
+            return res.status(403).json({ error: 'Acceso restringido a Administradores y Embajadores.' });
+        }
+
+        let targetUserIds = null;
+        const refMap = new Map();
+        const partnerMap = new Map();
+
+        if (!isAdmin) {
+            const partnerQuery = partner 
+                ? { $or: [{ referredByPartner: partner._id }, { referredByUser: userId }] }
+                : { referredByUser: userId };
+            const myRefs = await ReferralRecord.find(partnerQuery).lean();
+            targetUserIds = myRefs.map(r => r.referredUserId).filter(Boolean);
+            myRefs.forEach(r => {
+                if (r.referredUserId) refMap.set(String(r.referredUserId), r);
+            });
+        } else {
+            const allRefs = await ReferralRecord.find({}).lean();
+            allRefs.forEach(r => {
+                if (r.referredUserId) refMap.set(String(r.referredUserId), r);
+            });
+            const allPartners = await Partner.find({}).populate('userId', 'name email username').lean();
+            allPartners.forEach(p => partnerMap.set(String(p._id), p));
+        }
+
+        const userQuery = targetUserIds ? { _id: { $in: targetUserIds } } : {};
+        const users = await User.find(
+            userQuery,
+            'name email username phone phoneNumber role accountStatus createdAt updatedAt inactiveAt activeAt departamento ciudad department city'
+        ).sort({ createdAt: -1 }).lean();
+
+        if (!users || users.length === 0) {
+            return res.json({
+                users: [],
+                summary: {
+                    totalUsers: 0,
+                    activeThisMonth: 0,
+                    totalCompanies: 0,
+                    totalWorkers: 0,
+                    totalMatrices: 0,
+                    totalChats: 0,
+                    totalMessages: 0,
+                    avgAdoptionRate: 0,
+                    powerUsersCount: 0,
+                }
+            });
+        }
+
+        const userIds = users.map(u => u._id);
+        const userIdStrings = users.map(u => String(u._id));
+
+        // Load models safely
+        const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
+        const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+        const GTC45WorkspaceSession = mongoose.models.GTC45WorkspaceSession || require('~/models/GTC45WorkspaceSession');
+        const PESVWorkspaceSession = mongoose.models.PESVWorkspaceSession || require('~/models/PESVWorkspaceSession');
+        const DiagnosticoData = mongoose.models.DiagnosticoData || require('~/models/DiagnosticoData');
+        const SgsstChemicalData = mongoose.models.SgsstChemicalData || require('~/models/SgsstChemicalData');
+        const SgsstVehicleData = mongoose.models.SgsstVehicleData || require('~/models/SgsstVehicleData');
+        const SgsstEppData = mongoose.models.SgsstEppData || require('~/models/SgsstEppData');
+        const UserProgress = mongoose.models.UserProgress || require('~/models/UserProgress');
+        const Conversation = mongoose.models.Conversation || require('~/db/models').Conversation;
+        const Message = mongoose.models.Message || require('~/db/models').Message;
+
+        // Fetch UserPlans
+        const userPlans = await UserPlan.find({ userId: { $in: userIds } }).lean();
+        const planMap = new Map(userPlans.map(p => [String(p.userId), p]));
+
+        // Fetch phones from purchases as fallback
+        let purchasePhoneMap = new Map();
+        try {
+            const ComunidadPurchase = mongoose.models.ComunidadPurchase || (mongoose.modelNames().includes('ComunidadPurchase') ? mongoose.model('ComunidadPurchase') : null);
+            if (ComunidadPurchase) {
+                const userEmails = users.map(u => u.email).filter(Boolean);
+                const purchases = await ComunidadPurchase.find({ email: { $in: userEmails } }, 'email phone').lean();
+                purchasePhoneMap = new Map(purchases.filter(p => p.phone).map(p => [(p.email || '').toLowerCase(), p.phone]));
+            }
+        } catch (e) {
+            // Ignore optional purchases fetch
+        }
+
+        // Parallel aggregations for speed and minimal token/DB footprint
+        const [
+            companiesRes,
+            workersRes,
+            gtc45Res,
+            pesvRes,
+            diagRes,
+            chemRes,
+            vehRes,
+            eppRes,
+            lmsRes,
+            convosRes,
+            messagesRes,
+        ] = await Promise.allSettled([
+            CompanyInfo.aggregate([
+                { $match: { user: { $in: userIdStrings } } },
+                { $group: { _id: '$user', count: { $sum: 1 } } }
+            ]),
+            SgsstWorker.aggregate([
+                { $match: { user: { $in: userIds } } },
+                { $group: { _id: { $toString: '$user' }, count: { $sum: 1 } } }
+            ]),
+            GTC45WorkspaceSession.aggregate([
+                { $match: { $or: [{ user: { $in: userIds } }, { user: { $in: userIdStrings } }] } },
+                { $group: { _id: { $toString: '$user' }, count: { $sum: 1 }, totalRows: { $sum: { $size: { $ifNull: ['$matrixRows', []] } } } } }
+            ]),
+            PESVWorkspaceSession.aggregate([
+                { $match: { $or: [{ user: { $in: userIds } }, { user: { $in: userIdStrings } }] } },
+                { $group: { _id: { $toString: '$user' }, count: { $sum: 1 }, totalRows: { $sum: { $size: { $ifNull: ['$matrixRows', []] } } } } }
+            ]),
+            DiagnosticoData.aggregate([
+                { $match: { $or: [{ user: { $in: userIds } }, { user: { $in: userIdStrings } }] } },
+                { $group: { _id: { $toString: '$user' }, count: { $sum: 1 } } }
+            ]),
+            SgsstChemicalData.aggregate([
+                { $match: { user: { $in: userIds } } },
+                { $group: { _id: { $toString: '$user' }, count: { $sum: 1 }, totalProducts: { $sum: { $size: { $ifNull: ['$productos', []] } } } } }
+            ]),
+            SgsstVehicleData.aggregate([
+                { $match: { user: { $in: userIds } } },
+                { $group: { _id: { $toString: '$user' }, count: { $sum: 1 } } }
+            ]),
+            SgsstEppData.aggregate([
+                { $match: { user: { $in: userIds } } },
+                { $group: { _id: { $toString: '$user' }, count: { $sum: 1 } } }
+            ]),
+            UserProgress.aggregate([
+                { $match: { user: { $in: userIds } } },
+                { $group: { 
+                    _id: { $toString: '$user' }, 
+                    count: { $sum: 1 },
+                    completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } }
+                } }
+            ]),
+            Conversation.aggregate([
+                { $match: { user: { $in: userIdStrings } } },
+                { $group: { 
+                    _id: '$user', 
+                    count: { $sum: 1 }, 
+                    lastChat: { $max: '$updatedAt' } 
+                } }
+            ]),
+            Message.aggregate([
+                { $match: { user: { $in: userIdStrings } } },
+                { $group: { _id: '$user', count: { $sum: 1 } } }
+            ]),
+        ]);
+
+        const toCountMap = (res) => {
+            const map = new Map();
+            if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+                res.value.forEach(item => {
+                    if (item && item._id) map.set(String(item._id), Number(item.count) || 0);
+                });
+            }
+            return map;
+        };
+
+        const companiesMap = toCountMap(companiesRes);
+        const workersMap = toCountMap(workersRes);
+        const diagMap = toCountMap(diagRes);
+        const vehMap = toCountMap(vehRes);
+        const eppMap = toCountMap(eppRes);
+        const messagesMap = toCountMap(messagesRes);
+
+        const gtc45Map = new Map();
+        if (gtc45Res.status === 'fulfilled' && Array.isArray(gtc45Res.value)) {
+            gtc45Res.value.forEach(r => {
+                if (r && r._id) gtc45Map.set(String(r._id), { count: Number(r.count) || 0, rows: Number(r.totalRows) || 0 });
+            });
+        }
+
+        const pesvMap = new Map();
+        if (pesvRes.status === 'fulfilled' && Array.isArray(pesvRes.value)) {
+            pesvRes.value.forEach(r => {
+                if (r && r._id) pesvMap.set(String(r._id), { count: Number(r.count) || 0, rows: Number(r.totalRows) || 0 });
+            });
+        }
+
+        const chemMap = new Map();
+        if (chemRes.status === 'fulfilled' && Array.isArray(chemRes.value)) {
+            chemRes.value.forEach(r => {
+                if (r && r._id) chemMap.set(String(r._id), { count: Number(r.count) || 0, products: Number(r.totalProducts) || 0 });
+            });
+        }
+
+        const lmsMap = new Map();
+        if (lmsRes.status === 'fulfilled' && Array.isArray(lmsRes.value)) {
+            lmsRes.value.forEach(r => {
+                if (r && r._id) lmsMap.set(String(r._id), { count: Number(r.count) || 0, completed: Number(r.completed) || 0 });
+            });
+        }
+
+        const convosMap = new Map();
+        if (convosRes.status === 'fulfilled' && Array.isArray(convosRes.value)) {
+            convosRes.value.forEach(r => {
+                if (r && r._id) convosMap.set(String(r._id), { count: Number(r.count) || 0, lastChat: r.lastChat });
+            });
+        }
+
+        const now = new Date();
+        let totalAdoptionScores = 0;
+        let powerUsersCount = 0;
+
+        const usersMetricsList = users.map(u => {
+            const uId = String(u._id);
+            const plan = planMap.get(uId);
+            const refRec = refMap.get(uId);
+            const partnerDoc = refRec?.referredByPartner ? partnerMap.get(String(refRec.referredByPartner)) : null;
+
+            const companiesCount = companiesMap.get(uId) || 0;
+            const workersCount = workersMap.get(uId) || 0;
+            const gtcData = gtc45Map.get(uId) || { count: 0, rows: 0 };
+            const pesvData = pesvMap.get(uId) || { count: 0, rows: 0 };
+            const diagCount = diagMap.get(uId) || 0;
+            const chemData = chemMap.get(uId) || { count: 0, products: 0 };
+            const vehCount = vehMap.get(uId) || 0;
+            const eppCount = eppMap.get(uId) || 0;
+            const lmsData = lmsMap.get(uId) || { count: 0, completed: 0 };
+
+            const convoData = convosMap.get(uId) || { count: 0, lastChat: null };
+            const messagesCount = messagesMap.get(uId) || 0;
+
+            const regDate = u.createdAt || now;
+            let lastActivity = u.updatedAt || regDate;
+            if (convoData.lastChat && new Date(convoData.lastChat) > new Date(lastActivity)) {
+                lastActivity = convoData.lastChat;
+            }
+            const daysInactive = Math.max(0, Math.floor((now.getTime() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24)));
+
+            const userEmailNorm = (u.email || '').toLowerCase();
+            const resolvedPhone = u.phoneNumber || u.phone || purchasePhoneMap.get(userEmailNorm) || '';
+
+            const userRole = (u.role || '').toUpperCase();
+            const rawPlan = plan?.plan;
+            let expiresAt = u.inactiveAt ? new Date(u.inactiveAt) : (plan?.planExpiresAt ? new Date(plan.planExpiresAt) : null);
+            let daysToExpiry = expiresAt && !isNaN(expiresAt.getTime()) ? Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
+            const isExpired = daysToExpiry !== null && daysToExpiry < 0;
+
+            let planType = 'free';
+            let planInterval = null;
+            if (!isExpired && (userRole === 'USER_PRO' || userRole === 'PRO' || rawPlan === 'pro')) {
+                planType = 'pro';
+                planInterval = plan?.interval || 'mensual';
+            } else if (rawPlan === 'vital' || rawPlan === 'vitalicio' || userRole === 'USER_IPEVAR' || userRole === 'IPEVAR') {
+                planType = 'vital';
+            }
+
+            // Health traffic light
+            let trafficLight = 'gray';
+            if (planType === 'pro' || planType === 'vital') {
+                if (daysToExpiry !== null && daysToExpiry <= 7) trafficLight = 'red';
+                else if (daysToExpiry !== null && daysToExpiry <= 30) trafficLight = 'yellow';
+                else if (daysInactive <= 30) trafficLight = 'green';
+                else trafficLight = 'yellow';
+            } else if (isExpired || daysInactive > 60) {
+                trafficLight = 'red';
+            } else if (daysInactive > 14) {
+                trafficLight = 'yellow';
+            } else {
+                trafficLight = 'green';
+            }
+
+            // Adoption Score calculation (0 to 100%)
+            let score = 0;
+            if (companiesCount > 0) score += 20;
+            if (convoData.count > 0 || messagesCount > 0) score += 20;
+            if (workersCount > 0) score += 20;
+            if (gtcData.count > 0 || pesvData.count > 0) score += 20;
+            if (diagCount > 0 || chemData.count > 0 || vehCount > 0 || eppCount > 0 || lmsData.completed > 0) score += 20;
+
+            totalAdoptionScores += score;
+
+            let adoptionLevel = 'sin_inicio';
+            if (score === 0) adoptionLevel = 'sin_inicio';
+            else if (score <= 20) adoptionLevel = 'explorador';
+            else if (score <= 60) adoptionLevel = 'intermedio';
+            else if (score <= 80) adoptionLevel = 'avanzado';
+            else {
+                adoptionLevel = 'power_user';
+                powerUsersCount++;
+            }
+
+            const firstName = (u.name || u.username || 'colega').trim().split(' ')[0];
+            let suggestedAction = '';
+            let prefilledWhatsAppMessage = '';
+
+            if (companiesCount === 0 && convoData.count === 0) {
+                suggestedAction = 'Onboarding inicial: invitar a crear empresa y usar Tenshi';
+                prefilledWhatsAppMessage = `¡Hola ${firstName}! Te saluda el equipo de WAPPY. Vi que te registraste recientemente. ¿Te gustaría que te acompañemos en 5 minutos para registrar tu primera empresa y mostrarte cómo la IA redacta tus procedimientos SST en segundos?`;
+            } else if (companiesCount === 0 && convoData.count > 0) {
+                suggestedAction = 'Convertir chats en empresa real y aplicativo';
+                prefilledWhatsAppMessage = `¡Hola ${firstName}! Veo que has estado consultando a nuestros especialistas de IA en WAPPY. ¿Ya configuraste tu empresa en el sistema? Al registrarla, la IA puede personalizar todas las matrices y planes con tu NIT y razón social exacta. ¿Te ayudo a enlazarla?`;
+            } else if (companiesCount > 0 && workersCount === 0) {
+                suggestedAction = 'Impulsar carga de trabajadores y perfiles';
+                prefilledWhatsAppMessage = `¡Hola ${firstName}! Ya tienes registrada tu empresa en WAPPY, ¡excelente! El siguiente paso clave es cargar tus trabajadores o cargos para activar las alertas de exámenes médicos y EPP. ¿Quieres que te muestre la plantilla rápida de carga?`;
+            } else if (workersCount > 0 && gtcData.count === 0 && pesvData.count === 0) {
+                suggestedAction = 'Fomentar generación de Matriz GTC 45 o PESV';
+                prefilledWhatsAppMessage = `¡Hola ${firstName}! Tienes a tus trabajadores listos en WAPPY. ¿Ya probaste generar la matriz GTC 45 o PESV asistida por Tenshi? En un par de clics tienes la matriz completa evaluada según la Guía Técnica Colombiana. ¿Te gustaría ver un ejemplo?`;
+            } else {
+                suggestedAction = 'Seguimiento de valor y fidelización activa';
+                prefilledWhatsAppMessage = `¡Hola ${firstName}! Felicitaciones por tu gran avance con los aplicativos e hitos en WAPPY. Queríamos saber cómo te ha parecido la experiencia y si necesitas apoyo para exportar informes o activar el módulo de estándares 0312.`;
+            }
+
+            return {
+                id: uId,
+                userId: uId,
+                name: u.name || u.username || 'Usuario Wappy',
+                email: u.email || '',
+                phone: resolvedPhone,
+                city: u.ciudad || u.city || '',
+                department: u.departamento || u.department || '',
+                role: userRole,
+                accountStatus: u.accountStatus || 'active',
+                registrationDate: regDate,
+                lastActivity,
+                daysInactive,
+                subscriptionType: planType,
+                planInterval,
+                daysToExpiry,
+                trafficLight,
+                ambassadorName: partnerDoc ? (partnerDoc.userId?.name || partnerDoc.userId?.username || partnerDoc.slug) : (refRec?.referredByUser ? 'Referido Directo' : 'Sin embajador'),
+                ambassadorSlug: partnerDoc?.slug || null,
+                ambassadorId: partnerDoc?._id || null,
+                chatMetrics: {
+                    totalConversations: convoData.count,
+                    totalMessages: messagesCount,
+                    lastChatDate: convoData.lastChat || null,
+                },
+                milestoneMetrics: {
+                    companiesCount,
+                    workersCount,
+                    gtc45Count: gtcData.count,
+                    gtc45Rows: gtcData.rows,
+                    pesvCount: pesvData.count,
+                    pesvRows: pesvData.rows,
+                    diagnosticoCount: diagCount,
+                    chemicalsCount: chemData.count,
+                    chemicalsProducts: chemData.products,
+                    vehiclesCount: vehCount,
+                    eppCount,
+                    lmsCoursesCompleted: lmsData.completed,
+                    lmsCoursesInProgress: Math.max(0, lmsData.count - lmsData.completed),
+                },
+                adoptionScore: score,
+                adoptionLevel,
+                suggestedAction,
+                prefilledWhatsAppMessage,
+                crmStage: refRec?.crmStage || 'nuevo',
+                crmNotes: refRec?.crmNotes || [],
+                lastContactedAt: refRec?.lastContactedAt || null,
+            };
+        });
+
+        // Calculate summary
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const activeThisMonth = usersMetricsList.filter(u => new Date(u.lastActivity) >= thirtyDaysAgo).length;
+        const totalCompanies = Array.from(companiesMap.values()).reduce((a, b) => a + b, 0);
+        const totalWorkers = Array.from(workersMap.values()).reduce((a, b) => a + b, 0);
+        const totalMatrices = Array.from(gtc45Map.values()).reduce((a, b) => a + (b.count || 0), 0) + Array.from(pesvMap.values()).reduce((a, b) => a + (b.count || 0), 0);
+        const totalConversations = Array.from(convosMap.values()).reduce((a, b) => a + (b.count || 0), 0);
+        const totalMessages = Array.from(messagesMap.values()).reduce((a, b) => a + b, 0);
+        const avgAdoptionRate = usersMetricsList.length > 0 ? Math.round(totalAdoptionScores / usersMetricsList.length) : 0;
+
+        return res.json({
+            users: usersMetricsList,
+            summary: {
+                totalUsers: usersMetricsList.length,
+                activeThisMonth,
+                totalCompanies,
+                totalWorkers,
+                totalMatrices,
+                totalConversations,
+                totalMessages,
+                avgAdoptionRate,
+                powerUsersCount,
+            }
+        });
+    } catch (err) {
+        logger.error('[UsersActivityMetrics] Error:', err);
+        return res.status(500).json({ error: 'Error al obtener métricas de actividad de usuarios' });
+    }
+});
+
+/**
  * POST /api/referrals/attribute
  * Assign or update ambassador attribution for a user (Admin only)
  * Optionally generates a retroactive commission for previous purchases
