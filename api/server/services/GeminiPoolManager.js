@@ -115,7 +115,7 @@ class GeminiPoolManager {
    * 4. Retorna `[...readyRotadas, ...cooling, ...exhausted]`.
    *
    * @param {Array<string>} keys - Lista cruda de API Keys del usuario/entorno
-   * @param {string} model - Nombre del modelo a consultar (ej. "gemini-3.8-flash")
+   * @param {string} model - Nombre del modelo a consultar (ej. "gemini-3.6-flash")
    * @param {string} [userId='global'] - Identificador del usuario para Round-Robin por sesión
    * @returns {Array<string>} Lista reordenada de claves API
    */

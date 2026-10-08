@@ -4959,7 +4959,7 @@ router.get('/tenshi/config', requireApiKeyOrJwt, async (req, res) => {
     return res.json({
       nombre: config?.name || 'Tenshi',
       descripcion: config?.description || 'Asistente virtual de WAPPY',
-      model: config?.model || 'gemini-3.8-flash',
+      model: config?.model || 'gemini-3.6-flash',
       systemPrompt: config?.systemPrompt || '',
       extraKnowledge: config?.extraKnowledge || '',
       location: config?.location || 'bottom-right',

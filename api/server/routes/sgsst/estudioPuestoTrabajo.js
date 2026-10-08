@@ -425,7 +425,7 @@ router.post('/', requireJwtAuth, async (req, res) => {
           reportHtml: reportHtml || '',
           notes: notes || '',
           channel: channel || 'somos_sst',
-          modelUsed: modelUsed || 'gemini-3.8-flash',
+          modelUsed: modelUsed || 'gemini-3.6-flash',
         },
         { new: true }
       );
@@ -448,7 +448,7 @@ router.post('/', requireJwtAuth, async (req, res) => {
         reportHtml: reportHtml || '',
         notes: notes || '',
         channel: channel || 'somos_sst',
-        modelUsed: modelUsed || 'gemini-3.8-flash',
+        modelUsed: modelUsed || 'gemini-3.6-flash',
       });
       await study.save();
     }
@@ -489,7 +489,7 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
       rebaScore,
       actionLevel = 'Nivel 1 - Aceptable',
       riskLevel = 'Bajo',
-      model = 'gemini-3.8-flash',
+      model = 'gemini-3.6-flash',
     } = req.body;
 
     const resolvedCompanyId = companyId || (await getActiveCompanyId(req.user.id));
@@ -666,7 +666,7 @@ REGLAS DE FORMATO Y SALIDA:
 
     const aiResponse = await generateWithKeyRotation({
       userId: req.user.id,
-      model: model || 'gemini-3.8-flash',
+      model: model || 'gemini-3.6-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       systemInstruction: 'Eres un Fisioterapeuta Laboral experto en Ergonomía, RULA, REBA e ISO 11226.',
     });
@@ -711,7 +711,7 @@ REGLAS DE FORMATO Y SALIDA:
     if (studyId) {
       await EstudioPuestoTrabajo.findByIdAndUpdate(studyId, {
         reportHtml: finalReportHtml,
-        modelUsed: model || 'gemini-3.8-flash',
+        modelUsed: model || 'gemini-3.6-flash',
       });
     }
 

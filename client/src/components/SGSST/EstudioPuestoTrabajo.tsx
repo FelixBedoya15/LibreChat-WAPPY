@@ -254,7 +254,7 @@ export default function EstudioPuestoTrabajo() {
 
   // Selected AI Model (defaults to Gemini 3.7 Flash, synchronized with platform)
   const [selectedModel, setSelectedModel] = useState<string>(
-    user?.personalization?.geminiModels?.sstManagement || 'gemini-3.8-flash'
+    user?.personalization?.geminiModels?.sstManagement || 'gemini-3.6-flash'
   );
 
   const [companyInfo, setCompanyInfo] = useState<any>(null);

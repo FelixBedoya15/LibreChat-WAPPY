@@ -290,7 +290,7 @@ const ParticipacionIPEVAR = () => {
     const [isVideoUploading, setIsVideoUploading] = useState(false);
     const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
 
-    const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.8-flash');
+    const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.6-flash');
 
     React.useEffect(() => {
         if (user?.personalization?.geminiModels?.sstManagement) {

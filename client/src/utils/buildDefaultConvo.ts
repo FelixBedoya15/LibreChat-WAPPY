@@ -3,6 +3,7 @@ import {
   EModelEndpoint,
   isAssistantsEndpoint,
   isAgentsEndpoint,
+  LocalStorageKeys,
 } from 'librechat-data-provider';
 import type { TConversation, EndpointSchemaKey } from 'librechat-data-provider';
 import { getLocalStorageItems } from './localStorage';
@@ -77,8 +78,12 @@ const buildDefaultConvo = ({
   // Ensures agent_id is always defined
   const agentId = conversation?.agent_id || convo?.agent_id || '';
   const defaultAgentId = lastConversationSetup?.agent_id ?? '';
+  let finalAgentId = agentId || defaultAgentId || '';
+  if (isAgentsEndpoint(endpoint) && !finalAgentId && typeof window !== 'undefined') {
+    finalAgentId = localStorage.getItem(`${LocalStorageKeys.AGENT_ID_PREFIX}0`) || '';
+  }
   if (isAgentsEndpoint(endpoint)) {
-    defaultConvo.agent_id = agentId || defaultAgentId || '';
+    defaultConvo.agent_id = finalAgentId;
   }
 
   defaultConvo.tools = lastConversationSetup?.tools ?? lastSelectedTools ?? defaultConvo.tools;

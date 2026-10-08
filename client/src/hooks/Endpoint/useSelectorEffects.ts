@@ -37,16 +37,20 @@ export default function useSelectorEffects({
     if (!isAgentsEndpoint(endpoint as string)) {
       return;
     }
-    if (selectedAgentId == null && agents.length > 0) {
+    if (!selectedAgentId && agents.length > 0) {
       let agent_id = localStorage.getItem(`${LocalStorageKeys.AGENT_ID_PREFIX}${index}`);
-      if (agent_id == null) {
-        agent_id = agents[0]?.id;
+      if (!agent_id || !agentsMap?.[agent_id]) {
+        const defaultAgent = agents.find((a) => a.name === 'Consultor SG-SST' || a.name?.includes('Consultor SG-SST')) || agents[0];
+        agent_id = defaultAgent?.id;
       }
       const agent = agentsMap?.[agent_id];
 
       if (agent !== undefined) {
         setOption('model')('');
         setOption('agent_id')(agent_id);
+        try {
+          localStorage.setItem(`${LocalStorageKeys.AGENT_ID_PREFIX}${index}`, agent_id);
+        } catch {}
       }
     }
   }, [index, agents, selectedAgentId, agentsMap, endpoint, setOption]);
