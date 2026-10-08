@@ -734,19 +734,10 @@ Formato (texto plano, 3 viñetas):
     console.error('⚠️ Error ejecutando el parche de @google/generative-ai:', err.message);
   }
 
-  // Ejecutar restauración maestra de trabajadores SG-SST (Reconciliación con Perfiles de Cargo)
-  try {
-    const { execSync } = require('child_process');
-    const localRestore = path.resolve(__dirname, 'restore-sgsst-workers.js');
-    const rootRestore = path.resolve(__dirname, '../../scripts/restore-sgsst-workers.js');
-    const restoreScript = fs.existsSync(localRestore) ? localRestore : (fs.existsSync(rootRestore) ? rootRestore : null);
-    if (restoreScript) {
-      console.log('👷 Ejecutando Restauración y Reconciliación Maestra de Trabajadores SG-SST...');
-      execSync(`node "${restoreScript}"`, { stdio: 'inherit' });
-    }
-  } catch (err) {
-    console.error('⚠️ Error ejecutando la restauración de trabajadores SG-SST:', err.message);
-  }
+  // ⛔ ELIMINADO (2026-10-08): restore-sgsst-workers.js mezclaba los trabajadores de TODAS las
+  // empresas de un mismo usuario (agrupaba por `user` ignorando `companyId`) y sobrescribía cada
+  // perfil sociodemográfico. NUNCA reintroducir una reconciliación de trabajadores que no filtre
+  // estrictamente por { user, companyId }.
 
   // Sincronizar perfiles y sesiones de Google NotebookLM desde MongoDB a disco
   try {

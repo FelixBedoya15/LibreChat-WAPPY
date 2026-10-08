@@ -52,7 +52,7 @@ import cn from '~/utils/cn';
 import { exportPerfilSociodemograficoToExcel, type LicenciaConduccionItem } from './exportPerfilSociodemografico';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import BioFitAuditModal from './BioFitAuditModal';
-import { smartMapExcelToWorkers } from './excelWorkerMapper';
+import { smartMapExcelToWorkers, toTitleCase, formatWorkerName } from './excelWorkerMapper';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
 import { CONDICIONES_SALUD_FIELDS } from './moduleFieldDefinitions';
@@ -240,19 +240,21 @@ const CondicionesSalud = () => {
     const retiradosCount = React.useMemo(() => trabajadores.filter(w => (w.estadoLaboral || 'Activo') === 'Retirado').length, [trabajadores]);
 
     const filteredTrabajadores = React.useMemo(() => {
-        return trabajadores.filter(w => {
-            const estado = w.estadoLaboral || 'Activo';
-            if (statusFilter === 'activo' && estado === 'Retirado') return false;
-            if (statusFilter === 'retirado' && estado !== 'Retirado') return false;
-            if (searchQuery.trim()) {
-                const q = searchQuery.toLowerCase().trim();
-                const nom = (w.nombre || '').toLowerCase();
-                const id = (w.identificacion || '').toLowerCase();
-                const cargo = (w.cargo || '').toLowerCase();
-                return nom.includes(q) || id.includes(q) || cargo.includes(q);
-            }
-            return true;
-        });
+        return trabajadores
+            .filter(w => {
+                const estado = w.estadoLaboral || 'Activo';
+                if (statusFilter === 'activo' && estado === 'Retirado') return false;
+                if (statusFilter === 'retirado' && estado !== 'Retirado') return false;
+                if (searchQuery.trim()) {
+                    const q = searchQuery.toLowerCase().trim();
+                    const nom = (w.nombre || '').toLowerCase();
+                    const id = (w.identificacion || '').toLowerCase();
+                    const cargo = (w.cargo || '').toLowerCase();
+                    return nom.includes(q) || id.includes(q) || cargo.includes(q);
+                }
+                return true;
+            })
+            .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' }));
     }, [trabajadores, statusFilter, searchQuery]);
     const [isGeneratingFull, setIsGeneratingFull] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -318,8 +320,15 @@ const CondicionesSalud = () => {
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data.trabajadores)) {
-                        setTrabajadores(data.trabajadores);
-                        syncWorkersSignaturesToStorage(data.trabajadores);
+                        const normalized = data.trabajadores.map((w: any) => ({
+                            ...w,
+                            nombre: toTitleCase(w.nombre),
+                            cargo: toTitleCase(w.cargo),
+                        })).sort((a: any, b: any) => 
+                            (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
+                        );
+                        setTrabajadores(normalized);
+                        syncWorkersSignaturesToStorage(normalized);
                     }
                     if (data.actualizacionesPendientesSalud) {
                         setInboxPerfil(data.actualizacionesPendientesSalud);
@@ -353,7 +362,11 @@ const CondicionesSalud = () => {
             .then(res => res.json())
             .then(data => {
                 if (data.perfilesList) {
-                    setCargosDisponibles(data.perfilesList);
+                    const sortedCargos = data.perfilesList.map((c: any) => ({
+                        ...c,
+                        nombreCargo: toTitleCase(c.nombreCargo)
+                    })).sort((a: any, b: any) => (a.nombreCargo || '').localeCompare(b.nombreCargo || '', 'es', { sensitivity: 'base' }));
+                    setCargosDisponibles(sortedCargos);
                 }
             })
             .catch(() => { });
@@ -366,7 +379,9 @@ const CondicionesSalud = () => {
             return;
         }
         const newWorker: WorkerEntry = { id: crypto.randomUUID(), ...EMPTY_WORKER };
-        const updated = [...trabajadores, newWorker];
+        const updated = [...trabajadores, newWorker].sort((a, b) => 
+            (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
+        );
         setTrabajadores(updated);
         setExpandedWorkers(prev => new Set(prev).add(newWorker.id));
 
@@ -578,8 +593,22 @@ const CondicionesSalud = () => {
         const updatedList = (() => {
             const list = [...trabajadores];
             rowsToImport.forEach((t: any) => {
-                const incomingId = String(t.identificacion || '').trim();
-                const incomingNombre = String(t.nombre || '').trim().toLowerCase();
+                const sanitizedT: any = { ...t };
+                if (sanitizedT.nombre) sanitizedT.nombre = toTitleCase(formatWorkerName(sanitizedT.nombre));
+                if (sanitizedT.cargo) sanitizedT.cargo = toTitleCase(sanitizedT.cargo);
+                if (sanitizedT.area) sanitizedT.area = toTitleCase(sanitizedT.area);
+                if (sanitizedT.municipioDomicilio) sanitizedT.municipioDomicilio = toTitleCase(sanitizedT.municipioDomicilio);
+                if (sanitizedT.barrio) sanitizedT.barrio = toTitleCase(sanitizedT.barrio);
+                if (sanitizedT.lugarNacimiento) sanitizedT.lugarNacimiento = toTitleCase(sanitizedT.lugarNacimiento);
+                if (sanitizedT.lugarResidencia) sanitizedT.lugarResidencia = toTitleCase(sanitizedT.lugarResidencia);
+                if (sanitizedT.nivelEscolaridad) sanitizedT.nivelEscolaridad = toTitleCase(sanitizedT.nivelEscolaridad);
+                if (sanitizedT.estadoCivil) sanitizedT.estadoCivil = toTitleCase(sanitizedT.estadoCivil);
+                if (sanitizedT.vivienda) sanitizedT.vivienda = toTitleCase(sanitizedT.vivienda);
+                if (sanitizedT.eps) sanitizedT.eps = toTitleCase(sanitizedT.eps);
+                if (sanitizedT.afp) sanitizedT.afp = toTitleCase(sanitizedT.afp);
+
+                const incomingId = String(sanitizedT.identificacion || '').trim();
+                const incomingNombre = String(sanitizedT.nombre || '').trim().toLowerCase();
 
                 const existingIndex = list.findIndex(w => {
                     const wId = String(w.identificacion || '').trim();
@@ -592,9 +621,9 @@ const CondicionesSalud = () => {
                 if (existingIndex >= 0) {
                     const existing = list[existingIndex];
                     const merged: any = { ...existing };
-                    Object.keys(t).forEach(k => {
-                        if (t[k] !== undefined && t[k] !== null && String(t[k]).trim() !== '') {
-                            merged[k] = t[k];
+                    Object.keys(sanitizedT).forEach(k => {
+                        if (sanitizedT[k] !== undefined && sanitizedT[k] !== null && String(sanitizedT[k]).trim() !== '') {
+                            merged[k] = sanitizedT[k];
                         }
                     });
                     list[existingIndex] = merged;
@@ -602,15 +631,17 @@ const CondicionesSalud = () => {
                 } else {
                     list.push({
                         ...EMPTY_WORKER,
-                        ...t,
-                        id: t.id || crypto.randomUUID(),
+                        ...sanitizedT,
+                        id: sanitizedT.id || crypto.randomUUID(),
                         firmaDigital: null,
                         completedByAI: false,
                     });
                     nuevos++;
                 }
             });
-            return list;
+            return list.sort((a, b) => 
+                (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
+            );
         })();
 
         setTrabajadores(updatedList);
@@ -1654,7 +1685,7 @@ const CondicionesSalud = () => {
                                                         ? "text-rose-950 dark:text-rose-100 line-through opacity-85"
                                                         : "text-text-primary"
                                                 )}>
-                                                    {wIdx + 1}. {w.nombre || 'Nuevo Trabajador'}
+                                                    {wIdx + 1}. {toTitleCase(w.nombre) || 'Nuevo Trabajador'}
                                                 </h3>
                                                 {isRetirado && (
                                                     <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-200 border border-rose-300 dark:border-rose-800 flex items-center gap-1 shadow-2xs">
@@ -1667,7 +1698,7 @@ const CondicionesSalud = () => {
                                                 <span className={cn(
                                                     "font-bold",
                                                     isRetirado ? "text-rose-600 dark:text-rose-400" : "text-teal-600 dark:text-teal-400"
-                                                )}>{w.cargo || 'Sin cargo asignado'}</span>
+                                                )}>{toTitleCase(w.cargo) || 'Sin cargo asignado'}</span>
                                                 <span>•</span>
                                                 <span>CC: {w.identificacion || 'N/A'}</span>
                                                 <span className="hidden sm:inline">•</span>

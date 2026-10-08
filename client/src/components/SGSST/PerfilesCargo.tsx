@@ -34,6 +34,7 @@ import {
     Upload,
     RefreshCw,
     GripVertical,
+    Eye,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { NotificationSeverity } from '~/common';
@@ -54,6 +55,7 @@ import CollapsibleReportBox from './CollapsibleReportBox';
 import WorkersProfileList from './WorkersProfileList';
 import BioIndividuoDashboard from './BioIndividuoDashboard';
 import * as XLSX from 'xlsx';
+import { toTitleCase } from './excelWorkerMapper';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
 import { PERFILES_CARGO_FIELDS } from './moduleFieldDefinitions';
@@ -692,8 +694,16 @@ const PerfilesCargo = () => {
             .then(res => res.json())
             .then(data => {
                 if (data.perfilesList?.length) {
-                    setPerfiles(data.perfilesList);
-                    const first = data.perfilesList[0];
+                    const sorted = data.perfilesList.map((p: any) => ({
+                        ...p,
+                        nombreCargo: toTitleCase(p.nombreCargo),
+                        area: toTitleCase(p.area),
+                        jefeInmediato: toTitleCase(p.jefeInmediato),
+                    })).sort((a: any, b: any) => 
+                        (a.nombreCargo || '').localeCompare(b.nombreCargo || '', 'es', { sensitivity: 'base' })
+                    );
+                    setPerfiles(sorted);
+                    const first = sorted[0];
                     setActivePerfilId(first.id);
                     setFormData(first);
                     setGeneratedReport(first.report || null);
@@ -917,7 +927,12 @@ const PerfilesCargo = () => {
 
     const handleAddPerfil = () => {
         const newPerfil = createInitialPerfil();
-        setPerfiles(prev => [...prev, newPerfil]);
+        setPerfiles(prev => {
+            const next = [...prev, newPerfil];
+            return next.sort((a, b) => 
+                (a.nombreCargo || '').localeCompare(b.nombreCargo || '', 'es', { sensitivity: 'base' })
+            );
+        });
         setActivePerfilId(newPerfil.id);
         setFormData(newPerfil);
         setGeneratedReport(null);
@@ -1174,13 +1189,13 @@ const PerfilesCargo = () => {
                 ...createInitialPerfil(),
                 ...row,
                 id: row.id || crypto.randomUUID(),
-                nombreCargo: row.nombreCargo || 'Cargo Importado',
-                area: row.area || '',
+                nombreCargo: toTitleCase(row.nombreCargo || 'Cargo Importado'),
+                area: toTitleCase(row.area || ''),
                 nivelCargo: row.nivelCargo || 'Operativo',
                 sectorOrganizacion: row.sectorOrganizacion || 'Sector privado',
                 tipoContrato: normalizeVinculacion(row.tipoContrato || 'Contrato laboral a término indefinido'),
                 jornada: row.jornada || 'Tiempo completo (8 horas/día)',
-                jefeInmediato: row.jefeInmediato || '',
+                jefeInmediato: toTitleCase(row.jefeInmediato || ''),
                 escalasSalarial: row.escalasSalarial || '',
                 numVacantes: row.numVacantes ? String(row.numVacantes) : '1',
                 contextoAdicional: row.contextoAdicional || '',
@@ -1218,6 +1233,10 @@ const PerfilesCargo = () => {
                     nuevos++;
                 }
             });
+
+            cleanPrev.sort((a, b) => 
+                (a.nombreCargo || '').localeCompare(b.nombreCargo || '', 'es', { sensitivity: 'base' })
+            );
 
             if (cleanPrev.length > 0 && (!activePerfilId || !cleanPrev.find(p => p.id === activePerfilId)?.nombreCargo)) {
                 setActivePerfilId(cleanPrev[0].id);
@@ -1577,7 +1596,7 @@ const PerfilesCargo = () => {
     }
 
     return (
-        <div className="w-full overflow-x-hidden space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="w-full space-y-6">
             {/* ─── BANNER DE ESTADO Y MÉTRICAS CONECTADAS ─── */}
             <div className="relative overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-r from-teal-500/5 via-teal-500/10 to-transparent p-4 sm:p-5">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -1688,7 +1707,7 @@ const PerfilesCargo = () => {
             />
 
             {/* ── Profiles Quick Access ── */}
-            <div className="rounded-3xl border border-border-medium/40 bg-gradient-to-br from-surface-secondary/80 to-surface-primary/50 backdrop-blur-md p-6 shadow-xl border-l-4 border-l-teal-500/80 transition-all hover:shadow-2xl hover:border-teal-500/20">
+            <div className="rounded-3xl border border-border-medium bg-surface-secondary/70 backdrop-blur-sm p-5 sm:p-6 shadow-sm">
                 <div className="flex items-center justify-between mb-5 px-1">
                     <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-xl bg-teal-500/10 dark:bg-teal-400/10 flex items-center justify-center border border-teal-500/20">
@@ -1773,7 +1792,6 @@ const PerfilesCargo = () => {
                                 )}
                                 onClick={() => {
                                     handleSelectPerfil(p.id);
-                                    setSummaryPerfil(p);
                                 }}
                             >
                                 {/* Active subtle top glowing bar */}
@@ -1801,35 +1819,52 @@ const PerfilesCargo = () => {
                                                 <Briefcase className="w-4.5 h-4.5" />
                                             </div>
                                         </div>
-                                        {/* Delete Button */}
-                                        <button
-                                            type="button"
-                                            draggable={false}
-                                            onMouseDown={(e) => e.stopPropagation()}
-                                            onClick={(e) => { e.stopPropagation(); handleDeletePerfil(p.id); }}
-                                            className={cn(
-                                                "p-1.5 rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100",
-                                                isActive 
-                                                    ? "hover:bg-red-500 hover:text-white text-white/70" 
-                                                    : "hover:bg-red-50 hover:text-red-600 text-text-tertiary dark:hover:bg-red-900/30 dark:text-red-400"
-                                            )}
-                                            title="Eliminar cargo"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                                        {/* Action Buttons: Ficha Técnica & Delete */}
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                type="button"
+                                                draggable={false}
+                                                onMouseDown={(e) => e.stopPropagation()}
+                                                onClick={(e) => { e.stopPropagation(); setSummaryPerfil(p); }}
+                                                className={cn(
+                                                    "p-1.5 rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100",
+                                                    isActive 
+                                                        ? "hover:bg-white/20 text-white/80 hover:text-white" 
+                                                        : "hover:bg-teal-50 hover:text-teal-600 text-text-tertiary dark:hover:bg-teal-900/30 dark:text-teal-400"
+                                                )}
+                                                title="Ver ficha técnica del cargo"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                draggable={false}
+                                                onMouseDown={(e) => e.stopPropagation()}
+                                                onClick={(e) => { e.stopPropagation(); handleDeletePerfil(p.id); }}
+                                                className={cn(
+                                                    "p-1.5 rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100",
+                                                    isActive 
+                                                        ? "hover:bg-red-500 hover:text-white text-white/70" 
+                                                        : "hover:bg-red-50 hover:text-red-600 text-text-tertiary dark:hover:bg-red-900/30 dark:text-red-400"
+                                                )}
+                                                title="Eliminar cargo"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className="pt-1">
                                         <h5 className={cn(
                                             "font-extrabold text-xs tracking-tight leading-tight line-clamp-2",
                                             isActive ? "text-white font-black" : "text-text-primary"
                                         )}>
-                                            {p.nombreCargo || 'Cargo sin nombre'}
+                                            {toTitleCase(p.nombreCargo) || 'Cargo sin nombre'}
                                         </h5>
                                         <p className={cn(
                                             "text-[9px] font-black uppercase tracking-wider mt-1 truncate",
                                             isActive ? "text-teal-200" : "text-text-tertiary"
                                         )}>
-                                            {p.area || 'Sin área asignada'}
+                                            {toTitleCase(p.area) || 'Sin área asignada'}
                                         </p>
                                     </div>
                                 </div>

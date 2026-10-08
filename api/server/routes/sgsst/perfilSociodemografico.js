@@ -1085,11 +1085,16 @@ router.get('/data', requireJwtAuth, async (req, res) => {
       ? await PerfilSociodemograficoData.findOne({ user: targetUserId, companyId: companyId }).lean()
       : null;
     if (!data) {
-      data = await PerfilSociodemograficoData.findOne({ user: targetUserId }).lean();
+      // ⚠️ AISLAMIENTO MULTIEMPRESA: solo se permite caer a un documento LEGADO sin companyId.
+      // Nunca cargar el documento de OTRA empresa del mismo usuario.
+      data = await PerfilSociodemograficoData.findOne({
+        user: targetUserId,
+        $or: [{ companyId: null }, { companyId: { $exists: false } }],
+      }).lean();
     }
     let finalWorkers = data?.trabajadores ? [...data.trabajadores] : [];
 
-    // ─── SELF-HEALING RECONCILIATION: SgsstWorker & PerfilesCargo Master Sync ───
+    // ─── SELF-HEALING RECONCILIATION: SgsstWorker & PerfilesCargo (estrictamente por empresa) ───
     try {
       const SgsstWorker = require('../../../models/SgsstWorker');
       const PerfilesCargo = mongoose.models.PerfilCargoData;
@@ -1100,7 +1105,6 @@ router.get('/data', requireJwtAuth, async (req, res) => {
       try {
         const cargoDoc = PerfilesCargo ? (
           await PerfilesCargo.findOne({ user: targetUserId, ...(companyId ? { companyId } : {}) }).lean()
-          || await PerfilesCargo.findOne({ user: targetUserId }).lean()
         ) : null;
         perfilesList = cargoDoc?.perfilesList || [];
         for (const p of perfilesList) {
@@ -1111,40 +1115,12 @@ router.get('/data', requireJwtAuth, async (req, res) => {
         logger.debug('[PerfilSociodemografico GET /data] Error resolving cargo profiles:', e.message);
       }
 
-      // 2. Query individual workers from SgsstWorker
-      const sgsstWorkers = await SgsstWorker.find({
-        user: targetUserId,
-        ...(companyId ? { $or: [{ companyId }, { companyId: null }] } : {})
-      }).lean();
-
-      // 3. Query any other documents in PerfilSociodemograficoData for this user
-      const otherSocioDocs = await PerfilSociodemograficoData.find({
-        user: targetUserId,
-        ...(data?._id ? { _id: { $ne: data._id } } : {})
-      }).lean();
+      // 2. Query individual workers from SgsstWorker — ONLY this company
+      const sgsstWorkers = companyId
+        ? await SgsstWorker.find({ user: targetUserId, companyId }).lean()
+        : [];
 
       let selfHealModified = false;
-
-      // Reconcile from other documents if any workers exist there
-      for (const oDoc of otherSocioDocs) {
-        for (const ow of (oDoc.trabajadores || [])) {
-          const owKey = String(ow.identificacion || ow.id || '').trim();
-          if (!owKey) continue;
-          const existingIdx = finalWorkers.findIndex(w => 
-            (w.identificacion && String(w.identificacion).trim() === owKey) ||
-            (w.id && String(w.id).trim() === owKey)
-          );
-          if (existingIdx === -1) {
-            finalWorkers.push(ow);
-            selfHealModified = true;
-          } else {
-            if ((!finalWorkers[existingIdx].cargo || !finalWorkers[existingIdx].cargo.trim()) && ow.cargo) {
-              finalWorkers[existingIdx].cargo = ow.cargo;
-              selfHealModified = true;
-            }
-          }
-        }
-      }
 
       // Reconcile from SgsstWorker
       for (const sw of sgsstWorkers) {
@@ -1190,9 +1166,9 @@ router.get('/data', requireJwtAuth, async (req, res) => {
       }
 
       // Persist self-healing changes back to MongoDB
-      if (selfHealModified && !isSub) {
+      if (selfHealModified && !isSub && companyId) {
         await PerfilSociodemograficoData.findOneAndUpdate(
-          { user: targetUserId, ...(companyId ? { companyId } : {}) },
+          { user: targetUserId, companyId },
           { $set: { trabajadores: finalWorkers, updatedAt: new Date() } },
           { upsert: true }
         );
@@ -1450,7 +1426,7 @@ async function triggerIAEvaluation(userId, workerId, apiKey, perfilesList) {
     const companyId = await getActiveCompanyId(userId);
     let doc = await PerfilSociodemograficoData.findOne({ user: userId, ...(companyId ? { companyId } : {}) });
     if (!doc) {
-      doc = await PerfilSociodemograficoData.findOne({ user: userId });
+      doc = await PerfilSociodemograficoData.findOne({ user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }] });
     }
     if (!doc || !Array.isArray(doc.trabajadores)) return;
 
@@ -1826,7 +1802,7 @@ router.post('/dictamen/generate', express.json({ limit: '10mb' }), requireJwtAut
       ...(companyId ? { companyId } : {})
     });
     if (!doc) {
-      doc = await PerfilSociodemograficoData.findOne({ user: targetUserId });
+      doc = await PerfilSociodemograficoData.findOne({ user: targetUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] });
     }
     
     let currentWorker = null;
@@ -2014,7 +1990,7 @@ Tabla con periodicidad de valoraciones médicas, exámenes paraclínicos (audiom
         await doc.save();
         logger.info(`[OraculoH1] Dictamen predictivo auto-guardado en MongoDB para trabajador ${cleanWId}`);
       } else {
-        let targetDoc = doc || await PerfilSociodemograficoData.findOne({ user: targetUserId });
+        let targetDoc = doc || await PerfilSociodemograficoData.findOne({ user: targetUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] });
         if (targetDoc && Array.isArray(targetDoc.trabajadores)) {
           const idx = targetDoc.trabajadores.findIndex(w =>
             (w.id && String(w.id).trim() === cleanWId) ||
@@ -2088,7 +2064,7 @@ router.post('/worker/:workerId/dictamen', express.json({ limit: '10mb' }), requi
         ...(companyId ? { companyId } : {})
       });
       if (!doc) {
-        doc = await PerfilSociodemograficoData.findOne({ user: targetUserId });
+        doc = await PerfilSociodemograficoData.findOne({ user: targetUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] });
       }
 
       if (doc && Array.isArray(doc.trabajadores)) {
@@ -2130,7 +2106,7 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
     // Fetch existing document to prevent ANY loss of workers or cargos
     let existingDoc = await PerfilSociodemograficoData.findOne({ user: targetUserId, ...(companyId ? { companyId } : {}) }).lean();
     if (!existingDoc && !companyId) {
-      existingDoc = await PerfilSociodemograficoData.findOne({ user: targetUserId }).lean();
+      existingDoc = await PerfilSociodemograficoData.findOne({ user: targetUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] }).lean();
     }
     const existingWorkers = existingDoc?.trabajadores || [];
 
@@ -2361,7 +2337,7 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
         }
         return {
           updateOne: {
-            filter: { user: targetUserId, ...(companyId ? { companyId } : {}), documento: cleanDoc },
+            filter: { user: targetUserId, companyId, documento: cleanDoc },
             update: { $set: updateFields },
             upsert: false
           }

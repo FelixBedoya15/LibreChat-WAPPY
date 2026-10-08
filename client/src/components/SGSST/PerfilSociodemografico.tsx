@@ -53,7 +53,7 @@ import SGSSTLegalBadge from './SGSSTLegalBadge';
 import cn from '~/utils/cn';
 import { exportPerfilSociodemograficoToExcel, type LicenciaConduccionItem } from './exportPerfilSociodemografico';
 import CollapsibleReportBox from './CollapsibleReportBox';
-import { smartMapExcelToWorkers } from './excelWorkerMapper';
+import { smartMapExcelToWorkers, toTitleCase, formatWorkerName } from './excelWorkerMapper';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
 import { SOCIODEMOGRAFICO_FIELDS } from './moduleFieldDefinitions';
@@ -309,19 +309,21 @@ const PerfilSociodemografico = () => {
     const retiradosCount = useMemo(() => trabajadores.filter(w => (w.estadoLaboral || 'Activo') === 'Retirado').length, [trabajadores]);
 
     const filteredTrabajadores = useMemo(() => {
-        return trabajadores.filter(w => {
-            const estado = w.estadoLaboral || 'Activo';
-            if (statusFilter === 'activo' && estado === 'Retirado') return false;
-            if (statusFilter === 'retirado' && estado !== 'Retirado') return false;
-            if (searchQuery.trim()) {
-                const q = searchQuery.toLowerCase().trim();
-                const nom = (w.nombre || '').toLowerCase();
-                const id = (w.identificacion || '').toLowerCase();
-                const cargo = (w.cargo || '').toLowerCase();
-                return nom.includes(q) || id.includes(q) || cargo.includes(q);
-            }
-            return true;
-        });
+        return trabajadores
+            .filter(w => {
+                const estado = w.estadoLaboral || 'Activo';
+                if (statusFilter === 'activo' && estado === 'Retirado') return false;
+                if (statusFilter === 'retirado' && estado !== 'Retirado') return false;
+                if (searchQuery.trim()) {
+                    const q = searchQuery.toLowerCase().trim();
+                    const nom = (w.nombre || '').toLowerCase();
+                    const id = (w.identificacion || '').toLowerCase();
+                    const cargo = (w.cargo || '').toLowerCase();
+                    return nom.includes(q) || id.includes(q) || cargo.includes(q);
+                }
+                return true;
+            })
+            .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' }));
     }, [trabajadores, statusFilter, searchQuery]);
 
     // ─── Sync Signatures ────────────────────────────────────────
@@ -416,7 +418,11 @@ const PerfilSociodemografico = () => {
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data.trabajadores)) {
-                        const serverWorkers: WorkerEntry[] = data.trabajadores;
+                        const serverWorkers: WorkerEntry[] = data.trabajadores.map((w: any) => ({
+                            ...w,
+                            nombre: toTitleCase(w.nombre),
+                            cargo: toTitleCase(w.cargo),
+                        }));
                         let combined = [...serverWorkers];
                         try {
                             const cachedStr = sessionStorage.getItem('wappy_cached_workers');
@@ -425,17 +431,24 @@ const PerfilSociodemografico = () => {
                                 if (Array.isArray(cachedWorkers)) {
                                     for (const cw of cachedWorkers) {
                                         if (cw.id && !combined.some(sw => sw.id === cw.id || (sw.identificacion && cw.identificacion && String(sw.identificacion).trim() === String(cw.identificacion).trim()))) {
-                                            combined.push(cw);
+                                            combined.push({
+                                                ...cw,
+                                                nombre: toTitleCase(cw.nombre),
+                                                cargo: toTitleCase(cw.cargo),
+                                            });
                                         }
                                     }
                                 }
                             }
                         } catch {}
-                        setTrabajadores(combined);
+                        const sortedCombined = combined.sort((a, b) => 
+                            (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
+                        );
+                        setTrabajadores(sortedCombined);
                         try {
-                            sessionStorage.setItem('wappy_cached_workers', JSON.stringify(combined));
+                            sessionStorage.setItem('wappy_cached_workers', JSON.stringify(sortedCombined));
                         } catch {}
-                        syncWorkersSignaturesToStorage(combined);
+                        syncWorkersSignaturesToStorage(sortedCombined);
                     }
                     if (data.actualizacionesPendientes) {
                         setInboxPerfil(data.actualizacionesPendientes);
@@ -469,7 +482,11 @@ const PerfilSociodemografico = () => {
             .then(res => res.json())
             .then(data => {
                 if (data.perfilesList) {
-                    setCargosDisponibles(data.perfilesList);
+                    const sortedCargos = data.perfilesList.map((c: any) => ({
+                        ...c,
+                        nombreCargo: toTitleCase(c.nombreCargo)
+                    })).sort((a: any, b: any) => (a.nombreCargo || '').localeCompare(b.nombreCargo || '', 'es', { sensitivity: 'base' }));
+                    setCargosDisponibles(sortedCargos);
                 }
             })
             .catch(() => { });
@@ -478,7 +495,9 @@ const PerfilSociodemografico = () => {
     // ─── Handlers ───────────────────────────────────────────────
     const handleAddWorker = () => {
         const newWorker: WorkerEntry = { id: crypto.randomUUID(), ...EMPTY_WORKER };
-        const updated = [...trabajadores, newWorker];
+        const updated = [...trabajadores, newWorker].sort((a, b) => 
+            (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
+        );
         setTrabajadores(updated);
         setExpandedWorkers(prev => new Set(prev).add(newWorker.id));
         try {
@@ -689,8 +708,22 @@ const PerfilSociodemografico = () => {
         const updatedList = (() => {
             const list = [...trabajadores];
             rowsToImport.forEach((t: any) => {
-                const incomingId = String(t.identificacion || '').trim();
-                const incomingNombre = String(t.nombre || '').trim().toLowerCase();
+                const sanitizedT: any = { ...t };
+                if (sanitizedT.nombre) sanitizedT.nombre = toTitleCase(formatWorkerName(sanitizedT.nombre));
+                if (sanitizedT.cargo) sanitizedT.cargo = toTitleCase(sanitizedT.cargo);
+                if (sanitizedT.area) sanitizedT.area = toTitleCase(sanitizedT.area);
+                if (sanitizedT.municipioDomicilio) sanitizedT.municipioDomicilio = toTitleCase(sanitizedT.municipioDomicilio);
+                if (sanitizedT.barrio) sanitizedT.barrio = toTitleCase(sanitizedT.barrio);
+                if (sanitizedT.lugarNacimiento) sanitizedT.lugarNacimiento = toTitleCase(sanitizedT.lugarNacimiento);
+                if (sanitizedT.lugarResidencia) sanitizedT.lugarResidencia = toTitleCase(sanitizedT.lugarResidencia);
+                if (sanitizedT.nivelEscolaridad) sanitizedT.nivelEscolaridad = toTitleCase(sanitizedT.nivelEscolaridad);
+                if (sanitizedT.estadoCivil) sanitizedT.estadoCivil = toTitleCase(sanitizedT.estadoCivil);
+                if (sanitizedT.vivienda) sanitizedT.vivienda = toTitleCase(sanitizedT.vivienda);
+                if (sanitizedT.eps) sanitizedT.eps = toTitleCase(sanitizedT.eps);
+                if (sanitizedT.afp) sanitizedT.afp = toTitleCase(sanitizedT.afp);
+
+                const incomingId = String(sanitizedT.identificacion || '').trim();
+                const incomingNombre = String(sanitizedT.nombre || '').trim().toLowerCase();
 
                 const existingIndex = list.findIndex(w => {
                     const wId = String(w.identificacion || '').trim();
@@ -703,9 +736,9 @@ const PerfilSociodemografico = () => {
                 if (existingIndex >= 0) {
                     const existing = list[existingIndex];
                     const merged: any = { ...existing };
-                    Object.keys(t).forEach(k => {
-                        if (t[k] !== undefined && t[k] !== null && String(t[k]).trim() !== '') {
-                            merged[k] = t[k];
+                    Object.keys(sanitizedT).forEach(k => {
+                        if (sanitizedT[k] !== undefined && sanitizedT[k] !== null && String(sanitizedT[k]).trim() !== '') {
+                            merged[k] = sanitizedT[k];
                         }
                     });
                     list[existingIndex] = merged;
@@ -713,15 +746,17 @@ const PerfilSociodemografico = () => {
                 } else {
                     list.push({
                         ...EMPTY_WORKER,
-                        ...t,
-                        id: t.id || crypto.randomUUID(),
+                        ...sanitizedT,
+                        id: sanitizedT.id || crypto.randomUUID(),
                         firmaDigital: null,
                         completedByAI: false,
                     });
                     nuevos++;
                 }
             });
-            return list;
+            return list.sort((a, b) => 
+                (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
+            );
         })();
 
         setTrabajadores(updatedList);
@@ -1663,7 +1698,7 @@ const PerfilSociodemografico = () => {
                                                         ? "text-rose-950 dark:text-rose-100 line-through opacity-85"
                                                         : "text-text-primary"
                                                 )}>
-                                                    {wIdx + 1}. {w.nombre || 'Nuevo Trabajador'}
+                                                    {wIdx + 1}. {toTitleCase(w.nombre) || 'Nuevo Trabajador'}
                                                 </h3>
                                                 {isRetirado && (
                                                     <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-200 border border-rose-300 dark:border-rose-800 flex items-center gap-1 shadow-2xs">
@@ -1674,7 +1709,7 @@ const PerfilSociodemografico = () => {
                                             </div>
                                             <p className="text-xs text-text-secondary hidden md:flex items-center gap-1.5 mt-0.5">
                                                 <Briefcase className={isRetirado ? "w-3.5 h-3.5 shrink-0 text-rose-500" : "w-3.5 h-3.5 shrink-0 text-teal-500"} />
-                                                {w.cargo || 'Sin cargo asignado'} · CC: {w.identificacion || 'N/A'}
+                                                {toTitleCase(w.cargo) || 'Sin cargo asignado'} · CC: {w.identificacion || 'N/A'}
                                                 {isRetirado && w.motivoRetiro && (
                                                     <span className="text-rose-600 dark:text-rose-400 font-medium">· Motivo: {w.motivoRetiro}</span>
                                                 )}
@@ -1781,6 +1816,7 @@ const PerfilSociodemografico = () => {
                                                             <div className="space-y-1">
                                                                 <label className="text-xs font-bold text-text-secondary uppercase">Nombre Completo</label>
                                                                 <input type="text" value={w.nombre} onChange={e => updateWorkerField(w.id, 'nombre', e.target.value)}
+                                                                    onBlur={e => updateWorkerField(w.id, 'nombre', toTitleCase(e.target.value))}
                                                                     className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary font-medium shadow-inner focus:ring-2 focus:ring-teal-400 outline-none" />
                                                             </div>
                                                             <div className="space-y-1">

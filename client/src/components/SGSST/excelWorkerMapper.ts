@@ -47,18 +47,71 @@ export function excelSerialToDate(val: any): string {
 }
 
 /**
- * Normaliza nombres en formato "Apellido(s), Nombre(s)" a "Nombre(s) Apellido(s)"
+ * Convierte un texto a Formato Tipo Oración / Título (Title Case):
+ * "CARLOS DANIEL MONTILLA" -> "Carlos Daniel Montilla"
+ * "jorge enrique pineda celis" -> "Jorge Enrique Pineda Celis"
+ * Preserva acrónimos clave como SST, ARL, EPS, AFP, IPS, COPASST, PESV, etc.
+ */
+export function toTitleCase(text: string): string {
+  if (!text || typeof text !== 'string') return '';
+  const trimmed = text.trim();
+  if (!trimmed) return text;
+
+  const acronyms = new Set([
+    'SST', 'SG-SST', 'SGSST', 'ARL', 'EPS', 'AFP', 'IPS', 'CC', 'TI', 'CE', 'NIT',
+    'COPASST', 'PESV', 'GTC45', 'GTC', 'EPP', 'ATEL', 'SOAT', 'PILA', 'RIT', 'RHS',
+    'IA', 'API', 'PDF', 'RH', 'O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-',
+    'SURA', 'AXA', 'SISO', 'HSE', 'COVI', 'QR'
+  ]);
+
+  const minorWords = new Set(['de', 'del', 'la', 'las', 'el', 'los', 'y', 'e', 'o', 'u', 'en', 'a', 'con', 'por', 'para', 'al']);
+
+  return trimmed
+    .split(/\s+/)
+    .map((word, index) => {
+      const upper = word.toUpperCase();
+      if (acronyms.has(upper)) {
+        return upper;
+      }
+      if (word.includes('/')) {
+        return word.split('/').map((part, pIdx) => {
+          const pUpper = part.toUpperCase();
+          if (acronyms.has(pUpper)) return pUpper;
+          const pLower = part.toLowerCase();
+          if (pIdx > 0 && minorWords.has(pLower)) return pLower;
+          return pLower.charAt(0).toUpperCase() + pLower.slice(1);
+        }).join('/');
+      }
+      if (word.includes('-')) {
+        return word.split('-').map(part => {
+          const pUpper = part.toUpperCase();
+          if (acronyms.has(pUpper)) return pUpper;
+          const pLower = part.toLowerCase();
+          return pLower.charAt(0).toUpperCase() + pLower.slice(1);
+        }).join('-');
+      }
+      const lower = word.toLowerCase();
+      if (index > 0 && minorWords.has(lower)) {
+        return lower;
+      }
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(' ');
+}
+
+/**
+ * Normaliza nombres en formato "Apellido(s), Nombre(s)" a "Nombre(s) Apellido(s)" y aplica formato Tipo Oración
  */
 export function formatWorkerName(rawName: string): string {
   if (!rawName) return '';
-  const trimmed = rawName.trim().replace(/\s+/g, ' ');
+  let trimmed = rawName.trim().replace(/\s+/g, ' ');
   if (trimmed.includes(',')) {
     const parts = trimmed.split(',').map(p => p.trim()).filter(Boolean);
     if (parts.length === 2) {
-      return `${parts[1]} ${parts[0]}`;
+      trimmed = `${parts[1]} ${parts[0]}`;
     }
   }
-  return trimmed;
+  return toTitleCase(trimmed);
 }
 
 /**
@@ -340,23 +393,23 @@ export function smartMapExcelToWorkers(importedRows: RawRow[], emptyWorkerTempla
     return {
       ...emptyWorkerTemplate,
       id: crypto.randomUUID(),
-      nombre: nombre || row['Nombre'] || row.nombre || '',
+      nombre: toTitleCase(nombre || row['Nombre'] || row.nombre || ''),
       identificacion: identificacion || row['Identificación'] || row.identificacion || '',
-      cargo: cargo || row['Cargo'] || row.cargo || '',
+      cargo: toTitleCase(cargo || row['Cargo'] || row.cargo || ''),
       salario: salario || row['Salario'] || row['Salario Base'] || row.salario || '',
       genero: genero || row['Género'] || row.genero || '',
       edad: edad || row['Edad'] || row.edad || '',
       fechaNacimiento: fechaNacimiento || row['Fecha de Nacimiento'] || row.fechaNacimiento || '',
       direccion: direccion || row['Dirección'] || row.direccion || '',
-      municipioDomicilio: municipioDomicilio || row['Municipio'] || row.municipioDomicilio || '',
-      barrio: barrio || row['Barrio'] || row.barrio || '',
+      municipioDomicilio: toTitleCase(municipioDomicilio || row['Municipio'] || row.municipioDomicilio || ''),
+      barrio: toTitleCase(barrio || row['Barrio'] || row.barrio || ''),
       telefono: telefono || row['Teléfono'] || row.telefono || '',
       correoElectronico: correoElectronico || row['Correo Electrónico'] || row.correoElectronico || '',
-      estadoCivil: estadoCivil || row['Estado Civil'] || row.estadoCivil || '',
+      estadoCivil: toTitleCase(estadoCivil || row['Estado Civil'] || row.estadoCivil || ''),
       personasCargo: personasCargo || row['Personas a Cargo'] || row.personasCargo || '',
       estrato: estrato || row['Estrato'] || row.estrato || '',
-      vivienda: vivienda || row['Tipo de Vivienda'] || row.vivienda || '',
-      nivelEscolaridad: nivelEscolaridad || row['Nivel Escolaridad'] || row.nivelEscolaridad || '',
+      vivienda: toTitleCase(vivienda || row['Tipo de Vivienda'] || row.vivienda || ''),
+      nivelEscolaridad: toTitleCase(nivelEscolaridad || row['Nivel Escolaridad'] || row.nivelEscolaridad || ''),
       peso: peso || row['Peso (kg)'] || row.peso || '',
       talla: talla || row['Talla (m)'] || row.talla || '',
       imc: imc || row['IMC'] || row.imc || '',
@@ -367,14 +420,14 @@ export function smartMapExcelToWorkers(importedRows: RawRow[], emptyWorkerTempla
       deporte: deporte || row['Deporte / Actividad Física'] || row.deporte || '',
       alimentacion: alimentacion || row['Calidad de Alimentación'] || row.alimentacion || '',
       riesgoCardiovascular: riesgoCardiovascular || row['Riesgo Cardiovascular'] || row.riesgoCardiovascular || '',
-      emergenciaContacto: emergenciaContacto || row['Contacto de Emergencia'] || row.emergenciaContacto || '',
+      emergenciaContacto: toTitleCase(emergenciaContacto || row['Contacto de Emergencia'] || row.emergenciaContacto || ''),
       fechaExamenMedico: fechaExamenMedico || row['Fecha Examen Médico'] || row.fechaExamenMedico || '',
       diagnosticoMedico: diagnosticoMedico || row['Diagnóstico Médico'] || row.diagnosticoMedico || '',
       recomendacionesMedicas: recomendacionesMedicas || row['Recomendaciones Medicas'] || row.recomendacionesMedicas || '',
       limitacionesBiomecanicas: limitacionesBiomecanicas || row['Limitaciones Biomecánicas'] || row.limitacionesBiomecanicas || '',
       tipoSangre: tipoSangre || row['Tipo de Sangre'] || row.tipoSangre || '',
-      eps: eps || row['EPS'] || row['Entidad EPS'] || row.eps || '',
-      afp: afp || row['AFP'] || row['Fondo de Pensiones'] || row.afp || '',
+      eps: toTitleCase(eps || row['EPS'] || row['Entidad EPS'] || row.eps || ''),
+      afp: toTitleCase(afp || row['AFP'] || row['Fondo de Pensiones'] || row.afp || ''),
       estadoPila: estadoPila || row['Estado PILA'] || row.estadoPila || 'Pendiente de soporte PILA',
       soatVencimiento: soatVencimiento || '',
       tecnicomecanicaVencimiento: tecnicomecanicaVencimiento || '',
