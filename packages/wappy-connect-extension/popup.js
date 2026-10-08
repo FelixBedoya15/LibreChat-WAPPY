@@ -69,7 +69,7 @@ async function fetchGoogleCookies() {
     googleStatusEl.className = 'status-badge checking';
     googleStatusEl.innerHTML = '<span class="dot"></span> Verificando...';
 
-    // Consultar cookies de .google.com, notebooklm.google.com y notebook.google.com
+    // Consultar cookies de los dominios relevantes de Google y pestañas activas
     const [domainGoogle, domainNblm, domainNb, urlNblm, urlNb] = await Promise.all([
       chrome.cookies.getAll({ domain: 'google.com' }),
       chrome.cookies.getAll({ domain: 'notebooklm.google.com' }),
@@ -78,64 +78,66 @@ async function fetchGoogleCookies() {
       chrome.cookies.getAll({ url: 'https://notebook.google.com' }),
     ]);
 
+    // También intentar capturar las cookies de la pestaña activa si es de Google o NotebookLM
+    let activeTabCookies = [];
+    try {
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (activeTab && activeTab.url && (activeTab.url.includes('notebooklm.google.com') || activeTab.url.includes('notebook.google.com') || activeTab.url.includes('google.com'))) {
+        activeTabCookies = await chrome.cookies.getAll({ url: activeTab.url });
+      }
+    } catch (e) {
+      console.debug('No se pudieron leer cookies de la pestaña activa:', e);
+    }
+
     const allRaw = [
       ...(domainGoogle || []),
       ...(domainNblm || []),
       ...(domainNb || []),
       ...(urlNblm || []),
       ...(urlNb || []),
+      ...(activeTabCookies || []),
     ];
     const cookieMap = new Map();
 
-    // Filtro amplio de cookies esenciales y de origen para autenticación de Google NotebookLM
-    const targetNames = new Set([
-      'OSID',
-      '__Secure-OSID',
-      '__Secure-1PSID',
-      '__Secure-1PSIDTS',
-      '__Secure-1PSIDCC',
-      '__Secure-3PSID',
-      '__Secure-3PSIDTS',
-      '__Secure-3PSIDCC',
-      '__Secure-1PAPISID',
-      '__Secure-3PAPISID',
-      'SID',
-      'SIDCC',
-      'HSID',
-      'SSID',
-      'APISID',
-      'SAPISID',
-      'NID',
-      'SNID',
-      'AEC',
-      'SOCS',
-      'S',
-    ]);
-
     for (const c of allRaw) {
       if (!c || !c.name || !c.value) continue;
-      if (targetNames.has(c.name)) {
-        let sameSite = c.sameSite || 'Lax';
-        if (sameSite === 'no_restriction' || sameSite === 'unspecified') {
-          sameSite = 'Lax';
-        }
-
-        // Clave compuesta por nombre, dominio y ruta para no pisar cookies entre dominios
-        const mapKey = `${c.name}::${c.domain || '.google.com'}::${c.path || '/'}`;
-        cookieMap.set(mapKey, {
-          name: c.name,
-          value: c.value,
-          domain: c.domain || '.google.com',
-          path: c.path || '/',
-          secure: Boolean(c.secure),
-          httpOnly: Boolean(c.httpOnly),
-          sameSite: sameSite.charAt(0).toUpperCase() + sameSite.slice(1).toLowerCase(),
-        });
+      
+      let sameSite = c.sameSite || 'Lax';
+      if (sameSite === 'no_restriction' || sameSite === 'unspecified') {
+        sameSite = 'Lax';
       }
+
+      // Estructura idéntica al formato estándar exportado por Cookie-Editor
+      const cookieObj = {
+        name: c.name,
+        value: c.value,
+        domain: c.domain || '.google.com',
+        path: c.path || '/',
+        secure: Boolean(c.secure),
+        httpOnly: Boolean(c.httpOnly),
+        sameSite: sameSite.charAt(0).toUpperCase() + sameSite.slice(1).toLowerCase(),
+        expirationDate: c.expirationDate || undefined,
+        hostOnly: Boolean(c.hostOnly),
+        session: Boolean(c.session),
+        storeId: c.storeId || '0',
+      };
+
+      const mapKey = `${c.name}::${cookieObj.domain}::${cookieObj.path}`;
+      cookieMap.set(mapKey, cookieObj);
     }
 
     const filtered = Array.from(cookieMap.values());
     detectedCookies = filtered;
+
+    // Actualizar el textarea visual estilo Cookie-Editor
+    const jsonTextarea = document.getElementById('cookies-json-textarea');
+    const cookieCounter = document.getElementById('cookie-counter');
+    if (jsonTextarea) {
+      jsonTextarea.value = JSON.stringify(filtered, null, 2);
+    }
+    if (cookieCounter) {
+      cookieCounter.textContent = `${filtered.length} cookies`;
+    }
 
     const hasPsid = filtered.some((c) => c.name === '__Secure-1PSID');
     const hasSid = filtered.some((c) => c.name === 'SID');
@@ -147,14 +149,13 @@ async function fetchGoogleCookies() {
       googleStatusEl.innerHTML = '<span class="dot"></span> Conectado';
 
       googleDetailsEl.innerHTML = `
-        <span>✓ <strong>${filtered.length} cookies</strong> listas para sincronizar.</span>
+        <span>✓ <strong>${filtered.length} cookies</strong> capturadas estilo Cookie-Editor.</span>
         <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px;">
           <span class="cookie-tag">SID</span>
           <span class="cookie-tag">__Secure-1PSID</span>
           ${hasOsid ? '<span class="cookie-tag" style="background: rgba(13, 148, 136, 0.4); color: #2dd4bf;">OSID ✓</span>' : '<span class="cookie-tag" style="background: rgba(245, 158, 11, 0.3); color: #fcd34d;">Sin OSID</span>'}
           ${hasPsidts ? '<span class="cookie-tag">1PSIDTS</span>' : ''}
         </div>
-        ${!hasOsid ? '<p style="font-size: 10px; color: #fcd34d; margin-top: 5px;">⚠️ Abre una pestaña en <a href="https://notebooklm.google.com" target="_blank" style="color: #38bdf8;">notebooklm.google.com</a> para capturar el token de origen (OSID).</p>' : ''}
       `;
 
       loginCtaEl.style.display = 'none';
@@ -381,6 +382,39 @@ document.addEventListener('DOMContentLoaded', async () => {
   btnSync.addEventListener('click', handleSyncWithWappy);
   btnCopy.addEventListener('click', handleCopyJson);
   btnTest.addEventListener('click', handleTestSession);
+
+  // Botón Copiar JSON directo del visor
+  const btnCopyDirect = document.getElementById('btn-copy-direct');
+  const btnCopyDirectText = document.getElementById('btn-copy-direct-text');
+  const jsonTextarea = document.getElementById('cookies-json-textarea');
+  const btnSelectAll = document.getElementById('btn-select-all');
+
+  if (btnCopyDirect) {
+    btnCopyDirect.addEventListener('click', async () => {
+      if (jsonTextarea && jsonTextarea.value) {
+        try {
+          await navigator.clipboard.writeText(jsonTextarea.value);
+          showAlert('¡JSON de cookies copiado al portapapeles! Pégalo en WAPPY en Configuración -> Cuenta -> NotebookLM.', 'success');
+          if (btnCopyDirectText) btnCopyDirectText.textContent = '¡Copiado!';
+          setTimeout(() => {
+            if (btnCopyDirectText) btnCopyDirectText.textContent = 'Copiar JSON';
+          }, 2500);
+        } catch (e) {
+          jsonTextarea.select();
+          showAlert('Seleccionado. Presiona Ctrl+C o Cmd+C para copiar.', 'info');
+        }
+      } else {
+        showAlert('No hay cookies para copiar.', 'warning');
+      }
+    });
+  }
+
+  if (btnSelectAll && jsonTextarea) {
+    btnSelectAll.addEventListener('click', () => {
+      jsonTextarea.select();
+      showAlert('Texto seleccionado en el visor.', 'info');
+    });
+  }
 
   btnOpenNotebook.addEventListener('click', () => {
     chrome.tabs.create({ url: 'https://notebooklm.google.com' });

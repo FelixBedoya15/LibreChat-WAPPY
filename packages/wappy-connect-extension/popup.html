@@ -382,6 +382,24 @@
     <span id="alert-text">Mensaje</span>
   </div>
 
+  <!-- Visualizador JSON estilo Cookie-Editor -->
+  <div class="card" id="json-viewer-card">
+    <div class="card-title">
+      <span>JSON de Cookies (Estilo Cookie-Editor)</span>
+      <span id="cookie-counter" style="font-size: 10px; color: var(--text-muted);">0 cookies</span>
+    </div>
+    <div style="position: relative;">
+      <textarea id="cookies-json-textarea" readonly placeholder="Abriendo y leyendo cookies de Google NotebookLM..." style="width: 100%; height: 110px; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--card-border); border-radius: 8px; padding: 8px; font-family: monospace; font-size: 10px; color: #38bdf8; resize: none; outline: none;"></textarea>
+    </div>
+    <div style="margin-top: 6px; display: flex; gap: 6px;">
+      <button id="btn-select-all" type="button" class="quick-url-btn" style="flex: 1; padding: 4px;">Seleccionar Todo</button>
+      <button id="btn-copy-direct" type="button" class="btn btn-primary" style="flex: 2; padding: 6px 10px; font-size: 11px;">
+        <span>📋</span>
+        <span id="btn-copy-direct-text">Copiar JSON</span>
+      </button>
+    </div>
+  </div>
+
   <!-- Botones de Acción -->
   <div class="btn-group">
     <button id="btn-sync" class="btn btn-primary" disabled>
