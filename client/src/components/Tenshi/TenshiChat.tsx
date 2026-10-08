@@ -1395,9 +1395,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         return;
       }
 
-      console.log(`[Tenshi Watchdog] Iniciando sondeo silencioso cada 3s para orden delegada ID: ${ordenId}`);
+      console.log(`[Tenshi Watchdog] Iniciando sondeo silencioso cada 15s para orden delegada ID: ${ordenId}`);
       let attempts = 0;
-      const MAX_ATTEMPTS = 300; // 15 minutos (300 * 3s)
+      const MAX_ATTEMPTS = 60; // 15 minutos (60 * 15s)
 
       const timer = setInterval(async () => {
         attempts++;
@@ -1482,7 +1482,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         } catch (_) {
           // Ignorar errores transitorios de red
         }
-      }, 3000);
+      }, 15000);
 
       activeOrderWatchdogsRef.current.set(ordenId, timer);
     },
@@ -3866,7 +3866,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                                   <span className="relative inline-flex h-2 w-2 rounded-full bg-teal-500"></span>
                                 </span>
                                 <span className="text-[11px] font-semibold text-teal-700 dark:text-teal-300">
-                                  Antigravity procesando en segundo plano... (Monitoreo en vivo cada 3s)
+                                  Antigravity procesando en segundo plano... (Monitoreo en vivo cada 15s)
                                 </span>
                               </div>
                             )}
