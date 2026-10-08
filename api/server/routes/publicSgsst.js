@@ -327,7 +327,7 @@ router.post('/reporte-acto/:companyId', async (req, res) => {
           'Reporte de acto o condición insegura con evidencia',
           50,
           newInboxItem.id,
-          { esObservado: false }
+          { companyId: company._id, esObservado: false }
         );
       } catch (feedErr) {
         logger.error('[Public SGSST] Error feeding worker event for reporte-acto:', feedErr);
@@ -452,7 +452,8 @@ router.post('/participacion-ipevar/:companyId', async (req, res) => {
           'participacion_ipevar',
           'Identificación y reporte de peligro IPEVR (GTC-45)',
           150,
-          newInboxItem.id
+          newInboxItem.id,
+          { companyId: company._id }
         );
       } catch (feedErr) {
         logger.error('[Public SGSST] Error feeding worker event for IPEVAR:', feedErr);
@@ -575,7 +576,8 @@ router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
           'atel_testimonio',
           `Testimonio aportado en investigación de incidente/accidente ATEL`,
           30,
-          String(targetDoc.id || newInboxItem.id || 'ATEL-TEST')
+          String(targetDoc.id || newInboxItem.id || 'ATEL-TEST'),
+          { companyId: company._id }
         );
       } catch (feedErr) {
         logger.error('[Public SGSST] Error feeding worker event for ATEL testimony:', feedErr);
@@ -1012,8 +1014,23 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
           body: `${worker.nombre || 'Un trabajador'} ha solicitado actualizar sus datos de perfil sociodemográfico y condiciones de salud.`,
           metadata: { module: 'perfil_socio', workerId },
         });
+
+        // Gamificación: +20 Puntos por actualización y validación responsable de perfil
+        const cleanDoc = String(worker.identificacion || cedula || '').trim();
+        if (cleanDoc && company.user) {
+          const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+          await feedWorkerEvent(
+            company.user,
+            cleanDoc,
+            'perfil',
+            'Actualización y validación responsable de datos sociodemográficos y de salud',
+            20,
+            `PERFIL-${workerId || cleanDoc}-${Date.now()}`,
+            { companyId: company._id, nombre: worker.nombre, cargo: worker.cargo }
+          );
+        }
       } catch (notifErr) {
-        logger.warn('[Public Perfil Update] Could not create notification:', notifErr.message);
+        logger.warn('[Public Perfil Update] Could not process notification or gamification:', notifErr.message);
       }
     });
 
@@ -2776,7 +2793,7 @@ router.post('/copasst-inspeccion/:companyId', async (req, res) => {
           `Ronda de inspección de seguridad COPASST (${consecutivo}) en ${area}`,
           50,
           nuevaInspeccion._id.toString(),
-          { tipoInspeccion: tipoLabel || tipoInspeccion, hallazgosCount: (hallazgos || []).length }
+          { companyId: company._id, tipoInspeccion: tipoLabel || tipoInspeccion, hallazgosCount: (hallazgos || []).length }
         );
       } catch (feedErr) {
         logger.warn('[Public SGSST] Gamification feed error for copasst inspeccion:', feedErr.message);
@@ -3712,7 +3729,8 @@ router.post('/epp/solicitar/:companyId', async (req, res) => {
         'solicitud_epp',
         `Solicitud de dotación/reposición de EPP (${items.length} ítems)`,
         25,
-        String(nuevaSolicitud._id)
+        String(nuevaSolicitud._id),
+        { companyId: company._id, nombre: nombreTrabajador, cargo }
       );
     } catch (gErr) {
       logger.warn('[Public SGSST] Gamification error on EPP request:', gErr.message);
@@ -3896,7 +3914,8 @@ router.post('/pesv/inspeccion-diaria/:companyId', async (req, res) => {
         'inspeccion_vehicular_pesv',
         `Inspección preoperacional diaria PESV completada (${cleanPlaca}) - ${resultado}`,
         40,
-        `PESV-${cleanPlaca}-${todayStr}`
+        `PESV-${cleanPlaca}-${todayStr}`,
+        { companyId: company._id, nombre: conductorNombre }
       );
     } catch (gErr) {
       logger.warn('[Public PESV] Gamification error on inspection:', gErr.message);
