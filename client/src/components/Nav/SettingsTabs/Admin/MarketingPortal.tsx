@@ -13,6 +13,7 @@ import {
   ChevronRight,
   ArrowLeft
 } from 'lucide-react';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 export default function MarketingPortal() {
   const localize = useLocalize();
@@ -392,21 +393,17 @@ export default function MarketingPortal() {
               rows={4}
               className="w-full rounded-lg border border-gray-300 bg-surface-primary p-3 text-sm text-text-primary placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600"
             />
-            <button
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-purple-600 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:opacity-50"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Redactando correo...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" /> Generar Asunto y Cuerpo con IA
-                </>
-              )}
-            </button>
+            <div className="mt-3">
+              <WappyExpandButton
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                isLoading={isGenerating}
+                variant="orange"
+                icon={Sparkles}
+                label="Generar Asunto y Cuerpo con IA"
+                className="w-full sm:w-auto"
+              />
+            </div>
           </div>
 
           {/* Campos de Edición */}
@@ -512,14 +509,17 @@ export default function MarketingPortal() {
                   placeholder="ejemplo@correo.com"
                   className="w-full rounded-lg border border-gray-300 bg-surface-primary px-3 py-2 text-xs text-text-primary focus:border-blue-500 focus:outline-none dark:border-gray-600"
                 />
-                <button
-                  onClick={handleSendTest}
-                  disabled={isSendingTest}
-                  className="w-full rounded-lg bg-blue-600 py-2 text-xs font-bold text-white hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
-                >
-                  {isSendingTest ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                  Enviar Correo de Prueba
-                </button>
+                <div className="mt-2">
+                  <WappyExpandButton
+                    onClick={handleSendTest}
+                    disabled={isSendingTest}
+                    isLoading={isSendingTest}
+                    variant="blue"
+                    icon={Send}
+                    label="Enviar Correo de Prueba"
+                    className="w-full sm:w-auto"
+                  />
+                </div>
               </div>
             </div>
 
@@ -541,14 +541,17 @@ export default function MarketingPortal() {
                   <option value="USER_PRO">Plan Pro (Rol: USER_PRO)</option>
                 </select>
                 
-                <button
-                  onClick={handleSendBulk}
-                  disabled={isSendingBulk}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition disabled:opacity-50"
-                >
-                  {isSendingBulk ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
-                  Lanzar Campaña Masiva
-                </button>
+                <div className="mt-2">
+                  <WappyExpandButton
+                    onClick={handleSendBulk}
+                    disabled={isSendingBulk}
+                    isLoading={isSendingBulk}
+                    variant="emerald"
+                    icon={Mail}
+                    label="Lanzar Campaña Masiva"
+                    className="w-full sm:w-auto"
+                  />
+                </div>
               </div>
             </div>
 

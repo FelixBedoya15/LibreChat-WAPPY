@@ -300,10 +300,14 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
               <a
                 href="/extension/wappy-connect.zip"
                 download="wappy-connect.zip"
-                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md shadow-teal-600/20 transition-all active:scale-95 shrink-0"
+                title="Descargar Extensión (.zip)"
+                className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 border border-teal-200/80 dark:border-teal-800/80 px-2.5 shadow-2xs transition-all duration-300 active:scale-95 shrink-0"
               >
-                <Download className="w-4 h-4" />
-                <span>Descargar Extensión (.zip)</span>
+                <Download className="w-4 h-4 shrink-0" />
+                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+                  <span className="text-xs font-bold tracking-wide">Descargar Extensión (.zip)</span>
+                </div>
+                <span className="sm:hidden text-xs font-bold ml-1.5">Descargar Extensión (.zip)</span>
               </a>
             </div>
 
@@ -357,10 +361,14 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
                     type="button"
                     onClick={handleSaveManual}
                     disabled={isSaving}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white shadow-md transition-all active:scale-95 disabled:opacity-50"
+                    title="Guardar y Vincular"
+                    className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 border border-teal-200/80 dark:border-teal-800/80 px-2.5 shadow-2xs transition-all duration-300 active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
                   >
-                    {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                    <span>{isSaving ? 'Guardando y Verificando...' : 'Guardar y Vincular'}</span>
+                    {isSaving ? <RefreshCw className="w-4 h-4 animate-spin shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
+                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[260px] group-hover:opacity-100 sm:flex">
+                      <span className="text-xs font-bold tracking-wide">{isSaving ? 'Guardando...' : 'Guardar y Vincular'}</span>
+                    </div>
+                    <span className="sm:hidden text-xs font-bold ml-1.5">{isSaving ? 'Guardando...' : 'Guardar y Vincular'}</span>
                   </button>
                 </div>
               </div>
@@ -383,9 +391,14 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 active:scale-95 transition-all shadow-xs"
+            title="Cerrar"
+            className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 px-2.5 shadow-2xs transition-all duration-300 active:scale-95 cursor-pointer shrink-0"
           >
-            Cerrar
+            <X className="w-4 h-4 shrink-0" />
+            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+              <span className="text-xs font-bold tracking-wide">Cerrar</span>
+            </div>
+            <span className="sm:hidden text-xs font-bold ml-1.5">Cerrar</span>
           </button>
         </div>
       </div>

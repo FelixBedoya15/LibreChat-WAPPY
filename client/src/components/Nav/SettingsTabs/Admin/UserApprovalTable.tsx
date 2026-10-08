@@ -504,34 +504,50 @@ export default function UserManagementTable() {
                     <input type="file" accept=".xlsx, .xls" className="hidden" id="import-users-file" onChange={handleImportUsers} />
                     <label 
                         htmlFor="import-users-file" 
-                        className="flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs shadow-xs transition-all active:scale-95 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 cursor-pointer"
+                        title={localize('com_ui_import_users') || 'Importar Excel'}
+                        className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 px-2.5 shadow-2xs transition-all duration-300 active:scale-95 cursor-pointer"
                     >
-                        <Upload className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                        <span>{localize('com_ui_import_users') || 'Importar Excel'}</span>
+                        <Upload className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[160px] group-hover:opacity-100 sm:flex">
+                            <span className="text-xs font-bold">{localize('com_ui_import_users') || 'Importar Excel'}</span>
+                        </div>
+                        <span className="sm:hidden text-xs font-bold ml-1.5">{localize('com_ui_import_users') || 'Importar Excel'}</span>
                     </label>
 
                     <button 
                         onClick={handleExportUsers} 
-                        className="flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs shadow-xs transition-all active:scale-95 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 cursor-pointer"
+                        title={localize('com_ui_export_users') || 'Exportar Usuarios'}
+                        className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 px-2.5 shadow-2xs transition-all duration-300 active:scale-95 cursor-pointer"
                     >
-                        <Download className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-300" />
-                        <span>{localize('com_ui_export_users') || 'Exportar Usuarios'}</span>
+                        <Download className="w-4 h-4 text-slate-600 dark:text-zinc-300 shrink-0" />
+                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[160px] group-hover:opacity-100 sm:flex">
+                            <span className="text-xs font-bold">{localize('com_ui_export_users') || 'Exportar Usuarios'}</span>
+                        </div>
+                        <span className="sm:hidden text-xs font-bold ml-1.5">{localize('com_ui_export_users') || 'Exportar Usuarios'}</span>
                     </button>
 
                     <button 
                         onClick={handleExportCompanyInfo} 
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white cursor-pointer"
+                        title="Exportar Info Empresarial"
+                        className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/50 border border-orange-200/80 dark:border-orange-800/80 px-2.5 shadow-2xs transition-all duration-300 active:scale-95 cursor-pointer"
                     >
-                        <FileSpreadsheet className="w-3.5 h-3.5" />
-                        <span>Exportar Info Empresarial</span>
+                        <FileSpreadsheet className="w-4 h-4 shrink-0" />
+                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
+                            <span className="text-xs font-bold">Exportar Info Empresarial</span>
+                        </div>
+                        <span className="sm:hidden text-xs font-bold ml-1.5">Exportar Info Empresarial</span>
                     </button>
 
                     <button 
                         onClick={() => setIsCreateModalOpen(true)} 
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white cursor-pointer"
+                        title={localize('com_ui_create_user') || 'Crear Usuario'}
+                        className="group flex h-9 min-w-[36px] items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 border border-teal-200/80 dark:border-teal-800/80 px-2.5 shadow-2xs transition-all duration-300 active:scale-95 cursor-pointer"
                     >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>{localize('com_ui_create_user') || 'Crear Usuario'}</span>
+                        <Plus className="w-4 h-4 shrink-0" />
+                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[160px] group-hover:opacity-100 sm:flex">
+                            <span className="text-xs font-bold">{localize('com_ui_create_user') || 'Crear Usuario'}</span>
+                        </div>
+                        <span className="sm:hidden text-xs font-bold ml-1.5">{localize('com_ui_create_user') || 'Crear Usuario'}</span>
                     </button>
                 </div>
             </div>

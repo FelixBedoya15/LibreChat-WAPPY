@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useRevokeAllUserKeysMutation } from 'librechat-data-provider/react-query';
+import { KeyRound } from 'lucide-react';
 import {
   OGDialogTemplate,
   Button,
@@ -9,6 +10,7 @@ import {
   Spinner,
 } from '@librechat/client';
 import { useLocalize } from '~/hooks';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 export const RevokeKeys = ({
   disabled = false,
@@ -41,14 +43,14 @@ export const RevokeKeys = ({
 
       <OGDialog open={open} onOpenChange={setOpen}>
         <OGDialogTrigger asChild>
-          <Button
-            variant="destructive"
+          <WappyExpandButton
+            variant="red"
             onClick={() => setOpen(true)}
             disabled={disabled}
             aria-labelledby="revoke-info-label"
-          >
-            {localize('com_ui_revoke')}
-          </Button>
+            icon={<KeyRound className="w-4 h-4" />}
+            label={localize('com_ui_revoke')}
+          />
         </OGDialogTrigger>
         <OGDialogTemplate
           showCloseButton={false}

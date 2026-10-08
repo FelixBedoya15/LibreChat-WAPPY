@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useClearConversationsMutation } from 'librechat-data-provider/react-query';
+import { Trash2 } from 'lucide-react';
 import {
   OGDialogTemplate,
   Label,
@@ -10,6 +11,7 @@ import {
 } from '@librechat/client';
 import { clearAllConversationStorage } from '~/utils';
 import { useLocalize, useNewConvo } from '~/hooks';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 export const ClearChats = () => {
   const localize = useLocalize();
@@ -34,13 +36,13 @@ export const ClearChats = () => {
       <Label id="clear-all-chats-label">{localize('com_nav_clear_all_chats')}</Label>
       <OGDialog open={open} onOpenChange={setOpen}>
         <OGDialogTrigger asChild>
-          <Button
+          <WappyExpandButton
             aria-labelledby="clear-all-chats-label"
-            variant="destructive"
+            variant="red"
             onClick={() => setOpen(true)}
-          >
-            {localize('com_ui_delete')}
-          </Button>
+            icon={<Trash2 className="w-4 h-4" />}
+            label={localize('com_ui_delete')}
+          />
         </OGDialogTrigger>
         <OGDialogTemplate
           showCloseButton={false}

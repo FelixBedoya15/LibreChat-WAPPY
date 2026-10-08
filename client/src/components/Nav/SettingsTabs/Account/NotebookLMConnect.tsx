@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, ChevronRight, ShieldCheck, Sparkles, CheckCircle2 } from 'lucide-react';
+import { BookOpen, ShieldCheck, Sparkles, CheckCircle2 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import NotebookLMModal from './NotebookLMModal';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 export default function NotebookLMConnect() {
   const { token } = useAuthContext();
@@ -55,15 +56,12 @@ export default function NotebookLMConnect() {
         </div>
       </div>
 
-      <button
-        type="button"
+      <WappyExpandButton
+        variant="teal"
         onClick={() => setIsOpen(true)}
-        className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs shadow-md shadow-teal-600/20 transition-all active:scale-95 shrink-0"
-      >
-        <Sparkles className="w-4 h-4" />
-        <span>{isConnected ? 'Gestionar Sesión' : 'Vincular en 1 Clic'}</span>
-        <ChevronRight className="w-3.5 h-3.5 opacity-80" />
-      </button>
+        icon={<Sparkles className="w-4 h-4" />}
+        label={isConnected ? 'Gestionar Sesión' : 'Vincular en 1 Clic'}
+      />
 
       <NotebookLMModal
         isOpen={isOpen}

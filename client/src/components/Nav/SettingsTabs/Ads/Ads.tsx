@@ -3,6 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { Button, Input } from '@librechat/client';
 import { Trash2, Edit, Plus, X } from 'lucide-react';
 import { useLocalize, useAuthContext } from '~/hooks';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 interface Ad {
     _id: string;
@@ -368,8 +369,19 @@ const Ads = () => {
                             <label htmlFor="active" className="text-sm">Activo</label>
                         </div>
                         <div className="flex justify-end gap-2 mt-4">
-                            <Button type="button" variant="outline" onClick={cancelEdit}>Cancelar</Button>
-                            <Button type="submit">Guardar</Button>
+                            <WappyExpandButton
+                              type="button"
+                              variant="neutral"
+                              onClick={cancelEdit}
+                              icon={<X className="h-4 w-4" />}
+                              label="Cancelar"
+                            />
+                            <WappyExpandButton
+                              type="submit"
+                              variant="teal"
+                              icon={<Plus className="h-4 w-4" />}
+                              label="Guardar Anuncio"
+                            />
                         </div>
                     </form>
                 </div>
@@ -382,9 +394,12 @@ const Ads = () => {
             <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-medium">Gestión de Publicidad</h3>
-                    <Button onClick={startCreate} size="sm">
-                        <Plus className="mr-2 h-4 w-4" /> Nuevo Anuncio
-                    </Button>
+                    <WappyExpandButton
+                      variant="teal"
+                      onClick={startCreate}
+                      icon={<Plus className="h-4 w-4" />}
+                      label="Nuevo Anuncio"
+                    />
                 </div>
 
                 {loading ? (
@@ -392,18 +407,24 @@ const Ads = () => {
                 ) : (
                     <div className="flex flex-col gap-2">
                         {ads.map((ad) => (
-                            <div key={ad._id} className="flex items-center justify-between rounded-md border p-3 bg-surface-primary">
+                            <div key={ad._id} className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-zinc-800 p-3 bg-surface-primary">
                                 <div className="flex flex-col">
                                     <span className="font-medium">{ad.title}</span>
                                     <span className="text-xs text-text-secondary">{ad.active ? 'Activo' : 'Inactivo'}</span>
                                 </div>
-                                <div className="flex gap-2">
-                                    <Button variant="ghost" size="icon" onClick={() => startEdit(ad)}>
-                                        <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" onClick={() => handleDelete(ad._id)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                <div className="flex items-center gap-1.5">
+                                    <WappyExpandButton
+                                      variant="teal"
+                                      onClick={() => startEdit(ad)}
+                                      icon={<Edit className="h-4 w-4" />}
+                                      label="Editar"
+                                    />
+                                    <WappyExpandButton
+                                      variant="red"
+                                      onClick={() => handleDelete(ad._id)}
+                                      icon={<Trash2 className="h-4 w-4" />}
+                                      label="Eliminar"
+                                    />
                                 </div>
                             </div>
                         ))}

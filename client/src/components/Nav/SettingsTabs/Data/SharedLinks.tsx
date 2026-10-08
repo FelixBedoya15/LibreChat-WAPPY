@@ -2,7 +2,8 @@ import { useCallback, useState, useMemo, useEffect } from 'react';
 import debounce from 'lodash/debounce';
 import { useRecoilValue } from 'recoil';
 import { Link } from 'react-router-dom';
-import { TrashIcon, MessageSquare, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { TrashIcon, MessageSquare, ArrowUpDown, ArrowUp, ArrowDown, Share2 } from 'lucide-react';
+import { WappyExpandButton } from '../WappyExpandButton';
 import type { SharedLinkItem, SharedLinksListParams } from 'librechat-data-provider';
 import {
   OGDialog,
@@ -244,28 +245,34 @@ export default function SharedLinks() {
           mobileSize: '25%',
         },
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              className="h-8 w-8 p-0 hover:bg-surface-hover"
+          <div className="flex items-center gap-1.5">
+            <button
               onClick={() => {
                 window.open(`/c/${row.original.conversationId}`, '_blank');
               }}
+              className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg px-1.5 shadow-2xs transition-all duration-300 active:scale-95 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 hover:bg-teal-100 cursor-pointer"
               aria-label={`${localize('com_ui_view_source')} - ${row.original.title || localize('com_ui_untitled')}`}
+              title={localize('com_ui_view_source') || 'Ver chat'}
             >
-              <MessageSquare className="size-4" aria-hidden="true" />
-            </Button>
-            <Button
-              variant="ghost"
-              className="h-8 w-8 p-0 hover:bg-surface-hover"
+              <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                <span className="text-[10px] font-bold">{localize('com_ui_view_source') || 'Ver'}</span>
+              </div>
+            </button>
+            <button
               onClick={() => {
                 setDeleteRow(row.original);
                 setIsDeleteOpen(true);
               }}
+              className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg px-1.5 shadow-2xs transition-all duration-300 active:scale-95 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 cursor-pointer"
               aria-label={`${localize('com_ui_delete')} - ${row.original.title || localize('com_ui_untitled')}`}
+              title={localize('com_ui_delete') || 'Eliminar'}
             >
-              <TrashIcon className="size-4" aria-hidden="true" />
-            </Button>
+              <TrashIcon className="h-3.5 w-3.5" aria-hidden="true" />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                <span className="text-[10px] font-bold">{localize('com_ui_delete') || 'Eliminar'}</span>
+              </div>
+            </button>
           </div>
         ),
       },
@@ -279,9 +286,12 @@ export default function SharedLinks() {
 
       <OGDialog open={isOpen} onOpenChange={setIsOpen}>
         <OGDialogTrigger asChild onClick={() => setIsOpen(true)}>
-          <Button aria-labelledby="shared-links-label" variant="outline">
-            {localize('com_ui_manage')}
-          </Button>
+          <WappyExpandButton
+            variant="teal"
+            aria-labelledby="shared-links-label"
+            icon={<Share2 className="w-4 h-4" />}
+            label={localize('com_ui_manage')}
+          />
         </OGDialogTrigger>
 
         <OGDialogContent

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Cpu, Terminal, ChevronRight, ShieldCheck, Sparkles } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import McpAntigravityModal from '~/components/SGSST/McpAntigravityModal';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 export default function AntigravityMcpConnect() {
   const { token } = useAuthContext();
@@ -49,15 +50,12 @@ export default function AntigravityMcpConnect() {
         </div>
       </div>
 
-      <button
-        type="button"
+      <WappyExpandButton
+        variant="orange"
         onClick={() => setIsOpen(true)}
-        className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 shrink-0"
-      >
-        <Terminal className="w-4 h-4" />
-        <span>Configurar MCP</span>
-        <ChevronRight className="w-3.5 h-3.5 opacity-80" />
-      </button>
+        icon={<Terminal className="w-4 h-4" />}
+        label="Configurar MCP"
+      />
 
       <McpAntigravityModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
     </div>

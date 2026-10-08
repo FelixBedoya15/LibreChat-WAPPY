@@ -5,6 +5,7 @@ import { Loader2, LogOut, CheckCircle2, Cloud } from 'lucide-react';
 import axios from 'axios';
 import { useAuthContext } from '~/hooks';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 export default function GoogleDriveConnect() {
   const { showToast } = useToastContext();
@@ -146,23 +147,23 @@ export default function GoogleDriveConnect() {
         
         <div className="flex items-center">
           {!connected ? (
-            <Button 
-              variant="outline" 
-              onClick={handleConnect} 
+            <WappyExpandButton
+              variant="emerald"
+              onClick={handleConnect}
               disabled={isActionLoading}
-              className="border-green-500/50 text-green-600 hover:bg-green-500/10 hover:text-green-700 transition-colors font-semibold"
-            >
-              {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Conectar Google Workspace'}
-            </Button>
+              isLoading={isActionLoading}
+              icon={<Cloud className="w-4 h-4" />}
+              label="Conectar Google Workspace"
+            />
           ) : (
-            <Button 
-              variant="outline" 
-              onClick={handleDisconnect} 
+            <WappyExpandButton
+              variant="red"
+              onClick={handleDisconnect}
               disabled={isActionLoading}
-              className="border-red-500/50 text-red-500 hover:bg-red-500/10 hover:text-red-600 transition-colors font-semibold"
-            >
-              {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><LogOut className="w-4 h-4 mr-2" />Desconectar</>}
-            </Button>
+              isLoading={isActionLoading}
+              icon={<LogOut className="w-4 h-4" />}
+              label="Desconectar"
+            />
           )}
         </div>
       </div>

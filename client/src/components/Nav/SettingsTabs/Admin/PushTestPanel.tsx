@@ -4,6 +4,7 @@ import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { Bell, BellOff, Send, CheckCircle2, XCircle } from 'lucide-react';
 import { subscribeToPushNotifications, unsubscribeFromPushNotifications } from '~/utils/pushSubscriptionHelper';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 export default function PushTestPanel() {
     const { token } = useAuthContext();
@@ -131,21 +132,20 @@ export default function PushTestPanel() {
                 </p>
 
                 <div className="flex flex-wrap gap-3">
-                    <button
+                    <WappyExpandButton
                         onClick={handleSubscribe}
                         disabled={loadingKey}
-                        className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 shadow-sm transition-all disabled:opacity-50"
-                    >
-                        <Bell className="h-4 w-4" />
-                        Activar Notificaciones en este dispositivo
-                    </button>
-                    <button
+                        isLoading={loadingKey}
+                        variant="blue"
+                        icon={Bell}
+                        label="Activar Notificaciones en este dispositivo"
+                    />
+                    <WappyExpandButton
                         onClick={handleUnsubscribe}
-                        className="flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-surface-primary hover:bg-surface-hover text-text-primary font-semibold px-4 py-2.5 shadow-sm transition-all"
-                    >
-                        <BellOff className="h-4 w-4" />
-                        Desactivar Notificaciones
-                    </button>
+                        variant="neutral"
+                        icon={BellOff}
+                        label="Desactivar Notificaciones"
+                    />
                 </div>
             </div>
 
@@ -159,14 +159,15 @@ export default function PushTestPanel() {
                             Envía una notificación de prueba directamente a este navegador o celular para validar que el canal de comunicación y el Service Worker estén activos en segundo plano.
                         </p>
                     </div>
-                    <button
+                    <WappyExpandButton
                         onClick={handleSendLocalTest}
                         disabled={sendingLocal || permissionStatus !== 'granted'}
-                        className="flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold px-4 py-2.5 shadow-sm transition-all disabled:opacity-50 w-full"
-                    >
-                        <Send className="h-4 w-4" />
-                        {sendingLocal ? 'Enviando...' : 'Enviar Prueba Local'}
-                    </button>
+                        isLoading={sendingLocal}
+                        variant="teal"
+                        icon={Send}
+                        label={sendingLocal ? 'Enviando...' : 'Enviar Prueba Local'}
+                        className="w-full sm:w-auto"
+                    />
                 </div>
 
                 {/* Difusión Administradores */}
@@ -199,14 +200,15 @@ export default function PushTestPanel() {
                         </div>
                     </div>
 
-                    <button
+                    <WappyExpandButton
                         onClick={handleBroadcastTest}
                         disabled={sendingBroadcast}
-                        className="flex items-center justify-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-2.5 shadow-sm transition-all disabled:opacity-50 w-full"
-                    >
-                        <Send className="h-4 w-4" />
-                        {sendingBroadcast ? 'Enviando Difusión...' : 'Difundir a Administradores'}
-                    </button>
+                        isLoading={sendingBroadcast}
+                        variant="orange"
+                        icon={Send}
+                        label={sendingBroadcast ? 'Enviando Difusión...' : 'Difundir a Administradores'}
+                        className="w-full sm:w-auto"
+                    />
                 </div>
             </div>
         </div>

@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { Archive } from 'lucide-react';
 import { OGDialogTemplate, OGDialog, OGDialogTrigger, Button } from '@librechat/client';
 import ArchivedChatsTable from './ArchivedChatsTable';
 import { useLocalize } from '~/hooks';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 export default function ArchivedChats() {
   const localize = useLocalize();
@@ -12,9 +14,12 @@ export default function ArchivedChats() {
       <div>{localize('com_nav_archived_chats')}</div>
       <OGDialog open={isOpen} onOpenChange={setIsOpen}>
         <OGDialogTrigger asChild>
-          <Button variant="outline" aria-label="Archived chats">
-            {localize('com_ui_manage')}
-          </Button>
+          <WappyExpandButton
+            variant="teal"
+            aria-label="Archived chats"
+            icon={<Archive className="w-4 h-4" />}
+            label={localize('com_ui_manage')}
+          />
         </OGDialogTrigger>
         <OGDialogTemplate
           title={localize('com_nav_archived_chats')}

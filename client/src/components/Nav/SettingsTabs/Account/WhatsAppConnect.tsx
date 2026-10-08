@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Button, useToastContext } from '@librechat/client';
 import { Loader2, MessageSquare, LogOut, CheckCircle2 } from 'lucide-react';
 import axios from 'axios';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 type WhatsAppStatus = 'OFFLINE' | 'STARTING' | 'QR_READY' | 'AUTHENTICATED' | 'READY';
 
@@ -95,25 +96,25 @@ export default function WhatsAppConnect() {
         </div>
         
         {status === 'OFFLINE' && (
-          <Button 
-             variant="outline" 
-             onClick={handleStart} 
-             disabled={isLoading}
-             className="border-green-500/50 text-green-600 hover:bg-green-500/10 transition-colors"
-          >
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Conectar WhatsApp'}
-          </Button>
+          <WappyExpandButton
+            variant="emerald"
+            onClick={handleStart}
+            disabled={isLoading}
+            isLoading={isLoading}
+            icon={<MessageSquare className="w-4 h-4" />}
+            label="Conectar WhatsApp"
+          />
         )}
 
         {isConnected && (
-          <Button 
-             variant="outline" 
-             onClick={handleLogout} 
-             disabled={isLoading}
-             className="border-red-500/50 text-red-500 hover:bg-red-500/10 transition-colors"
-          >
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><LogOut className="w-4 h-4 mr-2" />Desconectar</>}
-          </Button>
+          <WappyExpandButton
+            variant="red"
+            onClick={handleLogout}
+            disabled={isLoading}
+            isLoading={isLoading}
+            icon={<LogOut className="w-4 h-4" />}
+            label="Desconectar"
+          />
         )}
       </div>
 

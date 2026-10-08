@@ -6,6 +6,7 @@ import { SetKeyDialog } from '~/components/Input/SetKeyDialog';
 import { useGetEndpointsQuery } from '~/data-provider';
 import { useUserKey, useAuthContext } from '~/hooks';
 import { getEndpointField } from '~/utils/endpoints';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 export default function GoogleAIConnect() {
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
@@ -41,14 +42,12 @@ export default function GoogleAIConnect() {
           </div>
           
           <div className="flex items-center">
-            <Button 
-              variant="outline" 
-              onClick={() => setKeyDialogOpen(true)} 
-              className="border-blue-500/50 text-blue-600 hover:bg-blue-500/10 hover:text-blue-700 transition-colors font-semibold flex items-center gap-2"
-            >
-              <Settings className="w-4 h-4" />
-              Establecer clave API
-            </Button>
+            <WappyExpandButton
+              variant="blue"
+              onClick={() => setKeyDialogOpen(true)}
+              icon={<Settings className="w-4 h-4" />}
+              label="Establecer clave API"
+            />
           </div>
         </div>
 

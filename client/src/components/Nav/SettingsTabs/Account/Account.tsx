@@ -15,10 +15,13 @@ import {
   RefreshCw, 
   CheckCircle2, 
   ExternalLink,
-  UserCheck
+  UserCheck,
+  Save,
+  Download
 } from 'lucide-react';
 import axios from 'axios';
 import { formatDateForInput } from '~/utils/dateHelpers';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 import DisplayUsernameMessages from './DisplayUsernameMessages';
 import EmailNotificationsToggle from './EmailNotificationsToggle';
@@ -355,9 +358,12 @@ function Account() {
           </div>
 
           <div className="mt-6 flex justify-end">
-            <Button type="submit" className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 cursor-pointer">
-              {localize('com_ui_save_changes')}
-            </Button>
+            <WappyExpandButton
+              type="submit"
+              variant="teal"
+              icon={<Save className="w-4 h-4" />}
+              label={localize('com_ui_save_changes')}
+            />
           </div>
         </form>
       </div>
@@ -394,25 +400,16 @@ function Account() {
             </div>
           </div>
 
-          <button
+          <WappyExpandButton
             type="button"
+            variant="orange"
             onClick={handleGenerateBioWithAI}
             disabled={isGeneratingBio}
-            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-sm flex items-center justify-center gap-1.5 cursor-pointer transition-all hover:scale-[1.02] active:scale-98 disabled:opacity-50 shrink-0 whitespace-nowrap"
+            isLoading={isGeneratingBio}
+            icon={<Sparkles className="w-4 h-4" />}
+            label="Redactar / Pulir con IA"
             title="Genera tu biografía y cita profesional automáticamente con IA"
-          >
-            {isGeneratingBio ? (
-              <>
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span>Generando con IA...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                <span>Redactar / Pulir con IA</span>
-              </>
-            )}
-          </button>
+          />
         </div>
 
         <div className="space-y-4 pt-1">
@@ -572,19 +569,15 @@ function Account() {
 
           {/* SAVE BUTTON */}
           <div className="flex items-center justify-end gap-2 pt-2">
-            <Button
+            <WappyExpandButton
               type="button"
+              variant="teal"
               onClick={handleSaveSstProfile}
               disabled={isSavingSstProfile}
-              className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50 w-full sm:w-auto"
-            >
-              {isSavingSstProfile ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <CheckCircle2 className="w-3.5 h-3.5" />
-              )}
-              <span>{isSavingSstProfile ? 'Guardando...' : 'Guardar Perfil Profesional SST'}</span>
-            </Button>
+              isLoading={isSavingSstProfile}
+              icon={<CheckCircle2 className="w-4 h-4" />}
+              label={isSavingSstProfile ? 'Guardando...' : 'Guardar Perfil Profesional SST'}
+            />
           </div>
         </div>
       </div>
@@ -624,44 +617,38 @@ function Account() {
                         {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                    <Button
+                    <WappyExpandButton
                       type="button"
-                      variant="outline"
-                      className="border-border-light hover:bg-surface-secondary flex items-center gap-1.5"
+                      variant="neutral"
+                      icon={<Copy className="w-4 h-4" />}
+                      label="Copiar"
                       onClick={() => {
                         navigator.clipboard.writeText(desktopToken || token);
                         showToast({ message: 'Token copiado al portapapeles', status: 'success' });
                       }}
-                    >
-                      <Copy className="h-4 w-4" />
-                      Copiar
-                    </Button>
+                    />
                   </div>
                   <div className="mt-3 flex flex-col gap-2">
                     <p className="text-xs font-semibold text-text-secondary">Descargar Aplicativo "Somos SST - WappyClub":</p>
                     <div className="flex flex-wrap gap-2">
-                      <Button
+                      <WappyExpandButton
                         type="button"
-                        variant="outline"
-                        className="border-green-600/30 bg-green-500/5 hover:bg-green-500/10 text-green-600 dark:text-green-400 font-bold text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 cursor-pointer"
+                        variant="emerald"
+                        icon={<Download className="w-4 h-4" />}
+                        label="Descargar para Windows (.exe)"
                         onClick={() => {
                           window.open('/download/somos-sst-wappyclub/windows', '_blank');
                         }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        Descargar para Windows (.exe)
-                      </Button>
-                      <Button
+                      />
+                      <WappyExpandButton
                         type="button"
-                        variant="outline"
-                        className="border-blue-600/30 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 cursor-pointer"
+                        variant="blue"
+                        icon={<Download className="w-4 h-4" />}
+                        label="Descargar para macOS (.dmg)"
                         onClick={() => {
                           window.open('/download/somos-sst-wappyclub/mac', '_blank');
                         }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        Descargar para macOS (.dmg)
-                      </Button>
+                      />
                     </div>
                   </div>
                 </div>

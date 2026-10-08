@@ -8,3 +8,4 @@ export { default as Commands } from './Commands/Commands';
 export { default as Personalization } from './Personalization';
 export { default as Admin } from './Admin/Admin';
 export { default as Ads } from './Ads/Ads';
+export { default as WappyExpandButton } from './WappyExpandButton';

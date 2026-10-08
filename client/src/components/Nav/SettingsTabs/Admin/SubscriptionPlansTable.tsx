@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { Button } from '@librechat/client';
 import { Eye, EyeOff, Settings2, Save, CheckCircle2 } from 'lucide-react';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 // Default visibility (Pro and Vital Anual shown by default)
 const DEFAULT_VISIBILITY = {
@@ -140,18 +141,14 @@ export default function SubscriptionPlansTable() {
                             </p>
                         </div>
                     </div>
-                    <button
+                    <WappyExpandButton
                         onClick={handleSaveVisibility}
                         disabled={visibilitySaving}
-                        className="flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white px-4 py-2 text-sm font-bold transition-all shadow-sm"
-                    >
-                        {visibilitySaving ? (
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        ) : (
-                            <Save className="h-4 w-4" />
-                        )}
-                        Guardar Visibilidad
-                    </button>
+                        isLoading={visibilitySaving}
+                        variant="orange"
+                        icon={Save}
+                        label="Guardar Visibilidad"
+                    />
                 </div>
 
                 {/* Two columns: Plans and Sections */}
@@ -254,13 +251,12 @@ export default function SubscriptionPlansTable() {
                 <div key={plan.planId} className="border border-slate-200/80 dark:border-zinc-800 rounded-2xl overflow-hidden bg-white dark:bg-zinc-900 shadow-2xs">
                     <div className="bg-slate-50/90 dark:bg-zinc-800/80 px-6 py-4 flex justify-between items-center border-b border-slate-200/80 dark:border-zinc-800">
                         <h3 className="text-base font-bold capitalize text-slate-800 dark:text-zinc-100">Plan {plan.planId === 'ipevar' ? 'Wappy Vital (Anual)' : plan.name}</h3>
-                        <button
+                        <WappyExpandButton
                             onClick={() => handleSave(plan)}
-                            className="flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white cursor-pointer"
-                        >
-                            <CheckCircle2 className="w-4 h-4" />
-                            <span>Guardar Cambios</span>
-                        </button>
+                            variant="teal"
+                            icon={CheckCircle2}
+                            label="Guardar Cambios"
+                        />
                     </div>
 
                     <div className="p-6 flex flex-row overflow-x-auto gap-6 bg-surface-primary pb-8 custom-admin-scrollbar">

@@ -3,9 +3,10 @@ import axios from 'axios';
 import { 
     Share2, Copy, Check, Gift, DollarSign, Users, 
     Award, TrendingUp, Save, Clock, ArrowRight, Loader,
-    Landmark, Shield, MessageSquare, AlertCircle, HelpCircle, CheckCircle
+    Landmark, Shield, MessageSquare, AlertCircle, HelpCircle, CheckCircle, Send
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 export default function ReferralPanel() {
     const { user, setUser } = useAuthContext();
@@ -290,22 +291,12 @@ export default function ReferralPanel() {
                             readOnly 
                             className="flex-1 rounded-2xl border border-border-light bg-surface-secondary px-4 py-2.5 text-xs text-text-secondary select-all outline-none"
                         />
-                        <button
+                        <WappyExpandButton
                             onClick={() => copyToClipboard(stats.referralLink, 'ref')}
-                            className="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 transition-all shadow-sm cursor-pointer"
-                        >
-                            {copied === 'ref' ? (
-                                <>
-                                    <Check className="w-4 h-4" />
-                                    <span>¡Copiado!</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Share2 className="w-4 h-4" />
-                                    <span>Copiar Enlace</span>
-                                </>
-                            )}
-                        </button>
+                            variant="emerald"
+                            icon={copied === 'ref' ? Check : Share2}
+                            label={copied === 'ref' ? '¡Copiado!' : 'Copiar Enlace'}
+                        />
                     </div>
                 </div>
 
@@ -476,14 +467,14 @@ export default function ReferralPanel() {
                             </div>
                             <div className="flex flex-col items-stretch md:items-end gap-2 w-full md:w-auto">
                                 <span className="text-2xl font-black text-green-600 dark:text-green-400 self-start md:self-auto">${(partnerStats.stats.approvedCommissions / 100).toLocaleString('es-CO')} <span className="text-xs font-bold text-text-secondary">COP</span></span>
-                                <button
+                                <WappyExpandButton
                                     disabled={partnerStats.stats.approvedCommissions <= 0 || actionLoading !== null}
+                                    isLoading={actionLoading === 'withdraw'}
                                     onClick={handleRequestWithdraw}
-                                    className="bg-green-600 hover:bg-green-700 disabled:bg-surface-secondary disabled:text-text-tertiary disabled:border disabled:border-border-light disabled:cursor-not-allowed text-white font-bold text-xs px-5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer w-full md:w-auto active:scale-95"
-                                >
-                                    {actionLoading === 'withdraw' ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <DollarSign className="w-3.5 h-3.5" />}
-                                    <span>Solicitar Retiro Bancario</span>
-                                </button>
+                                    variant="emerald"
+                                    icon={DollarSign}
+                                    label="Solicitar Retiro Bancario"
+                                />
                             </div>
                         </div>
 
@@ -497,22 +488,12 @@ export default function ReferralPanel() {
                                     readOnly 
                                     className="flex-1 rounded-2xl border border-border-light bg-surface-secondary px-4 py-2.5 text-xs text-text-secondary select-all outline-none"
                                 />
-                                <button
+                                <WappyExpandButton
                                     onClick={() => copyToClipboard(partnerStats.partnerLink, 'partner')}
-                                    className={`${buttonBgClass} text-white font-bold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 transition-all shadow-md cursor-pointer active:scale-95`}
-                                >
-                                    {copied === 'partner' ? (
-                                        <>
-                                            <Check className="w-4 h-4" />
-                                            <span>¡Copiado!</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Copy className="w-4 h-4" />
-                                            <span>Copiar Enlace</span>
-                                        </>
-                                    )}
-                                </button>
+                                    variant="emerald"
+                                    icon={copied === 'partner' ? Check : Copy}
+                                    label={copied === 'partner' ? '¡Copiado!' : 'Copiar Enlace'}
+                                />
                             </div>
                         </div>
 
@@ -552,14 +533,14 @@ export default function ReferralPanel() {
                                 ) : null}
                             </div>
                             <div className="flex justify-end mt-1">
-                                <button
+                                <WappyExpandButton
                                     type="submit"
                                     disabled={actionLoading === 'partner_settings' || !paymentDetails.trim()}
-                                    className={`${buttonBgClass} text-white font-bold text-xs px-5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md cursor-pointer active:scale-95 disabled:opacity-50`}
-                                >
-                                    {actionLoading === 'partner_settings' ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                                    <span>Guardar Configuraciones</span>
-                                </button>
+                                    isLoading={actionLoading === 'partner_settings'}
+                                    variant="teal"
+                                    icon={Save}
+                                    label="Guardar Configuraciones"
+                                />
                             </div>
                         </form>
 
@@ -804,13 +785,14 @@ export default function ReferralPanel() {
                                 >
                                     Cerrar Formulario
                                 </button>
-                                <button
+                                <WappyExpandButton
                                     type="submit"
                                     disabled={actionLoading === 'apply_new'}
-                                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-5 py-2 rounded-xl flex items-center gap-1 transition-all shadow-md cursor-pointer active:scale-95"
-                                >
-                                    {actionLoading === 'apply_new' ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <span>Enviar Solicitud</span>}
-                                </button>
+                                    isLoading={actionLoading === 'apply_new'}
+                                    variant="orange"
+                                    icon={Send}
+                                    label="Enviar Solicitud"
+                                />
                             </div>
                         </form>
                     )}

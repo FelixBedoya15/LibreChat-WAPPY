@@ -1,8 +1,8 @@
 import React from 'react';
-// import { motion } from 'framer-motion';
-// import { LockIcon, UnlockIcon } from 'lucide-react';
-import { Label, Button } from '@librechat/client';
+import { ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Label } from '@librechat/client';
 import { useLocalize } from '~/hooks';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 interface DisableTwoFactorToggleProps {
   enabled: boolean;
@@ -23,13 +23,13 @@ export const DisableTwoFactorToggle: React.FC<DisableTwoFactorToggleProps> = ({
         <Label> {localize('com_nav_2fa')}</Label>
       </div>
       <div className="flex items-center gap-3">
-        <Button
-          variant={enabled ? 'destructive' : 'outline'}
+        <WappyExpandButton
+          variant={enabled ? 'red' : 'teal'}
           onClick={onChange}
           disabled={disabled}
-        >
-          {enabled ? localize('com_ui_2fa_disable') : localize('com_ui_2fa_enable')}
-        </Button>
+          icon={enabled ? <ShieldAlert className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+          label={enabled ? localize('com_ui_2fa_disable') : localize('com_ui_2fa_enable')}
+        />
       </div>
     </div>
   );

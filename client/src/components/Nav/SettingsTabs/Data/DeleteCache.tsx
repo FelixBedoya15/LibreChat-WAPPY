@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { Database } from 'lucide-react';
 import {
   OGDialogTemplate,
   Label,
@@ -9,6 +10,7 @@ import {
   useOnClickOutside,
 } from '@librechat/client';
 import { useLocalize } from '~/hooks';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 export const DeleteCache = ({ disabled = false }: { disabled?: boolean }) => {
   const localize = useLocalize();
@@ -41,14 +43,14 @@ export const DeleteCache = ({ disabled = false }: { disabled?: boolean }) => {
       <Label id="delete-cache-label">{localize('com_nav_delete_cache_storage')}</Label>
       <OGDialog open={open} onOpenChange={setOpen}>
         <OGDialogTrigger asChild>
-          <Button
-            variant="destructive"
+          <WappyExpandButton
+            variant="red"
             onClick={() => setOpen(true)}
             disabled={disabled || isCacheEmpty}
             aria-labelledby="delete-cache-label"
-          >
-            {localize('com_ui_delete')}
-          </Button>
+            icon={<Database className="w-4 h-4" />}
+            label={localize('com_ui_delete')}
+          />
         </OGDialogTrigger>
         <OGDialogTemplate
           showCloseButton={false}

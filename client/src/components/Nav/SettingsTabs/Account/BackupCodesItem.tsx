@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { RefreshCcw } from 'lucide-react';
+import { RefreshCcw, KeyRound } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { WappyExpandButton } from '../WappyExpandButton';
 import { TBackupCode, TRegenerateBackupCodesResponse, type TUser } from 'librechat-data-provider';
 import {
   OGDialog,
@@ -73,9 +74,12 @@ const BackupCodesItem: React.FC = () => {
           <Label className="font-light">{localize('com_ui_backup_codes')}</Label>
         </div>
         <OGDialogTrigger asChild>
-          <Button aria-label="Manage Backup Codes" variant="outline">
-            {localize('com_ui_manage')}
-          </Button>
+          <WappyExpandButton
+            variant="teal"
+            aria-label="Manage Backup Codes"
+            icon={<KeyRound className="w-4 h-4" />}
+            label={localize('com_ui_manage')}
+          />
         </OGDialogTrigger>
       </div>
 

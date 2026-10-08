@@ -16,6 +16,7 @@ import { useAuthContext } from '~/hooks/AuthContext';
 import { LocalizeFunction } from '~/common';
 import { useLocalize } from '~/hooks';
 import { cn } from '~/utils';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 const DeleteAccount = ({ disabled = false }: { title?: string; disabled?: boolean }) => {
   const localize = useLocalize();
@@ -48,14 +49,14 @@ const DeleteAccount = ({ disabled = false }: { title?: string; disabled?: boolea
         <div className="flex items-center justify-between">
           <Label id="delete-account-label">{localize('com_nav_delete_account')}</Label>
           <OGDialogTrigger asChild>
-            <Button
-              aria-labelledby="delete-account-label"
-              variant="destructive"
+            <WappyExpandButton
+              variant="red"
               onClick={() => setDialogOpen(true)}
               disabled={disabled}
-            >
-              {localize('com_ui_delete')}
-            </Button>
+              aria-labelledby="delete-account-label"
+              icon={<Trash className="w-4 h-4" />}
+              label={localize('com_ui_delete')}
+            />
           </OGDialogTrigger>
         </div>
         <OGDialogContent className="w-11/12 max-w-md">

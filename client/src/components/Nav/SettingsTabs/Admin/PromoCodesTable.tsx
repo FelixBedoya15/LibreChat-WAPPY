@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { Trash2, Plus, Loader2, Tag, CheckCircle2, XCircle } from 'lucide-react';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 interface PromoCode {
     _id: string;
@@ -151,14 +152,15 @@ export default function PromoCodesTable() {
                         </label>
                     </div>
                     <div>
-                        <button
+                        <WappyExpandButton
                             onClick={handleCreate}
                             disabled={isSubmitting || !newCode.trim()}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white disabled:opacity-50 cursor-pointer"
-                        >
-                            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                            <span>Crear Código</span>
-                        </button>
+                            isLoading={isSubmitting}
+                            variant="teal"
+                            icon={Plus}
+                            label="Crear Código"
+                            className="w-full sm:w-auto"
+                        />
                     </div>
                 </div>
             </div>
@@ -214,13 +216,18 @@ export default function PromoCodesTable() {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                    <button
-                                        onClick={() => handleDelete(codeItem._id)}
-                                        className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 transition-all cursor-pointer"
-                                        title="Eliminar Código"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
+                                    <div className="flex justify-end">
+                                        <button
+                                            onClick={() => handleDelete(codeItem._id)}
+                                            className="group flex h-7 min-w-[28px] items-center justify-center rounded-lg px-1.5 shadow-2xs transition-all duration-300 active:scale-95 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 cursor-pointer"
+                                            title="Eliminar Código"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                            <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                                                <span className="text-[10px] font-bold">Eliminar</span>
+                                            </div>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}

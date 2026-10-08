@@ -7,6 +7,7 @@ import { useUploadConversationsMutation } from '~/data-provider';
 import { NotificationSeverity } from '~/common';
 import { useLocalize } from '~/hooks';
 import { cn, logger } from '~/utils';
+import { WappyExpandButton } from '../WappyExpandButton';
 
 function ImportConversations() {
   const localize = useLocalize();
@@ -109,21 +110,17 @@ function ImportConversations() {
   return (
     <div className="flex items-center justify-between">
       <Label id="import-conversation-label">{localize('com_ui_import_conversation_info')}</Label>
-      <Button
-        variant="outline"
+      <WappyExpandButton
+        variant="teal"
         onClick={handleImportClick}
         onKeyDown={handleKeyDown}
         disabled={isImportDisabled}
+        isLoading={isUploading}
         aria-label={localize('com_ui_import')}
         aria-labelledby="import-conversation-label"
-      >
-        {isUploading ? (
-          <Spinner className="mr-1 w-4" />
-        ) : (
-          <Import className="mr-1 flex h-4 w-4 items-center stroke-1" />
-        )}
-        <span>{localize('com_ui_import')}</span>
-      </Button>
+        icon={<Import className="w-4 h-4" />}
+        label={localize('com_ui_import')}
+      />
       <input
         ref={fileInputRef}
         type="file"
