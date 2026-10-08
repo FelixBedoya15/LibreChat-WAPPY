@@ -196,6 +196,7 @@ const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
 
 const CondicionesSalud = () => {
     const { token, user } = useAuthContext();
+    const { showToast } = useToastContext();
     const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || Boolean(user?.isSubUser);
     const [trabajadores, setTrabajadores] = useState<WorkerEntry[]>([]);
     const [workerTabs, setWorkerTabs] = useState<Record<string, string>>({});
@@ -469,32 +470,42 @@ const CondicionesSalud = () => {
         if (!worker) return;
         const confirmMsg = `¿Deseas ELIMINAR permanentemente a "${worker.nombre || 'este trabajador'}" de la base de datos?\n\nADVERTENCIA: Esta acción es irreversible.\n\nTip SG-SST: Si el trabajador se retiró de la empresa, te recomendamos usar el botón 'Retirar' para conservar su historial médico, sociodemográfico y trazabilidad legal sin borrarlo.`;
         if (window.confirm(confirmMsg)) {
-            const updated = trabajadores.filter(w => w.id !== workerId);
-            setTrabajadores(updated);
+            // Eliminar optimistamente del estado local
+            setTrabajadores(prev => prev.filter(w => w.id !== workerId));
 
-            // Auto-guardado en base de datos
+            // Eliminar permanentemente del servidor usando el endpoint dedicado
             if (token) {
                 try {
-                    const trabajadoresConBio = updated.map(w => {
-                        const bio = calculateBiocentricFit(w);
-                        return {
-                            ...w,
-                            biocentricScore: (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : bio.score,
-                            biocentricAlerts: w.biocentricAlerts || bio.alerts,
-                            biocentricIsLethal: w.biocentricIsLethal !== undefined ? w.biocentricIsLethal : bio.isLethal
-                        };
+                    // Intentar primero con el id interno, luego con la cédula como fallback
+                    const key = worker.id || worker.identificacion || workerId;
+                    const resp = await fetch(`/api/sgsst/perfil-sociodemografico/worker/${encodeURIComponent(key)}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` },
                     });
-                    await fetch('/api/sgsst/perfil-sociodemografico/save', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({ trabajadores: trabajadoresConBio, mode: 'health_patch' }),
-                    });
+                    if (!resp.ok) {
+                        // Fallback: guardar lista completa sin este trabajador via POST /save
+                        const updated = trabajadores.filter(w => w.id !== workerId);
+                        const trabajadoresConBio = updated.map(w => {
+                            const bio = calculateBiocentricFit(w);
+                            return {
+                                ...w,
+                                biocentricScore: (w.biocentricScore !== undefined && w.biocentricScore !== null) ? w.biocentricScore : bio.score,
+                                biocentricAlerts: w.biocentricAlerts || bio.alerts,
+                                biocentricIsLethal: w.biocentricIsLethal !== undefined ? w.biocentricIsLethal : bio.isLethal
+                            };
+                        });
+                        await fetch('/api/sgsst/perfil-sociodemografico/save', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+                        });
+                    }
                     window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
                 } catch (err) {
-                    console.error('Error auto-guardando tras eliminar trabajador:', err);
+                    console.error('Error eliminando trabajador:', err);
                 }
             }
-            showToast({ message: `${worker.nombre || 'Colaborador'} eliminado correctamente.`, severity: NotificationSeverity.INFO });
+            showToast({ message: `${worker.nombre || 'Colaborador'} eliminado permanentemente de la base de datos.`, severity: NotificationSeverity.INFO });
         }
     };
 

@@ -2347,6 +2347,22 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
       await SgsstWorker.bulkWrite(workerBulkOps, { ordered: false });
     }
 
+    // ── Eliminar de SgsstWorker trabajadores eliminados del maestro para evitar que la reconciliación los reviva ──
+    if (mode !== 'health_patch') {
+      const keptDocs = new Set(updatedWithBio.map(w => String(w.identificacion || '').trim()).filter(Boolean));
+      const removedDocs = (existingWorkers || [])
+        .map(w => String(w.identificacion || '').trim())
+        .filter(d => d && !keptDocs.has(d));
+
+      if (removedDocs.length > 0) {
+        await SgsstWorker.deleteMany({
+          user: targetUserId,
+          ...(companyId ? { companyId } : {}),
+          documento: { $in: removedDocs }
+        }).catch(err => logger.warn('[PerfilSociodemografico] Error deleting removed SgsstWorkers:', err.message));
+      }
+    }
+
     // ── IA Semantic Tagging (synchronous — awaited so frontend gets results) ──
     // Only runs for workers whose complex text fields have changed
     let updatedWorkers = [...updatedWithBio];
@@ -2415,6 +2431,80 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
   } catch (error) {
     logger.error('[SGSST PerfilSociodemografico] Save error:', error);
     res.status(500).json({ error: 'Error al guardar datos' });
+  }
+});
+
+// ─── DELETE /worker/:workerId — Eliminación permanente de trabajador ───────────
+router.delete('/worker/:workerId', requireJwtAuth, async (req, res) => {
+  try {
+    const { workerId } = req.params;
+    const isSub = !!req.user.isSubUser;
+    const targetUserId = (isSub && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const companyId = await getActiveCompanyId(targetUserId, isSub ? req.user.assignedCompany : null);
+
+    const docFilter = { user: targetUserId, ...(companyId ? { companyId } : {}) };
+    let socioDoc = await PerfilSociodemograficoData.findOne(docFilter);
+    if (!socioDoc && !companyId) {
+      socioDoc = await PerfilSociodemograficoData.findOne({ user: targetUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] });
+    }
+
+    if (!socioDoc) {
+      return res.status(404).json({ error: 'Perfil no encontrado' });
+    }
+
+    const cleanKey = String(workerId).trim();
+    const removedWorker = (socioDoc.trabajadores || []).find(w => 
+      String(w.id || '').trim() === cleanKey || 
+      String(w.identificacion || '').trim() === cleanKey
+    );
+
+    socioDoc.trabajadores = (socioDoc.trabajadores || []).filter(w => 
+      String(w.id || '').trim() !== cleanKey && 
+      String(w.identificacion || '').trim() !== cleanKey
+    );
+    socioDoc.updatedAt = new Date();
+    await socioDoc.save();
+
+    // Eliminar también de SgsstWorker para evitar que la auto-reconciliación lo reviva
+    try {
+      const SgsstWorker = require('../../../models/SgsstWorker');
+      const orClauses = [{ documento: cleanKey }];
+      if (mongoose.Types.ObjectId.isValid(cleanKey)) {
+        orClauses.push({ _id: new mongoose.Types.ObjectId(cleanKey) });
+      }
+      if (removedWorker?.identificacion) {
+        orClauses.push({ documento: String(removedWorker.identificacion).trim() });
+      }
+      if (removedWorker?.id && mongoose.Types.ObjectId.isValid(removedWorker.id)) {
+        orClauses.push({ _id: new mongoose.Types.ObjectId(removedWorker.id) });
+      }
+
+      await SgsstWorker.deleteMany({
+        user: targetUserId,
+        ...(companyId ? { companyId } : {}),
+        $or: orClauses
+      });
+    } catch (e) {
+      logger.warn('[PerfilSociodemografico] Error deleting from SgsstWorker:', e.message);
+    }
+
+    // Actualizar workerCount
+    try {
+      const activeCount = (socioDoc.trabajadores || []).filter(w => {
+        const est = (w.estadoLaboral || w.estado || '').toLowerCase().trim();
+        return est !== 'retirado' && est !== 'inactivo';
+      }).length;
+      if (companyId) {
+        await CompanyInfo.updateOne({ _id: companyId }, { $set: { workerCount: activeCount } });
+      } else {
+        await CompanyInfo.updateOne({ user: targetUserId, isActive: true }, { $set: { workerCount: activeCount } });
+      }
+    } catch (_) {}
+
+    res.json({ success: true, message: 'Trabajador eliminado permanentemente' });
+  } catch (error) {
+    logger.error('[PerfilSociodemografico] DELETE /worker/:workerId error:', error);
+    res.status(500).json({ error: 'Error al eliminar trabajador' });
   }
 });
 

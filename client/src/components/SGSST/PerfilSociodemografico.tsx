@@ -511,33 +511,37 @@ const PerfilSociodemografico = () => {
         if (!worker) return;
         const confirmMsg = `¿Deseas ELIMINAR permanentemente a "${worker.nombre || 'este trabajador'}" de la base de datos?\n\nADVERTENCIA: Esta acción es irreversible.\n\nTip SG-SST: Si el trabajador se retiró de la empresa, te recomendamos usar el botón 'Retirar' para conservar su historial médico, sociodemográfico y trazabilidad legal sin borrarlo.`;
         if (window.confirm(confirmMsg)) {
-            const updated = trabajadores.filter(w => w.id !== workerId);
-            setTrabajadores(updated);
+            // Eliminar optimistamente del estado local
+            setTrabajadores(prev => prev.filter(w => w.id !== workerId));
 
-            // Auto-guardado en base de datos
+            // Usar endpoint dedicado DELETE para eliminar permanentemente sin riesgo de re-adición
             if (token) {
                 try {
-                    const trabajadoresConBio = updated.map(w => {
-                        const bio = calculateBiocentricFit(w);
-                        return {
-                            ...w,
-                            biocentricScore: bio.score,
-                            biocentricAlerts: bio.alerts,
-                            biocentricIsLethal: bio.isLethal
-                        };
+                    const key = worker.id || worker.identificacion || workerId;
+                    const resp = await fetch(`/api/sgsst/perfil-sociodemografico/worker/${encodeURIComponent(key)}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` },
                     });
-                    await fetch('/api/sgsst/perfil-sociodemografico/save', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({ trabajadores: trabajadoresConBio }),
-                    });
+                    if (!resp.ok) {
+                        // Fallback: guardar lista completa sin este trabajador
+                        const updated = trabajadores.filter(w => w.id !== workerId);
+                        const trabajadoresConBio = updated.map(w => {
+                            const bio = calculateBiocentricFit(w);
+                            return { ...w, biocentricScore: bio.score, biocentricAlerts: bio.alerts, biocentricIsLethal: bio.isLethal };
+                        });
+                        await fetch('/api/sgsst/perfil-sociodemografico/save', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify({ trabajadores: trabajadoresConBio }),
+                        });
+                    }
                     window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
                 } catch (err) {
-                    console.error('Error auto-guardando eliminación:', err);
+                    console.error('Error eliminando trabajador:', err);
                 }
             }
 
-            showToast({ message: 'Trabajador eliminado permanentemente de la base de datos', status: 'info', severity: 'info' });
+            showToast({ message: 'Trabajador eliminado permanentemente de la base de datos', severity: NotificationSeverity.INFO });
         }
     };
 
