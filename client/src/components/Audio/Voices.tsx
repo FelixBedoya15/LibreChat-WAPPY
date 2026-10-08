@@ -31,7 +31,7 @@ export function BrowserVoiceDropdown() {
         onChange={handleVoiceChange}
         sizeClasses="min-w-[200px] !max-w-[400px] [--anchor-max-width:400px]"
         testId="BrowserVoiceDropdown"
-        className="z-50"
+        className="z-[100100]"
         aria-labelledby={labelId}
       />
     </div>
@@ -63,7 +63,7 @@ export function ExternalVoiceDropdown() {
         onChange={handleVoiceChange}
         sizeClasses="min-w-[200px] !max-w-[400px] [--anchor-max-width:400px]"
         testId="ExternalVoiceDropdown"
-        className="z-50"
+        className="z-[100100]"
         aria-labelledby={labelId}
       />
     </div>

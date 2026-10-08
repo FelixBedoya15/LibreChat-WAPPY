@@ -107,7 +107,7 @@ export default function ExportModal({
                   value={type}
                   onChange={handleTypeChange}
                   options={TYPE_OPTIONS}
-                  className="z-50"
+                  className="z-[100100]"
                   portal={false}
                 />
               </div>

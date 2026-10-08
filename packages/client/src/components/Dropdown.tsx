@@ -102,9 +102,9 @@ const Dropdown: React.FC<DropdownProps> = ({
         portal={portal}
         store={selectProps}
         className={cn(
-          'popover-ui',
-          sizeClasses,
-          className,
+          'popover-ui z-[100100]',
+          sizeClasses?.replace(/\bz-(?:50|\[50\]|\[100\])\b/g, ''),
+          className?.replace(/\bz-(?:50|\[50\]|\[100\])\b/g, ''),
           'max-h-[80vh] overflow-y-auto',
           '[pointer-events:auto]', // Override body's pointer-events:none when in modal
         )}

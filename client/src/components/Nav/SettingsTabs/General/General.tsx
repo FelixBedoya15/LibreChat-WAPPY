@@ -67,7 +67,7 @@ export const ThemeSelector = ({
         options={themeOptions}
         sizeClasses="w-[180px]"
         testId="theme-selector"
-        className="z-50"
+        className="z-[100100]"
         aria-labelledby={labelId}
       />
     </div>
@@ -135,7 +135,7 @@ export const LangSelector = ({
         onChange={onChange}
         sizeClasses="[--anchor-max-height:256px]"
         options={languageOptions}
-        className="z-50"
+        className="z-[100100]"
         aria-labelledby={labelId}
       />
     </div>
@@ -166,7 +166,7 @@ export const FontSelector = () => {
         options={fontOptions}
         sizeClasses="w-[180px]"
         testId="font-selector"
-        className="z-50"
+        className="z-[100100]"
         aria-labelledby={labelId}
       />
     </div>

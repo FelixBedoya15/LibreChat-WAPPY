@@ -27,7 +27,7 @@ export default function GeminiVoiceSelector({ selectedVoice, onVoiceChange, labe
         onChange={onVoiceChange}
         options={GEMINI_VOICES}
         sizeClasses="w-[200px]"
-        className="z-50"
+        className="z-[100100]"
       />
     </div>
   );

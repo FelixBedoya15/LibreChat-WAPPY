@@ -1,4 +1,5 @@
 .popover-ui {
+  z-index: 100100;
   display: flex;
   max-height: min(var(--popover-available-height, 1700px), 1700px);
   flex-direction: column;

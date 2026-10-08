@@ -47,7 +47,7 @@ export const ForkSettings = () => {
               options={forkOptions}
               sizeClasses="w-[200px]"
               testId="fork-setting-dropdown"
-              className="z-[50]"
+              className="z-[100100]"
               aria-labelledby="fork-change-default-label"
             />
           </div>
