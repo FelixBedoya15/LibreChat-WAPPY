@@ -2522,24 +2522,48 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                         continue;
                     }
 
-                    // Manejo directo de herramientas de Google NotebookLM / Gemini Notebook en modo voz
-                    if (fc.name === 'notebooklm_listar_cuadernos' || fc.name === 'notebooklm_consultar' || fc.name === 'notebooklm_generar_studio') {
+                    // Manejo directo de las 11 herramientas de Google NotebookLM / Gemini Notebook en modo voz
+                    if (fc.name.startsWith('notebooklm_') || fc.name.startsWith('notebook_') || fc.name.startsWith('source_') || fc.name.startsWith('studio_') || fc.name.startsWith('research_')) {
                         logger.info(`[VoiceSession] Gemini Live invoked NotebookLM tool "${fc.name}" with args:`, JSON.stringify(fc.args));
-                        const statusMsg = fc.name === 'notebooklm_listar_cuadernos' ? 'Consultando cuadernos en NotebookLM...' :
-                            (fc.name === 'notebooklm_generar_studio' ? 'Generando en Studio de NotebookLM...' : `Consultando fuentes en NotebookLM (${fc.args?.cuaderno || 'cuaderno'})...`);
                         this.sendToClient({
                             type: 'status',
-                            data: { status: 'loading', message: statusMsg }
+                            data: { status: 'loading', message: `Consultando Google NotebookLM (${fc.name.replace(/_/g, ' ')})...` }
                         });
                         try {
                             let mappedTool = 'notebook_list';
-                            let mappedArgs = {};
-                            if (fc.name === 'notebooklm_consultar') {
+                            let mappedArgs = { ...(fc.args || {}) };
+                            if (fc.name === 'notebooklm_listar_cuadernos' || fc.name === 'notebook_list') {
+                                mappedTool = 'notebook_list';
+                            } else if (fc.name === 'notebooklm_crear_cuaderno' || fc.name === 'notebook_create') {
+                                mappedTool = 'notebook_create';
+                                mappedArgs = { title: fc.args?.titulo || fc.args?.title || 'Nuevo Cuaderno SST' };
+                            } else if (fc.name === 'notebooklm_consultar' || fc.name === 'chat_ask') {
                                 mappedTool = 'chat_ask';
-                                mappedArgs = { notebook: fc.args?.cuaderno || fc.args?.notebook || '', query: fc.args?.pregunta || fc.args?.query || '' };
-                            } else if (fc.name === 'notebooklm_generar_studio') {
+                                mappedArgs = { notebook: fc.args?.cuaderno || fc.args?.notebook || '', query: fc.args?.pregunta || fc.args?.query || fc.args?.question || '' };
+                            } else if (fc.name === 'notebooklm_listar_fuentes' || fc.name === 'source_list') {
+                                mappedTool = 'source_list';
+                                mappedArgs = { notebook: fc.args?.cuaderno || fc.args?.notebook || '' };
+                            } else if (fc.name === 'notebooklm_agregar_fuente' || fc.name === 'source_add') {
+                                mappedTool = 'source_add';
+                                mappedArgs = { notebook: fc.args?.cuaderno || fc.args?.notebook || '', source_type: fc.args?.tipo_fuente || fc.args?.source_type || 'url', url: fc.args?.url, text: fc.args?.texto || fc.args?.text, title: fc.args?.titulo || fc.args?.title };
+                            } else if (fc.name === 'notebooklm_generar_studio' || fc.name === 'studio_generate') {
                                 mappedTool = 'studio_generate';
-                                mappedArgs = { notebook: fc.args?.cuaderno || '', artifact_type: fc.args?.tipo_artefacto || fc.args?.artifact_type || 'audio', instructions: fc.args?.instrucciones || '' };
+                                mappedArgs = { notebook: fc.args?.cuaderno || fc.args?.notebook || '', artifact_type: fc.args?.tipo_artefacto || fc.args?.artifact_type || 'audio', instructions: fc.args?.instrucciones || fc.args?.instructions || '' };
+                            } else if (fc.name === 'notebooklm_estado_studio' || fc.name === 'studio_status') {
+                                mappedTool = 'studio_status';
+                                mappedArgs = { task_id: fc.args?.task_id || '', notebook: fc.args?.cuaderno || fc.args?.notebook };
+                            } else if (fc.name === 'notebooklm_listar_artefactos' || fc.name === 'studio_list') {
+                                mappedTool = 'studio_list';
+                                mappedArgs = { notebook: fc.args?.cuaderno || fc.args?.notebook || '' };
+                            } else if (fc.name === 'notebooklm_descargar_artefacto' || fc.name === 'studio_download') {
+                                mappedTool = 'studio_download';
+                                mappedArgs = { artifact_id: fc.args?.artifact_id || '', notebook: fc.args?.cuaderno || fc.args?.notebook, output_path: fc.args?.output_path };
+                            } else if (fc.name === 'notebooklm_investigar_web' || fc.name === 'research_start') {
+                                mappedTool = 'research_start';
+                                mappedArgs = { notebook: fc.args?.cuaderno || fc.args?.notebook || '', query: fc.args?.consulta || fc.args?.query || '', mode: fc.args?.modo || fc.args?.mode || 'fast' };
+                            } else if (fc.name === 'notebooklm_importar_investigacion' || fc.name === 'research_import') {
+                                mappedTool = 'research_import';
+                                mappedArgs = { notebook: fc.args?.cuaderno || fc.args?.notebook || '', task_id: fc.args?.task_id || '' };
                             }
                             const nbResult = await executeTenshiMcpTool(mappedTool, mappedArgs, this.userId);
                             logger.info(`[VoiceSession] NotebookLM tool "${fc.name}" executed successfully.`);
