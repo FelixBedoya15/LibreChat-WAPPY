@@ -44,6 +44,7 @@ import store from '~/store';
 const ChatForm = memo(({ index = 0 }: { index?: number }) => {
   const submitButtonRef = useRef<HTMLButtonElement | null>(null);
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const voiceCreatedConvoIdRef = useRef<string | null>(null);
   useFocusChatEffect(textAreaRef);
   const localize = useLocalize();
   const queryClient = useQueryClient();
@@ -582,9 +583,12 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         isOpen={showVoiceModal}
         onClose={() => {
           setShowVoiceModal(false);
-          const currentId = conversation?.conversationId;
-          if (currentId && currentId !== Constants.NEW_CONVO && window.location.pathname.includes('/c/new')) {
-            navigate(`/c/${currentId}`, { replace: true });
+          const targetId = voiceCreatedConvoIdRef.current || conversation?.conversationId;
+          if (targetId && targetId !== Constants.NEW_CONVO) {
+            voiceCreatedConvoIdRef.current = null;
+            navigate(`/c/${targetId}`, { replace: true, state: { focusChat: true } });
+            queryClient.invalidateQueries([QueryKeys.messages, targetId]);
+            queryClient.invalidateQueries([QueryKeys.allConversations]);
           }
         }}
         conversationId={conversationId} // Use current conversation
@@ -597,6 +601,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
           console.log('[ChatForm] Voice created/updated conversation:', newId, 'wasNewChat:', wasNewChat);
 
           if (wasNewChat) {
+            voiceCreatedConvoIdRef.current = newId;
             // Update local conversation state IMMEDIATELY so that if user submits, it uses the new ID
             if (setConversation) {
               setConversation((prev) => {
@@ -612,10 +617,11 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
 
             // BLINDAJE ANTI-REMONTAJE: Si el modal de voz está en vivo con cámara encendida,
             // navigate() desmonta ChatRoute y VoiceModal, destruyendo el canvas y apagando el exoesqueleto.
-            // Con replaceState actualizamos la URL silenciosamente sin desmontar componentes.
+            // Con replaceState actualizamos la URL silenciosamente sin desmontar componentes, y al cerrar el modal ejecutamos navigate().
             if (showVoiceModal) {
               window.history.replaceState({ focusChat: true }, '', `/c/${newId}`);
             } else {
+              voiceCreatedConvoIdRef.current = null;
               navigate(`/c/${newId}`, { replace: true, state: { focusChat: true } });
             }
           }
@@ -626,7 +632,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         }}
         onConversationUpdated={(updatedId) => {
           // Use the directly received conversation ID (from WS message) if available, falling back to local state
-          const idToInvalidate = updatedId || conversationId;
+          const idToInvalidate = updatedId || voiceCreatedConvoIdRef.current || conversationId;
           if (idToInvalidate && idToInvalidate !== Constants.NEW_CONVO) {
             console.log('[ChatForm] Invalidate queries for messages live update:', idToInvalidate);
             queryClient.invalidateQueries([QueryKeys.messages, idToInvalidate]);

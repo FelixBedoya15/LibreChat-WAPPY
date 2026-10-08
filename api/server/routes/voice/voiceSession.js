@@ -2353,10 +2353,10 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
             this.toolCalledThisTurn = false;
             // Accumulate user text for saving
             this.userTranscriptionText += cleanText;
-            // ✅ FIX: Send sanitized user transcription to client in real-time for HUD display
+            // ✅ FIX: Send accumulated sanitized user transcription to client in real-time for HUD display & keyword matching
             this.sendToClient({
                 type: 'text',
-                data: { text: cleanText, isUserTranscription: true }
+                data: { text: (this.userTranscriptionText || cleanText).trim(), isUserTranscription: true }
             });
 
             // Fast-track real-time voice report trigger (only on explicit user command to generate report)
@@ -5277,6 +5277,9 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                 type: 'status',
                 data: { status: 'generating_report', message: 'Generando informe técnico...' }
             });
+
+            // Wait 550ms so any client-side final phase snapshot (e.g. Phase 3 auto/manual capture) arrives via WebSocket
+            await new Promise((resolve) => setTimeout(resolve, 550));
 
             // Use Gemini 3.7 Flash as the primary model for reports (with fallback scale down to 3.6, 3.5, 3.5-lite)
             const reportModelName = SGSST_FALLBACK_MODELS[0];

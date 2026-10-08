@@ -331,10 +331,20 @@ const VoiceModal: FC<VoiceModalProps> = ({
                     const userVoiceCaptureRegex = /\b(listo|ya\s+estoy(\s+listo)?|adelante|ya\s+me\s+ubiqu[eé]|ya\s+tom[eé]\s+(la\s+)?postura|toma\s+(la\s+)?foto|captura(r)?|dale|de\s+una)\b/i;
                     const exactYaRegex = /^(sí\s*,?\s*)?ya\s*[.!]?$/i;
 
-                    if ((userVoiceCaptureRegex.test(text) || exactYaRegex.test(cleanText)) && wordCount <= 5 && isCameraOn && (now - lastVoiceCaptureTimeRef.current > 3500)) {
+                    if ((userVoiceCaptureRegex.test(text) || exactYaRegex.test(cleanText)) && wordCount <= 6 && isCameraOn && (now - lastVoiceCaptureTimeRef.current > 1500)) {
                         lastVoiceCaptureTimeRef.current = now;
                         console.log('[VoiceModal] User verbal confirmation matched ("' + text + '"): capturing current phase posture and advancing');
                         capturePhaseEvidenceRef.current?.(currentPhaseIndexRef.current, false);
+                    }
+                }
+            } else {
+                // When AI announces it has completed the 3 phases or evaluated the 3rd posture, ensure current phase (Phase 3) is captured if still missing
+                const hasReportOrGenerating = isGeneratingReport || reportGeneratedRef.current;
+                if (!hasReportOrGenerating && isCameraOn && /\b(completado\s+las\s+tres\s+fases|tres\s+fases\s+completas|postura\s+fatigada|compil(e|ar)\s+tu\s+informe)\b/i.test(text)) {
+                    const curIdx = currentPhaseIndexRef.current;
+                    if (!manualCapturedPhasesRef.current.has(curIdx)) {
+                        console.log(`[VoiceModal] AI announced completion of phase ${curIdx + 1}; capturing missing phase evidence automatically.`);
+                        capturePhaseEvidenceRef.current?.(curIdx, false);
                     }
                 }
             }
@@ -351,6 +361,12 @@ const VoiceModal: FC<VoiceModalProps> = ({
                         manualPhotosCountRef.current = 0;
                         setManualCapturedPhotos([]);
                         reportGeneratedRef.current = false;
+                    } else {
+                        // Before switching to next phase (e.g., 1->2 or 2->3), if previous phase wasn't captured yet, capture it now
+                        const prevIdx = currentPhaseIndexRef.current;
+                        if (prevIdx < requestedPhase - 1 && !manualCapturedPhasesRef.current.has(prevIdx)) {
+                            capturePhaseEvidenceRef.current?.(prevIdx, false);
+                        }
                     }
                     const targetIdx = requestedPhase - 1;
                     if (targetIdx !== currentPhaseIndexRef.current) {
@@ -417,10 +433,10 @@ const VoiceModal: FC<VoiceModalProps> = ({
             console.log('[VoiceModal] Status changed:', newStatus);
             if (newStatus === 'generating_report') {
                 setIsGeneratingReport(true);
-                // Secure capture of current phase only if neither manual nor auto evidence was taken yet
+                // Secure capture of current phase (e.g. Phase 3) if not yet in manualCapturedPhasesRef so thumbnail and server both get 3/3
                 const curIdx = currentPhaseIndexRef.current;
-                if (!manualCapturedPhasesRef.current.has(curIdx) && !autoCapturedPhasesRef.current.has(curIdx)) {
-                    capturePhaseEvidenceRef.current?.(curIdx, true);
+                if (!manualCapturedPhasesRef.current.has(curIdx)) {
+                    capturePhaseEvidenceRef.current?.(curIdx, false);
                 }
             } else if (newStatus === 'listening') {
                 if (transcriptTimeoutRef.current) clearTimeout(transcriptTimeoutRef.current);
