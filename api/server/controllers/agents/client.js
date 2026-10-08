@@ -2269,6 +2269,37 @@ Aquí tienes la explicación detallada de las características y fórmulas ofici
         } catch (_) {}
       }
 
+      // Safety net Watchdog: Si es una tarea de Canvas/Aplicativo y no existe CanvasSession en la BD
+      // (por ejemplo si el modelo respondió en texto afirmando que lo creó sin llamar a la herramienta),
+      // autogenerar de inmediato el aplicativo HTML en Canvas para que el lienzo lateral nunca quede vacío.
+      if (isCanvasTask) {
+        try {
+          const CanvasSession = require('~/models/CanvasSession');
+          const existingSession = this.conversationId ? await CanvasSession.findOne({ conversationId: this.conversationId }) : null;
+          if (!existingSession) {
+            const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
+            const targetReq = this.options.req || {};
+            if (!targetReq.body) targetReq.body = {};
+            if (this.conversationId && (!targetReq.body.conversationId || targetReq.body.conversationId === 'new')) {
+              targetReq.body.conversationId = this.conversationId;
+            }
+            const canvasTool = new CanvasTool({ req: targetReq });
+            const appTitle = (userQuery ? `Aplicativo: ${userQuery.slice(0, 50)}` : 'Aplicativo SG-SST Interactivo').trim();
+            const textContent = this.contentParts.find((p) => p && p.type === ContentTypes.TEXT)?.text || userQuery;
+
+            logger.info(`[AgentClient Watchdog] CanvasSession no encontrada para convoId: ${this.conversationId}. Autogenerando aplicativo HTML...`);
+            await canvasTool._call({
+              accion: 'crear',
+              fileType: 'html',
+              title: appTitle,
+              content: textContent,
+            });
+          }
+        } catch (watchdogErr) {
+          logger.error('[AgentClient Watchdog] Error garantizando Canvas:', watchdogErr);
+        }
+      }
+
       try {
         await handleMemory();
 

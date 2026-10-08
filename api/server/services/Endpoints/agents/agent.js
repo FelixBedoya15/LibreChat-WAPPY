@@ -284,10 +284,10 @@ IMPORTANTE:
           canvasStatusPrompt = `
 # ESTADO ACTUAL DEL CANVAS (LIENZO):
 - El Canvas está actualmente vacío para esta conversación.
-[REGLA ESTRICTA DE ACTIVACIÓN DE CANVAS]:
-Está TERMINANTEMENTE PROHIBIDO invocar la herramienta 'canvas' o emitir la directiva ':::canvas' para responder preguntas, dudas, conceptos médicos u ocupacionales, consultas normativas o explicaciones técnicas del chat.
-ÚNICAMENTE tienes permitido usar Canvas si el usuario ha solicitado EXPLÍCITAMENTE abrir un lienzo o crear un archivo descargable (ejemplos claros: "hazlo en canvas", "ábreme un canvas", "crea un archivo en word", "haz un excel", "diseña diapositivas", "crea un aplicativo en html").
-Para cualquier duda o solicitud ordinaria de concepto o explicación técnica, responde DIRECTAMENTE en el chat en formato Markdown de forma ágil y rápida.
+[REGLA DE ACTIVACIÓN DE CANVAS]:
+- Si el usuario solicita un aplicativo (interactivo, dashboard, simulador, calculadora, métricas), documento descargable, informe extenso, hoja de cálculo o diapositivas: DEBES llamar de inmediato a la herramienta \`canvas\` con \`accion: "crear"\`.
+- Está terminantemente PROHIBIDO afirmar en texto que creaste o desplegaste un aplicativo en Canvas sin haber ejecutado efectivamente la llamada a la herramienta \`canvas\`.
+- Para preguntas normales, conceptos o dudas del chat, responde directamente en Markdown sin usar Canvas.
 `;
         }
       } catch (err) {
