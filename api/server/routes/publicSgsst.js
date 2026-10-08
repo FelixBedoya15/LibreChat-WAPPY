@@ -67,6 +67,22 @@ async function resolveCompanyAndWorker(companyId, { cedula, workerId } = {}) {
 
   const formatStr = (s) => String(s || '').trim().toLowerCase();
 
+  const matchWorkerEntry = (t) => {
+    const tId = formatStr(t.id);
+    const tIdent = formatStr(t.identificacion);
+    const tMongoId = formatStr(t._id);
+    const targetWId = workerId && workerId !== 'undefined' ? formatStr(workerId) : null;
+    const targetCed = cedula ? formatStr(cedula) : null;
+
+    if (targetWId && (tId === targetWId || tIdent === targetWId || tMongoId === targetWId)) {
+      return true;
+    }
+    if (targetCed && (tIdent === targetCed || tId === targetCed || tMongoId === targetCed)) {
+      return true;
+    }
+    return false;
+  };
+
   // 1. Buscar en la empresa resuelta directamente
   let perfil = await PerfilSociodemograficoData.findOne({
     user: new mongoose.Types.ObjectId(company.user),
@@ -80,14 +96,7 @@ async function resolveCompanyAndWorker(companyId, { cedula, workerId } = {}) {
 
   let worker = null;
   if (perfil && Array.isArray(perfil.trabajadores) && perfil.trabajadores.length > 0) {
-    if (workerId && workerId !== 'undefined') {
-      worker = perfil.trabajadores.find((t) => String(t.id || t._id || t.identificacion) === String(workerId));
-    }
-    if (!worker && cedula) {
-      worker = perfil.trabajadores.find(
-        (t) => formatStr(t.identificacion) === formatStr(cedula),
-      );
-    }
+    worker = perfil.trabajadores.find(matchWorkerEntry);
   }
 
   // Si encontramos al trabajador, o no se proporcionó cédula/workerId para filtrar, devolver
@@ -113,16 +122,7 @@ async function resolveCompanyAndWorker(companyId, { cedula, workerId } = {}) {
       }).lean();
 
       if (altPerfil && Array.isArray(altPerfil.trabajadores) && altPerfil.trabajadores.length > 0) {
-        let altWorker = null;
-        if (workerId && workerId !== 'undefined') {
-          altWorker = altPerfil.trabajadores.find((t) => String(t.id || t._id || t.identificacion) === String(workerId));
-        }
-        if (!altWorker && cedula) {
-          altWorker = altPerfil.trabajadores.find(
-            (t) => formatStr(t.identificacion) === formatStr(cedula),
-          );
-        }
-
+        const altWorker = altPerfil.trabajadores.find(matchWorkerEntry);
         if (altWorker) {
           return { company: altCompany, perfil: altPerfil, worker: altWorker };
         }
@@ -130,6 +130,65 @@ async function resolveCompanyAndWorker(companyId, { cedula, workerId } = {}) {
     }
   } catch (err) {
     logger.warn('[Public SGSST] Multi-company worker search error:', err.message);
+  }
+
+  // 3. Fallback a SgsstWorker si no se encontró en PerfilSociodemograficoData
+  if (!worker) {
+    try {
+      const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+      const targetQuery = (workerId && workerId !== 'undefined') ? formatStr(workerId) : (cedula ? formatStr(cedula) : null);
+      if (targetQuery) {
+        const swFilter = [
+          { documento: targetQuery },
+          { perfilId: targetQuery },
+        ];
+        if (mongoose.Types.ObjectId.isValid(targetQuery)) {
+          swFilter.push({ _id: new mongoose.Types.ObjectId(targetQuery) });
+        }
+        const sw = await SgsstWorker.findOne({
+          user: company.user,
+          $or: swFilter,
+        }).lean();
+        if (sw) {
+          worker = {
+            id: sw.perfilId || sw._id?.toString() || targetQuery,
+            identificacion: sw.documento,
+            nombre: sw.nombre,
+            cargo: sw.cargo,
+            area: sw.area,
+            sede: sw.sede,
+            genero: sw.genero,
+            edad: sw.edad,
+            tipoSangre: sw.tipoSangre,
+            rh: sw.rh,
+            eps: sw.eps,
+            afp: sw.afp,
+            arl: sw.arl,
+            direccion: sw.direccion,
+            telefono: sw.telefono,
+            emergenciaContacto: sw.emergenciaContacto,
+            emergenciaTelefono: sw.emergenciaTelefono,
+            diagnosticoMedico: sw.diagnosticoMedico,
+            recomendacionesMedicas: sw.recomendacionesMedicas,
+            enfermedades: sw.enfermedades,
+            medicamentos: sw.medicamentos,
+            limitacionesBiomecanicas: sw.limitacionesBiomecanicas,
+            alergiasQuimicas: sw.alergiasQuimicas,
+            fuma: sw.fuma,
+            alcohol: sw.alcohol,
+            biocentricScore: sw.fitScore,
+            biocentricAlerts: sw.fitAlerts,
+          };
+          if (!perfil) {
+            perfil = { trabajadores: [worker] };
+          } else if (!perfil.trabajadores || perfil.trabajadores.length === 0) {
+            perfil.trabajadores = [worker];
+          }
+        }
+      }
+    } catch (swErr) {
+      logger.warn('[Public SGSST] Fallback search error in SgsstWorker:', swErr.message);
+    }
   }
 
   return { company, perfil, worker };

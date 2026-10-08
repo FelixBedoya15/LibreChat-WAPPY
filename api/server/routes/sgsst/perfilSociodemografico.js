@@ -162,18 +162,72 @@ router.get('/profile/:workerId', async (req, res) => {
   try {
     const { workerId } = req.params;
     const { type } = req.query; // 'health' or default
+    const cleanWId = String(workerId || '').trim();
 
-    // Search across all users' data for this worker ID
+    // 1. Search across all PerfilSociodemograficoData documents by UUID, identificacion (cédula) or _id
     const allData = await PerfilSociodemograficoData.find({}).lean();
     let worker = null;
     let matchingDoc = null;
     for (const doc of allData) {
-      const found = (doc.trabajadores || []).find(t => t.id === workerId);
+      const found = (doc.trabajadores || []).find(t => 
+        String(t.id || '').trim() === cleanWId ||
+        String(t.identificacion || '').trim() === cleanWId ||
+        String(t._id || '').trim() === cleanWId
+      );
       if (found) { worker = found; matchingDoc = doc; break; }
     }
 
+    // 2. Fallback resiliente: si no se encontró en el censo sociodemográfico, buscar en SgsstWorker
     if (!worker) {
-      return res.status(404).send('<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:40px;"><h2>Perfil no encontrado</h2><p>El trabajador con ID <strong>' + workerId + '</strong> no existe o fue eliminado.</p></body></html>');
+      try {
+        const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+        const sgsstFilter = [
+          { documento: cleanWId },
+          { perfilId: cleanWId },
+        ];
+        if (mongoose.Types.ObjectId.isValid(cleanWId)) {
+          sgsstFilter.push({ _id: new mongoose.Types.ObjectId(cleanWId) });
+        }
+        const sw = await SgsstWorker.findOne({ $or: sgsstFilter }).lean();
+        if (sw) {
+          worker = {
+            id: sw.perfilId || sw._id?.toString() || cleanWId,
+            identificacion: sw.documento,
+            nombre: sw.nombre,
+            cargo: sw.cargo,
+            area: sw.area,
+            sede: sw.sede,
+            genero: sw.genero,
+            edad: sw.edad,
+            tipoSangre: sw.tipoSangre,
+            rh: sw.rh,
+            eps: sw.eps,
+            afp: sw.afp,
+            arl: sw.arl,
+            direccion: sw.direccion,
+            telefono: sw.telefono,
+            emergenciaContacto: sw.emergenciaContacto,
+            emergenciaTelefono: sw.emergenciaTelefono,
+            diagnosticoMedico: sw.diagnosticoMedico,
+            recomendacionesMedicas: sw.recomendacionesMedicas,
+            enfermedades: sw.enfermedades,
+            medicamentos: sw.medicamentos,
+            limitacionesBiomecanicas: sw.limitacionesBiomecanicas,
+            alergiasQuimicas: sw.alergiasQuimicas,
+            fuma: sw.fuma,
+            alcohol: sw.alcohol,
+            biocentricScore: sw.fitScore,
+            biocentricAlerts: sw.fitAlerts,
+          };
+          matchingDoc = { user: sw.user, companyId: sw.companyId };
+        }
+      } catch (swErr) {
+        logger.warn('[SGSST PerfilSociodemografico /profile] Fallback search error in SgsstWorker:', swErr.message);
+      }
+    }
+
+    if (!worker) {
+      return res.status(404).send('<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:40px;"><h2>Perfil no encontrado</h2><p>El trabajador con ID o Cédula <strong>' + workerId + '</strong> no existe o fue eliminado.</p></body></html>');
     }
 
     // Get company info

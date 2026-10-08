@@ -163,7 +163,10 @@ export default function PublicPerfilUpdate() {
             const w: WorkerData = res.data.worker;
             
             // If we have a specific workerId in URL, still cross-check for extra security
-            if (workerId && workerId !== 'undefined' && String(w.identificacion).trim() !== targetCed) {
+            const cleanIdent = String(w.identificacion || '').trim().toLowerCase();
+            const cleanTargetCed = targetCed.trim().toLowerCase();
+            const cleanWId = String(w.id || '').trim().toLowerCase();
+            if (workerId && workerId !== 'undefined' && cleanIdent !== cleanTargetCed && cleanWId !== cleanTargetCed) {
                 setVerifyError('La cédula ingresada no coincide con este perfil. Por favor verifica e intenta de nuevo.');
                 return;
             }
@@ -217,12 +220,23 @@ export default function PublicPerfilUpdate() {
 
     // Auto-advance if worker session or query param detected
     useEffect(() => {
+        // Si hay un workerId específico en la URL y difiere de la sesión previa, no forzar sesión vieja
         const targetCed = sessionWorker?.cedula || session?.cedula;
+        if (workerId && workerId !== 'undefined') {
+            // Si la sesión en caché coincide con el workerId (o su cédula), auto-avanzar
+            if (targetCed && (targetCed === workerId || (workerData && workerData.identificacion === targetCed))) {
+                if (step === 1 && !workerData && !verifying) {
+                    setCedula(targetCed);
+                    handleVerify(targetCed);
+                }
+            }
+            return;
+        }
         if (targetCed && step === 1 && !workerData && !verifying) {
             setCedula(targetCed);
             handleVerify(targetCed);
         }
-    }, [sessionWorker?.cedula, session?.cedula, step, workerData, verifying]);
+    }, [sessionWorker?.cedula, session?.cedula, step, workerData, verifying, workerId]);
 
     const handleSubmit = async () => {
         setSubmitting(true);
