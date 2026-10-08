@@ -60,7 +60,16 @@ if (mongoose.models.PerfilSociodemograficoData) {
     bioTagsIA: { type: Array, default: [] },
     bioScoreIAAptitud: { type: String, default: '' },
     // Estado Laboral & Trazabilidad SG-SST (Activo vs Retirado)
-    estadoLaboral: { type: String, enum: ['Activo', 'Retirado'], default: 'Activo' },
+    estadoLaboral: {
+        type: String,
+        enum: ['Activo', 'Retirado'],
+        default: 'Activo',
+        set: function(val) {
+            if (!val) return 'Activo';
+            const s = String(val).trim().toLowerCase();
+            return (s === 'retirado' || s === 'inactivo') ? 'Retirado' : 'Activo';
+        }
+    },
     fechaRetiro: { type: String, default: '' },
     motivoRetiro: { type: String, default: '' },
     cedula: { type: String, default: '' },
