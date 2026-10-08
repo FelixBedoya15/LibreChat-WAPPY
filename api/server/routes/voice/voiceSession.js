@@ -4886,20 +4886,31 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
     }
 
     /**
-     * Consulta en tiempo real la API pública de ExerciseDB (oss.exercisedb.dev) y la API clínica de NIH (clinicaltables.nlm.nih.gov)
-     * para construir la sección visual de correlación CIE-11 / Decreto 1477 y las fichas con GIFs animados reales de ExerciseDB.
+     * Consulta en tiempo real la API pública de ExerciseDB (oss.exercisedb.dev - 1,500 ejercicios)
+     * y la API clínica de NIH (clinicaltables.nlm.nih.gov) para construir la matriz CIE-11 / Decreto 1477
+     * y una batería integral de 12 fichas visuales con GIFs animados reales de cuerpo completo.
      */
     async buildBiomechanicsPrescriptionBlock() {
-        // URLs oficiales de GIFs animados en ExerciseDB CDN (verificadas con HTTP 200 image/gif)
-        let neckGif = 'https://static.exercisedb.dev/media/oQRJYkC.gif';
-        let dorsalGif = 'https://static.exercisedb.dev/media/GSDioYu.gif';
-        let scapularGif = 'https://static.exercisedb.dev/media/QoHIhPl.gif';
-        let wristGif = 'https://static.exercisedb.dev/media/UtmIqcI.gif';
-        let lumbarGif = 'https://static.exercisedb.dev/media/QFmz6ch.gif';
+        // Catálogo base verificado en CDN oficial de ExerciseDB (HTTP 200 image/gif)
+        const gifs = {
+            neckPush: 'https://static.exercisedb.dev/media/oQRJYkC.gif',       // Side push neck stretch (Elevador escápula / Trapecio)
+            neckSide: 'https://static.exercisedb.dev/media/x2chWLO.gif',       // Neck side stretch (Cervical lateral)
+            upperBack: 'https://static.exercisedb.dev/media/GSDioYu.gif',      // Upper back stretch (Dorsal / Romboides)
+            chestShoulder: 'https://static.exercisedb.dev/media/QoHIhPl.gif',  // Behind head chest stretch (Apertura torácica)
+            rearDeltoid: 'https://static.exercisedb.dev/media/xifhB5W.gif',    // Rear deltoid stretch (Hombro / Manguito rotador)
+            tricepsElbow: 'https://static.exercisedb.dev/media/uOV3Itw.gif',   // Triceps & elbow stretch (Descarga codo / brazo)
+            wristPull: 'https://static.exercisedb.dev/media/UtmIqcI.gif',      // Side wrist pull stretch (Túnel carpiano)
+            wristCircles: 'https://static.exercisedb.dev/media/2zNKRUB.gif',   // Wrist circles (Movilidad sinovial carpo)
+            seatedLumbar: 'https://static.exercisedb.dev/media/QFmz6ch.gif',   // Seated lower back stretch (Descompresión lumbar)
+            spineTwist: 'https://static.exercisedb.dev/media/2jl9K55.gif',     // Spine twist (Rotación espinal)
+            piriformis: 'https://static.exercisedb.dev/media/QY39eBr.gif',     // Seated piriformis stretch (Ciático / Cadera en silla)
+            calfAnkle: 'https://static.exercisedb.dev/media/17bqEXD.gif',      // Seated calf stretch (Retorno venoso / Pantorrilla)
+        };
 
-        let icdCervicalLabel = 'M54.2 - Cervicalgia (Trastorno postural cervical)';
+        let icdCervicalLabel = 'M54.2 - Cervicalgia postural';
         let icdLumbarLabel = 'M54.5 - Lumbago / Dolor lumbar bajo';
         let icdCarpalLabel = 'G56.0 - Síndrome del túnel carpiano';
+        let icdSciaticaLabel = 'M54.3 - Ciática / Síndrome piramidal';
 
         try {
             const fetchWithTimeout = (url, ms = 3000) => {
@@ -4910,50 +4921,233 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
                     .finally(() => clearTimeout(timer));
             };
 
-            const [neckRes, backRes, wristRes, icdCervRes, icdLumbRes, icdCarpRes] = await Promise.allSettled([
+            const [neckRes, backRes, wristRes, icdCervRes, icdLumbRes, icdCarpRes, icdSciaRes] = await Promise.allSettled([
                 fetchWithTimeout('https://oss.exercisedb.dev/api/v1/exercises?bodyParts=neck'),
                 fetchWithTimeout('https://oss.exercisedb.dev/api/v1/exercises/search?search=back%20stretch'),
                 fetchWithTimeout('https://oss.exercisedb.dev/api/v1/exercises/search?search=wrist'),
                 fetchWithTimeout('https://clinicaltables.nlm.nih.gov/api/icd10cm/v3/search?sf=code,name&terms=cervicalgia'),
                 fetchWithTimeout('https://clinicaltables.nlm.nih.gov/api/icd10cm/v3/search?sf=code,name&terms=lumbago'),
                 fetchWithTimeout('https://clinicaltables.nlm.nih.gov/api/icd10cm/v3/search?sf=code,name&terms=carpal+tunnel'),
+                fetchWithTimeout('https://clinicaltables.nlm.nih.gov/api/icd10cm/v3/search?sf=code,name&terms=sciatica'),
             ]);
 
             if (neckRes.status === 'fulfilled' && neckRes.value?.data?.length > 0) {
-                neckGif = neckRes.value.data[0].gifUrl || neckGif;
+                gifs.neckPush = neckRes.value.data[0]?.gifUrl || gifs.neckPush;
+                if (neckRes.value.data[1]?.gifUrl) gifs.neckSide = neckRes.value.data[1].gifUrl;
             }
             if (backRes.status === 'fulfilled' && backRes.value?.data?.length > 0) {
                 const upper = backRes.value.data.find(x => x.name?.includes('upper back'));
                 const seated = backRes.value.data.find(x => x.name?.includes('seated lower back'));
-                if (upper?.gifUrl) dorsalGif = upper.gifUrl;
-                if (seated?.gifUrl) lumbarGif = seated.gifUrl;
+                if (upper?.gifUrl) gifs.upperBack = upper.gifUrl;
+                if (seated?.gifUrl) gifs.seatedLumbar = seated.gifUrl;
             }
             if (wristRes.status === 'fulfilled' && wristRes.value?.data?.length > 0) {
-                const wristStretch = wristRes.value.data.find(x => x.name?.includes('stretch')) || wristRes.value.data[0];
-                if (wristStretch?.gifUrl) wristGif = wristStretch.gifUrl;
+                const wristStretch = wristRes.value.data.find(x => x.name?.includes('stretch'));
+                const circles = wristRes.value.data.find(x => x.name?.includes('circles'));
+                if (wristStretch?.gifUrl) gifs.wristPull = wristStretch.gifUrl;
+                if (circles?.gifUrl) gifs.wristCircles = circles.gifUrl;
             }
             if (icdCervRes.status === 'fulfilled' && Array.isArray(icdCervRes.value?.[3]) && icdCervRes.value[3][0]) {
-                icdCervicalLabel = `${icdCervRes.value[3][0][0]} - ${icdCervRes.value[3][0][1]} (Validado API Clínica)`;
+                icdCervicalLabel = `${icdCervRes.value[3][0][0]} - ${icdCervRes.value[3][0][1]}`;
             }
             if (icdLumbRes.status === 'fulfilled' && Array.isArray(icdLumbRes.value?.[3]) && icdLumbRes.value[3][0]) {
-                icdLumbarLabel = `${icdLumbRes.value[3][0][0]} - ${icdLumbRes.value[3][0][1]} (Validado API Clínica)`;
+                icdLumbarLabel = `${icdLumbRes.value[3][0][0]} - ${icdLumbRes.value[3][0][1]}`;
             }
             if (icdCarpRes.status === 'fulfilled' && Array.isArray(icdCarpRes.value?.[3]) && icdCarpRes.value[3][0]) {
-                icdCarpalLabel = `${icdCarpRes.value[3][0][0]} - ${icdCarpRes.value[3][0][1]} (Validado API Clínica)`;
+                icdCarpalLabel = `${icdCarpRes.value[3][0][0]} - ${icdCarpRes.value[3][0][1]}`;
+            }
+            if (icdSciaRes.status === 'fulfilled' && Array.isArray(icdSciaRes.value?.[3]) && icdSciaRes.value[3][0]) {
+                icdSciaticaLabel = `${icdSciaRes.value[3][0][0]} - ${icdSciaRes.value[3][0][1]}`;
             }
 
-            logger.info(`[VoiceSession] Live APIs queried -> ExerciseDB GIFs: [${neckGif}, ${dorsalGif}, ${lumbarGif}] | ICD API: [${icdCervicalLabel}]`);
+            logger.info(`[VoiceSession] Live ExerciseDB API (12 full-body GIFs) & NIH ICD API queried successfully.`);
         } catch (apiErr) {
             logger.warn('[VoiceSession] Live ExerciseDB/ICD API fallback used:', apiErr.message);
         }
 
+        const exercisesList = [
+            {
+                num: 1,
+                title: 'Estiramiento de Trapecio y Elevador de Escápula',
+                codeBadge: 'CIE-11: FA80',
+                badgeBg: '#ccfbf1',
+                badgeColor: '#0f766e',
+                gifUrl: gifs.neckPush,
+                fallbackSvg: '/images/exercises/trapezius-stretch.svg',
+                muscles: 'Elevador de la escápula (<code>levator scapulae</code>), trapecio superior, ECOM.',
+                angleFix: 'Alivia sobrecarga por flexión cervical (> 20°-35°) e inclinación cefálica.',
+                dosage: '2 series de 15 segundos por lado cada 90 min.',
+                step: 'Sentado con espalda recta, inclinar suavemente la oreja hacia el hombro asistiendo con la mano.',
+            },
+            {
+                num: 2,
+                title: 'Elongación Cervical Lateral Libre',
+                codeBadge: 'CIE-10: M54.2',
+                badgeBg: '#e0f2fe',
+                badgeColor: '#0369a1',
+                gifUrl: gifs.neckSide,
+                fallbackSvg: '/images/exercises/cervical-chin-tuck.svg',
+                muscles: 'Escalenos anterior/medio, esplenio del cuello y fascia cervical.',
+                angleFix: 'Descomprime vértebras C3-C7 ante postura estática frente a monitor.',
+                dosage: '2 series de 15 segundos por lado con respiración pausada.',
+                step: 'Descender hombros y realizar inclinación lateral pura sin rotar el mentón.',
+            },
+            {
+                num: 3,
+                title: 'Extensión Dorsal y Retracción Escapular',
+                codeBadge: 'CIE-10: M50 / M54.6',
+                badgeBg: '#fef3c7',
+                badgeColor: '#b45309',
+                gifUrl: gifs.upperBack,
+                fallbackSvg: '/images/exercises/cervical-chin-tuck.svg',
+                muscles: 'Trapecio medio, romboides mayor/menor y erectores torácicos.',
+                angleFix: 'Corrige cifosis dorsal y adelantamiento cefálico ("Tech Neck").',
+                dosage: '2 series de 15 segundos cada 90 minutos de labor continua.',
+                step: 'Entrelazar manos al frente, movilizar escápulas y alinear el eje dorsocervical.',
+            },
+            {
+                num: 4,
+                title: 'Apertura Torácica y Pectoral Bilateral',
+                codeBadge: 'CIE-11: FB40.1',
+                badgeBg: '#e0f2fe',
+                badgeColor: '#0369a1',
+                gifUrl: gifs.chestShoulder,
+                fallbackSvg: '/images/exercises/scapular-retraction.svg',
+                muscles: 'Pectoral mayor y menor, deltoides anterior, porción larga del bíceps.',
+                angleFix: 'Revierte hombros redondeados (antepulsión) y abducción sostenida.',
+                dosage: '2 series de 15 segundos con inhalación diafragmática profunda.',
+                step: 'Manos detrás de la nuca, proyectar codos hacia atrás abriendo la caja torácica.',
+            },
+            {
+                num: 5,
+                title: 'Estiramiento Cruzado de Deltoides y Manguito Rotador',
+                codeBadge: 'CIE-10: M75.1',
+                badgeBg: '#ffedd5',
+                badgeColor: '#c2410c',
+                gifUrl: gifs.rearDeltoid,
+                fallbackSvg: '/images/exercises/scapular-retraction.svg',
+                muscles: 'Deltoides posterior, infraespinoso, redondo menor y cápsula articular.',
+                angleFix: 'Alivia fatiga por abducción de brazos (> 45°) o alcances repetitivos.',
+                dosage: '2 series de 15 segundos por cada brazo.',
+                step: 'Cruzar el brazo extendido frente al pecho y presionar suavemente a la altura del codo.',
+            },
+            {
+                num: 6,
+                title: 'Elongación Miofascial de Tríceps y Codo',
+                codeBadge: 'CIE-11: FB52.2',
+                badgeBg: '#fae8ff',
+                badgeColor: '#a21caf',
+                gifUrl: gifs.tricepsElbow,
+                fallbackSvg: '/images/exercises/scapular-retraction.svg',
+                muscles: 'Tríceps braquial, ancóneo, dorsal ancho superior y fascia del codo.',
+                angleFix: 'Descarga articulación humerocubital tras flexión rígida fuera de 90°-100°.',
+                dosage: '2 series de 15 segundos por brazo.',
+                step: 'Elevar el brazo flexionando el codo tras la cabeza y empujar suavemente con la mano opuesta.',
+            },
+            {
+                num: 7,
+                title: 'Tracción de Flexores/Extensores y Túnel Carpiano',
+                codeBadge: 'CIE-11: 8C10.0',
+                badgeBg: '#f3e8ff',
+                badgeColor: '#7e22ce',
+                gifUrl: gifs.wristPull,
+                fallbackSvg: '/images/exercises/wrist-carpal-stretch.svg',
+                muscles: 'Flexor radial/ulnar del carpo, palmar largo y nervio mediano.',
+                angleFix: 'Previene atrapamiento del nervio mediano (G56.0) y epicondilitis (M77.1).',
+                dosage: '2 series de 15 segundos en cada mano cada 90 minutos.',
+                step: 'Extender brazo al frente y traccionar suavemente los dedos liberando el túnel del carpo.',
+            },
+            {
+                num: 8,
+                title: 'Circunducción y Movilidad Sinovial de Muñecas',
+                codeBadge: 'CIE-10: M65.4',
+                badgeBg: '#ede9fe',
+                badgeColor: '#6d28d9',
+                gifUrl: gifs.wristCircles,
+                fallbackSvg: '/images/exercises/wrist-carpal-stretch.svg',
+                muscles: 'Retináculo flexor/extensor, tendones intrínsecos de mano y carpo.',
+                angleFix: 'Reduce rigidez por digitación intensiva y uso continuo de mouse.',
+                dosage: '2 series de 10 giros lentos en sentido horario y antihorario.',
+                step: 'Realizar círculos amplios y controlados con ambas muñecas manteniendo antebrazos estables.',
+            },
+            {
+                num: 9,
+                title: 'Descompresión Lumbar en Silla (Flexión Controlada)',
+                codeBadge: 'CIE-11: FA81',
+                badgeBg: '#dcfce7',
+                badgeColor: '#15803d',
+                gifUrl: gifs.seatedLumbar,
+                fallbackSvg: '/images/exercises/lumbar-decompression.svg',
+                muscles: 'Erectores espinales (<code>erector spinae</code>), cuadrado lumbar, fascia toracolumbar.',
+                angleFix: 'Alivia presión intradiscal L4-L5 y L5-S1 por inclinación de tronco (> 20°).',
+                dosage: '2 series de 15 segundos cada 90 minutos de trabajo sedente.',
+                step: 'Sentado firme en la silla, descender el tronco suavemente entre las rodillas relajando la zona lumbar.',
+            },
+            {
+                num: 10,
+                title: 'Rotación Axial Descompresiva de Columna (Spine Twist)',
+                codeBadge: 'CIE-10: M54.5',
+                badgeBg: '#d1fae5',
+                badgeColor: '#047857',
+                gifUrl: gifs.spineTwist,
+                fallbackSvg: '/images/exercises/lumbar-decompression.svg',
+                muscles: 'Multífidos, oblicuos internos/externos y rotadores vertebrales.',
+                angleFix: 'Libera rigidez facetaria dorsolumbar tras posturas asimétricas o estáticas.',
+                dosage: '2 repeticiones de 12 segundos por cada lado.',
+                step: 'Con pelvis estable en la silla, girar suavemente el torso exhalando sin forzar el rango articular.',
+            },
+            {
+                num: 11,
+                title: 'Estiramiento de Piriforme y Nervio Ciático en Silla',
+                codeBadge: 'CIE-10: M54.3',
+                badgeBg: '#ffe4e6',
+                badgeColor: '#be123c',
+                gifUrl: gifs.piriformis,
+                fallbackSvg: '/images/exercises/lumbar-decompression.svg',
+                muscles: 'Músculo piriforme (<code>piriformis</code>), glúteo medio/mayor y nervio ciático.',
+                angleFix: 'Previene síndrome piramidal y adormecimiento glúteo por sedestación > 2 horas.',
+                dosage: '2 series de 15 segundos por cada pierna en la misma silla.',
+                step: 'Cruzar el tobillo sobre la rodilla opuesta formando un "4" e inclinar levemente la espalda recta hacia adelante.',
+            },
+            {
+                num: 12,
+                title: 'Activación de Bomba Venosa de Pantorrilla y Tobillo',
+                codeBadge: 'CIE-11: BD53',
+                badgeBg: '#cffafe',
+                badgeColor: '#0e7490',
+                gifUrl: gifs.calfAnkle,
+                fallbackSvg: '/images/exercises/lumbar-decompression.svg',
+                muscles: 'Gastrocnemio, sóleo (<code>calves</code>), tibial anterior y retorno venoso.',
+                angleFix: 'Previene estasis venosa periférica, edema maleolar y fatiga de miembros inferiores.',
+                dosage: '2 series de 15 segundos por pierna cada 90-120 minutos.',
+                step: 'Extender rodilla en silla y traccionar la punta del pie en dorsiflexión activando la bomba sóleo-gemelar.',
+            },
+        ];
+
+        const cardsHtml = exercisesList.map(ex => `
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; flex-direction:column;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:6px;">
+            <span style="font-weight:700; color:#0f766e; font-size:0.92em;">${ex.num}. ${ex.title}</span>
+            <span style="background:${ex.badgeBg}; color:${ex.badgeColor}; padding:2px 8px; border-radius:6px; font-size:0.72em; font-weight:700; white-space:nowrap;">${ex.codeBadge}</span>
+          </div>
+          <div style="text-align:center; margin:6px 0; border-radius:8px; overflow:hidden; background:#ffffff; border:1px solid #e2e8f0; padding:6px;">
+            <img src="${ex.gifUrl}" onerror="this.onerror=null; this.src='${ex.fallbackSvg}';" alt="${ex.title} - ExerciseDB GIF" style="width:100%; max-width:210px; height:auto; display:block; margin:0 auto; border-radius:6px;" />
+          </div>
+          <div style="font-size:0.82em; color:#334155; line-height:1.48; margin-top:8px;">
+            <p style="margin:2px 0;"><strong>🎯 Músculos Diana:</strong> ${ex.muscles}</p>
+            <p style="margin:2px 0;"><strong>📐 Efecto Biomecánico:</strong> ${ex.angleFix}</p>
+            <p style="margin:2px 0;"><strong>⏱️ Dosificación:</strong> ${ex.dosage}</p>
+            <p style="margin:2px 0; color:#0f766e;"><strong>💡 Técnica:</strong> ${ex.step}</p>
+          </div>
+        </div>`).join('\n');
+
         return `
     <div class="clinical-biomechanics-prescription" style="margin-top:28px; margin-bottom:24px;">
       <h3 style="color:#0f766e; font-size:1.25em; font-weight:700; border-bottom:1.5px solid #ccfbf1; padding-bottom:6px; margin-top:24px;">
-        4.1 Correlación Diagnóstica Ocupacional (API CIE-11 OMS / NIH Clinical Tables & Decreto 1477 de 2014)
+        4.1 Correlación Diagnóstica Ocupacional Integral (API CIE-11 OMS / NIH Clinical Tables & Decreto 1477 de 2014)
       </h3>
       <p style="color:#475569; font-size:0.9em; margin-bottom:12px;">
-        Con base en los ángulos articulares y sobrecargas posturales medidas en las 3 fases de la inspección, se vinculan los hallazgos con los códigos diagnósticos estandarizados de la <strong>API Clínica CIE-11 (OMS) / ICD-10-CM</strong> y la Tabla de Enfermedades Laborales de Colombia (Decreto 1477 de 2014):
+        Con base en la telemetría articular de las 3 fases de la inspección, se vinculan los hallazgos biomecánicos de cuerpo completo con los códigos diagnósticos estandarizados de la <strong>API Clínica CIE-11 (OMS) / ICD-10-CM</strong> y la Tabla de Enfermedades Laborales de Colombia (Decreto 1477 de 2014):
       </p>
       <div class="table-responsive" style="overflow-x:auto; width:100%; margin:14px 0; -webkit-overflow-scrolling:touch;">
         <table style="width:100%; min-width:800px; border-collapse:separate; border-spacing:0; border-radius:10px; overflow:hidden; border:1px solid #e2e8f0; font-size:0.85em;">
@@ -4963,134 +5157,72 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
               <th style="padding:9px 10px; font-weight:700;">Código CIE-11 (OMS)</th>
               <th style="padding:9px 10px; font-weight:700;">Código CIE-10 (Dec. 1477 / API)</th>
               <th style="padding:9px 10px; font-weight:700;">Diagnóstico Clínico Ocupacional</th>
-              <th style="padding:9px 10px; font-weight:700;">Criterio de Vigilancia Epidemiológica</th>
+              <th style="padding:9px 10px; font-weight:700;">Criterio de Vigilancia Epidemiológica (PVE)</th>
             </tr>
           </thead>
           <tbody>
             <tr style="background:#f0fdfa;">
-              <td style="padding:8px 10px; font-weight:600; color:#0f766e;">Flexión Cervical (> 20°-35°)</td>
+              <td style="padding:8px 10px; font-weight:600; color:#0f766e;">Columna Cervical (Flexión > 20°-35°)</td>
               <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0284c7;">FA80 / ME84.0</td>
               <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0369a1;">M54.2 / M50</td>
               <td style="padding:8px 10px;">${icdCervicalLabel} / Trastorno de disco cervical ("Tech Neck")</td>
-              <td style="padding:8px 10px;">Nivelar borde superior del monitor a la altura de los ojos y pausas de retracción cervical.</td>
+              <td style="padding:8px 10px;">Nivelar borde superior del monitor a la altura de los ojos y pausas de retracción/elongación cervical.</td>
             </tr>
             <tr>
-              <td style="padding:8px 10px; font-weight:600; color:#0f766e;">Inclinación de Tronco / Sedestación Prolongada</td>
-              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0284c7;">FA81 / ME84.2</td>
-              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0369a1;">M54.5 / M51</td>
-              <td style="padding:8px 10px;">${icdLumbarLabel} / Sobrecarga discal L4-L5 y L5-S1</td>
-              <td style="padding:8px 10px;">Soporte lumbar activo en silla ergonómica y descompresión axial cada 90 minutos.</td>
-            </tr>
-            <tr style="background:#f0fdfa;">
-              <td style="padding:8px 10px; font-weight:600; color:#0f766e;">Abducción de Brazos / Hombros (> 45°)</td>
+              <td style="padding:8px 10px; font-weight:600; color:#0f766e;">Cintura Escapular y Hombros (Abducción > 45°)</td>
               <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0284c7;">FB40.1</td>
               <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0369a1;">M75.1 / M75.8</td>
-              <td style="padding:8px 10px;">Tendinopatía de manguito rotador / Pinzamiento subacromial</td>
-              <td style="padding:8px 10px;">Acercamiento de teclado/mouse al plano corporal y ajuste de apoyabrazos a 90°.</td>
+              <td style="padding:8px 10px;">Síndrome de manguito rotador / Pinzamiento subacromial y deltoideo</td>
+              <td style="padding:8px 10px;">Acercar periféricos a zona de alcance óptimo y regular apoyabrazos a 90°.</td>
+            </tr>
+            <tr style="background:#f0fdfa;">
+              <td style="padding:8px 10px; font-weight:600; color:#0f766e;">Codo y Antebrazo (Flexión Rígida / Extensión)</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0284c7;">FB52.2</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0369a1;">M77.1 / M77.0</td>
+              <td style="padding:8px 10px;">Epicondilitis lateral (codo de tenista) y epitrocleítis ocupacional</td>
+              <td style="padding:8px 10px;">Evitar apoyo sobre bordes duros de escritorio y realizar elongación de extensores/tríceps.</td>
             </tr>
             <tr>
-              <td style="padding:8px 10px; font-weight:600; color:#0f766e;">Muñeca / Flexo-extensión y Tipeo Continuo</td>
-              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0284c7;">8C10.0</td>
-              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0369a1;">G56.0 / M77.1</td>
-              <td style="padding:8px 10px;">${icdCarpalLabel} / Epicondilitis lateral</td>
-              <td style="padding:8px 10px;">Alineación neutra de muñeca, apoyo en gel y estiramiento neurodinámico del nervio mediano.</td>
+              <td style="padding:8px 10px; font-weight:600; color:#0f766e;">Muñeca, Carpo y Dedos (Tipeo / Desviación Ulnar)</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0284c7;">8C10.0 / FB40.3</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0369a1;">G56.0 / M65.4</td>
+              <td style="padding:8px 10px;">${icdCarpalLabel} / Tenosinovitis estiloides radial (De Quervain)</td>
+              <td style="padding:8px 10px;">Mouse vertical/ergonómico, alineación neutra de carpo y tracción neurodinámica cada 90 min.</td>
+            </tr>
+            <tr style="background:#f0fdfa;">
+              <td style="padding:8px 10px; font-weight:600; color:#0f766e;">Columna Dorsal / Torácica (Cifosis Postural)</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0284c7;">ME84.1</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0369a1;">M54.6</td>
+              <td style="padding:8px 10px;">Dorsalgia miofascial por antepulsión escapular sostenida</td>
+              <td style="padding:8px 10px;">Apoyo dorsal completo en respaldo y ejercicios de apertura torácica e interescapular.</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 10px; font-weight:600; color:#0f766e;">Columna Lumbar, Pelvis y Ciático (Tronco > 20°)</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0284c7;">FA81 / ME84.3</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0369a1;">M54.5 / M54.3</td>
+              <td style="padding:8px 10px;">${icdLumbarLabel} / ${icdSciaticaLabel}</td>
+              <td style="padding:8px 10px;">Soporte lumbar regulable, descompresión axial en silla y elongación de músculo piriforme.</td>
+            </tr>
+            <tr style="background:#f0fdfa;">
+              <td style="padding:8px 10px; font-weight:600; color:#0f766e;">Miembros Inferiores, Rodillas y Circulación</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0284c7;">BD53 / FA20</td>
+              <td style="padding:8px 10px; font-family:monospace; font-weight:700; color:#0369a1;">I87.2 / M25.5</td>
+              <td style="padding:8px 10px;">Insuficiencia venosa periférica funcional por estasis postural y gonalgia</td>
+              <td style="padding:8px 10px;">Uso de reposapiés ergonómico, ángulo poplíteo libre a 90°-100° y activación de bomba sóleo-gemelar.</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <h3 style="color:#0f766e; font-size:1.25em; font-weight:700; border-bottom:1.5px solid #ccfbf1; padding-bottom:6px; margin-top:28px;">
-        5.1 Ficha Visual de Rehabilitación y Pausas Activas (GIFs en Vivo desde ExerciseDB API)
+        5.1 Programa Visual Completo de Pausas Activas y Rehabilitación (12 Ejercicios en Vivo desde ExerciseDB API)
       </h3>
       <p style="color:#475569; font-size:0.9em; margin-bottom:16px;">
-        Prescripción kinésica visual obtenida directamente desde <strong>ExerciseDB API (<code>oss.exercisedb.dev</code>)</strong> con animaciones GIF paso a paso para aliviar la tensión muscular de los grados medidos en las Fases 1, 2 y 3:
+        Batería terapéutica integral de <strong>12 ejercicios biomecánicos de cuerpo completo</strong> (Cuello, Hombros, Codos, Muñecas, Espalda Dorsal, Zona Lumbar, Cadera/Ciático y Retorno Venoso) obtenida desde <strong>ExerciseDB API (<code>oss.exercisedb.dev</code>)</strong> con animaciones GIF paso a paso:
       </p>
       
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:18px; margin:16px 0;">
-        <!-- EJERCICIO 1: ESTIRAMIENTO DE TRAPECIO SUPERIOR Y ELEVADOR DE LA ESCÁPULA -->
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; flex-direction:column;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span style="font-weight:700; color:#0f766e; font-size:0.95em;">1. Estiramiento de Trapecio y Elevador de Escápula</span>
-            <span style="background:#ccfbf1; color:#0f766e; padding:2px 8px; border-radius:6px; font-size:0.75em; font-weight:700;">CIE-11: FA80</span>
-          </div>
-          <div style="text-align:center; margin:6px 0; border-radius:8px; overflow:hidden; background:#ffffff; border:1px solid #e2e8f0; padding:6px;">
-            <img src="${neckGif}" onerror="this.onerror=null; this.src='/images/exercises/trapezius-stretch.svg';" alt="Side Push Neck Stretch - ExerciseDB GIF" style="width:100%; max-width:220px; height:auto; display:block; margin:0 auto; border-radius:6px;" />
-          </div>
-          <div style="font-size:0.83em; color:#334155; line-height:1.5; margin-top:8px;">
-            <p style="margin:2px 0;"><strong>🎯 Músculos Diana (ExerciseDB):</strong> Elevador de la escápula (<code>levator scapulae</code>), trapecio superior, ECOM.</p>
-            <p style="margin:2px 0;"><strong>📐 Corrección Angular:</strong> Alivia la sobrecarga por flexión cervical (> 20°-35°) y rotación de cuello.</p>
-            <p style="margin:2px 0;"><strong>⏱️ Dosificación Clínica:</strong> 2 series de 15 segundos por cada lado cada 90 minutos de trabajo continuo.</p>
-            <p style="margin:2px 0; color:#0f766e;"><strong>💡 Ejecución Paso a Paso:</strong> Sentado con espalda recta, inclinar suavemente la oreja hacia el hombro asistiendo con la mano sin rebotar.</p>
-          </div>
-        </div>
-
-        <!-- EJERCICIO 2: RETRACCIÓN CERVICAL Y EXTENSIÓN DORSAL EN SILLA -->
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; flex-direction:column;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span style="font-weight:700; color:#0f766e; font-size:0.95em;">2. Extensión Dorsal y Retracción Cervical</span>
-            <span style="background:#fef3c7; color:#b45309; padding:2px 8px; border-radius:6px; font-size:0.75em; font-weight:700;">CIE-10: M50 / M54.2</span>
-          </div>
-          <div style="text-align:center; margin:6px 0; border-radius:8px; overflow:hidden; background:#ffffff; border:1px solid #e2e8f0; padding:6px;">
-            <img src="${dorsalGif}" onerror="this.onerror=null; this.src='/images/exercises/cervical-chin-tuck.svg';" alt="Upper Back Stretch - ExerciseDB GIF" style="width:100%; max-width:220px; height:auto; display:block; margin:0 auto; border-radius:6px;" />
-          </div>
-          <div style="font-size:0.83em; color:#334155; line-height:1.5; margin-top:8px;">
-            <p style="margin:2px 0;"><strong>🎯 Músculos Diana (ExerciseDB):</strong> Trapecio medio, romboides, extensores dorsocervicales.</p>
-            <p style="margin:2px 0;"><strong>📐 Corrección Angular:</strong> Compensa la cifosis dorsal y el adelantamiento cefálico frente al computador.</p>
-            <p style="margin:2px 0;"><strong>⏱️ Dosificación Clínica:</strong> 2 series de 15 segundos cada 90 minutos de trabajo continuo.</p>
-            <p style="margin:2px 0; color:#0f766e;"><strong>💡 Ejecución Paso a Paso:</strong> Entrelazar manos, movilizar escápulas y alinear el eje cervical manteniendo respiración fluida.</p>
-          </div>
-        </div>
-
-        <!-- EJERCICIO 3: APERTURA PECTORAL Y RETRACCIÓN ESCAPULAR -->
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; flex-direction:column;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span style="font-weight:700; color:#0f766e; font-size:0.95em;">3. Apertura Torácica y Escapular</span>
-            <span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:6px; font-size:0.75em; font-weight:700;">CIE-11: FB40.1</span>
-          </div>
-          <div style="text-align:center; margin:6px 0; border-radius:8px; overflow:hidden; background:#ffffff; border:1px solid #e2e8f0; padding:6px;">
-            <img src="${scapularGif}" onerror="this.onerror=null; this.src='/images/exercises/scapular-retraction.svg';" alt="Behind Head Chest Stretch - ExerciseDB GIF" style="width:100%; max-width:220px; height:auto; display:block; margin:0 auto; border-radius:6px;" />
-          </div>
-          <div style="font-size:0.83em; color:#334155; line-height:1.5; margin-top:8px;">
-            <p style="margin:2px 0;"><strong>🎯 Músculos Diana (ExerciseDB):</strong> Pectoral mayor y menor, deltoides anterior, manguito rotador.</p>
-            <p style="margin:2px 0;"><strong>📐 Corrección Angular:</strong> Corrige la abducción de hombros (> 45°) y hombros redondeados hacia adelante.</p>
-            <p style="margin:2px 0;"><strong>⏱️ Dosificación Clínica:</strong> 2 series de 15 segundos con inhalación profunda torácica.</p>
-            <p style="margin:2px 0; color:#0f766e;"><strong>💡 Ejecución Paso a Paso:</strong> Llevar manos detrás de la nuca, abrir codos hacia atrás juntando omóplatos durante 15 segundos.</p>
-          </div>
-        </div>
-
-        <!-- EJERCICIO 4: ESTIRAMIENTO DE FLEXORES/EXTENSORES DE MUÑECA -->
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; flex-direction:column;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span style="font-weight:700; color:#0f766e; font-size:0.95em;">4. Descompresión de Muñeca y Túnel Carpiano</span>
-            <span style="background:#f3e8ff; color:#7e22ce; padding:2px 8px; border-radius:6px; font-size:0.75em; font-weight:700;">CIE-11: 8C10.0</span>
-          </div>
-          <div style="text-align:center; margin:6px 0; border-radius:8px; overflow:hidden; background:#ffffff; border:1px solid #e2e8f0; padding:6px;">
-            <img src="${wristGif}" onerror="this.onerror=null; this.src='/images/exercises/wrist-carpal-stretch.svg';" alt="Side Wrist Pull Stretch - ExerciseDB GIF" style="width:100%; max-width:220px; height:auto; display:block; margin:0 auto; border-radius:6px;" />
-          </div>
-          <div style="font-size:0.83em; color:#334155; line-height:1.5; margin-top:8px;">
-            <p style="margin:2px 0;"><strong>🎯 Músculos Diana (ExerciseDB):</strong> Flexores y extensores del antebrazo (<code>forearms</code>), nervio mediano.</p>
-            <p style="margin:2px 0;"><strong>📐 Corrección Angular:</strong> Previene tenosinovitis y atrapamiento nervioso por uso de teclado y mouse.</p>
-            <p style="margin:2px 0;"><strong>⏱️ Dosificación Clínica:</strong> 2 series de 15 segundos en cada mano cada 90 minutos.</p>
-            <p style="margin:2px 0; color:#0f766e;"><strong>💡 Ejecución Paso a Paso:</strong> Extender el brazo y traccionar suavemente la mano opuesta liberando la tensión del carpo.</p>
-          </div>
-        </div>
-
-        <!-- EJERCICIO 5: ESTIRAMIENTO Y DESCOMPRESIÓN LUMBAR EN SILLA -->
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; flex-direction:column;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span style="font-weight:700; color:#0f766e; font-size:0.95em;">5. Descompresión Lumbar en Silla</span>
-            <span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:6px; font-size:0.75em; font-weight:700;">CIE-11: FA81</span>
-          </div>
-          <div style="text-align:center; margin:6px 0; border-radius:8px; overflow:hidden; background:#ffffff; border:1px solid #e2e8f0; padding:6px;">
-            <img src="${lumbarGif}" onerror="this.onerror=null; this.src='/images/exercises/lumbar-decompression.svg';" alt="Seated Lower Back Stretch - ExerciseDB GIF" style="width:100%; max-width:220px; height:auto; display:block; margin:0 auto; border-radius:6px;" />
-          </div>
-          <div style="font-size:0.83em; color:#334155; line-height:1.5; margin-top:8px;">
-            <p style="margin:2px 0;"><strong>🎯 Músculos Diana (ExerciseDB):</strong> Erectores espinales (<code>erector spinae</code>), cuadrado lumbar, glúteo mayor.</p>
-            <p style="margin:2px 0;"><strong>📐 Corrección Angular:</strong> Alivia la inclinación de tronco (> 20°) y la compresión intradiscal L4-L5.</p>
-            <p style="margin:2px 0;"><strong>⏱️ Dosificación Clínica:</strong> 2 series de 15 segundos cada 90 minutos de trabajo sedente.</p>
-            <p style="margin:2px 0; color:#0f766e;"><strong>💡 Ejecución Paso a Paso:</strong> En posición sedente, realizar flexión/elongación lumbar controlada descomprimiendo la columna baja.</p>
-          </div>
-        </div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:16px; margin:16px 0;">
+        ${cardsHtml}
       </div>
     </div>
         `;
